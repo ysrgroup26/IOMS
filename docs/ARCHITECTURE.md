@@ -1,0 +1,261 @@
+# Architecture
+
+This document covers the cross-cutting patterns that span multiple modules — the reusable
+"engines," the multi-tenant/company-scoping model, and the current authorization approach. For
+what a specific module does, see `MODULES.md`. For the reasoning behind a specific decision below,
+check `ADR/` — this document says *what* the shape is; the relevant ADR says *why*, in more depth,
+where the decision wasn't obvious.
+
+## The reusable engine pattern
+
+The recurring shape in this codebase: build one general mechanism, expose it as a trait or service,
+and have modules opt in rather than reimplementing similar logic per module. This pattern emerged
+gradually — Material Request is the first (and so far only) module built with all of them wired
+together — and is the intended template for whatever comes next (PPE Replacement Request's
+approval flow, a future Permit To Work, Purchase Request, etc.).
+
+### Approval Engine
+
+**What it is**: a single, polymorphic `approvals` table (`approvable_type`/`approvable_id`) plus
+a generic `ApprovalController` (`approvals.approve` / `approvals.reject` routes) that operate on
+the `Approval` record's own polymorphic relationship — not scoped under any specific module's
+routes.
+
+**How a model opts in**: add the `HasApprovals` trait (`app/Concerns/HasApprovals.php`). It
+provides `approvals()` (morphMany), `latestApproval()`, and `submitForApproval($user)` (idempotent
+— calling it again while a pending approval already exists returns the existing one rather than
+creating a duplicate).
+
+**Authorization**: currently a config-driven role check (`config/workflow.php`'s `approvers` list),
+not a hardcoded role name, and not yet a real per-module/per-role assignment (see § Authorization
+below and `ADR/001-approval-engine.md` / `ADR/006-material-request-workflow.md`).
+
+**What it deliberately is not**: the larger, configurable multi-step Workflow Engine discussed
+early on (per-company editable approval chains like `Manager -> Logistics -> Purchasing ->
+Warehouse`, role-based steps, Approve/Reject/Return/Comment/Attachment per step). That's
+substantially bigger and hasn't been built. The `approvals` table's shape doesn't preclude adding
+that later (e.g. an optional `step` column), but nothing today assumes it's coming in a particular
+form.
+
+### Workflow Engine
+
+**What it is**: `app/Concerns/HasWorkflow.php`, a state-machine guard around a model's own
+`status` column. Complements the Approval Engine rather than duplicating it — `HasApprovals` is
+specifically about the submit/approve/reject *decision*; `HasWorkflow` is the more general guard
+valid for a model's *entire* lifecycle, including transitions with no approval decision involved
+at all (e.g. Material Request's `approved -> processing` and `processing -> completed`).
+
+**How a model opts in**: define a `protected static array $transitions` map (from-status =>
+allowed-to-statuses) and use the trait. `transitionTo($newStatus, $user, $description = null, $meta
+= [])` throws a descriptive `ValidationException` naming the current status and what's actually
+allowed for any disallowed move, and logs exactly one `ActivityLog` entry for any allowed one.
+`canTransitionTo($newStatus)` is available for conditionally rendering UI (e.g. "only show the
+Approve button if this transition is actually legal from here").
+
+**Integration point with the Approval Engine**: when `ApprovalController` decides an approval, it
+calls `$approval->approvable->transitionTo(...)`, passing the approval's comments through as
+`$meta` — this is the single source of both validation and the activity log entry for that
+decision. (Earlier code called `$approval->approvable()->update([...])` directly, bypassing
+validation entirely and risking a duplicate log entry — see `CONVENTIONS.md`'s pitfalls list.)
+
+### Activity Timeline
+
+**What it is**: `ActivityLog`, a polymorphic model (`subject_type`/`subject_id`) with a
+`record($action, $description, $subject, $meta = [])` static convenience method. This already
+existed and was already used 32+ times across controllers *before* the Timeline viewer was built —
+worth remembering, because it means "does X already have a recording mechanism" is very often
+"yes," and the actual gap is usually on the viewing side.
+
+**Viewing**: `resources/js/Components/shared/ActivityTimeline.jsx` — a plain list renderer, not a
+self-fetching component. The convention is: a page's own controller `show()` method eager-loads
+the relevant `ActivityLog::where('subject_type', X::class)->where('subject_id', $id)->with('user')`
+rows and passes them as a prop; the component just renders what it's given. No dedicated
+`GET /activity-log?...` endpoint exists (a global, cross-record activity feed would need one, but
+nothing currently needs that — see `ADR/004-timeline-engine.md` for why it wasn't built ahead of
+need).
+
+### PDF Generation
+
+**What it is**: `app/Services/PdfGeneratorService.php`, a thin wrapper around
+`barryvdh/laravel-dompdf`. `streamInline($view, $data, $filename)` and `download(...)` both take a
+plain Blade view name — the actual document layout lives entirely in `resources/views/pdf/*.blade.php`
+files, styled as traditional, printable paperwork (dense tables, signature lines) rather than
+modern web design, since the explicit goal has been compatibility with existing company paperwork
+formats, not visual polish.
+
+**Convention for a new document type**: write a Blade view, call the service from your controller.
+Don't call the PDF library directly — every future document type (Daily Report, Incident Report,
+Permit To Work, Inspection Checklist) is expected to go through this same service.
+
+### Report Export architecture (prepared, not fully built)
+
+**What it is**: `app/Contracts/ReportExportInterface.php` + `app/Services/ReportTemplateResolver.php`.
+`KpiReportExport` (the current generic KPI report export) implements the interface as the default.
+`ReportController` calls the resolver rather than instantiating an export class directly. No actual
+company-specific Excel template exists yet — this is deliberately just the plug-in point, built
+ahead of any real template because building the seam is cheap and doing it later would mean
+touching `ReportController` again.
+
+**Convention for a new company template**: add a class implementing `ReportExportInterface`, add
+one `match` arm (or similar dispatch) in `ReportTemplateResolver`. Don't touch `ReportController`.
+
+### Import Engine
+
+**What it is**: `app/Imports/EmployeesImport.php` — the first, and so far only, real import in the
+codebase. Uses Maatwebsite's `OnEachRow` (not `ToModel`) specifically because per-row error
+handling needs to happen mid-loop: a duplicate Employee ID or missing critical field must be
+recorded as a skipped row and the loop must continue, never abort the whole file. Chunked at 200
+rows (`WithChunkReading`) so large files don't need to be held in memory at once.
+
+**Preview / dry-run mode**: the same class, not a parallel scanner, supports a `previewOnly`
+constructor flag. All the same row parsing, critical-field checks, and duplicate detection run
+either way; only the point where a row would actually write to the database is skipped in preview
+mode. This is the mechanism behind Employee Import's "Preview Import" step.
+
+**Smart Master Data Detection**: `app/Services/MasterDataDetector.php` — deliberately its own
+standalone service, not baked into `EmployeesImport`, specifically so a future Department Import,
+Project Import, PPE Master Import, Vendor Import, or Contractor Import can reuse the exact same
+"which of these names already exist, which are new, which are probably a typo" classification
+against their own tables. Typo detection is a plain Levenshtein distance check (distance ≤2) — a
+name within that distance of an existing one is *suggested*, never silently auto-created as a
+duplicate.
+
+**Not yet generalized**: there's no `ImportEngine` base class extracting the common shape from
+`EmployeesImport` — deliberately deferred, since abstracting a reusable pattern from a single
+real example tends to guess the wrong shape. Build the second real import, then extract what's
+actually common.
+
+## Multi-tenant / company-scoping model
+
+**Current state**: partial foundation, not a finished multi-tenant system.
+
+- `users.company_id` — nullable FK. Existing internal-staff users are `NULL` on purpose (they're
+  not scoped to one company); a real multi-tenant customer's users would have it set.
+- `app/Services/TenantContext.php` + `app/Http/Middleware/IdentifyTenant.php` — resolve "the
+  current company" from the authenticated user plus an optional request parameter, cached per
+  request. Deliberately does **not** auto-scope Eloquent queries globally (a retroactive global
+  scope across every model was judged too risky to introduce all at once) — scoping is still
+  explicit, per-query (`scopeInCompany`, `->where('company_id', ...)`), not automatic.
+- **Company filtering convention, app-wide**: a per-request query parameter (`?company_id=X`),
+  consistently, everywhere — Dashboard, PPE, Reports, Employees, Settings' Departments/Positions
+  filters. **There is no persistent "Active Company" session concept anywhere in this codebase.**
+  If you're tempted to build one, that's a real, load-bearing architectural change, not a small
+  addition — check with whoever owns the roadmap before introducing it, since it would be a new
+  pattern alongside the existing one, not a drop-in replacement.
+- Company-scoped master data: `departments` and `positions` both have a required `company_id`
+  (positions' was added later, backfilled from each position's own department's company where
+  possible). A department/position name only needs to be unique *within* its company.
+
+## Authorization (no RBAC package — a deliberate, documented decision)
+
+There is no Spatie Laravel Permission or equivalent package in this codebase. Authorization is:
+
+1. A plain `role` string column on `users` (`super_admin`, `hse`, `hrd`, `manager`, `warehouse`) —
+   genuinely a `VARCHAR`, not a real database `ENUM`, specifically so new roles can be added with
+   zero migration (as `warehouse` was).
+2. Hardcoded `isX()` / `canX()` helper methods on the `User` model for domain-specific checks
+   (`canManageMaterialRequests()`, `canManagePpeDistribution()`, etc.).
+3. For workflow actions specifically (approve/process/override), a config file
+   (`config/workflow.php`) with named role lists, read by the relevant controllers — this exists
+   specifically so a future migration to a real RBAC package has one small, well-defined place to
+   change per action type, rather than dozens of inline `if ($user->role === 'x')` checks scattered
+   through controllers.
+
+**This was evaluated, not overlooked.** The recommendation (`ADR/006-material-request-workflow.md`)
+is to adopt Spatie Laravel Permission when genuine multi-tenant permission complexity actually
+arrives (per-company custom roles, granular per-action permissions beyond the current handful of
+fixed roles) — not preemptively, because migrating now would mean rewriting every existing
+`isX()`/`canX()` call site for a problem that doesn't exist yet. Re-read that ADR before deciding
+to introduce a permission package; the reasoning for waiting is specific, not just inertia.
+
+## Navigation Architecture (Department → Item, v1.10.2)
+
+The app nav is a two-level **Department → Item** structure, not a single flat sidebar. Internally
+this is still called "Workspace" in code (`WORKSPACES`, `getVisibleWorkspaces()`) — only the
+user-facing label is "Department" (v1.8.0). See `ADR/007-workspace-navigation.md` for the full
+reasoning across every refinement (v1.8.0 through v1.10.2). This section is the quick-reference.
+
+- **`resources/js/lib/workspaces.js`** is the single source of truth: a `WORKSPACES` array, each
+  entry `{ key, label, icon, core?, tier: 'department' | 'global', items: [{ name, href?, queryParams?, icon, moduleKey?, adminOnly?, disabled?, global?, children? }] }`.
+  `tier: 'department'` = a real department (offered in the Department Selector); `tier: 'global'` =
+  Reports/Administration, reached only through the sidebar's Global navigation state, never the
+  selector. An item's `global: true` (only ever the repeated "Dashboard" link back to the Global
+  Dashboard) marks it as not owned by whichever department it appears in.
+- **The Global Dashboard is NOT a department and is not in `WORKSPACES` at all** (v1.10.2). It's a
+  permanently pinned link in the topbar, first element before the Department Selector, reachable
+  independent of whichever department (if any) is currently active.
+- **Top Navigation Bar, in order: Dashboard (pinned) → Department Selector → Global Search →
+  Work Center → Notifications → Profile.** The Department Selector is a single dropdown offering
+  ONLY departments (v1.10.2 — Reports/Administration were removed from it); it doesn't render at all
+  for a Department User (see below).
+- **The sidebar has three possible sources** (v1.10.2): a department's own items (when one is
+  active), the merged "Global navigation" (`getGlobalNavItems()` — Reports + Administration, shown
+  when no department is active: Global Dashboard, Reports, or Settings pages), or — for a Department
+  User — always just their one assigned department, never Global navigation. Disabled items render as
+  a non-interactive, visibly muted row (no `<Link>`, a lock icon, a "coming soon" tooltip) rather than
+  a fake page.
+- **Active department is derived from the current route only** — no `localStorage` fallback
+  (removed in v1.10.2; "no department active" is a legitimate state, not an edge case to paper over).
+  Active-item highlighting is `?tab=`-aware (`isItemActive()` in `AuthenticatedLayout.jsx`) — several
+  Administration items intentionally share one route (`settings.index`) with different
+  `queryParams.tab`.
+- **Department Users** (v1.10.2): `User::department_key`, nullable, opt-in, no existing account
+  assigned one. `getSelectableDepartments()` collapses to their one department; the Department
+  Selector doesn't render for them; their sidebar always shows only that department. See
+  `ADR/007`'s v1.10.2 section for why this wasn't retrofitted onto the existing role system.
+- **A department disappears from the switcher once it has zero visible items** for the current user
+  — disabled items never get filtered this way (they carry no `moduleKey`), so a department made
+  entirely of placeholders (Warehouse, Maintenance, Quality Control, Finance) still always appears.
+- **No URL namespacing.** `/employees`, `/ppe`, `/material-requests`, etc. are unchanged.
+- **Permission readiness**: Department → Module (`config('modules.available')`) → Feature → Action —
+  see `ADR/006` for why RBAC itself is still deferred.
+- **Adding a real nav item**: add it to the right department's `items` array (plus a
+  `config/modules.php` entry if it's a new toggleable module). **Adding a disabled placeholder**: same
+  array, `disabled: true`, no `href` — see `docs/CONVENTIONS.md`.
+- **Breadcrumb is suppressed except for genuinely multi-level pages** — see `ADR/007`'s v1.8.0
+  section.
+- **Dashboard is the landing page** (v1.9.0, unchanged in v1.10.2) — `/` redirects to `/dashboard`,
+  login redirects to `route('dashboard')` directly for every user, Administrator or Department User
+  alike. `Home` (`HomeController`, `Pages/Home/Index.jsx`) is deleted, not just unlinked; its two
+  genuinely unique real feeds (Recent Daily Reports, Recent Employee Changes) and the release
+  announcement banner moved into `DashboardController`/`Dashboard/Index.jsx`.
+- **Each CORE department (HR, HSE, Project Management, Logistics) has its own real "Overview"**
+  (v1.10.0, relabeled from "Dashboard" in v1.10.2) at `{department-key}.dashboard`, distinct from the
+  global landing Dashboard above — see `docs/MODULES.md`'s "Department Dashboards" section for what
+  each one deliberately does and doesn't show. **Future Departments** (Warehouse, Procurement, Asset
+  Management, Maintenance, Quality Control, Finance) each link to a shared `ComingSoon` page via their
+  own distinct `{department-key}.coming-soon` route name — see `ADR/007`'s v1.10.0 section for why the
+  route names must stay distinct rather than sharing one.
+
+### Work Center (v1.8.0, narrowed in v1.9.0)
+
+`app/Services/WorkCenterService.php` + `app/Http/Controllers/WorkCenterController.php` +
+`resources/js/Pages/WorkCenter/Index.jsx`, route `work-center.index`. **Not a Department** — a
+global, cross-cutting action center (pinned in the topbar) for pending Approvals and assigned Tasks
+for the current user, so cross-department collaboration (a Project Manager approving a
+Logistics-owned Material Request) happens without ever duplicating a module into a department that
+doesn't own it. Every entry links back into the owning module's own page. As of v1.9.0 the topbar
+badge counts only Approvals + Tasks — PPE Alerts moved to a separate **Notifications** bell
+(`NotificationsMenu`, reusing `WorkCenterService::ppeAlertCount()`), on the reasoning that Alerts are
+system-detected conditions while Work Center is work explicitly assigned to a person; PPE Alerts
+still also appear as their own section on the Work Center page itself. See `ADR/007`'s v1.8.0 and
+v1.9.0 sections for the full reasoning.
+
+## Frontend conventions worth knowing before building a new page
+
+- **Shared components live in `resources/js/Components/shared/`** — check there before writing a
+  new status badge, tab nav, empty state, or workflow action UI. `StatusBadge` in particular has a
+  single canonical status-to-color mapping meant to cover every module's statuses in one place;
+  extend it, don't create a parallel one.
+- **Module top navigation** uses `ModuleTabNav` (a generic component taking a `tabs` prop) — PPE's
+  navigation is the reference implementation; a new module's own `XTabNav.jsx` should be a thin
+  wrapper around `ModuleTabNav`, not a reimplementation.
+- **Desktop-first, dense enterprise UI** — the established visual reference points are Linear,
+  Jira, ClickUp, Notion, GitHub: compact rows, small type (13px body text is typical, 11px for
+  secondary/labels), minimal padding. Several rounds of density passes have progressively tightened
+  this; when adding new UI, match the current density of nearby existing pages rather than the
+  more generous spacing of an early version.
+- **Dark mode exists in the codebase but is switched off** (`DARK_MODE_ENABLED = false` in
+  `resources/js/lib/useTheme.js`) — the implementation is intact, just hidden, pending a future
+  version turning it back on. Don't remove the dark-mode Tailwind classes (`dark:*`) when touching
+  a page; they're dead code for now, not wrong code.

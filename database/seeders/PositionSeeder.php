@@ -65,8 +65,15 @@ class PositionSeeder extends Seeder
                 }
 
                 foreach ($positions as $index => $positionName) {
+                    // v1.10.5 fix: company_id was missing from both the
+                    // match and create arrays -- positions.company_id has
+                    // been NOT NULL with no default since the Multi-Company
+                    // migration (2026_08_11_100035), so this insert failed
+                    // on any fresh/strict-mode database. $company is
+                    // already in scope from the outer loop; matching
+                    // DepartmentSeeder's own (company_id, name) pattern.
                     Position::firstOrCreate(
-                        ['name' => $positionName, 'department_id' => $department->id],
+                        ['name' => $positionName, 'department_id' => $department->id, 'company_id' => $company->id],
                         ['sort_order' => $this->rankFor($positionName, $index)]
                     );
                 }

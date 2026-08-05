@@ -2,12 +2,18 @@
 
 namespace App\Models;
 
+use Illuminate\Database\Eloquent\Factories\HasFactory;
 use Illuminate\Database\Eloquent\Model;
 use Illuminate\Database\Eloquent\SoftDeletes;
 
 class Employee extends Model
 {
-    use SoftDeletes;
+    // v1.10.5 fix: EmployeeFactory (database/factories/EmployeeFactory.php)
+    // already existed and EmployeeSeeder already called Employee::factory()
+    // -- this trait was simply missing, so db:seed failed on any run that
+    // actually needed to seed demo employees (a fresh/empty database).
+    // Unrelated to the Multi-Company migration; a separate, pre-existing gap.
+    use HasFactory, SoftDeletes;
 
     protected $fillable = [
         'employee_id',

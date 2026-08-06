@@ -12,6 +12,7 @@ class Milestone extends Model
     protected $appends = ['is_overdue'];
 
     protected $fillable = [
+        'milestone_number',
         'project_id',
         'title',
         'description',

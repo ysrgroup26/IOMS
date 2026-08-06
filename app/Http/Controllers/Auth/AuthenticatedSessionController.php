@@ -45,6 +45,15 @@ class AuthenticatedSessionController extends Controller
 
         $user->forceFill(['last_login_at' => now()])->save();
 
+        // Milestone 2 (Task #44): a Platform Super Admin has no tenant --
+        // route('dashboard') would only ever show them an empty,
+        // correctly-scoped-to-nothing tenant dashboard (see
+        // docs/ADR/008-tenancy-foundation.md). Send them to their own
+        // surface instead.
+        if ($user->isPlatformAdmin()) {
+            return redirect()->intended(route('platform.dashboard'));
+        }
+
         return redirect()->intended(route('dashboard'));
     }
 

@@ -4,15 +4,17 @@ return [
 
     /*
     |--------------------------------------------------------------------------
-    | Module Registry
+    | Module Registry -- DEFAULT SEED DATA ONLY (Milestone 2, Task #42)
     |--------------------------------------------------------------------------
     |
-    | Single source of truth for which sidebar modules EXIST and can be
-    | toggled on/off by Super Admin (Settings > Modules). This is the
-    | architecture the spec asked for: "the sidebar navigation should be
-    | designed so modules can be enabled or disabled by Super Admin in the
-    | future" -- implemented here for every module that actually exists
-    | today.
+    | As of Milestone 2, this array is NO LONGER read at runtime. The `modules`
+    | DB table is the live registry now (see App\Models\Module,
+    | database/seeders/ModuleSeeder.php, App\Http\Middleware\HandleInertiaRequests,
+    | and SettingsController::updateModules) -- Super Admin manages it without a
+    | code deploy. This file is kept only as ModuleSeeder's default data source
+    | (a fresh install runs it once via `db:seed`), so this list isn't duplicated
+    | a third time. Editing this array after the initial seed has already run
+    | does nothing at runtime.
     |
     | `core` modules (Home, Dashboard, Settings) are never toggleable --
     | disabling them would leave the app unusable or unconfigurable, so
@@ -20,7 +22,9 @@ return [
     |
     | HOW A FUTURE MODULE WOULD REGISTER (not built yet -- documented so
     | the mechanism doesn't need to change when one is added):
-    |   1. Add its key/label here, e.g. 'fleet' => 'Fleet Management'.
+    |   1. Add a row via Settings (once a management UI exists) or directly
+    |      via `App\Models\Module::create([...])` -- add it here too, only
+    |      so a fresh install's default seed stays representative.
     |   2. Add the corresponding nav item + icon in
     |      resources/js/Layouts/AuthenticatedLayout.jsx (with a
     |      `moduleKey` matching the key used here).

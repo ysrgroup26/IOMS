@@ -19,8 +19,12 @@ in two places.
 ## Stack
 
 Laravel 12 (PHP) + Inertia.js + React 18 + Tailwind CSS + MySQL + Sanctum. `barryvdh/laravel-dompdf`
-for PDF generation, `maatwebsite/excel` for Excel import/export. No RBAC package (see
-`docs/ARCHITECTURE.md` § Authorization for why, and when that should change).
+for PDF generation, `maatwebsite/excel` for Excel import/export. `spatie/laravel-permission` was
+added in Milestone 2 (Tenancy Foundation) as RBAC infrastructure (roles/permissions exist, are
+tenant-scoped, and are editable from Settings) — but no controller has been migrated from the
+original `role` column + `isX()/canX()` methods to permission checks yet; that remains the live
+authorization path. See `docs/ADR/008-tenancy-foundation.md` for the reasoning and
+`docs/ARCHITECTURE.md` § Authorization for the current state.
 
 ## Where things actually are
 
@@ -55,7 +59,7 @@ for PDF generation, `maatwebsite/excel` for Excel import/export. No RBAC package
 | `docs/ARCHITECTURE.md` | How the reusable engines work (Approval, Workflow, Timeline, Import, PDF, Report Export), the multi-tenant/company-scoping model, and the authorization approach. Read before building anything that might duplicate an existing engine. |
 | `docs/MODULES.md` | What a specific module (Employees, PPE, Material Request, Projects, KPI, Tasks, Settings) actually does, its key files, and its module-specific business rules. Read before touching a module you haven't worked in yet. |
 | `docs/CONVENTIONS.md` | The house style: migration patterns, naming, status-enum conventions, verification habits, things that have caused real bugs before and how they were fixed. Read before writing a migration, adding a role check, or touching anything cache-related. |
-| `docs/ADR/*.md` | The *reasoning* behind a handful of specific, larger decisions (why the Approval Engine is shaped the way it is, why RBAC wasn't adopted yet, why "Pending Approval" isn't a stored status). Read the relevant one before revisiting a decision it documents, so you don't re-litigate something that was already deliberately decided with tradeoffs in mind. |
+| `docs/ADR/*.md` | The *reasoning* behind a handful of specific, larger decisions (why the Approval Engine is shaped the way it is, why "Pending Approval" isn't a stored status, why Tenancy/RBAC/Platform Super Admin are shaped the way they are in `008`). Read the relevant one before revisiting a decision it documents, so you don't re-litigate something that was already deliberately decided with tradeoffs in mind. |
 
 ## The single most important habit in this codebase: verify before building
 

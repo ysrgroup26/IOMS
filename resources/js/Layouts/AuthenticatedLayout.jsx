@@ -68,7 +68,7 @@ function firstRealItem(workspace) {
 }
 
 export default function AuthenticatedLayout({ children }) {
-    const { auth, company, version, modules } = usePage().props;
+    const { auth, company, version, modules, workspace_catalog: workspaceCatalog } = usePage().props;
     const [sidebarOpen, setSidebarOpen] = useState(false);
     const [expandedMenus, setExpandedMenus] = useState(() => {
         if (typeof window === 'undefined') return [];
@@ -100,7 +100,7 @@ export default function AuthenticatedLayout({ children }) {
     // list collapses to just their one assigned department (or empty, if
     // their department_key doesn't match a real one -- a data-entry
     // mistake, not something to crash on).
-    const selectableDepartments = getSelectableDepartments(auth?.user, enabledModules);
+    const selectableDepartments = getSelectableDepartments(auth?.user, enabledModules, workspaceCatalog);
 
     // Active department is DERIVED from the current route, never
     // persisted client-side state (v1.10.2) -- "no department currently
@@ -124,7 +124,7 @@ export default function AuthenticatedLayout({ children }) {
     // navigation whenever no department is currently active.
     const visibleNav = isDepartmentUser
         ? (selectableDepartments[0]?.items ?? [])
-        : (activeWorkspace?.items ?? getGlobalNavItems(auth?.user, enabledModules));
+        : (activeWorkspace?.items ?? getGlobalNavItems(auth?.user, enabledModules, workspaceCatalog));
 
     const activeNavItem = visibleNav.find((item) => isItemActive(item, currentUrl));
     // Only populated for a parent item that actually has children AND one
@@ -486,32 +486,101 @@ function WorkCenterRow({ icon: Icon, label, count }) {
     );
 }
 
+const NOTIFICATION_CATEGORY_DOT = {
+    approval: 'bg-brand-500',
+    reminder: 'bg-amber-500',
+    warning: 'bg-red-500',
+    success: 'bg-emerald-500',
+    information: 'bg-graphite-400',
+};
+
+function relativeTime(isoString) {
+    const diffMs = Date.now() - new Date(isoString).getTime();
+    const minutes = Math.round(diffMs / 60000);
+    if (minutes < 1) return 'just now';
+    if (minutes < 60) return `${minutes}m ago`;
+    const hours = Math.round(minutes / 60);
+    if (hours < 24) return `${hours}h ago`;
+    return `${Math.round(hours / 24)}d ago`;
+}
+
 /**
- * Notifications (v1.9.0). System-detected conditions that need attention
- * -- today, PPE items expiring/expired (the same real query that used to
- * back this same bell before Work Center existed). Deliberately separate
- * from Work Center: this is passive/informational ("something needs
- * looking at"), Work Center is active work explicitly assigned to this
- * user ("something needs YOU to act"). A single alert type doesn't need a
- * dropdown of its own -- clicking goes straight to where it's resolved.
+ * Notification Center (v1.9.0 PPE-only badge; became genuinely real,
+ * per-user, workflow-fired notifications in Milestone 3 -- see
+ * App\Services\NotificationService, fired from
+ * App\Concerns\HasWorkflow::transitionTo() and App\Services\ApprovalEngine).
+ * PPE alerts (a live computed count, not a persisted row) stay pinned as
+ * a quick link at the top rather than becoming fake Notification rows.
+ * Deliberately separate from Work Center: this is "something happened or
+ * needs looking at," Work Center is "something needs YOU to act."
  */
 function NotificationsMenu() {
     const { notifications } = usePage().props;
-    const alertCount = notifications?.ppe_alert_count ?? 0;
+    const ppeAlertCount = notifications?.ppe_alert_count ?? 0;
+    const unreadCount = notifications?.unread_count ?? 0;
+    const items = notifications?.items ?? [];
+    const badgeCount = unreadCount + ppeAlertCount;
+
+    function markRead(notification) {
+        if (!notification.read_at) {
+            router.put(route('notifications.read', notification.id), {}, { preserveScroll: true, preserveState: true });
+        }
+        if (notification.url) {
+            router.visit(notification.url);
+        }
+    }
+
+    function markAllRead(e) {
+        e.preventDefault();
+        router.put(route('notifications.read-all'), {}, { preserveScroll: true, preserveState: true });
+    }
 
     return (
-        <Link
-            href={route('ppe.dashboard')}
-            className="relative rounded-md p-2 text-graphite-400 transition-colors hover:bg-graphite-100 hover:text-graphite-600 dark:hover:bg-slate-800"
-            title={alertCount > 0 ? `${alertCount} PPE item(s) need attention` : 'No notifications'}
-        >
-            <Bell className="h-[18px] w-[18px]" />
-            {alertCount > 0 && (
-                <span className="absolute -right-0.5 -top-0.5 flex h-4 min-w-[16px] items-center justify-center rounded-full bg-amber-500 px-1 text-[9px] font-bold text-white">
-                    {alertCount > 99 ? '99+' : alertCount}
-                </span>
-            )}
-        </Link>
+        <DropdownMenu>
+            <DropdownMenuTrigger
+                className="relative rounded-md p-2 text-graphite-400 outline-none transition-colors hover:bg-graphite-100 hover:text-graphite-600 dark:hover:bg-slate-800"
+                title={badgeCount > 0 ? `${badgeCount} notification(s)` : 'No notifications'}
+            >
+                <Bell className="h-[18px] w-[18px]" />
+                {badgeCount > 0 && (
+                    <span className="absolute -right-0.5 -top-0.5 flex h-4 min-w-[16px] items-center justify-center rounded-full bg-amber-500 px-1 text-[9px] font-bold text-white">
+                        {badgeCount > 99 ? '99+' : badgeCount}
+                    </span>
+                )}
+            </DropdownMenuTrigger>
+            <DropdownMenuContent align="end" className="w-80 max-h-[70vh] overflow-y-auto">
+                <div className="flex items-center justify-between px-2 py-1.5">
+                    <DropdownMenuLabel className="p-0 text-[10px] uppercase tracking-wide text-graphite-400">Notifications</DropdownMenuLabel>
+                    {unreadCount > 0 && (
+                        <button onClick={markAllRead} className="text-[11px] font-medium text-brand-600 hover:underline">
+                            Mark all read
+                        </button>
+                    )}
+                </div>
+                <DropdownMenuSeparator />
+                {ppeAlertCount > 0 && (
+                    <DropdownMenuItem asChild>
+                        <Link href={route('ppe.dashboard')} className="flex items-center gap-2">
+                            <span className="h-1.5 w-1.5 shrink-0 rounded-full bg-amber-500" />
+                            <span className="text-sm">{ppeAlertCount} PPE item(s) need attention</span>
+                        </Link>
+                    </DropdownMenuItem>
+                )}
+                {items.length === 0 && ppeAlertCount === 0 && (
+                    <div className="px-2 py-6 text-center text-sm text-graphite-400">No notifications</div>
+                )}
+                {items.map((item) => (
+                    <DropdownMenuItem key={item.id} onSelect={() => markRead(item)} className="flex items-start gap-2">
+                        <span className={cn('mt-1.5 h-1.5 w-1.5 shrink-0 rounded-full', item.read_at ? 'bg-transparent' : (NOTIFICATION_CATEGORY_DOT[item.category] ?? 'bg-graphite-400'))} />
+                        <div className="min-w-0 flex-1">
+                            <p className={cn('truncate text-sm', item.read_at ? 'text-graphite-500' : 'font-medium text-graphite-800')}>{item.title}</p>
+                            {item.body && <p className="truncate text-xs text-graphite-400">{item.body}</p>}
+                            <p className="text-[10px] text-graphite-400">{relativeTime(item.created_at)}</p>
+                        </div>
+                    </DropdownMenuItem>
+                ))}
+            </DropdownMenuContent>
+        </DropdownMenu>
     );
 }
 

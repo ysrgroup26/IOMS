@@ -207,11 +207,15 @@ reasoning across every refinement (v1.8.0 through v1.10.2). This section is the 
   — disabled items never get filtered this way (they carry no `moduleKey`), so a department made
   entirely of placeholders (Warehouse, Maintenance, Quality Control, Finance) still always appears.
 - **No URL namespacing.** `/employees`, `/ppe`, `/material-requests`, etc. are unchanged.
-- **Permission readiness**: Department → Module (`config('modules.available')`) → Feature → Action —
-  see `ADR/006` for why RBAC itself is still deferred.
-- **Adding a real nav item**: add it to the right department's `items` array (plus a
-  `config/modules.php` entry if it's a new toggleable module). **Adding a disabled placeholder**: same
-  array, `disabled: true`, no `href` — see `docs/CONVENTIONS.md`.
+- **Permission readiness**: Department → Module (the `modules` DB table as of Milestone 2, Task #42
+  — see `docs/ADR/008-tenancy-foundation.md`; `config/modules.php` now only supplies its default
+  seed data) → Feature → Action. Real permission enforcement is via `spatie/laravel-permission`
+  (also Milestone 2) for new call sites; existing controllers still run on the `role` column/
+  `isX()/canX()` methods, migrating them is a separate later step.
+- **Adding a real nav item**: add it to the right department's `items` array (plus an
+  `App\Models\Module` row if it's a new toggleable module — see Settings → Module Visibility).
+  **Adding a disabled placeholder**: same array, `disabled: true`, no `href` — see
+  `docs/CONVENTIONS.md`.
 - **Breadcrumb is suppressed except for genuinely multi-level pages** — see `ADR/007`'s v1.8.0
   section.
 - **Dashboard is the landing page** (v1.9.0, unchanged in v1.10.2) — `/` redirects to `/dashboard`,

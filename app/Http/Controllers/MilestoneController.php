@@ -5,6 +5,7 @@ namespace App\Http\Controllers;
 use App\Models\ActivityLog;
 use App\Models\Milestone;
 use App\Models\Project;
+use App\Services\NumberGeneratorService;
 use Illuminate\Http\RedirectResponse;
 use Illuminate\Http\Request;
 use Inertia\Inertia;
@@ -36,7 +37,7 @@ class MilestoneController extends Controller
         ]);
     }
 
-    public function store(Request $request): RedirectResponse
+    public function store(Request $request, NumberGeneratorService $numberGenerator): RedirectResponse
     {
         abort_unless($request->user()->canManageMilestones(), 403);
 
@@ -48,7 +49,11 @@ class MilestoneController extends Controller
             'status' => ['required', 'in:'.implode(',', Milestone::STATUSES)],
         ]);
 
-        $milestone = Milestone::create([...$data, 'created_by' => $request->user()->id]);
+        $milestone = Milestone::create([
+            ...$data,
+            'milestone_number' => $numberGenerator->generate('milestone'),
+            'created_by' => $request->user()->id,
+        ]);
 
         ActivityLog::record('created', "Created milestone \"{$milestone->title}\".", $milestone);
 

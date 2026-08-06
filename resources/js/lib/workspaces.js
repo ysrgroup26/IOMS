@@ -245,7 +245,9 @@ export const WORKSPACES = [
             { name: 'Companies', href: 'settings.index', queryParams: { tab: 'companies' }, icon: Users, adminOnly: true },
             { name: 'Settings', href: 'settings.index', icon: Settings, adminOnly: true },
             { name: 'Module Management', href: 'settings.index', queryParams: { tab: 'modules' }, icon: Settings, adminOnly: true },
-            { name: 'Audit Logs', icon: ClipboardList, disabled: true },
+            // Milestone 3 (Task #50): was a disabled placeholder since
+            // v1.9.0 -- now a real link to the Activity Center.
+            { name: 'Audit Logs', href: 'activity-center.index', icon: ClipboardList, adminOnly: true },
         ],
     },
 ];
@@ -272,6 +274,47 @@ function applyItemGates(items, isAdmin, modules) {
     );
 }
 
+// Milestone 2 (Dynamic Workspace system, Task #43). Maps the `icon`
+// string a `workspaces` DB row can carry back to the actual lucide-react
+// component -- only the components this file already imports are valid
+// values (see the migration's own doc comment for why the DB only
+// overrides label/icon/order/active-state, not structure).
+const ICON_MAP = {
+    Users, ClipboardEdit, FileBarChart, Settings, FolderKanban, HardHat,
+    ClipboardList, PackageSearch, Warehouse, ShoppingCart, Wrench,
+    BadgeCheck, DollarSign, Box, LayoutDashboard, CalendarDays,
+    AlertTriangle, PackageCheck, Flag,
+};
+
+/**
+ * Merges the `workspace_catalog` Inertia prop (keyed by workspace `key`,
+ * shared by HandleInertiaRequests) onto the hardcoded WORKSPACES array --
+ * label/icon/order/active-state only. A missing/absent row for a given
+ * key (not-yet-seeded install, or a workspace added to code before its
+ * catalog row exists) falls back to that workspace's hardcoded default,
+ * so this is purely additive: passing no catalog at all reproduces
+ * today's exact behavior.
+ */
+function applyCatalog(workspaces, catalog) {
+    if (!catalog || Object.keys(catalog).length === 0) return workspaces;
+
+    return workspaces
+        .map((workspace, index) => {
+            const override = catalog[workspace.key];
+            if (!override) return { ...workspace, __order: 999 + index };
+
+            return {
+                ...workspace,
+                label: override.label ?? workspace.label,
+                icon: ICON_MAP[override.icon] ?? workspace.icon,
+                __active: override.is_active,
+                __order: override.sort_order ?? (999 + index),
+            };
+        })
+        .filter((workspace) => workspace.__active !== false)
+        .sort((a, b) => a.__order - b.__order);
+}
+
 /**
  * Full gated workspace list (departments AND reports/administration) --
  * used for route-ownership lookups and anywhere the distinction between
@@ -279,13 +322,13 @@ function applyItemGates(items, isAdmin, modules) {
  * `moduleKey`, so they always pass this gate and are always visible (as
  * disabled rows); they're a structural preview, not something a module
  * toggle controls. A workspace disappears only if ALL of its items get
- * filtered out.
+ * filtered out, OR its DB catalog row has `is_active: false` (Task #43).
  */
-export function getVisibleWorkspaces(user, enabledModules) {
+export function getVisibleWorkspaces(user, enabledModules, workspaceCatalog) {
     const isAdmin = user?.is_admin;
     const modules = enabledModules ?? [];
 
-    return WORKSPACES
+    return applyCatalog(WORKSPACES, workspaceCatalog)
         .map((workspace) => ({ ...workspace, items: applyItemGates(workspace.items, isAdmin, modules) }))
         .filter((workspace) => workspace.items.length > 0);
 }
@@ -299,8 +342,8 @@ export function getVisibleWorkspaces(user, enabledModules) {
  * reasoning. An Administrator (`department_key` null) sees every visible
  * department, exactly like `getVisibleWorkspaces()` did before.
  */
-export function getSelectableDepartments(user, enabledModules) {
-    const departments = getVisibleWorkspaces(user, enabledModules).filter(isDepartmentTier);
+export function getSelectableDepartments(user, enabledModules, workspaceCatalog) {
+    const departments = getVisibleWorkspaces(user, enabledModules, workspaceCatalog).filter(isDepartmentTier);
 
     if (!user?.department_key) return departments;
 
@@ -317,8 +360,8 @@ export function getSelectableDepartments(user, enabledModules) {
  * this function, since "what Global nav contains" and "who gets to see
  * it" are separate questions).
  */
-export function getGlobalNavItems(user, enabledModules) {
-    return getVisibleWorkspaces(user, enabledModules)
+export function getGlobalNavItems(user, enabledModules, workspaceCatalog) {
+    return getVisibleWorkspaces(user, enabledModules, workspaceCatalog)
         .filter((workspace) => GLOBAL_NAV_KEYS.includes(workspace.key))
         .flatMap((workspace) => workspace.items);
 }

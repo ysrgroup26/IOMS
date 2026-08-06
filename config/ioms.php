@@ -17,7 +17,7 @@ return [
     |
     */
 
-    'version' => '1.6.10',
+    'version' => '2.0.0',
 
     // Tester / Beta / Stable -- tracks the release stage explicitly.
     // Previously only implied in conversation, never actually stored.
@@ -25,9 +25,9 @@ return [
 
     'edition' => 'Enterprise Edition',
 
-    'build' => '2026.08.11.1',
+    'build' => '2026.08.16.1',
 
-    'release_date' => '2026-08-11',
+    'release_date' => '2026-08-16',
 
     'developer' => 'Yofhanza Shultona Rizqi S.',
 
@@ -44,10 +44,11 @@ return [
     'documentation_url' => 'docs.iomsplatform.com',
 
     'whats_new' => [
-        'Material Request now a complete workflow: Draft -> Submitted -> Approved -> Processing -> Completed, plus Rejected/Cancelled',
-        'New Workflow Engine (HasWorkflow trait) -- enforces valid status transitions and prevents skipping steps',
-        'Evaluated RBAC options before building anything custom -- recommends Spatie Permission for later, reasoning documented in docs/ADR/006',
-        'New Warehouse role for processing approved requests, added with zero migration',
+        'Multi-tenant SaaS foundation: Tenant model above Company, tenant-scoped isolation via TenantScope, Platform Super Admin distinction',
+        'RBAC infrastructure via spatie/laravel-permission -- tenant-scoped roles/permissions, editable from Settings > Roles & Permissions',
+        'Package + Subscription structure for future billing, seeded with Starter/Professional/Enterprise tiers',
+        'Module and Department (Workspace) catalogs moved from config files into the database -- Super Admin can rename/reorder/enable without a deploy',
+        'New Platform Super Admin console (/platform) for cross-tenant Tenant/Package/Subscription management',
     ],
 
     /*
@@ -62,6 +63,8 @@ return [
     */
 
     'version_history' => [
+        ['version' => '2.0.0', 'date' => '2026-08-16', 'summary' => 'Milestone 2: Tenancy Foundation, Platform Super Admin, Package/Subscription structure, RBAC (spatie/laravel-permission), DB-driven Module and Workspace catalogs, Platform Super Admin console.'],
+        ['version' => '1.6.10', 'date' => '2026-08-11', 'summary' => 'Material Request complete workflow (HasWorkflow trait); RBAC options evaluated (Spatie Permission recommended, docs/ADR/006); new Warehouse role.'],
         ['version' => '1.6.9', 'date' => '2026-08-09', 'summary' => 'Universal Approval Engine and Activity Timeline viewer -- verified ActivityLog already existed before building anything new.'],
         ['version' => '1.6.8', 'date' => '2026-08-08', 'summary' => 'Employee Import from Excel; Report Export architecture prepared; two severe runtime bugs found and fixed via verification, not assumption.'],
         ['version' => '1.6.7', 'date' => '2026-08-06', 'summary' => 'ModuleTabNav reusable navigation; several desktop density passes; Material Request and PPE Replacement Request MVPs; reusable PdfGeneratorService.'],

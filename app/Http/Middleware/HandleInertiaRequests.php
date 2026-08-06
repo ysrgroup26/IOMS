@@ -4,6 +4,8 @@ namespace App\Http\Middleware;
 
 use App\Models\Company;
 use App\Models\CompanySetting;
+use App\Models\Module;
+use App\Models\Workspace;
 use App\Services\WorkCenterService;
 use Illuminate\Http\Request;
 use Inertia\Middleware;
@@ -103,9 +105,15 @@ class HandleInertiaRequests extends Middleware
                 'watermark_opacity' => (float) CompanySetting::get('watermark_opacity', config('branding.watermark_opacity')),
             ],
             'modules' => [
-                'available' => config('modules.available'),
+                // Milestone 2 (Task #42): DB-driven catalog, not
+                // config('modules.available') anymore -- that config key
+                // now only supplies ModuleSeeder's default seed data. A
+                // plain indexed query, deliberately not cached -- see
+                // docs/CONVENTIONS.md's Caching section for why this
+                // specific value has twice caused a real bug when cached.
+                'available' => Module::query()->orderBy('sort_order')->pluck('label', 'key')->all(),
                 'enabled' => (function () {
-                    $allKeys = array_keys(config('modules.available'));
+                    $allKeys = Module::query()->pluck('key')->all();
 
                     // v1.6.8 (second pass): reads the database directly,
                     // deliberately bypassing CompanySetting::get()'s cache
@@ -149,14 +157,34 @@ class HandleInertiaRequests extends Middleware
                     ]));
                 })(),
             ],
+            // Milestone 2 (Task #43): DB metadata OVERRIDES for
+            // resources/js/lib/workspaces.js's WORKSPACES entries --
+            // label/icon/order/active-state only, keyed by `key`. Not
+            // cached, same reasoning as `modules` above. An empty/missing
+            // row for a given key means "use the hardcoded default" --
+            // the frontend merge is written to fall back that way, so a
+            // fresh install with a not-yet-seeded `workspaces` table
+            // behaves identically to before this feature existed.
+            'workspace_catalog' => fn () => Workspace::query()
+                ->orderBy('sort_order')
+                ->get(['key', 'label', 'icon', 'is_active', 'sort_order'])
+                ->keyBy('key'),
             'companies' => fn () => Company::active()->orderBy('name')->get(['id', 'name', 'code']),
-            // Real data (PPE expiring within 30 days or already expired),
-            // not a placeholder -- kept for Dashboard/Index.jsx's existing
-            // ppeAlertCount prop. Wrapped in a closure so it's only
-            // queried on requests where Inertia actually needs it
-            // (partial reloads skip unused props).
+            // Milestone 3 (Notification Center): `items`/`unread_count` are
+            // real, per-user Notification rows -- genuinely fired from
+            // workflow events (HasWorkflow::transitionTo,
+            // App\Services\ApprovalEngine), never dummy data. `ppe_alert_count`
+            // is kept for backward compatibility with the pre-existing PPE
+            // badge (Dashboard/Index.jsx and the bell icon both still read
+            // it). Wrapped in a closure so it's only queried on requests
+            // where Inertia actually needs it (partial reloads skip unused
+            // props).
             'notifications' => fn () => [
                 'ppe_alert_count' => $user ? $this->workCenter->ppeAlertCount() : 0,
+                'unread_count' => $user ? \App\Models\Notification::where('user_id', $user->id)->unread()->count() : 0,
+                'items' => $user
+                    ? \App\Models\Notification::where('user_id', $user->id)->latest()->limit(10)->get(['id', 'category', 'title', 'body', 'url', 'read_at', 'created_at'])
+                    : [],
             ],
             // Work Center (v1.8.0) topbar badge counts -- same
             // WorkCenterService queries the full Work Center page uses,

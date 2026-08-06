@@ -3,6 +3,7 @@
 namespace Database\Seeders;
 
 use App\Models\User;
+use App\Support\CurrentTenant;
 use Illuminate\Database\Seeder;
 use Illuminate\Support\Facades\Hash;
 
@@ -24,6 +25,19 @@ class UserSeeder extends Seeder
      * it would try to CREATE a duplicate of the new email and crash on the
      * unique constraint. seedAccount() below checks for the new email
      * first and skips entirely if it's already there.
+     *
+     * Milestone 2 (Tenancy Foundation): the 2026_08_14_100043 migration's
+     * tenant_id backfill only covers users that already existed AT
+     * MIGRATION TIME. On a fresh install (migrate:fresh --seed), the
+     * `users` table is still empty when that migration runs -- these
+     * accounts don't exist yet, so the backfill affects 0 rows. Without
+     * setting tenant_id explicitly here, every seeded account would get
+     * created with tenant_id = NULL, i.e. silently become a Platform
+     * Super Admin (see User::isPlatformAdmin()) instead of a normal tenant
+     * user, which fails Company-scoped queries closed for them (TenantScope).
+     * Same class of bug as CompanySeeder needing tenant_id explicitly --
+     * DatabaseSeeder already resolved/bound the current tenant before this
+     * seeder runs.
      */
     public function run(): void
     {
@@ -53,9 +67,15 @@ class UserSeeder extends Seeder
         }
 
         // Existing install still on the old domain -- migrate in place.
+        // Also backfills tenant_id here in case this account predates
+        // Milestone 2 and the migration's own backfill somehow missed it.
         $legacy = User::where('email', $legacyEmail)->first();
         if ($legacy) {
-            $legacy->update(['email' => $newEmail, 'department_key' => $departmentKey]);
+            $legacy->update([
+                'email' => $newEmail,
+                'department_key' => $departmentKey,
+                'tenant_id' => $legacy->tenant_id ?? app(CurrentTenant::class)->id(),
+            ]);
 
             return;
         }
@@ -67,6 +87,7 @@ class UserSeeder extends Seeder
             'password' => Hash::make('password'),
             'role' => $role,
             'department_key' => $departmentKey,
+            'tenant_id' => app(CurrentTenant::class)->id(),
             'is_active' => true,
         ]);
     }

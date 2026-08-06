@@ -1,5 +1,6 @@
 <?php
 
+use App\Http\Controllers\ActivityCenterController;
 use App\Http\Controllers\ApprovalController;
 use App\Http\Controllers\Auth\AuthenticatedSessionController;
 use App\Http\Controllers\Auth\NewPasswordController;
@@ -19,6 +20,8 @@ use App\Http\Controllers\LeaveRequestController;
 use App\Http\Controllers\LogisticsDashboardController;
 use App\Http\Controllers\MaterialRequestController;
 use App\Http\Controllers\MilestoneController;
+use App\Http\Controllers\NotificationController;
+use App\Http\Controllers\PlatformController;
 use App\Http\Controllers\PpeController;
 use App\Http\Controllers\PpeTypeController;
 use App\Http\Controllers\ProjectController;
@@ -66,6 +69,11 @@ Route::middleware('auth')->group(function () {
     // Work Center (v1.8.0): the global cross-department "what needs my
     // attention" surface -- see WorkCenterController's own doc comment.
     Route::get('/work-center', [WorkCenterController::class, 'index'])->name('work-center.index');
+
+    // Notification Center (Milestone 3) -- the list itself is shared via
+    // HandleInertiaRequests, these are just the two write actions.
+    Route::put('/notifications/{notification}/read', [NotificationController::class, 'markRead'])->name('notifications.read');
+    Route::put('/notifications/read-all', [NotificationController::class, 'markAllRead'])->name('notifications.read-all');
 
     // Employees: viewable by all roles; mutation actions are policy-gated inside the controller/routes below.
     Route::get('/employees', [EmployeeController::class, 'index'])->name('employees.index');
@@ -166,8 +174,15 @@ Route::middleware('auth')->group(function () {
     |--------------------------------------------------------------------------
     */
     Route::middleware('role:super_admin')->group(function () {
+        // Activity Center (Milestone 3, Task #50) -- was a disabled
+        // "Audit Logs" placeholder in the Administration workspace since
+        // v1.9.0; this is that placeholder becoming real.
+        Route::get('/activity-center', [ActivityCenterController::class, 'index'])->name('activity-center.index');
+
         Route::post('/settings/company', [SettingsController::class, 'updateCompany'])->name('settings.company');
         Route::post('/settings/modules', [SettingsController::class, 'updateModules'])->name('settings.modules');
+        Route::post('/settings/workspaces', [SettingsController::class, 'updateWorkspaces'])->name('settings.workspaces');
+        Route::put('/settings/roles/{role}', [SettingsController::class, 'updateRolePermissions'])->name('settings.roles.update');
 
         Route::post('/ppe-types', [PpeTypeController::class, 'store'])->name('ppe-types.store');
         Route::put('/ppe-types/{ppeType}', [PpeTypeController::class, 'update'])->name('ppe-types.update');
@@ -271,4 +286,23 @@ Route::middleware('auth')->group(function () {
             ->defaults('department', $futureDepartment)
             ->name("{$futureDepartment}.coming-soon");
     }
+});
+
+/*
+|--------------------------------------------------------------------------
+| Platform Super Admin (Milestone 2, Task #44)
+|--------------------------------------------------------------------------
+|
+| A SEPARATE surface from everything above -- reachable only by
+| role:platform_admin (see User::ROLE_PLATFORM_ADMIN,
+| RolePermissionSeeder). Deliberately its own top-level group, not nested
+| inside the tenant-side `auth` group above: a Platform Super Admin has
+| no tenant (User::isPlatformAdmin()) and none of that group's
+| department/module/workspace navigation concepts apply to them. See
+| docs/ADR/008-tenancy-foundation.md.
+*/
+Route::middleware(['auth', 'role:platform_admin'])->prefix('platform')->name('platform.')->group(function () {
+    Route::get('/', [PlatformController::class, 'dashboard'])->name('dashboard');
+    Route::get('/tenants', [PlatformController::class, 'tenants'])->name('tenants');
+    Route::put('/tenants/{tenant}/status', [PlatformController::class, 'updateTenantStatus'])->name('tenants.update-status');
 });

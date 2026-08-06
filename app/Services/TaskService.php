@@ -13,10 +13,12 @@ use Illuminate\Support\Carbon;
  */
 class TaskService
 {
+    public function __construct(private readonly NumberGeneratorService $numberGenerator) {}
+
     public function createTask(array $data, int $createdBy): Task
     {
         $data['created_by'] = $createdBy;
-        $data['task_number'] = $this->generateTaskNumber();
+        $data['task_number'] = $this->generateTaskNumber($data['company_id'] ?? null);
         $data['status'] ??= Task::STATUS_OPEN;
         $data['priority'] ??= Task::PRIORITY_MEDIUM;
         $data['task_source'] ??= 'manual';
@@ -61,25 +63,13 @@ class TaskService
     }
 
     /**
-     * Format: TSK-{YYYY}-{sequential number, zero-padded to 5 digits},
-     * e.g. TSK-2026-00001. Sequential within a year (matches the existing
-     * per-year numbering convention already used elsewhere in the app,
-     * e.g. KPI reports), not globally sequential, so numbers stay
-     * reasonably short even after years of use.
+     * Milestone 3: delegates to the centralized, lock-safe Numbering
+     * Engine (`NumberGeneratorService`) instead of the old unlocked
+     * `ORDER BY ... DESC LIMIT 1` read-then-write. Same
+     * TSK-{YEAR}-{00001} shape as before by default.
      */
-    public function generateTaskNumber(): string
+    public function generateTaskNumber(?int $companyId = null): string
     {
-        $year = now()->format('Y');
-
-        $lastNumber = Task::withTrashed()
-            ->where('task_number', 'like', "TSK-{$year}-%")
-            ->orderByDesc('task_number')
-            ->value('task_number');
-
-        $sequence = $lastNumber
-            ? ((int) substr($lastNumber, -5)) + 1
-            : 1;
-
-        return sprintf('TSK-%s-%05d', $year, $sequence);
+        return $this->numberGenerator->generate('task', $companyId);
     }
 }

@@ -10,8 +10,10 @@ use App\Models\Company;
 use App\Models\CompanySetting;
 use App\Models\Department;
 use App\Models\KpiCategory;
+use App\Models\Module;
 use App\Models\Position;
 use App\Models\User;
+use App\Models\Workspace;
 use Illuminate\Http\RedirectResponse;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Hash;
@@ -19,6 +21,7 @@ use Illuminate\Support\Facades\Storage;
 use Illuminate\Validation\Rule;
 use Inertia\Inertia;
 use Inertia\Response;
+use Spatie\Permission\Models\Role;
 
 /**
  * Settings module. Two permission tiers, enforced both by route middleware
@@ -59,6 +62,24 @@ class SettingsController extends Controller
                 'manage_operational' => request()->user()->canManageOperationalSettings(),
                 'manage_system' => request()->user()->canManageSystemSettings(),
             ],
+            // Milestone 2 (RBAC UI, Task #45). Tenant-side roles only --
+            // Role::where('tenant_id', ...) already excludes the
+            // Platform Super Admin role (seeded under a `0` sentinel, see
+            // docs/ADR/008-tenancy-foundation.md), so a Company Admin can
+            // never see or edit that one from here.
+            'roles' => Role::where('tenant_id', $request->user()->tenant_id)
+                ->with('permissions')
+                ->orderBy('name')
+                ->get()
+                ->map(fn (Role $role) => [
+                    'id' => $role->id,
+                    'name' => $role->name,
+                    'permissions' => $role->permissions->pluck('name'),
+                ]),
+            'permissionCatalog' => array_values(array_filter(
+                config('permission_catalog.permissions', []),
+                fn ($permission) => ! str_starts_with($permission, 'platform.')
+            )),
         ]);
     }
 
@@ -101,15 +122,16 @@ class SettingsController extends Controller
     /**
      * Toggles which sidebar modules are enabled app-wide. Core modules
      * (Home, Dashboard, Settings) are never in this list -- they're
-     * always on, see config/modules.php. Every key submitted must be a
-     * real, registered module (config/modules.php is the whitelist), so
-     * this can never be used to "enable" something that doesn't exist.
+     * always on. Every key submitted must be a real, registered module --
+     * the `modules` DB table (Task #42) is the whitelist, not
+     * config/modules.php anymore (that file now only supplies
+     * ModuleSeeder's default seed data).
      */
     public function updateModules(Request $request): RedirectResponse
     {
         $validated = $request->validate([
             'enabled_modules' => ['array'],
-            'enabled_modules.*' => ['string', Rule::in(array_keys(config('modules.available')))],
+            'enabled_modules.*' => ['string', Rule::in(Module::query()->pluck('key')->all())],
         ]);
 
         CompanySetting::set('enabled_modules', json_encode($validated['enabled_modules'] ?? []));
@@ -117,6 +139,73 @@ class SettingsController extends Controller
         ActivityLog::record('updated', 'Enabled modules were updated.');
 
         return back()->with('success', 'Modules updated.');
+    }
+
+    /**
+     * Milestone 2 (Dynamic Workspace system, Task #43). Bulk-updates the
+     * label/order/active-state of existing `workspaces` catalog rows --
+     * same "visibility/labeling only" boundary as updateModules() above,
+     * not a way to create a workspace with real functionality (see the
+     * workspaces migration's own doc comment). Every `key` submitted must
+     * already exist in the DB (seeded by WorkspaceSeeder from
+     * resources/js/lib/workspaces.js's own WORKSPACES array), so this can
+     * never invent a workspace key the frontend doesn't already know how
+     * to render.
+     */
+    public function updateWorkspaces(Request $request): RedirectResponse
+    {
+        $validated = $request->validate([
+            'workspaces' => ['array'],
+            'workspaces.*.key' => ['required', 'string', Rule::exists('workspaces', 'key')],
+            'workspaces.*.label' => ['required', 'string', 'max:255'],
+            'workspaces.*.sort_order' => ['required', 'integer', 'min:0'],
+            'workspaces.*.is_active' => ['boolean'],
+        ]);
+
+        foreach ($validated['workspaces'] ?? [] as $row) {
+            Workspace::where('key', $row['key'])->update([
+                'label' => $row['label'],
+                'sort_order' => $row['sort_order'],
+                'is_active' => $row['is_active'] ?? true,
+            ]);
+        }
+
+        ActivityLog::record('updated', 'Department navigation labels/order were updated.');
+
+        return back()->with('success', 'Departments updated.');
+    }
+
+    /**
+     * Milestone 2 (RBAC UI, Task #45). Syncs a tenant-side Role's
+     * permission set. `RolePermissionSeeder` still defines each role's
+     * DEFAULT set on first seed; this is where a Company Admin can
+     * actually change it afterward without a developer touching seed
+     * code. Does not (yet) migrate any controller's own authorization
+     * check from `role`/`isX()` to `->can()` -- see
+     * docs/ADR/008-tenancy-foundation.md's RBAC decision -- so editing a
+     * role's permissions here has no effect on the app's actual behavior
+     * until that separate migration happens. Documented plainly in the
+     * frontend UI itself so this isn't a surprise.
+     */
+    public function updateRolePermissions(Request $request, Role $role): RedirectResponse
+    {
+        // A Role belonging to another tenant (or the platform_admin
+        // role, tenant_id 0) must never be editable from here, no matter
+        // what id is guessed in the URL.
+        abort_unless($role->tenant_id === $request->user()->tenant_id, 404);
+
+        $validCatalog = array_filter(config('permission_catalog.permissions', []), fn ($p) => ! str_starts_with($p, 'platform.'));
+
+        $validated = $request->validate([
+            'permissions' => ['array'],
+            'permissions.*' => ['string', Rule::in($validCatalog)],
+        ]);
+
+        $role->syncPermissions($validated['permissions'] ?? []);
+
+        ActivityLog::record('updated', "Role \"{$role->name}\" permissions were updated.");
+
+        return back()->with('success', 'Role permissions updated.');
     }
 
     // --- Companies (business entities: GAJ, Maintenance) ---
@@ -296,6 +385,13 @@ class SettingsController extends Controller
         ]);
 
         $data['password'] = Hash::make($data['password']);
+        // Milestone 2 (Tenancy Foundation): every user created through this
+        // form belongs to the same tenant as the admin creating them --
+        // never leave tenant_id unset here, or the new account would
+        // silently become a Platform Super Admin (tenant_id null, see
+        // User::isPlatformAdmin()) and fail every Company-scoped query
+        // closed for itself (TenantScope).
+        $data['tenant_id'] = $request->user()->tenant_id;
         $user = User::create($data);
 
         ActivityLog::record('created', "User {$user->name} ({$user->role}) was created.", $user);

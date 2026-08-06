@@ -108,19 +108,14 @@ class MaterialRequest extends Model
     }
 
     /**
-     * MR-{YEAR}-{00001}, matching the same per-year sequential numbering
-     * convention already used by the Task Engine (TSK-{YEAR}-{00001}).
+     * Milestone 3: delegates to the centralized, lock-safe Numbering
+     * Engine (`App\Services\NumberGeneratorService`) instead of the old
+     * unlocked `ORDER BY ... DESC LIMIT 1` read-then-write, which was a
+     * real race condition under concurrent submissions. Same
+     * MR-{YEAR}-{00001} shape as before by default.
      */
-    public static function generateRequestNumber(): string
+    public static function generateRequestNumber(?int $companyId = null): string
     {
-        $year = now()->year;
-        $lastNumber = static::withTrashed()
-            ->where('request_number', 'like', "MR-{$year}-%")
-            ->orderByDesc('id')
-            ->value('request_number');
-
-        $sequence = $lastNumber ? ((int) substr($lastNumber, -5)) + 1 : 1;
-
-        return sprintf('MR-%d-%05d', $year, $sequence);
+        return app(\App\Services\NumberGeneratorService::class)->generate('material_request', $companyId);
     }
 }

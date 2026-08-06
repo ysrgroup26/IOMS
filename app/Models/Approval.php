@@ -20,12 +20,21 @@ class Approval extends Model
         'approved_by',
         'decided_at',
         'comments',
+        // Milestone 3 (Approval Engine v2) -- null approval_flow_id means
+        // this row is on the legacy single-step path (see ApprovalFlow's
+        // own doc comment).
+        'approval_flow_id',
+        'step_number',
+        'is_escalated',
+        'escalated_at',
     ];
 
     protected function casts(): array
     {
         return [
             'decided_at' => 'datetime',
+            'is_escalated' => 'boolean',
+            'escalated_at' => 'datetime',
         ];
     }
 
@@ -44,30 +53,16 @@ class Approval extends Model
         return $this->belongsTo(User::class, 'approved_by');
     }
 
-    /**
-     * Updates only the Approval record's own fields. The caller is
-     * responsible for transitioning the approvable model's own status
-     * (via its HasWorkflow::transitionTo()) separately -- keeping this
-     * method from also logging avoids two ActivityLog entries for what
-     * is, from the user's perspective, a single decision.
-     */
-    public function approve(User $user, ?string $comments = null): void
+    public function flow()
     {
-        $this->update([
-            'status' => self::STATUS_APPROVED,
-            'approved_by' => $user->id,
-            'decided_at' => now(),
-            'comments' => $comments,
-        ]);
+        return $this->belongsTo(ApprovalFlow::class, 'approval_flow_id');
     }
 
-    public function reject(User $user, ?string $comments = null): void
-    {
-        $this->update([
-            'status' => self::STATUS_REJECTED,
-            'approved_by' => $user->id,
-            'decided_at' => now(),
-            'comments' => $comments,
-        ]);
-    }
+    // Milestone 3: the old approve()/reject() instance methods (which
+    // only updated this row's own fields) were removed -- calling them
+    // directly would skip App\Services\ApprovalEngine's chain-advancement
+    // and finalization logic, leaving a multi-step approvable stuck
+    // forever or a legacy single-step one never transitioned. Use
+    // app(ApprovalEngine::class)->decide($approval, $user, $decision, $comments)
+    // instead; that is now the ONLY path that changes an Approval's status.
 }

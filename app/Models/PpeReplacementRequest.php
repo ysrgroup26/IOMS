@@ -54,19 +54,22 @@ class PpeReplacementRequest extends Model
     }
 
     /**
-     * PRR-{YEAR}-{00001}, same convention as Material Request's MR-* and
-     * the Task Engine's TSK-*.
+     * Milestone 3: delegates to the centralized, lock-safe Numbering
+     * Engine -- see MaterialRequest::generateRequestNumber()'s doc
+     * comment for why. Same PRR-{YEAR}-{00001} shape as before by default.
      */
-    public static function generateRequestNumber(): string
+    public static function generateRequestNumber(?int $companyId = null): string
     {
-        $year = now()->year;
-        $lastNumber = static::withTrashed()
-            ->where('request_number', 'like', "PRR-{$year}-%")
-            ->orderByDesc('id')
-            ->value('request_number');
-
-        $sequence = $lastNumber ? ((int) substr($lastNumber, -5)) + 1 : 1;
-
-        return sprintf('PRR-%d-%05d', $year, $sequence);
+        return app(\App\Services\NumberGeneratorService::class)->generate('ppe_replacement_request', $companyId);
     }
+
+    // Milestone 3 (Task #51) note: deliberately NOT given HasWorkflow/
+    // HasApprovals in this pass. Today it's a one-shot record -- created
+    // once (storeReplacementRequest()), then only ever viewed/exported,
+    // with no approve/reject route or UI anywhere. Bolting on a status
+    // guard with nothing to drive it would be exactly the kind of
+    // half-wired feature this milestone's "no dummy, no shortcut" rule
+    // warns against. A real PPE Replacement approval workflow (matching
+    // MaterialRequest's pattern) is a genuine, well-scoped future
+    // feature -- see docs/ADR/012-milestone-numbering.md.
 }

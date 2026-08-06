@@ -77,16 +77,13 @@ class LeaveRequest extends Model
     }
 
     /** LR-{YEAR}-{00001}, same per-year sequential convention as Material Request (MR-) and Tasks (TSK-). */
-    public static function generateLeaveNumber(): string
+    /**
+     * Milestone 3: delegates to the centralized, lock-safe Numbering
+     * Engine -- see MaterialRequest::generateRequestNumber()'s doc
+     * comment for why. Same LR-{YEAR}-{00001} shape as before by default.
+     */
+    public static function generateLeaveNumber(?int $companyId = null): string
     {
-        $year = now()->year;
-        $lastNumber = static::withTrashed()
-            ->where('leave_number', 'like', "LR-{$year}-%")
-            ->orderByDesc('id')
-            ->value('leave_number');
-
-        $sequence = $lastNumber ? ((int) substr($lastNumber, -5)) + 1 : 1;
-
-        return sprintf('LR-%d-%05d', $year, $sequence);
+        return app(\App\Services\NumberGeneratorService::class)->generate('leave_request', $companyId);
     }
 }

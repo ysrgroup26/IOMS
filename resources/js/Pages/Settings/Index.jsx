@@ -1,5 +1,5 @@
 import { Head, useForm, router, usePage } from '@inertiajs/react';
-import { useState } from 'react';
+import { useState, useEffect } from 'react';
 import * as Tabs from '@radix-ui/react-tabs';
 import ImageUploadField from '@/Components/shared/ImageUploadField';
 import { AVAILABLE_ICON_NAMES } from '@/lib/iconMap';
@@ -26,7 +26,7 @@ const ROLE_LABELS = {
     warehouse: 'Warehouse',
 };
 
-export default function SettingsIndex({ company, companies, departments, positions, kpiCategories, users, can, filters }) {
+export default function SettingsIndex({ company, companies, departments, positions, kpiCategories, users, can, filters, roles, permissionCatalog }) {
     // System-level tabs (Companies, Users, Backup) are Super-Admin-only.
     // HSE sees only the operational tabs (Departments, Positions).
     const canSystem = can?.manage_system;
@@ -53,17 +53,24 @@ export default function SettingsIndex({ company, companies, departments, positio
                     <Tabs.Trigger value="kpi-categories" className={TAB_CLASS}>KPI Categories</Tabs.Trigger>
                     <Tabs.Trigger value="authentication" className={TAB_CLASS}>Authentication</Tabs.Trigger>
                     {canSystem && <Tabs.Trigger value="users" className={TAB_CLASS}>Users</Tabs.Trigger>}
+                    {canSystem && <Tabs.Trigger value="roles" className={TAB_CLASS}>Roles &amp; Permissions</Tabs.Trigger>}
                     {canSystem && <Tabs.Trigger value="backup" className={TAB_CLASS}>Backup &amp; Restore</Tabs.Trigger>}
                 </Tabs.List>
 
                 {canSystem && <Tabs.Content value="branding"><BrandingTab company={company} /></Tabs.Content>}
-                {canSystem && <Tabs.Content value="modules"><ModulesTab /></Tabs.Content>}
+                {canSystem && (
+                    <Tabs.Content value="modules" className="space-y-4">
+                        <WorkspaceLabelsCard />
+                        <ModulesTab />
+                    </Tabs.Content>
+                )}
                 {canSystem && <Tabs.Content value="companies"><CompaniesTab companies={companies} /></Tabs.Content>}
                 <Tabs.Content value="departments"><DepartmentsTab departments={departments} companies={companies} filters={filters} /></Tabs.Content>
                 <Tabs.Content value="positions"><PositionsTab positions={positions} departments={departments} companies={companies} filters={filters} /></Tabs.Content>
                 <Tabs.Content value="kpi-categories"><KpiCategoriesTab kpiCategories={kpiCategories} companies={companies} /></Tabs.Content>
                 <Tabs.Content value="authentication"><AuthenticationTab /></Tabs.Content>
                 {canSystem && <Tabs.Content value="users"><UsersTab users={users} /></Tabs.Content>}
+                {canSystem && <Tabs.Content value="roles"><RolesTab roles={roles} permissionCatalog={permissionCatalog} /></Tabs.Content>}
                 {canSystem && <Tabs.Content value="backup"><BackupTab /></Tabs.Content>}
             </Tabs.Root>
         </AuthenticatedLayout>
@@ -161,6 +168,194 @@ const MODULE_WORKSPACE = WORKSPACES.reduce((map, workspace) => {
  * with zero visible items, so no separate workspace-level toggle or
  * CompanySetting is needed.
  */
+function humanizePermissionGroup(prefix) {
+    return prefix.split('_').map((w) => w.charAt(0).toUpperCase() + w.slice(1)).join(' ');
+}
+
+/**
+ * Milestone 2 (RBAC UI, Task #45). Edit which permissions each
+ * tenant-side Role carries -- `spatie/laravel-permission` roles seeded
+ * by RolePermissionSeeder with a sensible default set per role. This is
+ * genuinely functional (writes to the `role_has_permissions` pivot,
+ * `->hasRole()`/`->can()` reflect it immediately), but no existing
+ * controller checks permissions yet -- every controller still runs on
+ * the `role` column + isX()/canX() methods (see
+ * docs/ADR/008-tenancy-foundation.md). Said plainly in the UI itself so
+ * an admin editing this doesn't assume it already changes what a role
+ * can do in the app today.
+ */
+function RolesTab({ roles, permissionCatalog }) {
+    const [activeRoleId, setActiveRoleId] = useState(roles?.[0]?.id);
+    const activeRole = (roles ?? []).find((r) => r.id === activeRoleId);
+
+    const { data, setData, put, processing } = useForm({ permissions: activeRole?.permissions ?? [] });
+
+    useEffect(() => {
+        setData('permissions', (roles ?? []).find((r) => r.id === activeRoleId)?.permissions ?? []);
+        // eslint-disable-next-line react-hooks/exhaustive-deps
+    }, [activeRoleId]);
+
+    function toggle(permission) {
+        setData('permissions', data.permissions.includes(permission)
+            ? data.permissions.filter((p) => p !== permission)
+            : [...data.permissions, permission]);
+    }
+
+    function submit(e) {
+        e.preventDefault();
+        put(route('settings.roles.update', activeRoleId));
+    }
+
+    const groups = (permissionCatalog ?? []).reduce((acc, permission) => {
+        const prefix = permission.split('.')[0];
+        (acc[prefix] ??= []).push(permission);
+        return acc;
+    }, {});
+
+    return (
+        <Card className="max-w-2xl">
+            <CardHeader>
+                <CardTitle>Roles &amp; Permissions</CardTitle>
+                <CardDescription>
+                    Edit which permissions each role carries. <strong>Note:</strong> this updates the
+                    permission records themselves, but no page in the app checks them yet -- every page
+                    still uses each role's built-in capabilities. Changes here take effect once that
+                    migration happens.
+                </CardDescription>
+            </CardHeader>
+            <CardContent className="space-y-4">
+                <div className="flex flex-wrap gap-2">
+                    {(roles ?? []).map((role) => (
+                        <button
+                            key={role.id}
+                            type="button"
+                            onClick={() => setActiveRoleId(role.id)}
+                            className={`rounded-md px-3 py-1.5 text-sm font-medium ${role.id === activeRoleId ? 'bg-brand-50 text-brand-700' : 'bg-graphite-100 text-graphite-600 hover:bg-graphite-200'}`}
+                        >
+                            {ROLE_LABELS[role.name] ?? role.name}
+                        </button>
+                    ))}
+                </div>
+
+                <form onSubmit={submit} className="space-y-5">
+                    {Object.entries(groups).map(([prefix, permissions]) => (
+                        <div key={prefix} className="space-y-2">
+                            <div className="text-xs font-semibold uppercase tracking-wide text-graphite-400">
+                                {humanizePermissionGroup(prefix)}
+                            </div>
+                            <div className="grid grid-cols-2 gap-2">
+                                {permissions.map((permission) => (
+                                    <label key={permission} className="flex items-center justify-between rounded-lg border border-graphite-100 px-3 py-2">
+                                        <span className="text-sm text-graphite-700">{permission.split('.').slice(1).join('.')}</span>
+                                        <Checkbox checked={data.permissions.includes(permission)} onCheckedChange={() => toggle(permission)} />
+                                    </label>
+                                ))}
+                            </div>
+                        </div>
+                    ))}
+                    <Button type="submit" disabled={processing || !activeRoleId}>
+                        {processing && <Loader2 className="h-4 w-4 animate-spin" />} Save Permissions
+                    </Button>
+                </form>
+            </CardContent>
+        </Card>
+    );
+}
+
+/**
+ * Milestone 2 (Dynamic Workspace system, Task #43). Rename/reorder/
+ * enable-disable existing department & global navigation entries without
+ * a code deploy -- writes to the `workspaces` DB table, which
+ * `resources/js/lib/workspaces.js`'s `applyCatalog()` merges onto the
+ * hardcoded WORKSPACES array's label/icon/order everywhere the sidebar
+ * and Department Selector read it. Same "labeling only" boundary as
+ * ModulesTab below: this can't add a new working department, only
+ * rename/reorder/hide ones that already have real pages built for them.
+ */
+function WorkspaceLabelsCard() {
+    const { workspace_catalog: catalog } = usePage().props;
+
+    const rows = WORKSPACES.map((workspace, index) => {
+        const override = catalog?.[workspace.key];
+        return {
+            key: workspace.key,
+            defaultLabel: workspace.label,
+            label: override?.label ?? workspace.label,
+            sort_order: override?.sort_order ?? index + 1,
+            is_active: override?.is_active ?? true,
+        };
+    });
+
+    const { data, setData, post, processing } = useForm({ workspaces: rows });
+
+    function updateRow(key, patch) {
+        setData('workspaces', data.workspaces.map((row) => (row.key === key ? { ...row, ...patch } : row)));
+    }
+
+    function submit(e) {
+        e.preventDefault();
+        post(route('settings.workspaces'));
+    }
+
+    return (
+        <Card>
+            <CardHeader>
+                <CardTitle>Department Navigation</CardTitle>
+                <CardDescription>
+                    Rename, reorder, or hide existing departments in the sidebar switcher. This controls{' '}
+                    <strong>labels and order only</strong> -- it does not create a new working department;
+                    each row here corresponds to a department that already exists in the app.
+                </CardDescription>
+            </CardHeader>
+            <CardContent>
+                <form onSubmit={submit} className="space-y-3">
+                    <div className="overflow-x-auto">
+                        <Table>
+                            <TableHeader>
+                                <TableRow>
+                                    <TableHead>Label</TableHead>
+                                    <TableHead className="w-24">Order</TableHead>
+                                    <TableHead className="w-20">Active</TableHead>
+                                </TableRow>
+                            </TableHeader>
+                            <TableBody>
+                                {data.workspaces.map((row) => (
+                                    <TableRow key={row.key}>
+                                        <TableCell>
+                                            <Input
+                                                value={row.label}
+                                                placeholder={row.defaultLabel}
+                                                onChange={(e) => updateRow(row.key, { label: e.target.value })}
+                                            />
+                                        </TableCell>
+                                        <TableCell>
+                                            <Input
+                                                type="number"
+                                                min={0}
+                                                value={row.sort_order}
+                                                onChange={(e) => updateRow(row.key, { sort_order: Number(e.target.value) })}
+                                            />
+                                        </TableCell>
+                                        <TableCell>
+                                            <Checkbox
+                                                checked={row.is_active}
+                                                onCheckedChange={(checked) => updateRow(row.key, { is_active: !!checked })}
+                                            />
+                                        </TableCell>
+                                    </TableRow>
+                                ))}
+                            </TableBody>
+                        </Table>
+                    </div>
+                    <Button type="submit" disabled={processing}>
+                        {processing && <Loader2 className="h-4 w-4 animate-spin" />} Save Departments
+                    </Button>
+                </form>
+            </CardContent>
+        </Card>
+    );
+}
+
 function ModulesTab() {
     const { modules } = usePage().props;
     const { data, setData, post, processing } = useForm({

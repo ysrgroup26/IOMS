@@ -5,10 +5,19 @@ namespace App\Models;
 use Illuminate\Foundation\Auth\User as Authenticatable;
 use Illuminate\Notifications\Notifiable;
 use Laravel\Sanctum\HasApiTokens;
+use Spatie\Permission\Traits\HasRoles;
 
 class User extends Authenticatable
 {
-    use HasApiTokens, Notifiable;
+    // HasRoles (Milestone 2, RBAC foundation) added now so
+    // $user->assignRole()/->can() are available to build on -- the
+    // existing role string column and isX()/isPlatformAdmin() checks
+    // below are UNCHANGED and still the live authorization path for
+    // every existing controller. Migrating those call sites to
+    // permission-based checks is a deliberately separate, later step
+    // (see docs/ADR/008), not bundled into this one so this change stays
+    // reviewable and doesn't risk regressing access for any current user.
+    use HasApiTokens, HasRoles, Notifiable;
 
     // Four-role system: Super Admin (full access), HSE (operational
     // input/management), HRD (read-only), Manager (read-only, broader
@@ -32,11 +41,25 @@ class User extends Authenticatable
      */
     public const ROLE_WAREHOUSE = 'warehouse';
 
+    /**
+     * Milestone 2 (Tenancy Foundation). The platform operator's own staff
+     * role -- distinct from every role above, which are all tenant-side
+     * roles (they describe what someone can do WITHIN one customer's
+     * data). A Platform Super Admin's authority is orthogonal to those:
+     * it operates on Tenant/Subscription/Package records at the platform
+     * level (see the forthcoming /platform/* surface, Task #44), not on
+     * any tenant's Company-scoped data -- isPlatformAdmin() (tenant_id
+     * null) is what actually grants that, this role label just makes it
+     * visible/filterable the same way the tenant-side roles are.
+     */
+    public const ROLE_PLATFORM_ADMIN = 'platform_admin';
+
     protected $fillable = [
         'name',
         'email',
         'password',
         'role',
+        'tenant_id',
         'company_id',
         'department_key',
         'avatar_path',
@@ -92,6 +115,26 @@ class User extends Authenticatable
     public function company()
     {
         return $this->belongsTo(Company::class);
+    }
+
+    /**
+     * Milestone 2 (Tenancy Foundation). `tenant_id` null is a real,
+     * permanent, intentional state -- Platform Super Admin, someone who
+     * works for the platform operator, not for any customer tenant. Every
+     * pre-Milestone-2 account was backfilled to the one pre-existing
+     * tenant (see 2026_08_14_100043_add_tenant_id_to_users_table) and
+     * keeps working exactly as before; a genuinely new Platform Super
+     * Admin account is a separate, deliberate action (PlatformAdminSeeder),
+     * never an accidental side effect of this column existing.
+     */
+    public function tenant()
+    {
+        return $this->belongsTo(Tenant::class);
+    }
+
+    public function isPlatformAdmin(): bool
+    {
+        return is_null($this->tenant_id);
     }
 
     /**
@@ -273,6 +316,7 @@ class User extends Authenticatable
             self::ROLE_HRD => 'HRD',
             self::ROLE_MANAGER => 'Manager',
             self::ROLE_WAREHOUSE => 'Warehouse',
+            self::ROLE_PLATFORM_ADMIN => 'Platform Super Admin',
             default => ucfirst($this->role),
         };
     }

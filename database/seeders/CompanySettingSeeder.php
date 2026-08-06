@@ -3,6 +3,7 @@
 namespace Database\Seeders;
 
 use App\Models\CompanySetting;
+use App\Models\Module;
 use Illuminate\Database\Seeder;
 
 class CompanySettingSeeder extends Seeder
@@ -30,13 +31,13 @@ class CompanySettingSeeder extends Seeder
 
         // Module toggle registry (v1.5.0): only seeded if it doesn't exist
         // yet, so re-running this seeder never overwrites a Super Admin's
-        // module on/off choices. See config/modules.php for the full
-        // registry (including future, not-yet-built modules) and
-        // Settings > Modules for the toggle UI.
+        // module on/off choices. Reads the `modules` DB table (Task #42),
+        // not config/modules.php anymore -- ModuleSeeder must run before
+        // this seeder (see DatabaseSeeder's call order).
         if (CompanySetting::where('key', 'enabled_modules')->doesntExist()) {
             CompanySetting::create([
                 'key' => 'enabled_modules',
-                'value' => json_encode(array_keys(config('modules.available'))),
+                'value' => json_encode(Module::query()->pluck('key')->all()),
             ]);
         }
     }

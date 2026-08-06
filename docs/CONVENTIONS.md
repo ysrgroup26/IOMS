@@ -111,6 +111,40 @@ codebase's history — kept here so they don't get repeated in a slightly differ
   join for the extremely common "show me X for this company" query, and because it lets the record
   exist correctly even before the more specific relationship is chosen.
 
+## Tenancy scoping (Milestone 2)
+
+- **Every `User::create()` call site must set `tenant_id` explicitly.** It has no safe default —
+  `null` is a real, permanent state (Platform Super Admin, see `User::isPlatformAdmin()` and
+  `docs/ADR/008-tenancy-foundation.md`), not a data gap that "just happens" to get backfilled. This
+  bug was made and fixed twice in the same milestone: `UserSeeder` (new accounts created during
+  `db:seed` on a fresh install, since the migration's own backfill only covers users that already
+  existed *at migration time*, not ones a later seeder creates) and
+  `SettingsController::storeUser()` (new accounts created from Settings → Users in the running app).
+  Both silently created accounts that were accidentally Platform Super Admins, which then failed
+  every Company-scoped query closed for themselves (`App\Models\Scopes\TenantScope`'s fail-closed
+  behavior). If you add another place that creates a `User`, set `tenant_id` there too — don't
+  assume a migration backfill will cover it.
+- **`TenantScope` (on `Company`) fails closed outside an HTTP request.** `php artisan tinker`, a
+  queued job, or a seeder that runs before `DatabaseSeeder` binds a tenant will all see
+  `Company::count()` return 0 even when rows exist — this is correct, not a bug, but easy to
+  mistake for one while debugging. Bind a tenant manually first:
+  `app(App\Support\CurrentTenant::class)->set($tenant)`.
+- **`Company`'s global scope does not automatically protect every table beneath it.** Only queries
+  that actually go through a scoped `Company` relationship are protected. A controller/dashboard
+  widget that queries an operational table directly (KPI records, incidents, etc.) without joining
+  through `Company` is not tenant-filtered. Harmless with exactly one tenant in production today;
+  see `docs/ADR/008-tenancy-foundation.md`'s Consequences section for why this needs revisiting
+  before a second tenant is onboarded.
+
+- **Any place that sets Spatie's permission team id must use the same `0` sentinel for a Platform
+  Super Admin (`tenant_id` null) that `RolePermissionSeeder` used when assigning their role** — the
+  `model_has_roles`/`model_has_permissions` pivot tables require a non-null team id in their own
+  primary key, so passing `null` through (the naive `$tenant?->id` translation of
+  `User::isPlatformAdmin()`'s convention) makes `->hasRole()`/`->can()` silently return false for
+  every Platform Super Admin at runtime, even though the seeder's own `tinker` check looked correct.
+  This was caught and fixed in `App\Http\Middleware\ResolveTenant` during the same milestone that
+  introduced it — see `docs/ADR/008-tenancy-foundation.md`.
+
 ## Verification discipline (and its real limits)
 
 - This project's development has, in practice, never included actually running `php artisan

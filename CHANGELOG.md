@@ -6,6 +6,69 @@ Management System, formerly SAFETY LOG) are documented here. This project adhere
 
 ---
 
+## [2.0.0 Beta] — 2026-08-16
+
+Milestone 2: SaaS Tenancy Foundation. Architecture Freeze per the approved Blueprint -- builds the
+platform layer above the existing single-instance app (Tenant → Company, unchanged in meaning) using
+existing engines wherever possible rather than rewriting them. Full reasoning in
+`docs/ADR/008-tenancy-foundation.md`.
+
+### Added — Tenancy Foundation
+
+- `tenants` table; `companies.tenant_id` (NOT NULL anchor) and `users.tenant_id` (nullable forever --
+  null means Platform Super Admin, see `User::isPlatformAdmin()`).
+- `App\Models\Scopes\TenantScope` on `Company`, fail-closed with no resolved tenant.
+- `App\Http\Middleware\ResolveTenant` (runs first in the web middleware stack) + `App\Support\CurrentTenant`
+  (container singleton).
+- Legacy, dead `roles` table/model/seeder removed (collided by name with Spatie's own `roles` table).
+
+### Added — Platform Super Admin
+
+- `User::ROLE_PLATFORM_ADMIN`; `PlatformAdminSeeder` creates `platform@ioms.local`.
+- New `/platform/*` surface (`PlatformController`, `PlatformLayout.jsx`) -- Dashboard and Tenants
+  pages, tenant status management (trial/active/suspended/expired). Gated by `role:platform_admin`,
+  entirely separate from the tenant-side app.
+
+### Added — Package + Subscription (structure)
+
+- `packages` and `subscriptions` tables/models. Seeded with Starter/Professional/Enterprise tiers; the
+  current tenant gets an active Enterprise subscription by default. No payment gateway integration yet.
+
+### Added — RBAC (spatie/laravel-permission)
+
+- Package installed; `teams` feature repurposed for tenant scoping (`team_foreign_key` = `tenant_id`).
+- `config/permission_catalog.php` -- flat `module.action` permission catalog.
+- `RolePermissionSeeder` creates one tenant-scoped Role per existing `role` value with a default
+  permission set matching that role's current capabilities, and assigns every seeded user their Role.
+- New Settings → "Roles & Permissions" tab -- a Company Admin can edit any tenant-side role's
+  permissions. Does not yet change any controller's actual authorization (still `role`/`isX()/canX()`)
+  -- said plainly in the UI.
+
+### Added — Dynamic Module & Workspace catalogs (DB-driven, replacing config files)
+
+- `modules` table replaces `config('modules.available')` as the runtime module registry
+  (`config/modules.php` now only supplies `ModuleSeeder`'s default seed data).
+- `workspaces` table overrides label/icon/order/active-state for `resources/js/lib/workspaces.js`'s
+  WORKSPACES entries (structure/routes/gates stay in code -- see the migration's own doc comment).
+  New Settings → "Department Navigation" section to rename/reorder/hide departments without a deploy.
+
+### Fixed — bugs found during this milestone's own verification
+
+- `CurrentTenant` wasn't bound as a container singleton, so every `app(CurrentTenant::class)` call
+  resolved a fresh, unset instance -- broke `db:seed` (`CompanySeeder` inserted `tenant_id = NULL`).
+- `UserSeeder` and `SettingsController::storeUser()` didn't set `tenant_id` explicitly on new accounts,
+  silently making them Platform Super Admins and failing every Company-scoped query closed for
+  themselves.
+- `ResolveTenant` passed `null` as the Spatie permission team id for a Platform Super Admin at runtime,
+  while their Role was seeded under a `0` sentinel -- `->hasRole()`/`->can()` silently returned false.
+- `PlatformController`'s tenant company counts showed 0 for every tenant -- `withCount('companies')`
+  inherited `TenantScope`'s fail-closed behavior, wrong for a controller whose entire purpose is
+  cross-tenant visibility. Fixed with an explicit `withoutGlobalScope`.
+- Settings → "Roles & Permissions" 500'd with `LazyLoadingViolationException` -- missing
+  `->with('permissions')` eager-load.
+
+---
+
 ## [1.6.9.1 Beta] — 2026-08-10
 
 Complete Material Request Workflow. The previous version introduced the Approval Engine and

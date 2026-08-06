@@ -47,16 +47,13 @@ class GoodsReceipt extends Model
     }
 
     /** GR-{YEAR}-{00001}, same per-year sequential convention as Material Request/Leave/Incident. */
-    public static function generateReceiptNumber(): string
+    /**
+     * Milestone 3: delegates to the centralized, lock-safe Numbering
+     * Engine -- see MaterialRequest::generateRequestNumber()'s doc
+     * comment for why. Same GR-{YEAR}-{00001} shape as before by default.
+     */
+    public static function generateReceiptNumber(?int $companyId = null): string
     {
-        $year = now()->year;
-        $lastNumber = static::withTrashed()
-            ->where('receipt_number', 'like', "GR-{$year}-%")
-            ->orderByDesc('id')
-            ->value('receipt_number');
-
-        $sequence = $lastNumber ? ((int) substr($lastNumber, -5)) + 1 : 1;
-
-        return sprintf('GR-%d-%05d', $year, $sequence);
+        return app(\App\Services\NumberGeneratorService::class)->generate('goods_receipt', $companyId);
     }
 }

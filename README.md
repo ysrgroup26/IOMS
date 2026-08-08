@@ -311,13 +311,14 @@ So you don't have to run `php artisan serve` every time and can use a clean URL:
 > If the `.test` domain doesn't resolve, run Laragon as Administrator once so it can update the
 > hosts file, or use **Menu → Tools → Quick app**. Clear DNS with `ipconfig /flushdns` if needed.
 
-### Production build
+### Building frontend assets for a release
+
+Run this on your own machine (or CI) -- **not** on the production server, which has no Node.js.
+See § 5 "Deployment Guide" for the full release flow (build here, commit, push, then the server
+just `git pull`s the result).
 
 ```bash
 npm run build
-php artisan config:cache
-php artisan route:cache
-php artisan view:cache
 ```
 
 ### Useful artisan commands
@@ -334,12 +335,33 @@ php artisan tinker                         # inspect data in a REPL
 
 ## 5. Deployment Guide
 
-**One flow, every environment**: `git pull` → `composer install` → `npm run build` → `php artisan
-app:deploy` → ready. `./deploy.sh` runs exactly that sequence. Every environment-specific difference
-(where `composer` lives, whether it's shared hosting or a VPS, MySQL vs MariaDB) is a one-time setup
-choice made *before* the first deploy, never a step repeated on every deploy -- see
-`docs/ADR/027-deployment-architecture-redesign.md` for the full reasoning and how this replaced the
-manual copy/cache/symlink patches earlier releases needed.
+**Production has no Node.js** (verified -- `node`/`npm` both "command not found" on the shared
+host). Frontend assets are built on a machine that HAS Node (your own machine, or CI) and
+**committed to git** -- `public/build/` is intentionally tracked, not gitignored (see the note on
+`/public/build` in `.gitignore`). The server never runs `npm`; `git pull` alone is what brings the
+already-built assets across. See `docs/ADR/028-remove-nodejs-from-production.md` for the full
+reasoning.
+
+**One flow, on the server**: `git pull` → `composer install` → `php artisan app:deploy` → ready.
+`./deploy.sh` runs exactly that sequence. Every environment-specific difference (where `composer`
+lives, shared hosting vs a VPS, MySQL vs MariaDB) is a one-time setup choice made *before* the first
+deploy, never a step repeated on every deploy -- see
+`docs/ADR/027-deployment-architecture-redesign.md` for that reasoning.
+
+### Before every deploy that touches frontend code (on YOUR machine, which has Node)
+
+```bash
+npm run build
+git add public/build
+git commit -m "Build assets for <what changed>"
+git push
+```
+
+Skip this entirely for a backend-only change (nothing under `resources/js`/`resources/css`
+changed) -- the committed `public/build` from the last frontend build is still correct, and
+`git pull` on the server won't touch it. If you're ever unsure whether the committed build is
+current, running `npm run build` again is always safe -- it's a no-op (identical output, nothing to
+commit) if nothing frontend-related changed since the last build.
 
 ### One-time setup (per environment, before the first deploy)
 
@@ -382,9 +404,9 @@ manual copy/cache/symlink patches earlier releases needed.
 ./deploy.sh --first    # first-ever deploy on a brand-new install: seeds + skips maintenance mode
 ```
 
-That's the entire flow. No manual `composer`/`npm` invocation, no manual cache clearing, no manual
-asset copying, no manual migration recovery -- `deploy.sh` calls `composer install`, `npm run
-build`, then hands off to `php artisan app:deploy`
+That's the entire server-side flow -- no manual `composer` invocation, no manual cache clearing, no
+manual asset copying or building, no manual migration recovery, and **no Node.js/npm anywhere on
+the server**. `deploy.sh` calls `composer install`, then hands off to `php artisan app:deploy`
 (`app/Console/Commands/DeployCommand.php`), which clears stale config cache, migrates, optionally
 seeds, links storage (only if not already linked), and rebuilds every cache -- wrapped in
 maintenance mode, which only lifts if every step succeeded. If any step fails, the deploy exits

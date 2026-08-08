@@ -1,11 +1,13 @@
 #!/usr/bin/env bash
 #
-# RC1 deployment architecture redesign (docs/ADR/027). ONE flow, every
-# environment: git pull -> composer install -> npm build -> deploy ->
-# cache -> ready. Everything Laravel-specific lives in the `app:deploy`
-# Artisan command (app/Console/Commands/DeployCommand.php) so it's
-# testable and identical across shells; this script is only the
-# OS-level orchestration around it (pull, install, build).
+# Production deploy flow (docs/ADR/027, revised: production has no
+# Node.js -- see docs/ADR/028). git pull -> composer install -> deploy ->
+# cache -> ready. Deliberately does NOT build frontend assets here --
+# `public/build/` is committed to git (see .gitignore's own comment on
+# `/public/build`) and built on a machine that HAS Node, before pushing;
+# `git pull` alone is what brings the correct, already-built assets to
+# this server. Never run `npm` on this server -- it isn't installed, and
+# it was never actually needed here in the first place.
 #
 # Usage:
 #   ./deploy.sh              # standard deploy (migrate, no seed)
@@ -37,17 +39,13 @@ for arg in "$@"; do
     esac
 done
 
-echo "==> [1/4] Pulling latest code"
+echo "==> [1/3] Pulling latest code (includes pre-built frontend assets)"
 git pull
 
-echo "==> [2/4] Installing PHP dependencies (production, no dev packages)"
+echo "==> [2/3] Installing PHP dependencies (production, no dev packages)"
 "$COMPOSER_BIN" install --no-dev --optimize-autoloader
 
-echo "==> [3/4] Building frontend assets"
-npm ci
-npm run build
-
-echo "==> [4/4] Running deployment tasks (migrate, cache, ready)"
+echo "==> [3/3] Running deployment tasks (migrate, cache, ready)"
 php artisan app:deploy $SEED_FLAG $DEPLOY_ARGS
 
 echo "==> Deployment complete."

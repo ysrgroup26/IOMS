@@ -16,11 +16,29 @@ class EmployeeSeeder extends Seeder
      * Reports, and charts are populated on first login. Safe to remove
      * for a production dataset -- run `php artisan db:seed --class=DemoResetSeeder`
      * is not required; simply skip this seeder in DatabaseSeeder for prod.
+     *
+     * Production deploy fix: `Employee::factory()` and this seeder's own
+     * `fake()` calls depend on `fakerphp/faker`, which is deliberately a
+     * `require-dev`-only package (production must not need it -- see
+     * docs/ADR/029). Laravel's own `fake()` helper
+     * (`Illuminate\Foundation\helpers.php`) already guards its own
+     * definition behind `class_exists(\Faker\Factory::class)` and simply
+     * doesn't exist as a function at all when Faker isn't installed --
+     * this seeder mirrors that exact guard, rather than assuming `fake()`
+     * is always callable. This is the LAST seeder in
+     * `DatabaseSeeder::run()`'s call order, so skipping it never blocks
+     * anything else `db:seed` needs to do.
      */
     public function run(): void
     {
         if (Employee::count() > 0) {
             return; // avoid duplicating demo data on re-seed
+        }
+
+        if (! class_exists(\Faker\Factory::class)) {
+            $this->command?->warn('Skipping EmployeeSeeder: fakerphp/faker is not installed (expected in a --no-dev production install). No demo employees or KPI history were seeded -- this is not an error.');
+
+            return;
         }
 
         $employees = Employee::factory()->count(60)->create();

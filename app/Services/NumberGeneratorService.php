@@ -4,6 +4,7 @@ namespace App\Services;
 
 use App\Models\NumberingFormat;
 use App\Models\NumberingSequence;
+use App\Support\CurrentTenant;
 use Illuminate\Support\Facades\DB;
 
 /**
@@ -24,6 +25,8 @@ use Illuminate\Support\Facades\DB;
  */
 class NumberGeneratorService
 {
+    public function __construct(private readonly CurrentTenant $currentTenant) {}
+
     /**
      * Canonical list of module keys this engine knows about, and the
      * default format each one had BEFORE this engine existed. Adding a
@@ -31,7 +34,7 @@ class NumberGeneratorService
      * NumberingFormat row) -- never a new bespoke `generate*Number()`
      * method on the model.
      */
-    private const DEFAULTS = [
+    public const DEFAULTS = [
         'material_request' => ['prefix' => 'MR', 'pattern' => '{PREFIX}-{YEAR}-{SEQ}', 'seq_padding' => 5, 'reset_period' => 'yearly'],
         'incident' => ['prefix' => 'INC', 'pattern' => '{PREFIX}-{YEAR}-{SEQ}', 'seq_padding' => 5, 'reset_period' => 'yearly'],
         'leave_request' => ['prefix' => 'LR', 'pattern' => '{PREFIX}-{YEAR}-{SEQ}', 'seq_padding' => 5, 'reset_period' => 'yearly'],
@@ -73,8 +76,14 @@ class NumberGeneratorService
     }
 
     /**
-     * Company override if one exists, else the tenant-wide default row
-     * (created on first use from self::DEFAULTS if it doesn't exist yet).
+     * Resolution order: (1) a company-specific override, (2) this
+     * TENANT's own default (company_id null, tenant_id set -- what a
+     * Company Admin edits from Settings > Numbering), (3) the
+     * platform-wide fallback (both null), created from self::DEFAULTS on
+     * first use. Milestone 3 (Task #62): tenant_id was added to
+     * `numbering_formats` after discovering the tenant-wide default row
+     * was actually being shared across EVERY tenant on the platform --
+     * see the adding migration's own doc comment.
      */
     private function resolveFormat(string $moduleKey, ?int $companyId): NumberingFormat
     {
@@ -85,10 +94,30 @@ class NumberGeneratorService
             }
         }
 
+        $tenantId = $this->currentTenant->id();
+
+        if ($tenantId) {
+            $tenantDefault = NumberingFormat::whereNull('company_id')->where('tenant_id', $tenantId)->where('module_key', $moduleKey)->first();
+            if ($tenantDefault) {
+                return $tenantDefault;
+            }
+        }
+
         $defaults = self::DEFAULTS[$moduleKey] ?? ['prefix' => strtoupper(substr($moduleKey, 0, 3)), 'pattern' => '{PREFIX}-{YEAR}-{SEQ}', 'seq_padding' => 5, 'reset_period' => 'yearly'];
 
+        if ($tenantId) {
+            // No tenant customization exists yet -- create ONE for this
+            // tenant (not the shared platform-null row), so editing it
+            // later from Settings never accidentally affects another
+            // tenant.
+            return NumberingFormat::firstOrCreate(
+                ['company_id' => null, 'tenant_id' => $tenantId, 'module_key' => $moduleKey],
+                $defaults
+            );
+        }
+
         return NumberingFormat::firstOrCreate(
-            ['company_id' => null, 'module_key' => $moduleKey],
+            ['company_id' => null, 'tenant_id' => null, 'module_key' => $moduleKey],
             $defaults
         );
     }

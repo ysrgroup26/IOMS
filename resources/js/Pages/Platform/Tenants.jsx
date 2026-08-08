@@ -1,9 +1,11 @@
-import { Head, router } from '@inertiajs/react';
+import { Head, Link, router } from '@inertiajs/react';
 import PlatformLayout from '@/Layouts/PlatformLayout';
 import { Card, CardContent, CardHeader, CardTitle, CardDescription } from '@/Components/ui/card';
 import { Table, TableHeader, TableBody, TableRow, TableHead, TableCell } from '@/Components/ui/table';
 import { Badge } from '@/Components/ui/badge';
+import { Button } from '@/Components/ui/button';
 import { Select, SelectTrigger, SelectValue, SelectContent, SelectItem } from '@/Components/ui/select';
+import { Settings2 } from 'lucide-react';
 
 const STATUS_VARIANT = {
     active: 'success',
@@ -45,6 +47,7 @@ export default function PlatformTenants({ tenants }) {
                                     <TableHead>Users</TableHead>
                                     <TableHead>Package</TableHead>
                                     <TableHead>Status</TableHead>
+                                    <TableHead />
                                 </TableRow>
                             </TableHeader>
                             <TableBody>
@@ -69,6 +72,13 @@ export default function PlatformTenants({ tenants }) {
                                                     <SelectItem value="expired">Expired</SelectItem>
                                                 </SelectContent>
                                             </Select>
+                                        </TableCell>
+                                        <TableCell>
+                                            <Button variant="outline" size="sm" asChild>
+                                                <Link href={route('platform.tenants.grants', tenant.id)}>
+                                                    <Settings2 className="h-3.5 w-3.5" /> Grants
+                                                </Link>
+                                            </Button>
                                         </TableCell>
                                     </TableRow>
                                 ))}

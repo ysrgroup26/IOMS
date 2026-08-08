@@ -3,10 +3,12 @@
 namespace App\Http\Controllers;
 
 use App\Models\ActivityLog;
+use App\Models\Module;
 use App\Models\Package;
 use App\Models\Scopes\TenantScope;
 use App\Models\Subscription;
 use App\Models\Tenant;
+use App\Models\Workspace;
 use Illuminate\Http\RedirectResponse;
 use Illuminate\Http\Request;
 use Illuminate\Validation\Rule;
@@ -87,5 +89,44 @@ class PlatformController extends Controller
         ActivityLog::record('updated', "Tenant \"{$tenant->name}\" status changed to {$validated['status']}.");
 
         return back()->with('success', 'Tenant status updated.');
+    }
+
+    /**
+     * Milestone 3 (UAT #4/#5). The actual grant-management surface: which
+     * modules/workspaces THIS tenant may use at all -- the ceiling a
+     * Company Admin's own Settings > Module Visibility / Department
+     * Navigation pages operate under (see SettingsController::updateModules()/
+     * updateWorkspaces()). Not tenant-scoped data itself (Module/Workspace
+     * are platform catalogs), so no TenantScope bypass needed here.
+     */
+    public function tenantGrants(Tenant $tenant): Response
+    {
+        $grantedModuleIds = $tenant->modules()->pluck('modules.id')->all();
+        $grantedWorkspaceIds = $tenant->workspaces()->pluck('workspaces.id')->all();
+
+        return Inertia::render('Platform/TenantGrants', [
+            'tenant' => $tenant->only(['id', 'name', 'slug']),
+            'modules' => Module::query()->orderBy('sort_order')->get(['id', 'key', 'label'])
+                ->map(fn (Module $m) => ['id' => $m->id, 'key' => $m->key, 'label' => $m->label, 'granted' => in_array($m->id, $grantedModuleIds, true)]),
+            'workspaces' => Workspace::query()->orderBy('sort_order')->get(['id', 'key', 'label', 'tier'])
+                ->map(fn (Workspace $w) => ['id' => $w->id, 'key' => $w->key, 'label' => $w->label, 'tier' => $w->tier, 'granted' => in_array($w->id, $grantedWorkspaceIds, true)]),
+        ]);
+    }
+
+    public function updateTenantGrants(Request $request, Tenant $tenant): RedirectResponse
+    {
+        $validated = $request->validate([
+            'module_ids' => ['array'],
+            'module_ids.*' => ['integer', 'exists:modules,id'],
+            'workspace_ids' => ['array'],
+            'workspace_ids.*' => ['integer', 'exists:workspaces,id'],
+        ]);
+
+        $tenant->modules()->sync($validated['module_ids'] ?? []);
+        $tenant->workspaces()->sync($validated['workspace_ids'] ?? []);
+
+        ActivityLog::record('updated', "Tenant \"{$tenant->name}\" module/workspace grants were updated.");
+
+        return back()->with('success', 'Grants updated.');
     }
 }

@@ -4,32 +4,60 @@ import PageHeader from '@/Components/shared/PageHeader';
 import EmptyState from '@/Components/shared/EmptyState';
 import StatusBadge from '@/Components/shared/StatusBadge';
 import { Card, CardContent, CardHeader, CardTitle } from '@/Components/ui/card';
-import { CheckSquare, ClipboardCheck, HardHat, ArrowRight } from 'lucide-react';
+import { Button } from '@/Components/ui/button';
+import {
+    CheckSquare, ClipboardCheck, HardHat, ArrowRight, Bell, History,
+    PackagePlus, UserPlus, Plus,
+} from 'lucide-react';
 import { cn } from '@/lib/utils';
 
+const QUICK_ACTION_ICONS = { PackagePlus, UserPlus, HardHat, CheckSquare };
+
 /**
- * Work Center (v1.8.0). NOT a Department -- the global, cross-cutting
- * surface for work assigned to the current user regardless of which
- * Department actually owns the underlying record (see
+ * Work Center / "My Workspace" (v1.8.0, extended Milestone 3 Task #63).
+ * NOT a Department -- the global, cross-cutting personal dashboard for
+ * work assigned to the current user regardless of which Department
+ * actually owns the underlying record (see
  * docs/ADR/007-workspace-navigation.md). Every item here is a pointer
  * into the module that owns it (Material Requests stay Logistics',
  * Tasks stay wherever they were created); this page renders no
  * module-specific UI of its own, only the aggregation.
+ *
+ * Task #63 added the Notifications and Recent Activity widgets plus
+ * Quick Actions, completing this as the "My Workspace" tier of the
+ * Enterprise Dashboard epic -- all real data from the Notification
+ * Center / Activity Center / module registry, not placeholders.
  */
-export default function WorkCenterIndex({ approvals, tasks, alerts }) {
+export default function WorkCenterIndex({ approvals, tasks, alerts, notifications, recentActivity, quickActions }) {
     const hasAnything = approvals.length > 0 || tasks.length > 0 || (alerts?.ppe?.count ?? 0) > 0;
 
     return (
         <AuthenticatedLayout>
-            <Head title="Work Center" />
+            <Head title="My Workspace" />
 
             <PageHeader
-                title="Work Center"
-                subtitle="Approvals, tasks, and alerts assigned to you, across every department."
+                title="My Workspace"
+                subtitle="Approvals, tasks, alerts, notifications, and recent activity assigned to you, across every department."
             />
 
+            {quickActions?.length > 0 && (
+                <div className="mb-5 flex flex-wrap gap-2">
+                    {quickActions.map((action) => {
+                        const Icon = QUICK_ACTION_ICONS[action.icon] || Plus;
+                        return (
+                            <Button key={action.url} asChild variant="outline" size="sm" className="gap-1.5">
+                                <Link href={action.url}>
+                                    <Icon className="h-3.5 w-3.5" />
+                                    {action.label}
+                                </Link>
+                            </Button>
+                        );
+                    })}
+                </div>
+            )}
+
             {!hasAnything && (
-                <Card>
+                <Card className="mb-5">
                     <CardContent>
                         <EmptyState
                             icon={CheckSquare}
@@ -41,7 +69,7 @@ export default function WorkCenterIndex({ approvals, tasks, alerts }) {
             )}
 
             {hasAnything && (
-                <div className="grid grid-cols-1 gap-5 lg:grid-cols-3">
+                <div className="mb-5 grid grid-cols-1 gap-5 lg:grid-cols-3">
                     <Section
                         title="Approvals"
                         icon={ClipboardCheck}
@@ -98,6 +126,65 @@ export default function WorkCenterIndex({ approvals, tasks, alerts }) {
                     </Section>
                 </div>
             )}
+
+            <div className="grid grid-cols-1 gap-5 lg:grid-cols-2">
+                <Card>
+                    <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-3">
+                        <CardTitle className="flex items-center gap-2 text-sm font-semibold text-graphite-700 dark:text-slate-200">
+                            <Bell className="h-4 w-4 text-graphite-400" />
+                            Notifications
+                        </CardTitle>
+                        <div className="flex items-center gap-2">
+                            {notifications?.unread_count > 0 && (
+                                <span className="rounded-full bg-brand-100 px-2 py-0.5 text-xs font-medium text-brand-700 dark:bg-brand-950/50 dark:text-brand-300">
+                                    {notifications.unread_count} unread
+                                </span>
+                            )}
+                            <Link href={route('notifications.read-all')} method="put" as="button" className="text-xs text-graphite-400 hover:text-graphite-600 dark:hover:text-slate-300">
+                                Mark all read
+                            </Link>
+                        </div>
+                    </CardHeader>
+                    <CardContent className="space-y-1">
+                        {(!notifications?.recent || notifications.recent.length === 0) ? (
+                            <p className="py-4 text-center text-xs text-graphite-400 dark:text-slate-500">No notifications yet.</p>
+                        ) : (
+                            notifications.recent.map((n) => (
+                                <WorkItem
+                                    key={`notification-${n.id}`}
+                                    href={n.url}
+                                    title={n.title}
+                                    meta={n.created_at}
+                                    badge={!n.is_read ? <span className="h-2 w-2 rounded-full bg-brand-500" /> : null}
+                                />
+                            ))
+                        )}
+                    </CardContent>
+                </Card>
+
+                <Card>
+                    <CardHeader className="pb-3">
+                        <CardTitle className="flex items-center gap-2 text-sm font-semibold text-graphite-700 dark:text-slate-200">
+                            <History className="h-4 w-4 text-graphite-400" />
+                            Recent Activity
+                        </CardTitle>
+                    </CardHeader>
+                    <CardContent className="space-y-1">
+                        {(!recentActivity || recentActivity.length === 0) ? (
+                            <p className="py-4 text-center text-xs text-graphite-400 dark:text-slate-500">No activity recorded yet.</p>
+                        ) : (
+                            recentActivity.map((log) => (
+                                <div key={`activity-${log.id}`} className="rounded-lg border border-graphite-100 px-3 py-2.5 dark:border-slate-800">
+                                    <p className="truncate text-sm font-medium text-graphite-800 dark:text-slate-100">{log.description}</p>
+                                    <p className="mt-0.5 text-xs text-graphite-400 dark:text-slate-500">
+                                        {[log.module, log.created_at].filter(Boolean).join(' · ')}
+                                    </p>
+                                </div>
+                            ))
+                        )}
+                    </CardContent>
+                </Card>
+            </div>
         </AuthenticatedLayout>
     );
 }

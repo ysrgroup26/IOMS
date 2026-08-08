@@ -2,7 +2,7 @@ import {
     Users, ClipboardEdit, FileBarChart, Settings, FolderKanban, HardHat,
     ClipboardList, PackageSearch, Warehouse, ShoppingCart, Wrench,
     BadgeCheck, DollarSign, Box, LayoutDashboard, CalendarDays,
-    AlertTriangle, PackageCheck, Flag,
+    AlertTriangle, PackageCheck, Flag, BarChart3, FileDown,
 } from 'lucide-react';
 
 /**
@@ -215,6 +215,15 @@ export const WORKSPACES = [
         tier: 'global',
         items: [
             { name: 'Reports', href: 'reports.index', icon: FileBarChart, moduleKey: 'reports' },
+            // Milestone 3 (Task #64, Analytics Framework): no moduleKey --
+            // it's a cross-module reporting surface over whatever datasets
+            // ARE currently enabled, not gated by any single module toggle
+            // itself (mirrors Work Center's own "no moduleKey" reasoning).
+            { name: 'Analytics', href: 'analytics.index', icon: BarChart3 },
+            // Milestone 3 (Task #65, Report Center): same "no moduleKey"
+            // reasoning -- it's a generic download/schedule surface over
+            // the same dataset registry Analytics reads from.
+            { name: 'Report Center', href: 'report-center.index', icon: FileDown },
         ],
     },
     {

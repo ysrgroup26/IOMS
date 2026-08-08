@@ -12,6 +12,7 @@ use App\Models\Company;
 use App\Models\Department;
 use App\Models\Employee;
 use App\Models\Position;
+use App\Services\FieldMappingService;
 use App\Services\MasterDataDetector;
 use Illuminate\Http\JsonResponse;
 use Illuminate\Http\RedirectResponse;
@@ -150,7 +151,7 @@ class EmployeeController extends Controller
         return redirect()->route('employees.index')->with('success', 'Employee removed.');
     }
 
-    public function export(Request $request)
+    public function export(Request $request, FieldMappingService $mapping)
     {
         $companyId = $request->input('company_id') ? (int) $request->input('company_id') : null;
         $departmentId = $request->input('department_id') ? (int) $request->input('department_id') : null;
@@ -158,7 +159,7 @@ class EmployeeController extends Controller
 
         ActivityLog::record('exported', 'Exported employee list to Excel.');
 
-        return Excel::download(new EmployeeExport($departmentId, $search, $companyId), 'employees.xlsx');
+        return Excel::download(new EmployeeExport($departmentId, $search, $companyId, $mapping->exportFields('employees')), 'employees.xlsx');
     }
 
     public function importTemplate(): BinaryFileResponse
@@ -175,7 +176,7 @@ class EmployeeController extends Controller
      * and the whole thing is returned as one summary the frontend
      * renders before the user commits to anything.
      */
-    public function previewImport(Request $request, MasterDataDetector $detector): JsonResponse
+    public function previewImport(Request $request, MasterDataDetector $detector, FieldMappingService $mapping): JsonResponse
     {
         $request->validate([
             'file' => ['required', 'file', 'mimes:xlsx,xls'],
@@ -184,7 +185,7 @@ class EmployeeController extends Controller
 
         $companyId = (int) $request->input('company_id');
 
-        $import = new EmployeesImport($companyId, $request->user()->id, previewOnly: true);
+        $import = new EmployeesImport($companyId, $request->user()->id, previewOnly: true, columnKeys: $mapping->importColumnKeys('employees'));
         Excel::import($import, $request->file('file'));
 
         $departments = $detector->detectDepartments($import->departmentNames, $companyId);
@@ -211,7 +212,7 @@ class EmployeeController extends Controller
      * newly-created master data rolls back with it rather than being
      * left behind orphaned from a failed import.
      */
-    public function createMissingMasterDataAndImport(Request $request): JsonResponse
+    public function createMissingMasterDataAndImport(Request $request, FieldMappingService $mapping): JsonResponse
     {
         $request->validate([
             'file' => ['required', 'file', 'mimes:xlsx,xls'],
@@ -225,7 +226,7 @@ class EmployeeController extends Controller
         $companyId = (int) $request->input('company_id');
         $file = $request->file('file');
 
-        $import = DB::transaction(function () use ($request, $companyId, $file) {
+        $import = DB::transaction(function () use ($request, $companyId, $file, $mapping) {
             foreach ($request->input('new_departments', []) as $name) {
                 Department::firstOrCreate(['company_id' => $companyId, 'name' => $name]);
             }
@@ -234,7 +235,7 @@ class EmployeeController extends Controller
                 Position::firstOrCreate(['company_id' => $companyId, 'name' => $name]);
             }
 
-            $import = new EmployeesImport($companyId, $request->user()->id);
+            $import = new EmployeesImport($companyId, $request->user()->id, columnKeys: $mapping->importColumnKeys('employees'));
             Excel::import($import, $file);
 
             return $import;
@@ -258,14 +259,14 @@ class EmployeeController extends Controller
      * (counts + a list of skipped rows with reasons) doesn't fit the
      * usual single flash-message pattern well.
      */
-    public function import(Request $request): JsonResponse
+    public function import(Request $request, FieldMappingService $mapping): JsonResponse
     {
         $request->validate([
             'file' => ['required', 'file', 'mimes:xlsx,xls'],
             'company_id' => ['required', 'exists:companies,id'],
         ]);
 
-        $import = new EmployeesImport((int) $request->input('company_id'), $request->user()->id);
+        $import = new EmployeesImport((int) $request->input('company_id'), $request->user()->id, columnKeys: $mapping->importColumnKeys('employees'));
         Excel::import($import, $request->file('file'));
 
         ActivityLog::record('imported', "Imported {$import->imported} employee(s) from Excel ({$import->totalRows} rows processed).");

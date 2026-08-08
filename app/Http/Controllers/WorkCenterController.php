@@ -2,8 +2,10 @@
 
 namespace App\Http\Controllers;
 
+use App\Models\ActivityLog;
 use App\Models\Approval;
 use App\Models\MaterialRequest;
+use App\Models\Notification;
 use App\Models\Task;
 use App\Services\WorkCenterService;
 use Illuminate\Http\Request;
@@ -11,12 +13,21 @@ use Inertia\Inertia;
 use Inertia\Response;
 
 /**
- * Work Center (v1.8.0). The single cross-department "what needs my
- * attention" surface -- see WorkCenterService for the actual queries.
- * Every item here links back into the module that actually owns the
- * record (Material Requests stay Logistics', Tasks stay wherever they
- * were created); this controller never renders module-specific UI of its
- * own, only a shaped index of pointers into it.
+ * Work Center (v1.8.0, extended Milestone 3 Task #63 into the
+ * "My Workspace" personal dashboard). The single cross-department "what
+ * needs my attention" surface -- see WorkCenterService for the
+ * approvals/tasks/alerts queries. Every item here links back into the
+ * module that actually owns the record (Material Requests stay
+ * Logistics', Tasks stay wherever they were created); this controller
+ * never renders module-specific UI of its own, only a shaped index of
+ * pointers into it.
+ *
+ * Task #63 added the Notifications and Recent Activity widgets below,
+ * both real data (no new tables/services -- reuses the existing
+ * Notification and ActivityLog models exactly as the Notification
+ * Center / Activity Center already query them), completing the "My
+ * Workspace" tier of the Enterprise Dashboard epic without duplicating
+ * this page as a separate route.
  */
 class WorkCenterController extends Controller
 {
@@ -55,7 +66,72 @@ class WorkCenterController extends Controller
                     'url' => route('ppe.dashboard'),
                 ],
             ],
+            'notifications' => [
+                'unread_count' => Notification::where('user_id', $user->id)->unread()->count(),
+                'recent' => Notification::where('user_id', $user->id)
+                    ->latest('created_at')
+                    ->limit(5)
+                    ->get()
+                    ->map(fn (Notification $n) => [
+                        'id' => $n->id,
+                        'category' => $n->category,
+                        'title' => $n->title,
+                        'url' => $n->url,
+                        'is_read' => $n->isRead(),
+                        'created_at' => $n->created_at->diffForHumans(),
+                    ]),
+            ],
+            'recentActivity' => ActivityLog::where('user_id', $user->id)
+                ->latest('created_at')
+                ->limit(8)
+                ->get()
+                ->map(fn (ActivityLog $log) => [
+                    'id' => $log->id,
+                    'action' => $log->action,
+                    'description' => $log->description,
+                    'module' => $log->module,
+                    'created_at' => $log->created_at->diffForHumans(),
+                ]),
+            'quickActions' => $this->quickActionsFor($user),
         ]);
+    }
+
+    /**
+     * Module-gated, role-gated pointers into each module's own "create"
+     * route -- reuses the exact same enabled-module + role checks each
+     * module's own sidebar entry already applies (see
+     * resources/js/lib/workspaces.js), so a quick action never appears
+     * for a module the tenant hasn't enabled or a user can't reach.
+     * Deliberately not a full permission engine: existing `role:` route
+     * middleware still gates the destination if this list is ever wrong.
+     */
+    private function quickActionsFor($user): array
+    {
+        // Same "granted ∩ stored-enabled" resolution HandleInertiaRequests
+        // uses for the sidebar (see its own long comment on why this reads
+        // CompanySetting uncached) -- kept intentionally minimal here since
+        // quick actions are a convenience shortcut, not the access-control
+        // boundary (the destination route's own middleware still gates it).
+        $grantedKeys = $user->tenant ? $user->tenant->modules()->pluck('key')->all() : [];
+        $stored = json_decode(
+            \App\Models\CompanySetting::where('key', 'enabled_modules')->value('value') ?? json_encode($grantedKeys),
+            true
+        ) ?? $grantedKeys;
+        $enabledModules = collect(array_intersect($stored, $grantedKeys));
+        $actions = [];
+
+        if ($enabledModules->contains('material_requests')) {
+            $actions[] = ['label' => 'New Material Request', 'url' => route('material-requests.create'), 'icon' => 'PackagePlus'];
+        }
+        if ($enabledModules->contains('employees') && $user->isAdmin()) {
+            $actions[] = ['label' => 'Add Employee', 'url' => route('employees.create'), 'icon' => 'UserPlus'];
+        }
+        if ($enabledModules->contains('ppe')) {
+            $actions[] = ['label' => 'PPE Dashboard', 'url' => route('ppe.dashboard'), 'icon' => 'HardHat'];
+        }
+        $actions[] = ['label' => 'New Task', 'url' => route('tasks.create'), 'icon' => 'CheckSquare'];
+
+        return $actions;
     }
 
     /**

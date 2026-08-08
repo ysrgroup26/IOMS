@@ -18,15 +18,20 @@ import { WORKSPACES } from '@/lib/workspaces';
 
 const TAB_CLASS = 'rounded-md px-4 py-1.5 text-sm font-medium text-graphite-500 data-[state=active]:bg-brand-50 data-[state=active]:text-brand-700';
 
+// Milestone 3 (UAT #1/#3/#7 -- identity clarity): matches
+// User::roleLabel()'s own mapping exactly -- see that method's doc
+// comment for why "super_admin" reads "Administrator" here, not
+// "Super Admin". Only the label changed; the stored role value is
+// unchanged.
 const ROLE_LABELS = {
-    super_admin: 'Super Admin',
+    super_admin: 'Administrator',
     hse: 'HSE',
     hrd: 'HRD',
     manager: 'Manager',
     warehouse: 'Warehouse',
 };
 
-export default function SettingsIndex({ company, companies, departments, positions, kpiCategories, users, can, filters, roles, permissionCatalog }) {
+export default function SettingsIndex({ company, companies, departments, positions, kpiCategories, users, can, filters, roles, permissionCatalog, numberingFormats, approvalFlows, numberingModuleKeys, notificationPreferences, documentTemplates, documentModuleKeys, fieldMappings }) {
     // System-level tabs (Companies, Users, Backup) are Super-Admin-only.
     // HSE sees only the operational tabs (Departments, Positions).
     const canSystem = can?.manage_system;
@@ -54,6 +59,11 @@ export default function SettingsIndex({ company, companies, departments, positio
                     <Tabs.Trigger value="authentication" className={TAB_CLASS}>Authentication</Tabs.Trigger>
                     {canSystem && <Tabs.Trigger value="users" className={TAB_CLASS}>Users</Tabs.Trigger>}
                     {canSystem && <Tabs.Trigger value="roles" className={TAB_CLASS}>Roles &amp; Permissions</Tabs.Trigger>}
+                    {canSystem && <Tabs.Trigger value="numbering" className={TAB_CLASS}>Numbering</Tabs.Trigger>}
+                    {canSystem && <Tabs.Trigger value="approval-flows" className={TAB_CLASS}>Approval Flow</Tabs.Trigger>}
+                    {canSystem && <Tabs.Trigger value="notifications" className={TAB_CLASS}>Notifications</Tabs.Trigger>}
+                    {canSystem && <Tabs.Trigger value="documents" className={TAB_CLASS}>Documents</Tabs.Trigger>}
+                    {canSystem && <Tabs.Trigger value="field-mapping" className={TAB_CLASS}>Import/Export Mapping</Tabs.Trigger>}
                     {canSystem && <Tabs.Trigger value="backup" className={TAB_CLASS}>Backup &amp; Restore</Tabs.Trigger>}
                 </Tabs.List>
 
@@ -69,8 +79,13 @@ export default function SettingsIndex({ company, companies, departments, positio
                 <Tabs.Content value="positions"><PositionsTab positions={positions} departments={departments} companies={companies} filters={filters} /></Tabs.Content>
                 <Tabs.Content value="kpi-categories"><KpiCategoriesTab kpiCategories={kpiCategories} companies={companies} /></Tabs.Content>
                 <Tabs.Content value="authentication"><AuthenticationTab /></Tabs.Content>
-                {canSystem && <Tabs.Content value="users"><UsersTab users={users} /></Tabs.Content>}
+                {canSystem && <Tabs.Content value="users"><UsersTab users={users} roles={roles} /></Tabs.Content>}
                 {canSystem && <Tabs.Content value="roles"><RolesTab roles={roles} permissionCatalog={permissionCatalog} /></Tabs.Content>}
+                {canSystem && <Tabs.Content value="numbering"><NumberingTab numberingFormats={numberingFormats} /></Tabs.Content>}
+                {canSystem && <Tabs.Content value="approval-flows"><ApprovalFlowsTab approvalFlows={approvalFlows} moduleKeys={numberingModuleKeys} /></Tabs.Content>}
+                {canSystem && <Tabs.Content value="notifications"><NotificationPreferencesTab preferences={notificationPreferences} /></Tabs.Content>}
+                {canSystem && <Tabs.Content value="documents"><DocumentTemplatesTab documentTemplates={documentTemplates} moduleKeys={documentModuleKeys} /></Tabs.Content>}
+                {canSystem && <Tabs.Content value="field-mapping"><FieldMappingTab fieldMappings={fieldMappings} /></Tabs.Content>}
                 {canSystem && <Tabs.Content value="backup"><BackupTab /></Tabs.Content>}
             </Tabs.Root>
         </AuthenticatedLayout>
@@ -83,6 +98,11 @@ function BrandingTab({ company }) {
         company_subtitle: company.subtitle || '',
         company_short_name: company.short_name || '',
         footer_copyright: company.footer_copyright || '',
+        company_address: company.address || '',
+        company_phone: company.phone || '',
+        company_email: company.email || '',
+        company_website: company.website || '',
+        brand_color: company.brand_color || '#2563eb',
         logo: null,
         favicon: null,
     });
@@ -112,6 +132,33 @@ function BrandingTab({ company }) {
                     <div className="space-y-1.5">
                         <Label>Footer Copyright Text (optional)</Label>
                         <Input value={data.footer_copyright} onChange={(e) => setData('footer_copyright', e.target.value)} placeholder="Leave blank to use the default" />
+                    </div>
+                    <div className="space-y-1.5">
+                        <Label>Address (optional)</Label>
+                        <Input value={data.company_address} onChange={(e) => setData('company_address', e.target.value)} placeholder="Used on future document letterheads" />
+                    </div>
+                    <div className="grid grid-cols-2 gap-3">
+                        <div className="space-y-1.5">
+                            <Label>Phone (optional)</Label>
+                            <Input value={data.company_phone} onChange={(e) => setData('company_phone', e.target.value)} />
+                        </div>
+                        <div className="space-y-1.5">
+                            <Label>Email (optional)</Label>
+                            <Input type="email" value={data.company_email} onChange={(e) => setData('company_email', e.target.value)} />
+                        </div>
+                    </div>
+                    <div className="grid grid-cols-2 gap-3">
+                        <div className="space-y-1.5">
+                            <Label>Website (optional)</Label>
+                            <Input value={data.company_website} onChange={(e) => setData('company_website', e.target.value)} placeholder="https://" />
+                        </div>
+                        <div className="space-y-1.5">
+                            <Label>Brand Color</Label>
+                            <div className="flex items-center gap-2">
+                                <input type="color" value={data.brand_color} onChange={(e) => setData('brand_color', e.target.value)} className="h-8 w-10 cursor-pointer rounded border border-graphite-200" />
+                                <Input value={data.brand_color} onChange={(e) => setData('brand_color', e.target.value)} className="w-24" />
+                            </div>
+                        </div>
                     </div>
                     <ImageUploadField
                         label="Logo (SVG or PNG)"
@@ -184,11 +231,18 @@ function humanizePermissionGroup(prefix) {
  * an admin editing this doesn't assume it already changes what a role
  * can do in the app today.
  */
+// Milestone 3 (UAT #6): matches SettingsController::storeRole()/destroyRole()'s
+// own built-in-name guard -- these 5 can't be renamed away or deleted
+// from this UI, everything else is a genuinely custom, Company-Admin-
+// created role.
+const BUILT_IN_ROLES = ['super_admin', 'hse', 'hrd', 'manager', 'warehouse'];
+
 function RolesTab({ roles, permissionCatalog }) {
     const [activeRoleId, setActiveRoleId] = useState(roles?.[0]?.id);
     const activeRole = (roles ?? []).find((r) => r.id === activeRoleId);
 
     const { data, setData, put, processing } = useForm({ permissions: activeRole?.permissions ?? [] });
+    const createForm = useForm({ name: '' });
 
     useEffect(() => {
         setData('permissions', (roles ?? []).find((r) => r.id === activeRoleId)?.permissions ?? []);
@@ -206,6 +260,20 @@ function RolesTab({ roles, permissionCatalog }) {
         put(route('settings.roles.update', activeRoleId));
     }
 
+    function createRole(e) {
+        e.preventDefault();
+        createForm.post(route('settings.roles.store'), {
+            preserveScroll: true,
+            onSuccess: () => createForm.reset('name'),
+        });
+    }
+
+    function deleteRole(role) {
+        if (confirm(`Remove the "${role.name}" role? Users assigned to it keep their base role/capability.`)) {
+            router.delete(route('settings.roles.destroy', role.id), { preserveScroll: true });
+        }
+    }
+
     const groups = (permissionCatalog ?? []).reduce((acc, permission) => {
         const prefix = permission.split('.')[0];
         (acc[prefix] ??= []).push(permission);
@@ -217,25 +285,53 @@ function RolesTab({ roles, permissionCatalog }) {
             <CardHeader>
                 <CardTitle>Roles &amp; Permissions</CardTitle>
                 <CardDescription>
-                    Edit which permissions each role carries. <strong>Note:</strong> this updates the
-                    permission records themselves, but no page in the app checks them yet -- every page
-                    still uses each role's built-in capabilities. Changes here take effect once that
-                    migration happens.
+                    Edit which permissions each role carries, or create an entirely new role for your
+                    organization. <strong>Note:</strong> this updates the permission records themselves,
+                    but no page in the app checks them yet for the 5 built-in roles -- those still use
+                    each role's built-in capabilities. A custom role's permissions are already real and
+                    live for anything that checks them.
                 </CardDescription>
             </CardHeader>
             <CardContent className="space-y-4">
-                <div className="flex flex-wrap gap-2">
+                <div className="flex flex-wrap items-center gap-2">
                     {(roles ?? []).map((role) => (
-                        <button
-                            key={role.id}
-                            type="button"
-                            onClick={() => setActiveRoleId(role.id)}
-                            className={`rounded-md px-3 py-1.5 text-sm font-medium ${role.id === activeRoleId ? 'bg-brand-50 text-brand-700' : 'bg-graphite-100 text-graphite-600 hover:bg-graphite-200'}`}
-                        >
-                            {ROLE_LABELS[role.name] ?? role.name}
-                        </button>
+                        <div key={role.id} className="inline-flex items-center">
+                            <button
+                                type="button"
+                                onClick={() => setActiveRoleId(role.id)}
+                                className={`rounded-l-md px-3 py-1.5 text-sm font-medium ${role.id === activeRoleId ? 'bg-brand-50 text-brand-700' : 'bg-graphite-100 text-graphite-600 hover:bg-graphite-200'} ${BUILT_IN_ROLES.includes(role.name) ? 'rounded-r-md' : ''}`}
+                            >
+                                {ROLE_LABELS[role.name] ?? role.name}
+                            </button>
+                            {!BUILT_IN_ROLES.includes(role.name) && (
+                                <button
+                                    type="button"
+                                    onClick={() => deleteRole(role)}
+                                    className="rounded-r-md bg-graphite-100 px-1.5 py-1.5 text-graphite-400 hover:bg-red-50 hover:text-red-600"
+                                    title="Delete this custom role"
+                                >
+                                    <Trash2 className="h-3.5 w-3.5" />
+                                </button>
+                            )}
+                        </div>
                     ))}
                 </div>
+
+                <form onSubmit={createRole} className="flex items-end gap-2 border-t border-graphite-100 pt-4">
+                    <div className="space-y-1.5">
+                        <Label>New Role Name</Label>
+                        <Input
+                            value={createForm.data.name}
+                            onChange={(e) => createForm.setData('name', e.target.value)}
+                            placeholder="e.g. Regional Supervisor"
+                            className="w-56"
+                        />
+                        {createForm.errors.name && <p className="text-xs text-red-600">{createForm.errors.name}</p>}
+                    </div>
+                    <Button type="submit" disabled={createForm.processing || !createForm.data.name}>
+                        <Plus className="h-4 w-4" /> Create Role
+                    </Button>
+                </form>
 
                 <form onSubmit={submit} className="space-y-5">
                     {Object.entries(groups).map(([prefix, permissions]) => (
@@ -263,6 +359,604 @@ function RolesTab({ roles, permissionCatalog }) {
 }
 
 /**
+ * Milestone 3 (Company Settings completion, Task #62). Company-side
+ * half of the Numbering Engine -- `App\Services\NumberGeneratorService`
+ * already does the actual concurrency-safe generation; this is where a
+ * Company Admin edits the FORMAT (prefix/pattern/padding/reset) for
+ * each module, e.g. changing Material Request numbers from
+ * `MR-{YEAR}-{SEQ}` to a company-specific scheme. Always saves a
+ * tenant-scoped row -- never affects another tenant, see
+ * NumberGeneratorService::resolveFormat()'s own doc comment.
+ */
+function NumberingTab({ numberingFormats }) {
+    const { data, setData, post, processing } = useForm({ formats: numberingFormats ?? [] });
+
+    function updateRow(moduleKey, patch) {
+        setData('formats', data.formats.map((row) => (row.module_key === moduleKey ? { ...row, ...patch } : row)));
+    }
+
+    function submit(e) {
+        e.preventDefault();
+        post(route('settings.numbering'));
+    }
+
+    return (
+        <Card>
+            <CardHeader>
+                <CardTitle>Document Numbering</CardTitle>
+                <CardDescription>
+                    Customize how each module's document numbers are formatted, e.g. <code>MR-{'{YEAR}'}-{'{SEQ}'}</code>.
+                    Available placeholders: <code>{'{PREFIX}'}</code>, <code>{'{YEAR}'}</code>, <code>{'{MONTH}'}</code>, <code>{'{SEQ}'}</code>.
+                    Changes apply to new records only -- existing numbers never change.
+                </CardDescription>
+            </CardHeader>
+            <CardContent>
+                <form onSubmit={submit} className="space-y-3">
+                    <div className="overflow-x-auto">
+                        <Table>
+                            <TableHeader>
+                                <TableRow>
+                                    <TableHead>Module</TableHead>
+                                    <TableHead className="w-20">Prefix</TableHead>
+                                    <TableHead className="w-40">Pattern</TableHead>
+                                    <TableHead className="w-24">Padding</TableHead>
+                                    <TableHead className="w-32">Reset</TableHead>
+                                </TableRow>
+                            </TableHeader>
+                            <TableBody>
+                                {data.formats.map((row) => (
+                                    <TableRow key={row.module_key}>
+                                        <TableCell className="font-medium capitalize">{row.module_key.replace(/_/g, ' ')}</TableCell>
+                                        <TableCell>
+                                            <Input value={row.prefix} onChange={(e) => updateRow(row.module_key, { prefix: e.target.value })} />
+                                        </TableCell>
+                                        <TableCell>
+                                            <Input value={row.pattern} onChange={(e) => updateRow(row.module_key, { pattern: e.target.value })} />
+                                        </TableCell>
+                                        <TableCell>
+                                            <Input type="number" min={1} max={10} value={row.seq_padding} onChange={(e) => updateRow(row.module_key, { seq_padding: Number(e.target.value) })} />
+                                        </TableCell>
+                                        <TableCell>
+                                            <Select value={row.reset_period} onValueChange={(v) => updateRow(row.module_key, { reset_period: v })}>
+                                                <SelectTrigger><SelectValue /></SelectTrigger>
+                                                <SelectContent>
+                                                    <SelectItem value="yearly">Yearly</SelectItem>
+                                                    <SelectItem value="monthly">Monthly</SelectItem>
+                                                    <SelectItem value="never">Never</SelectItem>
+                                                </SelectContent>
+                                            </Select>
+                                        </TableCell>
+                                    </TableRow>
+                                ))}
+                            </TableBody>
+                        </Table>
+                    </div>
+                    <Button type="submit" disabled={processing}>
+                        {processing && <Loader2 className="h-4 w-4 animate-spin" />} Save Numbering
+                    </Button>
+                </form>
+            </CardContent>
+        </Card>
+    );
+}
+
+/**
+ * Milestone 3 (Dynamic Document Engine, Task #66). Form-based template
+ * management, deliberately NOT a drag-drop canvas -- one form per
+ * module_key covering header/footer text and which of logo/QR/
+ * signature/watermark to show. Rendered by App\Services\DocumentEngine;
+ * see that class's doc comment for how it plugs into each module's
+ * EXISTING PDF Blade view rather than a second rendering pipeline.
+ */
+function DocumentTemplatesTab({ documentTemplates, moduleKeys }) {
+    const [editingId, setEditingId] = useState(null);
+    const createForm = useForm({
+        module_key: moduleKeys?.[0] ?? '',
+        name: '',
+        header_text: '',
+        footer_text: '',
+        show_logo: true,
+        show_qr: false,
+        show_signature: true,
+        show_watermark: false,
+        watermark_text: '',
+    });
+    const editForm = useForm({
+        name: '', header_text: '', footer_text: '',
+        show_logo: true, show_qr: false, show_signature: true, show_watermark: false, watermark_text: '',
+    });
+
+    function submitCreate(e) {
+        e.preventDefault();
+        createForm.post(route('settings.documents.store'), {
+            preserveScroll: true,
+            onSuccess: () => createForm.reset('name', 'header_text', 'footer_text', 'watermark_text'),
+        });
+    }
+
+    function startEdit(t) {
+        setEditingId(t.id);
+        editForm.setData({
+            name: t.name, header_text: t.header_text || '', footer_text: t.footer_text || '',
+            show_logo: t.show_logo, show_qr: t.show_qr, show_signature: t.show_signature,
+            show_watermark: t.show_watermark, watermark_text: t.watermark_text || '',
+        });
+    }
+
+    function submitEdit(e, id) {
+        e.preventDefault();
+        editForm.put(route('settings.documents.update', id), {
+            preserveScroll: true,
+            onSuccess: () => setEditingId(null),
+        });
+    }
+
+    function destroy(id) {
+        router.delete(route('settings.documents.destroy', id), { preserveScroll: true });
+    }
+
+    return (
+        <Card>
+            <CardHeader>
+                <CardTitle>Document Templates</CardTitle>
+                <CardDescription>
+                    One default template per module -- header/footer text and which of logo, QR verification text,
+                    signature block, and watermark to show on that module's PDF. Applies automatically the moment
+                    it's created; a module with no template here keeps its original built-in appearance.
+                </CardDescription>
+            </CardHeader>
+            <CardContent className="space-y-5">
+                {(documentTemplates ?? []).length === 0 ? (
+                    <p className="text-sm text-graphite-400">No document templates yet -- create one below.</p>
+                ) : (
+                    <div className="space-y-2">
+                        {documentTemplates.map((t) => (
+                            <div key={t.id} className="rounded-lg border border-graphite-100 dark:border-slate-800">
+                                {editingId === t.id ? (
+                                    <form onSubmit={(e) => submitEdit(e, t.id)} className="space-y-3 p-4">
+                                        <div className="grid grid-cols-1 gap-3 sm:grid-cols-2">
+                                            <div>
+                                                <Label>Name</Label>
+                                                <Input value={editForm.data.name} onChange={(e) => editForm.setData('name', e.target.value)} />
+                                            </div>
+                                            <div>
+                                                <Label>Watermark Text</Label>
+                                                <Input value={editForm.data.watermark_text} onChange={(e) => editForm.setData('watermark_text', e.target.value)} disabled={!editForm.data.show_watermark} />
+                                            </div>
+                                            <div>
+                                                <Label>Header Text</Label>
+                                                <Input value={editForm.data.header_text} onChange={(e) => editForm.setData('header_text', e.target.value)} />
+                                            </div>
+                                            <div>
+                                                <Label>Footer Text</Label>
+                                                <Input value={editForm.data.footer_text} onChange={(e) => editForm.setData('footer_text', e.target.value)} />
+                                            </div>
+                                        </div>
+                                        <div className="flex flex-wrap gap-4">
+                                            {['show_logo', 'show_qr', 'show_signature', 'show_watermark'].map((key) => (
+                                                <label key={key} className="flex items-center gap-1.5 text-sm">
+                                                    <Checkbox checked={editForm.data[key]} onCheckedChange={(v) => editForm.setData(key, !!v)} />
+                                                    {key.replace('show_', '').replace(/^./, (c) => c.toUpperCase())}
+                                                </label>
+                                            ))}
+                                        </div>
+                                        <div className="flex gap-2">
+                                            <Button type="submit" size="sm" disabled={editForm.processing}>Save</Button>
+                                            <Button type="button" size="sm" variant="outline" onClick={() => setEditingId(null)}>Cancel</Button>
+                                        </div>
+                                    </form>
+                                ) : (
+                                    <div className="flex items-center justify-between gap-3 p-4">
+                                        <div>
+                                            <p className="text-sm font-medium text-graphite-800 dark:text-slate-100">
+                                                {t.name} <Badge variant="secondary" className="ml-1">{t.module_key.replace(/_/g, ' ')}</Badge>
+                                            </p>
+                                            <p className="mt-0.5 text-xs text-graphite-400">
+                                                {[t.show_logo && 'Logo', t.show_qr && 'QR', t.show_signature && 'Signature', t.show_watermark && 'Watermark'].filter(Boolean).join(' · ') || 'No chrome enabled'}
+                                            </p>
+                                        </div>
+                                        <div className="flex gap-1.5">
+                                            <Button size="icon" variant="ghost" onClick={() => startEdit(t)}><Pencil className="h-3.5 w-3.5" /></Button>
+                                            <Button size="icon" variant="ghost" onClick={() => destroy(t.id)}><Trash2 className="h-3.5 w-3.5 text-red-500" /></Button>
+                                        </div>
+                                    </div>
+                                )}
+                            </div>
+                        ))}
+                    </div>
+                )}
+
+                <form onSubmit={submitCreate} className="space-y-3 border-t border-graphite-100 pt-4 dark:border-slate-800">
+                    <p className="text-sm font-semibold text-graphite-700 dark:text-slate-200">New Template</p>
+                    <div className="grid grid-cols-1 gap-3 sm:grid-cols-2">
+                        <div>
+                            <Label>Module</Label>
+                            <Select value={createForm.data.module_key} onValueChange={(v) => createForm.setData('module_key', v)}>
+                                <SelectTrigger><SelectValue /></SelectTrigger>
+                                <SelectContent>
+                                    {(moduleKeys ?? []).map((k) => <SelectItem key={k} value={k}>{k.replace(/_/g, ' ')}</SelectItem>)}
+                                </SelectContent>
+                            </Select>
+                        </div>
+                        <div>
+                            <Label>Name</Label>
+                            <Input value={createForm.data.name} onChange={(e) => createForm.setData('name', e.target.value)} placeholder="Default Letterhead" />
+                        </div>
+                        <div>
+                            <Label>Header Text</Label>
+                            <Input value={createForm.data.header_text} onChange={(e) => createForm.setData('header_text', e.target.value)} />
+                        </div>
+                        <div>
+                            <Label>Footer Text</Label>
+                            <Input value={createForm.data.footer_text} onChange={(e) => createForm.setData('footer_text', e.target.value)} />
+                        </div>
+                        <div>
+                            <Label>Watermark Text</Label>
+                            <Input value={createForm.data.watermark_text} onChange={(e) => createForm.setData('watermark_text', e.target.value)} disabled={!createForm.data.show_watermark} placeholder="CONFIDENTIAL" />
+                        </div>
+                    </div>
+                    <div className="flex flex-wrap gap-4">
+                        {['show_logo', 'show_qr', 'show_signature', 'show_watermark'].map((key) => (
+                            <label key={key} className="flex items-center gap-1.5 text-sm">
+                                <Checkbox checked={createForm.data[key]} onCheckedChange={(v) => createForm.setData(key, !!v)} />
+                                {key.replace('show_', '').replace(/^./, (c) => c.toUpperCase())}
+                            </label>
+                        ))}
+                    </div>
+                    <Button type="submit" disabled={createForm.processing || !createForm.data.name}>
+                        {createForm.processing && <Loader2 className="h-4 w-4 animate-spin" />} Create Template
+                    </Button>
+                </form>
+            </CardContent>
+        </Card>
+    );
+}
+
+/**
+ * Milestone 3 (Import/Export Mapping, Task #67). One sub-form per
+ * (module, direction) -- e.g. Employees/Import -- listing every field
+ * from config/mapping_fields.php's catalog with an editable column
+ * label + enabled toggle (export only; import always looks for every
+ * field, an admin just points it at whatever header text their own
+ * spreadsheet uses). Saving writes a full FieldMapping row per field via
+ * `App\Services\FieldMappingService::upsert()`.
+ */
+function FieldMappingTab({ fieldMappings }) {
+    const moduleKeys = Object.keys(fieldMappings ?? {});
+    const [activeModule, setActiveModule] = useState(moduleKeys[0] ?? '');
+
+    if (moduleKeys.length === 0) {
+        return (
+            <Card>
+                <CardContent>
+                    <p className="py-6 text-center text-sm text-graphite-400">No mappable modules registered yet.</p>
+                </CardContent>
+            </Card>
+        );
+    }
+
+    return (
+        <div className="space-y-4">
+            <div className="flex gap-2">
+                {moduleKeys.map((k) => (
+                    <Button key={k} size="sm" variant={activeModule === k ? 'default' : 'outline'} onClick={() => setActiveModule(k)} className="capitalize">
+                        {k.replace(/_/g, ' ')}
+                    </Button>
+                ))}
+            </div>
+            <div className="grid grid-cols-1 gap-4 lg:grid-cols-2">
+                <MappingDirectionCard
+                    title="Import Mapping"
+                    description="Point each field at the column header your own Excel file actually uses."
+                    moduleKey={activeModule}
+                    direction="import"
+                    fields={fieldMappings[activeModule]?.import ?? {}}
+                    showEnabledToggle={false}
+                />
+                <MappingDirectionCard
+                    title="Export Mapping"
+                    description="Rename, reorder, or omit columns in the exported Excel file."
+                    moduleKey={activeModule}
+                    direction="export"
+                    fields={fieldMappings[activeModule]?.export ?? {}}
+                    showEnabledToggle
+                />
+            </div>
+        </div>
+    );
+}
+
+function MappingDirectionCard({ title, description, moduleKey, direction, fields, showEnabledToggle }) {
+    const { data, setData, post, processing } = useForm({
+        module_key: moduleKey,
+        direction,
+        rows: Object.entries(fields).map(([field_key, f]) => ({ field_key, column_label: f.label, is_enabled: f.is_enabled })),
+    });
+
+    useEffect(() => {
+        setData({
+            module_key: moduleKey,
+            direction,
+            rows: Object.entries(fields).map(([field_key, f]) => ({ field_key, column_label: f.label, is_enabled: f.is_enabled })),
+        });
+        // eslint-disable-next-line react-hooks/exhaustive-deps
+    }, [moduleKey]);
+
+    function updateRow(fieldKey, patch) {
+        setData('rows', data.rows.map((r) => (r.field_key === fieldKey ? { ...r, ...patch } : r)));
+    }
+
+    function submit(e) {
+        e.preventDefault();
+        post(route('settings.field-mapping'), { preserveScroll: true });
+    }
+
+    return (
+        <Card>
+            <CardHeader>
+                <CardTitle className="text-base">{title}</CardTitle>
+                <CardDescription>{description}</CardDescription>
+            </CardHeader>
+            <CardContent>
+                <form onSubmit={submit} className="space-y-2">
+                    {data.rows.map((row) => (
+                        <div key={row.field_key} className="flex items-center gap-2">
+                            {showEnabledToggle && (
+                                <Checkbox checked={row.is_enabled} onCheckedChange={(v) => updateRow(row.field_key, { is_enabled: !!v })} />
+                            )}
+                            <span className="w-40 shrink-0 truncate text-xs text-graphite-500 dark:text-slate-400">{row.field_key.replace(/_/g, ' ')}</span>
+                            <Input
+                                value={row.column_label}
+                                onChange={(e) => updateRow(row.field_key, { column_label: e.target.value })}
+                                disabled={showEnabledToggle && !row.is_enabled}
+                            />
+                        </div>
+                    ))}
+                    <Button type="submit" size="sm" disabled={processing} className="mt-2">
+                        {processing && <Loader2 className="h-4 w-4 animate-spin" />} Save {title}
+                    </Button>
+                </form>
+            </CardContent>
+        </Card>
+    );
+}
+
+const APPROVAL_ROLE_OPTIONS = ['super_admin', 'hse', 'hrd', 'manager', 'warehouse'];
+
+/**
+ * Milestone 3 (Company Settings completion, Task #62). Company Admin's
+ * own surface for `App\Services\ApprovalEngine`'s multi-level/parallel/
+ * escalation capability (ADR-010) -- create a named flow for a module,
+ * then define its steps. A module with no flow here keeps using the
+ * legacy single-step approval (config('workflow.approvers')), unchanged.
+ */
+function ApprovalFlowsTab({ approvalFlows, moduleKeys }) {
+    const [activeFlowId, setActiveFlowId] = useState(approvalFlows?.[0]?.id ?? null);
+    const activeFlow = (approvalFlows ?? []).find((f) => f.id === activeFlowId);
+    const createForm = useForm({ module_key: moduleKeys?.[0] ?? '', name: '' });
+    const stepsForm = useForm({ steps: activeFlow?.steps ?? [] });
+
+    useEffect(() => {
+        stepsForm.setData('steps', (approvalFlows ?? []).find((f) => f.id === activeFlowId)?.steps ?? []);
+        // eslint-disable-next-line react-hooks/exhaustive-deps
+    }, [activeFlowId]);
+
+    function createFlow(e) {
+        e.preventDefault();
+        createForm.post(route('settings.approval-flows.store'), { preserveScroll: true, onSuccess: () => createForm.reset('name') });
+    }
+
+    function deleteFlow(flow) {
+        if (confirm(`Remove the "${flow.name}" flow? ${flow.module_key} will go back to standard single-step approval.`)) {
+            router.delete(route('settings.approval-flows.destroy', flow.id), { preserveScroll: true });
+            if (activeFlowId === flow.id) setActiveFlowId(null);
+        }
+    }
+
+    function addStep() {
+        const nextStepNumber = (stepsForm.data.steps.at(-1)?.step_number ?? 0) + 1;
+        stepsForm.setData('steps', [...stepsForm.data.steps, { step_number: nextStepNumber, mode: 'single', approver_role: 'manager', escalate_after_hours: '', escalate_to_role: '' }]);
+    }
+
+    function updateStep(index, patch) {
+        stepsForm.setData('steps', stepsForm.data.steps.map((s, i) => (i === index ? { ...s, ...patch } : s)));
+    }
+
+    function removeStep(index) {
+        stepsForm.setData('steps', stepsForm.data.steps.filter((_, i) => i !== index));
+    }
+
+    function saveSteps(e) {
+        e.preventDefault();
+        stepsForm.put(route('settings.approval-flows.steps', activeFlowId), { preserveScroll: true });
+    }
+
+    return (
+        <div className="space-y-4">
+            <Card>
+                <CardHeader>
+                    <CardTitle>Approval Flows</CardTitle>
+                    <CardDescription>
+                        Multi-level, parallel, or escalating approval chains per module. A module without a
+                        flow here keeps its standard single-step approval.
+                    </CardDescription>
+                </CardHeader>
+                <CardContent className="space-y-4">
+                    <div className="flex flex-wrap items-center gap-2">
+                        {(approvalFlows ?? []).map((flow) => (
+                            <div key={flow.id} className="inline-flex items-center">
+                                <button
+                                    type="button"
+                                    onClick={() => setActiveFlowId(flow.id)}
+                                    className={`rounded-l-md px-3 py-1.5 text-sm font-medium ${flow.id === activeFlowId ? 'bg-brand-50 text-brand-700' : 'bg-graphite-100 text-graphite-600 hover:bg-graphite-200'}`}
+                                >
+                                    {flow.name} <span className="text-xs text-graphite-400">({flow.module_key})</span>
+                                </button>
+                                <button type="button" onClick={() => deleteFlow(flow)} className="rounded-r-md bg-graphite-100 px-1.5 py-1.5 text-graphite-400 hover:bg-red-50 hover:text-red-600" title="Delete this flow">
+                                    <Trash2 className="h-3.5 w-3.5" />
+                                </button>
+                            </div>
+                        ))}
+                        {(approvalFlows ?? []).length === 0 && <p className="text-sm text-graphite-400">No custom approval flows configured yet.</p>}
+                    </div>
+
+                    <form onSubmit={createFlow} className="flex items-end gap-2 border-t border-graphite-100 pt-4">
+                        <div className="space-y-1.5">
+                            <Label>Module</Label>
+                            <Select value={createForm.data.module_key} onValueChange={(v) => createForm.setData('module_key', v)}>
+                                <SelectTrigger className="w-48"><SelectValue /></SelectTrigger>
+                                <SelectContent>
+                                    {(moduleKeys ?? []).map((k) => <SelectItem key={k} value={k}>{k.replace(/_/g, ' ')}</SelectItem>)}
+                                </SelectContent>
+                            </Select>
+                        </div>
+                        <div className="space-y-1.5">
+                            <Label>Flow Name</Label>
+                            <Input value={createForm.data.name} onChange={(e) => createForm.setData('name', e.target.value)} placeholder="e.g. Two-Level Approval" className="w-56" />
+                        </div>
+                        <Button type="submit" disabled={createForm.processing || !createForm.data.name}>
+                            <Plus className="h-4 w-4" /> Create Flow
+                        </Button>
+                    </form>
+                </CardContent>
+            </Card>
+
+            {activeFlow && (
+                <Card>
+                    <CardHeader>
+                        <CardTitle>Steps for "{activeFlow.name}"</CardTitle>
+                        <CardDescription>
+                            Executed in order. Parallel steps: use the same step number on multiple rows --
+                            "any" needs one approver, "all" needs every one of them.
+                        </CardDescription>
+                    </CardHeader>
+                    <CardContent>
+                        <form onSubmit={saveSteps} className="space-y-3">
+                            <div className="overflow-x-auto">
+                                <Table>
+                                    <TableHeader>
+                                        <TableRow>
+                                            <TableHead className="w-16">Step</TableHead>
+                                            <TableHead className="w-32">Mode</TableHead>
+                                            <TableHead className="w-32">Approver Role</TableHead>
+                                            <TableHead className="w-28">Escalate After (h)</TableHead>
+                                            <TableHead className="w-32">Escalate To</TableHead>
+                                            <TableHead />
+                                        </TableRow>
+                                    </TableHeader>
+                                    <TableBody>
+                                        {stepsForm.data.steps.map((step, i) => (
+                                            <TableRow key={i}>
+                                                <TableCell>
+                                                    <Input type="number" min={1} value={step.step_number} onChange={(e) => updateStep(i, { step_number: Number(e.target.value) })} />
+                                                </TableCell>
+                                                <TableCell>
+                                                    <Select value={step.mode} onValueChange={(v) => updateStep(i, { mode: v })}>
+                                                        <SelectTrigger><SelectValue /></SelectTrigger>
+                                                        <SelectContent>
+                                                            <SelectItem value="single">Single</SelectItem>
+                                                            <SelectItem value="parallel_any">Parallel (any)</SelectItem>
+                                                            <SelectItem value="parallel_all">Parallel (all)</SelectItem>
+                                                        </SelectContent>
+                                                    </Select>
+                                                </TableCell>
+                                                <TableCell>
+                                                    <Select value={step.approver_role} onValueChange={(v) => updateStep(i, { approver_role: v })}>
+                                                        <SelectTrigger><SelectValue /></SelectTrigger>
+                                                        <SelectContent>
+                                                            {APPROVAL_ROLE_OPTIONS.map((r) => <SelectItem key={r} value={r}>{ROLE_LABELS[r] ?? r}</SelectItem>)}
+                                                        </SelectContent>
+                                                    </Select>
+                                                </TableCell>
+                                                <TableCell>
+                                                    <Input type="number" min={1} value={step.escalate_after_hours ?? ''} onChange={(e) => updateStep(i, { escalate_after_hours: e.target.value ? Number(e.target.value) : null })} placeholder="none" />
+                                                </TableCell>
+                                                <TableCell>
+                                                    <Select value={step.escalate_to_role ?? ''} onValueChange={(v) => updateStep(i, { escalate_to_role: v || null })}>
+                                                        <SelectTrigger><SelectValue placeholder="none" /></SelectTrigger>
+                                                        <SelectContent>
+                                                            {APPROVAL_ROLE_OPTIONS.map((r) => <SelectItem key={r} value={r}>{ROLE_LABELS[r] ?? r}</SelectItem>)}
+                                                        </SelectContent>
+                                                    </Select>
+                                                </TableCell>
+                                                <TableCell>
+                                                    <Button type="button" variant="ghost" size="icon" onClick={() => removeStep(i)}><Trash2 className="h-4 w-4 text-red-500" /></Button>
+                                                </TableCell>
+                                            </TableRow>
+                                        ))}
+                                    </TableBody>
+                                </Table>
+                            </div>
+                            <div className="flex gap-2">
+                                <Button type="button" variant="outline" onClick={addStep}><Plus className="h-4 w-4" /> Add Step</Button>
+                                <Button type="submit" disabled={stepsForm.processing}>
+                                    {stepsForm.processing && <Loader2 className="h-4 w-4 animate-spin" />} Save Steps
+                                </Button>
+                            </div>
+                        </form>
+                    </CardContent>
+                </Card>
+            )}
+        </div>
+    );
+}
+
+const NOTIFICATION_CATEGORY_INFO = {
+    approval: { label: 'Approval', description: 'Someone needs to decide, or a decision was made on your request.' },
+    reminder: { label: 'Reminder', description: 'Upcoming deadlines and follow-ups.' },
+    warning: { label: 'Warning', description: 'Rejections, cancellations, and escalations.' },
+    success: { label: 'Success', description: 'Approvals and completions.' },
+    information: { label: 'Information', description: 'General status updates.' },
+};
+
+/**
+ * Milestone 3 (Company Settings completion, Task #62). Turns a
+ * notification category off platform-wide -- `NotificationService::notify()`
+ * checks this and skips creating the row entirely for a disabled
+ * category, not just hiding it in the bell dropdown.
+ */
+function NotificationPreferencesTab({ preferences }) {
+    const { data, setData, post, processing } = useForm({ preferences: preferences ?? {} });
+
+    function toggle(category) {
+        setData('preferences', { ...data.preferences, [category]: !data.preferences[category] });
+    }
+
+    function submit(e) {
+        e.preventDefault();
+        post(route('settings.notifications'));
+    }
+
+    return (
+        <Card className="max-w-lg">
+            <CardHeader>
+                <CardTitle>Notification Preferences</CardTitle>
+                <CardDescription>
+                    Turn a category off to stop it from being created at all, for every user, not just hide
+                    it in the bell dropdown.
+                </CardDescription>
+            </CardHeader>
+            <CardContent>
+                <form onSubmit={submit} className="space-y-3">
+                    {Object.entries(NOTIFICATION_CATEGORY_INFO).map(([key, { label, description }]) => (
+                        <label key={key} className="flex items-center justify-between rounded-lg border border-graphite-100 px-3 py-2.5">
+                            <div>
+                                <p className="text-sm font-medium text-graphite-700">{label}</p>
+                                <p className="text-xs text-graphite-400">{description}</p>
+                            </div>
+                            <Checkbox checked={data.preferences[key] !== false} onCheckedChange={() => toggle(key)} />
+                        </label>
+                    ))}
+                    <Button type="submit" disabled={processing}>
+                        {processing && <Loader2 className="h-4 w-4 animate-spin" />} Save Preferences
+                    </Button>
+                </form>
+            </CardContent>
+        </Card>
+    );
+}
+
+/**
  * Milestone 2 (Dynamic Workspace system, Task #43). Rename/reorder/
  * enable-disable existing department & global navigation entries without
  * a code deploy -- writes to the `workspaces` DB table, which
@@ -275,16 +969,25 @@ function RolesTab({ roles, permissionCatalog }) {
 function WorkspaceLabelsCard() {
     const { workspace_catalog: catalog } = usePage().props;
 
-    const rows = WORKSPACES.map((workspace, index) => {
-        const override = catalog?.[workspace.key];
-        return {
-            key: workspace.key,
-            defaultLabel: workspace.label,
-            label: override?.label ?? workspace.label,
-            sort_order: override?.sort_order ?? index + 1,
-            is_active: override?.is_active ?? true,
-        };
-    });
+    // Milestone 3 (UAT #4/#5): only workspaces Platform has actually
+    // granted this tenant show up here at all -- `granted` comes from
+    // HandleInertiaRequests' workspace_catalog prop, distinct from
+    // `is_active` (which stays the admin's own on/off choice for a
+    // granted workspace). Matches the same restriction
+    // SettingsController::updateWorkspaces() already enforces server-side.
+    const rows = WORKSPACES
+        .map((workspace, index) => {
+            const override = catalog?.[workspace.key];
+            return {
+                key: workspace.key,
+                defaultLabel: workspace.label,
+                label: override?.label ?? workspace.label,
+                sort_order: override?.sort_order ?? index + 1,
+                is_active: override?.granted ? (override?.is_active ?? true) : true,
+                granted: override?.granted ?? false,
+            };
+        })
+        .filter((row) => row.granted);
 
     const { data, setData, post, processing } = useForm({ workspaces: rows });
 
@@ -304,10 +1007,16 @@ function WorkspaceLabelsCard() {
                 <CardDescription>
                     Rename, reorder, or hide existing departments in the sidebar switcher. This controls{' '}
                     <strong>labels and order only</strong> -- it does not create a new working department;
-                    each row here corresponds to a department that already exists in the app.
+                    each row here corresponds to a department your plan includes. Need another one? Contact
+                    the platform operator to have it granted to your organization.
                 </CardDescription>
             </CardHeader>
             <CardContent>
+                {rows.length === 0 ? (
+                    <p className="py-6 text-center text-sm text-graphite-400">
+                        No departments have been granted to your organization yet.
+                    </p>
+                ) : (
                 <form onSubmit={submit} className="space-y-3">
                     <div className="overflow-x-auto">
                         <Table>
@@ -351,6 +1060,7 @@ function WorkspaceLabelsCard() {
                         {processing && <Loader2 className="h-4 w-4 animate-spin" />} Save Departments
                     </Button>
                 </form>
+                )}
             </CardContent>
         </Card>
     );
@@ -389,15 +1099,19 @@ function ModulesTab() {
             <CardHeader>
                 <CardTitle>Module Visibility</CardTitle>
                 <CardDescription>
-                    Show or hide existing modules in the sidebar, app-wide, grouped by workspace. Home,
-                    Dashboard, and Settings are always visible and can't be hidden here. Turning off every
-                    module in a workspace hides that whole workspace from the switcher. This controls{' '}
-                    <strong>visibility only</strong> -- it does not create new modules. Building an entirely
-                    new module (e.g. Asset Management, Permit to Work) still requires development work; once
-                    built, it would appear in this list like any other module.
+                    Show or hide modules your organization's plan includes, app-wide, grouped by workspace.
+                    Home, Dashboard, and Settings are always visible and can't be hidden here. Turning off
+                    every module in a workspace hides that whole workspace from the switcher. This controls{' '}
+                    <strong>visibility only</strong> -- it does not grant new modules. Need a module you don't
+                    see here? Contact the platform operator to have it granted to your organization.
                 </CardDescription>
             </CardHeader>
             <CardContent>
+                {availableEntries.length === 0 ? (
+                    <p className="py-6 text-center text-sm text-graphite-400">
+                        No modules have been granted to your organization yet.
+                    </p>
+                ) : (
                 <form onSubmit={submit} className="space-y-5">
                     {groups.map(({ workspace, entries }) => (
                         <div key={workspace.key} className="space-y-2">
@@ -429,6 +1143,7 @@ function ModulesTab() {
                         {processing && <Loader2 className="h-4 w-4 animate-spin" />} Save Modules
                     </Button>
                 </form>
+                )}
             </CardContent>
         </Card>
     );
@@ -981,9 +1696,11 @@ function AuthenticationTab() {
     );
 }
 
-function UsersTab({ users }) {
+function UsersTab({ users, roles }) {
     const [open, setOpen] = useState(false);
+    const [editingRolesFor, setEditingRolesFor] = useState(null);
     const { data, setData, post, processing, reset, errors } = useForm({ name: '', email: '', password: '', role: 'hrd' });
+    const customRoles = (roles ?? []).filter((r) => !BUILT_IN_ROLES.includes(r.name));
 
     function submit(e) {
         e.preventDefault();
@@ -997,7 +1714,7 @@ function UsersTab({ users }) {
     return (
         <Card>
             <CardHeader className="flex flex-row items-center justify-between space-y-0">
-                <div><CardTitle>User Management</CardTitle><CardDescription>Super Admin, HSE, HRD, or Manager.</CardDescription></div>
+                <div><CardTitle>User Management</CardTitle><CardDescription>Administrator, HSE, HRD, or Manager.</CardDescription></div>
                 <Dialog open={open} onOpenChange={setOpen}>
                     <DialogTrigger asChild><Button size="sm"><Plus className="h-4 w-4" /> Add User</Button></DialogTrigger>
                     <DialogContent>
@@ -1015,7 +1732,7 @@ function UsersTab({ users }) {
                                 <Select value={data.role} onValueChange={(v) => setData('role', v)}>
                                     <SelectTrigger><SelectValue /></SelectTrigger>
                                     <SelectContent>
-                                        <SelectItem value="super_admin">Super Admin</SelectItem>
+                                        <SelectItem value="super_admin">Administrator</SelectItem>
                                         <SelectItem value="hse">HSE</SelectItem>
                                         <SelectItem value="hrd">HRD</SelectItem>
                                         <SelectItem value="manager">Manager</SelectItem>
@@ -1030,23 +1747,78 @@ function UsersTab({ users }) {
             </CardHeader>
             <CardContent>
                 <Table>
-                    <TableHeader><TableRow><TableHead>Name</TableHead><TableHead>Email</TableHead><TableHead>Role</TableHead><TableHead>Status</TableHead><TableHead /></TableRow></TableHeader>
+                    <TableHeader><TableRow><TableHead>Name</TableHead><TableHead>Email</TableHead><TableHead>Role</TableHead><TableHead>Custom Roles</TableHead><TableHead>Status</TableHead><TableHead /></TableRow></TableHeader>
                     <TableBody>
-                        {users.map((u) => (
-                            <TableRow key={u.id}>
-                                <TableCell className="font-medium">{u.name}</TableCell>
-                                <TableCell>{u.email}</TableCell>
-                                <TableCell><Badge variant={u.role === 'super_admin' ? 'default' : 'secondary'}>{ROLE_LABELS[u.role] ?? u.role}</Badge></TableCell>
-                                <TableCell><Badge variant={u.is_active ? 'success' : 'secondary'}>{u.is_active ? 'Active' : 'Inactive'}</Badge></TableCell>
-                                <TableCell>
-                                    <Button variant="ghost" size="icon" onClick={() => destroy(u.id)}><Trash2 className="h-4 w-4 text-red-500" /></Button>
-                                </TableCell>
-                            </TableRow>
-                        ))}
+                        {users.map((u) => {
+                            const assignedCustom = customRoles.filter((r) => (u.role_ids ?? []).includes(r.id));
+                            return (
+                                <TableRow key={u.id}>
+                                    <TableCell className="font-medium">{u.name}</TableCell>
+                                    <TableCell>{u.email}</TableCell>
+                                    <TableCell><Badge variant={u.role === 'super_admin' ? 'default' : 'secondary'}>{ROLE_LABELS[u.role] ?? u.role}</Badge></TableCell>
+                                    <TableCell>
+                                        <div className="flex flex-wrap items-center gap-1">
+                                            {assignedCustom.map((r) => <Badge key={r.id} variant="outline">{r.name}</Badge>)}
+                                            {customRoles.length > 0 && (
+                                                <button type="button" onClick={() => setEditingRolesFor(u)} className="text-xs text-brand-600 hover:underline">
+                                                    Edit
+                                                </button>
+                                            )}
+                                        </div>
+                                    </TableCell>
+                                    <TableCell><Badge variant={u.is_active ? 'success' : 'secondary'}>{u.is_active ? 'Active' : 'Inactive'}</Badge></TableCell>
+                                    <TableCell>
+                                        <Button variant="ghost" size="icon" onClick={() => destroy(u.id)}><Trash2 className="h-4 w-4 text-red-500" /></Button>
+                                    </TableCell>
+                                </TableRow>
+                            );
+                        })}
                     </TableBody>
                 </Table>
             </CardContent>
+            {editingRolesFor && (
+                <UserRolesDialog user={editingRolesFor} customRoles={customRoles} onClose={() => setEditingRolesFor(null)} />
+            )}
         </Card>
+    );
+}
+
+/**
+ * Milestone 3 (UAT #6). Assigns/unassigns a user's CUSTOM roles --
+ * additive on top of their base `role` column, which this never touches
+ * (see SettingsController::updateUserRoles()'s own doc comment).
+ */
+function UserRolesDialog({ user, customRoles, onClose }) {
+    const { data, setData, put, processing } = useForm({ role_ids: user.role_ids ?? [] });
+
+    function toggle(id) {
+        setData('role_ids', data.role_ids.includes(id) ? data.role_ids.filter((i) => i !== id) : [...data.role_ids, id]);
+    }
+
+    function submit(e) {
+        e.preventDefault();
+        put(route('settings.users.roles', user.id), { preserveScroll: true, onSuccess: onClose });
+    }
+
+    return (
+        <Dialog open onOpenChange={(v) => !v && onClose()}>
+            <DialogContent>
+                <DialogHeader><DialogTitle>Custom Roles for {user.name}</DialogTitle></DialogHeader>
+                <form onSubmit={submit} className="space-y-3">
+                    {customRoles.map((r) => (
+                        <label key={r.id} className="flex items-center justify-between rounded-lg border border-graphite-100 px-3 py-2">
+                            <span className="text-sm text-graphite-700">{r.name}</span>
+                            <Checkbox checked={data.role_ids.includes(r.id)} onCheckedChange={() => toggle(r.id)} />
+                        </label>
+                    ))}
+                    <DialogFooter>
+                        <Button type="submit" disabled={processing}>
+                            {processing && <Loader2 className="h-4 w-4 animate-spin" />} Save
+                        </Button>
+                    </DialogFooter>
+                </form>
+            </DialogContent>
+        </Dialog>
     );
 }
 

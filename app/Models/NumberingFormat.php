@@ -13,6 +13,7 @@ use Illuminate\Database\Eloquent\Model;
 class NumberingFormat extends Model
 {
     protected $fillable = [
+        'tenant_id',
         'company_id',
         'module_key',
         'prefix',
@@ -31,5 +32,10 @@ class NumberingFormat extends Model
     public function company()
     {
         return $this->belongsTo(Company::class);
+    }
+
+    public function tenant()
+    {
+        return $this->belongsTo(Tenant::class);
     }
 }

@@ -308,15 +308,31 @@ class User extends Authenticatable
         return $this->avatar_path ? asset('storage/'.$this->avatar_path) : null;
     }
 
+    /**
+     * Milestone 3 (UAT #1/#3/#7 -- identity clarity). Display label only
+     * -- the underlying `role` column value stays `super_admin`/
+     * `platform_admin` unchanged (renaming the stored string would cascade
+     * into `config/workflow.php`, every `role:super_admin` route
+     * middleware, `RolePermissionSeeder`'s Spatie role names, and more,
+     * for zero behavioral gain). What UAT actually flagged was confusion
+     * in the UI between "the tenant's own full admin" and "the platform
+     * operator" -- both were labeled some variant of "Super Admin." Fixed
+     * here, at the single place every label already flowed through:
+     *   - `super_admin` (tenant-side, full access to their own tenant)
+     *     now reads "Administrator" -- matches the SaaS hierarchy's own
+     *     naming (Platform -> Master, Tenant -> Administrator -> ...).
+     *   - `platform_admin` now reads "Master" for the same reason.
+     * See docs/ADR/015-identity-hierarchy-clarity.md.
+     */
     public function roleLabel(): string
     {
         return match ($this->role) {
-            self::ROLE_SUPER_ADMIN => 'Super Admin',
+            self::ROLE_SUPER_ADMIN => 'Administrator',
             self::ROLE_HSE => 'HSE',
             self::ROLE_HRD => 'HRD',
             self::ROLE_MANAGER => 'Manager',
             self::ROLE_WAREHOUSE => 'Warehouse',
-            self::ROLE_PLATFORM_ADMIN => 'Platform Super Admin',
+            self::ROLE_PLATFORM_ADMIN => 'Master',
             default => ucfirst($this->role),
         };
     }

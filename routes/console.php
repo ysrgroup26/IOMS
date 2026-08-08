@@ -14,3 +14,9 @@ Artisan::command('inspire', function () {
 // of their deadline. Requires the server's cron to call
 // `php artisan schedule:run` every minute (standard Laravel setup).
 Schedule::command('approvals:escalate')->hourly();
+
+// Milestone 3 (Report Center, Task #65). Hourly is coarse enough not to
+// spam even for 'daily' schedules (next_run_at is a real timestamp
+// compared with <=, so a schedule never fires twice for one due window
+// regardless of check frequency).
+Schedule::command('reports:dispatch-scheduled')->hourly();

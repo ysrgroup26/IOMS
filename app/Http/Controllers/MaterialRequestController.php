@@ -9,6 +9,7 @@ use App\Models\Company;
 use App\Models\Department;
 use App\Models\MaterialRequest;
 use App\Models\Project;
+use App\Services\DocumentEngine;
 use App\Services\PdfGeneratorService;
 use Illuminate\Http\RedirectResponse;
 use Illuminate\Http\Request;
@@ -298,13 +299,21 @@ class MaterialRequestController extends Controller
         abort_unless($request->user()->isSuperAdmin() || in_array($request->user()->role, $allowed, true), 403);
     }
 
-    public function pdf(MaterialRequest $materialRequest, PdfGeneratorService $pdf): Response
+    public function pdf(MaterialRequest $materialRequest, PdfGeneratorService $pdf, DocumentEngine $documents): Response
     {
         $materialRequest->load('company', 'department', 'project', 'requester', 'items');
 
+        // Milestone 3 (Dynamic Document Engine, Task #66): first real
+        // consumer of DocumentEngine -- see its own doc comment on why
+        // this is template RESOLUTION feeding the existing Blade view,
+        // not a second rendering pipeline. documentTemplate is null (and
+        // the view falls back to its original hardcoded chrome) until a
+        // Company Admin actually creates one in Settings > Documents.
         return $pdf->streamInline('pdf.material-request', [
             'materialRequest' => $materialRequest,
             'company' => $materialRequest->company,
+            'documentTemplate' => $documents->resolveTemplate('material_request', $materialRequest->company_id),
+            'branding' => $documents->branding(),
         ], "{$materialRequest->request_number}.pdf");
     }
 }

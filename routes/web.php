@@ -1,6 +1,7 @@
 <?php
 
 use App\Http\Controllers\ActivityCenterController;
+use App\Http\Controllers\AnalyticsController;
 use App\Http\Controllers\ApprovalController;
 use App\Http\Controllers\Auth\AuthenticatedSessionController;
 use App\Http\Controllers\Auth\NewPasswordController;
@@ -26,6 +27,7 @@ use App\Http\Controllers\PpeController;
 use App\Http\Controllers\PpeTypeController;
 use App\Http\Controllers\ProjectController;
 use App\Http\Controllers\ProjectManagementDashboardController;
+use App\Http\Controllers\ReportCenterController;
 use App\Http\Controllers\ReportController;
 use App\Http\Controllers\SettingsController;
 use App\Http\Controllers\TaskController;
@@ -56,7 +58,10 @@ Route::post('/logout', [AuthenticatedSessionController::class, 'destroy'])
 | Authenticated routes (all four roles: Super Admin, HSE, HRD, Manager)
 |--------------------------------------------------------------------------
 */
-Route::middleware('auth')->group(function () {
+// M3 FINAL verification (Task #70): 'restrict.platform-admin' redirects a
+// Platform Super Admin (no tenant) to /platform -- see that middleware's
+// own doc comment for the bug this closes.
+Route::middleware(['auth', 'restrict.platform-admin'])->group(function () {
 
     // Dashboard is the landing page (v1.9.0) -- Home was retired, its
     // unique real feeds folded into Dashboard/Index.jsx. `home` is kept
@@ -69,6 +74,12 @@ Route::middleware('auth')->group(function () {
     // Work Center (v1.8.0): the global cross-department "what needs my
     // attention" surface -- see WorkCenterController's own doc comment.
     Route::get('/work-center', [WorkCenterController::class, 'index'])->name('work-center.index');
+
+    // Analytics Framework (Milestone 3, Task #64) -- index() renders every
+    // dataset visible to the current tenant's enabled modules; show()
+    // returns a single dataset as JSON for dashboard widgets to fetch.
+    Route::get('/analytics', [AnalyticsController::class, 'index'])->name('analytics.index');
+    Route::get('/analytics/{key}', [AnalyticsController::class, 'show'])->name('analytics.show');
 
     // Notification Center (Milestone 3) -- the list itself is shared via
     // HandleInertiaRequests, these are just the two write actions.
@@ -91,6 +102,16 @@ Route::middleware('auth')->group(function () {
     Route::resource('tasks', TaskController::class);
     Route::get('/reports/export/excel', [ReportController::class, 'exportExcel'])->name('reports.export.excel');
     Route::get('/reports/export/pdf', [ReportController::class, 'exportPdf'])->name('reports.export.pdf');
+
+    // Report Center (Milestone 3, Task #65) -- generic PDF/Excel/CSV
+    // download + Scheduled Report over any Analytics Framework dataset.
+    Route::get('/report-center', [ReportCenterController::class, 'index'])->name('report-center.index');
+    Route::get('/report-center/{key}/preview', [ReportCenterController::class, 'preview'])->name('report-center.preview');
+    Route::get('/report-center/{key}/export/csv', [ReportCenterController::class, 'exportCsv'])->name('report-center.export.csv');
+    Route::get('/report-center/{key}/export/excel', [ReportCenterController::class, 'exportExcel'])->name('report-center.export.excel');
+    Route::get('/report-center/{key}/export/pdf', [ReportCenterController::class, 'exportPdf'])->name('report-center.export.pdf');
+    Route::post('/report-center/schedules', [ReportCenterController::class, 'storeSchedule'])->name('report-center.schedules.store');
+    Route::delete('/report-center/schedules/{reportSchedule}', [ReportCenterController::class, 'destroySchedule'])->name('report-center.schedules.destroy');
 
     // Projects: viewable by all roles (Manager + HRD are view-only here); mutation below is admin-scoped.
     Route::get('/projects', [ProjectController::class, 'index'])->name('projects.index');
@@ -183,6 +204,22 @@ Route::middleware('auth')->group(function () {
         Route::post('/settings/modules', [SettingsController::class, 'updateModules'])->name('settings.modules');
         Route::post('/settings/workspaces', [SettingsController::class, 'updateWorkspaces'])->name('settings.workspaces');
         Route::put('/settings/roles/{role}', [SettingsController::class, 'updateRolePermissions'])->name('settings.roles.update');
+        Route::post('/settings/roles', [SettingsController::class, 'storeRole'])->name('settings.roles.store');
+        Route::delete('/settings/roles/{role}', [SettingsController::class, 'destroyRole'])->name('settings.roles.destroy');
+        Route::put('/settings/users/{user}/roles', [SettingsController::class, 'updateUserRoles'])->name('settings.users.roles');
+        Route::post('/settings/numbering', [SettingsController::class, 'updateNumberingFormats'])->name('settings.numbering');
+        Route::post('/settings/approval-flows', [SettingsController::class, 'storeApprovalFlow'])->name('settings.approval-flows.store');
+        Route::delete('/settings/approval-flows/{approvalFlow}', [SettingsController::class, 'destroyApprovalFlow'])->name('settings.approval-flows.destroy');
+        Route::put('/settings/approval-flows/{approvalFlow}/steps', [SettingsController::class, 'updateApprovalFlowSteps'])->name('settings.approval-flows.steps');
+        Route::post('/settings/notifications', [SettingsController::class, 'updateNotificationPreferences'])->name('settings.notifications');
+
+        // Dynamic Document Engine (Milestone 3, Task #66).
+        Route::post('/settings/documents', [SettingsController::class, 'storeDocumentTemplate'])->name('settings.documents.store');
+        Route::put('/settings/documents/{documentTemplate}', [SettingsController::class, 'updateDocumentTemplate'])->name('settings.documents.update');
+        Route::delete('/settings/documents/{documentTemplate}', [SettingsController::class, 'destroyDocumentTemplate'])->name('settings.documents.destroy');
+
+        // Import/Export Mapping (Milestone 3, Task #67).
+        Route::post('/settings/field-mapping', [SettingsController::class, 'updateFieldMapping'])->name('settings.field-mapping');
 
         Route::post('/ppe-types', [PpeTypeController::class, 'store'])->name('ppe-types.store');
         Route::put('/ppe-types/{ppeType}', [PpeTypeController::class, 'update'])->name('ppe-types.update');
@@ -305,4 +342,6 @@ Route::middleware(['auth', 'role:platform_admin'])->prefix('platform')->name('pl
     Route::get('/', [PlatformController::class, 'dashboard'])->name('dashboard');
     Route::get('/tenants', [PlatformController::class, 'tenants'])->name('tenants');
     Route::put('/tenants/{tenant}/status', [PlatformController::class, 'updateTenantStatus'])->name('tenants.update-status');
+    Route::get('/tenants/{tenant}/grants', [PlatformController::class, 'tenantGrants'])->name('tenants.grants');
+    Route::put('/tenants/{tenant}/grants', [PlatformController::class, 'updateTenantGrants'])->name('tenants.grants.update');
 });

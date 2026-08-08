@@ -48,6 +48,23 @@ class Tenant extends Model
         return $this->hasOne(Subscription::class)->latestOfMany();
     }
 
+    /**
+     * Milestone 3 (UAT #4/#5). Modules/Workspaces the Platform has
+     * granted this tenant -- the ceiling on what this tenant's own
+     * Company Admin can enable via the pre-existing `enabled_modules`
+     * CompanySetting toggle. See the granting migration's own doc
+     * comment for the full reasoning.
+     */
+    public function modules()
+    {
+        return $this->belongsToMany(Module::class, 'tenant_modules');
+    }
+
+    public function workspaces()
+    {
+        return $this->belongsToMany(Workspace::class, 'tenant_workspaces');
+    }
+
     public function isActive(): bool
     {
         return $this->status === self::STATUS_ACTIVE || $this->status === self::STATUS_TRIAL;

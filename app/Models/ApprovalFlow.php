@@ -14,6 +14,7 @@ use Illuminate\Database\Eloquent\Model;
 class ApprovalFlow extends Model
 {
     protected $fillable = [
+        'tenant_id',
         'company_id',
         'module_key',
         'name',
@@ -33,6 +34,11 @@ class ApprovalFlow extends Model
     public function company()
     {
         return $this->belongsTo(Company::class);
+    }
+
+    public function tenant()
+    {
+        return $this->belongsTo(Tenant::class);
     }
 
     public function steps()

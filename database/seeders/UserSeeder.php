@@ -41,7 +41,13 @@ class UserSeeder extends Seeder
      */
     public function run(): void
     {
-        $this->seedAccount('admin@safetylog.local', 'admin@ioms.local', 'Super Admin', User::ROLE_SUPER_ADMIN);
+        // Milestone 3 (UAT #1/#3/#7 -- identity clarity): named
+        // "Administrator" now, not "Super Admin" -- the header greeting
+        // ("Good Morning, {first name}") was literally showing "Super",
+        // reinforcing the exact Platform-vs-tenant identity confusion UAT
+        // flagged. See User::roleLabel()'s own doc comment for the full
+        // reasoning; this account's `role` column value is unchanged.
+        $this->seedAccount('admin@safetylog.local', 'admin@ioms.local', 'Administrator', User::ROLE_SUPER_ADMIN);
         // department_key = 'hse' (v1.10.3): the seeded HSE account is the
         // canonical Department User example/test account -- restricted to
         // the HSE department's own sidebar, no Department Selector, no

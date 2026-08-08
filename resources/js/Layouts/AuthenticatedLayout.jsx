@@ -405,7 +405,15 @@ function TopBar({ onOpenSidebar, isDepartmentUser, departments, activeWorkspace,
                     <div className="flex h-7 w-7 shrink-0 items-center justify-center rounded-full bg-graphite-100 text-xs font-semibold text-graphite-600 dark:bg-slate-800 dark:text-slate-300">
                         {auth?.user?.name?.charAt(0)}
                     </div>
-                    <span className="hidden text-sm font-medium text-graphite-700 dark:text-slate-300 sm:block">{auth?.user?.name?.split(' ')[0]}</span>
+                    <span className="hidden flex-col items-start sm:flex">
+                        <span className="text-sm font-medium leading-tight text-graphite-700 dark:text-slate-300">{auth?.user?.name?.split(' ')[0]}</span>
+                        {/* Milestone 3 (UAT #1/#3/#7 -- identity clarity): the
+                            role is now visible in the header itself, not just
+                            inside this dropdown once opened -- "Administrator"
+                            vs "HSE" vs "Manager" etc. should never require a
+                            click to discover. */}
+                        <span className="text-[10px] font-medium leading-tight text-brand-600 dark:text-brand-400">{auth?.user?.role_label}</span>
+                    </span>
                     <ChevronDown className="hidden h-3.5 w-3.5 text-graphite-400 dark:text-slate-500 sm:block" />
                 </DropdownMenuTrigger>
                 <DropdownMenuContent>

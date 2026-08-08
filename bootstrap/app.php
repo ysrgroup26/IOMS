@@ -5,6 +5,7 @@ use App\Http\Middleware\HandleInertiaRequests;
 use App\Http\Middleware\IdentifyTenant;
 use App\Http\Middleware\ResolveTenant;
 use App\Http\Middleware\RestrictDepartmentAccess;
+use App\Http\Middleware\RestrictPlatformAdminFromTenantRoutes;
 use Illuminate\Foundation\Application;
 use Illuminate\Foundation\Configuration\Exceptions;
 use Illuminate\Foundation\Configuration\Middleware;
@@ -35,6 +36,7 @@ return Application::configure(basePath: dirname(__DIR__))
 
         $middleware->alias([
             'role' => CheckRole::class,
+            'restrict.platform-admin' => RestrictPlatformAdminFromTenantRoutes::class,
         ]);
     })
     ->withExceptions(function (Exceptions $exceptions) {

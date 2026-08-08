@@ -37,6 +37,7 @@ class DatabaseSeeder extends Seeder
             SubscriptionSeeder::class,
             ModuleSeeder::class, // not tenant-scoped -- platform catalog
             WorkspaceSeeder::class, // not tenant-scoped -- platform catalog
+            TenantGrantSeeder::class, // grants the current tenant everything, preserving pre-grant-system behavior
             CompanySeeder::class,
             DepartmentSeeder::class,
             PositionSeeder::class,

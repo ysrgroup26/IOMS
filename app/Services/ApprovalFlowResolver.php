@@ -3,6 +3,7 @@
 namespace App\Services;
 
 use App\Models\ApprovalFlow;
+use App\Support\CurrentTenant;
 use Illuminate\Database\Eloquent\Model;
 
 /**
@@ -14,15 +15,31 @@ use Illuminate\Database\Eloquent\Model;
  * when nothing is configured, which is the ENTIRE trigger for
  * `ApprovalEngine` to use the legacy single-step path -- see that
  * class's own doc comment.
+ *
+ * Milestone 3 (Task #62): every flow considered is now filtered to
+ * `tenant_id` = the CURRENT tenant (or the platform-wide `tenant_id`
+ * null fallback) -- `approval_flows` originally had no tenant_id at all,
+ * meaning one tenant's catch-all flow for a module would silently apply
+ * to every other tenant's records of that module too. See the adding
+ * migration's own doc comment.
  */
 class ApprovalFlowResolver
 {
+    public function __construct(private readonly CurrentTenant $currentTenant) {}
+
     public function resolve(string $moduleKey, Model $approvable): ?ApprovalFlow
     {
         $companyId = $approvable->company_id ?? null;
+        $tenantId = $this->currentTenant->id();
 
         $flows = ApprovalFlow::where('module_key', $moduleKey)
             ->where('is_active', true)
+            ->where(function ($query) use ($tenantId) {
+                $query->whereNull('tenant_id');
+                if ($tenantId) {
+                    $query->orWhere('tenant_id', $tenantId);
+                }
+            })
             ->where(function ($query) use ($companyId) {
                 $query->whereNull('company_id');
                 if ($companyId) {

@@ -33,8 +33,15 @@ export default function PlatformLayout({ children }) {
                 <div className="mx-auto flex max-w-6xl items-center justify-between px-4 py-3">
                     <div className="flex items-center gap-6">
                         <BrandWordmark className="h-6 w-auto" />
+                        {/* Milestone 3 (UAT #1/#3/#7 -- identity clarity):
+                            "Master" -- matches User::roleLabel()'s
+                            platform_admin mapping exactly, so this reads
+                            the same word everywhere a Platform Super Admin
+                            sees their own identity (this badge, the
+                            dropdown role tag on the tenant-side layout if
+                            they ever switch, roleLabel() itself). */}
                         <span className="rounded-full bg-brand-50 px-2.5 py-0.5 text-xs font-semibold uppercase tracking-wide text-brand-700">
-                            Platform
+                            Master
                         </span>
                         <nav className="flex items-center gap-1">
                             {navItems.map((item) => (
@@ -49,7 +56,7 @@ export default function PlatformLayout({ children }) {
                         </nav>
                     </div>
                     <div className="flex items-center gap-3">
-                        <span className="text-sm text-graphite-500">{auth?.user?.name}</span>
+                        <span className="text-sm text-graphite-500">{auth?.user?.name} <span className="text-xs text-graphite-400">(Master)</span></span>
                         <button
                             onClick={logout}
                             className="flex items-center gap-1.5 rounded-md px-2.5 py-1.5 text-sm text-graphite-500 hover:bg-graphite-100"

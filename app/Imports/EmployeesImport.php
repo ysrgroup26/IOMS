@@ -60,11 +60,28 @@ class EmployeesImport implements OnEachRow, WithChunkReading, WithHeadingRow
 
     private array $seenEmployeeIds = [];
 
+    /**
+     * @param  array<string,string>|null  $columnKeys  Milestone 3 (Import
+     *         Mapping, Task #67): target field => actual heading-row key
+     *         to read it from, resolved by
+     *         `App\Services\FieldMappingService::importColumnKeys()`.
+     *         Null (or a field missing from the map) falls back to the
+     *         field's own name -- byte-for-byte the original behavior,
+     *         so an unconfigured tenant's import is unaffected.
+     */
     public function __construct(
         private readonly int $companyId,
         private readonly int $userId,
-        private readonly bool $previewOnly = false
+        private readonly bool $previewOnly = false,
+        private readonly ?array $columnKeys = null,
     ) {}
+
+    private function col(array $data, string $field): mixed
+    {
+        $key = $this->columnKeys[$field] ?? $field;
+
+        return $data[$key] ?? $data[$field] ?? null;
+    }
 
     public function chunkSize(): int
     {
@@ -80,8 +97,8 @@ class EmployeesImport implements OnEachRow, WithChunkReading, WithHeadingRow
         $data = $row->toArray();
         $rowNumber = $row->getIndex() + 1;
 
-        $employeeId = trim((string) ($data['employee_id'] ?? ''));
-        $fullName = trim((string) ($data['full_name'] ?? ''));
+        $employeeId = trim((string) ($this->col($data, 'employee_id') ?? ''));
+        $fullName = trim((string) ($this->col($data, 'full_name') ?? ''));
 
         // Critical fields: a row missing either of these can't become a
         // usable employee record at all (both are NOT NULL columns), so
@@ -116,12 +133,12 @@ class EmployeesImport implements OnEachRow, WithChunkReading, WithHeadingRow
         // completion status, but NOT required to import the row --
         // "Unassigned" is genuinely supported (department_id is
         // nullable), matching the spec's "(or Unassigned if supported)".
-        $departmentName = trim((string) ($data['department'] ?? ''));
+        $departmentName = trim((string) ($this->col($data, 'department') ?? ''));
         if ($departmentName !== '') {
             $this->departmentNames[] = $departmentName;
         }
 
-        $positionName = trim((string) ($data['position'] ?? ''));
+        $positionName = trim((string) ($this->col($data, 'position') ?? ''));
         if ($positionName !== '') {
             $this->positionNames[] = $positionName;
         }
@@ -155,7 +172,7 @@ class EmployeesImport implements OnEachRow, WithChunkReading, WithHeadingRow
         }
 
         $joinDate = null;
-        $rawJoinDate = $data['join_date'] ?? null;
+        $rawJoinDate = $this->col($data, 'join_date');
         if ($rawJoinDate) {
             try {
                 $joinDate = is_numeric($rawJoinDate)
@@ -171,7 +188,7 @@ class EmployeesImport implements OnEachRow, WithChunkReading, WithHeadingRow
         // unrecognized value falls back to the column's own default
         // ('active') instead of failing the row, since this was never
         // listed as a critical field that should block import.
-        $status = strtolower(trim((string) ($data['employment_status'] ?? '')));
+        $status = strtolower(trim((string) ($this->col($data, 'employment_status') ?? '')));
         if (! in_array($status, ['active', 'inactive', 'resigned'], true)) {
             $status = 'active';
         }
@@ -185,17 +202,17 @@ class EmployeesImport implements OnEachRow, WithChunkReading, WithHeadingRow
                 'position_id' => $positionId,
                 'status' => $status,
                 'join_date' => $joinDate,
-                'phone' => trim((string) ($data['phone'] ?? '')) ?: null,
-                'email' => trim((string) ($data['email'] ?? '')) ?: null,
-                'address' => trim((string) ($data['address'] ?? '')) ?: null,
-                'emergency_contact_name' => trim((string) ($data['emergency_contact_name'] ?? '')) ?: null,
-                'emergency_contact_phone' => trim((string) ($data['emergency_contact_phone'] ?? '')) ?: null,
+                'phone' => trim((string) ($this->col($data, 'phone') ?? '')) ?: null,
+                'email' => trim((string) ($this->col($data, 'email') ?? '')) ?: null,
+                'address' => trim((string) ($this->col($data, 'address') ?? '')) ?: null,
+                'emergency_contact_name' => trim((string) ($this->col($data, 'emergency_contact_name') ?? '')) ?: null,
+                'emergency_contact_phone' => trim((string) ($this->col($data, 'emergency_contact_phone') ?? '')) ?: null,
             ]);
 
             // Project is optional and never blocks the import -- if the
             // name doesn't match an existing project (or is blank),
             // the employee is simply not assigned to one yet.
-            $projectName = trim((string) ($data['project'] ?? ''));
+            $projectName = trim((string) ($this->col($data, 'project') ?? ''));
             if ($projectName !== '') {
                 $projectId = Project::where('company_id', $this->companyId)
                     ->where('name', $projectName)

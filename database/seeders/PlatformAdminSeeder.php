@@ -28,7 +28,11 @@ class PlatformAdminSeeder extends Seeder
         User::updateOrCreate(
             ['email' => 'platform@ioms.local'],
             [
-                'name' => 'Platform Super Admin',
+                // Milestone 3 (UAT #1/#3/#7 -- identity clarity): "Master",
+                // matching User::roleLabel()'s platform_admin mapping and
+                // PlatformLayout's own header badge -- one consistent word
+                // for this identity everywhere it appears.
+                'name' => 'Master',
                 'password' => Hash::make('password'),
                 'role' => User::ROLE_PLATFORM_ADMIN,
                 'tenant_id' => null,

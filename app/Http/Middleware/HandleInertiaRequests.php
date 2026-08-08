@@ -111,9 +111,19 @@ class HandleInertiaRequests extends Middleware
                 // plain indexed query, deliberately not cached -- see
                 // docs/CONVENTIONS.md's Caching section for why this
                 // specific value has twice caused a real bug when cached.
-                'available' => Module::query()->orderBy('sort_order')->pluck('label', 'key')->all(),
-                'enabled' => (function () {
-                    $allKeys = Module::query()->pluck('key')->all();
+                //
+                // Milestone 3 (UAT #4): further restricted to the modules
+                // the Platform has actually GRANTED this user's tenant
+                // (`tenant_modules`) -- a Company Admin can no longer see,
+                // let alone toggle on, a module their tenant's plan
+                // doesn't include. Guests/Platform Super Admin (no
+                // tenant) get an empty catalog -- neither has any
+                // tenant-side module visibility to manage.
+                'available' => $user?->tenant
+                    ? $user->tenant->modules()->orderBy('sort_order')->pluck('label', 'modules.key')->all()
+                    : [],
+                'enabled' => (function () use ($user) {
+                    $allKeys = $user?->tenant ? $user->tenant->modules()->pluck('key')->all() : [];
 
                     // v1.6.8 (second pass): reads the database directly,
                     // deliberately bypassing CompanySetting::get()'s cache
@@ -151,10 +161,21 @@ class HandleInertiaRequests extends Middleware
                     // genuinely chosen to turn off.
                     $newlyAddedModules = ['material_requests'];
 
-                    return array_values(array_unique([
+                    // Milestone 3 (UAT #4): $stored can still list a key
+                    // the tenant's grant was later revoked for (nobody
+                    // re-saves Settings > Module Visibility just because
+                    // Platform changed a grant) -- intersecting with
+                    // $allKeys (now the GRANTED set, not "every module
+                    // that exists") is what actually makes revoking a
+                    // grant immediately hide that module from the
+                    // sidebar, not just from the toggle UI. Caught during
+                    // this same milestone's own browser verification:
+                    // revoking PPE's grant left "PPE Management" still
+                    // visible in the HSE sidebar until this fix.
+                    return array_values(array_intersect(array_unique([
                         ...$stored,
                         ...array_intersect($newlyAddedModules, $allKeys),
-                    ]));
+                    ]), $allKeys));
                 })(),
             ],
             // Milestone 2 (Task #43): DB metadata OVERRIDES for
@@ -165,10 +186,41 @@ class HandleInertiaRequests extends Middleware
             // the frontend merge is written to fall back that way, so a
             // fresh install with a not-yet-seeded `workspaces` table
             // behaves identically to before this feature existed.
-            'workspace_catalog' => fn () => Workspace::query()
-                ->orderBy('sort_order')
-                ->get(['key', 'label', 'icon', 'is_active', 'sort_order'])
-                ->keyBy('key'),
+            //
+            // Milestone 3 (UAT #5): a workspace this user's tenant was
+            // NOT granted (`tenant_workspaces`) is forced to
+            // `is_active: false` here, overriding whatever the DB row's
+            // own `is_active` says -- `applyCatalog()` in
+            // resources/js/lib/workspaces.js already hides any entry
+            // with `is_active: false`, so this is the one place that
+            // enforcement actually needs to happen; the frontend needed
+            // no changes at all. Guests/Platform Super Admin (no tenant)
+            // get every workspace forced inactive -- neither has any
+            // tenant-side nav to show.
+            'workspace_catalog' => function () use ($user) {
+                $grantedKeys = $user?->tenant ? $user->tenant->workspaces()->pluck('key')->all() : [];
+
+                return Workspace::query()
+                    ->orderBy('sort_order')
+                    ->get(['key', 'label', 'icon', 'is_active', 'sort_order'])
+                    ->map(function (Workspace $w) use ($grantedKeys) {
+                        // `granted` is distinct from `is_active`: is_active
+                        // is the admin's OWN on/off choice for a granted
+                        // workspace (Settings > Department Navigation);
+                        // `granted` is whether Platform allows it at all.
+                        // A not-granted workspace also gets is_active
+                        // forced false so `applyCatalog()` (nav rendering,
+                        // resources/js/lib/workspaces.js) hides it
+                        // regardless of any stale is_active value.
+                        $w->granted = in_array($w->key, $grantedKeys, true);
+                        if (! $w->granted) {
+                            $w->is_active = false;
+                        }
+
+                        return $w;
+                    })
+                    ->keyBy('key');
+            },
             'companies' => fn () => Company::active()->orderBy('name')->get(['id', 'name', 'code']),
             // Milestone 3 (Notification Center): `items`/`unread_count` are
             // real, per-user Notification rows -- genuinely fired from

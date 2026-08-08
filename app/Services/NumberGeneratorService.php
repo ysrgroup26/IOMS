@@ -127,16 +127,25 @@ class NumberGeneratorService
      * module+period and atomically increments it. Sequence scope is
      * intentionally global (company_id always NULL here) -- see the
      * migration's doc comment.
+     *
+     * `company_scope` (see docs/ADR/025) is always set to 0 alongside
+     * `company_id` NULL here -- both mean "global scope"; `company_scope`
+     * is the real, NOT-NULL column the uniqueness constraint actually
+     * indexes, portable across MySQL and MariaDB. `firstOrCreate`'s
+     * match array MUST include it (matching only on `company_id` would
+     * let two concurrent requests both pass the "no matching row yet"
+     * check and race to insert, exactly the bug this exists to close).
      */
     private function nextSequence(string $moduleKey, string $periodKey): int
     {
         return DB::transaction(function () use ($moduleKey, $periodKey) {
             NumberingSequence::firstOrCreate(
-                ['company_id' => null, 'module_key' => $moduleKey, 'period_key' => $periodKey],
+                ['company_id' => null, 'company_scope' => 0, 'module_key' => $moduleKey, 'period_key' => $periodKey],
                 ['last_number' => 0]
             );
 
             $row = NumberingSequence::where('company_id', null)
+                ->where('company_scope', 0)
                 ->where('module_key', $moduleKey)
                 ->where('period_key', $periodKey)
                 ->lockForUpdate()

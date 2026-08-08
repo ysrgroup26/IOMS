@@ -35,25 +35,42 @@ return new class extends Migration
      * (matching UAT's own stated expectation: a new tenant can't use
      * anything until Platform explicitly grants it).
      */
+    /**
+     * RC1 release audit: hardened against the same partial-failure class
+     * that broke `2026_08_17_100050_create_numbering_engine_tables` --
+     * two `Schema::create()` calls followed by non-trivial logic (a
+     * per-tenant backfill loop) in one method means a crash partway
+     * through leaves tables behind without Laravel ever recording the
+     * migration as run, so a retry must not assume a clean slate.
+     * `hasTable()` guards make table creation itself safe to retry, and
+     * the backfill now upserts (`insertOrIgnore`, safe against the
+     * `unique(['tenant_id', 'module_id'])` constraint) instead of a bare
+     * `insert()`, so re-running after a partial prior run can't throw a
+     * duplicate-key error on grants that already made it in.
+     */
     public function up(): void
     {
-        Schema::create('tenant_modules', function (Blueprint $table) {
-            $table->id();
-            $table->foreignId('tenant_id')->constrained()->cascadeOnDelete();
-            $table->foreignId('module_id')->constrained()->cascadeOnDelete();
-            $table->timestamps();
+        if (! Schema::hasTable('tenant_modules')) {
+            Schema::create('tenant_modules', function (Blueprint $table) {
+                $table->id();
+                $table->foreignId('tenant_id')->constrained()->cascadeOnDelete();
+                $table->foreignId('module_id')->constrained()->cascadeOnDelete();
+                $table->timestamps();
 
-            $table->unique(['tenant_id', 'module_id']);
-        });
+                $table->unique(['tenant_id', 'module_id']);
+            });
+        }
 
-        Schema::create('tenant_workspaces', function (Blueprint $table) {
-            $table->id();
-            $table->foreignId('tenant_id')->constrained()->cascadeOnDelete();
-            $table->foreignId('workspace_id')->constrained()->cascadeOnDelete();
-            $table->timestamps();
+        if (! Schema::hasTable('tenant_workspaces')) {
+            Schema::create('tenant_workspaces', function (Blueprint $table) {
+                $table->id();
+                $table->foreignId('tenant_id')->constrained()->cascadeOnDelete();
+                $table->foreignId('workspace_id')->constrained()->cascadeOnDelete();
+                $table->timestamps();
 
-            $table->unique(['tenant_id', 'workspace_id']);
-        });
+                $table->unique(['tenant_id', 'workspace_id']);
+            });
+        }
 
         $tenantIds = Tenant::query()->pluck('id');
         $moduleIds = Module::query()->pluck('id');
@@ -65,14 +82,14 @@ return new class extends Migration
                 'tenant_id' => $tenantId, 'module_id' => $moduleId, 'created_at' => $now, 'updated_at' => $now,
             ])->all();
             if ($moduleRows) {
-                DB::table('tenant_modules')->insert($moduleRows);
+                DB::table('tenant_modules')->insertOrIgnore($moduleRows);
             }
 
             $workspaceRows = $workspaceIds->map(fn ($workspaceId) => [
                 'tenant_id' => $tenantId, 'workspace_id' => $workspaceId, 'created_at' => $now, 'updated_at' => $now,
             ])->all();
             if ($workspaceRows) {
-                DB::table('tenant_workspaces')->insert($workspaceRows);
+                DB::table('tenant_workspaces')->insertOrIgnore($workspaceRows);
             }
         }
     }

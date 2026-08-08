@@ -342,12 +342,18 @@ php artisan tinker                         # inspect data in a REPL
 4. `npm install && npm run build` (or build in CI and ship `public/build`; Node isn't needed at runtime).
 5. `.env`: production DB creds, `APP_ENV=production`, `APP_DEBUG=false`, real `APP_URL` (https),
    `SESSION_SECURE_COOKIE=true`, and `SANCTUM_STATEFUL_DOMAINS` = your domain.
-6. First deploy: `php artisan migrate --seed --force`. Subsequent deploys: `php artisan migrate --force`
+6. **`php artisan config:clear` before every deploy's migrate step** (not just the first) --
+   `config:cache` from the *previous* deploy is still on disk and does not update itself when you
+   `git pull`; if this deploy adds a new config file (e.g. a package's own `config/*.php`), migrating
+   against the stale cache fails with confusing "config not loaded" errors even though the file is
+   right there in the repo. `config:clear` is safe to run every time -- it costs one extra file read
+   per request until the `config:cache` step below rebuilds it, nothing more.
+7. First deploy: `php artisan migrate --seed --force`. Subsequent deploys: `php artisan migrate --force`
    (drop `--seed`, or seed selectively). **Never** `migrate:fresh` in production.
-7. `php artisan storage:link`
-8. `php artisan config:cache && php artisan route:cache && php artisan view:cache`
-9. Point Nginx document root at `public/` with the standard Laravel rewrite to `index.php`.
-10. `storage/` and `bootstrap/cache/` writable by `www-data`.
+8. `php artisan storage:link`
+9. `php artisan config:cache && php artisan route:cache && php artisan view:cache`
+10. Point Nginx document root at `public/` with the standard Laravel rewrite to `index.php`.
+11. `storage/` and `bootstrap/cache/` writable by `www-data`.
 
 ### Option B — Laravel Forge / Ploi / managed panel
 
@@ -356,6 +362,7 @@ Deploy script:
 ```bash
 composer install --no-dev --optimize-autoloader
 npm ci && npm run build
+php artisan config:clear
 php artisan migrate --force
 php artisan config:cache
 php artisan route:cache
@@ -428,6 +435,31 @@ Never run `php artisan db:seed` before `php artisan migrate` completes — seede
 current schema already exists. If you deploy via a script, make sure `migrate --force` runs and
 exits successfully *before* any seed step, and never run `migrate:fresh` on a database with real
 data (it drops every table).
+
+**`Error: config/permission.php not loaded. Run [php artisan config:clear] and try again.`
+during `php artisan migrate` (any package's config, not just `permission`):**
+
+The file is there and is fine — this is a stale `bootstrap/cache/config.php` left over from an
+*earlier* deploy, before this package's own config file existed in the codebase. Laravel's config
+cache is a hard, all-or-nothing snapshot: once `php artisan config:cache` has run, every
+`config()` call reads only that frozen file, never `config/*.php` and never `.env`, until it's
+explicitly cleared. `git pull` cannot fix or remove it — `bootstrap/cache/*.php` is gitignored
+(intentionally: see the note on `/bootstrap/cache/*.php` in `.gitignore`), so it's a server-local
+file that silently outlives every deploy that doesn't touch it. If `php artisan about` also shows
+`Environment: local` / `Debug: ENABLED` / a `localhost` URL on a server whose `.env` is clearly
+correct, that's the exact same stale cache, not a separate bug — those values got frozen in
+alongside the missing config key.
+
+Fix:
+
+```bash
+php artisan config:clear
+php artisan migrate --force
+php artisan config:cache   # rebuild it fresh, now that migrate has succeeded
+```
+
+This is exactly why the deploy steps above always run `config:clear` immediately before
+`migrate`, on every deploy, not only the first one.
 
 **`SQLSTATE[42S01]: Base table or view already exists` for `ppe_replacement_request_items`
 specifically:**

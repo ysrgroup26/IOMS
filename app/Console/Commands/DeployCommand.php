@@ -5,11 +5,14 @@ namespace App\Console\Commands;
 use Illuminate\Console\Command;
 
 /**
- * RC1 deployment architecture redesign (docs/ADR/027). The single
- * "deploy → cache → ready" step every environment (shared hosting/cPanel,
- * VPS, future cloud) runs identically after `composer install` and
- * `npm run build` -- no environment-specific manual steps live here or
- * anywhere else in the deploy flow.
+ * RC1 deployment architecture redesign (docs/ADR/027, revised by
+ * ADR/028: production has no Node.js). The single "deploy → cache →
+ * ready" step every environment (shared hosting/cPanel, VPS, future
+ * cloud) runs identically after `composer install` -- frontend assets
+ * are built and committed on a developer's own machine beforehand (see
+ * README § 5), never built here or anywhere in the production deploy
+ * flow. No environment-specific manual steps live here or anywhere else
+ * in the deploy flow.
  *
  * Deliberately a plain Artisan command, not a shell script, for the
  * parts that touch Laravel itself: every step below already has to run
@@ -34,7 +37,7 @@ class DeployCommand extends Command
 {
     protected $signature = 'app:deploy {--seed : Also run database seeders (safe to pass on every deploy -- all seeders are idempotent, see docs/CONVENTIONS.md)} {--no-maintenance : Skip maintenance mode (fine for a brand-new install with no real users yet)}';
 
-    protected $description = 'Single post-build deployment step: clear stale cache, migrate, optionally seed, link storage, rebuild caches. Run after composer install && npm run build.';
+    protected $description = 'Single post-build deployment step: clear stale cache, migrate, optionally seed, link storage, rebuild caches. Run after composer install (frontend assets are pre-built and committed, not built here).';
 
     public function handle(): int
     {

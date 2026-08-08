@@ -36,11 +36,15 @@ preference:
 
 1. **Point the domain's document root directly at `~/ioms/public`** (cPanel: Domains → Document
    Root) -- the cleanest option, when the hosting plan allows changing it.
-2. **Symlink `public_html` to `ioms/public`** (`rm -rf ~/public_html && ln -s ~/ioms/public
-   ~/public_html`) -- a universal fallback that works even on hosts that pin the primary domain's
+2. **Symlink `public_html` to `ioms/public`** (`mv ~/public_html ~/public_html.bak-<date> && ln -s
+   ~/ioms/public ~/public_html`, renaming rather than deleting the old directory -- reversible until
+   you're sure) -- a universal fallback that works even on hosts that pin the primary domain's
    document root and won't let it be changed. Once done, `~/public_html/build` and `~/ioms/public/build`
    are not "kept in sync" -- they are the literal same inode. There is no second copy to fall out of
-   sync, on this deploy or any future one.
+   sync, on this deploy or any future one. (Confirmed live on this project's own host: the original
+   `rm -rf`-based instruction was never actually run there, `public_html` remained a real, separate,
+   stale directory, and production served 404s for every current asset until the symlink was applied
+   -- see `docs/ADR/029` for the full incident.)
 
 Either choice is a **one-time, per-environment** action, documented in `README.md` § 5, never a step
 in the repeating deploy flow. Nothing in the deploy flow copies, syncs, or touches `public_html`

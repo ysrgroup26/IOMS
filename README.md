@@ -371,14 +371,16 @@ commit) if nothing frontend-related changed since the last build.
      `~/ioms/public` (cPanel: Domains → your domain → Document Root).
    - **Universal fallback** (works on any shared host, including ones that pin the primary domain's
      document root to `~/public_html` and won't let you change it): replace `public_html` with a
-     symlink to `ioms/public`:
+     symlink to `ioms/public`. Rename the old directory out of the way rather than deleting it --
+     safe to remove for good later, once you've confirmed the symlink works, but there's no reason
+     to make that irreversible as part of this step:
      ```bash
-     rm -rf ~/public_html
+     mv ~/public_html ~/public_html.bak-$(date +%Y%m%d)
      ln -s ~/ioms/public ~/public_html
      ```
-   Either way, `~/ioms/public/build` (what `npm run build` writes) and the web-served `build/`
-   directory become the *same folder* -- there is no second copy to fall out of sync, ever, on any
-   future deploy. Do this once; never repeat it.
+   Either way, `~/ioms/public/build` (committed to git, built on a machine with Node -- see below)
+   and the web-served `build/` directory become the *same folder* -- there is no second copy to
+   fall out of sync, ever, on any future deploy. Do this once; never repeat it.
 2. **`.env`**: copy `.env.example` to `.env` and fill in real values -- `APP_ENV=production`,
    `APP_DEBUG=false`, real `APP_URL` (https), `SESSION_SECURE_COOKIE=true`, `SANCTUM_STATEFUL_DOMAINS`
    = your domain, production DB credentials. `php artisan key:generate` if `APP_KEY` is blank.

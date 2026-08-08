@@ -31,6 +31,18 @@ codebase's history — kept here so they don't get repeated in a slightly differ
   module's routes were once accidentally nested inside a Super-Admin-only group, silently locking
   out the actual intended users. After adding routes, check indentation/nesting against the
   surrounding `Route::middleware(...)->group(...)` structure, not just that the route exists.
+- **Use `Schema::createIfMissing($table, $callback)`, not `Schema::create()`, for every new table.**
+  A drop-in replacement (registered as a macro in `AppServiceProvider`) that's a no-op if the table
+  already exists. This exists because a deploy interrupted between a `CREATE TABLE` succeeding and
+  Laravel recording the migration as run (a real, verified risk on shared hosting's aggressive
+  script-timeout kills — see `docs/ADR/027`) leaves the table behind with no migration record;
+  retrying then fails with "table already exists," blocking every migration after it. This has
+  happened three times in this codebase's history already (`docs/ADR/025`, `026`, `027`) before
+  becoming a standing convention instead of a one-off fix each time. If a table might already exist
+  in an *old, incompatible* shape rather than just "already correctly created" (e.g. a migration
+  that also adds a column or an index in a separate step), don't rely on the macro alone — guard
+  each step individually and reconcile the old shape explicitly, the way
+  `2026_08_17_100050_create_numbering_engine_tables.php` does for `numbering_sequences`.
 
 ## Status / lifecycle enums
 

@@ -82,20 +82,18 @@ return new class extends Migration
      */
     public function up(): void
     {
-        if (! Schema::hasTable('numbering_formats')) {
-            Schema::create('numbering_formats', function (Blueprint $table) {
-                $table->id();
-                $table->foreignId('company_id')->nullable()->constrained()->cascadeOnDelete();
-                $table->string('module_key');
-                $table->string('prefix');
-                $table->string('pattern')->default('{PREFIX}-{YEAR}-{SEQ}');
-                $table->unsignedTinyInteger('seq_padding')->default(5);
-                $table->string('reset_period')->default('yearly'); // yearly, monthly, never
-                $table->timestamps();
+        Schema::createIfMissing('numbering_formats', function (Blueprint $table) {
+            $table->id();
+            $table->foreignId('company_id')->nullable()->constrained()->cascadeOnDelete();
+            $table->string('module_key');
+            $table->string('prefix');
+            $table->string('pattern')->default('{PREFIX}-{YEAR}-{SEQ}');
+            $table->unsignedTinyInteger('seq_padding')->default(5);
+            $table->string('reset_period')->default('yearly'); // yearly, monthly, never
+            $table->timestamps();
 
-                $table->index(['company_id', 'module_key']);
-            });
-        }
+            $table->index(['company_id', 'module_key']);
+        });
 
         if (! Schema::hasTable('numbering_sequences')) {
             Schema::create('numbering_sequences', function (Blueprint $table) {

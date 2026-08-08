@@ -37,7 +37,7 @@ return new class extends Migration
      */
     public function up(): void
     {
-        Schema::create('approval_flows', function (Blueprint $table) {
+        Schema::createIfMissing('approval_flows', function (Blueprint $table) {
             $table->id();
             $table->foreignId('company_id')->nullable()->constrained()->cascadeOnDelete();
             $table->string('module_key');
@@ -50,7 +50,7 @@ return new class extends Migration
             $table->index(['module_key', 'is_active']);
         });
 
-        Schema::create('approval_flow_steps', function (Blueprint $table) {
+        Schema::createIfMissing('approval_flow_steps', function (Blueprint $table) {
             $table->id();
             $table->foreignId('approval_flow_id')->constrained()->cascadeOnDelete();
             $table->unsignedInteger('step_number');

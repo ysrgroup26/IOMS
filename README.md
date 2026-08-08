@@ -334,49 +334,74 @@ php artisan tinker                         # inspect data in a REPL
 
 ## 5. Deployment Guide
 
-### Option A — Traditional VPS (Ubuntu + Nginx + PHP-FPM + MySQL)
+**One flow, every environment**: `git pull` → `composer install` → `npm run build` → `php artisan
+app:deploy` → ready. `./deploy.sh` runs exactly that sequence. Every environment-specific difference
+(where `composer` lives, whether it's shared hosting or a VPS, MySQL vs MariaDB) is a one-time setup
+choice made *before* the first deploy, never a step repeated on every deploy -- see
+`docs/ADR/027-deployment-architecture-redesign.md` for the full reasoning and how this replaced the
+manual copy/cache/symlink patches earlier releases needed.
 
-1. Provision PHP 8.2+, MySQL 8, Nginx, Node.js (build-time only), Composer.
-2. `git clone` to `/var/www/ioms`.
-3. `composer install --optimize-autoloader --no-dev`
-4. `npm install && npm run build` (or build in CI and ship `public/build`; Node isn't needed at runtime).
-5. `.env`: production DB creds, `APP_ENV=production`, `APP_DEBUG=false`, real `APP_URL` (https),
-   `SESSION_SECURE_COOKIE=true`, and `SANCTUM_STATEFUL_DOMAINS` = your domain.
-6. **`php artisan config:clear` before every deploy's migrate step** (not just the first) --
-   `config:cache` from the *previous* deploy is still on disk and does not update itself when you
-   `git pull`; if this deploy adds a new config file (e.g. a package's own `config/*.php`), migrating
-   against the stale cache fails with confusing "config not loaded" errors even though the file is
-   right there in the repo. `config:clear` is safe to run every time -- it costs one extra file read
-   per request until the `config:cache` step below rebuilds it, nothing more.
-7. First deploy: `php artisan migrate --seed --force`. Subsequent deploys: `php artisan migrate --force`
-   (drop `--seed`, or seed selectively). **Never** `migrate:fresh` in production.
-8. `php artisan storage:link`
-9. `php artisan config:cache && php artisan route:cache && php artisan view:cache`
-10. Point Nginx document root at `public/` with the standard Laravel rewrite to `index.php`.
-11. `storage/` and `bootstrap/cache/` writable by `www-data`.
+### One-time setup (per environment, before the first deploy)
 
-### Option B — Laravel Forge / Ploi / managed panel
+1. **Web root points at `public/`, nothing is copied there.** This is the part every past incident
+   traced back to -- see the ADR for the full story. Two equivalent ways to satisfy it:
+   - **Preferred, if your host allows it**: set the domain's document root directly to
+     `~/ioms/public` (cPanel: Domains → your domain → Document Root).
+   - **Universal fallback** (works on any shared host, including ones that pin the primary domain's
+     document root to `~/public_html` and won't let you change it): replace `public_html` with a
+     symlink to `ioms/public`:
+     ```bash
+     rm -rf ~/public_html
+     ln -s ~/ioms/public ~/public_html
+     ```
+   Either way, `~/ioms/public/build` (what `npm run build` writes) and the web-served `build/`
+   directory become the *same folder* -- there is no second copy to fall out of sync, ever, on any
+   future deploy. Do this once; never repeat it.
+2. **`.env`**: copy `.env.example` to `.env` and fill in real values -- `APP_ENV=production`,
+   `APP_DEBUG=false`, real `APP_URL` (https), `SESSION_SECURE_COOKIE=true`, `SANCTUM_STATEFUL_DOMAINS`
+   = your domain, production DB credentials. `php artisan key:generate` if `APP_KEY` is blank.
+3. **Locate `composer`.** Some shared hosts don't put it on `PATH` (e.g. it may only exist at
+   `/opt/alt/php83/usr/bin/composer` or similar). Find it once (`find / -iname composer 2>/dev/null`
+   or ask your host's docs), then add it to your shell profile so every future deploy picks it up
+   automatically without editing any committed file:
+   ```bash
+   echo 'export COMPOSER_BIN=/opt/alt/php83/usr/bin/composer' >> ~/.bashrc
+   ```
+   `deploy.sh` reads `COMPOSER_BIN` (falling back to plain `composer` if unset).
+4. **Cron, for the scheduler** (approval escalation, scheduled reports -- see `routes/console.php`):
+   ```
+   * * * * * cd ~/ioms && php artisan schedule:run >> /dev/null 2>&1
+   ```
+5. Make `deploy.sh` executable once: `chmod +x deploy.sh`.
 
-Deploy script:
+### Every deploy, from then on
 
 ```bash
-composer install --no-dev --optimize-autoloader
-npm ci && npm run build
-php artisan config:clear
-php artisan migrate --force
-php artisan config:cache
-php artisan route:cache
-php artisan view:cache
-php artisan queue:restart
+./deploy.sh            # standard deploy: migrate, no seed
+./deploy.sh --seed     # also (re-)run seeders -- safe every time, every seeder is idempotent
+./deploy.sh --first    # first-ever deploy on a brand-new install: seeds + skips maintenance mode
 ```
 
-### Option C — Docker (Laravel Sail)
+That's the entire flow. No manual `composer`/`npm` invocation, no manual cache clearing, no manual
+asset copying, no manual migration recovery -- `deploy.sh` calls `composer install`, `npm run
+build`, then hands off to `php artisan app:deploy`
+(`app/Console/Commands/DeployCommand.php`), which clears stale config cache, migrates, optionally
+seeds, links storage (only if not already linked), and rebuilds every cache -- wrapped in
+maintenance mode, which only lifts if every step succeeded. If any step fails, the deploy exits
+non-zero and the app stays in maintenance mode (a safe 503) instead of silently serving whatever
+broken state the failure left behind; fix the reported error, then re-run `./deploy.sh`.
+
+### VPS / Nginx specifics
+
+Same `deploy.sh` flow. Point Nginx's document root at `~/ioms/public` directly (no symlink needed --
+a VPS's Nginx config can reference any path), standard Laravel rewrite to `index.php`, `storage/` and
+`bootstrap/cache/` writable by the web server user, and a cron entry for `schedule:run` as above.
+
+### Docker (Laravel Sail) — local development only
 
 ```bash
 ./vendor/bin/sail up -d
-./vendor/bin/sail artisan migrate --seed
-./vendor/bin/sail npm install
-./vendor/bin/sail npm run build
+./vendor/bin/sail artisan app:deploy --seed
 ```
 
 ### Backups in production
@@ -450,7 +475,7 @@ file that silently outlives every deploy that doesn't touch it. If `php artisan 
 correct, that's the exact same stale cache, not a separate bug — those values got frozen in
 alongside the missing config key.
 
-Fix:
+Fix (one-time recovery for a server already in this state):
 
 ```bash
 php artisan config:clear
@@ -458,8 +483,22 @@ php artisan migrate --force
 php artisan config:cache   # rebuild it fresh, now that migrate has succeeded
 ```
 
-This is exactly why the deploy steps above always run `config:clear` immediately before
-`migrate`, on every deploy, not only the first one.
+This is exactly why `php artisan app:deploy` (what `./deploy.sh` runs on every deploy, see § 5)
+always clears config before migrating, every time, not only the first deploy -- this specific
+failure should not be able to recur from here on.
+
+**White screen in production / browser console shows 404 for `build/assets/app-*.js` or
+`app-*.css`, even though the file exists in the repo's `public/build`:**
+
+Two separate copies of the built assets existed -- one at `~/ioms/public/build` (what `npm run
+build` actually writes, matching the current `manifest.json`) and a second, stale one at
+`~/public_html/build` (from an earlier deploy that copied files there manually) that Apache/Nginx
+was actually serving. This can only happen when the web root is a *separate directory* that
+something copies into, rather than `public/` itself. Root cause and permanent fix (not "copy the
+new files over," which just recreates the same failure mode on the next deploy) are in
+`docs/ADR/027-deployment-architecture-redesign.md` § "One-time setup" -- point the web root at
+`~/ioms/public` directly, or symlink `public_html` to it, once. After that there is only ever one
+`build/` directory and this class of bug cannot happen again.
 
 **`SQLSTATE[42S01]: Base table or view already exists` for `ppe_replacement_request_items`
 specifically:**

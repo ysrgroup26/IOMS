@@ -21,7 +21,7 @@ return new class extends Migration
 {
     public function up(): void
     {
-        Schema::create('field_mappings', function (Blueprint $table) {
+        Schema::createIfMissing('field_mappings', function (Blueprint $table) {
             $table->id();
             $table->foreignId('tenant_id')->constrained()->cascadeOnDelete();
             $table->foreignId('company_id')->nullable()->constrained()->nullOnDelete();

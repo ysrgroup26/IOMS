@@ -50,27 +50,23 @@ return new class extends Migration
      */
     public function up(): void
     {
-        if (! Schema::hasTable('tenant_modules')) {
-            Schema::create('tenant_modules', function (Blueprint $table) {
-                $table->id();
-                $table->foreignId('tenant_id')->constrained()->cascadeOnDelete();
-                $table->foreignId('module_id')->constrained()->cascadeOnDelete();
-                $table->timestamps();
+        Schema::createIfMissing('tenant_modules', function (Blueprint $table) {
+            $table->id();
+            $table->foreignId('tenant_id')->constrained()->cascadeOnDelete();
+            $table->foreignId('module_id')->constrained()->cascadeOnDelete();
+            $table->timestamps();
 
-                $table->unique(['tenant_id', 'module_id']);
-            });
-        }
+            $table->unique(['tenant_id', 'module_id']);
+        });
 
-        if (! Schema::hasTable('tenant_workspaces')) {
-            Schema::create('tenant_workspaces', function (Blueprint $table) {
-                $table->id();
-                $table->foreignId('tenant_id')->constrained()->cascadeOnDelete();
-                $table->foreignId('workspace_id')->constrained()->cascadeOnDelete();
-                $table->timestamps();
+        Schema::createIfMissing('tenant_workspaces', function (Blueprint $table) {
+            $table->id();
+            $table->foreignId('tenant_id')->constrained()->cascadeOnDelete();
+            $table->foreignId('workspace_id')->constrained()->cascadeOnDelete();
+            $table->timestamps();
 
-                $table->unique(['tenant_id', 'workspace_id']);
-            });
-        }
+            $table->unique(['tenant_id', 'workspace_id']);
+        });
 
         $tenantIds = Tenant::query()->pluck('id');
         $moduleIds = Module::query()->pluck('id');

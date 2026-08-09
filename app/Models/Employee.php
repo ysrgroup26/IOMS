@@ -124,6 +124,24 @@ class Employee extends Model
         return $this->hasMany(EmployeeCompetency::class);
     }
 
+    /**
+     * Milestone 4, Workstream A3 (Shift & Roster Management).
+     */
+    public function shiftAssignments()
+    {
+        return $this->hasMany(EmployeeShiftAssignment::class);
+    }
+
+    public function rosters()
+    {
+        return $this->hasMany(EmployeeRoster::class);
+    }
+
+    public function currentShiftAssignment()
+    {
+        return $this->hasOne(EmployeeShiftAssignment::class)->current()->latest('effective_date');
+    }
+
     public function isInternOrPkl(): bool
     {
         return in_array($this->employment_type, [self::EMPLOYMENT_TYPE_INTERN, self::EMPLOYMENT_TYPE_PKL], true);

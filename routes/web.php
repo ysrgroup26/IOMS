@@ -13,6 +13,8 @@ use App\Http\Controllers\DailyReportController;
 use App\Http\Controllers\DashboardController;
 use App\Http\Controllers\EmployeeCompetencyController;
 use App\Http\Controllers\EmployeeController;
+use App\Http\Controllers\EmployeeRosterController;
+use App\Http\Controllers\EmployeeShiftAssignmentController;
 use App\Http\Controllers\GlobalSearchController;
 use App\Http\Controllers\GoodsReceiptController;
 use App\Http\Controllers\HrDashboardController;
@@ -32,7 +34,10 @@ use App\Http\Controllers\ProjectController;
 use App\Http\Controllers\ProjectManagementDashboardController;
 use App\Http\Controllers\ReportCenterController;
 use App\Http\Controllers\ReportController;
+use App\Http\Controllers\RosterController;
+use App\Http\Controllers\RosterPatternController;
 use App\Http\Controllers\SettingsController;
+use App\Http\Controllers\ShiftController;
 use App\Http\Controllers\TaskController;
 use App\Http\Controllers\WorkCenterController;
 use Illuminate\Support\Facades\Route;
@@ -134,6 +139,11 @@ Route::middleware(['auth', 'restrict.platform-admin'])->group(function () {
     Route::get('/competency/master', [CompetencyController::class, 'master'])->name('competency.master');
     Route::get('/competency/expiring', [CompetencyController::class, 'expiringSoon'])->name('competency.expiring-soon');
 
+    // Shift & Roster Management (Milestone 4, Workstream A3): viewable by
+    // all roles, matching PPE/Competency's own viewable-by-all pattern.
+    Route::get('/shifts/master', [ShiftController::class, 'master'])->name('shifts.master');
+    Route::get('/rosters/overview', [RosterController::class, 'overview'])->name('rosters.overview');
+
     // Daily HSE Report: viewable by all roles; mutation below is admin-scoped.
     Route::get('/daily-reports', [DailyReportController::class, 'index'])->name('daily-reports.index');
     Route::get('/daily-reports/{dailyReport}', [DailyReportController::class, 'show'])->name('daily-reports.show');
@@ -176,6 +186,22 @@ Route::middleware(['auth', 'restrict.platform-admin'])->group(function () {
         Route::post('/employees/{employee}/competencies', [EmployeeCompetencyController::class, 'store'])->name('employees.competencies.store');
         Route::put('/employee-competencies/{employeeCompetency}', [EmployeeCompetencyController::class, 'update'])->name('employee-competencies.update');
         Route::delete('/employee-competencies/{employeeCompetency}', [EmployeeCompetencyController::class, 'destroy'])->name('employee-competencies.destroy');
+
+        Route::post('/shifts', [ShiftController::class, 'store'])->name('shifts.store');
+        Route::put('/shifts/{shift}', [ShiftController::class, 'update'])->name('shifts.update');
+        Route::delete('/shifts/{shift}', [ShiftController::class, 'destroy'])->name('shifts.destroy');
+
+        Route::post('/roster-patterns', [RosterPatternController::class, 'store'])->name('roster-patterns.store');
+        Route::put('/roster-patterns/{rosterPattern}', [RosterPatternController::class, 'update'])->name('roster-patterns.update');
+        Route::delete('/roster-patterns/{rosterPattern}', [RosterPatternController::class, 'destroy'])->name('roster-patterns.destroy');
+
+        Route::post('/employees/{employee}/shift-assignments', [EmployeeShiftAssignmentController::class, 'store'])->name('employees.shift-assignments.store');
+        Route::put('/employee-shift-assignments/{employeeShiftAssignment}', [EmployeeShiftAssignmentController::class, 'update'])->name('employee-shift-assignments.update');
+        Route::delete('/employee-shift-assignments/{employeeShiftAssignment}', [EmployeeShiftAssignmentController::class, 'destroy'])->name('employee-shift-assignments.destroy');
+
+        Route::post('/employees/{employee}/rosters', [EmployeeRosterController::class, 'store'])->name('employees.rosters.store');
+        Route::put('/employee-rosters/{employeeRoster}', [EmployeeRosterController::class, 'update'])->name('employee-rosters.update');
+        Route::delete('/employee-rosters/{employeeRoster}', [EmployeeRosterController::class, 'destroy'])->name('employee-rosters.destroy');
 
         Route::get('/daily-reports-create', [DailyReportController::class, 'create'])->name('daily-reports.create');
         Route::post('/daily-reports', [DailyReportController::class, 'store'])->name('daily-reports.store');

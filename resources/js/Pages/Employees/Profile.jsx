@@ -13,7 +13,7 @@ import { Select, SelectTrigger, SelectValue, SelectContent, SelectItem } from '@
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogFooter } from '@/Components/ui/dialog';
 import { Table, TableHeader, TableBody, TableRow, TableHead, TableCell } from '@/Components/ui/table';
 import KpiSummaryCard from '@/Components/shared/KpiSummaryCard';
-import { ArrowLeft, Pencil, Trash2, Phone, Calendar, Briefcase, FolderKanban, HardHat, GraduationCap, Plus } from 'lucide-react';
+import { ArrowLeft, Pencil, Trash2, Phone, Calendar, Briefcase, FolderKanban, HardHat, GraduationCap, Plus, Clock } from 'lucide-react';
 import { MONTH_NAMES } from '@/lib/utils';
 
 const COMPETENCY_STATUS_VARIANT = {
@@ -41,8 +41,10 @@ const CATEGORY_META = [
     { code: 'tbm', label: 'TBM', negative: false },
 ];
 
-export default function EmployeeProfile({ employee, yearSummary, monthlyBreakdown, year, yearsOfService, projects, competencyTypes, can }) {
+export default function EmployeeProfile({ employee, yearSummary, monthlyBreakdown, year, yearsOfService, projects, competencyTypes, shifts, rosterPatterns, availableProjects, can }) {
     const [competencyDialogOpen, setCompetencyDialogOpen] = useState(false);
+    const [shiftDialogOpen, setShiftDialogOpen] = useState(false);
+    const [rosterDialogOpen, setRosterDialogOpen] = useState(false);
 
     function destroy() {
         if (confirm(`Remove ${employee.full_name}? This cannot be undone.`)) {
@@ -53,6 +55,18 @@ export default function EmployeeProfile({ employee, yearSummary, monthlyBreakdow
     function removeCompetency(id) {
         if (confirm('Remove this competency record?')) {
             router.delete(route('employee-competencies.destroy', id));
+        }
+    }
+
+    function removeShiftAssignment(id) {
+        if (confirm('Remove this shift assignment?')) {
+            router.delete(route('employee-shift-assignments.destroy', id));
+        }
+    }
+
+    function removeRoster(id) {
+        if (confirm('Remove this roster entry?')) {
+            router.delete(route('employee-rosters.destroy', id));
         }
     }
 
@@ -249,6 +263,108 @@ export default function EmployeeProfile({ employee, yearSummary, monthlyBreakdow
                         </CardContent>
                     </Card>
 
+                    <Card>
+                        <CardHeader className="flex flex-row items-center justify-between">
+                            <div>
+                                <CardTitle className="flex items-center gap-2"><Clock className="h-4 w-4" /> Shift Assignments</CardTitle>
+                                <CardDescription>Which shift this employee is/was assigned to</CardDescription>
+                            </div>
+                            {can.manage && (
+                                <Button size="sm" onClick={() => setShiftDialogOpen(true)}>
+                                    <Plus className="h-3.5 w-3.5" /> Add
+                                </Button>
+                            )}
+                        </CardHeader>
+                        <CardContent className="p-0">
+                            {(!employee.shift_assignments || employee.shift_assignments.length === 0) ? (
+                                <p className="px-4 pb-4 text-sm text-graphite-400">No shift assignment recorded yet.</p>
+                            ) : (
+                                <Table>
+                                    <TableHeader>
+                                        <TableRow>
+                                            <TableHead>Shift</TableHead>
+                                            <TableHead>Time</TableHead>
+                                            <TableHead>Effective</TableHead>
+                                            <TableHead>End</TableHead>
+                                            <TableHead>Status</TableHead>
+                                            {can.manage && <TableHead />}
+                                        </TableRow>
+                                    </TableHeader>
+                                    <TableBody>
+                                        {employee.shift_assignments.map((a) => (
+                                            <TableRow key={a.id}>
+                                                <TableCell className="font-medium">{a.shift?.name} ({a.shift?.code})</TableCell>
+                                                <TableCell>{a.shift?.start_time?.slice(0, 5)} - {a.shift?.end_time?.slice(0, 5)}</TableCell>
+                                                <TableCell>{a.effective_date?.slice(0, 10)}</TableCell>
+                                                <TableCell>{a.end_date ? a.end_date.slice(0, 10) : '—'}</TableCell>
+                                                <TableCell><Badge variant="outline" className="capitalize">{a.status}</Badge></TableCell>
+                                                {can.manage && (
+                                                    <TableCell>
+                                                        <Button variant="ghost" size="icon" onClick={() => removeShiftAssignment(a.id)}>
+                                                            <Trash2 className="h-4 w-4 text-red-500" />
+                                                        </Button>
+                                                    </TableCell>
+                                                )}
+                                            </TableRow>
+                                        ))}
+                                    </TableBody>
+                                </Table>
+                            )}
+                        </CardContent>
+                    </Card>
+
+                    <Card>
+                        <CardHeader className="flex flex-row items-center justify-between">
+                            <div>
+                                <CardTitle className="flex items-center gap-2">Roster</CardTitle>
+                                <CardDescription>Schedule, rotation pattern, and site/project deployment</CardDescription>
+                            </div>
+                            {can.manage && (
+                                <Button size="sm" onClick={() => setRosterDialogOpen(true)}>
+                                    <Plus className="h-3.5 w-3.5" /> Add
+                                </Button>
+                            )}
+                        </CardHeader>
+                        <CardContent className="p-0">
+                            {(!employee.rosters || employee.rosters.length === 0) ? (
+                                <p className="px-4 pb-4 text-sm text-graphite-400">No roster entry recorded yet.</p>
+                            ) : (
+                                <Table>
+                                    <TableHeader>
+                                        <TableRow>
+                                            <TableHead>Shift</TableHead>
+                                            <TableHead>Pattern</TableHead>
+                                            <TableHead>Site / Project</TableHead>
+                                            <TableHead>Period</TableHead>
+                                            <TableHead>Status</TableHead>
+                                            {can.manage && <TableHead />}
+                                        </TableRow>
+                                    </TableHeader>
+                                    <TableBody>
+                                        {employee.rosters.map((r) => (
+                                            <TableRow key={r.id}>
+                                                <TableCell>{r.shift ? `${r.shift.name} (${r.shift.code})` : '—'}</TableCell>
+                                                <TableCell className="text-graphite-500">
+                                                    {r.roster_pattern ? `${r.roster_pattern.name} (${r.roster_pattern.days_on}/${r.roster_pattern.days_off})` : '—'}
+                                                </TableCell>
+                                                <TableCell className="text-graphite-500">{r.project?.name ?? r.site_name ?? '—'}</TableCell>
+                                                <TableCell className="text-xs">{r.start_date?.slice(0, 10)}{r.end_date ? ` - ${r.end_date.slice(0, 10)}` : ' - ongoing'}</TableCell>
+                                                <TableCell><Badge variant="outline" className="capitalize">{r.status}</Badge></TableCell>
+                                                {can.manage && (
+                                                    <TableCell>
+                                                        <Button variant="ghost" size="icon" onClick={() => removeRoster(r.id)}>
+                                                            <Trash2 className="h-4 w-4 text-red-500" />
+                                                        </Button>
+                                                    </TableCell>
+                                                )}
+                                            </TableRow>
+                                        ))}
+                                    </TableBody>
+                                </Table>
+                            )}
+                        </CardContent>
+                    </Card>
+
                     {projects && projects.length > 0 && (
                         <Card>
                             <CardHeader>
@@ -277,6 +393,20 @@ export default function EmployeeProfile({ employee, yearSummary, monthlyBreakdow
                 onOpenChange={setCompetencyDialogOpen}
                 employeeId={employee.id}
                 competencyTypes={competencyTypes}
+            />
+            <AddShiftAssignmentDialog
+                open={shiftDialogOpen}
+                onOpenChange={setShiftDialogOpen}
+                employeeId={employee.id}
+                shifts={shifts}
+            />
+            <AddRosterDialog
+                open={rosterDialogOpen}
+                onOpenChange={setRosterDialogOpen}
+                employeeId={employee.id}
+                shifts={shifts}
+                rosterPatterns={rosterPatterns}
+                availableProjects={availableProjects}
             />
         </AuthenticatedLayout>
     );
@@ -347,6 +477,164 @@ function AddCompetencyDialog({ open, onOpenChange, employeeId, competencyTypes }
                         <Label>Attachment (optional)</Label>
                         <Input type="file" accept=".pdf,.jpg,.jpeg,.png" onChange={(e) => setData('attachment', e.target.files[0])} />
                         {errors.attachment && <p className="text-xs text-red-600">{errors.attachment}</p>}
+                    </div>
+
+                    <DialogFooter>
+                        <Button type="button" variant="outline" onClick={() => onOpenChange(false)}>Cancel</Button>
+                        <Button type="submit" disabled={processing}>Save</Button>
+                    </DialogFooter>
+                </form>
+            </DialogContent>
+        </Dialog>
+    );
+}
+
+function AddShiftAssignmentDialog({ open, onOpenChange, employeeId, shifts }) {
+    const { data, setData, post, processing, reset, errors } = useForm({
+        shift_id: '',
+        effective_date: '',
+        end_date: '',
+        status: 'active',
+        notes: '',
+    });
+
+    function submit(e) {
+        e.preventDefault();
+        post(route('employees.shift-assignments.store', employeeId), {
+            onSuccess: () => { reset(); onOpenChange(false); },
+        });
+    }
+
+    return (
+        <Dialog open={open} onOpenChange={onOpenChange}>
+            <DialogContent>
+                <DialogHeader><DialogTitle>Add Shift Assignment</DialogTitle></DialogHeader>
+                <form onSubmit={submit} className="space-y-4">
+                    <div className="space-y-1.5">
+                        <Label>Shift</Label>
+                        <Select value={data.shift_id} onValueChange={(v) => setData('shift_id', v)}>
+                            <SelectTrigger><SelectValue placeholder="Select shift" /></SelectTrigger>
+                            <SelectContent>
+                                {shifts.map((s) => <SelectItem key={s.id} value={String(s.id)}>{s.name} ({s.code})</SelectItem>)}
+                            </SelectContent>
+                        </Select>
+                        {errors.shift_id && <p className="text-xs text-red-600">{errors.shift_id}</p>}
+                    </div>
+                    <div className="grid grid-cols-2 gap-4">
+                        <div className="space-y-1.5">
+                            <Label>Effective Date</Label>
+                            <Input type="date" value={data.effective_date} onChange={(e) => setData('effective_date', e.target.value)} />
+                            {errors.effective_date && <p className="text-xs text-red-600">{errors.effective_date}</p>}
+                        </div>
+                        <div className="space-y-1.5">
+                            <Label>End Date (optional)</Label>
+                            <Input type="date" value={data.end_date} onChange={(e) => setData('end_date', e.target.value)} />
+                            {errors.end_date && <p className="text-xs text-red-600">{errors.end_date}</p>}
+                        </div>
+                    </div>
+                    <div className="space-y-1.5">
+                        <Label>Status</Label>
+                        <Select value={data.status} onValueChange={(v) => setData('status', v)}>
+                            <SelectTrigger><SelectValue /></SelectTrigger>
+                            <SelectContent>
+                                <SelectItem value="active">Active</SelectItem>
+                                <SelectItem value="ended">Ended</SelectItem>
+                                <SelectItem value="cancelled">Cancelled</SelectItem>
+                            </SelectContent>
+                        </Select>
+                    </div>
+                    <DialogFooter>
+                        <Button type="button" variant="outline" onClick={() => onOpenChange(false)}>Cancel</Button>
+                        <Button type="submit" disabled={processing}>Save</Button>
+                    </DialogFooter>
+                </form>
+            </DialogContent>
+        </Dialog>
+    );
+}
+
+function AddRosterDialog({ open, onOpenChange, employeeId, shifts, rosterPatterns, availableProjects }) {
+    const { data, setData, post, processing, reset, errors } = useForm({
+        shift_id: '',
+        roster_pattern_id: '',
+        project_id: '',
+        site_name: '',
+        start_date: '',
+        end_date: '',
+        cycle_start_date: '',
+        status: 'active',
+        notes: '',
+    });
+
+    function submit(e) {
+        e.preventDefault();
+        post(route('employees.rosters.store', employeeId), {
+            onSuccess: () => { reset(); onOpenChange(false); },
+        });
+    }
+
+    return (
+        <Dialog open={open} onOpenChange={onOpenChange}>
+            <DialogContent className="max-w-lg">
+                <DialogHeader><DialogTitle>Add Roster Entry</DialogTitle></DialogHeader>
+                <form onSubmit={submit} className="max-h-[70vh] space-y-4 overflow-y-auto pr-1">
+                    <div className="grid grid-cols-2 gap-4">
+                        <div className="space-y-1.5">
+                            <Label>Shift (optional)</Label>
+                            <Select value={data.shift_id} onValueChange={(v) => setData('shift_id', v)}>
+                                <SelectTrigger><SelectValue placeholder="None" /></SelectTrigger>
+                                <SelectContent>
+                                    {shifts.map((s) => <SelectItem key={s.id} value={String(s.id)}>{s.name} ({s.code})</SelectItem>)}
+                                </SelectContent>
+                            </Select>
+                            {errors.shift_id && <p className="text-xs text-red-600">{errors.shift_id}</p>}
+                        </div>
+                        <div className="space-y-1.5">
+                            <Label>Rotation Pattern (optional)</Label>
+                            <Select value={data.roster_pattern_id} onValueChange={(v) => setData('roster_pattern_id', v)}>
+                                <SelectTrigger><SelectValue placeholder="None (fixed daily)" /></SelectTrigger>
+                                <SelectContent>
+                                    {rosterPatterns.map((p) => <SelectItem key={p.id} value={String(p.id)}>{p.name} ({p.days_on}/{p.days_off})</SelectItem>)}
+                                </SelectContent>
+                            </Select>
+                            {errors.roster_pattern_id && <p className="text-xs text-red-600">{errors.roster_pattern_id}</p>}
+                        </div>
+                    </div>
+
+                    <div className="grid grid-cols-2 gap-4">
+                        <div className="space-y-1.5">
+                            <Label>Project (optional)</Label>
+                            <Select value={data.project_id} onValueChange={(v) => setData('project_id', v)}>
+                                <SelectTrigger><SelectValue placeholder="None" /></SelectTrigger>
+                                <SelectContent>
+                                    {availableProjects.map((p) => <SelectItem key={p.id} value={String(p.id)}>{p.name}</SelectItem>)}
+                                </SelectContent>
+                            </Select>
+                            {errors.project_id && <p className="text-xs text-red-600">{errors.project_id}</p>}
+                        </div>
+                        <div className="space-y-1.5">
+                            <Label>Site Name (optional)</Label>
+                            <Input value={data.site_name} onChange={(e) => setData('site_name', e.target.value)} placeholder="e.g. Client Site - PT XYZ" />
+                        </div>
+                    </div>
+
+                    <div className="grid grid-cols-2 gap-4">
+                        <div className="space-y-1.5">
+                            <Label>Start Date</Label>
+                            <Input type="date" value={data.start_date} onChange={(e) => setData('start_date', e.target.value)} />
+                            {errors.start_date && <p className="text-xs text-red-600">{errors.start_date}</p>}
+                        </div>
+                        <div className="space-y-1.5">
+                            <Label>End Date (optional)</Label>
+                            <Input type="date" value={data.end_date} onChange={(e) => setData('end_date', e.target.value)} />
+                            {errors.end_date && <p className="text-xs text-red-600">{errors.end_date}</p>}
+                        </div>
+                    </div>
+
+                    <div className="space-y-1.5">
+                        <Label>Cycle Start Date (optional)</Label>
+                        <Input type="date" value={data.cycle_start_date} onChange={(e) => setData('cycle_start_date', e.target.value)} placeholder="Defaults to Start Date" />
+                        <p className="text-xs text-graphite-400">Anchor date for the rotation cycle -- leave blank to use Start Date.</p>
                     </div>
 
                     <DialogFooter>

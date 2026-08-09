@@ -84,6 +84,52 @@ not 403, to avoid confirming a foreign employee id exists) — because `Employee
 itself has **no** tenant check anywhere in this codebase (a separately-flagged, broader pre-existing
 gap affecting `EmployeeController` and others, not fixed here; this controller doesn't rely on it).
 
+## Shift & Roster Management
+
+**Department:** Human Resources (`shifts.master`).
+
+Milestone 4, Workstream A3. Four pieces, all following the exact conventions established for
+Training & Competency (Workstream A2) above:
+
+- **`Shift`** (table `shifts`) — the shift catalog (Morning/Afternoon/Night, or whatever a tenant
+  actually runs). `company_id` required, not nullable — same reasoning as `CompetencyType`.
+  `is_night_shift`/`working_hours` are computed accessors (never stored) — a shift crosses midnight
+  whenever its end time is earlier in the clock than its start; working hours = span minus break,
+  correctly handling that overnight wraparound. `restHoursBefore()` computes the rest-hour gap
+  between one shift's end and another's start on the following day — the real, computable building
+  block a future consecutive-shift fatigue check would use, deliberately not a full monitoring
+  engine (that needs real roster/attendance history to walk).
+- **`EmployeeShiftAssignment`** (table `employee_shift_assignments`) — dated shift assignment
+  history per employee (which shift, effective/end date, status), same one-to-many-history shape as
+  `Subscription`/`EmployeeCompetency` rather than a single mutable "current shift" column.
+- **`RosterPattern`** (table `roster_patterns`) — configurable rotation cycle master (e.g. 6-on/1-off
+  site rotation). `dutyTypeOn(cycleStart, targetDate)` is the actual rotation math.
+- **`EmployeeRoster`** (table `employee_rosters`) — the per-employee schedule: shift, rotation
+  pattern, and site/project deployment (`project_id` reuses the *existing* `projects` table — Master
+  Data Principle, no duplicate site/project concept — `site_name` is a free-text fallback for
+  deployments with no Project record) over a date range. Deliberately does **not** generate one row
+  per calendar day; `EmployeeRoster::dutyTypeOn(date)` computes on/off duty for any date on demand,
+  delegating the cycle math to `RosterPattern`.
+- **`rosters.overview`** — cross-employee "who is on/off duty right now" report, mirrors
+  `competency.expiring-soon`'s role and tenant-safety pattern exactly.
+
+**Bugs found and fixed live during this feature's own verification** (not assumed):
+- Carbon 3 (Laravel 12) changed `diffInMinutes()` to return a **signed** value by default (Carbon 2
+  defaulted to absolute) — `Shift::getWorkingHoursAttribute()` was computing "0 h" for a real
+  23:00-07:00 shift instead of 7h because the signed result went negative before `max(...,0)` clamped
+  it away. Fixed with `abs()` in both `getWorkingHoursAttribute()` and `restHoursBefore()`; confirmed
+  live in the browser before and after the fix.
+- `RosterPattern::dutyTypeOn()` called `$cycleStart->startOfDay()` directly on the passed-in Carbon
+  parameter, which **mutates the caller's own instance** (Carbon objects are mutable by default) --
+  fixed with `->copy()` first. Also guarded the day-difference with `abs()` for the same signed-diff
+  reason as above.
+
+Same IDOR guard pattern as Competency: `Store/UpdateShiftRequest`, `Store/UpdateRosterPatternRequest`,
+and the `Employee*Request` classes all validate `company_id`/`shift_id`/`roster_pattern_id`/
+`project_id` via `Rule::in()` over tenant-scoped id lists, never a raw `exists:table,id`.
+`EmployeeShiftAssignmentController`/`EmployeeRosterController` both assert the target `Employee`
+belongs to the current tenant before every write, same as `EmployeeCompetencyController`.
+
 ## Departments & Positions (company-scoped master data)
 
 **Department:** Administration (managed via Settings, not duplicated into Human Resources — see

@@ -2,7 +2,7 @@ import {
     Users, ClipboardEdit, FileBarChart, Settings, FolderKanban, HardHat,
     ClipboardList, PackageSearch, Warehouse, ShoppingCart, Wrench,
     BadgeCheck, DollarSign, Box, LayoutDashboard, CalendarDays,
-    AlertTriangle, PackageCheck, Flag, BarChart3, FileDown, GraduationCap,
+    AlertTriangle, PackageCheck, Flag, BarChart3, FileDown, GraduationCap, Clock,
 } from 'lucide-react';
 
 /**
@@ -56,6 +56,13 @@ export const WORKSPACES = [
             { name: 'Employees', href: 'employees.index', icon: Users, moduleKey: 'employees' },
             { name: 'Attendance', icon: ClipboardList, disabled: true },
             { name: 'Leave', href: 'leave-requests.index', icon: CalendarDays },
+            // Milestone 4, Workstream A3: Shift & Roster Management --
+            // real backend (Shift/EmployeeShiftAssignment/RosterPattern/
+            // EmployeeRoster). "Shift/Roster belongs to HR/Workforce
+            // Management" per spec -- other modules (HSE fatigue checks,
+            // Project manpower) may consume this data later without it
+            // moving out of HR.
+            { name: 'Shift & Roster', href: 'shifts.master', icon: Clock },
             { name: 'Recruitment', icon: Users, disabled: true },
             { name: 'Performance', icon: BadgeCheck, disabled: true },
             // Milestone 4, Workstream A2: Training & Competency Management

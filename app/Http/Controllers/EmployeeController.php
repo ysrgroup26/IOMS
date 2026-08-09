@@ -14,6 +14,9 @@ use App\Models\Department;
 use App\Models\Employee;
 use App\Models\EmployeeInternship;
 use App\Models\Position;
+use App\Models\Project;
+use App\Models\RosterPattern;
+use App\Models\Shift;
 use App\Services\FieldMappingService;
 use App\Services\MasterDataDetector;
 use Illuminate\Http\JsonResponse;
@@ -102,7 +105,10 @@ class EmployeeController extends Controller
 
     public function show(Employee $employee): Response
     {
-        $employee->load('company', 'department', 'position', 'internship', 'competencies.competencyType');
+        $employee->load(
+            'company', 'department', 'position', 'internship', 'competencies.competencyType',
+            'shiftAssignments.shift', 'rosters.shift', 'rosters.rosterPattern', 'rosters.project'
+        );
 
         $currentYear = (int) now()->format('Y');
 
@@ -126,6 +132,11 @@ class EmployeeController extends Controller
             // Milestone 4, Workstream A2 -- competency types belonging to
             // this employee's own company, for the "Add Competency" dialog.
             'competencyTypes' => CompetencyType::active()->where('company_id', $employee->company_id)->get(['id', 'name', 'type']),
+            // Milestone 4, Workstream A3 -- shifts/roster patterns/projects
+            // for this employee's own company, for the Shift/Roster dialogs.
+            'shifts' => Shift::active()->where('company_id', $employee->company_id)->get(['id', 'name', 'code']),
+            'rosterPatterns' => RosterPattern::active()->where('company_id', $employee->company_id)->get(['id', 'name', 'days_on', 'days_off']),
+            'availableProjects' => Project::where('company_id', $employee->company_id)->orderBy('name')->get(['id', 'name']),
             'can' => ['manage' => request()->user()->isAdmin()],
         ]);
     }

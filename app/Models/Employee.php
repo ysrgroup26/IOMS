@@ -15,15 +15,46 @@ class Employee extends Model
     // Unrelated to the Multi-Company migration; a separate, pre-existing gap.
     use HasFactory, SoftDeletes;
 
+    // Milestone 4, Workstream A. Plain string constants, not a DB enum
+    // (see the 2026_08_09_100101 migration's own doc comment for why) --
+    // matches every other status/type field in this codebase.
+    public const EMPLOYMENT_TYPE_PKWTT = 'pkwtt'; // permanent
+
+    public const EMPLOYMENT_TYPE_PKWT = 'pkwt'; // fixed-term contract
+
+    public const EMPLOYMENT_TYPE_DAILY = 'daily'; // pekerja harian
+
+    public const EMPLOYMENT_TYPE_INTERN = 'intern'; // magang
+
+    public const EMPLOYMENT_TYPE_PKL = 'pkl'; // praktik kerja lapangan
+
+    public const EMPLOYMENT_TYPE_CONTRACTOR = 'contractor'; // external contractor worker
+
+    public const EMPLOYMENT_TYPE_OUTSOURCE = 'outsource'; // outsourced worker
+
+    public const EMPLOYMENT_TYPES = [
+        self::EMPLOYMENT_TYPE_PKWTT,
+        self::EMPLOYMENT_TYPE_PKWT,
+        self::EMPLOYMENT_TYPE_DAILY,
+        self::EMPLOYMENT_TYPE_INTERN,
+        self::EMPLOYMENT_TYPE_PKL,
+        self::EMPLOYMENT_TYPE_CONTRACTOR,
+        self::EMPLOYMENT_TYPE_OUTSOURCE,
+    ];
+
     protected $fillable = [
         'employee_id',
+        'nik',
         'full_name',
         'company_id',
         'department_id',
         'position_id',
         'status',
+        'employment_type',
         'photo_path',
         'join_date',
+        'contract_start_date',
+        'contract_end_date',
         'phone',
         'email',
         'address',
@@ -35,10 +66,12 @@ class Employee extends Model
     {
         return [
             'join_date' => 'date',
+            'contract_start_date' => 'date',
+            'contract_end_date' => 'date',
         ];
     }
 
-    protected $appends = ['photo_url', 'profile_status'];
+    protected $appends = ['photo_url', 'profile_status', 'employment_type_label'];
 
     /**
      * Employee Import (v1.6.8). Deliberately a computed accessor, not a
@@ -69,6 +102,45 @@ class Employee extends Model
     public function employeePpes()
     {
         return $this->hasMany(EmployeePpe::class);
+    }
+
+    /**
+     * One-to-one intern/PKL detail record -- only meaningful (and only
+     * ever populated) when employment_type is intern or pkl. See
+     * database/migrations/2026_08_09_100102_create_employee_internships_table.php's
+     * own doc comment for why this is a detail extension of Employee,
+     * not a duplicate employee table.
+     */
+    public function internship()
+    {
+        return $this->hasOne(EmployeeInternship::class);
+    }
+
+    public function isInternOrPkl(): bool
+    {
+        return in_array($this->employment_type, [self::EMPLOYMENT_TYPE_INTERN, self::EMPLOYMENT_TYPE_PKL], true);
+    }
+
+    public function employmentTypeLabel(): string
+    {
+        return match ($this->employment_type) {
+            self::EMPLOYMENT_TYPE_PKWTT => 'PKWTT (Permanent)',
+            self::EMPLOYMENT_TYPE_PKWT => 'PKWT (Fixed-Term Contract)',
+            self::EMPLOYMENT_TYPE_DAILY => 'Daily Worker',
+            self::EMPLOYMENT_TYPE_INTERN => 'Intern (Magang)',
+            self::EMPLOYMENT_TYPE_PKL => 'PKL (Praktik Kerja Lapangan)',
+            self::EMPLOYMENT_TYPE_CONTRACTOR => 'Contractor Worker',
+            self::EMPLOYMENT_TYPE_OUTSOURCE => 'Outsourced Worker',
+            default => (string) $this->employment_type,
+        };
+    }
+
+    // Real Eloquent accessor (see getPhotoUrlAttribute()'s own comment on
+    // why this pattern is used) so `employment_type_label` is
+    // automatically present on every Employee JSON/Inertia response.
+    public function getEmploymentTypeLabelAttribute(): string
+    {
+        return $this->employmentTypeLabel();
     }
 
     public function position()

@@ -71,9 +71,14 @@ export default function EmployeeProfile({ employee, yearSummary, monthlyBreakdow
                             <InfoRow icon={Briefcase} label="Company" value={employee.company?.name ?? '—'} />
                             <InfoRow label="Department" value={employee.department?.name} />
                             <InfoRow label="Position" value={employee.position?.name ?? '—'} />
+                            <InfoRow label="Workforce Type" value={employee.employment_type_label ?? '—'} />
+                            {employee.nik && <InfoRow label="NIK" value={employee.nik} />}
                             {employee.phone && <InfoRow icon={Phone} label="Phone" value={employee.phone} />}
                             {employee.join_date && (
                                 <InfoRow icon={Calendar} label="Joined" value={new Date(employee.join_date).toLocaleDateString('en-US', { year: 'numeric', month: 'long', day: 'numeric' })} />
+                            )}
+                            {employee.contract_end_date && (
+                                <InfoRow label="Contract Ends" value={new Date(employee.contract_end_date).toLocaleDateString('en-US', { year: 'numeric', month: 'long', day: 'numeric' })} />
                             )}
                             {yearsOfService !== null && yearsOfService !== undefined && (
                                 <InfoRow label="Years of Service" value={`${yearsOfService} yrs`} />
@@ -141,6 +146,23 @@ export default function EmployeeProfile({ employee, yearSummary, monthlyBreakdow
                             </div>
                         </CardContent>
                     </Card>
+
+                    {employee.internship && (
+                        <Card>
+                            <CardHeader>
+                                <CardTitle>Intern / PKL Placement</CardTitle>
+                                <CardDescription>{employee.internship.institution}</CardDescription>
+                            </CardHeader>
+                            <CardContent className="grid grid-cols-2 gap-x-6 gap-y-2 text-sm sm:grid-cols-3">
+                                {employee.internship.program && <InfoRow label="Program" value={employee.internship.program} />}
+                                {employee.internship.mentor_name && <InfoRow label="Mentor" value={employee.internship.mentor_name} />}
+                                {employee.internship.agreement_number && <InfoRow label="Agreement No." value={employee.internship.agreement_number} />}
+                                {employee.internship.work_location && <InfoRow label="Location" value={employee.internship.work_location} />}
+                                <InfoRow label="Induction" value={employee.internship.induction_completed ? 'Completed' : 'Pending'} />
+                                <InfoRow label="Status" value={<Badge variant="outline" className="capitalize">{employee.internship.completion_status}</Badge>} />
+                            </CardContent>
+                        </Card>
+                    )}
 
                     {projects && projects.length > 0 && (
                         <Card>

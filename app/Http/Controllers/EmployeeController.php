@@ -11,6 +11,7 @@ use App\Models\ActivityLog;
 use App\Models\Company;
 use App\Models\Department;
 use App\Models\Employee;
+use App\Models\EmployeeInternship;
 use App\Models\Position;
 use App\Services\FieldMappingService;
 use App\Services\MasterDataDetector;
@@ -63,19 +64,35 @@ class EmployeeController extends Controller
             'companies' => Company::active()->orderBy('name')->get(['id', 'name']),
             'departments' => Department::where('is_active', true)->ordered()->get(['id', 'name', 'company_id']),
             'positions' => Position::where('is_active', true)->ordered()->get(['id', 'name', 'company_id', 'department_id']),
+            'employmentTypes' => $this->employmentTypeOptions(),
             'employee' => null,
         ]);
     }
 
+    /**
+     * Milestone 4, Workstream A. `internship` is a nested sub-array
+     * (App\Models\EmployeeInternship fields), not an Employee column --
+     * pulled out before Employee::create() and persisted separately, only
+     * when employment_type is intern/pkl. Wrapped in a transaction so a
+     * failure creating the internship detail row doesn't leave a
+     * half-created Employee behind.
+     */
     public function store(StoreEmployeeRequest $request): RedirectResponse
     {
         $data = $request->validated();
+        $internshipData = $data['internship'] ?? null;
+        unset($data['internship']);
 
         if ($request->hasFile('photo')) {
             $data['photo_path'] = $request->file('photo')->store('uploads/employees', 'public');
         }
 
-        $employee = Employee::create($data);
+        $employee = DB::transaction(function () use ($data, $internshipData) {
+            $employee = Employee::create($data);
+            $this->syncInternship($employee, $internshipData);
+
+            return $employee;
+        });
 
         ActivityLog::record('created', "Employee {$employee->full_name} ({$employee->employee_id}) was created.", $employee);
 
@@ -84,7 +101,7 @@ class EmployeeController extends Controller
 
     public function show(Employee $employee): Response
     {
-        $employee->load('company', 'department', 'position');
+        $employee->load('company', 'department', 'position', 'internship');
 
         $currentYear = (int) now()->format('Y');
 
@@ -113,10 +130,13 @@ class EmployeeController extends Controller
     {
         $this->authorize('update', $employee);
 
+        $employee->load('internship');
+
         return Inertia::render('Employees/Form', [
             'companies' => Company::active()->orderBy('name')->get(['id', 'name']),
             'departments' => Department::where('is_active', true)->ordered()->get(['id', 'name', 'company_id']),
             'positions' => Position::where('is_active', true)->ordered()->get(['id', 'name', 'company_id', 'department_id']),
+            'employmentTypes' => $this->employmentTypeOptions(),
             'employee' => $employee,
         ]);
     }
@@ -124,6 +144,8 @@ class EmployeeController extends Controller
     public function update(UpdateEmployeeRequest $request, Employee $employee): RedirectResponse
     {
         $data = $request->validated();
+        $internshipData = $data['internship'] ?? null;
+        unset($data['internship']);
 
         if ($request->hasFile('photo')) {
             if ($employee->photo_path) {
@@ -132,11 +154,60 @@ class EmployeeController extends Controller
             $data['photo_path'] = $request->file('photo')->store('uploads/employees', 'public');
         }
 
-        $employee->update($data);
+        DB::transaction(function () use ($employee, $data, $internshipData) {
+            $employee->update($data);
+            $this->syncInternship($employee, $internshipData);
+        });
 
         ActivityLog::record('updated', "Employee {$employee->full_name} ({$employee->employee_id}) was updated.", $employee);
 
         return redirect()->route('employees.index')->with('success', 'Employee updated successfully.');
+    }
+
+    /**
+     * Milestone 4, Workstream A. Only writes an EmployeeInternship row
+     * when the employee is actually classified intern/pkl -- a switch
+     * away from intern/pkl deliberately leaves any existing detail row
+     * untouched (historical record of a past placement), it does not
+     * delete it; the Employee Profile page simply stops showing it while
+     * employment_type is something else.
+     */
+    private function syncInternship(Employee $employee, ?array $internshipData): void
+    {
+        if (! $employee->isInternOrPkl() || ! $internshipData || empty($internshipData['institution'])) {
+            return;
+        }
+
+        $employee->internship()->updateOrCreate(
+            ['employee_id' => $employee->id],
+            [
+                'institution' => $internshipData['institution'],
+                'program' => $internshipData['program'] ?? null,
+                'mentor_name' => $internshipData['mentor_name'] ?? null,
+                'agreement_number' => $internshipData['agreement_number'] ?? null,
+                'start_date' => $internshipData['start_date'] ?? null,
+                'end_date' => $internshipData['end_date'] ?? null,
+                'work_location' => $internshipData['work_location'] ?? null,
+                'induction_completed' => (bool) ($internshipData['induction_completed'] ?? false),
+                'insurance_coverage' => $internshipData['insurance_coverage'] ?? null,
+                'evaluation' => $internshipData['evaluation'] ?? null,
+                'completion_status' => $internshipData['completion_status'] ?? EmployeeInternship::STATUS_ONGOING,
+            ]
+        );
+    }
+
+    /**
+     * @return array<int, array{value: string, label: string}>
+     */
+    private function employmentTypeOptions(): array
+    {
+        return collect(Employee::EMPLOYMENT_TYPES)
+            ->map(fn (string $type) => [
+                'value' => $type,
+                'label' => (new Employee(['employment_type' => $type]))->employmentTypeLabel(),
+            ])
+            ->values()
+            ->all();
     }
 
     public function destroy(Employee $employee): RedirectResponse

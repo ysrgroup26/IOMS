@@ -30,6 +30,19 @@ Core master data: `Employee` model, one per person. Belongs to a `Company`, opti
 - **Export**: `EmployeeExport`, filterable by department/search/company.
 - Dashboard surfaces an "Employee Profiles Need Completion" task card (only rendered when the count
   is actually nonzero), linking to the Employees list pre-filtered.
+- **Workforce classification** (Milestone 4, Workstream A): `employment_type` — one of
+  `pkwtt`/`pkwt`/`daily`/`intern`/`pkl`/`contractor`/`outsource` (`Employee::EMPLOYMENT_TYPES`),
+  defaults to `pkwtt` for every pre-existing row. `contract_start_date`/`contract_end_date` apply to
+  any non-permanent type. `nik` (national ID) exists again as an optional column — it was
+  deliberately dropped in `2026_07_16_100003` when Employee ID alone was judged sufficient; the
+  Milestone 4 spec requires it, so it's back, nullable, holding no restored historical data.
+- **Intern/PKL detail** (`App\Models\EmployeeInternship`, table `employee_internships`): a
+  one-to-one detail extension of `Employee` (not a duplicate employee table — see the Master Data
+  Principle), populated only when `employment_type` is `intern`/`pkl`. Holds institution, program,
+  mentor, agreement number, placement dates, work location, induction status, insurance/BPJS
+  coverage reference, evaluation notes, and completion status. Shown as its own card on the Employee
+  Profile page and its own conditional section on the Employee form, never merged into the ordinary
+  employee fields.
 
 ## Departments & Positions (company-scoped master data)
 

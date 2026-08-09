@@ -10,9 +10,12 @@ use App\Models\Package;
 use App\Models\Scopes\TenantScope;
 use App\Models\Subscription;
 use App\Models\Tenant;
+use App\Models\User;
 use App\Models\Workspace;
 use Illuminate\Http\RedirectResponse;
 use Illuminate\Http\Request;
+use Illuminate\Support\Facades\DB;
+use Illuminate\Support\Facades\Hash;
 use Illuminate\Validation\Rule;
 use Inertia\Inertia;
 use Inertia\Response;
@@ -70,7 +73,15 @@ class PlatformController extends Controller
     }
 
     /**
-     * Master -> Tenant Management. Creates a new customer organization.
+     * Master -> Tenant Management. Creates a new customer organization
+     * end-to-end: the Tenant, its first Subscription, AND its first
+     * Administrator user -- a tenant nobody can log into isn't actually
+     * usable, so this is one atomic operation, not "create tenant, then
+     * remember to add a user later." Wrapped in a DB transaction: if
+     * Administrator creation fails (e.g. a race on the email-unique
+     * check), the Tenant/Subscription rows roll back too rather than
+     * leaving an orphaned, login-less tenant behind.
+     *
      * Package is a form field, but is NOT a tenants-table column --
      * package assignment lives on Subscription (Tenant::subscription(),
      * hasOne latestOfMany), matching how SubscriptionSeeder already
@@ -80,29 +91,85 @@ class PlatformController extends Controller
      * now; the Master can change the package again later via
      * updateTenant(), and billing-cycle/renewal management beyond that
      * is out of this feature's scope.
+     *
+     * The Administrator is created exactly the way
+     * SettingsController::storeUser() already creates a tenant's own
+     * users (role column set to super_admin, tenant_id explicit, password
+     * hashed) -- this is the codebase's existing live authorization path
+     * (see CLAUDE.md's Authorization note), not a new one invented here.
      */
     public function storeTenant(StoreTenantRequest $request): RedirectResponse
     {
         $validated = $request->validated();
 
-        $tenant = Tenant::create([
-            'name' => $validated['name'],
-            'slug' => $validated['slug'],
-            'status' => $validated['status'],
+        DB::transaction(function () use ($validated) {
+            $tenant = Tenant::create([
+                'name' => $validated['name'],
+                'slug' => $validated['slug'],
+                'status' => $validated['status'],
+            ]);
+
+            Subscription::create([
+                'tenant_id' => $tenant->id,
+                'package_id' => $validated['package_id'],
+                'status' => Subscription::STATUS_ACTIVE,
+                'billing_cycle' => Subscription::CYCLE_MONTHLY,
+                'starts_at' => now(),
+                'ends_at' => now()->addMonth(),
+            ]);
+
+            User::create([
+                'name' => $validated['admin_name'],
+                'email' => $validated['admin_email'],
+                'password' => Hash::make($validated['admin_password']),
+                'role' => User::ROLE_SUPER_ADMIN,
+                'tenant_id' => $tenant->id,
+                'is_active' => true,
+            ]);
+
+            ActivityLog::record('created', "Tenant \"{$tenant->name}\" was created, with Administrator {$validated['admin_email']}.");
+        });
+
+        return back()->with('success', 'Tenant and its Administrator account were created.');
+    }
+
+    /**
+     * Master -> Tenant Management. The Master-side Tenant Detail view --
+     * real data only (companies/users counts via the same TenantScope
+     * bypass every other cross-tenant query in this controller already
+     * uses, actual Subscription/Package, the actual first Administrator
+     * row), never a placeholder. This is a READ view for the Master, not
+     * a way to become that tenant's user -- it does not touch the
+     * Master's own session/tenant_id/role in any way (see
+     * User::isPlatformAdmin(), unchanged by this method).
+     */
+    public function show(Tenant $tenant): Response
+    {
+        $tenant->loadCount(['companies' => fn ($q) => $q->withoutGlobalScope(TenantScope::class), 'users'])
+            ->load(['subscription.package']);
+
+        // The tenant's own Administrator -- oldest super_admin account
+        // belongs to this tenant is, in practice, the Initial
+        // Administrator created alongside the tenant by storeTenant()
+        // above. `User` carries no global scope (only `Company` does --
+        // see App\Models\Scopes\TenantScope's own doc comment), so a
+        // plain tenant_id filter is correct here, no bypass needed.
+        $administrator = User::where('tenant_id', $tenant->id)
+            ->where('role', User::ROLE_SUPER_ADMIN)
+            ->oldest()
+            ->first(['id', 'name', 'email', 'is_active', 'created_at']);
+
+        return Inertia::render('Platform/TenantDetail', [
+            'tenant' => $tenant->only(['id', 'name', 'slug', 'status', 'trial_ends_at', 'created_at', 'updated_at', 'companies_count', 'users_count']),
+            'subscription' => $tenant->subscription ? [
+                'package_name' => $tenant->subscription->package?->name,
+                'status' => $tenant->subscription->status,
+                'billing_cycle' => $tenant->subscription->billing_cycle,
+                'starts_at' => $tenant->subscription->starts_at,
+                'ends_at' => $tenant->subscription->ends_at,
+            ] : null,
+            'administrator' => $administrator,
         ]);
-
-        Subscription::create([
-            'tenant_id' => $tenant->id,
-            'package_id' => $validated['package_id'],
-            'status' => Subscription::STATUS_ACTIVE,
-            'billing_cycle' => Subscription::CYCLE_MONTHLY,
-            'starts_at' => now(),
-            'ends_at' => now()->addMonth(),
-        ]);
-
-        ActivityLog::record('created', "Tenant \"{$tenant->name}\" was created.");
-
-        return back()->with('success', 'Tenant created.');
     }
 
     /**

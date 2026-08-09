@@ -342,6 +342,7 @@ Route::middleware(['auth', 'role:platform_admin'])->prefix('platform')->name('pl
     Route::get('/', [PlatformController::class, 'dashboard'])->name('dashboard');
     Route::get('/tenants', [PlatformController::class, 'tenants'])->name('tenants');
     Route::post('/tenants', [PlatformController::class, 'storeTenant'])->name('tenants.store');
+    Route::get('/tenants/{tenant}', [PlatformController::class, 'show'])->name('tenants.show');
     Route::put('/tenants/{tenant}', [PlatformController::class, 'updateTenant'])->name('tenants.update');
     Route::put('/tenants/{tenant}/status', [PlatformController::class, 'updateTenantStatus'])->name('tenants.update-status');
     Route::get('/tenants/{tenant}/grants', [PlatformController::class, 'tenantGrants'])->name('tenants.grants');

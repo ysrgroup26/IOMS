@@ -5,6 +5,7 @@ namespace App\Http\Requests;
 use App\Models\Tenant;
 use Illuminate\Foundation\Http\FormRequest;
 use Illuminate\Validation\Rule;
+use Illuminate\Validation\Rules\Password;
 
 /**
  * Master -> Tenant Management. `authorize()` checks
@@ -13,6 +14,12 @@ use Illuminate\Validation\Rule;
  * same belt-and-suspenders pattern every other Store*Request in this
  * codebase already follows, and the actual mechanism the rest of the
  * platform surface is built on (see docs/ADR/008-tenancy-foundation.md).
+ *
+ * Also carries the new tenant's Initial Administrator fields -- creating
+ * a tenant with no way to log into it isn't a usable tenant, so this is
+ * one form/request, not a separate "add first user" step. `Password::min(8)`
+ * matches the existing project-wide minimum (UpdateAuthenticationRequest,
+ * NewPasswordController) -- not a new policy invented for this feature.
  */
 class StoreTenantRequest extends FormRequest
 {
@@ -39,6 +46,13 @@ class StoreTenantRequest extends FormRequest
             'status' => ['required', Rule::in([
                 Tenant::STATUS_TRIAL, Tenant::STATUS_ACTIVE, Tenant::STATUS_SUSPENDED, Tenant::STATUS_EXPIRED,
             ])],
+            // Initial Administrator -- same shape/uniqueness rule as
+            // SettingsController::storeUser() (a tenant's own Super Admin
+            // creating another user), just prefixed `admin_*` to keep this
+            // one request's two record types unambiguous.
+            'admin_name' => ['required', 'string', 'max:255'],
+            'admin_email' => ['required', 'email', 'max:255', 'unique:users,email'],
+            'admin_password' => ['required', 'confirmed', Password::min(8)],
         ];
     }
 

@@ -44,6 +44,46 @@ Core master data: `Employee` model, one per person. Belongs to a `Company`, opti
   Profile page and its own conditional section on the Employee form, never merged into the ordinary
   employee fields.
 
+## Training & Competency Management
+
+**Department:** Human Resources (`competency.master` — see workspaces.js's own comment on why this
+lives under HR rather than duplicated into HSE too, mirroring how HSE KPI moved the other direction).
+
+Milestone 4, Workstream A2. Answers "what job can this person safely and legally perform" via three
+pieces:
+
+- **`CompetencyType`** (table `competency_types`) — the training/certification catalog (e.g.
+  "Working at Height", "SIO Crane"). One table for both Training and Certification (distinguished by
+  `type`), not two near-duplicate tables. `company_id` is **required**, deliberately unlike
+  `KpiCategory`'s own company_id-nullable-means-global pattern (`2026_07_20_100017`, which predates
+  Tenant existing at all and is a confirmed, separately-flagged cross-tenant leak) — following
+  Department/Position's own safer convention instead means this table is automatically tenant-safe
+  via `Company`'s own `TenantScope`, no separate global-row case to get wrong. `validity_months`
+  null means "never expires".
+- **`EmployeeCompetency`** (table `employee_competencies`) — one row per employee per competency
+  actually achieved. `effective_status` (`no_expiry`/`valid`/`expiring_soon`/`expired`) and
+  `days_remaining` are computed accessors mirroring `EmployeePpe`'s own expiry-tracking pattern
+  exactly (same 30-day window). `expiry_date` auto-computes from `achieved_date` +
+  `competency_type.validity_months` on create if left blank. Managed inline on the Employee Profile
+  page (Training & Certification card + Add dialog), not a separate top-level CRUD flow.
+- **`position_competency_requirements`** — many-to-many pivot: which competencies a Position
+  requires. Configured from the Competency Master page's Add/Edit dialog (checkbox list of
+  positions), not yet surfaced as a gap-analysis view on the Employee side.
+- **`competency.expiring-soon`** — cross-employee expiry monitoring (the real, data-backed HR
+  Reporting KPI), scoped server-side to the current tenant's own companies only.
+
+**IDOR discipline** (found and fixed live during this feature's own verification, not assumed):
+`Store/UpdateCompetencyTypeRequest`'s `company_id`/`required_position_ids` and
+`Store/UpdateEmployeeCompetencyRequest`'s `competency_type_id` all use `Rule::in()` against a
+tenant-safe id list (`Company::query()->pluck('id')`, itself `TenantScope`-safe) rather than a plain
+`exists:table,id` rule — Laravel's `exists` rule is a raw DB query that does **not** go through
+Eloquent scopes, so a naive `exists:companies,id` would have validated another tenant's company id
+just as happily as the current tenant's own. `EmployeeCompetencyController` additionally asserts the
+target `Employee`'s `company_id` is in that same tenant-safe list before every write (`abort(404)`,
+not 403, to avoid confirming a foreign employee id exists) — because `Employee` route-model-binding
+itself has **no** tenant check anywhere in this codebase (a separately-flagged, broader pre-existing
+gap affecting `EmployeeController` and others, not fixed here; this controller doesn't rely on it).
+
 ## Departments & Positions (company-scoped master data)
 
 **Department:** Administration (managed via Settings, not duplicated into Human Resources — see

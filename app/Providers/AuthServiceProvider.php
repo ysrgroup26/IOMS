@@ -3,6 +3,7 @@
 namespace App\Providers;
 
 use App\Models\Company;
+use App\Models\CompetencyType;
 use App\Models\DailyReport;
 use App\Models\Employee;
 use App\Models\EmployeePpe;
@@ -11,6 +12,7 @@ use App\Models\PpeType;
 use App\Models\Project;
 use App\Models\User;
 use App\Policies\CompanyPolicy;
+use App\Policies\CompetencyTypePolicy;
 use App\Policies\DailyReportPolicy;
 use App\Policies\EmployeePolicy;
 use App\Policies\EmployeePpePolicy;
@@ -31,6 +33,7 @@ class AuthServiceProvider extends ServiceProvider
         PpeType::class => PpeTypePolicy::class,
         EmployeePpe::class => EmployeePpePolicy::class,
         DailyReport::class => DailyReportPolicy::class,
+        CompetencyType::class => CompetencyTypePolicy::class,
     ];
 
     public function boot(): void

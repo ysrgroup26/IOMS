@@ -2,7 +2,7 @@ import {
     Users, ClipboardEdit, FileBarChart, Settings, FolderKanban, HardHat,
     ClipboardList, PackageSearch, Warehouse, ShoppingCart, Wrench,
     BadgeCheck, DollarSign, Box, LayoutDashboard, CalendarDays,
-    AlertTriangle, PackageCheck, Flag, BarChart3, FileDown,
+    AlertTriangle, PackageCheck, Flag, BarChart3, FileDown, GraduationCap,
 } from 'lucide-react';
 
 /**
@@ -58,7 +58,13 @@ export const WORKSPACES = [
             { name: 'Leave', href: 'leave-requests.index', icon: CalendarDays },
             { name: 'Recruitment', icon: Users, disabled: true },
             { name: 'Performance', icon: BadgeCheck, disabled: true },
-            { name: 'Training', icon: ClipboardList, disabled: true },
+            // Milestone 4, Workstream A2: Training & Competency Management
+            // -- real backend now (CompetencyType/EmployeeCompetency),
+            // same route/controller reachable from both HR and HSE
+            // conceptually, but following the same "one canonical home,
+            // not duplicated" precedent as HSE KPI below -- lives here
+            // since it's fundamentally employee master data.
+            { name: 'Training & Competency', href: 'competency.master', icon: GraduationCap },
             // v1.10.4 correction: the existing KPI implementation
             // (kpi-input.index) was mapped here in v1.10.0, but its
             // routes are already gated to role:super_admin,hse at the
@@ -88,6 +94,9 @@ export const WORKSPACES = [
             { name: 'Inspection', icon: ClipboardList, disabled: true },
             { name: 'Risk Assessment', icon: ClipboardList, disabled: true },
             { name: 'Safety Meeting (TBM)', icon: Users, disabled: true },
+            // Training & Competency now lives under HR -- see that
+            // entry's own comment. Same one-canonical-home precedent as
+            // HSE KPI above (which moved the other direction).
             { name: 'Training', icon: ClipboardList, disabled: true },
             // v1.10.4 correction: moved from HR (see HR's own note above)
             // -- same route, same controller, same permissions, same

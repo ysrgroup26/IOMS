@@ -9,6 +9,7 @@ use App\Http\Requests\UpdateEmployeeRequest;
 use App\Imports\EmployeesImport;
 use App\Models\ActivityLog;
 use App\Models\Company;
+use App\Models\CompetencyType;
 use App\Models\Department;
 use App\Models\Employee;
 use App\Models\EmployeeInternship;
@@ -101,7 +102,7 @@ class EmployeeController extends Controller
 
     public function show(Employee $employee): Response
     {
-        $employee->load('company', 'department', 'position', 'internship');
+        $employee->load('company', 'department', 'position', 'internship', 'competencies.competencyType');
 
         $currentYear = (int) now()->format('Y');
 
@@ -122,6 +123,9 @@ class EmployeeController extends Controller
             'year' => $currentYear,
             'yearsOfService' => $employee->yearsOfService(),
             'projects' => $projects,
+            // Milestone 4, Workstream A2 -- competency types belonging to
+            // this employee's own company, for the "Add Competency" dialog.
+            'competencyTypes' => CompetencyType::active()->where('company_id', $employee->company_id)->get(['id', 'name', 'type']),
             'can' => ['manage' => request()->user()->isAdmin()],
         ]);
     }

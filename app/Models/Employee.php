@@ -116,6 +116,14 @@ class Employee extends Model
         return $this->hasOne(EmployeeInternship::class);
     }
 
+    /**
+     * Milestone 4, Workstream A2 (Training & Competency Management).
+     */
+    public function competencies()
+    {
+        return $this->hasMany(EmployeeCompetency::class);
+    }
+
     public function isInternOrPkl(): bool
     {
         return in_array($this->employment_type, [self::EMPLOYMENT_TYPE_INTERN, self::EMPLOYMENT_TYPE_PKL], true);

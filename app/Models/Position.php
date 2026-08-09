@@ -32,6 +32,15 @@ class Position extends Model
     }
 
     /**
+     * Milestone 4, Workstream A2. The competencies (training/certification)
+     * this position requires -- see 2026_08_09_104453's own doc comment.
+     */
+    public function requiredCompetencies()
+    {
+        return $this->belongsToMany(CompetencyType::class, 'position_competency_requirements');
+    }
+
+    /**
      * Company-Scoped Master Data (v1.6.10) -- backs the new Settings
      * filter and Employee Import's Smart Master Data Detection, both of
      * which need "positions belonging to this company" as a first-class

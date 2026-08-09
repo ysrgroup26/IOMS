@@ -7,8 +7,11 @@ use App\Http\Controllers\Auth\AuthenticatedSessionController;
 use App\Http\Controllers\Auth\NewPasswordController;
 use App\Http\Controllers\Auth\PasswordResetLinkController;
 use App\Http\Controllers\ComingSoonController;
+use App\Http\Controllers\CompetencyController;
+use App\Http\Controllers\CompetencyTypeController;
 use App\Http\Controllers\DailyReportController;
 use App\Http\Controllers\DashboardController;
+use App\Http\Controllers\EmployeeCompetencyController;
 use App\Http\Controllers\EmployeeController;
 use App\Http\Controllers\GlobalSearchController;
 use App\Http\Controllers\GoodsReceiptController;
@@ -126,6 +129,11 @@ Route::middleware(['auth', 'restrict.platform-admin'])->group(function () {
     Route::get('/ppe/master', [PpeController::class, 'master'])->name('ppe.master');
     Route::get('/ppe/search-employees', [PpeController::class, 'searchEmployees'])->name('ppe.search-employees');
 
+    // Competency & Certification (Milestone 4, Workstream A2): viewable by
+    // all roles, matching PPE's own viewable-by-all / mutation-gated split.
+    Route::get('/competency/master', [CompetencyController::class, 'master'])->name('competency.master');
+    Route::get('/competency/expiring', [CompetencyController::class, 'expiringSoon'])->name('competency.expiring-soon');
+
     // Daily HSE Report: viewable by all roles; mutation below is admin-scoped.
     Route::get('/daily-reports', [DailyReportController::class, 'index'])->name('daily-reports.index');
     Route::get('/daily-reports/{dailyReport}', [DailyReportController::class, 'show'])->name('daily-reports.show');
@@ -160,6 +168,14 @@ Route::middleware(['auth', 'restrict.platform-admin'])->group(function () {
         Route::put('/ppe/{employeePpe}', [PpeController::class, 'update'])->name('ppe.update');
         Route::post('/ppe/{employeePpe}/complete-replacement', [PpeController::class, 'completeReplacement'])->name('ppe.complete-replacement');
         Route::delete('/ppe/{employeePpe}', [PpeController::class, 'destroy'])->name('ppe.destroy');
+
+        Route::post('/competency-types', [CompetencyTypeController::class, 'store'])->name('competency-types.store');
+        Route::put('/competency-types/{competencyType}', [CompetencyTypeController::class, 'update'])->name('competency-types.update');
+        Route::delete('/competency-types/{competencyType}', [CompetencyTypeController::class, 'destroy'])->name('competency-types.destroy');
+
+        Route::post('/employees/{employee}/competencies', [EmployeeCompetencyController::class, 'store'])->name('employees.competencies.store');
+        Route::put('/employee-competencies/{employeeCompetency}', [EmployeeCompetencyController::class, 'update'])->name('employee-competencies.update');
+        Route::delete('/employee-competencies/{employeeCompetency}', [EmployeeCompetencyController::class, 'destroy'])->name('employee-competencies.destroy');
 
         Route::get('/daily-reports-create', [DailyReportController::class, 'create'])->name('daily-reports.create');
         Route::post('/daily-reports', [DailyReportController::class, 'store'])->name('daily-reports.store');

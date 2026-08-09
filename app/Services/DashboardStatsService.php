@@ -18,8 +18,51 @@ use Illuminate\Support\Carbon;
  */
 class DashboardStatsService
 {
+    /**
+     * Tenant-isolation fix (found while verifying Master -> Tenant
+     * Management: a brand-new, company-less tenant's Dashboard was
+     * showing another tenant's KPI/employee data). Every method below
+     * used `inCompany($companyId)` / `when($companyId, ...)`, whose
+     * existing behavior when $companyId is null is "apply no company
+     * filter at all" -- correct in the single-tenant era this Dashboard
+     * was originally built in, but wrong now that multiple tenants share
+     * one database: "no company selected" must mean "every company THIS
+     * TENANT owns", never "every company in the whole database".
+     *
+     * `Company`'s own TenantScope (App\Models\Scopes\TenantScope)
+     * already correctly restricts `Company::query()` to the current
+     * tenant (and fails closed to zero rows if no tenant is resolved,
+     * per that class's own doc comment) -- this routes every Dashboard
+     * aggregation through that restriction instead of skipping company
+     * filtering whenever no specific company is picked.
+     *
+     * A requested $companyId that does not belong to the current
+     * tenant -- a stale bookmark, or a deliberate attempt to probe
+     * another tenant's data by guessing an id -- is treated exactly like
+     * no selection at all: it silently falls back to the tenant's own
+     * full company list, and never reveals whether that id exists
+     * elsewhere.
+     *
+     * `whereIn('company_id', [])` (a tenant with zero companies) is a
+     * real, well-defined SQL condition that matches zero rows -- so a
+     * brand-new tenant correctly sees all-zero widgets instead of any
+     * fallback data.
+     */
+    public function resolveCompanyIds(?int $companyId): array
+    {
+        $visible = Company::query()->pluck('id')->all();
+
+        if ($companyId !== null && in_array($companyId, $visible, true)) {
+            return [$companyId];
+        }
+
+        return $visible;
+    }
+
     public function summaryCards(int $year, ?int $month = null, ?int $companyId = null): array
     {
+        $companyIds = $this->resolveCompanyIds($companyId);
+
         // dashboardVisible() (not active()) is the actual fix for "the
         // Dashboard is still partially hardcoded" -- it's driven entirely
         // by is_active + show_on_dashboard + sort_order, so a newly
@@ -30,17 +73,15 @@ class DashboardStatsService
 
         $totals = KpiRecord::query()
             ->join('kpi_categories', 'kpi_categories.id', '=', 'kpi_records.kpi_category_id')
+            ->join('departments', 'departments.id', '=', 'kpi_records.department_id')
             ->forPeriod($year, $month)
-            ->when($companyId, function ($q) use ($companyId) {
-                $q->join('departments', 'departments.id', '=', 'kpi_records.department_id')
-                    ->where('departments.company_id', $companyId);
-            })
+            ->whereIn('departments.company_id', $companyIds)
             ->selectRaw('kpi_categories.code, SUM(kpi_records.quantity) as total')
             ->groupBy('kpi_categories.code')
             ->pluck('total', 'code');
 
         return [
-            'total_employees' => Employee::active()->inCompany($companyId)->count(),
+            'total_employees' => Employee::active()->whereIn('company_id', $companyIds)->count(),
             'categories' => $categories->map(fn ($cat) => [
                 'id' => $cat->id,
                 'code' => $cat->code,
@@ -86,7 +127,7 @@ class DashboardStatsService
     public function departmentDistribution(?int $companyId = null): array
     {
         return Department::query()
-            ->inCompany($companyId)
+            ->whereIn('company_id', $this->resolveCompanyIds($companyId))
             ->withCount(['employees' => fn ($q) => $q->active()])
             ->having('employees_count', '>', 0)
             ->get()
@@ -108,10 +149,8 @@ class DashboardStatsService
 
         $rows = KpiRecord::query()
             ->join('kpi_categories', 'kpi_categories.id', '=', 'kpi_records.kpi_category_id')
-            ->when($companyId, function ($q) use ($companyId) {
-                $q->join('departments', 'departments.id', '=', 'kpi_records.department_id')
-                    ->where('departments.company_id', $companyId);
-            })
+            ->join('departments', 'departments.id', '=', 'kpi_records.department_id')
+            ->whereIn('departments.company_id', $this->resolveCompanyIds($companyId))
             ->where('kpi_records.year', $year)
             ->selectRaw('kpi_records.month, kpi_categories.code, SUM(kpi_records.quantity) as total')
             ->groupBy('kpi_records.month', 'kpi_categories.code')
@@ -147,10 +186,12 @@ class DashboardStatsService
      */
     public function leaderboards(int $year, ?int $companyId = null): array
     {
+        $companyIds = $this->resolveCompanyIds($companyId);
+
         $topDeptByIncidents = KpiRecord::query()
             ->join('kpi_categories', 'kpi_categories.id', '=', 'kpi_records.kpi_category_id')
             ->join('departments', 'departments.id', '=', 'kpi_records.department_id')
-            ->when($companyId, fn ($q) => $q->where('departments.company_id', $companyId))
+            ->whereIn('departments.company_id', $companyIds)
             ->where('kpi_records.year', $year)
             ->where('kpi_categories.is_negative', true)
             ->selectRaw('departments.name, SUM(kpi_records.quantity) as total')
@@ -170,7 +211,7 @@ class DashboardStatsService
         // data.
         $topDepartmentsByWorkload = KpiRecord::query()
             ->join('departments', 'departments.id', '=', 'kpi_records.department_id')
-            ->when($companyId, fn ($q) => $q->where('departments.company_id', $companyId))
+            ->whereIn('departments.company_id', $companyIds)
             ->where('kpi_records.year', $year)
             ->selectRaw('departments.name, SUM(kpi_records.quantity) as total')
             ->groupBy('departments.name')
@@ -200,7 +241,7 @@ class DashboardStatsService
     public function activeProjectsCount(?int $companyId = null): int
     {
         return Project::query()
-            ->inCompany($companyId)
+            ->whereIn('company_id', $this->resolveCompanyIds($companyId))
             ->whereIn('status', ['planned', 'ongoing'])
             ->count();
     }
@@ -212,11 +253,9 @@ class DashboardStatsService
     {
         return KpiRecord::query()
             ->with('employee:id,full_name', 'kpiCategory:id,short_label')
-            ->when($companyId, function ($q) use ($companyId) {
-                $q->join('departments', 'departments.id', '=', 'kpi_records.department_id')
-                    ->where('departments.company_id', $companyId)
-                    ->select('kpi_records.*');
-            })
+            ->join('departments', 'departments.id', '=', 'kpi_records.department_id')
+            ->whereIn('departments.company_id', $this->resolveCompanyIds($companyId))
+            ->select('kpi_records.*')
             ->whereDate('record_date', now()->toDateString())
             ->latest('kpi_records.id')
             ->limit(8)
@@ -238,7 +277,7 @@ class DashboardStatsService
     public function upcomingReminders(?int $companyId = null): array
     {
         return Project::query()
-            ->inCompany($companyId)
+            ->whereIn('company_id', $this->resolveCompanyIds($companyId))
             ->whereNotNull('end_date')
             ->whereBetween('end_date', [now()->toDateString(), now()->addDays(14)->toDateString()])
             ->orderBy('end_date')
@@ -255,7 +294,7 @@ class DashboardStatsService
     {
         $query = KpiRecord::query()
             ->join('employees', 'employees.id', '=', 'kpi_records.employee_id')
-            ->when($companyId, fn ($q) => $q->where('employees.company_id', $companyId))
+            ->whereIn('employees.company_id', $this->resolveCompanyIds($companyId))
             ->where('kpi_records.year', $year)
             ->selectRaw('employees.id, employees.full_name, SUM(kpi_records.quantity) as total')
             ->groupBy('employees.id', 'employees.full_name')

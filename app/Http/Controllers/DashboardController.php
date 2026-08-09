@@ -32,7 +32,20 @@ class DashboardController extends Controller
         $month = $request->input('month') ? (int) $request->input('month') : null;
         $companyId = $request->input('company_id') ? (int) $request->input('company_id') : null;
 
+        // Tenant-isolation fix: these two queries had NO company/tenant
+        // filter at all, regardless of $companyId -- a genuine
+        // cross-tenant data leak (any tenant's Dashboard showed every
+        // tenant's recent daily reports and employee changes), not just
+        // the "no company selected = unfiltered" bug the rest of this
+        // controller's stats had. $companyIds is resolved the same
+        // tenant-safe way DashboardStatsService now resolves it (see that
+        // class's own doc comment) -- Company::query() already respects
+        // App\Models\Scopes\TenantScope, so this can never include
+        // another tenant's company id.
+        $companyIds = $this->stats->resolveCompanyIds($companyId);
+
         $recentDailyReports = DailyReport::with('project:id,name')
+            ->whereHas('project', fn ($q) => $q->whereIn('company_id', $companyIds))
             ->latest('report_date')
             ->latest('id')
             ->limit(5)
@@ -45,8 +58,12 @@ class DashboardController extends Controller
             ]);
 
         // Reuses the existing activity_logs audit trail -- no new table
-        // needed to surface "recent employee changes".
+        // needed to surface "recent employee changes". ActivityLog::record()
+        // already auto-populates company_id off the subject (Employee)
+        // being logged (see ActivityLog::record()'s own doc comment), so
+        // filtering on it directly is correct and doesn't need a join.
         $recentEmployeeChanges = ActivityLog::where('subject_type', Employee::class)
+            ->whereIn('company_id', $companyIds)
             ->latest('id')
             ->limit(5)
             ->get()
@@ -93,7 +110,7 @@ class DashboardController extends Controller
             // company-filterable Dashboard card already is.
             'employeesNeedCompletionCount' => Employee::query()
                 ->whereNull('department_id')
-                ->when($companyId, fn ($q) => $q->where('company_id', $companyId))
+                ->whereIn('company_id', $companyIds)
                 ->count(),
         ]);
     }

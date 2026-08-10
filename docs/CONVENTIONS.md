@@ -3,6 +3,40 @@
 House style, and a deliberately honest list of mistakes that have actually happened in this
 codebase's history — kept here so they don't get repeated in a slightly different shape.
 
+## CRITICAL — confirmed stale `public/build`, found during the v1.10.6 department audit
+
+This project deliberately commits its compiled Vite frontend to git (`.gitignore` has
+`# /public/build`, intentionally commented out — see that line's own git history, commit
+`e52779e "Add production build assets"`), because `docs/ADR/027-deployment-architecture-redesign.md`'s
+documented flow is `git pull → composer install → npm run build → deploy → cache → ready`, run via
+`deploy.sh`/`php artisan app:deploy`.
+
+**`public/build/manifest.json`'s last commit is `873f65f` ("Milestone 4, Workstream A3: Shift &
+Roster Management")** — verified directly via `git log --oneline -1 -- public/build/manifest.json`,
+not assumed. Every commit since then (all of HSE Workstream B, Procurement Workstream C, and the
+entire Acceleration Mode — dozens of commits, the majority of this project's Milestone 4 work) has
+touched `resources/js/*` without a single corresponding rebuild of `public/build/*`.
+
+**This fully explains a real production symptom reported after the previous two audit passes**:
+Warehouse, Asset Management, Maintenance, Quality Control, and Procurement all appeared to show only
+"Overview" / the generic "This department is on the IOMS roadmap but hasn't been built yet." Coming
+Soon page in production, and HSE appeared to have several modules "locked" — even though the actual
+source code (verified repeatedly, across two prior audit passes) has real, working pages for all of
+it. **None of that was a code bug.** The production server is very likely still serving a frontend
+bundle compiled before any of that work existed, regardless of what commit `HEAD` actually points to.
+No amount of further editing in `resources/js/` will change what's served until the bundle is
+actually rebuilt.
+
+**No code fix is possible for this from within a coding session** — a bundle rebuild is an
+operational/deploy action, not a source change, and no `npm`/`node` binary has ever been available in
+this project's own AI-coding-session environment (confirmed repeatedly). The fix is to actually run
+the documented deploy flow (`deploy.sh` or, at minimum, `npm run build && git add public/build && git
+commit` followed by pulling that commit to production) against the current `main` branch. Until that
+happens, treat any "X isn't showing up in production" report with this as the FIRST hypothesis to
+rule out — check `git log -1 -- public/build/manifest.json` before assuming a code-level navigation/
+RBAC/entitlement bug, the way the two prior audit passes (reasonably, but incorrectly in hindsight)
+did.
+
 ## Migrations
 
 - **Additive, never destructive, for anything that might already hold real data.** When a column's

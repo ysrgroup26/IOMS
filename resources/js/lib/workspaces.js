@@ -146,7 +146,14 @@ export const WORKSPACES = [
             { name: 'Contractor Management', href: 'contractors.index', icon: UserCheck },
             { name: 'Visitor Management', href: 'visitors.index', icon: FileCheck },
             { name: 'Document Control', href: 'controlled-documents.index', icon: FileStack },
-            { name: 'Documents', icon: ClipboardList, disabled: true },
+            // v1.10.6: removed a generic disabled "Documents" placeholder
+            // that used to sit right here -- it was the exact same
+            // "locked row beside a working one" confusion as the PTW
+            // duplicate fixed in v1.10.5, just for Documents instead of
+            // Permit To Work. "Document Control" directly above already
+            // IS this department's real document functionality; every
+            // other department's own "Documents" placeholder stays
+            // disabled because nothing real backs it there yet.
             { name: 'Reports', icon: FileBarChart, disabled: true },
         ],
     },
@@ -205,6 +212,23 @@ export const WORKSPACES = [
     // instruction: "do not remove them"), each with a single real link to
     // the shared ComingSoon page rather than a disabled row -- there IS
     // somewhere real to go now, even though nothing is built yet.
+    //
+    // v1.10.6 correction: 'warehouse' is deliberately NOT a "nothing built
+    // yet" placeholder like Finance -- Warehouse functionality is fully
+    // real and already live, it just lives inside the Logistics / PPIC
+    // department above (explicit earlier instruction: "Warehouse stays
+    // inside Logistics for now, not split into its own department yet").
+    // Routing its single entry at the ComingSoon page was actively
+    // misleading -- a user clicking "Warehouse" (a completely reasonable
+    // thing to click, given its own department entry exists) landed on
+    // "hasn't been built yet" even though it plainly has been. Repointed
+    // at the SAME real route Logistics itself uses (`warehouses.master`)
+    // rather than duplicating any of Logistics's items into a second
+    // workspace -- `PREFIX_TO_WORKSPACE` below requires each route prefix
+    // to be owned by exactly one workspace, so this intentionally does
+    // NOT try to mirror Logistics's full Warehouse item list here; landing
+    // here correctly shows "Logistics / PPIC" as the active department
+    // once through, which is accurate -- that IS where the feature lives.
     {
         key: 'warehouse',
         label: 'Warehouse',
@@ -212,7 +236,7 @@ export const WORKSPACES = [
         tier: 'department',
         items: [
             { name: 'Dashboard', href: 'dashboard', icon: LayoutDashboard, global: true },
-            { name: 'Overview', href: 'warehouse.coming-soon', icon: Warehouse },
+            { name: 'Overview', href: 'warehouses.master', icon: Warehouse },
         ],
     },
     {

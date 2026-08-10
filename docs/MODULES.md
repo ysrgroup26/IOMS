@@ -275,11 +275,11 @@ something that needs a separate approver the way Material Request/Leave do. Fiel
 (minor/moderate/major/critical), category (injury/near_miss/property_damage/environmental/other),
 optional project link. Gated by `User::canManageIncidents()`. Numbered `INC-{year}-{00001}`.
 
-**Known gap (flagged, not fixed here):** `IncidentController::index()`/`show()` query `Incident`
-with no company scoping at all — the same bug class fixed in `DashboardStatsService` and
-`HseDashboardController` below. Flagged as a background task rather than fixed silently while
-building an unrelated module (Safety Observation) in the same session — see
-`docs/CONVENTIONS.md`'s Known Pitfalls list.
+**Tenant-leak fix (was flagged as a separate background task, now resolved):**
+`IncidentController::index()`/`show()`/`store()` used to query `Incident` with no company scoping
+at all — the same bug class already fixed in `DashboardStatsService`/`HseDashboardController`. Fixed
+in Workstream B14 while extending this same controller for Incident Investigation/CAPA — see the
+"Incident Investigation + CAPA" section below for the full fix description.
 
 ## HSE Master Data (Hazard Category)
 
@@ -361,6 +361,144 @@ company scoping at all — the same bug class already fixed in `DashboardStatsSe
 injecting `DashboardStatsService` and reusing its `resolveCompanyIds()` helper rather than a second
 copy of the same logic; the new Safety Observation widgets (`openSafetyObservationsCount`,
 `recentSafetyObservations`) were built tenant-safe from the start using the same helper.
+
+## HIRADC / Risk Assessment
+
+**Department:** HSE (Milestone 4, Workstream B4).
+
+`RiskAssessment` (`app/Models/RiskAssessment.php`): document-level sign-off lifecycle via
+`HasWorkflow` (`draft -> submitted -> approved -> archived`, plus `cancelled`/rejected-back-to-draft
+branches) — same operational-sign-off choice as Incident/Safety Observation, not the Approval
+Engine. `items` (activity/hazard/existing_control/likelihood/severity/additional_control/
+residual_likelihood/residual_severity/pic/target_date) is a JSON column, not a child table —
+these rows are always edited/viewed as one ordered document and nothing else in this codebase
+queries an individual row today, unlike Safety Observation's photos or Gas Test's readings. Numbered
+`HIRADC-{year}-{00001}`. Overrides `notificationRecipient()` to point at `preparer()` since the
+model's own `prepared_by` column doesn't match `HasWorkflow`'s default `requested_by`/`reported_by`/
+`created_by` convention.
+
+## JSA (Job Safety Analysis)
+
+**Department:** HSE (Milestone 4, Workstream B5).
+
+`JobSafetyAnalysis` (`app/Models/JobSafetyAnalysis.php`): identical shape/reasoning to
+`RiskAssessment` above — same lifecycle, `steps` (task_step/potential_hazard/control_measure) and
+`required_ppe` are both JSON. Numbered `JSA-{year}-{00001}`.
+
+## Permit To Work
+
+**Department:** HSE (Milestone 4, Workstream B6).
+
+`PermitToWork` (`app/Models/PermitToWork.php`): fuller sign-off lifecycle via `HasWorkflow`
+(`draft -> submitted -> approved -> active -> closed`, plus `rejected`/`cancelled` branches).
+Optional links to an approved `RiskAssessment`/`JobSafetyAnalysis` (reused, not duplicated).
+`required_qualification` is a **plain free-text label**, deliberately NOT a foreign key into
+`competency_types` and NEVER auto-checked against any employee's actual certificates — this is a
+hard, explicit requirement from the Workstream B spec: "PTW MUST NOT automatically inspect every
+certificate belonging to an employee. Instead support optional 'Required Qualification'
+configuration per permit/work type." HSE decides per-permit whether one applies and what it says;
+the system never blocks issuance on it. Already gets automatic status-change notifications for free
+via `HasWorkflow` (its `requester()`/`requested_by` naming already matches the trait's own
+convention, no override needed). Numbered `PTW-{year}-{00001}`.
+
+## Gas Test
+
+**Department:** HSE (Milestone 4, Workstream B7).
+
+`GasTestRecord` (`app/Models/GasTestRecord.php`): real child table of `PermitToWork` (O2/LEL/H2S/CO
+readings + pass/fail result) — unlike HIRADC/JSA's JSON documents, multiple gas readings ARE
+genuinely time-series/individually meaningful (a permit is periodically re-tested through its
+duration). Added inline from the Permit's own Show page, no separate index/show routes.
+
+## LOTO (Lockout/Tagout)
+
+**Department:** HSE (Milestone 4, Workstream B8).
+
+`LotoRecord` (`app/Models/LotoRecord.php`): deliberately simpler than `PermitToWork` — no
+`HasWorkflow` state machine, just `isolated -> removed` (applied_by/applied_at,
+removed_by/removed_at), matching how lockout/tagout is actually operated. Optionally linked to a
+Permit To Work. Numbered `LOTO-{year}-{00001}`.
+
+## TBM (Toolbox Meeting)
+
+**Department:** HSE (Milestone 4, Workstream B3).
+
+`TbmMeeting` (`app/Models/TbmMeeting.php`): same "logged after the fact" shape as `DailyReport` — a
+TBM record IS the record of a meeting that already happened, no `HasWorkflow` lifecycle. Real
+`tbm_attendees` pivot to `Employee` (not JSON) since per-employee attendance is genuinely useful to
+query later (e.g. a future attendance/compliance report). Numbered `TBM-{year}-{00001}`.
+
+## HSE Inspection
+
+**Department:** HSE (Milestone 4, Workstream B2).
+
+`HseInspection` (`app/Models/HseInspection.php`): same logged-after-the-fact shape as TBM, JSON
+`checklist_items` (item/result[ok|not_ok|na]/remarks). A `not_ok` finding can be raised into a real
+`CorrectiveAction` row directly from the Show page — reuses the existing polymorphic CAPA entity
+(see Safety Observation's own section above), not a second findings-tracking system. Numbered
+`HSE-INS-{year}-{00001}`.
+
+## Incident Investigation + CAPA (cross-module)
+
+**Department:** HSE (Milestone 4, Workstream B14/B15).
+
+`IncidentInvestigation` (`app/Models/IncidentInvestigation.php`): one-to-one enhancement of the
+EXISTING `Incident` model (root_cause/method[5_why|fishbone|other]/findings/recommendations) — not a
+duplicate incident-tracking system. `Incident::correctiveActions()` now points at the SAME
+`CorrectiveAction` polymorphic entity Safety Observation/HSE Inspection already use.
+
+`CorrectiveActionController::index()` (`app/Http/Controllers/CorrectiveActionController.php`,
+`/corrective-actions`) is a standalone, cross-source CAPA view over those SAME rows — grouped by
+source (Safety Observation/HSE Inspection/Incident), with an inline status-update action
+(`open -> in_progress -> completed -> verified`, plus `cancelled`). This directly answers the
+Workstream B15 requirement that CAPA be reusable across HSE sources, by never creating a second CAPA
+table per module.
+
+**Also fixed in this same pass (found while extending `IncidentController` for
+Investigation/CAPA, not a separate silent change):** that controller previously had ZERO company
+scoping anywhere (`index()`/`show()`/`store()`) — the exact same bug class already fixed in
+`DashboardStatsService`/`HseDashboardController`, previously flagged as a separate background task,
+now resolved here since the file was already open for a real, in-scope reason.
+`Incident.company_id` is nullable (its own older migration convention), so a null-company incident
+stays visible to every tenant; company-scoped incidents are now tenant-isolated via the same
+`assertInCurrentTenant()` 404-not-403 guard pattern used throughout this workstream. Raw `exists:`
+validation rules in `store()` were replaced with `Rule::in()` over tenant-scoped id collections.
+
+## Safety Equipment, HSE Materials, P3K
+
+**Department:** HSE (Milestone 4, Workstream B10/B11/B12).
+
+Three deliberately SEPARATE tables, per the spec's own explicit taxonomy ("separate PPE / HSE
+Consumables / Reusable Safety Materials / Safety Equipment/Operational HSE Assets / Emergency
+Facilities. Do NOT treat all HSE items as the same thing"):
+
+- `SafetyEquipment` (`app/Models/SafetyEquipment.php`): fixed-location operational assets (fire
+  extinguishers, safety showers, eyewash stations, emergency alarms, spill kits) with a real,
+  queryable `next_inspection_due` date — the thing the HSE Dashboard's "Overdue Equipment" widget
+  and a future reminder actually key off.
+- `HseMaterial` (`app/Models/HseMaterial.php`): consumables/reusable-materials catalog with a simple
+  `current_stock`/`reorder_level` — deliberately NOT a warehouse/inventory-transaction system (no
+  goods-receipt/issue ledger here); reordering still goes through the EXISTING Material Request
+  pipeline (see below), this table is just the catalog + current level that pipeline's own
+  HSE-category requests would reference.
+- `P3kBox` (`app/Models/P3kBox.php`): first-aid station OPERATIONAL inspection record only
+  (location/next inspection due/completeness status) — explicitly NOT a medical-records or
+  treatment-log system, per the spec's own instruction that detailed medical records stay entirely
+  HR-owned.
+
+All three land on the shared `Hse/Master.jsx` page (extended from Workstream B0's Hazard Category
+section, not three new standalone routes), tenant-scoped, with the same per-instance
+`assertInCurrentTenant()`/`abort_unless()` ownership guard pattern on `update()`/`destroy()`.
+
+## HSE Procurement (verified reuse, no new code)
+
+**Department:** HSE (Milestone 4, Workstream B13).
+
+Verified, not duplicated: `MaterialRequest` (`app/Models/MaterialRequest.php`) is already
+deliberately department-agnostic (`department_id`, no hard-coded department list — see that
+model's own doc comment), so HSE staff already use the SAME existing Material Request pipeline for
+HSE consumables/equipment purchases today, with zero code changes required. No second
+request/approval system was built.
 
 ## Milestones
 

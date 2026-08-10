@@ -154,13 +154,28 @@ codebase's history — kept here so they don't get repeated in a slightly differ
   is the one reusable, TenantScope-safe helper every new instance should call, not reimplement.
   Found and fixed: `DashboardStatsService` itself (a brand-new, company-less tenant's Dashboard
   showing another tenant's KPI/employee data), `HseDashboardController` (Milestone 4, Workstream
-  B1 — every widget query, found while adding the Safety Observation widget). Flagged, not yet
-  fixed (background tasks, to avoid silently expanding an unrelated change's scope):
-  `IncidentController::index()`/`show()`, `PpeController` (the KpiCategory-class leak), a per-instance
-  ownership guard missing from `CompetencyTypeController`/`ShiftController`/`RosterPatternController`'s
-  `update()`/`destroy()` (their `Store`/`UpdateXRequest` only validates the *submitted* `company_id`,
-  never checks the *existing* route-model-bound record's own tenant). See
-  `docs/ADR/008-tenancy-foundation.md`'s Consequences section for the underlying design tradeoff.
+  B1 — every widget query, found while adding the Safety Observation widget, then again B16 for the
+  Open Permits/Overdue Equipment/Overdue P3K/Open CAPA widgets), `IncidentController` (Workstream
+  B14 — found and fixed while extending it for Investigation/CAPA). Flagged, not yet fixed
+  (background tasks, to avoid silently expanding an unrelated change's scope): `PpeController` (the
+  KpiCategory-class leak), a per-instance ownership guard missing from
+  `CompetencyTypeController`/`ShiftController`/`RosterPatternController`'s `update()`/`destroy()`
+  (their `Store`/`UpdateXRequest` only validates the *submitted* `company_id`, never checks the
+  *existing* route-model-bound record's own tenant — every new HSE master controller this workstream,
+  `HazardCategoryController`/`SafetyEquipmentController`/`HseMaterialController`/`P3kBoxController`,
+  DOES include this guard from the start, so this is specifically about the three older,
+  pre-Workstream-B controllers). See `docs/ADR/008-tenancy-foundation.md`'s Consequences section for
+  the underlying design tradeoff.
+
+- **A pre-existing route-name collision, found (not caused) during this workstream's own
+  verification pass:** two separate route definitions in `routes/web.php` both register the name
+  `dashboard` (`Route::get('/dashboard', ...)->name('dashboard')` for tenant users, and
+  `Route::get('/', [PlatformController::class, 'dashboard'])->name('dashboard')` under the Platform
+  Super Admin `/platform` group) — confirmed present since at least commit `833aebd` (before any
+  Workstream B work began), so this is not something the HSE modules introduced. Laravel silently
+  lets the later-registered route win for `route('dashboard')` resolution; whether that's actually
+  the intended one in every calling context hasn't been verified. Not fixed here (touching platform
+  routing is out of scope for an HSE change) — flagged for separate follow-up.
 
 - **Any place that sets Spatie's permission team id must use the same `0` sentinel for a Platform
   Super Admin (`tenant_id` null) that `RolePermissionSeeder` used when assigning their role** — the

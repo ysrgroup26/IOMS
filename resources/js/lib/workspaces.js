@@ -4,6 +4,7 @@ import {
     BadgeCheck, DollarSign, Box, LayoutDashboard, CalendarDays,
     AlertTriangle, PackageCheck, Flag, BarChart3, FileDown, GraduationCap, Clock, Eye, ListChecks,
     ShieldAlert, FileWarning, Flame, Lock, UsersRound, Stethoscope, Siren, ClipboardCheck,
+    FileStack, FileQuestion, Building2, TrendingUp,
 } from 'lucide-react';
 
 /**
@@ -194,7 +195,18 @@ export const WORKSPACES = [
         tier: 'department',
         items: [
             { name: 'Dashboard', href: 'dashboard', icon: LayoutDashboard, global: true },
-            { name: 'Overview', href: 'procurement.coming-soon', icon: ShoppingCart },
+            // Milestone 4, Workstream C: real backend now (Vendor,
+            // PurchaseRequisition, Rfq/VendorQuotation, PurchaseOrder) --
+            // a genuine cross-department procurement engine, not owned by
+            // any single requesting department (HSE/Maintenance/Project/
+            // etc. all raise Material Requests that Procurement can turn
+            // into a PR from here).
+            { name: 'Overview', href: 'procurement.dashboard', icon: LayoutDashboard },
+            { name: 'Purchase Requisition', href: 'purchase-requisitions.index', icon: FileStack },
+            { name: 'RFQ', href: 'rfqs.index', icon: FileQuestion },
+            { name: 'Purchase Order', href: 'purchase-orders.index', icon: ShoppingCart },
+            { name: 'Vendor / Supplier', href: 'vendors.index', icon: Building2 },
+            { name: 'Vendor Performance', href: 'procurement.vendor-performance', icon: TrendingUp },
         ],
     },
     {

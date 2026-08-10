@@ -156,7 +156,11 @@ codebase's history — kept here so they don't get repeated in a slightly differ
   showing another tenant's KPI/employee data), `HseDashboardController` (Milestone 4, Workstream
   B1 — every widget query, found while adding the Safety Observation widget, then again B16 for the
   Open Permits/Overdue Equipment/Overdue P3K/Open CAPA widgets), `IncidentController` (Workstream
-  B14 — found and fixed while extending it for Investigation/CAPA). Flagged, not yet fixed
+  B14 — found and fixed while extending it for Investigation/CAPA), `GoodsReceiptController`
+  (Workstream C5 — found and fixed while extending it for Purchase Order integration; this one had
+  no `company_id` of its own at all, so the fix derives ownership through whichever parent record —
+  `MaterialRequest` or `PurchaseOrder` — the receipt is linked to, via `whereHas()` for the list
+  query and a dedicated `assertInCurrentTenant()` for the route-model-bound actions). Flagged, not yet fixed
   (background tasks, to avoid silently expanding an unrelated change's scope): `PpeController` (the
   KpiCategory-class leak), a per-instance ownership guard missing from
   `CompetencyTypeController`/`ShiftController`/`RosterPatternController`'s `update()`/`destroy()`

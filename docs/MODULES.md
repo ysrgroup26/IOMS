@@ -527,6 +527,147 @@ unneeded here), no edit route — a receipt is treated as an immutable record on
 specifically for *processing* Material Requests — receiving goods is the same responsibility).
 Numbered `GR-{year}-{00001}`.
 
+**Milestone 4, Workstream C5 extension (Procurement PO integration, additive):**
+`purchase_order_id`/`purchase_order_item_id` added as nullable columns alongside the existing
+`material_request_id` — a receipt is EITHER against a Material Request (unchanged) OR a Purchase
+Order (new), enforced at the application level in `GoodsReceiptController::store()`, not a DB
+constraint. Recording a GRN against a PO recomputes and auto-advances that PO's own delivery status
+(`issued -> partially_delivered -> fully_delivered`) via `transitionTo()`. **Tenant-leak fix found
+while extending this controller** (same discipline as `HseDashboardController`/`IncidentController`
+earlier this milestone): `GoodsReceiptController` previously had zero company scoping anywhere;
+fixed via `whereHas()`-through-parent scoping and a new `assertInCurrentTenant()` guard (a
+`GoodsReceipt` has no `company_id` of its own, so ownership is derived through whichever parent it's
+linked to).
+
+## Procurement Department (Milestone 4, Workstream C)
+
+**Department:** Procurement — a genuine cross-department engine (per its own explicit spec
+positioning), not owned by any single requesting department. HSE/Maintenance/Project/HR/Warehouse
+etc. all raise a `MaterialRequest` (existing, unmodified) that Procurement can turn into a
+`PurchaseRequisition` from here.
+
+**Repository audit performed first:** confirmed no `Vendor`/`Supplier`/`PurchaseOrder`/`Rfq` table
+existed anywhere before this workstream — `MaterialRequest -> GoodsReceipt` was a direct two-step
+flow with no purchasing layer between them. Everything below is genuinely new, not a rename/
+duplicate of something that already existed.
+
+**Flow:** MaterialRequest (existing) → `PurchaseRequisition` → `Rfq` (+ `VendorQuotation` per
+invited vendor) → Quotation Comparison (computed, on the RFQ's own Show page) → vendor selection →
+`PurchaseOrder` (+ `PurchaseOrderItem`) → approval → issue → `GoodsReceipt` (existing module,
+extended) → delivery reconciliation → closed.
+
+### Vendor / Supplier Master
+`Vendor` (`app/Models/Vendor.php`) + `VendorDocument` (dedicated child-row-per-document, mirrors
+`DailyReportPhoto`'s pattern). Identity/contact/business fields per the spec. **Scope decision:**
+qualification status (`draft/under_review/qualified/conditionally_qualified/rejected/suspended/
+expired`) lives directly on the `vendors` row rather than a separate checklist/document
+qualification table — avoids a second, thinner, un-integrated module while still enforcing every
+state the spec asked for. Bank account fields are plain nullable strings (operational reference
+data, not a payment-execution system — no accounting/banking integration exists in this codebase to
+protect, matching the explicit "do not build accounting integration" instruction). Numbered
+`VEN-{seq}` (never resets — a vendor code is a permanent identifier, not period-scoped).
+
+### Purchase Requisition (PR)
+`PurchaseRequisition` (`app/Models/PurchaseRequisition.php`). Procurement's own internal document,
+optionally sourced from an approved `MaterialRequest` (`source_material_request_id`, nullable — can
+also stand alone for Procurement-initiated purchasing). Full spec lifecycle via `HasWorkflow`:
+`draft -> submitted -> under_review -> approved/rejected -> converted_to_rfq -> converted_to_po ->
+completed`, plus `cancelled` from most states. `items` is JSON (same reasoning as HIRADC/JSA's own
+line items from Workstream B — edited/viewed as one document, nothing else queries an individual
+PR line). **Segregation of duties, reused from `MaterialRequestController`'s own precedent, not
+reinvented:** create/submit gated to `canManageProcurement()`, review/approve/reject/cancel gated to
+`config('workflow.approvers'/'overriders')` — a Procurement Officer never automatically gains
+approval authority. Numbered `PR-PROC-{year}-{00001}`.
+
+### RFQ + Vendor Quotation + Quotation Comparison
+`Rfq` (`app/Models/Rfq.php`) always originates from an approved PR (`purchase_requisition_id`
+required). Creating an RFQ transitions its parent PR to `converted_to_rfq` via the existing
+`transitionTo()`. `RfqVendor` is a real invited-vendor pivot with a response-status lifecycle
+(`invited/viewed/responded/no_response/declined/expired`), not a plain many-to-many.
+`VendorQuotation` (one per vendor per RFQ, `unique(rfq_id, vendor_id)`) has JSON line items (same
+reasoning as PR) with computed subtotal/discount/tax/shipping/total stored on save.
+
+**Quotation Comparison is deliberately NOT a separate stored table** — it's a computed view built
+at request-time on `Rfqs/Show.jsx` (side-by-side total/lead-time/payment-terms/validity per invited
+vendor), with the selection OUTCOME (`selected_vendor_id`/`evaluation_notes`/`selected_by`/
+`selected_at`) recorded directly on the RFQ row. **The system never auto-picks the cheapest
+vendor** — selection is an explicit, notes-capturing human decision, per the spec's own explicit
+"transparent evaluation" requirement. Numbered `RFQ-PROC-{year}-{00001}`.
+
+### Purchase Order
+`PurchaseOrder` (`app/Models/PurchaseOrder.php`). `vendor_id` required; `purchase_requisition_id`/
+`rfq_id`/`vendor_quotation_id` all nullable — the normal path pre-fills price/terms from the
+selected quotation (create form accepts `?rfq=`), but a direct PO without the full RFQ cycle is
+also supported (real procurement operations sometimes skip the cycle for low-value/emergency
+purchases). **Same "no separate Pending Approval status" convention as `MaterialRequest`** (see
+`docs/ADR/006-material-request-workflow.md`) — `submitted` IS what a pending-approval PO looks like
+from a data-model perspective, not a fifth invented status. Lifecycle via the SAME `HasWorkflow`
+engine as every other document: `draft -> submitted -> approved/rejected -> issued ->
+partially_delivered/fully_delivered -> closed`, plus `cancelled`. `partially_delivered`/
+`fully_delivered` are reached AUTOMATICALLY from real delivered-vs-ordered quantity math (see Goods
+Receipt's extension above), never a manual status button.
+
+`PurchaseOrderItem` (`app/Models/PurchaseOrderItem.php`) is a REAL child table — unlike PR/RFQ/
+Quotation's JSON line items, PO items ARE independently queried elsewhere: `delivered_quantity`/
+`remaining_quantity`/`delivery_status` are computed accessors that sum `goods_receipt_items` on
+every access (never a stored running total that could drift), giving the exact "PO Qty=100,
+GRN#1=40, GRN#2=60, Remaining=0" reconciliation the spec describes.
+
+Approval reuses `config('workflow.approvers')`/`'overriders'` — same segregation-of-duties
+precedent as PR/MaterialRequest. **No fabricated amount-based approval threshold system** — the
+spec explicitly said not to hard-code arbitrary financial thresholds; this is documented here as a
+future per-tenant-configurable extension point (a `config/workflow.php` `procurement_approvers` key,
+or a `NumberingFormat`-style per-tenant override row), not built now. Numbered
+`PO-PROC-{year}-{00001}`.
+
+### Vendor Performance (computed, not stored)
+`VendorPerformanceController` (`/procurement/vendor-performance`). On-time delivery rate (completed
+POs whose last Goods Receipt arrived on/before `delivery_date`) and RFQ response rate (`RfqVendor`
+responded ÷ invited) are computed live from real `PurchaseOrder`/`GoodsReceipt`/`RfqVendor` rows on
+every page load — never a stored score that could drift. A blank rate means "nothing to measure
+yet," not zero; nothing is fabricated for a vendor with no completed transactions.
+
+### Procurement Dashboard
+`ProcurementDashboardController` (`/procurement/dashboard`). Pending PRs, open RFQs, quotations
+awaiting evaluation, pending PO approval, open/overdue/partially-delivered/completed POs, YTD
+procurement value, monthly trend, department breakdown, average purchase cycle time (real PR
+`request_date` → PO `issued_at` deltas, only for PRs that actually reached a PO), active vendor
+count. Reuses `DashboardStatsService::resolveCompanyIds()` — the same tenant-safe helper that fixed
+the identical leak class in `HseDashboardController`/`IncidentController` earlier this milestone,
+never reimplemented as a second copy.
+
+### Procurement Reporting
+The `PurchaseRequisitions`/`Rfqs`/`PurchaseOrders` Index pages already ARE the spec's own "PR
+Register/RFQ Register/PO Register" (search + status filter + pagination) — not duplicated as
+separate report pages. PDF/Excel export integration into the centralized Report Center/Analytics
+dataset registry was audited as an existing extension point but **not wired this turn** — same
+honest-scope decision as HSE Workstream B's own HSE Reports section; documented as a known
+limitation, not silently skipped.
+
+### Master Data
+No new procurement-category/payment-terms/delivery-terms/vendor-category master tables — these are
+small, structurally-fixed sets kept as validated string columns + model constants (same precedent as
+Safety Observation's `type`/`severity` from Workstream B), avoiding master-data over-engineering for
+values nothing else in this codebase needs to configure per-tenant yet. No `cost_center` master
+either — plain free-text field on PR/PO, since no cost-center master exists anywhere to extend.
+
+### RBAC
+`User::canManageProcurement()` reuses the existing `warehouse` role (`isSuperAdmin() ||
+isWarehouse()`) — same reasoning as `canManageGoodsReceipts()`: Warehouse is the logistics-
+operations role this app already has, and Procurement is its natural extension, not a newly-invented
+role. Financial authorization (PR/PO approval) is a genuinely separate gate
+(`config('workflow.approvers')`, Manager/Super Admin) — segregation of duties enforced in every
+controller action, never conflated with the operational `canManageProcurement()` gate.
+
+### Tenant Isolation & IDOR
+Every new controller: `Rule::in()` over tenant-scoped id collections throughout, never raw
+`exists:`. Every route-model-bound action: a private `assertInCurrentTenant()` 404-not-403 guard,
+built in from the start (not retrofitted) — including on `Vendor`, `PurchaseRequisition`, `Rfq`,
+`PurchaseOrder`, and (added when this workstream needed to extend it) `GoodsReceipt` via its own
+parent-derived ownership check. Data-integrity cross-references (a PO cannot reference a vendor/PR/
+RFQ from another tenant, a GRN item cannot reference a foreign PO item) are enforced via `Rule::in()`
+scoped to the SAME tenant on every foreign-id field, not left to frontend filtering alone.
+
 ## Department Dashboards (HR, HSE, Project Management, Logistics)
 
 v1.10.0. Each CORE department now has its own real Dashboard (`HrDashboardController`,

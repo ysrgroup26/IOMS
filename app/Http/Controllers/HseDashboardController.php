@@ -4,9 +4,13 @@ namespace App\Http\Controllers;
 
 use App\Models\ActivityLog;
 use App\Models\Company;
+use App\Models\CorrectiveAction;
 use App\Models\EmployeePpe;
 use App\Models\Incident;
+use App\Models\P3kBox;
+use App\Models\PermitToWork;
 use App\Models\Project;
+use App\Models\SafetyEquipment;
 use App\Models\SafetyObservation;
 use App\Services\DashboardStatsService;
 use Inertia\Inertia;
@@ -17,9 +21,13 @@ use Inertia\Response;
  * (`ppe.dashboard`, unchanged, still the detailed PPE-specific view) --
  * this is the broader department overview combining PPE + Incident
  * Management + (Milestone 4, Workstream B1) Safety Observation.
- * Deliberately does NOT include Safe Man Hours, Open PTW, Inspection Due,
- * Risk Assessment Status, Upcoming Safety Meeting, Training Due, or a
- * Calendar -- none of those have a backing data model yet.
+ * Milestone 4, Workstream B16/B17: Open PTW, Overdue Safety Equipment, and
+ * Overdue P3K now have a real backing data model and are included below.
+ * Deliberately still does NOT include Safe Man Hours, Upcoming Safety
+ * Meeting attendance trends, Training Due, or a Calendar -- those need
+ * data this codebase doesn't compute yet (man-hours tracking, training
+ * expiry has its own existing `competency.expiring-soon` page instead of
+ * being duplicated here).
  *
  * Milestone 4, Workstream B (tenant-isolation fix, found while extending
  * this controller to add the Safety Observation widget): every query
@@ -76,6 +84,21 @@ class HseDashboardController extends Controller
                 ->latest()
                 ->limit(6)
                 ->get(['id', 'user_id', 'description', 'created_at']),
+            'openPermitsCount' => PermitToWork::whereIn('company_id', $companyIds)
+                ->whereIn('status', [PermitToWork::STATUS_APPROVED, PermitToWork::STATUS_ACTIVE])
+                ->count(),
+            'overdueSafetyEquipmentCount' => SafetyEquipment::whereIn('company_id', $companyIds)
+                ->where('status', 'active')
+                ->whereNotNull('next_inspection_due')
+                ->whereDate('next_inspection_due', '<', now())
+                ->count(),
+            'overdueP3kCount' => P3kBox::whereIn('company_id', $companyIds)
+                ->whereNotNull('next_inspection_due')
+                ->whereDate('next_inspection_due', '<', now())
+                ->count(),
+            'openCapaCount' => CorrectiveAction::whereIn('company_id', $companyIds)
+                ->whereNotIn('status', [CorrectiveAction::STATUS_VERIFIED, CorrectiveAction::STATUS_CANCELLED])
+                ->count(),
         ]);
     }
 }

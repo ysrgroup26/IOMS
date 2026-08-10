@@ -5,7 +5,7 @@ import StatCard from '@/Components/shared/StatCard';
 import StatusBadge from '@/Components/shared/StatusBadge';
 import EmptyState from '@/Components/shared/EmptyState';
 import { Card, CardContent, CardHeader, CardTitle } from '@/Components/ui/card';
-import { FolderKanban, AlertTriangle, HardHat, History, Eye } from 'lucide-react';
+import { FolderKanban, AlertTriangle, HardHat, History, Eye, Flame, ShieldAlert, ClipboardCheck } from 'lucide-react';
 
 /**
  * HSE Dashboard (v1.10.0). Distinct from PPE's own dashboard
@@ -17,6 +17,7 @@ import { FolderKanban, AlertTriangle, HardHat, History, Eye } from 'lucide-react
 export default function HseDashboard({
     activeProjectsCount, openIncidentsCount, incidentsBySeverity, ppeAlertCount,
     recentIncidents, recentActivity, openSafetyObservationsCount, recentSafetyObservations,
+    openPermitsCount, overdueSafetyEquipmentCount, overdueP3kCount, openCapaCount,
 }) {
     return (
         <AuthenticatedLayout>
@@ -29,6 +30,10 @@ export default function HseDashboard({
                 <StatCard icon={Eye} value={openSafetyObservationsCount} label="Open Observations" accent={openSafetyObservationsCount > 0 ? 'amber' : null} href={route('safety-observations.index')} />
                 <StatCard icon={HardHat} value={ppeAlertCount} label="PPE Alerts" accent={ppeAlertCount > 0 ? 'amber' : null} href={route('ppe.dashboard')} />
                 <StatCard icon={AlertTriangle} value={incidentsBySeverity?.critical ?? 0} label="Critical Incidents" accent={(incidentsBySeverity?.critical ?? 0) > 0 ? 'red' : null} href={route('incidents.index', { severity: 'critical' })} />
+                <StatCard icon={Flame} value={openPermitsCount} label="Open Permits" href={route('permits-to-work.index')} />
+                <StatCard icon={ShieldAlert} value={overdueSafetyEquipmentCount} label="Overdue Equipment" accent={overdueSafetyEquipmentCount > 0 ? 'red' : null} href={route('hse.master')} />
+                <StatCard icon={ShieldAlert} value={overdueP3kCount} label="Overdue P3K" accent={overdueP3kCount > 0 ? 'red' : null} href={route('hse.master')} />
+                <StatCard icon={ClipboardCheck} value={openCapaCount} label="Open CAPA" accent={openCapaCount > 0 ? 'amber' : null} href={route('corrective-actions.index')} />
             </div>
 
             <div className="mt-4 grid grid-cols-1 gap-3 lg:grid-cols-3">

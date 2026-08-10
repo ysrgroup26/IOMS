@@ -26,6 +26,21 @@ codebase's history — kept here so they don't get repeated in a slightly differ
   intentionally non-standard table name. When in doubt, check the model's `protected $table`
   property or the table's original creation migration directly — don't assume standard
   pluralization holds.
+- **The same naive-pluralization risk applies to the *model*, not just its foreign keys — verified
+  the hard way in production.** `PermitToWork` had no `protected $table` at all, so Eloquent
+  inferred one from the class name: snake_case (`permit_to_work`) then pluralize only the last word
+  (`work` → `works`) → `permit_to_works`. The actual migration
+  (`2026_08_20_100067_create_permits_to_work_table`) — and the FKs in `gas_test_records`/
+  `loto_records` that correctly `->constrained('permits_to_work')` — all use `permits_to_work`
+  (pluralized as a whole compound noun, matching how a person would actually say it). The mismatch
+  shipped silently because nothing exercised `PermitToWork::query()` in any environment that would
+  have surfaced it before a real HSE Dashboard widget (`HseDashboardController`'s `openPermitsCount`)
+  hit it in production: `SQLSTATE[42S02]: Base table 'permit_to_works' doesn't exist`. Fixed with an
+  explicit `protected $table = 'permits_to_work';` — the existing, already-migrated production table
+  is the source of truth; the model was wrong, not the schema. **Whenever a model's class name is a
+  multi-word compound noun (`XToY`, `XOfY`, or similar), don't trust Eloquent's default table-name
+  inference — check it against the model's own creation migration explicitly**, the same "verify,
+  don't assume" instinct as the `->constrained()` pitfall directly above.
 - **Double-check new routes land in the right middleware group**, especially when adding routes
   near an existing `role:super_admin`-restricted block. This has happened for real: an entire new
   module's routes were once accidentally nested inside a Super-Admin-only group, silently locking

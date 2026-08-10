@@ -16,6 +16,15 @@ class PermitToWork extends Model
 {
     use HasWorkflow, SoftDeletes;
 
+    // Production bug fix: Eloquent's default table-name inference
+    // pluralizes "PermitToWork" as `permit_to_works` (naive last-word
+    // pluralization), but the owning migration
+    // (2026_08_20_100067_create_permits_to_work_table) -- and the FKs in
+    // gas_test_records/loto_records that reference it -- all use
+    // `permits_to_work`. Explicit $table makes the model match the real,
+    // already-migrated table instead of the other way around.
+    protected $table = 'permits_to_work';
+
     public const STATUS_DRAFT = 'draft';
 
     public const STATUS_SUBMITTED = 'submitted';

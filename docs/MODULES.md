@@ -401,6 +401,15 @@ the system never blocks issuance on it. Already gets automatic status-change not
 via `HasWorkflow` (its `requester()`/`requested_by` naming already matches the trait's own
 convention, no override needed). Numbered `PTW-{year}-{00001}`.
 
+Backing table is `permits_to_work` (from its creation migration,
+`2026_08_20_100067_create_permits_to_work_table`), NOT Eloquent's naive default
+(`permit_to_works`, from pluralizing only the last word of the snake-cased class name) — the model
+carries an explicit `protected $table = 'permits_to_work';` for exactly this reason. This was a real
+production bug (`HseDashboardController`'s `openPermitsCount` widget threw `SQLSTATE[42S02]: Base
+table 'permit_to_works' doesn't exist`) fixed by correcting the model to match the already-migrated
+table, not the other way around — see `CONVENTIONS.md`'s Migrations pitfalls for the general rule
+this established.
+
 ## Gas Test
 
 **Department:** HSE (Milestone 4, Workstream B7).

@@ -36,6 +36,7 @@ use App\Http\Controllers\KpiRecordController;
 use App\Http\Controllers\LeaveRequestController;
 use App\Http\Controllers\LogisticsDashboardController;
 use App\Http\Controllers\LotoRecordController;
+use App\Http\Controllers\MaintenanceRequestController;
 use App\Http\Controllers\MaterialRequestController;
 use App\Http\Controllers\MilestoneController;
 use App\Http\Controllers\P3kBoxController;
@@ -64,6 +65,7 @@ use App\Http\Controllers\TbmMeetingController;
 use App\Http\Controllers\VendorController;
 use App\Http\Controllers\VendorPerformanceController;
 use App\Http\Controllers\VendorQuotationController;
+use App\Http\Controllers\WorkOrderController;
 use App\Http\Controllers\WorkCenterController;
 use Illuminate\Support\Facades\Route;
 
@@ -326,6 +328,20 @@ Route::middleware(['auth', 'restrict.platform-admin'])->group(function () {
     Route::post('/assets/{asset}/transfer', [AssetController::class, 'transfer'])->name('assets.transfer');
     Route::post('/assets/{asset}/inspect', [AssetController::class, 'inspect'])->name('assets.inspect');
     Route::post('/assets/{asset}/status', [AssetController::class, 'changeStatus'])->name('assets.change-status');
+
+    // Maintenance CMMS Foundation (Milestone 4, Acceleration Part 2).
+    Route::get('/maintenance-requests', [MaintenanceRequestController::class, 'index'])->name('maintenance-requests.index');
+    Route::get('/maintenance-requests/create', [MaintenanceRequestController::class, 'create'])->name('maintenance-requests.create');
+    Route::post('/maintenance-requests', [MaintenanceRequestController::class, 'store'])->name('maintenance-requests.store');
+    Route::get('/maintenance-requests/{maintenanceRequest}', [MaintenanceRequestController::class, 'show'])->name('maintenance-requests.show');
+    Route::post('/maintenance-requests/{maintenanceRequest}/transition', [MaintenanceRequestController::class, 'transition'])->name('maintenance-requests.transition');
+
+    Route::get('/work-orders', [WorkOrderController::class, 'index'])->name('work-orders.index');
+    Route::get('/work-orders/create', [WorkOrderController::class, 'create'])->name('work-orders.create');
+    Route::post('/work-orders', [WorkOrderController::class, 'store'])->name('work-orders.store');
+    Route::get('/work-orders/{workOrder}', [WorkOrderController::class, 'show'])->name('work-orders.show');
+    Route::post('/work-orders/{workOrder}/transition', [WorkOrderController::class, 'transition'])->name('work-orders.transition');
+    Route::post('/work-orders/{workOrder}/spare-parts', [WorkOrderController::class, 'addSparePart'])->name('work-orders.spare-parts.store');
 
     // Daily HSE Report: viewable by all roles; mutation below is admin-scoped.
     Route::get('/daily-reports', [DailyReportController::class, 'index'])->name('daily-reports.index');

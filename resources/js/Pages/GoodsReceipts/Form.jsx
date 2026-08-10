@@ -9,18 +9,34 @@ import { Select, SelectTrigger, SelectValue, SelectContent, SelectItem } from '@
 import { ArrowLeft, Plus, Trash2 } from 'lucide-react';
 
 function emptyItem() {
-    return { description: '', quantity_received: '1', unit: '' };
+    return { description: '', quantity_received: '1', unit: '', purchase_order_item_id: null };
 }
 
-/** Goods Receipt create form (v1.10.0). Dynamic item table, same add/remove-row pattern as Material Request -- no image uploads (unneeded here), no edit route (a receipt is an immutable record of what arrived). */
-export default function GoodsReceiptForm({ materialRequests, projects, receiptNumber }) {
+/**
+ * Goods Receipt create form (v1.10.0, extended Milestone 4 Workstream C5
+ * for PO integration). Dynamic item table, same add/remove-row pattern as
+ * Material Request -- no image uploads (unneeded here), no edit route (a
+ * receipt is an immutable record of what arrived). A receipt links to
+ * EITHER a Material Request OR a Purchase Order, never both -- picking
+ * one clears the other. Selecting a PO offers "Load Remaining Items" to
+ * prefill rows from that PO's own outstanding quantities, still fully
+ * editable (a delivery is never forced to match the order exactly).
+ */
+export default function GoodsReceiptForm({ materialRequests, purchaseOrders, projects, receiptNumber, preselectedPo }) {
     const { data, setData, post, processing, errors } = useForm({
         received_date: new Date().toISOString().slice(0, 10),
         material_request_id: '',
+        purchase_order_id: preselectedPo ? String(preselectedPo.id) : '',
         project_id: '',
         notes: '',
-        items: [emptyItem()],
+        items: preselectedPo ? preselectedPo.items.filter((i) => i.remaining_quantity > 0).map((i) => ({ description: i.description, quantity_received: String(i.remaining_quantity), unit: i.unit, purchase_order_item_id: i.id })) : [emptyItem()],
     });
+
+    function loadPoItems() {
+        const po = purchaseOrders.find((p) => String(p.id) === data.purchase_order_id);
+        if (!po) return;
+        setData('items', po.items.filter((i) => i.remaining_quantity > 0).map((i) => ({ description: i.description, quantity_received: String(i.remaining_quantity), unit: i.unit, purchase_order_item_id: i.id })));
+    }
 
     function updateItem(index, field, value) {
         const items = [...data.items];
@@ -61,7 +77,7 @@ export default function GoodsReceiptForm({ materialRequests, projects, receiptNu
                             </div>
                             <div className="space-y-1.5">
                                 <Label>Material Request (optional)</Label>
-                                <Select value={data.material_request_id ? String(data.material_request_id) : 'none'} onValueChange={(v) => setData('material_request_id', v === 'none' ? '' : v)}>
+                                <Select value={data.material_request_id ? String(data.material_request_id) : 'none'} onValueChange={(v) => setData({ ...data, material_request_id: v === 'none' ? '' : v, purchase_order_id: v === 'none' ? data.purchase_order_id : '' })}>
                                     <SelectTrigger><SelectValue placeholder="Not linked" /></SelectTrigger>
                                     <SelectContent>
                                         <SelectItem value="none">Not linked</SelectItem>
@@ -69,6 +85,20 @@ export default function GoodsReceiptForm({ materialRequests, projects, receiptNu
                                     </SelectContent>
                                 </Select>
                             </div>
+                        </div>
+
+                        <div className="flex items-end gap-2">
+                            <div className="flex-1 space-y-1.5">
+                                <Label>Purchase Order (optional)</Label>
+                                <Select value={data.purchase_order_id ? String(data.purchase_order_id) : 'none'} onValueChange={(v) => setData({ ...data, purchase_order_id: v === 'none' ? '' : v, material_request_id: v === 'none' ? data.material_request_id : '' })}>
+                                    <SelectTrigger><SelectValue placeholder="Not linked" /></SelectTrigger>
+                                    <SelectContent>
+                                        <SelectItem value="none">Not linked</SelectItem>
+                                        {purchaseOrders.map((po) => <SelectItem key={po.id} value={String(po.id)}>{po.po_number}</SelectItem>)}
+                                    </SelectContent>
+                                </Select>
+                            </div>
+                            {data.purchase_order_id && <Button type="button" variant="outline" size="sm" onClick={loadPoItems}>Load Remaining Items</Button>}
                         </div>
 
                         <div className="space-y-1.5">

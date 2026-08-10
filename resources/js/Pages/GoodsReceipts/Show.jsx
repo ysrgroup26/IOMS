@@ -19,6 +19,8 @@ export default function GoodsReceiptShow({ goodsReceipt: gr, activities }) {
                 <p className="text-xs text-graphite-500">
                     {new Date(gr.received_date).toLocaleDateString('en-US', { day: 'numeric', month: 'long', year: 'numeric' })}
                     {gr.material_request && ` · ${gr.material_request.request_number}`}
+                    {gr.purchase_order && ` · `}
+                    {gr.purchase_order && <Link href={route('purchase-orders.show', gr.purchase_order.id)} className="text-brand-700 hover:underline">{gr.purchase_order.po_number}</Link>}
                     {gr.project && ` · ${gr.project.name}`}
                     {` · Received by ${gr.receiver?.name}`}
                 </p>

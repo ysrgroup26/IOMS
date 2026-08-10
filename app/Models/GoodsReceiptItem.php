@@ -8,6 +8,7 @@ class GoodsReceiptItem extends Model
 {
     protected $fillable = [
         'goods_receipt_id',
+        'purchase_order_item_id',
         'description',
         'quantity_received',
         'unit',
@@ -17,5 +18,11 @@ class GoodsReceiptItem extends Model
     public function goodsReceipt()
     {
         return $this->belongsTo(GoodsReceipt::class);
+    }
+
+    /** Milestone 4, Workstream C5 -- the actual reconciliation link PurchaseOrderItem::getDeliveredQuantityAttribute() sums against. */
+    public function purchaseOrderItem()
+    {
+        return $this->belongsTo(PurchaseOrderItem::class);
     }
 }

@@ -14,6 +14,7 @@ class GoodsReceipt extends Model
         'receipt_number',
         'received_date',
         'material_request_id',
+        'purchase_order_id',
         'project_id',
         'received_by',
         'notes',
@@ -29,6 +30,12 @@ class GoodsReceipt extends Model
     public function materialRequest()
     {
         return $this->belongsTo(MaterialRequest::class);
+    }
+
+    /** Milestone 4, Workstream C5 -- Procurement's PO->GRN integration, additive to the existing Material Request flow (see this model's own migration doc comment). */
+    public function purchaseOrder()
+    {
+        return $this->belongsTo(PurchaseOrder::class);
     }
 
     public function project()

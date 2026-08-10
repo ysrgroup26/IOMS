@@ -9,6 +9,7 @@ use App\Http\Controllers\Auth\NewPasswordController;
 use App\Http\Controllers\Auth\PasswordResetLinkController;
 use App\Http\Controllers\ComingSoonController;
 use App\Http\Controllers\CompetencyController;
+use App\Http\Controllers\ContractorController;
 use App\Http\Controllers\CompetencyTypeController;
 use App\Http\Controllers\CorrectiveActionController;
 use App\Http\Controllers\DailyReportController;
@@ -365,6 +366,18 @@ Route::middleware(['auth', 'restrict.platform-admin'])->group(function () {
     Route::get('/ncrs/{ncr}', [NcrController::class, 'show'])->name('ncrs.show');
     Route::post('/ncrs/{ncr}/corrective-action', [NcrController::class, 'raiseCorrectiveAction'])->name('ncrs.raise-corrective-action');
     Route::post('/ncrs/{ncr}/close', [NcrController::class, 'close'])->name('ncrs.close');
+
+    // Contractor Management (Milestone 4, Acceleration Part 4).
+    Route::get('/contractors', [ContractorController::class, 'index'])->name('contractors.index');
+    Route::get('/contractors/create', [ContractorController::class, 'create'])->name('contractors.create');
+    Route::post('/contractors', [ContractorController::class, 'store'])->name('contractors.store');
+    Route::get('/contractors/{contractor}', [ContractorController::class, 'show'])->name('contractors.show');
+    Route::post('/contractors/{contractor}/approval', [ContractorController::class, 'reviewApproval'])->name('contractors.approval');
+    Route::post('/contractors/{contractor}/documents', [ContractorController::class, 'storeDocument'])->name('contractors.documents.store');
+    Route::delete('/contractors/{contractor}/documents/{document}', [ContractorController::class, 'destroyDocument'])->name('contractors.documents.destroy');
+    Route::post('/contractors/{contractor}/workers', [ContractorController::class, 'storeWorker'])->name('contractors.workers.store');
+    Route::put('/contractors/{contractor}/workers/{worker}', [ContractorController::class, 'updateWorker'])->name('contractors.workers.update');
+    Route::delete('/contractors/{contractor}/workers/{worker}', [ContractorController::class, 'destroyWorker'])->name('contractors.workers.destroy');
 
     // Daily HSE Report: viewable by all roles; mutation below is admin-scoped.
     Route::get('/daily-reports', [DailyReportController::class, 'index'])->name('daily-reports.index');

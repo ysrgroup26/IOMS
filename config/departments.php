@@ -1,38 +1,63 @@
 <?php
 
 /**
- * Department Access Map (v1.10.3). The backend counterpart to
- * `resources/js/lib/workspaces.js`'s `PREFIX_TO_WORKSPACE` -- deliberately
+ * Department Access Map (v1.10.3, hardened v1.10.5). The backend counterpart
+ * to `resources/js/lib/workspaces.js`'s `PREFIX_TO_WORKSPACE` -- deliberately
  * a separate, explicit PHP map rather than trying to parse the JS file at
  * runtime. Keyed the same way (route-name prefix -> owning department
- * key), used by `App\Http\Middleware\RestrictDepartmentAccess` to
- * actually enforce what the frontend only ever hid from view.
+ * key), used by `App\Http\Middleware\RestrictDepartmentAccess` to actually
+ * enforce what the frontend only ever hid from view.
  *
- * A prefix not listed here at all is treated as universal (never denied
- * for a Department User) -- see the middleware's own `$universal` list
- * for the small set of routes every authenticated user needs regardless
- * of department (dashboard, work center, search, logout).
+ * v1.10.5: this map is now treated as EXHAUSTIVE for every non-universal
+ * route prefix in the app (cross-checked against `routes/web.php` directly,
+ * not assumed) -- see the middleware's own doc comment for why a prefix
+ * missing from here is now DENIED rather than allowed. A truly
+ * cross-department route belongs in the middleware's own
+ * `UNIVERSAL_PREFIXES` list instead, not omitted from this file.
  */
 return [
-    // v1.10.4: kpi-input/kpi-records moved here from 'hr' -- the KPI
-    // module's routes were already role:super_admin,hse-gated at the
-    // route level, so this map was actually wrong before, not just the
-    // frontend nav; see workspaces.js's own v1.10.4 note.
-    'hr' => ['employees', 'leave-requests', 'hr'],
-    'hse' => ['ppe', 'incidents', 'kpi-input', 'kpi-records', 'hse'],
-    'project-management' => ['projects', 'daily-reports', 'milestones', 'project-management'],
-    'logistics' => ['material-requests', 'goods-receipts', 'logistics'],
+    'hr' => [
+        'employees', 'employee-competencies', 'employee-rosters',
+        'employee-shift-assignments', 'leave-requests', 'shifts', 'rosters',
+        'roster-patterns', 'competency', 'competency-types', 'hr',
+    ],
+    // v1.10.5: expanded from the pre-Workstream-B list (ppe, incidents,
+    // kpi-input, kpi-records, hse) to cover every HSE route prefix that
+    // actually exists today -- Safety Observation, HSE Inspection, HIRADC,
+    // JSA, Permit To Work, LOTO, TBM, CAPA, HSE master data, and (placed
+    // here per their own `canManage*()` gates reusing the HSE role)
+    // Contractor/Visitor/Document Control.
+    'hse' => [
+        'ppe', 'ppe-types', 'incidents', 'kpi-input', 'kpi-records', 'hse',
+        'safety-observations', 'hse-inspections', 'risk-assessments',
+        'job-safety-analyses', 'permits-to-work', 'loto-records',
+        'tbm-meetings', 'corrective-actions', 'hazard-categories',
+        'safety-equipment', 'hse-materials', 'p3k-boxes',
+        'contractors', 'visitors', 'controlled-documents',
+    ],
+    'project-management' => [
+        'projects', 'daily-reports', 'milestones', 'project-management',
+    ],
+    // v1.10.5: Item Master/Warehouse/Stock added -- Warehouse stays inside
+    // Logistics (not the separate, still-placeholder 'warehouse' department
+    // below), matching `workspaces.js`'s own explicit note.
+    'logistics' => [
+        'material-requests', 'goods-receipts', 'logistics',
+        'items', 'warehouses', 'stock',
+    ],
     'warehouse' => ['warehouse'],
-    'procurement' => ['procurement'],
-    'asset-management' => ['asset-management'],
-    'maintenance' => ['maintenance'],
-    'quality-control' => ['quality-control'],
+    'procurement' => [
+        'procurement', 'purchase-requisitions', 'purchase-orders', 'rfqs', 'vendors',
+    ],
+    'asset-management' => ['assets', 'asset-management'],
+    'maintenance' => ['maintenance-requests', 'work-orders', 'maintenance'],
+    'quality-control' => ['inspection-requests', 'ncrs', 'quality-control'],
     'finance' => ['finance'],
 
     // Not real departments a user can be assigned to -- listed here only
     // so their route prefixes are correctly DENIED to every Department
     // User rather than falling through as "universal". No department_key
     // will ever equal these, so they're effectively "Administrator only".
-    'reports' => ['reports'],
-    'administration' => ['settings'],
+    'reports' => ['reports', 'analytics', 'report-center'],
+    'administration' => ['settings', 'activity-center'],
 ];

@@ -10,7 +10,7 @@ import { Select, SelectTrigger, SelectValue, SelectContent, SelectItem } from '@
 import {
     Dialog, DialogContent, DialogHeader, DialogTitle, DialogFooter,
 } from '@/Components/ui/dialog';
-import { ArrowLeft, Pencil, Trash2, MapPin, Calendar, UserPlus, X, Clock, Search } from 'lucide-react';
+import { ArrowLeft, Pencil, Trash2, MapPin, Calendar, UserPlus, X, Clock, Search, ListChecks } from 'lucide-react';
 
 const STATUS_VARIANT = {
     planned: 'secondary',
@@ -63,16 +63,27 @@ export default function ProjectShow({ project, manpowerGrouped, timeline, availa
                         )}
                     </div>
                 </div>
-                {can.manage && (
-                    <div className="flex gap-2">
-                        <Button variant="outline" asChild>
-                            <Link href={route('projects.edit', project.id)}><Pencil className="h-4 w-4" /> Edit</Link>
-                        </Button>
-                        <Button variant="destructive" onClick={destroy}>
-                            <Trash2 className="h-4 w-4" /> Delete
-                        </Button>
-                    </div>
-                )}
+                <div className="flex gap-2">
+                    {/* v1.10.5: was previously unreachable from any UI --
+                        the backend/route (`projects.activities`) has existed
+                        since Acceleration Part 3, but nothing linked to it.
+                        Viewable by everyone who can view the project itself,
+                        matching the "view is open, mutation is gated"
+                        pattern used throughout this page. */}
+                    <Button variant="outline" asChild>
+                        <Link href={route('projects.activities', project.id)}><ListChecks className="h-4 w-4" /> Activities</Link>
+                    </Button>
+                    {can.manage && (
+                        <>
+                            <Button variant="outline" asChild>
+                                <Link href={route('projects.edit', project.id)}><Pencil className="h-4 w-4" /> Edit</Link>
+                            </Button>
+                            <Button variant="destructive" onClick={destroy}>
+                                <Trash2 className="h-4 w-4" /> Delete
+                            </Button>
+                        </>
+                    )}
+                </div>
             </div>
 
             <div className="grid grid-cols-1 gap-4 lg:grid-cols-3">

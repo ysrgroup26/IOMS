@@ -176,25 +176,67 @@ codebase's history — kept here so they don't get repeated in a slightly differ
   no `company_id` of its own at all, so the fix derives ownership through whichever parent record —
   `MaterialRequest` or `PurchaseOrder` — the receipt is linked to, via `whereHas()` for the list
   query and a dedicated `assertInCurrentTenant()` for the route-model-bound actions). Flagged, not yet fixed
-  (background tasks, to avoid silently expanding an unrelated change's scope): `PpeController` (the
-  KpiCategory-class leak), a per-instance ownership guard missing from
-  `CompetencyTypeController`/`ShiftController`/`RosterPatternController`'s `update()`/`destroy()`
-  (their `Store`/`UpdateXRequest` only validates the *submitted* `company_id`, never checks the
-  *existing* route-model-bound record's own tenant — every new HSE master controller this workstream,
-  `HazardCategoryController`/`SafetyEquipmentController`/`HseMaterialController`/`P3kBoxController`,
-  DOES include this guard from the start, so this is specifically about the three older,
-  pre-Workstream-B controllers). See `docs/ADR/008-tenancy-foundation.md`'s Consequences section for
+  (background task, to avoid silently expanding an unrelated change's scope): `PpeController` (the
+  KpiCategory-class leak). See `docs/ADR/008-tenancy-foundation.md`'s Consequences section for
   the underlying design tradeoff.
 
-- **A pre-existing route-name collision, found (not caused) during this workstream's own
-  verification pass:** two separate route definitions in `routes/web.php` both register the name
-  `dashboard` (`Route::get('/dashboard', ...)->name('dashboard')` for tenant users, and
-  `Route::get('/', [PlatformController::class, 'dashboard'])->name('dashboard')` under the Platform
-  Super Admin `/platform` group) — confirmed present since at least commit `833aebd` (before any
-  Workstream B work began), so this is not something the HSE modules introduced. Laravel silently
-  lets the later-registered route win for `route('dashboard')` resolution; whether that's actually
-  the intended one in every calling context hasn't been verified. Not fixed here (touching platform
-  routing is out of scope for an HSE change) — flagged for separate follow-up.
+- **v1.10.5 Final Integration Pass — the per-instance ownership guard flagged above was fixed** for
+  `CompetencyTypeController`/`ShiftController`/`RosterPatternController` (`update()`/`destroy()` now
+  call a private `assertInCurrentTenant()` before touching the route-bound record, matching every
+  other Milestone 4 controller).
+
+- **v1.10.5 — `EmployeeController` had the SAME missing-ownership-guard bug, at larger scope and
+  higher severity, in the app's original pre-Milestone-4 resource.** `show()`/`edit()`/`update()`/
+  `destroy()` had no `assertInCurrentTenant()` at all — only a role check (`authorize('update'|
+  'delete', ...)`, i.e. `isAdmin()`), never a check that the route-bound `$employee` actually belongs
+  to the current tenant. Any admin from Tenant A could view, edit, or delete any employee record in
+  the system by guessing/incrementing the id. Fixed with the same guard used everywhere else.
+  **Separately, and more severe: `EmployeeController::index()` and `EmployeeExport` had no BASE
+  tenant filter on the underlying query at all** (`Employee::inCompany($companyId)` is a no-op when
+  `$companyId` is null, and `Employee` carries no `TenantScope` of its own — only `Company` does).
+  Omitting the optional `?company_id=` filter — the default landing state of both the Employee list
+  page and the Export button — returned/exported **every tenant's entire employee roster**, not a
+  single-record IDOR but a full cross-tenant data leak. Fixed by adding an unconditional
+  `whereIn('employees.company_id', Company::query()->pluck('id'))` as the base of both queries, with
+  the optional `$companyId` filter still narrowing further within that set (a `$companyId` from
+  another tenant now combines to zero rows rather than leaking that tenant's data, so it needs no
+  separate validation). `StoreEmployeeRequest`/`UpdateEmployeeRequest`'s raw
+  `exists:companies,id`/`exists:departments,id`/`exists:positions,id` were also replaced with
+  tenant-scoped `Rule::in()`, matching every Milestone 4 FormRequest. **Flagged, not yet fixed**
+  (background task): the same raw-`exists:` pattern is still present in roughly 20 other
+  pre-Milestone-4 FormRequests/controllers (Project, MaterialRequest, KpiCategory, KpiRecord, Task,
+  DailyReport, LeaveRequest, Milestone, PPE, Settings' Department/Position creation) — large enough
+  in surface area that fixing all of it in the same pass that found it would have meaningfully raised
+  regression risk with no test runner available to catch mistakes; deliberately scoped as a separate
+  follow-up instead of silently expanded here.
+
+- **v1.10.5 — `App\Http\Middleware\RestrictDepartmentAccess` flipped from fail-open to fail-closed.**
+  It used to allow any route-name prefix not found in `config/departments.php` ("the map is a curated
+  allow-list, not exhaustive, so an unmapped route is more likely an oversight than something to lock
+  down"). In practice this meant `config/departments.php`'s `hse` array had gone stale (still only
+  `ppe`/`incidents`/`kpi-input`/`kpi-records`/`hse`, predating Workstream B entirely) and every HSE
+  route Workstream B actually added was reachable by direct URL from a Department User assigned to
+  *any other* department — "unmapped" was silently meaning "unrestricted," discovered only by
+  deliberately auditing for it, not by a bug report. `config/departments.php` is now treated as
+  exhaustive (cross-checked against every route-name prefix in `routes/web.php` directly), and the
+  middleware denies by default; a route genuinely needed by every department regardless of assignment
+  goes in the middleware's own small `UNIVERSAL_PREFIXES` list instead of being left out of the map by
+  omission. Administrators (`department_key = null`) are entirely unaffected either way — this
+  middleware only ever runs for the opt-in Department User mechanism.
+
+- **A previously-flagged "route-name collision" re-checked and found NOT to be real (v1.10.5).**
+  This entry used to claim `routes/web.php` registered the name `dashboard` twice -- once for tenant
+  users, once under the Platform Super Admin `/platform` group. Re-auditing the actual route
+  definitions directly (not just the route-name strings written at each `->name(...)` call site)
+  shows the platform group is declared as `Route::middleware(['auth', 'role:platform_admin'])
+  ->prefix('platform')->name('platform.')->group(...)` -- the group's own `->name('platform.')`
+  prefixes every child route's name, so `Route::get('/', ...)->name('dashboard')` inside it actually
+  resolves to `platform.dashboard`, not `dashboard`. There is no collision: `route('dashboard')`
+  always resolves to the one tenant-facing route. The earlier note either predates that group
+  gaining its `->name('platform.')` prefix, or was written by reading the literal `->name(...)`
+  argument text rather than the fully-resolved route name -- worth remembering as its own lesson:
+  **when auditing for route-name collisions, always account for group-level `->name()` prefixing,
+  not just the string literal passed to each individual route.**
 
 - **Any place that sets Spatie's permission team id must use the same `0` sentinel for a Platform
   Super Admin (`tenant_id` null) that `RolePermissionSeeder` used when assigning their role** — the

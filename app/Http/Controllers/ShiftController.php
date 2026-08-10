@@ -51,6 +51,8 @@ class ShiftController extends Controller
 
     public function update(UpdateShiftRequest $request, Shift $shift): RedirectResponse
     {
+        $this->assertInCurrentTenant($shift);
+
         $shift->update($request->validated());
 
         ActivityLog::record('updated', "Shift \"{$shift->name}\" was updated.", $shift);
@@ -61,6 +63,7 @@ class ShiftController extends Controller
     public function destroy(Shift $shift): RedirectResponse
     {
         $this->authorize('delete', $shift);
+        $this->assertInCurrentTenant($shift);
 
         if ($shift->shiftAssignments()->exists() || $shift->rosters()->exists()) {
             return back()->with('error', 'Cannot delete a shift that is assigned to employees or rosters.');
@@ -72,5 +75,11 @@ class ShiftController extends Controller
         ActivityLog::record('deleted', "Shift \"{$name}\" was removed.");
 
         return back()->with('success', 'Shift removed.');
+    }
+
+    /** v1.10.5 security fix -- same gap and same fix as CompetencyTypeController::assertInCurrentTenant(), see its doc comment. */
+    private function assertInCurrentTenant(Shift $shift): void
+    {
+        abort_unless(Company::query()->pluck('id')->contains($shift->company_id), 404);
     }
 }

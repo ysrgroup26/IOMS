@@ -2,7 +2,10 @@
 
 namespace App\Http\Requests;
 
+use App\Models\Company;
+use App\Models\Department;
 use App\Models\Employee;
+use App\Models\Position;
 use Illuminate\Foundation\Http\FormRequest;
 use Illuminate\Validation\Rule;
 
@@ -15,13 +18,25 @@ class StoreEmployeeRequest extends FormRequest
 
     public function rules(): array
     {
+        // v1.10.5 security fix: these three were plain `exists:` --
+        // Laravel's `exists` rule never goes through Company's own
+        // TenantScope, so a raw `exists:companies,id` (etc.) accepts ANY
+        // tenant's id, not just the current tenant's own. Same IDOR guard
+        // already used throughout every Milestone 4 controller (see
+        // StoreCompetencyTypeRequest's own doc comment for the fuller
+        // explanation) -- now applied to Employee, the app's original,
+        // pre-Milestone-4 resource.
+        $tenantCompanyIds = Company::query()->pluck('id');
+        $tenantDepartmentIds = Department::whereIn('company_id', $tenantCompanyIds)->pluck('id');
+        $tenantPositionIds = Position::whereIn('company_id', $tenantCompanyIds)->pluck('id');
+
         return [
             'employee_id' => ['required', 'string', 'max:50', 'unique:employees,employee_id'],
             'nik' => ['nullable', 'string', 'max:20'],
             'full_name' => ['required', 'string', 'max:255'],
-            'company_id' => ['required', 'exists:companies,id'],
-            'department_id' => ['required', 'exists:departments,id'],
-            'position_id' => ['nullable', 'exists:positions,id'],
+            'company_id' => ['required', Rule::in($tenantCompanyIds)],
+            'department_id' => ['required', Rule::in($tenantDepartmentIds)],
+            'position_id' => ['nullable', Rule::in($tenantPositionIds)],
             'status' => ['required', 'in:active,inactive,resigned'],
             // Milestone 4, Workstream A (Workforce Classification).
             'employment_type' => ['required', Rule::in(Employee::EMPLOYMENT_TYPES)],

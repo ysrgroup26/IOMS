@@ -24,12 +24,18 @@ class EmployeeExport implements FromCollection, ShouldAutoSize, WithHeadings, Wi
 {
     private const ALL_FIELDS = ['employee_id', 'full_name', 'company', 'department', 'position', 'status', 'join_date', 'phone'];
 
-    /** @param  array<string,string>|null  $fields  field_key => column label, in export order */
+    /**
+     * @param  array<string,string>|null  $fields  field_key => column label, in export order
+     * @param  \Illuminate\Support\Collection<int,int>|array<int,int>|null  $tenantCompanyIds  the
+     *         current tenant's own company ids (`Company::query()->pluck('id')`) -- v1.10.5
+     *         security fix, see the class doc comment.
+     */
     public function __construct(
         private readonly ?int $departmentId = null,
         private readonly ?string $search = null,
         private readonly ?int $companyId = null,
         private readonly ?array $fields = null,
+        private readonly array|\Illuminate\Support\Collection|null $tenantCompanyIds = null,
     ) {}
 
     /**
@@ -52,7 +58,15 @@ class EmployeeExport implements FromCollection, ShouldAutoSize, WithHeadings, Wi
 
     public function collection()
     {
+        // v1.10.5 security fix: this previously had no base tenant filter
+        // at all -- exporting with no `?company_id=` picked (the default
+        // "export everyone" action) downloaded every tenant's employee
+        // roster into one Excel file, not just the current tenant's. A
+        // null `$tenantCompanyIds` (only possible if a caller forgets to
+        // pass it) intentionally returns zero rows rather than silently
+        // falling back to "everyone" -- fail closed, not open.
         return Employee::query()
+            ->whereIn('employees.company_id', $this->tenantCompanyIds ?? [])
             ->with('company', 'department', 'position')
             ->search($this->search)
             ->inCompany($this->companyId)

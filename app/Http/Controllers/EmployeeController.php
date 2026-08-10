@@ -35,9 +35,22 @@ class EmployeeController extends Controller
     {
         $this->authorize('viewAny', Employee::class);
 
+        // v1.10.5 security fix: `Employee` carries no TenantScope of its
+        // own (only `Company` does -- see CLAUDE.md's "Where things
+        // actually are"). Without this base `whereIn`, omitting the
+        // optional `?company_id=` filter entirely (the default landing
+        // state of this page) returned EVERY tenant's employees, not just
+        // the current tenant's -- a full-roster cross-tenant leak, not
+        // just a single-record IDOR. `inCompany($companyId)` below still
+        // narrows within this set exactly as before; if `$companyId`
+        // belongs to another tenant, the two conditions combine to zero
+        // rows rather than leaking that tenant's data, so `$companyId`
+        // itself doesn't need a separate Rule::in() check here.
+        $tenantCompanyIds = Company::query()->pluck('id');
         $companyId = $request->input('company_id') ? (int) $request->input('company_id') : null;
 
         $employees = Employee::query()
+            ->whereIn('employees.company_id', $tenantCompanyIds)
             ->with('company', 'department', 'position')
             ->search($request->input('search'))
             ->inCompany($companyId)
@@ -105,6 +118,8 @@ class EmployeeController extends Controller
 
     public function show(Employee $employee): Response
     {
+        $this->assertInCurrentTenant($employee);
+
         $employee->load(
             'company', 'department', 'position', 'internship', 'competencies.competencyType',
             'shiftAssignments.shift', 'rosters.shift', 'rosters.rosterPattern', 'rosters.project'
@@ -144,6 +159,7 @@ class EmployeeController extends Controller
     public function edit(Employee $employee): Response
     {
         $this->authorize('update', $employee);
+        $this->assertInCurrentTenant($employee);
 
         $employee->load('internship');
 
@@ -158,6 +174,8 @@ class EmployeeController extends Controller
 
     public function update(UpdateEmployeeRequest $request, Employee $employee): RedirectResponse
     {
+        $this->assertInCurrentTenant($employee);
+
         $data = $request->validated();
         $internshipData = $data['internship'] ?? null;
         unset($data['internship']);
@@ -228,6 +246,7 @@ class EmployeeController extends Controller
     public function destroy(Employee $employee): RedirectResponse
     {
         $this->authorize('delete', $employee);
+        $this->assertInCurrentTenant($employee);
 
         $name = $employee->full_name;
         $employee->delete(); // soft delete: KPI history is preserved
@@ -245,7 +264,10 @@ class EmployeeController extends Controller
 
         ActivityLog::record('exported', 'Exported employee list to Excel.');
 
-        return Excel::download(new EmployeeExport($departmentId, $search, $companyId, $mapping->exportFields('employees')), 'employees.xlsx');
+        return Excel::download(
+            new EmployeeExport($departmentId, $search, $companyId, $mapping->exportFields('employees'), Company::query()->pluck('id')),
+            'employees.xlsx'
+        );
     }
 
     public function importTemplate(): BinaryFileResponse
@@ -266,7 +288,7 @@ class EmployeeController extends Controller
     {
         $request->validate([
             'file' => ['required', 'file', 'mimes:xlsx,xls'],
-            'company_id' => ['required', 'exists:companies,id'],
+            'company_id' => ['required', \Illuminate\Validation\Rule::in(Company::query()->pluck('id'))],
         ]);
 
         $companyId = (int) $request->input('company_id');
@@ -302,7 +324,7 @@ class EmployeeController extends Controller
     {
         $request->validate([
             'file' => ['required', 'file', 'mimes:xlsx,xls'],
-            'company_id' => ['required', 'exists:companies,id'],
+            'company_id' => ['required', \Illuminate\Validation\Rule::in(Company::query()->pluck('id'))],
             'new_departments' => ['array'],
             'new_departments.*' => ['string', 'max:255'],
             'new_positions' => ['array'],
@@ -349,7 +371,7 @@ class EmployeeController extends Controller
     {
         $request->validate([
             'file' => ['required', 'file', 'mimes:xlsx,xls'],
-            'company_id' => ['required', 'exists:companies,id'],
+            'company_id' => ['required', \Illuminate\Validation\Rule::in(Company::query()->pluck('id'))],
         ]);
 
         $import = new EmployeesImport((int) $request->input('company_id'), $request->user()->id, columnKeys: $mapping->importColumnKeys('employees'));
@@ -363,5 +385,22 @@ class EmployeeController extends Controller
             'needs_completion' => $import->needsCompletion,
             'skipped' => $import->skipped,
         ]);
+    }
+
+    /**
+     * v1.10.5 security fix: `show()`/`edit()`/`update()`/`destroy()` had
+     * NO ownership check on the route-model-bound `$employee` at all --
+     * only `authorize('update'|'delete', ...)` (a ROLE check, `isAdmin()`)
+     * gated them, never a check that the employee actually belongs to the
+     * current tenant. Any admin from Tenant A could view, edit, or delete
+     * any employee record in the system by guessing/incrementing the id.
+     * Same `assertInCurrentTenant()` 404-not-403 pattern used throughout
+     * every Milestone 4 controller, now applied to Employee -- the app's
+     * original, pre-Milestone-4 resource and its single most sensitive
+     * piece of tenant-owned data.
+     */
+    private function assertInCurrentTenant(Employee $employee): void
+    {
+        abort_unless(Company::query()->pluck('id')->contains($employee->company_id), 404);
     }
 }

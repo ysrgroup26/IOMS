@@ -812,6 +812,89 @@ anywhere in their queries (every tenant saw every other tenant's logistics/proje
 rewritten to use `DashboardStatsService::resolveCompanyIds(null)`, the same helper every other
 dashboard controller already used correctly.
 
+## Final Industrial Module Completion Pass (v1.10.5)
+
+A consolidated navigation/access/security integration pass across everything Milestone 4 built
+(Workstreams A/B/C and Acceleration Mode). This was explicitly a "connect what already exists" pass,
+not a rebuild — see each item below for what changed and, just as importantly, what was deliberately
+left as-is because the existing embedded UX was already reasonable.
+
+**Navigation fixes:**
+- Removed a stale, disabled "Permit To Work" placeholder from the HSE department nav
+  (`resources/js/lib/workspaces.js`) that sat directly above the real, working PTW entry Workstream
+  B6 later added — the two together read as "PTW is locked" when only the leftover placeholder was.
+  There is now exactly one PTW nav entry.
+- Project `Show.jsx` gained an "Activities" button linking to the already-existing
+  `projects.activities` page (`ProjectActivity`, Acceleration Part 3) — previously real backend with
+  no UI path to reach it at all. This closes the "Project Form/Show UI not updated to surface
+  Activities" known limitation from the earlier Acceleration Mode report.
+
+**Intentionally embedded, not standalone (documented per this same pass's own instruction not to
+duplicate logic just to produce a menu item matching some target tree):**
+- **Asset Transactions / Asset Inspections** live inside `Assets/Show.jsx` — Assign/Transfer/
+  Inspect/Change Status are all one-click actions in the page header, and the resulting
+  `AssetTransaction` rows (including inspections) render in one combined "Transaction History" list
+  on the same page. Judged sufficient: every action is a visible, labeled button, not a hidden
+  gesture; nothing here needed a standalone page.
+- **Contractor Workers / Contractor Documents** live inside `Contractors/Show.jsx` as their own
+  labeled Workers/Documents cards, each with full add/update/remove — same reasoning.
+
+**RBAC / access-control hardening:**
+- `config/departments.php`'s `hse` array was stale (only `ppe`, `incidents`, `kpi-input`,
+  `kpi-records`, `hse` — predating Workstream B entirely). It's now exhaustive across every route
+  prefix in `routes/web.php`, cross-checked directly rather than assumed, and every department's own
+  array was similarly completed (`logistics` gained `items`/`warehouses`/`stock`, `asset-management`
+  gained `assets`, `maintenance` gained `maintenance-requests`/`work-orders`, `quality-control`
+  gained `inspection-requests`/`ncrs`, `hr` gained the Shift/Roster/Competency prefixes,
+  `reports`/`administration` gained `analytics`/`report-center`/`activity-center`).
+- `App\Http\Middleware\RestrictDepartmentAccess` used to **fail open** for any route-name prefix not
+  found in `config/departments.php` ("the map is a curated allow-list, not exhaustive, so an
+  unmapped route is more likely an oversight than something to lock down"). With the map now treated
+  as exhaustive, this flipped to **fail closed**: an unmapped prefix is denied for a Department User
+  unless it's in the middleware's own small `UNIVERSAL_PREFIXES` list (dashboard, home, work-center,
+  approvals, notifications, search, login/logout/password). Concretely, this closes a real gap where
+  every HSE route added during Workstream B (Safety Observation, HSE Inspection, HIRADC, JSA, PTW,
+  LOTO, TBM, CAPA, Contractor, Visitor, Document Control) was reachable by direct URL from a
+  Department User assigned to *any other* department, not just HSE — the config map had simply gone
+  stale, and "unmapped" silently meant "unrestricted." Administrators (`department_key = null`) are
+  entirely untouched by any of this, exactly as before.
+
+**HSE "locked" investigation — root cause and what could/couldn't be fixed from code:**
+Traced the full chain (workspace catalog → tenant grant → department config → middleware → RBAC →
+routes → controllers → frontend). Two candidate causes were identified with equal code-level
+confidence, and this pass could only act on one of them:
+1. The stale `config/departments.php` + fail-open middleware (above) — **fixed** in this pass.
+2. A missing or revoked `tenant_workspaces` grant for the `hse` key
+   (`App\Http\Middleware\HandleInertiaRequests`'s `workspace_catalog` prop forces `is_active: false`
+   for any workspace key not present in `tenant_workspaces` for the current tenant, which hides the
+   entire department from the selector — see `PlatformController::updateWorkspaces()`'s `sync()`).
+   **This is live tenant data, not code, and no database access was available to confirm or correct
+   it from this pass.** If HSE is still missing from the Department Selector after this deploy, the
+   safe remediation is re-running the existing, idempotent `TenantGrantSeeder` for the affected
+   tenant (`syncWithoutDetaching`, never destructive) — **not** a manual database edit. This is
+   documented here rather than acted on, per this pass's own explicit "do not modify production data
+   manually" constraint.
+
+**Security fixes (tenant isolation / IDOR):** see `docs/CONVENTIONS.md`'s Migrations pitfalls list
+for the full writeup — summarized here: `CompetencyTypeController`/`ShiftController`/
+`RosterPatternController` gained the missing `assertInCurrentTenant()` guard on `update()`/
+`destroy()`; `EmployeeController` gained the same guard on `show()`/`edit()`/`update()`/`destroy()`
+(previously **none** of these four checked the route-bound `$employee`'s tenant at all — only a role
+check); `EmployeeController::index()` and `EmployeeExport` both gained a base tenant `whereIn` they
+were previously missing entirely (omitting the optional `?company_id=` filter returned/exported
+**every tenant's** employee roster, not just the current one — the single most severe finding in
+this pass); and `StoreEmployeeRequest`/`UpdateEmployeeRequest` had their raw `exists:companies,id`/
+`exists:departments,id`/`exists:positions,id` rules replaced with tenant-scoped `Rule::in()`, the
+same IDOR guard every Milestone 4 FormRequest already uses.
+
+**Known limitation, explicitly not fixed in this pass:** roughly 20 other pre-existing FormRequests/
+controllers across the *original* (pre-Milestone-4) codebase still use raw `exists:` validation for
+tenant-owned foreign keys (Project, MaterialRequest, KpiCategory, KpiRecord, Task, DailyReport,
+LeaveRequest, Milestone, PPE, Settings' Department/Position creation) — the same class of bug just
+fixed for Employee, at a scale too large to safely rewrite and verify (no test runner available) in
+one pass without materially raising regression risk across the entire original application. Flagged
+as a dedicated follow-up rather than silently expanded into this session's scope.
+
 ## Department Dashboards (HR, HSE, Project Management, Logistics)
 
 v1.10.0. Each CORE department now has its own real Dashboard (`HrDashboardController`,

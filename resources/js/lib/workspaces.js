@@ -98,7 +98,14 @@ export const WORKSPACES = [
             // PPE's own Dashboard/Employee PPE/Master/Reports split lives
             // in PpeTabNav *within* the module, not as sidebar sub-items.
             { name: 'PPE Management', href: 'ppe.dashboard', icon: HardHat, moduleKey: 'ppe' },
-            { name: 'Permit To Work', icon: ClipboardList, disabled: true },
+            // v1.10.5 bugfix: this used to be a disabled "Permit To Work"
+            // placeholder sitting directly above the REAL, working entry
+            // that Workstream B6 later added below (`permits-to-work.index`,
+            // now right after JSA). Nobody removed the placeholder when the
+            // real module shipped, so the sidebar showed a locked PTW row
+            // immediately followed eventually by a working one -- read by
+            // at least one user as "PTW is locked," when only this stale
+            // duplicate was. There is now exactly one PTW nav entry.
             { name: 'Incident Management', href: 'incidents.index', icon: AlertTriangle },
             // Milestone 4, Workstream B1: real backend now (SafetyObservation
             // + CorrectiveAction), same one-click-report UX as Incident.

@@ -7,6 +7,9 @@ use App\Http\Requests\UpdateHazardCategoryRequest;
 use App\Models\ActivityLog;
 use App\Models\Company;
 use App\Models\HazardCategory;
+use App\Models\HseMaterial;
+use App\Models\P3kBox;
+use App\Models\SafetyEquipment;
 use Illuminate\Http\RedirectResponse;
 use Inertia\Inertia;
 use Inertia\Response;
@@ -28,6 +31,12 @@ class HazardCategoryController extends Controller
                 ->orderBy('sort_order')
                 ->orderBy('name')
                 ->get(),
+            // Milestone 4, Workstream B10/B11/B12 -- Safety Equipment,
+            // HSE Materials, and P3K masters live on this same shared setup
+            // page rather than three more standalone routes.
+            'safetyEquipment' => SafetyEquipment::whereIn('company_id', $companyIds)->orderBy('name')->get(),
+            'hseMaterials' => HseMaterial::whereIn('company_id', $companyIds)->orderBy('name')->get(),
+            'p3kBoxes' => P3kBox::whereIn('company_id', $companyIds)->with('inspector:id,name')->orderBy('location')->get(),
             'companies' => Company::active()->orderBy('name')->get(['id', 'name']),
             'can' => ['manage' => request()->user()->isAdmin()],
         ]);

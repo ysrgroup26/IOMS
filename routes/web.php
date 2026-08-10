@@ -20,6 +20,7 @@ use App\Http\Controllers\GlobalSearchController;
 use App\Http\Controllers\GasTestRecordController;
 use App\Http\Controllers\GoodsReceiptController;
 use App\Http\Controllers\HazardCategoryController;
+use App\Http\Controllers\HseMaterialController;
 use App\Http\Controllers\HrDashboardController;
 use App\Http\Controllers\HseDashboardController;
 use App\Http\Controllers\HseInspectionController;
@@ -32,8 +33,10 @@ use App\Http\Controllers\LogisticsDashboardController;
 use App\Http\Controllers\LotoRecordController;
 use App\Http\Controllers\MaterialRequestController;
 use App\Http\Controllers\MilestoneController;
+use App\Http\Controllers\P3kBoxController;
 use App\Http\Controllers\PermitToWorkController;
 use App\Http\Controllers\RiskAssessmentController;
+use App\Http\Controllers\SafetyEquipmentController;
 use App\Http\Controllers\NotificationController;
 use App\Http\Controllers\PlatformController;
 use App\Http\Controllers\PpeController;
@@ -283,6 +286,18 @@ Route::middleware(['auth', 'restrict.platform-admin'])->group(function () {
         Route::post('/hazard-categories', [HazardCategoryController::class, 'store'])->name('hazard-categories.store');
         Route::put('/hazard-categories/{hazardCategory}', [HazardCategoryController::class, 'update'])->name('hazard-categories.update');
         Route::delete('/hazard-categories/{hazardCategory}', [HazardCategoryController::class, 'destroy'])->name('hazard-categories.destroy');
+
+        Route::post('/safety-equipment', [SafetyEquipmentController::class, 'store'])->name('safety-equipment.store');
+        Route::put('/safety-equipment/{safetyEquipment}', [SafetyEquipmentController::class, 'update'])->name('safety-equipment.update');
+        Route::delete('/safety-equipment/{safetyEquipment}', [SafetyEquipmentController::class, 'destroy'])->name('safety-equipment.destroy');
+
+        Route::post('/hse-materials', [HseMaterialController::class, 'store'])->name('hse-materials.store');
+        Route::put('/hse-materials/{hseMaterial}', [HseMaterialController::class, 'update'])->name('hse-materials.update');
+        Route::delete('/hse-materials/{hseMaterial}', [HseMaterialController::class, 'destroy'])->name('hse-materials.destroy');
+
+        Route::post('/p3k-boxes', [P3kBoxController::class, 'store'])->name('p3k-boxes.store');
+        Route::put('/p3k-boxes/{p3kBox}', [P3kBoxController::class, 'update'])->name('p3k-boxes.update');
+        Route::delete('/p3k-boxes/{p3kBox}', [P3kBoxController::class, 'destroy'])->name('p3k-boxes.destroy');
 
         Route::get('/daily-reports-create', [DailyReportController::class, 'create'])->name('daily-reports.create');
         Route::post('/daily-reports', [DailyReportController::class, 'store'])->name('daily-reports.store');

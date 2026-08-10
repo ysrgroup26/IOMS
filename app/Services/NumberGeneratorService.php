@@ -62,6 +62,18 @@ class NumberGeneratorService
         'purchase_requisition' => ['prefix' => 'PR-PROC', 'pattern' => '{PREFIX}-{YEAR}-{SEQ}', 'seq_padding' => 5, 'reset_period' => 'yearly'],
         'rfq' => ['prefix' => 'RFQ-PROC', 'pattern' => '{PREFIX}-{YEAR}-{SEQ}', 'seq_padding' => 5, 'reset_period' => 'yearly'],
         'purchase_order' => ['prefix' => 'PO-PROC', 'pattern' => '{PREFIX}-{YEAR}-{SEQ}', 'seq_padding' => 5, 'reset_period' => 'yearly'],
+        // Milestone 4, Acceleration (Material & Asset / Maintenance /
+        // Contractor / Visitor / Document Control).
+        'item' => ['prefix' => 'ITM', 'pattern' => '{PREFIX}-{SEQ}', 'seq_padding' => 5, 'reset_period' => 'never'],
+        'stock_movement' => ['prefix' => 'SM', 'pattern' => '{PREFIX}-{YEAR}-{SEQ}', 'seq_padding' => 6, 'reset_period' => 'yearly'],
+        'asset' => ['prefix' => 'AST', 'pattern' => '{PREFIX}-{SEQ}', 'seq_padding' => 5, 'reset_period' => 'never'],
+        'maintenance_request' => ['prefix' => 'MTR', 'pattern' => '{PREFIX}-{YEAR}-{SEQ}', 'seq_padding' => 5, 'reset_period' => 'yearly'],
+        'work_order' => ['prefix' => 'WO', 'pattern' => '{PREFIX}-{YEAR}-{SEQ}', 'seq_padding' => 5, 'reset_period' => 'yearly'],
+        'inspection_request' => ['prefix' => 'QC-INS', 'pattern' => '{PREFIX}-{YEAR}-{SEQ}', 'seq_padding' => 5, 'reset_period' => 'yearly'],
+        'ncr' => ['prefix' => 'NCR', 'pattern' => '{PREFIX}-{YEAR}-{SEQ}', 'seq_padding' => 5, 'reset_period' => 'yearly'],
+        'contractor' => ['prefix' => 'CTR', 'pattern' => '{PREFIX}-{SEQ}', 'seq_padding' => 4, 'reset_period' => 'never'],
+        'visitor' => ['prefix' => 'VIS', 'pattern' => '{PREFIX}-{YEAR}-{SEQ}', 'seq_padding' => 5, 'reset_period' => 'yearly'],
+        'controlled_document' => ['prefix' => 'DOC', 'pattern' => '{PREFIX}-{YEAR}-{SEQ}', 'seq_padding' => 5, 'reset_period' => 'yearly'],
     ];
 
     /**

@@ -331,6 +331,34 @@ class User extends Authenticatable
         return $this->isSuperAdmin() || $this->isWarehouse();
     }
 
+    /** Milestone 4, Acceleration Part 1 (Item Master / Warehouse / Stock). Same Warehouse-role reasoning as canManageProcurement()/canManageGoodsReceipts() -- named for its own domain rather than reused directly, since Item Master conceptually belongs to Warehouse, not Procurement. */
+    public function canManageWarehouse(): bool
+    {
+        return $this->isSuperAdmin() || $this->isWarehouse();
+    }
+
+    /** Milestone 4, Acceleration Part 1C/2 (Asset/Maintenance). Same operational-role reasoning; Warehouse already spans "physical things this company owns/tracks," asset+maintenance are a natural extension. */
+    public function canManageAssets(): bool
+    {
+        return $this->isSuperAdmin() || $this->isWarehouse();
+    }
+
+    /** Milestone 4, Acceleration Part 4/5/6 (Contractor/Visitor/Document Control). HSE-adjacent operational domains (contractor safety compliance, site access, controlled documents) -- same isSuperAdmin()||isHse() gate as the rest of HSE. */
+    public function canManageContractors(): bool
+    {
+        return $this->isSuperAdmin() || $this->isHse();
+    }
+
+    public function canManageVisitors(): bool
+    {
+        return $this->isSuperAdmin() || $this->isHse();
+    }
+
+    public function canManageDocuments(): bool
+    {
+        return $this->isSuperAdmin() || $this->isHse();
+    }
+
     public function avatarUrl(): ?string
     {
         return $this->avatar_path ? asset('storage/'.$this->avatar_path) : null;

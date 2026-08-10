@@ -25,6 +25,7 @@ use App\Http\Controllers\HrDashboardController;
 use App\Http\Controllers\HseDashboardController;
 use App\Http\Controllers\HseInspectionController;
 use App\Http\Controllers\IncidentController;
+use App\Http\Controllers\ItemController;
 use App\Http\Controllers\JobSafetyAnalysisController;
 use App\Http\Controllers\KpiInputController;
 use App\Http\Controllers\KpiRecordController;
@@ -287,6 +288,13 @@ Route::middleware(['auth', 'restrict.platform-admin'])->group(function () {
     // Procurement Dashboard + Vendor Performance (Milestone 4, Workstream C6).
     Route::get('/procurement/dashboard', [ProcurementDashboardController::class, 'index'])->name('procurement.dashboard');
     Route::get('/procurement/vendor-performance', [VendorPerformanceController::class, 'index'])->name('procurement.vendor-performance');
+
+    // Item Master (Milestone 4, Acceleration Part 1A) -- viewable by all
+    // roles, mutation gated by canManageWarehouse() inside the controller.
+    Route::get('/items', [ItemController::class, 'index'])->name('items.index');
+    Route::post('/items', [ItemController::class, 'store'])->name('items.store');
+    Route::put('/items/{item}', [ItemController::class, 'update'])->name('items.update');
+    Route::delete('/items/{item}', [ItemController::class, 'destroy'])->name('items.destroy');
 
     // Daily HSE Report: viewable by all roles; mutation below is admin-scoped.
     Route::get('/daily-reports', [DailyReportController::class, 'index'])->name('daily-reports.index');

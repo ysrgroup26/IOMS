@@ -10,6 +10,7 @@ use App\Http\Controllers\Auth\PasswordResetLinkController;
 use App\Http\Controllers\ComingSoonController;
 use App\Http\Controllers\CompetencyController;
 use App\Http\Controllers\ContractorController;
+use App\Http\Controllers\ControlledDocumentController;
 use App\Http\Controllers\CompetencyTypeController;
 use App\Http\Controllers\CorrectiveActionController;
 use App\Http\Controllers\DailyReportController;
@@ -390,6 +391,14 @@ Route::middleware(['auth', 'restrict.platform-admin'])->group(function () {
     Route::post('/visitors/{visitor}/induction', [VisitorController::class, 'toggleInduction'])->name('visitors.induction');
     Route::post('/visitors/{visitor}/check-in', [VisitorController::class, 'checkIn'])->name('visitors.check-in');
     Route::post('/visitors/{visitor}/check-out', [VisitorController::class, 'checkOut'])->name('visitors.check-out');
+
+    // Document Control Foundation (Milestone 4, Acceleration Part 6).
+    Route::get('/controlled-documents', [ControlledDocumentController::class, 'index'])->name('controlled-documents.index');
+    Route::get('/controlled-documents/create', [ControlledDocumentController::class, 'create'])->name('controlled-documents.create');
+    Route::post('/controlled-documents', [ControlledDocumentController::class, 'store'])->name('controlled-documents.store');
+    Route::get('/controlled-documents/{controlledDocument}', [ControlledDocumentController::class, 'show'])->name('controlled-documents.show');
+    Route::post('/controlled-documents/{controlledDocument}/versions', [ControlledDocumentController::class, 'storeVersion'])->name('controlled-documents.versions.store');
+    Route::post('/controlled-documents/{controlledDocument}/transition', [ControlledDocumentController::class, 'transition'])->name('controlled-documents.transition');
 
     // Daily HSE Report: viewable by all roles; mutation below is admin-scoped.
     Route::get('/daily-reports', [DailyReportController::class, 'index'])->name('daily-reports.index');

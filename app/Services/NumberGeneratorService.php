@@ -47,6 +47,12 @@ class NumberGeneratorService
         // (not just OBS) so it reads unambiguously as HSE's own module
         // number series, matching the spec's own numbering example.
         'safety_observation' => ['prefix' => 'HSE-OBS', 'pattern' => '{PREFIX}-{YEAR}-{SEQ}', 'seq_padding' => 5, 'reset_period' => 'yearly'],
+        // Milestone 4, Workstream B4/B5/B6/B7/B8.
+        'risk_assessment' => ['prefix' => 'HIRADC', 'pattern' => '{PREFIX}-{YEAR}-{SEQ}', 'seq_padding' => 5, 'reset_period' => 'yearly'],
+        'jsa' => ['prefix' => 'JSA', 'pattern' => '{PREFIX}-{YEAR}-{SEQ}', 'seq_padding' => 5, 'reset_period' => 'yearly'],
+        'permit_to_work' => ['prefix' => 'PTW', 'pattern' => '{PREFIX}-{YEAR}-{SEQ}', 'seq_padding' => 5, 'reset_period' => 'yearly'],
+        'tbm' => ['prefix' => 'TBM', 'pattern' => '{PREFIX}-{YEAR}-{SEQ}', 'seq_padding' => 5, 'reset_period' => 'yearly'],
+        'hse_inspection' => ['prefix' => 'HSE-INS', 'pattern' => '{PREFIX}-{YEAR}-{SEQ}', 'seq_padding' => 5, 'reset_period' => 'yearly'],
     ];
 
     /**

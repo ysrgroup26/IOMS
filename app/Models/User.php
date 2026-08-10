@@ -297,6 +297,12 @@ class User extends Authenticatable
         return $this->isSuperAdmin() || $this->isHse();
     }
 
+    /** Milestone 4, Workstream B4-B9 -- one shared gate for the rest of HSE operations (HIRADC/JSA/PTW/Gas Test/LOTO/TBM/Inspection/Safety Equipment/HSE Materials/P3K), same isSuperAdmin()||isHse() pattern as every other HSE-domain permission above. */
+    public function canManageHse(): bool
+    {
+        return $this->isSuperAdmin() || $this->isHse();
+    }
+
     /** Milestones (v1.10.0) -- reuses the existing project-management permission rather than inventing a parallel one. */
     public function canManageMilestones(): bool
     {

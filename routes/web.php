@@ -21,12 +21,14 @@ use App\Http\Controllers\HazardCategoryController;
 use App\Http\Controllers\HrDashboardController;
 use App\Http\Controllers\HseDashboardController;
 use App\Http\Controllers\IncidentController;
+use App\Http\Controllers\JobSafetyAnalysisController;
 use App\Http\Controllers\KpiInputController;
 use App\Http\Controllers\KpiRecordController;
 use App\Http\Controllers\LeaveRequestController;
 use App\Http\Controllers\LogisticsDashboardController;
 use App\Http\Controllers\MaterialRequestController;
 use App\Http\Controllers\MilestoneController;
+use App\Http\Controllers\RiskAssessmentController;
 use App\Http\Controllers\NotificationController;
 use App\Http\Controllers\PlatformController;
 use App\Http\Controllers\PpeController;
@@ -159,6 +161,26 @@ Route::middleware(['auth', 'restrict.platform-admin'])->group(function () {
     Route::get('/safety-observations/{safetyObservation}', [SafetyObservationController::class, 'show'])->name('safety-observations.show');
     Route::post('/safety-observations/{safetyObservation}/transition', [SafetyObservationController::class, 'transition'])->name('safety-observations.transition');
     Route::delete('/safety-observations/{safetyObservation}/photos/{photo}', [SafetyObservationController::class, 'destroyPhoto'])->name('safety-observations.photos.destroy');
+
+    // HIRADC / Risk Assessment (Milestone 4, Workstream B4): list/detail
+    // viewable by all roles; write actions gated by canManageHse() inside
+    // the controller, same shape as Safety Observation.
+    Route::get('/risk-assessments', [RiskAssessmentController::class, 'index'])->name('risk-assessments.index');
+    Route::get('/risk-assessments/create', [RiskAssessmentController::class, 'create'])->name('risk-assessments.create');
+    Route::post('/risk-assessments', [RiskAssessmentController::class, 'store'])->name('risk-assessments.store');
+    Route::get('/risk-assessments/{riskAssessment}/edit', [RiskAssessmentController::class, 'edit'])->name('risk-assessments.edit');
+    Route::put('/risk-assessments/{riskAssessment}', [RiskAssessmentController::class, 'update'])->name('risk-assessments.update');
+    Route::get('/risk-assessments/{riskAssessment}', [RiskAssessmentController::class, 'show'])->name('risk-assessments.show');
+    Route::post('/risk-assessments/{riskAssessment}/transition', [RiskAssessmentController::class, 'transition'])->name('risk-assessments.transition');
+
+    // JSA (Milestone 4, Workstream B5): same pattern.
+    Route::get('/job-safety-analyses', [JobSafetyAnalysisController::class, 'index'])->name('job-safety-analyses.index');
+    Route::get('/job-safety-analyses/create', [JobSafetyAnalysisController::class, 'create'])->name('job-safety-analyses.create');
+    Route::post('/job-safety-analyses', [JobSafetyAnalysisController::class, 'store'])->name('job-safety-analyses.store');
+    Route::get('/job-safety-analyses/{jobSafetyAnalysis}/edit', [JobSafetyAnalysisController::class, 'edit'])->name('job-safety-analyses.edit');
+    Route::put('/job-safety-analyses/{jobSafetyAnalysis}', [JobSafetyAnalysisController::class, 'update'])->name('job-safety-analyses.update');
+    Route::get('/job-safety-analyses/{jobSafetyAnalysis}', [JobSafetyAnalysisController::class, 'show'])->name('job-safety-analyses.show');
+    Route::post('/job-safety-analyses/{jobSafetyAnalysis}/transition', [JobSafetyAnalysisController::class, 'transition'])->name('job-safety-analyses.transition');
 
     // Daily HSE Report: viewable by all roles; mutation below is admin-scoped.
     Route::get('/daily-reports', [DailyReportController::class, 'index'])->name('daily-reports.index');

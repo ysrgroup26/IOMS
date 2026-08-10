@@ -9,6 +9,7 @@ class GoodsReceiptItem extends Model
     protected $fillable = [
         'goods_receipt_id',
         'purchase_order_item_id',
+        'item_id',
         'description',
         'quantity_received',
         'unit',
@@ -24,5 +25,11 @@ class GoodsReceiptItem extends Model
     public function purchaseOrderItem()
     {
         return $this->belongsTo(PurchaseOrderItem::class);
+    }
+
+    /** Milestone 4, Acceleration Part 1B -- when set, this receipt line posts a real StockMovement (see GoodsReceiptController::store()'s own comment). */
+    public function item()
+    {
+        return $this->belongsTo(Item::class);
     }
 }

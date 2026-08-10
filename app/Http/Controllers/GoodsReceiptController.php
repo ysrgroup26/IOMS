@@ -6,8 +6,11 @@ use App\Models\ActivityLog;
 use App\Models\Company;
 use App\Models\GoodsReceipt;
 use App\Models\MaterialRequest;
+use App\Models\Item;
 use App\Models\Project;
 use App\Models\PurchaseOrder;
+use App\Models\Warehouse;
+use App\Services\StockService;
 use Illuminate\Http\RedirectResponse;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\DB;
@@ -33,6 +36,8 @@ use Inertia\Response;
  */
 class GoodsReceiptController extends Controller
 {
+    public function __construct(private readonly StockService $stockService) {}
+
     public function index(Request $request): Response
     {
         $tenantCompanyIds = Company::query()->pluck('id');
@@ -40,8 +45,9 @@ class GoodsReceiptController extends Controller
         $goodsReceipts = GoodsReceipt::query()
             ->where(fn ($q) => $q
                 ->whereHas('materialRequest', fn ($mr) => $mr->whereIn('company_id', $tenantCompanyIds))
-                ->orWhereHas('purchaseOrder', fn ($po) => $po->whereIn('company_id', $tenantCompanyIds)))
-            ->with('materialRequest:id,request_number', 'purchaseOrder:id,po_number', 'project:id,name', 'receiver:id,name')
+                ->orWhereHas('purchaseOrder', fn ($po) => $po->whereIn('company_id', $tenantCompanyIds))
+                ->orWhereHas('warehouse', fn ($w) => $w->whereIn('company_id', $tenantCompanyIds)))
+            ->with('materialRequest:id,request_number', 'purchaseOrder:id,po_number', 'warehouse:id,name', 'project:id,name', 'receiver:id,name')
             ->withCount('items')
             ->when($request->input('search'), fn ($q, $v) => $q->where('receipt_number', 'like', "%{$v}%"))
             ->latest('received_date')
@@ -95,6 +101,8 @@ class GoodsReceiptController extends Controller
                     'items' => $po->items->map(fn ($i) => ['id' => $i->id, 'description' => $i->description, 'unit' => $i->unit, 'remaining_quantity' => $i->remaining_quantity]),
                 ]),
             'projects' => Project::whereIn('company_id', $tenantCompanyIds)->orderBy('name')->get(['id', 'name']),
+            'warehouses' => Warehouse::whereIn('company_id', $tenantCompanyIds)->active()->get(['id', 'name', 'code', 'company_id']),
+            'items' => Item::whereIn('company_id', $tenantCompanyIds)->active()->get(['id', 'name', 'item_code', 'unit', 'company_id']),
             'receiptNumber' => GoodsReceipt::generateReceiptNumber(),
             'preselectedPo' => $preselectedPo,
         ]);
@@ -108,15 +116,23 @@ class GoodsReceiptController extends Controller
         $tenantMaterialRequestIds = MaterialRequest::whereIn('company_id', $tenantCompanyIds)->pluck('id');
         $tenantPurchaseOrderIds = PurchaseOrder::whereIn('company_id', $tenantCompanyIds)->pluck('id');
         $tenantProjectIds = Project::whereIn('company_id', $tenantCompanyIds)->pluck('id');
+        $tenantWarehouseIds = Warehouse::whereIn('company_id', $tenantCompanyIds)->pluck('id');
+        $tenantItemIds = Item::whereIn('company_id', $tenantCompanyIds)->pluck('id');
 
         $data = $request->validate([
             'received_date' => ['required', 'date'],
             'material_request_id' => ['nullable', Rule::in($tenantMaterialRequestIds)],
             'purchase_order_id' => ['nullable', Rule::in($tenantPurchaseOrderIds)],
             'project_id' => ['nullable', Rule::in($tenantProjectIds)],
+            // Milestone 4, Acceleration Part 1B -- optional Warehouse
+            // integration. Nullable: an existing/simple receipt can still
+            // skip warehouse posting entirely, same backward-compatible
+            // shape as the PO link before it.
+            'warehouse_id' => ['nullable', Rule::in($tenantWarehouseIds)],
             'notes' => ['nullable', 'string', 'max:1000'],
             'items' => ['required', 'array', 'min:1'],
             'items.*.purchase_order_item_id' => ['nullable', 'integer'],
+            'items.*.item_id' => ['nullable', Rule::in($tenantItemIds)],
             'items.*.description' => ['required', 'string', 'max:255'],
             'items.*.quantity_received' => ['required', 'numeric', 'min:0.01'],
             'items.*.unit' => ['required', 'string', 'max:50'],
@@ -149,19 +165,40 @@ class GoodsReceiptController extends Controller
                 'received_date' => $data['received_date'],
                 'material_request_id' => $data['material_request_id'] ?? null,
                 'purchase_order_id' => $data['purchase_order_id'] ?? null,
+                'warehouse_id' => $data['warehouse_id'] ?? null,
                 'project_id' => $data['project_id'] ?? null,
                 'received_by' => $request->user()->id,
                 'notes' => $data['notes'] ?? null,
             ]);
 
             foreach ($data['items'] as $index => $item) {
-                $goodsReceipt->items()->create([
+                $grItem = $goodsReceipt->items()->create([
                     'purchase_order_item_id' => $item['purchase_order_item_id'] ?? null,
+                    'item_id' => $item['item_id'] ?? null,
                     'description' => $item['description'],
                     'quantity_received' => $item['quantity_received'],
                     'unit' => $item['unit'],
                     'sort_order' => $index,
                 ]);
+
+                // Warehouse integration (Milestone 4, Acceleration Part
+                // 1B) -- a receipt line only posts real stock when BOTH a
+                // warehouse and a catalog Item were specified; a receipt
+                // that skips either (the pre-Warehouse-module shape) never
+                // touches Stock/StockMovement at all.
+                if ($goodsReceipt->warehouse_id && $grItem->item_id) {
+                    $this->stockService->recordMovement(
+                        companyId: $goodsReceipt->warehouse->company_id,
+                        itemId: $grItem->item_id,
+                        warehouseId: $goodsReceipt->warehouse_id,
+                        type: \App\Models\StockMovement::TYPE_RECEIPT,
+                        quantity: (float) $grItem->quantity_received,
+                        performedBy: $request->user(),
+                        referenceType: GoodsReceipt::class,
+                        referenceId: $goodsReceipt->id,
+                        movementDate: $goodsReceipt->received_date->toDateString(),
+                    );
+                }
             }
 
             ActivityLog::record('created', "Recorded Goods Receipt {$goodsReceipt->receipt_number}.", $goodsReceipt);
@@ -183,7 +220,7 @@ class GoodsReceiptController extends Controller
     public function show(GoodsReceipt $goodsReceipt, Request $request): Response
     {
         $this->assertInCurrentTenant($goodsReceipt);
-        $goodsReceipt->load('materialRequest:id,request_number', 'purchaseOrder:id,po_number', 'project:id,name', 'receiver:id,name', 'items');
+        $goodsReceipt->load('materialRequest:id,request_number', 'purchaseOrder:id,po_number', 'warehouse:id,name,code', 'project:id,name', 'receiver:id,name', 'items.item:id,name,item_code');
 
         $activities = ActivityLog::where('subject_type', GoodsReceipt::class)
             ->where('subject_id', $goodsReceipt->id)
@@ -214,7 +251,8 @@ class GoodsReceiptController extends Controller
     /**
      * Tenant ownership guard -- a GoodsReceipt has no direct company_id of
      * its own, so ownership is derived through whichever parent
-     * (MaterialRequest or PurchaseOrder) it's linked to.
+     * (MaterialRequest, PurchaseOrder, or -- Acceleration Part 1B --
+     * Warehouse) it's linked to.
      */
     private function assertInCurrentTenant(GoodsReceipt $goodsReceipt): void
     {
@@ -222,7 +260,7 @@ class GoodsReceiptController extends Controller
 
         $ownerCompanyId = $goodsReceipt->purchase_order_id
             ? $goodsReceipt->purchaseOrder?->company_id
-            : $goodsReceipt->materialRequest?->company_id;
+            : ($goodsReceipt->materialRequest?->company_id ?? $goodsReceipt->warehouse?->company_id);
 
         abort_unless($ownerCompanyId !== null && $tenantCompanyIds->contains($ownerCompanyId), 404);
     }

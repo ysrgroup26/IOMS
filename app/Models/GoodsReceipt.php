@@ -15,6 +15,7 @@ class GoodsReceipt extends Model
         'received_date',
         'material_request_id',
         'purchase_order_id',
+        'warehouse_id',
         'project_id',
         'received_by',
         'notes',
@@ -36,6 +37,12 @@ class GoodsReceipt extends Model
     public function purchaseOrder()
     {
         return $this->belongsTo(PurchaseOrder::class);
+    }
+
+    /** Milestone 4, Acceleration Part 1B -- Warehouse integration, additive to the existing flow (see this model's own migration doc comment). */
+    public function warehouse()
+    {
+        return $this->belongsTo(Warehouse::class);
     }
 
     public function project()

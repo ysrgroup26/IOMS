@@ -27,6 +27,9 @@ use App\Http\Controllers\HseInspectionController;
 use App\Http\Controllers\IncidentController;
 use App\Http\Controllers\ItemController;
 use App\Http\Controllers\JobSafetyAnalysisController;
+use App\Http\Controllers\StockController;
+use App\Http\Controllers\StockTransactionController;
+use App\Http\Controllers\WarehouseController;
 use App\Http\Controllers\KpiInputController;
 use App\Http\Controllers\KpiRecordController;
 use App\Http\Controllers\LeaveRequestController;
@@ -295,6 +298,23 @@ Route::middleware(['auth', 'restrict.platform-admin'])->group(function () {
     Route::post('/items', [ItemController::class, 'store'])->name('items.store');
     Route::put('/items/{item}', [ItemController::class, 'update'])->name('items.update');
     Route::delete('/items/{item}', [ItemController::class, 'destroy'])->name('items.destroy');
+
+    // Warehouse / Inventory (Milestone 4, Acceleration Part 1B).
+    Route::get('/warehouses/master', [WarehouseController::class, 'master'])->name('warehouses.master');
+    Route::post('/warehouses', [WarehouseController::class, 'store'])->name('warehouses.store');
+    Route::put('/warehouses/{warehouse}', [WarehouseController::class, 'update'])->name('warehouses.update');
+    Route::delete('/warehouses/{warehouse}', [WarehouseController::class, 'destroy'])->name('warehouses.destroy');
+    Route::post('/warehouses/{warehouse}/locations', [WarehouseController::class, 'storeLocation'])->name('warehouses.locations.store');
+    Route::delete('/warehouses/{warehouse}/locations/{location}', [WarehouseController::class, 'destroyLocation'])->name('warehouses.locations.destroy');
+
+    Route::get('/stock', [StockController::class, 'index'])->name('stock.index');
+    Route::get('/stock/movements', [StockController::class, 'movements'])->name('stock.movements');
+    Route::get('/stock/items/{item}/card', [StockController::class, 'card'])->name('stock.card');
+    Route::get('/stock/transactions/create', [StockTransactionController::class, 'create'])->name('stock.transactions.create');
+    Route::post('/stock/issue', [StockTransactionController::class, 'issue'])->name('stock.issue');
+    Route::post('/stock/transfer', [StockTransactionController::class, 'transfer'])->name('stock.transfer');
+    Route::post('/stock/adjust', [StockTransactionController::class, 'adjust'])->name('stock.adjust');
+    Route::post('/stock/opname', [StockTransactionController::class, 'opname'])->name('stock.opname');
 
     // Daily HSE Report: viewable by all roles; mutation below is admin-scoped.
     Route::get('/daily-reports', [DailyReportController::class, 'index'])->name('daily-reports.index');

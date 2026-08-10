@@ -9,7 +9,7 @@ import { Select, SelectTrigger, SelectValue, SelectContent, SelectItem } from '@
 import { ArrowLeft, Plus, Trash2 } from 'lucide-react';
 
 function emptyItem() {
-    return { description: '', quantity_received: '1', unit: '', purchase_order_item_id: null };
+    return { description: '', quantity_received: '1', unit: '', purchase_order_item_id: null, item_id: '' };
 }
 
 /**
@@ -22,14 +22,15 @@ function emptyItem() {
  * prefill rows from that PO's own outstanding quantities, still fully
  * editable (a delivery is never forced to match the order exactly).
  */
-export default function GoodsReceiptForm({ materialRequests, purchaseOrders, projects, receiptNumber, preselectedPo }) {
+export default function GoodsReceiptForm({ materialRequests, purchaseOrders, projects, warehouses, items, receiptNumber, preselectedPo }) {
     const { data, setData, post, processing, errors } = useForm({
         received_date: new Date().toISOString().slice(0, 10),
         material_request_id: '',
         purchase_order_id: preselectedPo ? String(preselectedPo.id) : '',
+        warehouse_id: '',
         project_id: '',
         notes: '',
-        items: preselectedPo ? preselectedPo.items.filter((i) => i.remaining_quantity > 0).map((i) => ({ description: i.description, quantity_received: String(i.remaining_quantity), unit: i.unit, purchase_order_item_id: i.id })) : [emptyItem()],
+        items: preselectedPo ? preselectedPo.items.filter((i) => i.remaining_quantity > 0).map((i) => ({ description: i.description, quantity_received: String(i.remaining_quantity), unit: i.unit, purchase_order_item_id: i.id, item_id: '' })) : [emptyItem()],
     });
 
     function loadPoItems() {
@@ -101,15 +102,27 @@ export default function GoodsReceiptForm({ materialRequests, purchaseOrders, pro
                             {data.purchase_order_id && <Button type="button" variant="outline" size="sm" onClick={loadPoItems}>Load Remaining Items</Button>}
                         </div>
 
-                        <div className="space-y-1.5">
-                            <Label>Project (optional)</Label>
-                            <Select value={data.project_id ? String(data.project_id) : 'none'} onValueChange={(v) => setData('project_id', v === 'none' ? '' : v)}>
-                                <SelectTrigger><SelectValue placeholder="No project" /></SelectTrigger>
-                                <SelectContent>
-                                    <SelectItem value="none">No project</SelectItem>
-                                    {projects.map((p) => <SelectItem key={p.id} value={String(p.id)}>{p.name}</SelectItem>)}
-                                </SelectContent>
-                            </Select>
+                        <div className="grid grid-cols-2 gap-3">
+                            <div className="space-y-1.5">
+                                <Label>Project (optional)</Label>
+                                <Select value={data.project_id ? String(data.project_id) : 'none'} onValueChange={(v) => setData('project_id', v === 'none' ? '' : v)}>
+                                    <SelectTrigger><SelectValue placeholder="No project" /></SelectTrigger>
+                                    <SelectContent>
+                                        <SelectItem value="none">No project</SelectItem>
+                                        {projects.map((p) => <SelectItem key={p.id} value={String(p.id)}>{p.name}</SelectItem>)}
+                                    </SelectContent>
+                                </Select>
+                            </div>
+                            <div className="space-y-1.5">
+                                <Label>Warehouse (optional -- posts stock when set)</Label>
+                                <Select value={data.warehouse_id ? String(data.warehouse_id) : 'none'} onValueChange={(v) => setData('warehouse_id', v === 'none' ? '' : v)}>
+                                    <SelectTrigger><SelectValue placeholder="Not posted to stock" /></SelectTrigger>
+                                    <SelectContent>
+                                        <SelectItem value="none">Not posted to stock</SelectItem>
+                                        {warehouses.map((w) => <SelectItem key={w.id} value={String(w.id)}>{w.name} ({w.code})</SelectItem>)}
+                                    </SelectContent>
+                                </Select>
+                            </div>
                         </div>
 
                         <div className="space-y-1.5">
@@ -126,24 +139,40 @@ export default function GoodsReceiptForm({ materialRequests, purchaseOrders, pro
                     </CardHeader>
                     <CardContent className="space-y-3">
                         {data.items.map((item, index) => (
-                            <div key={index} className="grid grid-cols-12 items-start gap-2 rounded-lg border border-graphite-100 p-2.5 dark:border-slate-800">
-                                <div className="col-span-6 space-y-1">
-                                    <Label className="text-[11px]">Description</Label>
-                                    <Input value={item.description} onChange={(e) => updateItem(index, 'description', e.target.value)} />
-                                    {errors[`items.${index}.description`] && <p className="text-xs text-red-600">{errors[`items.${index}.description`]}</p>}
-                                </div>
-                                <div className="col-span-2 space-y-1">
-                                    <Label className="text-[11px]">Qty Received</Label>
-                                    <Input type="number" step="0.01" min="0" value={item.quantity_received} onChange={(e) => updateItem(index, 'quantity_received', e.target.value)} />
-                                </div>
-                                <div className="col-span-3 space-y-1">
-                                    <Label className="text-[11px]">Unit</Label>
-                                    <Input value={item.unit} onChange={(e) => updateItem(index, 'unit', e.target.value)} placeholder="pcs, box, etc." />
-                                </div>
-                                <div className="col-span-1 flex items-end justify-end pb-1">
-                                    {data.items.length > 1 && (
-                                        <Button type="button" variant="ghost" size="icon" onClick={() => removeItem(index)}><Trash2 className="h-4 w-4 text-red-500" /></Button>
+                            <div key={index} className="space-y-2 rounded-lg border border-graphite-100 p-2.5 dark:border-slate-800">
+                                <div className="grid grid-cols-12 items-start gap-2">
+                                    <div className="col-span-7 space-y-1">
+                                        <Label className="text-[11px]">Description</Label>
+                                        <Input value={item.description} onChange={(e) => updateItem(index, 'description', e.target.value)} />
+                                        {errors[`items.${index}.description`] && <p className="text-xs text-red-600">{errors[`items.${index}.description`]}</p>}
+                                    </div>
+                                    {data.warehouse_id && (
+                                        <div className="col-span-4 space-y-1">
+                                            <Label className="text-[11px]">Item Master (for stock posting)</Label>
+                                            <Select value={item.item_id ? String(item.item_id) : 'none'} onValueChange={(v) => updateItem(index, 'item_id', v === 'none' ? '' : v)}>
+                                                <SelectTrigger><SelectValue placeholder="Not linked" /></SelectTrigger>
+                                                <SelectContent>
+                                                    <SelectItem value="none">Not linked</SelectItem>
+                                                    {items.map((i) => <SelectItem key={i.id} value={String(i.id)}>{i.name} ({i.item_code})</SelectItem>)}
+                                                </SelectContent>
+                                            </Select>
+                                        </div>
                                     )}
+                                    <div className="col-span-1 flex items-end justify-end pb-1">
+                                        {data.items.length > 1 && (
+                                            <Button type="button" variant="ghost" size="icon" onClick={() => removeItem(index)}><Trash2 className="h-4 w-4 text-red-500" /></Button>
+                                        )}
+                                    </div>
+                                </div>
+                                <div className="grid grid-cols-2 gap-2">
+                                    <div className="space-y-1">
+                                        <Label className="text-[11px]">Qty Received</Label>
+                                        <Input type="number" step="0.01" min="0" value={item.quantity_received} onChange={(e) => updateItem(index, 'quantity_received', e.target.value)} />
+                                    </div>
+                                    <div className="space-y-1">
+                                        <Label className="text-[11px]">Unit</Label>
+                                        <Input value={item.unit} onChange={(e) => updateItem(index, 'unit', e.target.value)} placeholder="pcs, box, etc." />
+                                    </div>
                                 </div>
                             </div>
                         ))}

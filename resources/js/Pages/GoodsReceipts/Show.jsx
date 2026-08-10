@@ -21,6 +21,7 @@ export default function GoodsReceiptShow({ goodsReceipt: gr, activities }) {
                     {gr.material_request && ` · ${gr.material_request.request_number}`}
                     {gr.purchase_order && ` · `}
                     {gr.purchase_order && <Link href={route('purchase-orders.show', gr.purchase_order.id)} className="text-brand-700 hover:underline">{gr.purchase_order.po_number}</Link>}
+                    {gr.warehouse && ` · posted to ${gr.warehouse.name}`}
                     {gr.project && ` · ${gr.project.name}`}
                     {` · Received by ${gr.receiver?.name}`}
                 </p>

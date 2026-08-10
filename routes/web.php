@@ -35,6 +35,7 @@ use App\Http\Controllers\MaterialRequestController;
 use App\Http\Controllers\MilestoneController;
 use App\Http\Controllers\P3kBoxController;
 use App\Http\Controllers\PermitToWorkController;
+use App\Http\Controllers\ProcurementDashboardController;
 use App\Http\Controllers\PurchaseOrderController;
 use App\Http\Controllers\PurchaseRequisitionController;
 use App\Http\Controllers\RfqController;
@@ -56,6 +57,7 @@ use App\Http\Controllers\ShiftController;
 use App\Http\Controllers\TaskController;
 use App\Http\Controllers\TbmMeetingController;
 use App\Http\Controllers\VendorController;
+use App\Http\Controllers\VendorPerformanceController;
 use App\Http\Controllers\VendorQuotationController;
 use App\Http\Controllers\WorkCenterController;
 use Illuminate\Support\Facades\Route;
@@ -281,6 +283,10 @@ Route::middleware(['auth', 'restrict.platform-admin'])->group(function () {
     Route::post('/purchase-orders/{purchaseOrder}/issue', [PurchaseOrderController::class, 'issue'])->name('purchase-orders.issue');
     Route::post('/purchase-orders/{purchaseOrder}/close', [PurchaseOrderController::class, 'close'])->name('purchase-orders.close');
     Route::post('/purchase-orders/{purchaseOrder}/cancel', [PurchaseOrderController::class, 'cancel'])->name('purchase-orders.cancel');
+
+    // Procurement Dashboard + Vendor Performance (Milestone 4, Workstream C6).
+    Route::get('/procurement/dashboard', [ProcurementDashboardController::class, 'index'])->name('procurement.dashboard');
+    Route::get('/procurement/vendor-performance', [VendorPerformanceController::class, 'index'])->name('procurement.vendor-performance');
 
     // Daily HSE Report: viewable by all roles; mutation below is admin-scoped.
     Route::get('/daily-reports', [DailyReportController::class, 'index'])->name('daily-reports.index');

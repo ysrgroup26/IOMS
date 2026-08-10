@@ -36,6 +36,7 @@ use App\Http\Controllers\MilestoneController;
 use App\Http\Controllers\P3kBoxController;
 use App\Http\Controllers\PermitToWorkController;
 use App\Http\Controllers\PurchaseRequisitionController;
+use App\Http\Controllers\RfqController;
 use App\Http\Controllers\RiskAssessmentController;
 use App\Http\Controllers\SafetyEquipmentController;
 use App\Http\Controllers\NotificationController;
@@ -54,6 +55,7 @@ use App\Http\Controllers\ShiftController;
 use App\Http\Controllers\TaskController;
 use App\Http\Controllers\TbmMeetingController;
 use App\Http\Controllers\VendorController;
+use App\Http\Controllers\VendorQuotationController;
 use App\Http\Controllers\WorkCenterController;
 use Illuminate\Support\Facades\Route;
 
@@ -255,6 +257,16 @@ Route::middleware(['auth', 'restrict.platform-admin'])->group(function () {
     Route::post('/purchase-requisitions/{purchaseRequisition}/approve', [PurchaseRequisitionController::class, 'approve'])->name('purchase-requisitions.approve');
     Route::post('/purchase-requisitions/{purchaseRequisition}/reject', [PurchaseRequisitionController::class, 'reject'])->name('purchase-requisitions.reject');
     Route::post('/purchase-requisitions/{purchaseRequisition}/cancel', [PurchaseRequisitionController::class, 'cancel'])->name('purchase-requisitions.cancel');
+
+    // RFQ + Vendor Quotation (Milestone 4, Workstream C3).
+    Route::get('/rfqs', [RfqController::class, 'index'])->name('rfqs.index');
+    Route::get('/rfqs/create', [RfqController::class, 'create'])->name('rfqs.create');
+    Route::post('/rfqs', [RfqController::class, 'store'])->name('rfqs.store');
+    Route::get('/rfqs/{rfq}', [RfqController::class, 'show'])->name('rfqs.show');
+    Route::post('/rfqs/{rfq}/close', [RfqController::class, 'close'])->name('rfqs.close');
+    Route::post('/rfqs/{rfq}/select-vendor', [RfqController::class, 'selectVendor'])->name('rfqs.select-vendor');
+    Route::post('/rfqs/{rfq}/quotations', [VendorQuotationController::class, 'store'])->name('rfqs.quotations.store');
+    Route::delete('/rfqs/{rfq}/quotations/{quotation}', [VendorQuotationController::class, 'destroy'])->name('rfqs.quotations.destroy');
 
     // Daily HSE Report: viewable by all roles; mutation below is admin-scoped.
     Route::get('/daily-reports', [DailyReportController::class, 'index'])->name('daily-reports.index');

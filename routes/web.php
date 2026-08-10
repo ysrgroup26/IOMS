@@ -35,6 +35,7 @@ use App\Http\Controllers\MaterialRequestController;
 use App\Http\Controllers\MilestoneController;
 use App\Http\Controllers\P3kBoxController;
 use App\Http\Controllers\PermitToWorkController;
+use App\Http\Controllers\PurchaseRequisitionController;
 use App\Http\Controllers\RiskAssessmentController;
 use App\Http\Controllers\SafetyEquipmentController;
 use App\Http\Controllers\NotificationController;
@@ -237,6 +238,23 @@ Route::middleware(['auth', 'restrict.platform-admin'])->group(function () {
     Route::post('/vendors/{vendor}/qualification', [VendorController::class, 'reviewQualification'])->name('vendors.qualification');
     Route::post('/vendors/{vendor}/documents', [VendorController::class, 'storeDocument'])->name('vendors.documents.store');
     Route::delete('/vendors/{vendor}/documents/{document}', [VendorController::class, 'destroyDocument'])->name('vendors.documents.destroy');
+
+    // Purchase Requisition (Milestone 4, Workstream C2): create/submit
+    // gated to canManageProcurement() inside the controller; review/
+    // approve/reject/cancel gated to config('workflow.approvers'/
+    // 'overriders') -- same segregation-of-duties split as
+    // MaterialRequestController.
+    Route::get('/purchase-requisitions', [PurchaseRequisitionController::class, 'index'])->name('purchase-requisitions.index');
+    Route::get('/purchase-requisitions/create', [PurchaseRequisitionController::class, 'create'])->name('purchase-requisitions.create');
+    Route::post('/purchase-requisitions', [PurchaseRequisitionController::class, 'store'])->name('purchase-requisitions.store');
+    Route::get('/purchase-requisitions/{purchaseRequisition}/edit', [PurchaseRequisitionController::class, 'edit'])->name('purchase-requisitions.edit');
+    Route::put('/purchase-requisitions/{purchaseRequisition}', [PurchaseRequisitionController::class, 'update'])->name('purchase-requisitions.update');
+    Route::get('/purchase-requisitions/{purchaseRequisition}', [PurchaseRequisitionController::class, 'show'])->name('purchase-requisitions.show');
+    Route::post('/purchase-requisitions/{purchaseRequisition}/submit', [PurchaseRequisitionController::class, 'submit'])->name('purchase-requisitions.submit');
+    Route::post('/purchase-requisitions/{purchaseRequisition}/start-review', [PurchaseRequisitionController::class, 'startReview'])->name('purchase-requisitions.start-review');
+    Route::post('/purchase-requisitions/{purchaseRequisition}/approve', [PurchaseRequisitionController::class, 'approve'])->name('purchase-requisitions.approve');
+    Route::post('/purchase-requisitions/{purchaseRequisition}/reject', [PurchaseRequisitionController::class, 'reject'])->name('purchase-requisitions.reject');
+    Route::post('/purchase-requisitions/{purchaseRequisition}/cancel', [PurchaseRequisitionController::class, 'cancel'])->name('purchase-requisitions.cancel');
 
     // Daily HSE Report: viewable by all roles; mutation below is admin-scoped.
     Route::get('/daily-reports', [DailyReportController::class, 'index'])->name('daily-reports.index');

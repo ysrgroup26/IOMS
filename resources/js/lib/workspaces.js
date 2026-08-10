@@ -116,6 +116,10 @@ export const WORKSPACES = [
             { name: 'LOTO', href: 'loto-records.index', icon: Lock },
             // Milestone 4, Workstream B3: real backend now (TbmMeeting).
             { name: 'Safety Meeting (TBM)', href: 'tbm-meetings.index', icon: UsersRound },
+            // Milestone 4, Workstream B15: standalone cross-source CAPA view
+            // over the SAME CorrectiveAction rows Safety Observation/
+            // Inspection/Incident already create -- not a new system.
+            { name: 'Corrective Actions (CAPA)', href: 'corrective-actions.index', icon: ClipboardCheck },
             // Training & Competency now lives under HR -- see that
             // entry's own comment. Same one-canonical-home precedent as
             // HSE KPI above (which moved the other direction).

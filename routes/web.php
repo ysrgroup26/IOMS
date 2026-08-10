@@ -9,6 +9,7 @@ use App\Http\Controllers\Auth\PasswordResetLinkController;
 use App\Http\Controllers\ComingSoonController;
 use App\Http\Controllers\CompetencyController;
 use App\Http\Controllers\CompetencyTypeController;
+use App\Http\Controllers\CorrectiveActionController;
 use App\Http\Controllers\DailyReportController;
 use App\Http\Controllers\DashboardController;
 use App\Http\Controllers\EmployeeCompetencyController;
@@ -214,6 +215,12 @@ Route::middleware(['auth', 'restrict.platform-admin'])->group(function () {
     Route::get('/hse-inspections/{hseInspection}', [HseInspectionController::class, 'show'])->name('hse-inspections.show');
     Route::post('/hse-inspections/{hseInspection}/raise-finding', [HseInspectionController::class, 'raiseFinding'])->name('hse-inspections.raise-finding');
 
+    // Corrective Actions / CAPA (Milestone 4, Workstream B15) -- standalone
+    // cross-source view over the SAME rows Safety Observation/HSE
+    // Inspection/Incident already create.
+    Route::get('/corrective-actions', [CorrectiveActionController::class, 'index'])->name('corrective-actions.index');
+    Route::post('/corrective-actions/{correctiveAction}/status', [CorrectiveActionController::class, 'updateStatus'])->name('corrective-actions.update-status');
+
     // Daily HSE Report: viewable by all roles; mutation below is admin-scoped.
     Route::get('/daily-reports', [DailyReportController::class, 'index'])->name('daily-reports.index');
     Route::get('/daily-reports/{dailyReport}', [DailyReportController::class, 'show'])->name('daily-reports.show');
@@ -410,6 +417,8 @@ Route::middleware(['auth', 'restrict.platform-admin'])->group(function () {
     Route::post('/incidents', [IncidentController::class, 'store'])->name('incidents.store');
     Route::get('/incidents/{incident}', [IncidentController::class, 'show'])->name('incidents.show');
     Route::post('/incidents/{incident}/transition', [IncidentController::class, 'transition'])->name('incidents.transition');
+    Route::post('/incidents/{incident}/investigation', [IncidentController::class, 'storeInvestigation'])->name('incidents.investigation.store');
+    Route::post('/incidents/{incident}/raise-finding', [IncidentController::class, 'raiseFinding'])->name('incidents.raise-finding');
 
     Route::get('/project-management/dashboard', [ProjectManagementDashboardController::class, 'index'])->name('project-management.dashboard');
     Route::get('/milestones', [MilestoneController::class, 'index'])->name('milestones.index');

@@ -66,6 +66,18 @@ class Incident extends Model
         return $this->belongsTo(User::class, 'reported_by');
     }
 
+    /** Milestone 4, Workstream B14 -- one-to-one investigation enhancement, not a duplicate incident system. */
+    public function investigation()
+    {
+        return $this->hasOne(IncidentInvestigation::class);
+    }
+
+    /** Milestone 4, Workstream B14/B15 -- reusable CAPA, same entity Safety Observation/HSE Inspection already use. */
+    public function correctiveActions()
+    {
+        return $this->morphMany(CorrectiveAction::class, 'source');
+    }
+
     /** INC-{YEAR}-{00001}, same per-year sequential convention as Material Request/Leave. */
     /**
      * Milestone 3: delegates to the centralized, lock-safe Numbering

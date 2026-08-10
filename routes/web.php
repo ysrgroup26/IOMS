@@ -35,6 +35,7 @@ use App\Http\Controllers\MaterialRequestController;
 use App\Http\Controllers\MilestoneController;
 use App\Http\Controllers\P3kBoxController;
 use App\Http\Controllers\PermitToWorkController;
+use App\Http\Controllers\PurchaseOrderController;
 use App\Http\Controllers\PurchaseRequisitionController;
 use App\Http\Controllers\RfqController;
 use App\Http\Controllers\RiskAssessmentController;
@@ -267,6 +268,19 @@ Route::middleware(['auth', 'restrict.platform-admin'])->group(function () {
     Route::post('/rfqs/{rfq}/select-vendor', [RfqController::class, 'selectVendor'])->name('rfqs.select-vendor');
     Route::post('/rfqs/{rfq}/quotations', [VendorQuotationController::class, 'store'])->name('rfqs.quotations.store');
     Route::delete('/rfqs/{rfq}/quotations/{quotation}', [VendorQuotationController::class, 'destroy'])->name('rfqs.quotations.destroy');
+
+    // Purchase Order (Milestone 4, Workstream C4): same segregation-of-
+    // duties split as Purchase Requisition.
+    Route::get('/purchase-orders', [PurchaseOrderController::class, 'index'])->name('purchase-orders.index');
+    Route::get('/purchase-orders/create', [PurchaseOrderController::class, 'create'])->name('purchase-orders.create');
+    Route::post('/purchase-orders', [PurchaseOrderController::class, 'store'])->name('purchase-orders.store');
+    Route::get('/purchase-orders/{purchaseOrder}', [PurchaseOrderController::class, 'show'])->name('purchase-orders.show');
+    Route::post('/purchase-orders/{purchaseOrder}/submit', [PurchaseOrderController::class, 'submit'])->name('purchase-orders.submit');
+    Route::post('/purchase-orders/{purchaseOrder}/approve', [PurchaseOrderController::class, 'approve'])->name('purchase-orders.approve');
+    Route::post('/purchase-orders/{purchaseOrder}/reject', [PurchaseOrderController::class, 'reject'])->name('purchase-orders.reject');
+    Route::post('/purchase-orders/{purchaseOrder}/issue', [PurchaseOrderController::class, 'issue'])->name('purchase-orders.issue');
+    Route::post('/purchase-orders/{purchaseOrder}/close', [PurchaseOrderController::class, 'close'])->name('purchase-orders.close');
+    Route::post('/purchase-orders/{purchaseOrder}/cancel', [PurchaseOrderController::class, 'cancel'])->name('purchase-orders.cancel');
 
     // Daily HSE Report: viewable by all roles; mutation below is admin-scoped.
     Route::get('/daily-reports', [DailyReportController::class, 'index'])->name('daily-reports.index');

@@ -12,7 +12,7 @@ class SafetyEquipment extends Model
     public const STATUSES = ['active', 'out_of_service'];
 
     protected $fillable = [
-        'company_id', 'name', 'type', 'location', 'serial_number',
+        'company_id', 'asset_id', 'name', 'type', 'location', 'serial_number',
         'last_inspection_date', 'next_inspection_due', 'status', 'notes',
     ];
 
@@ -29,6 +29,12 @@ class SafetyEquipment extends Model
     public function company()
     {
         return $this->belongsTo(Company::class);
+    }
+
+    /** Milestone 4, Acceleration Part 1C -- optional link to the Asset register, additive (see the owning migration's own doc comment). */
+    public function asset()
+    {
+        return $this->belongsTo(Asset::class);
     }
 
     /** Computed, not stored -- true once past next_inspection_due and still in service. */

@@ -3,6 +3,7 @@
 use App\Http\Controllers\ActivityCenterController;
 use App\Http\Controllers\AnalyticsController;
 use App\Http\Controllers\ApprovalController;
+use App\Http\Controllers\AssetController;
 use App\Http\Controllers\Auth\AuthenticatedSessionController;
 use App\Http\Controllers\Auth\NewPasswordController;
 use App\Http\Controllers\Auth\PasswordResetLinkController;
@@ -315,6 +316,16 @@ Route::middleware(['auth', 'restrict.platform-admin'])->group(function () {
     Route::post('/stock/transfer', [StockTransactionController::class, 'transfer'])->name('stock.transfer');
     Route::post('/stock/adjust', [StockTransactionController::class, 'adjust'])->name('stock.adjust');
     Route::post('/stock/opname', [StockTransactionController::class, 'opname'])->name('stock.opname');
+
+    // Asset Management (Milestone 4, Acceleration Part 1C).
+    Route::get('/assets', [AssetController::class, 'index'])->name('assets.index');
+    Route::get('/assets/create', [AssetController::class, 'create'])->name('assets.create');
+    Route::post('/assets', [AssetController::class, 'store'])->name('assets.store');
+    Route::get('/assets/{asset}', [AssetController::class, 'show'])->name('assets.show');
+    Route::post('/assets/{asset}/assign', [AssetController::class, 'assign'])->name('assets.assign');
+    Route::post('/assets/{asset}/transfer', [AssetController::class, 'transfer'])->name('assets.transfer');
+    Route::post('/assets/{asset}/inspect', [AssetController::class, 'inspect'])->name('assets.inspect');
+    Route::post('/assets/{asset}/status', [AssetController::class, 'changeStatus'])->name('assets.change-status');
 
     // Daily HSE Report: viewable by all roles; mutation below is admin-scoped.
     Route::get('/daily-reports', [DailyReportController::class, 'index'])->name('daily-reports.index');

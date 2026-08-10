@@ -3,7 +3,7 @@ import {
     ClipboardList, PackageSearch, Warehouse, ShoppingCart, Wrench,
     BadgeCheck, DollarSign, Box, LayoutDashboard, CalendarDays,
     AlertTriangle, PackageCheck, Flag, BarChart3, FileDown, GraduationCap, Clock, Eye, ListChecks,
-    ShieldAlert, FileWarning, Flame, Lock, UsersRound, Stethoscope, Siren,
+    ShieldAlert, FileWarning, Flame, Lock, UsersRound, Stethoscope, Siren, ClipboardCheck,
 } from 'lucide-react';
 
 /**
@@ -103,7 +103,9 @@ export const WORKSPACES = [
             // + CorrectiveAction), same one-click-report UX as Incident.
             { name: 'Safety Observation', href: 'safety-observations.index', icon: Eye },
             { name: 'HSE Master Data', href: 'hse.master', icon: ListChecks },
-            { name: 'Inspection', icon: ClipboardList, disabled: true },
+            // Milestone 4, Workstream B2: real backend now (HseInspection),
+            // findings raise a real CorrectiveAction (reused, not duplicated).
+            { name: 'Inspection', href: 'hse-inspections.index', icon: ClipboardCheck },
             // Milestone 4, Workstream B4/B5: real backend now (RiskAssessment/
             // JobSafetyAnalysis), document-level sign-off via HasWorkflow.
             { name: 'HIRADC / Risk Assessment', href: 'risk-assessments.index', icon: ShieldAlert },

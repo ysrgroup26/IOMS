@@ -21,6 +21,7 @@ use App\Http\Controllers\GoodsReceiptController;
 use App\Http\Controllers\HazardCategoryController;
 use App\Http\Controllers\HrDashboardController;
 use App\Http\Controllers\HseDashboardController;
+use App\Http\Controllers\HseInspectionController;
 use App\Http\Controllers\IncidentController;
 use App\Http\Controllers\JobSafetyAnalysisController;
 use App\Http\Controllers\KpiInputController;
@@ -205,6 +206,13 @@ Route::middleware(['auth', 'restrict.platform-admin'])->group(function () {
     Route::get('/tbm-meetings/create', [TbmMeetingController::class, 'create'])->name('tbm-meetings.create');
     Route::post('/tbm-meetings', [TbmMeetingController::class, 'store'])->name('tbm-meetings.store');
     Route::get('/tbm-meetings/{tbmMeeting}', [TbmMeetingController::class, 'show'])->name('tbm-meetings.show');
+
+    // HSE Inspection (Milestone 4, Workstream B2).
+    Route::get('/hse-inspections', [HseInspectionController::class, 'index'])->name('hse-inspections.index');
+    Route::get('/hse-inspections/create', [HseInspectionController::class, 'create'])->name('hse-inspections.create');
+    Route::post('/hse-inspections', [HseInspectionController::class, 'store'])->name('hse-inspections.store');
+    Route::get('/hse-inspections/{hseInspection}', [HseInspectionController::class, 'show'])->name('hse-inspections.show');
+    Route::post('/hse-inspections/{hseInspection}/raise-finding', [HseInspectionController::class, 'raiseFinding'])->name('hse-inspections.raise-finding');
 
     // Daily HSE Report: viewable by all roles; mutation below is admin-scoped.
     Route::get('/daily-reports', [DailyReportController::class, 'index'])->name('daily-reports.index');

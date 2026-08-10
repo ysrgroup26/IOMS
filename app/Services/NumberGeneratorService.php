@@ -54,6 +54,14 @@ class NumberGeneratorService
         'tbm' => ['prefix' => 'TBM', 'pattern' => '{PREFIX}-{YEAR}-{SEQ}', 'seq_padding' => 5, 'reset_period' => 'yearly'],
         'hse_inspection' => ['prefix' => 'HSE-INS', 'pattern' => '{PREFIX}-{YEAR}-{SEQ}', 'seq_padding' => 5, 'reset_period' => 'yearly'],
         'loto' => ['prefix' => 'LOTO', 'pattern' => '{PREFIX}-{YEAR}-{SEQ}', 'seq_padding' => 5, 'reset_period' => 'yearly'],
+        // Milestone 4, Workstream C (Procurement). Prefix-only defaults --
+        // a Company Admin can edit these later from Settings > Numbering,
+        // same as every other module. Never hard-coded to look like a
+        // specific tenant's own numbering scheme.
+        'vendor' => ['prefix' => 'VEN', 'pattern' => '{PREFIX}-{SEQ}', 'seq_padding' => 4, 'reset_period' => 'never'],
+        'purchase_requisition' => ['prefix' => 'PR-PROC', 'pattern' => '{PREFIX}-{YEAR}-{SEQ}', 'seq_padding' => 5, 'reset_period' => 'yearly'],
+        'rfq' => ['prefix' => 'RFQ-PROC', 'pattern' => '{PREFIX}-{YEAR}-{SEQ}', 'seq_padding' => 5, 'reset_period' => 'yearly'],
+        'purchase_order' => ['prefix' => 'PO-PROC', 'pattern' => '{PREFIX}-{YEAR}-{SEQ}', 'seq_padding' => 5, 'reset_period' => 'yearly'],
     ];
 
     /**

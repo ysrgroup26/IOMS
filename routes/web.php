@@ -52,6 +52,7 @@ use App\Http\Controllers\SettingsController;
 use App\Http\Controllers\ShiftController;
 use App\Http\Controllers\TaskController;
 use App\Http\Controllers\TbmMeetingController;
+use App\Http\Controllers\VendorController;
 use App\Http\Controllers\WorkCenterController;
 use Illuminate\Support\Facades\Route;
 
@@ -223,6 +224,19 @@ Route::middleware(['auth', 'restrict.platform-admin'])->group(function () {
     // Inspection/Incident already create.
     Route::get('/corrective-actions', [CorrectiveActionController::class, 'index'])->name('corrective-actions.index');
     Route::post('/corrective-actions/{correctiveAction}/status', [CorrectiveActionController::class, 'updateStatus'])->name('corrective-actions.update-status');
+
+    // Vendor / Supplier Master (Milestone 4, Workstream C1): list/detail
+    // viewable by all roles; write actions gated by canManageProcurement()
+    // inside the controller, same shape as Safety Observation/HSE.
+    Route::get('/vendors', [VendorController::class, 'index'])->name('vendors.index');
+    Route::get('/vendors/create', [VendorController::class, 'create'])->name('vendors.create');
+    Route::post('/vendors', [VendorController::class, 'store'])->name('vendors.store');
+    Route::get('/vendors/{vendor}/edit', [VendorController::class, 'edit'])->name('vendors.edit');
+    Route::put('/vendors/{vendor}', [VendorController::class, 'update'])->name('vendors.update');
+    Route::get('/vendors/{vendor}', [VendorController::class, 'show'])->name('vendors.show');
+    Route::post('/vendors/{vendor}/qualification', [VendorController::class, 'reviewQualification'])->name('vendors.qualification');
+    Route::post('/vendors/{vendor}/documents', [VendorController::class, 'storeDocument'])->name('vendors.documents.store');
+    Route::delete('/vendors/{vendor}/documents/{document}', [VendorController::class, 'destroyDocument'])->name('vendors.documents.destroy');
 
     // Daily HSE Report: viewable by all roles; mutation below is admin-scoped.
     Route::get('/daily-reports', [DailyReportController::class, 'index'])->name('daily-reports.index');

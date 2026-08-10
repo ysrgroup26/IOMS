@@ -315,6 +315,22 @@ class User extends Authenticatable
         return $this->isSuperAdmin() || $this->isWarehouse();
     }
 
+    /**
+     * Milestone 4, Workstream C (Procurement). Same "Warehouse is the
+     * logistics-operations role this app already has" reasoning as
+     * canManageGoodsReceipts() -- Procurement is the natural extension of
+     * that same domain (PR/RFQ/PO creation and day-to-day operation), not
+     * a brand-new role invented for this workstream. Financial
+     * authorization (PO approval) is intentionally a SEPARATE gate --
+     * see config('workflow.approvers') usage in PurchaseOrderController
+     * -- so a requester/procurement officer never automatically gains
+     * approval authority (segregation of duties).
+     */
+    public function canManageProcurement(): bool
+    {
+        return $this->isSuperAdmin() || $this->isWarehouse();
+    }
+
     public function avatarUrl(): ?string
     {
         return $this->avatar_path ? asset('storage/'.$this->avatar_path) : null;

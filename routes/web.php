@@ -69,6 +69,7 @@ use App\Http\Controllers\TbmMeetingController;
 use App\Http\Controllers\VendorController;
 use App\Http\Controllers\VendorPerformanceController;
 use App\Http\Controllers\VendorQuotationController;
+use App\Http\Controllers\VisitorController;
 use App\Http\Controllers\WorkOrderController;
 use App\Http\Controllers\WorkCenterController;
 use Illuminate\Support\Facades\Route;
@@ -378,6 +379,17 @@ Route::middleware(['auth', 'restrict.platform-admin'])->group(function () {
     Route::post('/contractors/{contractor}/workers', [ContractorController::class, 'storeWorker'])->name('contractors.workers.store');
     Route::put('/contractors/{contractor}/workers/{worker}', [ContractorController::class, 'updateWorker'])->name('contractors.workers.update');
     Route::delete('/contractors/{contractor}/workers/{worker}', [ContractorController::class, 'destroyWorker'])->name('contractors.workers.destroy');
+
+    // Visitor Management (Milestone 4, Acceleration Part 5).
+    Route::get('/visitors', [VisitorController::class, 'index'])->name('visitors.index');
+    Route::get('/visitors/create', [VisitorController::class, 'create'])->name('visitors.create');
+    Route::post('/visitors', [VisitorController::class, 'store'])->name('visitors.store');
+    Route::get('/visitors/{visitor}', [VisitorController::class, 'show'])->name('visitors.show');
+    Route::post('/visitors/{visitor}/approve', [VisitorController::class, 'approve'])->name('visitors.approve');
+    Route::post('/visitors/{visitor}/reject', [VisitorController::class, 'reject'])->name('visitors.reject');
+    Route::post('/visitors/{visitor}/induction', [VisitorController::class, 'toggleInduction'])->name('visitors.induction');
+    Route::post('/visitors/{visitor}/check-in', [VisitorController::class, 'checkIn'])->name('visitors.check-in');
+    Route::post('/visitors/{visitor}/check-out', [VisitorController::class, 'checkOut'])->name('visitors.check-out');
 
     // Daily HSE Report: viewable by all roles; mutation below is admin-scoped.
     Route::get('/daily-reports', [DailyReportController::class, 'index'])->name('daily-reports.index');

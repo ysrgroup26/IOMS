@@ -198,4 +198,25 @@ class ProjectController extends Controller
 
         return back()->with('success', "{$employee->full_name} removed from the project.");
     }
+
+    /**
+     * Milestone 4, Acceleration Part 3 -- Project Activities. A dedicated
+     * page rather than a card bolted onto the existing (already dense)
+     * Show.jsx -- keeps that page's own contract untouched.
+     */
+    public function activities(Project $project): Response
+    {
+        $tenantCompanyIds = Company::query()->pluck('id');
+        abort_unless($tenantCompanyIds->contains($project->company_id), 404);
+
+        $project->load(['activities.assignedEmployee:id,full_name']);
+
+        return Inertia::render('Projects/Activities', [
+            'project' => $project->only('id', 'name', 'project_code'),
+            'activities' => $project->activities,
+            'employees' => Employee::where('company_id', $project->company_id)->active()->orderBy('full_name')->get(['id', 'full_name']),
+            'statuses' => \App\Models\ProjectActivity::STATUSES,
+            'can' => ['manage' => request()->user()->canManageProjects()],
+        ]);
+    }
 }

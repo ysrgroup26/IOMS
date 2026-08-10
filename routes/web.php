@@ -26,6 +26,7 @@ use App\Http\Controllers\HrDashboardController;
 use App\Http\Controllers\HseDashboardController;
 use App\Http\Controllers\HseInspectionController;
 use App\Http\Controllers\IncidentController;
+use App\Http\Controllers\InspectionRequestController;
 use App\Http\Controllers\ItemController;
 use App\Http\Controllers\JobSafetyAnalysisController;
 use App\Http\Controllers\StockController;
@@ -39,6 +40,7 @@ use App\Http\Controllers\LotoRecordController;
 use App\Http\Controllers\MaintenanceRequestController;
 use App\Http\Controllers\MaterialRequestController;
 use App\Http\Controllers\MilestoneController;
+use App\Http\Controllers\NcrController;
 use App\Http\Controllers\P3kBoxController;
 use App\Http\Controllers\PermitToWorkController;
 use App\Http\Controllers\ProcurementDashboardController;
@@ -51,6 +53,7 @@ use App\Http\Controllers\NotificationController;
 use App\Http\Controllers\PlatformController;
 use App\Http\Controllers\PpeController;
 use App\Http\Controllers\PpeTypeController;
+use App\Http\Controllers\ProjectActivityController;
 use App\Http\Controllers\ProjectController;
 use App\Http\Controllers\ProjectManagementDashboardController;
 use App\Http\Controllers\ReportCenterController;
@@ -342,6 +345,26 @@ Route::middleware(['auth', 'restrict.platform-admin'])->group(function () {
     Route::get('/work-orders/{workOrder}', [WorkOrderController::class, 'show'])->name('work-orders.show');
     Route::post('/work-orders/{workOrder}/transition', [WorkOrderController::class, 'transition'])->name('work-orders.transition');
     Route::post('/work-orders/{workOrder}/spare-parts', [WorkOrderController::class, 'addSparePart'])->name('work-orders.spare-parts.store');
+
+    // Project Activities (Milestone 4, Acceleration Part 3).
+    Route::get('/projects/{project}/activities', [ProjectController::class, 'activities'])->name('projects.activities');
+    Route::post('/projects/{project}/activities', [ProjectActivityController::class, 'store'])->name('projects.activities.store');
+    Route::put('/projects/{project}/activities/{activity}', [ProjectActivityController::class, 'update'])->name('projects.activities.update');
+    Route::delete('/projects/{project}/activities/{activity}', [ProjectActivityController::class, 'destroy'])->name('projects.activities.destroy');
+
+    // QC Foundation (Milestone 4, Acceleration Part 3).
+    Route::get('/inspection-requests', [InspectionRequestController::class, 'index'])->name('inspection-requests.index');
+    Route::get('/inspection-requests/create', [InspectionRequestController::class, 'create'])->name('inspection-requests.create');
+    Route::post('/inspection-requests', [InspectionRequestController::class, 'store'])->name('inspection-requests.store');
+    Route::get('/inspection-requests/{inspectionRequest}', [InspectionRequestController::class, 'show'])->name('inspection-requests.show');
+    Route::post('/inspection-requests/{inspectionRequest}/result', [InspectionRequestController::class, 'recordResult'])->name('inspection-requests.result');
+
+    Route::get('/ncrs', [NcrController::class, 'index'])->name('ncrs.index');
+    Route::get('/ncrs/create', [NcrController::class, 'create'])->name('ncrs.create');
+    Route::post('/ncrs', [NcrController::class, 'store'])->name('ncrs.store');
+    Route::get('/ncrs/{ncr}', [NcrController::class, 'show'])->name('ncrs.show');
+    Route::post('/ncrs/{ncr}/corrective-action', [NcrController::class, 'raiseCorrectiveAction'])->name('ncrs.raise-corrective-action');
+    Route::post('/ncrs/{ncr}/close', [NcrController::class, 'close'])->name('ncrs.close');
 
     // Daily HSE Report: viewable by all roles; mutation below is admin-scoped.
     Route::get('/daily-reports', [DailyReportController::class, 'index'])->name('daily-reports.index');

@@ -16,6 +16,10 @@ class Project extends Model
         'company_id',
         'name',
         'vessel_name',
+        'project_code',
+        'client',
+        'location',
+        'manager_id',
         'start_date',
         'end_date',
         'status',
@@ -39,6 +43,22 @@ class Project extends Model
     public function creator()
     {
         return $this->belongsTo(User::class, 'created_by');
+    }
+
+    /** Milestone 4, Acceleration Part 3 -- additive PM fields, see the owning migration's own doc comment. */
+    public function manager()
+    {
+        return $this->belongsTo(User::class, 'manager_id');
+    }
+
+    public function activities()
+    {
+        return $this->hasMany(ProjectActivity::class);
+    }
+
+    public function inspectionRequests()
+    {
+        return $this->hasMany(InspectionRequest::class);
     }
 
     public function manpower()

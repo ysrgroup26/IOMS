@@ -43,6 +43,10 @@ class NumberGeneratorService
         'task' => ['prefix' => 'TSK', 'pattern' => '{PREFIX}-{YEAR}-{SEQ}', 'seq_padding' => 5, 'reset_period' => 'yearly'],
         // New in Milestone 3 -- Milestone previously had no numbering at all.
         'milestone' => ['prefix' => 'MS', 'pattern' => '{PREFIX}-{YEAR}-{SEQ}', 'seq_padding' => 5, 'reset_period' => 'yearly'],
+        // Milestone 4, Workstream B1 -- Safety Observation. HSE-OBS prefix
+        // (not just OBS) so it reads unambiguously as HSE's own module
+        // number series, matching the spec's own numbering example.
+        'safety_observation' => ['prefix' => 'HSE-OBS', 'pattern' => '{PREFIX}-{YEAR}-{SEQ}', 'seq_padding' => 5, 'reset_period' => 'yearly'],
     ];
 
     /**

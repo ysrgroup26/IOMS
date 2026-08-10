@@ -2,7 +2,7 @@ import {
     Users, ClipboardEdit, FileBarChart, Settings, FolderKanban, HardHat,
     ClipboardList, PackageSearch, Warehouse, ShoppingCart, Wrench,
     BadgeCheck, DollarSign, Box, LayoutDashboard, CalendarDays,
-    AlertTriangle, PackageCheck, Flag, BarChart3, FileDown, GraduationCap, Clock,
+    AlertTriangle, PackageCheck, Flag, BarChart3, FileDown, GraduationCap, Clock, Eye, ListChecks,
 } from 'lucide-react';
 
 /**
@@ -98,6 +98,10 @@ export const WORKSPACES = [
             { name: 'PPE Management', href: 'ppe.dashboard', icon: HardHat, moduleKey: 'ppe' },
             { name: 'Permit To Work', icon: ClipboardList, disabled: true },
             { name: 'Incident Management', href: 'incidents.index', icon: AlertTriangle },
+            // Milestone 4, Workstream B1: real backend now (SafetyObservation
+            // + CorrectiveAction), same one-click-report UX as Incident.
+            { name: 'Safety Observation', href: 'safety-observations.index', icon: Eye },
+            { name: 'HSE Master Data', href: 'hse.master', icon: ListChecks },
             { name: 'Inspection', icon: ClipboardList, disabled: true },
             { name: 'Risk Assessment', icon: ClipboardList, disabled: true },
             { name: 'Safety Meeting (TBM)', icon: Users, disabled: true },

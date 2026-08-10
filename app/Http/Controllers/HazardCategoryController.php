@@ -1,0 +1,87 @@
+<?php
+
+namespace App\Http\Controllers;
+
+use App\Http\Requests\StoreHazardCategoryRequest;
+use App\Http\Requests\UpdateHazardCategoryRequest;
+use App\Models\ActivityLog;
+use App\Models\Company;
+use App\Models\HazardCategory;
+use Illuminate\Http\RedirectResponse;
+use Inertia\Inertia;
+use Inertia\Response;
+
+/**
+ * Milestone 4, Workstream B0. Hazard Category Master -- mirrors
+ * ShiftController/CompetencyTypeController exactly (table-driven catalog,
+ * one setup page, TenantScope-safe via Company::query()).
+ */
+class HazardCategoryController extends Controller
+{
+    public function master(): Response
+    {
+        $companyIds = Company::query()->pluck('id');
+
+        return Inertia::render('Hse/Master', [
+            'hazardCategories' => HazardCategory::whereIn('company_id', $companyIds)
+                ->withCount('safetyObservations')
+                ->orderBy('sort_order')
+                ->orderBy('name')
+                ->get(),
+            'companies' => Company::active()->orderBy('name')->get(['id', 'name']),
+            'can' => ['manage' => request()->user()->isAdmin()],
+        ]);
+    }
+
+    public function store(StoreHazardCategoryRequest $request): RedirectResponse
+    {
+        $hazardCategory = HazardCategory::create($request->validated());
+
+        ActivityLog::record('created', "Hazard category \"{$hazardCategory->name}\" was created.", $hazardCategory);
+
+        return back()->with('success', 'Hazard category added.');
+    }
+
+    public function update(UpdateHazardCategoryRequest $request, HazardCategory $hazardCategory): RedirectResponse
+    {
+        $this->assertInCurrentTenant($hazardCategory);
+
+        $hazardCategory->update($request->validated());
+
+        ActivityLog::record('updated', "Hazard category \"{$hazardCategory->name}\" was updated.", $hazardCategory);
+
+        return back()->with('success', 'Hazard category updated.');
+    }
+
+    public function destroy(HazardCategory $hazardCategory): RedirectResponse
+    {
+        $this->authorize('delete', $hazardCategory);
+        $this->assertInCurrentTenant($hazardCategory);
+
+        if ($hazardCategory->safetyObservations()->exists()) {
+            return back()->with('error', 'Cannot delete a hazard category that has safety observations against it.');
+        }
+
+        $name = $hazardCategory->name;
+        $hazardCategory->delete();
+
+        ActivityLog::record('deleted', "Hazard category \"{$name}\" was removed.");
+
+        return back()->with('success', 'Hazard category removed.');
+    }
+
+    /**
+     * Tenant ownership guard for route-model-bound HazardCategory --
+     * HazardCategory has no automatic TenantScope (only Company does), so
+     * without this a Tenant B admin could PUT/DELETE a Tenant A hazard
+     * category by id (its own submitted `company_id` field validates fine
+     * against Tenant B's own companies; the EXISTING row's tenant was
+     * never checked). Same 404-not-403 pattern as
+     * SafetyObservationController::assertObservationInCurrentTenant().
+     */
+    private function assertInCurrentTenant(HazardCategory $hazardCategory): void
+    {
+        $tenantCompanyIds = Company::query()->pluck('id');
+        abort_unless($tenantCompanyIds->contains($hazardCategory->company_id), 404);
+    }
+}

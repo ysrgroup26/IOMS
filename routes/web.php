@@ -17,6 +17,7 @@ use App\Http\Controllers\EmployeeRosterController;
 use App\Http\Controllers\EmployeeShiftAssignmentController;
 use App\Http\Controllers\GlobalSearchController;
 use App\Http\Controllers\GoodsReceiptController;
+use App\Http\Controllers\HazardCategoryController;
 use App\Http\Controllers\HrDashboardController;
 use App\Http\Controllers\HseDashboardController;
 use App\Http\Controllers\IncidentController;
@@ -36,6 +37,7 @@ use App\Http\Controllers\ReportCenterController;
 use App\Http\Controllers\ReportController;
 use App\Http\Controllers\RosterController;
 use App\Http\Controllers\RosterPatternController;
+use App\Http\Controllers\SafetyObservationController;
 use App\Http\Controllers\SettingsController;
 use App\Http\Controllers\ShiftController;
 use App\Http\Controllers\TaskController;
@@ -144,6 +146,20 @@ Route::middleware(['auth', 'restrict.platform-admin'])->group(function () {
     Route::get('/shifts/master', [ShiftController::class, 'master'])->name('shifts.master');
     Route::get('/rosters/overview', [RosterController::class, 'overview'])->name('rosters.overview');
 
+    // HSE Master Data (Milestone 4, Workstream B0): viewable by all roles,
+    // same pattern.
+    Route::get('/hse/master', [HazardCategoryController::class, 'master'])->name('hse.master');
+
+    // Safety Observation (Milestone 4, Workstream B1): list/detail viewable
+    // by all roles; create/store/transition are canManageSafetyObservations()
+    // gated inside the controller, same shape as Incident.
+    Route::get('/safety-observations', [SafetyObservationController::class, 'index'])->name('safety-observations.index');
+    Route::get('/safety-observations/create', [SafetyObservationController::class, 'create'])->name('safety-observations.create');
+    Route::post('/safety-observations', [SafetyObservationController::class, 'store'])->name('safety-observations.store');
+    Route::get('/safety-observations/{safetyObservation}', [SafetyObservationController::class, 'show'])->name('safety-observations.show');
+    Route::post('/safety-observations/{safetyObservation}/transition', [SafetyObservationController::class, 'transition'])->name('safety-observations.transition');
+    Route::delete('/safety-observations/{safetyObservation}/photos/{photo}', [SafetyObservationController::class, 'destroyPhoto'])->name('safety-observations.photos.destroy');
+
     // Daily HSE Report: viewable by all roles; mutation below is admin-scoped.
     Route::get('/daily-reports', [DailyReportController::class, 'index'])->name('daily-reports.index');
     Route::get('/daily-reports/{dailyReport}', [DailyReportController::class, 'show'])->name('daily-reports.show');
@@ -202,6 +218,10 @@ Route::middleware(['auth', 'restrict.platform-admin'])->group(function () {
         Route::post('/employees/{employee}/rosters', [EmployeeRosterController::class, 'store'])->name('employees.rosters.store');
         Route::put('/employee-rosters/{employeeRoster}', [EmployeeRosterController::class, 'update'])->name('employee-rosters.update');
         Route::delete('/employee-rosters/{employeeRoster}', [EmployeeRosterController::class, 'destroy'])->name('employee-rosters.destroy');
+
+        Route::post('/hazard-categories', [HazardCategoryController::class, 'store'])->name('hazard-categories.store');
+        Route::put('/hazard-categories/{hazardCategory}', [HazardCategoryController::class, 'update'])->name('hazard-categories.update');
+        Route::delete('/hazard-categories/{hazardCategory}', [HazardCategoryController::class, 'destroy'])->name('hazard-categories.destroy');
 
         Route::get('/daily-reports-create', [DailyReportController::class, 'create'])->name('daily-reports.create');
         Route::post('/daily-reports', [DailyReportController::class, 'store'])->name('daily-reports.store');

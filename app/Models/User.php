@@ -291,6 +291,12 @@ class User extends Authenticatable
         return $this->isSuperAdmin() || $this->isHse();
     }
 
+    /** Milestone 4, Workstream B1 -- Safety Observation. Same HSE-domain gate as Incidents; there is no separate self-service "any employee" login in this app to grant a broader creation-only permission to. */
+    public function canManageSafetyObservations(): bool
+    {
+        return $this->isSuperAdmin() || $this->isHse();
+    }
+
     /** Milestones (v1.10.0) -- reuses the existing project-management permission rather than inventing a parallel one. */
     public function canManageMilestones(): bool
     {

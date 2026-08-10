@@ -275,6 +275,93 @@ something that needs a separate approver the way Material Request/Leave do. Fiel
 (minor/moderate/major/critical), category (injury/near_miss/property_damage/environmental/other),
 optional project link. Gated by `User::canManageIncidents()`. Numbered `INC-{year}-{00001}`.
 
+**Known gap (flagged, not fixed here):** `IncidentController::index()`/`show()` query `Incident`
+with no company scoping at all — the same bug class fixed in `DashboardStatsService` and
+`HseDashboardController` below. Flagged as a background task rather than fixed silently while
+building an unrelated module (Safety Observation) in the same session — see
+`docs/CONVENTIONS.md`'s Known Pitfalls list.
+
+## HSE Master Data (Hazard Category)
+
+**Department:** HSE (Milestone 4, Workstream B0).
+
+`HazardCategory` (`app/Models/HazardCategory.php`): tenant-scoped catalog (`company_id` required,
+`restrictOnDelete()`) — mirrors `CompetencyType`/`Shift`'s own convention, not `KpiCategory`'s
+nullable-means-global one. One setup page, `Hse/Master.jsx` (`hse.master` route), deliberately named
+so future HSE masters (Safety Equipment types, Safety Material types, etc. — Workstream B10/B11)
+land here as additional sections rather than each growing its own route. Gated by `User::isAdmin()`
+for write, viewable by everyone (matches PPE/Competency/Shift's own viewable-by-all pattern).
+`HazardCategoryController::update()`/`destroy()` include a per-instance
+`assertInCurrentTenant()` ownership guard on the route-model-bound record — see this module's own
+"why" note below (a real gap discovered in the sibling `CompetencyType`/`Shift`/`RosterPattern`
+controllers while building this one, flagged separately rather than fixed silently).
+
+## Safety Observation
+
+**Department:** HSE (Milestone 4, Workstream B1).
+
+`SafetyObservation` (`app/Models/SafetyObservation.php`): HSE's second real module beyond
+PPE/Incident. Workflow Engine only (same choice as Incident — closing/verifying an observation is
+an operational HSE decision, not a multi-party approval), full 7-state lifecycle: `draft -> open ->
+assigned -> in_progress -> pending_verification -> closed`/`cancelled` (pending_verification can
+also bounce back to in_progress, a "reopen"/rejected-verification path). `draft` is fully modeled
+and transition-guarded but not reachable from the web Create form — the form reports directly into
+`open`, the same one-click-report UX Incident already established; `draft` exists for a future
+entry point (e.g. a mobile app saving a draft before submitting).
+
+Fields: type (unsafe_act/unsafe_condition/positive — a fixed 3-way set, kept as a validated string
+column + model constants, not a master table, same precedent as Incident's own category/severity),
+severity (reuses Incident::SEVERITIES' exact scale — one consistent HSE severity vocabulary),
+optional `hazard_category_id` (the one field that genuinely needed a tenant-configurable master —
+see HSE Master Data above), free-text `location` (no Area/Location master exists anywhere in this
+codebase — confirmed by audit before building this — so this matches `Incident.location`'s own
+precedent rather than inventing one). `reported_by`/`assigned_to`/`closed_by` all point at `users`,
+not `employees` (nobody who isn't a logged-in system User can be assigned a follow-up or notified of
+a status change in this codebase today). The `reported_by` column name (not `observer_id`) is
+deliberate — `HasWorkflow::notificationRecipient()` reads that exact column name for free, so
+status-change notifications work without overriding it; "Observer" is purely the UI label.
+
+Photo evidence: `SafetyObservationPhoto` (`app/Models/SafetyObservationPhoto.php`), a dedicated
+child-row-per-photo model mirroring `DailyReportPhoto` exactly (not a single `photo_path` scalar
+column) — uploaded via the shared `MultiImageUpload` component, stored under
+`uploads/safety-observations` on the `public` disk.
+
+Corrective action: `CorrectiveAction` (`app/Models/CorrectiveAction.php`) — a genuinely reusable
+CAPA building block, **not** Safety-Observation-only. Polymorphic `source` (`source_type`/
+`source_id`) so Incident (Workstream B14), HSE Inspection (B2), HIRADC (B4), etc. can attach their
+own corrective actions to this SAME table later instead of each module growing its own
+closure/follow-up columns — directly satisfies Workstream B15's "CAPA should be reusable across HSE
+sources" requirement. `company_id` is stored directly on the row (copied from the source at
+creation time) rather than derived by joining through the polymorphic relation on every query, so
+the table stays uniformly tenant-safe regardless of which module created a given row.
+`SafetyObservationController::transition()` creates one automatically the first time an observation
+is moved to "Assigned" (using the observation's own `immediate_action` text as the default action
+description), and marks it `verified` when the observation is closed. Not yet exposed as its own
+standalone CAPA management page/route — that's explicitly deferred to whenever Workstream B15 is
+built for real, not fabricated now to look more complete than it is.
+
+Gated by `User::canManageSafetyObservations()` (same `isSuperAdmin() || isHse()` gate as
+`canManageIncidents()` — there is no separate self-service "any employee" login in this app to grant
+a broader creation-only permission to, unlike a literal reading of the spec's "General Employee:
+Submit Safety Observation" RBAC table, which assumes an employee-login concept this codebase doesn't
+have). Numbered `HSE-OBS-{year}-{00001}` via the existing Numbering Engine (new
+`NumberGeneratorService::DEFAULTS['safety_observation']` entry — no bespoke numbering method).
+
+**Tenant isolation, built in from the start (not retrofitted):** `SafetyObservation` has no
+automatic `TenantScope` (only `Company` does), so `SafetyObservationController::index()` explicitly
+`whereIn('company_id', ...)`-scopes its query, and `show()`/`transition()`/`destroyPhoto()` all call
+a private `assertObservationInCurrentTenant()` guard (404-not-403, same pattern as
+`EmployeeCompetencyController::assertEmployeeInCurrentTenant()`) before touching the route-model-
+bound record. All foreign ids in `StoreSafetyObservationRequest` use `Rule::in()` over
+tenant-scoped id collections, never a raw `exists:` rule.
+
+**`HseDashboardController` tenant-leak fix (found while extending it to add this module's own
+widget):** every existing query in that controller (`Incident`/`Project`/`EmployeePpe`) had NO
+company scoping at all — the same bug class already fixed in `DashboardStatsService`. Fixed by
+injecting `DashboardStatsService` and reusing its `resolveCompanyIds()` helper rather than a second
+copy of the same logic; the new Safety Observation widgets (`openSafetyObservationsCount`,
+`recentSafetyObservations`) were built tenant-safe from the start using the same helper.
+
 ## Milestones
 
 **Department:** Project Management (v1.10.0).

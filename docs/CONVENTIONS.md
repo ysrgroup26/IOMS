@@ -144,9 +144,23 @@ codebase's history — kept here so they don't get repeated in a slightly differ
 - **`Company`'s global scope does not automatically protect every table beneath it.** Only queries
   that actually go through a scoped `Company` relationship are protected. A controller/dashboard
   widget that queries an operational table directly (KPI records, incidents, etc.) without joining
-  through `Company` is not tenant-filtered. Harmless with exactly one tenant in production today;
-  see `docs/ADR/008-tenancy-foundation.md`'s Consequences section for why this needs revisiting
-  before a second tenant is onboarded.
+  through `Company` is not tenant-filtered. This stopped being a theoretical/single-tenant-only
+  concern once real multiple tenants existed in production (Master → Tenant Management,
+  Milestone 4) — see the growing list of real instances below, each found the same way: reading the
+  controller carefully while building or extending something nearby, not by a dedicated audit pass.
+  `DashboardStatsService::resolveCompanyIds(?int $companyId): array` (`Company::query()->pluck('id')`,
+  falling back to the current tenant's full company list when no specific one is selected — critically,
+  an empty list for a company-less tenant is a real "match zero rows" `whereIn`, not "match everything")
+  is the one reusable, TenantScope-safe helper every new instance should call, not reimplement.
+  Found and fixed: `DashboardStatsService` itself (a brand-new, company-less tenant's Dashboard
+  showing another tenant's KPI/employee data), `HseDashboardController` (Milestone 4, Workstream
+  B1 — every widget query, found while adding the Safety Observation widget). Flagged, not yet
+  fixed (background tasks, to avoid silently expanding an unrelated change's scope):
+  `IncidentController::index()`/`show()`, `PpeController` (the KpiCategory-class leak), a per-instance
+  ownership guard missing from `CompetencyTypeController`/`ShiftController`/`RosterPatternController`'s
+  `update()`/`destroy()` (their `Store`/`UpdateXRequest` only validates the *submitted* `company_id`,
+  never checks the *existing* route-model-bound record's own tenant). See
+  `docs/ADR/008-tenancy-foundation.md`'s Consequences section for the underlying design tradeoff.
 
 - **Any place that sets Spatie's permission team id must use the same `0` sentinel for a Platform
   Super Admin (`tenant_id` null) that `RolePermissionSeeder` used when assigning their role** — the

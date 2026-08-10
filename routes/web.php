@@ -46,6 +46,7 @@ use App\Http\Controllers\SafetyObservationController;
 use App\Http\Controllers\SettingsController;
 use App\Http\Controllers\ShiftController;
 use App\Http\Controllers\TaskController;
+use App\Http\Controllers\TbmMeetingController;
 use App\Http\Controllers\WorkCenterController;
 use Illuminate\Support\Facades\Route;
 
@@ -198,6 +199,12 @@ Route::middleware(['auth', 'restrict.platform-admin'])->group(function () {
     Route::get('/loto-records/create', [LotoRecordController::class, 'create'])->name('loto-records.create');
     Route::post('/loto-records', [LotoRecordController::class, 'store'])->name('loto-records.store');
     Route::post('/loto-records/{lotoRecord}/release', [LotoRecordController::class, 'release'])->name('loto-records.release');
+
+    // TBM / Toolbox Meeting (Milestone 4, Workstream B3).
+    Route::get('/tbm-meetings', [TbmMeetingController::class, 'index'])->name('tbm-meetings.index');
+    Route::get('/tbm-meetings/create', [TbmMeetingController::class, 'create'])->name('tbm-meetings.create');
+    Route::post('/tbm-meetings', [TbmMeetingController::class, 'store'])->name('tbm-meetings.store');
+    Route::get('/tbm-meetings/{tbmMeeting}', [TbmMeetingController::class, 'show'])->name('tbm-meetings.show');
 
     // Daily HSE Report: viewable by all roles; mutation below is admin-scoped.
     Route::get('/daily-reports', [DailyReportController::class, 'index'])->name('daily-reports.index');

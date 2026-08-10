@@ -668,6 +668,141 @@ parent-derived ownership check. Data-integrity cross-references (a PO cannot ref
 RFQ from another tenant, a GRN item cannot reference a foreign PO item) are enforced via `Rule::in()`
 scoped to the SAME tenant on every foreign-id field, not left to frontend filtering alone.
 
+## Acceleration Mode — Industrial Core Modules (Milestone 4, Acceleration Parts 1–7)
+
+Seven domains built in one continuous acceleration-mode run: Material & Asset Management (Item
+Master, Warehouse/Inventory, Asset Management), Maintenance CMMS Foundation, Project enhancement +
+Quality Control Foundation, Contractor Management, Visitor Management, Document Control Foundation,
+and Dashboard Integration. Same audit-first, reuse-first, tenant-isolation-non-negotiable discipline
+as HSE Workstream B and Procurement Workstream C above — every controller uses `Rule::in()` over
+tenant-scoped id collections (never raw `exists:table,id`) and a private `assertInCurrentTenant()`
+404-not-403 guard on every route-model-bound action.
+
+### Item Master
+
+**Department:** Logistics / PPIC. `Item` — the central Warehouse-trackable catalog (`item_code`,
+`name`, `category`, `unit`, `min_stock`, `is_active`), sequential-numbered via
+`NumberGeneratorService` (`item` key). **Deliberately separate from `PpeType`/`HseMaterial`**
+(HSE's own existing catalogs) — not retrofitted onto Item, and Item is not retrofitted onto them;
+three catalogs for three different operational domains, matching the same reasoning as
+`Vendor`≠`Contractor` below.
+
+### Warehouse / Inventory
+
+**Department:** Logistics / PPIC (kept inside Logistics, not split into a separate Warehouse
+department, per explicit instruction). `Warehouse`, `StorageLocation`, `Stock` (a REAL stored
+running balance per item+warehouse, updated atomically inside `DB::transaction()` +
+`lockForUpdate()` — not computed on every read, since a warehouse balance is touched by an
+unboundedly large number of movements over time), `StockMovement` (quantity column is ALWAYS
+positive; direction is entirely determined by `type` via `StockMovement::isInbound()` checking a
+const `INBOUND_TYPES` array — deliberately avoids the "movement type and signed quantity silently
+disagree" bug class).
+
+**`StockService`** (`app/Services/StockService.php`) is the single reusable `recordMovement()`/
+`transfer()` entry point — used by `GoodsReceiptController` (receipt), `StockTransactionController`
+(issue/transfer/adjust/opname), and `WorkOrderController` (spare part usage) alike, the same "one
+engine, not N near-identical read-then-write blocks" reasoning as `NumberGeneratorService` itself.
+
+**Goods Receipt → Warehouse integration**: additive nullable `goods_receipts.warehouse_id` +
+`goods_receipt_items.item_id` — a receipt line only posts a real `StockMovement` when BOTH are set,
+so pre-Warehouse-module receipts (Material Request-sourced, or PO-sourced before a warehouse/item
+was selected) are completely unaffected. `GoodsReceiptController::store()` also advances the parent
+`PurchaseOrder`'s own HasWorkflow status (`issued` → `partially_delivered`/`fully_delivered`)
+automatically via a private `recomputePurchaseOrderDeliveryStatus()`, never a manual button.
+
+**Known bug caught and fixed before shipping**: Stock Opname (physical count variance) can go either
+direction, so `StockTransactionController::opname()` originally passed a possibly-negative variance
+straight through as `quantity` to a hardcoded `StockMovement::TYPE_OPNAME`, which was listed in
+`INBOUND_TYPES` — this would have silently corrupted stock balances on any negative-variance
+(shrinkage) count. Fixed by removing `TYPE_OPNAME` from `INBOUND_TYPES` and recording opname
+variances as real `ADJUSTMENT_IN`/`ADJUSTMENT_OUT` with `abs($variance)`, tagged `[Stock Opname]` in
+the notes; `TYPE_OPNAME` stays defined in `StockMovement::TYPES` purely as a future reporting label,
+never actually created.
+
+### Asset Management
+
+**Department:** Asset Management (promoted from a Coming-Soon placeholder to a real department this
+phase). `Asset` + `AssetTransaction` — full lifecycle Purchase → Receive → Register (optionally
+pre-filled from an issued PO via `?po=`) → Assign → Operate → Inspect → Maintain (see Maintenance
+CMMS below) → Retire. Every lifecycle step past registration writes a real `AssetTransaction` row
+(`assign`/`transfer`/`inspect`/`status_change`), never a silent field update — `Asset`'s own
+`transactions()` relation IS its maintenance/lifecycle history, no separate history table.
+`User::canManageAssets()` reuses the existing Warehouse operational role.
+
+### Maintenance CMMS Foundation
+
+**Department:** Maintenance (promoted from Coming-Soon). `MaintenanceRequest` (Request → Approved →
+Converted to Work Order, via `HasWorkflow`) and `WorkOrder` (Draft → Scheduled → In Progress →
+Completed/Cancelled). Spare part usage on a Work Order (`WorkOrderController::addSparePart()`) posts
+a real `StockMovement` (`TYPE_ISSUE`) through the SAME `StockService` the Warehouse module itself
+uses, with an availability check against `Stock::available_quantity` before allowing the issue.
+Deliberately scoped to operational workflow only — no preventive-maintenance scheduling engine, no
+full SAP PM equivalent.
+
+### Project enhancement + Quality Control Foundation
+
+**Department:** Project Management (Activities) / Quality Control (Inspection Request, NCR — QC
+promoted from Coming-Soon this phase). `ProjectActivity` — a real owner+progress+status record,
+**deliberately distinct from `DailyReportActivity`** (a free-text daily-report log line with no
+owner or progress field) — feeds the Project Management Dashboard's Avg. Activity Progress widget.
+Not yet wired into the Project Form/Show UI (`projects.activities` route exists and works, but the
+existing Project pages don't yet surface a UI to reach it) — documented known limitation, not a
+silent gap.
+
+`InspectionRequest` + `InspectionResult` (pass/fail/conditional) and `Ncr` (Non-Conformance
+Report). An `Ncr` raises a real `CorrectiveAction` via the SAME polymorphic `morphMany` CAPA pattern
+`SafetyObservation`/`HseInspection`/`Incident` already use — explicitly reusing, not duplicating,
+the corrective-action system.
+
+**Known bug caught and fixed before shipping**: `NcrController::store()` originally derived
+`company_id` via `Company::query()->value('id')` (picks whichever company happens to be first in the
+table) instead of a validated, explicitly-selected field — any tenant's NCR could silently land on
+the wrong company. Fixed by adding `'company_id' => ['required', Rule::in($tenantCompanyIds)]` to
+validation and passing the tenant's company list to the create form.
+
+### Contractor Management
+
+**Department:** HSE (its `canManageContractors()` gate reuses the HSE operational role; no
+standalone department was warranted for this alone). `Contractor` + `ContractorWorker`, with
+document/expiry tracking (`contractor_documents`, expiry-date columns checked for the "expiring
+soon" surfacing the spec asked for) and an approval step (`reviewApproval()`) before a contractor is
+usable elsewhere. **Deliberately a separate table from `Vendor`** despite conceptual overlap —
+Vendor is Procurement's goods/quotations counterpart; Contractor is HSE's labor/workforce
+counterpart (workers, inductions, HSE compliance documents), and the two are never meant to merge.
+
+### Visitor Management
+
+**Department:** HSE (`canManageVisitors()`, same reasoning as Contractor above). `Visitor` —
+registration → approval → HSE induction toggle → check-in → check-out, all real workflow steps with
+their own timestamped columns rather than a single generic status field, since each step has
+different actors (host employee, HSE approver, gate/security). No QR code or physical pass
+generation — audited as out of scope for this phase ("if existing infrastructure allows" in the
+spec; none currently does), documented as a known limitation.
+
+### Document Control Foundation
+
+**Department:** HSE (`canManageDocuments()`, same reasoning as Contractor/Visitor above).
+`ControlledDocument` — a document REGISTER with version history (`storeVersion()`) and a lifecycle
+(`Draft → Review → Approved → Effective → Obsolete`) via `HasWorkflow`. **Deliberately distinct from
+`DocumentTemplate`** (Milestone 3's PDF-generation template engine, used to produce PDFs from
+structured data) — `ControlledDocument` tracks arbitrary uploaded files (SOPs, permits, external
+certificates) through an approval/version lifecycle; it reuses the existing `Storage::disk('public')`
+upload architecture rather than building a new file storage system.
+
+### Dashboard Integration
+
+The global `DashboardController` gained six new cross-department widgets this phase
+(`openIncidentsCount`, `openCapaCount`, `pendingProcurementCount`, `stockAlertCount`, `assetCount`,
+`maintenanceDueCount`), all scoped via the existing `DashboardStatsService::resolveCompanyIds()`
+helper. `AssetController::index()` and `WorkOrderController::index()` each gained their own
+department-dashboard-style widgets (Inspection Due, Open/Overdue Work Orders).
+
+**Two pre-existing tenant-scoping leaks found and fixed while extending dashboards this phase**:
+`LogisticsDashboardController` and `ProjectManagementDashboardController` had zero company filtering
+anywhere in their queries (every tenant saw every other tenant's logistics/project data) — both
+rewritten to use `DashboardStatsService::resolveCompanyIds(null)`, the same helper every other
+dashboard controller already used correctly.
+
 ## Department Dashboards (HR, HSE, Project Management, Logistics)
 
 v1.10.0. Each CORE department now has its own real Dashboard (`HrDashboardController`,
@@ -689,14 +824,17 @@ a department-scoped operational view.
 
 ## Future Departments (Coming Soon)
 
-Warehouse, Procurement, Asset Management, Maintenance, Quality Control, Finance. Kept visible in the
-Department selector per explicit instruction ("do not remove them"), each with one real link to a
-shared `ComingSoon` page (`app/Http/Controllers/ComingSoonController.php`,
+**Warehouse, Finance** remain Coming-Soon as of this phase (Warehouse deliberately, since its real
+functionality lives inside Logistics/PPIC per explicit instruction, not split out; Finance has no
+real module yet). **Procurement** (Workstream C), **Asset Management**, **Maintenance**, and
+**Quality Control** (all three: Acceleration Mode) have since graduated from this placeholder list
+to real departments with real modules — see their own sections above. Coming-Soon departments each
+get one real link to a shared `ComingSoon` page (`app/Http/Controllers/ComingSoonController.php`,
 `resources/js/Pages/ComingSoon.jsx`) rather than a disabled sidebar row — there's genuinely somewhere
 to go now, even though no real module exists yet. Each department gets its OWN route name
 (`{department-key}.coming-soon`, e.g. `warehouse.coming-soon`) pointing at the same controller/page —
 not one shared route name — because `workspaces.js`'s active-department detection keys off the
-route-name prefix; six items sharing one route name would all collide onto whichever department
+route-name prefix; several items sharing one route name would all collide onto whichever department
 happened to be resolved last. See `ADR/007`'s v1.10.0 section.
 
 `Task` model, deliberately generic/polymorphic (`related_module` + `related_record_id`) so any

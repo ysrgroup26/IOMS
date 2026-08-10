@@ -190,6 +190,39 @@ codebase's history — kept here so they don't get repeated in a slightly differ
   This was caught and fixed in `App\Http\Middleware\ResolveTenant` during the same milestone that
   introduced it — see `docs/ADR/008-tenancy-foundation.md`.
 
+- **Milestone 4, Acceleration Mode — three more tenant-scoping leaks found and fixed live:**
+  `LogisticsDashboardController` and `ProjectManagementDashboardController` (found while adding new
+  Warehouse/Project widgets — both had ZERO company filtering anywhere, fixed via
+  `DashboardStatsService::resolveCompanyIds(null)`), and `GoodsReceiptController` a second time (found
+  while adding `warehouse_id`/`item_id` handling for Warehouse integration — same parent-derived
+  `assertInCurrentTenant()` pattern as its Workstream C5 fix above, just exercised through a new code
+  path). Also **`NcrController::store()`**: derived `company_id` via `Company::query()->value('id')`
+  (picks whichever company happens to be first) instead of a validated field — fixed by adding
+  `'company_id' => ['required', Rule::in($tenantCompanyIds)]`. Same lesson each time: a leak doesn't
+  announce itself until a controller is genuinely reopened to extend it — audit the query scoping of
+  any controller you're about to touch, even one that looks finished.
+
+- **Stored-vs-computed balance convention** (established Acceleration Part 1B, `Stock` vs.
+  `PurchaseOrderItem::delivered_quantity`): a value gets a REAL stored column, updated atomically
+  inside `DB::transaction()` + `lockForUpdate()`, when it's touched by an unboundedly large number of
+  events over the record's lifetime (a warehouse `Stock` balance — movements never stop). A value
+  stays *computed live* on every read when it sums a small, bounded set of rows scoped to one parent
+  (`PurchaseOrderItem::getDeliveredQuantityAttribute()` sums that PO line's own GRN rows only). Don't
+  default to "always store" or "always compute" — pick based on which side of that boundary the value
+  actually falls on, and say so in a doc comment either way (both examples above do).
+
+- **`StockMovement` always-positive-quantity convention** (Acceleration Part 1B): the `quantity`
+  column on a movement row is ALWAYS positive; direction is entirely determined by `type`, checked via
+  `StockMovement::isInbound()` against a const `INBOUND_TYPES` array — never a signed quantity that
+  has to independently agree with the type. This class of bug is real: Stock Opname's variance can be
+  negative (shrinkage) or positive (overage), and the first draft of `StockTransactionController::
+  opname()` passed that signed variance straight through as `quantity` under a type that was
+  (incorrectly) listed as always-inbound — caught in review before shipping, fixed by recording
+  opname variances as real `ADJUSTMENT_IN`/`ADJUSTMENT_OUT` with `abs($variance)` instead of a
+  dedicated opname type. If you add a new movement type, ask whether its underlying quantity can ever
+  be negative before deciding whether it needs its own type or should map onto an existing
+  `ADJUSTMENT_IN`/`OUT` pair like opname does.
+
 ## Verification discipline (and its real limits)
 
 - This project's development has, in practice, never included actually running `php artisan

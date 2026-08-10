@@ -4,7 +4,7 @@ import {
     BadgeCheck, DollarSign, Box, LayoutDashboard, CalendarDays,
     AlertTriangle, PackageCheck, Flag, BarChart3, FileDown, GraduationCap, Clock, Eye, ListChecks,
     ShieldAlert, FileWarning, Flame, Lock, UsersRound, Stethoscope, Siren, ClipboardCheck,
-    FileStack, FileQuestion, Building2, TrendingUp,
+    FileStack, FileQuestion, Building2, TrendingUp, Boxes, ArrowRightLeft, UserCheck, FileCheck,
 } from 'lucide-react';
 
 /**
@@ -130,6 +130,15 @@ export const WORKSPACES = [
             // moduleKey. Nothing about the implementation changed, only
             // which department's sidebar links to it.
             { name: 'HSE KPI', href: 'kpi-input.index', icon: ClipboardEdit, adminOnly: true, moduleKey: 'kpi_input' },
+            // Milestone 4, Acceleration Part 4/5/6: real backend now
+            // (Contractor, Visitor, ControlledDocument). Placed under HSE
+            // -- Contractor/Visitor gates reuse the HSE operational role
+            // (canManageContractors()/canManageVisitors()), and Document
+            // Control's own gate (canManageDocuments()) does the same;
+            // none of the three warranted a standalone department yet.
+            { name: 'Contractor Management', href: 'contractors.index', icon: UserCheck },
+            { name: 'Visitor Management', href: 'visitors.index', icon: FileCheck },
+            { name: 'Document Control', href: 'controlled-documents.index', icon: FileStack },
             { name: 'Documents', icon: ClipboardList, disabled: true },
             { name: 'Reports', icon: FileBarChart, disabled: true },
         ],
@@ -146,6 +155,14 @@ export const WORKSPACES = [
             // Daily Reports lives here, not HSE: it's a per-project
             // activity/progress log -- see ADR-007 for the reasoning.
             { name: 'Daily Reports', href: 'daily-reports.index', icon: ClipboardList, moduleKey: 'daily_reports' },
+            // Milestone 4, Acceleration Part 3: real backend now
+            // (ProjectActivity) -- distinct from a DailyReportActivity
+            // free-text log line: this is a real owner+progress+status
+            // record, feeding the Avg. Activity Progress dashboard widget.
+            // Left disabled here (not a dead route -- `projects.activities`
+            // requires a {project} param, so it's reached from within a
+            // Project's own page, not as a standalone sidebar destination;
+            // same reasoning as Attendance/Training above).
             { name: 'Activities', icon: ClipboardList, disabled: true },
             { name: 'Milestones', href: 'milestones.index', icon: Flag },
             { name: 'Documents', icon: ClipboardList, disabled: true },
@@ -165,11 +182,14 @@ export const WORKSPACES = [
             // instruction -- not split into its own department yet, even
             // though a separate (still-disabled) "Warehouse" department
             // also exists below for future use.
-            { name: 'Warehouse', icon: Warehouse, disabled: true },
-            { name: 'Inventory', icon: Box, disabled: true },
+            // Milestone 4, Acceleration Part 1B: real backend now
+            // (Warehouse/StorageLocation/Stock/StockMovement).
+            { name: 'Warehouse', href: 'warehouses.master', icon: Warehouse },
+            { name: 'Item Master', href: 'items.index', icon: Box },
+            { name: 'Inventory', href: 'stock.index', icon: Boxes },
             { name: 'Goods Receipt', href: 'goods-receipts.index', icon: PackageCheck },
-            { name: 'Goods Issue', icon: ClipboardList, disabled: true },
-            { name: 'Stock Movement', icon: ClipboardList, disabled: true },
+            { name: 'Goods Issue / Transfer / Adjust', href: 'stock.transactions.create', icon: ArrowRightLeft },
+            { name: 'Stock Movement History', href: 'stock.movements', icon: ClipboardList },
             { name: 'Documents', icon: ClipboardList, disabled: true },
             { name: 'Reports', icon: FileBarChart, disabled: true },
         ],
@@ -216,7 +236,12 @@ export const WORKSPACES = [
         tier: 'department',
         items: [
             { name: 'Dashboard', href: 'dashboard', icon: LayoutDashboard, global: true },
-            { name: 'Overview', href: 'asset-management.coming-soon', icon: Box },
+            // Milestone 4, Acceleration Part 1C: real backend now (Asset +
+            // AssetTransaction) -- full Purchase->Receive->Register->
+            // Assign->Operate->Inspect->Maintain->Retire lifecycle.
+            { name: 'Assets', href: 'assets.index', icon: Box },
+            { name: 'Documents', icon: ClipboardList, disabled: true },
+            { name: 'Reports', icon: FileBarChart, disabled: true },
         ],
     },
     {
@@ -226,7 +251,14 @@ export const WORKSPACES = [
         tier: 'department',
         items: [
             { name: 'Dashboard', href: 'dashboard', icon: LayoutDashboard, global: true },
-            { name: 'Overview', href: 'maintenance.coming-soon', icon: Wrench },
+            // Milestone 4, Acceleration Part 2: real backend now
+            // (MaintenanceRequest + WorkOrder). Request -> Approved ->
+            // Work Order -> Execution -> Completed, spare parts posted via
+            // the SAME StockService the Warehouse module itself uses.
+            { name: 'Maintenance Requests', href: 'maintenance-requests.index', icon: ClipboardList },
+            { name: 'Work Orders', href: 'work-orders.index', icon: Wrench },
+            { name: 'Documents', icon: ClipboardList, disabled: true },
+            { name: 'Reports', icon: FileBarChart, disabled: true },
         ],
     },
     {
@@ -236,7 +268,14 @@ export const WORKSPACES = [
         tier: 'department',
         items: [
             { name: 'Dashboard', href: 'dashboard', icon: LayoutDashboard, global: true },
-            { name: 'Overview', href: 'quality-control.coming-soon', icon: BadgeCheck },
+            // Milestone 4, Acceleration Part 3: real backend now
+            // (InspectionRequest + InspectionResult + Ncr). NCR raises a
+            // real CorrectiveAction (reused, not duplicated -- same
+            // polymorphic CAPA pattern as HSE's own findings).
+            { name: 'Inspection Requests', href: 'inspection-requests.index', icon: ClipboardCheck },
+            { name: 'NCR', href: 'ncrs.index', icon: FileWarning },
+            { name: 'Documents', icon: ClipboardList, disabled: true },
+            { name: 'Reports', icon: FileBarChart, disabled: true },
         ],
     },
     {

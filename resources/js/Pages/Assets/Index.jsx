@@ -6,11 +6,12 @@ import { Button } from '@/Components/ui/button';
 import { Input } from '@/Components/ui/input';
 import { Select, SelectTrigger, SelectValue, SelectContent, SelectItem } from '@/Components/ui/select';
 import { Table, TableHeader, TableBody, TableRow, TableHead, TableCell } from '@/Components/ui/table';
+import StatCard from '@/Components/shared/StatCard';
 import StatusBadge from '@/Components/shared/StatusBadge';
 import EmptyState from '@/Components/shared/EmptyState';
-import { Plus, Search, Box, ChevronLeft, ChevronRight } from 'lucide-react';
+import { Plus, Search, Box, ClipboardCheck, ChevronLeft, ChevronRight } from 'lucide-react';
 
-export default function AssetsIndex({ assets, filters, categories, can }) {
+export default function AssetsIndex({ assets, filters, categories, inspectionDueCount, can }) {
     function applyFilters(overrides = {}) {
         router.get(route('assets.index'), { ...filters, ...overrides }, { preserveState: true, replace: true });
     }
@@ -21,6 +22,11 @@ export default function AssetsIndex({ assets, filters, categories, can }) {
             <PageHeader title="Asset Management" subtitle="Company-owned equipment, vehicles, and tools.">
                 {can.manage && (<Button asChild><Link href={route('assets.create')}><Plus className="h-4 w-4" /> Register Asset</Link></Button>)}
             </PageHeader>
+
+            <div className="mb-4 grid grid-cols-2 gap-3 lg:grid-cols-4">
+                <StatCard icon={Box} value={assets.total} label="Total Assets" />
+                <StatCard icon={ClipboardCheck} value={inspectionDueCount} label="Inspection Due (90d)" accent={inspectionDueCount > 0 ? 'amber' : null} />
+            </div>
 
             <Card className="mb-4">
                 <CardContent className="flex flex-wrap gap-2 p-3">

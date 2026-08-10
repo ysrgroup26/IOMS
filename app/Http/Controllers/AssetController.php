@@ -37,10 +37,21 @@ class AssetController extends Controller
             ->paginate(20)
             ->withQueryString();
 
+        // Dashboard widget (Milestone 4, Acceleration Part 7): "Inspection
+        // Due" is a real, computed count -- active assets with no
+        // AssetTransaction of type=inspection recorded in the last 90
+        // days (including assets never inspected at all), not a
+        // fabricated number.
+        $inspectionDueCount = Asset::whereIn('company_id', $tenantCompanyIds)
+            ->active()
+            ->whereDoesntHave('transactions', fn ($q) => $q->where('type', \App\Models\AssetTransaction::TYPE_INSPECTION)->where('transaction_date', '>=', now()->subDays(90)))
+            ->count();
+
         return Inertia::render('Assets/Index', [
             'assets' => $assets,
             'filters' => $request->only('search', 'status', 'category'),
             'categories' => Asset::CATEGORIES,
+            'inspectionDueCount' => $inspectionDueCount,
             'can' => ['manage' => $request->user()->canManageAssets()],
         ]);
     }

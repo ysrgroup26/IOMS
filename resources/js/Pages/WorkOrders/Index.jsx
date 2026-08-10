@@ -6,11 +6,12 @@ import { Button } from '@/Components/ui/button';
 import { Input } from '@/Components/ui/input';
 import { Select, SelectTrigger, SelectValue, SelectContent, SelectItem } from '@/Components/ui/select';
 import { Table, TableHeader, TableBody, TableRow, TableHead, TableCell } from '@/Components/ui/table';
+import StatCard from '@/Components/shared/StatCard';
 import StatusBadge from '@/Components/shared/StatusBadge';
 import EmptyState from '@/Components/shared/EmptyState';
-import { Plus, Search, ClipboardList, ChevronLeft, ChevronRight } from 'lucide-react';
+import { Plus, Search, ClipboardList, AlertTriangle, ChevronLeft, ChevronRight } from 'lucide-react';
 
-export default function WorkOrdersIndex({ workOrders, filters, can }) {
+export default function WorkOrdersIndex({ workOrders, filters, openCount, overdueCount, can }) {
     function applyFilters(overrides = {}) {
         router.get(route('work-orders.index'), { ...filters, ...overrides }, { preserveState: true, replace: true });
     }
@@ -21,6 +22,11 @@ export default function WorkOrdersIndex({ workOrders, filters, can }) {
             <PageHeader title="Work Order" subtitle="Preventive and corrective maintenance execution.">
                 {can.manage && (<Button asChild><Link href={route('work-orders.create')}><Plus className="h-4 w-4" /> New Work Order</Link></Button>)}
             </PageHeader>
+
+            <div className="mb-4 grid grid-cols-2 gap-3 lg:grid-cols-4">
+                <StatCard icon={ClipboardList} value={openCount} label="Open Work Orders" />
+                <StatCard icon={AlertTriangle} value={overdueCount} label="Overdue Maintenance" accent={overdueCount > 0 ? 'red' : null} />
+            </div>
 
             <Card className="mb-4">
                 <CardContent className="flex flex-wrap gap-2 p-3">

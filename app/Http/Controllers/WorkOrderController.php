@@ -40,9 +40,21 @@ class WorkOrderController extends Controller
             ->paginate(20)
             ->withQueryString();
 
+        // Dashboard widgets (Milestone 4, Acceleration Part 7): Open Work
+        // Order + Overdue Maintenance, both real counts.
+        $openCount = WorkOrder::whereIn('company_id', $tenantCompanyIds)
+            ->whereIn('status', [WorkOrder::STATUS_SCHEDULED, WorkOrder::STATUS_IN_PROGRESS])
+            ->count();
+        $overdueCount = WorkOrder::whereIn('company_id', $tenantCompanyIds)
+            ->whereIn('status', [WorkOrder::STATUS_SCHEDULED, WorkOrder::STATUS_IN_PROGRESS])
+            ->where('planned_date', '<', now()->toDateString())
+            ->count();
+
         return Inertia::render('WorkOrders/Index', [
             'workOrders' => $workOrders,
             'filters' => $request->only('search', 'status'),
+            'openCount' => $openCount,
+            'overdueCount' => $overdueCount,
             'can' => ['manage' => $request->user()->canManageAssets()],
         ]);
     }

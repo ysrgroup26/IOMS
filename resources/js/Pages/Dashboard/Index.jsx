@@ -16,7 +16,7 @@ import { formatNumber, cn } from '@/lib/utils';
 import {
     Trophy, Flame, ClipboardList, Users2, FolderKanban, Activity, Bell,
     Users, Building2, CalendarDays, HardHat, CheckCircle2, AlertTriangle, Plus, UserCog, ArrowRight,
-    Sparkles, X, ClipboardCheck,
+    Sparkles, X, ClipboardCheck, ShoppingCart, Boxes, Box, Wrench,
 } from 'lucide-react';
 
 /**
@@ -33,6 +33,7 @@ export default function Dashboard({
     departmentDistribution, monthlyTrend, leaderboards,
     activeProjectsCount, todaysActivities, upcomingReminders, pendingTasks, employeesNeedCompletionCount,
     recentDailyReports, recentEmployeeChanges, showAnnouncement,
+    openIncidentsCount, openCapaCount, pendingProcurementCount, stockAlertCount, assetCount, maintenanceDueCount,
 }) {
     const { auth, notifications, version } = usePage().props;
     const now = useClock();
@@ -196,6 +197,19 @@ export default function Dashboard({
                 <PrimaryCard icon={FolderKanban} value={`${formatNumber(activeProjectsCount)} Active Projects`} label="Running Projects" href={route('projects.index')} />
                 <PrimaryCard icon={Building2} value={formatNumber(companyHeadcount.by_company.length)} label="Companies" href={route('settings.index') + '?tab=companies'} />
                 <PrimaryCard icon={CalendarDays} value={currentMonth} label="Current Period" href={route('kpi-records.index', { year: filters.year, month: filters.month })} />
+            </div>
+
+            {/* Milestone 4, Acceleration Part 7 -- Executive cross-department
+                summary. Every count below is real, tenant-scoped, over
+                actual tables (see DashboardController's own doc comment) --
+                additive to this page, no existing widget touched. */}
+            <div className="mt-3 grid grid-cols-2 gap-3 sm:grid-cols-3 lg:grid-cols-6">
+                <PrimaryCard icon={AlertTriangle} value={formatNumber(openIncidentsCount)} label="Open Incidents" href={route('incidents.index')} />
+                <PrimaryCard icon={ClipboardCheck} value={formatNumber(openCapaCount)} label="Open CAPA" href={route('corrective-actions.index')} />
+                <PrimaryCard icon={ShoppingCart} value={formatNumber(pendingProcurementCount)} label="Pending Procurement" href={route('procurement.dashboard')} />
+                <PrimaryCard icon={Boxes} value={formatNumber(stockAlertCount)} label="Stock Alerts" href={route('stock.index', { low_stock: 1 })} />
+                <PrimaryCard icon={Box} value={formatNumber(assetCount)} label="Active Assets" href={route('assets.index')} />
+                <PrimaryCard icon={Wrench} value={formatNumber(maintenanceDueCount)} label="Maintenance Due (7d)" href={route('work-orders.index')} />
             </div>
 
             {/* Pending Tasks -- Universal Task Engine Dashboard integration

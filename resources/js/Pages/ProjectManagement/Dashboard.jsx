@@ -5,11 +5,16 @@ import StatCard from '@/Components/shared/StatCard';
 import StatusBadge from '@/Components/shared/StatusBadge';
 import EmptyState from '@/Components/shared/EmptyState';
 import { Card, CardContent, CardHeader, CardTitle } from '@/Components/ui/card';
-import { FolderKanban, AlertTriangle, Flag, ClipboardList } from 'lucide-react';
+import { FolderKanban, AlertTriangle, Flag, ClipboardList, ListTodo } from 'lucide-react';
 
-/** Project Management Dashboard (v1.10.0). See ProjectManagementDashboardController's doc comment for what was intentionally left out (no Calendar model). */
+/**
+ * Project Management Dashboard (v1.10.0). Milestone 4, Acceleration Part
+ * 3/7: average Activity Progress now has a real backing data model
+ * (ProjectActivity) -- see ProjectManagementDashboardController's own doc
+ * comment for what's still intentionally left out (no Calendar model).
+ */
 export default function ProjectManagementDashboard({
-    activeProjectsCount, delayedProjectsCount, milestoneCompletionPercent, todaysActivitiesCount,
+    activeProjectsCount, delayedProjectsCount, milestoneCompletionPercent, avgActivityProgressPercent, todaysActivitiesCount,
     upcomingMilestones, delayedProjects,
 }) {
     return (
@@ -17,10 +22,11 @@ export default function ProjectManagementDashboard({
             <Head title="Project Management Dashboard" />
             <PageHeader title="Project Management Dashboard" subtitle="Operational project overview." />
 
-            <div className="grid grid-cols-2 gap-3 lg:grid-cols-4">
+            <div className="grid grid-cols-2 gap-3 lg:grid-cols-5">
                 <StatCard icon={FolderKanban} value={activeProjectsCount} label="Active Projects" href={route('projects.index')} />
                 <StatCard icon={AlertTriangle} value={delayedProjectsCount} label="Delayed Projects" accent={delayedProjectsCount > 0 ? 'red' : null} href={route('projects.index')} />
                 <StatCard icon={Flag} value={milestoneCompletionPercent === null ? '—' : `${milestoneCompletionPercent}%`} label="Milestone Completion" href={route('milestones.index')} />
+                <StatCard icon={ListTodo} value={avgActivityProgressPercent === null ? '—' : `${avgActivityProgressPercent}%`} label="Avg. Activity Progress" />
                 <StatCard icon={ClipboardList} value={todaysActivitiesCount} label="Today's Activities" href={route('daily-reports.index')} />
             </div>
 

@@ -3,10 +3,17 @@
 namespace App\Http\Controllers;
 
 use App\Models\ActivityLog;
+use App\Models\Asset;
 use App\Models\Company;
+use App\Models\CorrectiveAction;
 use App\Models\DailyReport;
 use App\Models\Employee;
+use App\Models\Incident;
+use App\Models\PurchaseOrder;
+use App\Models\PurchaseRequisition;
+use App\Models\Stock;
 use App\Models\Task;
+use App\Models\WorkOrder;
 use App\Services\DashboardStatsService;
 use Illuminate\Http\Request;
 use Illuminate\Support\Carbon;
@@ -111,6 +118,32 @@ class DashboardController extends Controller
             'employeesNeedCompletionCount' => Employee::query()
                 ->whereNull('department_id')
                 ->whereIn('company_id', $companyIds)
+                ->count(),
+            // Milestone 4, Acceleration Part 7 -- Executive cross-department
+            // summary. Every widget is a real, tenant-scoped count over the
+            // actual tables this milestone built (HSE/Procurement/Warehouse/
+            // Asset/Maintenance), not a fabricated metric. Incident's own
+            // company_id is nullable (its older migration convention -- see
+            // IncidentController's own doc comment) so a null-company
+            // incident is included here too, same reasoning as everywhere
+            // else that queries it.
+            'openIncidentsCount' => Incident::where(fn ($q) => $q->whereIn('company_id', $companyIds)->orWhereNull('company_id'))
+                ->whereIn('status', [Incident::STATUS_REPORTED, Incident::STATUS_INVESTIGATING])
+                ->count(),
+            'openCapaCount' => CorrectiveAction::whereIn('company_id', $companyIds)
+                ->whereNotIn('status', [CorrectiveAction::STATUS_VERIFIED, CorrectiveAction::STATUS_CANCELLED])
+                ->count(),
+            'pendingProcurementCount' => PurchaseRequisition::whereIn('company_id', $companyIds)
+                ->whereIn('status', [PurchaseRequisition::STATUS_SUBMITTED, PurchaseRequisition::STATUS_UNDER_REVIEW])
+                ->count()
+                + PurchaseOrder::whereIn('company_id', $companyIds)->where('status', PurchaseOrder::STATUS_SUBMITTED)->count(),
+            'stockAlertCount' => Stock::whereIn('company_id', $companyIds)
+                ->whereRaw('stocks.quantity <= (select items.min_stock from items where items.id = stocks.item_id)')
+                ->count(),
+            'assetCount' => Asset::whereIn('company_id', $companyIds)->active()->count(),
+            'maintenanceDueCount' => WorkOrder::whereIn('company_id', $companyIds)
+                ->whereIn('status', [WorkOrder::STATUS_SCHEDULED, WorkOrder::STATUS_IN_PROGRESS])
+                ->where('planned_date', '<=', now()->addDays(7)->toDateString())
                 ->count(),
         ]);
     }

@@ -108,6 +108,10 @@ export const WORKSPACES = [
             // JobSafetyAnalysis), document-level sign-off via HasWorkflow.
             { name: 'HIRADC / Risk Assessment', href: 'risk-assessments.index', icon: ShieldAlert },
             { name: 'JSA', href: 'job-safety-analyses.index', icon: FileWarning },
+            // Milestone 4, Workstream B6/B8: real backend now (PermitToWork
+            // + GasTestRecord + LotoRecord).
+            { name: 'Permit To Work', href: 'permits-to-work.index', icon: Flame },
+            { name: 'LOTO', href: 'loto-records.index', icon: Lock },
             { name: 'Safety Meeting (TBM)', icon: Users, disabled: true },
             // Training & Competency now lives under HR -- see that
             // entry's own comment. Same one-canonical-home precedent as

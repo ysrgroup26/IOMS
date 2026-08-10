@@ -53,6 +53,7 @@ class NumberGeneratorService
         'permit_to_work' => ['prefix' => 'PTW', 'pattern' => '{PREFIX}-{YEAR}-{SEQ}', 'seq_padding' => 5, 'reset_period' => 'yearly'],
         'tbm' => ['prefix' => 'TBM', 'pattern' => '{PREFIX}-{YEAR}-{SEQ}', 'seq_padding' => 5, 'reset_period' => 'yearly'],
         'hse_inspection' => ['prefix' => 'HSE-INS', 'pattern' => '{PREFIX}-{YEAR}-{SEQ}', 'seq_padding' => 5, 'reset_period' => 'yearly'],
+        'loto' => ['prefix' => 'LOTO', 'pattern' => '{PREFIX}-{YEAR}-{SEQ}', 'seq_padding' => 5, 'reset_period' => 'yearly'],
     ];
 
     /**

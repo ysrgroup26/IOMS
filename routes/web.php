@@ -16,6 +16,7 @@ use App\Http\Controllers\EmployeeController;
 use App\Http\Controllers\EmployeeRosterController;
 use App\Http\Controllers\EmployeeShiftAssignmentController;
 use App\Http\Controllers\GlobalSearchController;
+use App\Http\Controllers\GasTestRecordController;
 use App\Http\Controllers\GoodsReceiptController;
 use App\Http\Controllers\HazardCategoryController;
 use App\Http\Controllers\HrDashboardController;
@@ -26,8 +27,10 @@ use App\Http\Controllers\KpiInputController;
 use App\Http\Controllers\KpiRecordController;
 use App\Http\Controllers\LeaveRequestController;
 use App\Http\Controllers\LogisticsDashboardController;
+use App\Http\Controllers\LotoRecordController;
 use App\Http\Controllers\MaterialRequestController;
 use App\Http\Controllers\MilestoneController;
+use App\Http\Controllers\PermitToWorkController;
 use App\Http\Controllers\RiskAssessmentController;
 use App\Http\Controllers\NotificationController;
 use App\Http\Controllers\PlatformController;
@@ -181,6 +184,20 @@ Route::middleware(['auth', 'restrict.platform-admin'])->group(function () {
     Route::put('/job-safety-analyses/{jobSafetyAnalysis}', [JobSafetyAnalysisController::class, 'update'])->name('job-safety-analyses.update');
     Route::get('/job-safety-analyses/{jobSafetyAnalysis}', [JobSafetyAnalysisController::class, 'show'])->name('job-safety-analyses.show');
     Route::post('/job-safety-analyses/{jobSafetyAnalysis}/transition', [JobSafetyAnalysisController::class, 'transition'])->name('job-safety-analyses.transition');
+
+    // Permit To Work + Gas Test + LOTO (Milestone 4, Workstream B6/B7/B8).
+    Route::get('/permits-to-work', [PermitToWorkController::class, 'index'])->name('permits-to-work.index');
+    Route::get('/permits-to-work/create', [PermitToWorkController::class, 'create'])->name('permits-to-work.create');
+    Route::post('/permits-to-work', [PermitToWorkController::class, 'store'])->name('permits-to-work.store');
+    Route::get('/permits-to-work/{permitToWork}', [PermitToWorkController::class, 'show'])->name('permits-to-work.show');
+    Route::post('/permits-to-work/{permitToWork}/transition', [PermitToWorkController::class, 'transition'])->name('permits-to-work.transition');
+    Route::post('/permits-to-work/{permitToWork}/gas-tests', [GasTestRecordController::class, 'store'])->name('permits-to-work.gas-tests.store');
+    Route::delete('/permits-to-work/{permitToWork}/gas-tests/{gasTest}', [GasTestRecordController::class, 'destroy'])->name('permits-to-work.gas-tests.destroy');
+
+    Route::get('/loto-records', [LotoRecordController::class, 'index'])->name('loto-records.index');
+    Route::get('/loto-records/create', [LotoRecordController::class, 'create'])->name('loto-records.create');
+    Route::post('/loto-records', [LotoRecordController::class, 'store'])->name('loto-records.store');
+    Route::post('/loto-records/{lotoRecord}/release', [LotoRecordController::class, 'release'])->name('loto-records.release');
 
     // Daily HSE Report: viewable by all roles; mutation below is admin-scoped.
     Route::get('/daily-reports', [DailyReportController::class, 'index'])->name('daily-reports.index');

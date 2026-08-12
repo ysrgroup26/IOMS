@@ -1749,6 +1749,16 @@ function UsersTab({ users, roles }) {
                     <DialogContent>
                         <DialogHeader><DialogTitle>Create User</DialogTitle></DialogHeader>
                         <form onSubmit={submit} className="space-y-3">
+                            {/* v1.10.8: was previously silent for any field
+                                other than email/password -- a role or
+                                department_key validation failure gave no
+                                visible feedback at all, easy to mistake for
+                                "saved successfully, just didn't apply." */}
+                            {Object.keys(errors).length > 0 && (
+                                <div className="rounded-md border border-red-200 bg-red-50 p-2 text-xs text-red-700">
+                                    {Object.values(errors).map((msg, i) => <p key={i}>{msg}</p>)}
+                                </div>
+                            )}
                             <div className="space-y-1.5"><Label>Name</Label><Input value={data.name} onChange={(e) => setData('name', e.target.value)} /></div>
                             <div className="space-y-1.5"><Label>Email</Label><Input type="email" value={data.email} onChange={(e) => setData('email', e.target.value)} />
                                 {errors.email && <p className="text-xs text-red-600">{errors.email}</p>}
@@ -1849,6 +1859,11 @@ function EditUserDialog({ user, onClose }) {
             <DialogContent>
                 <DialogHeader><DialogTitle>Edit {user.name}</DialogTitle></DialogHeader>
                 <form onSubmit={submit} className="space-y-3">
+                    {Object.keys(errors).length > 0 && (
+                        <div className="rounded-md border border-red-200 bg-red-50 p-2 text-xs text-red-700">
+                            {Object.values(errors).map((msg, i) => <p key={i}>{msg}</p>)}
+                        </div>
+                    )}
                     <div className="space-y-1.5"><Label>Name</Label><Input value={data.name} onChange={(e) => setData('name', e.target.value)} /></div>
                     <div className="space-y-1.5"><Label>Email</Label><Input type="email" value={data.email} onChange={(e) => setData('email', e.target.value)} />
                         {errors.email && <p className="text-xs text-red-600">{errors.email}</p>}

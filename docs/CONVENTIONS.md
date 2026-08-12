@@ -3,6 +3,33 @@
 House style, and a deliberately honest list of mistakes that have actually happened in this
 codebase's history — kept here so they don't get repeated in a slightly different shape.
 
+## Operational runbook — diagnosing "a Department User can still access other departments"
+
+`RestrictDepartmentAccess` (registered globally in `bootstrap/app.php`, re-verified there directly
+during the v1.10.8 pass, not assumed) has exactly ONE bypass condition: `! $user->department_key`
+(line 60). There is no role-based bypass anywhere in it. So if a user can reach another department's
+pages, `department_key` is not actually set to a value on that account — full stop, nothing else in
+the chain can cause this. Diagnose via `php artisan tinker` on the production server:
+
+```
+$u = \App\Models\User::where('email', 'the-users-email@example.com')->first();
+$u->only(['id', 'name', 'email', 'role', 'department_key', 'tenant_id']);
+```
+
+- If `department_key` is `null`: the account was created/last edited before v1.10.7 (which added the
+  Department Restriction field to Settings → Users), or was edited since but "None" was left
+  selected. Fix via the UI: Settings → Users → Edit → set Department Restriction → Save. This is
+  NOT retroactive — every account created before v1.10.7 needs this done explicitly, one at a time;
+  nothing does it automatically, by design (changing an existing account's access scope should never
+  happen silently).
+- If a same-session emergency fix is needed before someone can reach Settings, the safe one-line
+  tinker equivalent of that same UI action (assign a value already present in `config('departments')`,
+  never touch any other field) is: `$u->update(['department_key' => 'hse']);`
+- If `department_key` is already correctly set and the symptom persists, the next thing to check is
+  NOT the RBAC code — it's `git log -1 --format=%H -- public/build/manifest.json` on the server vs.
+  `git log -1 --format=%H` (are they from the same deploy?), per the stale-`public/build` pitfall
+  documented separately below.
+
 ## CRITICAL — `department_key` had no admin-facing UI at all, found during the v1.10.7 RBAC audit
 
 Reported in production: a user assigned "department HSE" could still open every other department. Root

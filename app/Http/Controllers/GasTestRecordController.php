@@ -16,17 +16,21 @@ use Inertia\Response;
  * Milestone 4, Workstream B7 (Gas Test). Creation/deletion stays nested
  * under a PermitToWork (permit_to_work_id is NOT nullable on
  * GasTestRecord -- a reading is meaningless without the permit it was
- * taken for, unlike LotoRecord which can exist independently), so there
- * is deliberately no standalone "create" form here -- that would just
- * duplicate the exact same permit-picker the PTW Show page's own embedded
- * form already provides, for no benefit.
+ * taken for, unlike LotoRecord which can exist independently) -- there is
+ * still only ONE store() endpoint, ONE model, ONE table.
  *
  * v1.10.7: added index() -- a read-only, company-wide, cross-permit list
  * (mirrors LotoRecordController::index()'s shape) so gas test history is
- * actually discoverable from HSE navigation, not only by opening the one
- * permit it happened to be recorded against. Genuinely new code, not a
- * duplicate: the create/destroy actions below are completely unchanged
- * and still the only way to add/remove a reading.
+ * discoverable from HSE navigation, not only by opening the one permit it
+ * was recorded against.
+ *
+ * v1.10.8: index() now also carries `permits` (approved/active, same
+ * eligibility filter LotoRecordController::create() already uses) so the
+ * Index page can offer an "Add Gas Test" dialog with a permit picker --
+ * a second entry point into the SAME store() action below, not a second
+ * creation mechanism. The PTW Show page's own embedded "Add Reading" form
+ * (the original, always-existing entry point) is completely unchanged and
+ * still posts to the exact same route.
  */
 class GasTestRecordController extends Controller
 {
@@ -46,6 +50,11 @@ class GasTestRecordController extends Controller
             'gasTests' => $gasTests,
             'filters' => $request->only('result'),
             'results' => GasTestRecord::RESULTS,
+            'permits' => PermitToWork::whereIn('company_id', $tenantCompanyIds)
+                ->whereIn('status', [PermitToWork::STATUS_APPROVED, PermitToWork::STATUS_ACTIVE])
+                ->orderByDesc('start_datetime')
+                ->get(['id', 'ptw_number']),
+            'can' => ['manage' => $request->user()->canManageHse()],
         ]);
     }
 

@@ -410,6 +410,15 @@ table 'permit_to_works' doesn't exist`) fixed by correcting the model to match t
 table, not the other way around — see `CONVENTIONS.md`'s Migrations pitfalls for the general rule
 this established.
 
+**Gas Test** (`GasTestRecord`, child of a specific `PermitToWork` — `permit_to_work_id` is required,
+not nullable, unlike `LotoRecord`) has two entry points into the exact same
+`permits-to-work.gas-tests.store` action and the exact same table: (1) the PTW Show page's own
+embedded "Add Reading" form, the original and only entry point through v1.10.6; (2) a company-wide,
+cross-permit `GasTestRecords/Index.jsx` page (`gas-test-records.index`, added v1.10.7) with its own
+"Add Gas Test" dialog (added v1.10.8, PTW selected via dropdown) for when the user starts from HSE
+navigation rather than an already-open permit. Both post to the same controller method; there is one
+`GasTestRecord` model/table, never two.
+
 ## Gas Test
 
 **Department:** HSE (Milestone 4, Workstream B7).

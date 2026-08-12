@@ -3,6 +3,29 @@
 House style, and a deliberately honest list of mistakes that have actually happened in this
 codebase's history — kept here so they don't get repeated in a slightly different shape.
 
+## CRITICAL — `department_key` had no admin-facing UI at all, found during the v1.10.7 RBAC audit
+
+Reported in production: a user assigned "department HSE" could still open every other department. Root
+cause traced through the full chain (User → tenant → department_key → RestrictDepartmentAccess →
+config/departments.php → routes) and found NOT in any of those enforcement layers — they were already
+correct as of v1.10.5's fail-closed fix. The actual bug: **`SettingsController::storeUser()`/
+`updateUser()` only ever accepted and validated `role` (`super_admin/hse/hrd/manager/warehouse`) —
+there was no `department_key` field anywhere in the form, its validation, or the Users tab's UI at
+all.** `role` (what actions a user may perform) and `department_key` (which department's navigation/
+routes a user may even reach) are two separate, orthogonal mechanisms — a tenant admin picking "HSE"
+as the role reasonably expected that alone to restrict the account to HSE's navigation, and it never
+did; every user ever created through the real UI silently stayed `department_key = null`, i.e. a full
+Administrator for navigation-restriction purposes regardless of role. Fixed by adding the field to
+both the validation (`Rule::in()` against a new `assignableDepartmentKeys()` helper, itself derived
+from `config('departments')` minus the two non-assignable 'reports'/'administration' entries) and the
+Users tab UI — which also had no Edit dialog at all (`settings.users.update` existed and was routed,
+but nothing in the frontend ever called it), added alongside it since fixing Create alone would do
+nothing for an already-existing account. **Lesson: a backend mechanism (migration + model column +
+middleware enforcement) being fully built does not mean it's actually usable — always check whether
+the admin-facing control surface for it exists at all**, the same class of gap as `public/build`
+below (a piece of the chain that's easy to verify individually and easy to never notice is completely
+missing end-to-end).
+
 ## CRITICAL — confirmed stale `public/build`, found during the v1.10.6 department audit
 
 This project deliberately commits its compiled Vite frontend to git (`.gitignore` has
@@ -316,7 +339,15 @@ did.
 
 ## Verification discipline (and its real limits)
 
-- This project's development has, in practice, never included actually running `php artisan
+- **Update, v1.10.7**: `npm`/`node` became available in the AI coding session environment for the
+  first time this pass (confirmed via `node -v`/`npm -v`, not assumed — `node_modules` was already
+  installed) — `npm run build` was actually run and succeeded (1897 modules transformed, valid
+  `manifest.json`/hashed assets produced), a REAL compile-time check, not the static balance-checking
+  substitute described below. `php`/`composer` remain unavailable in this same environment, so
+  `php artisan migrate`/`route:list`/PHPUnit still cannot be run from here — PHP-side verification
+  for this pass is still the static kind described below. Don't assume either capability going into
+  a future session without checking again; environment availability isn't stable across sessions.
+- Prior to the above, this project's development had, in practice, never included actually running `php artisan
   migrate`, `npm run build`, or the application in a browser — verification has been static:
   balance/brace checking on every edited file, cross-referencing every `route()` call against
   `routes/web.php`, and matching every Inertia page's destructured props against exactly what its

@@ -157,6 +157,20 @@ class WorkOrderController extends Controller
                 $workOrder->actual_date = now()->toDateString();
                 $workOrder->completion_notes = $data['completion_notes'] ?? null;
                 $workOrder->save();
+
+                // v1.10.7: Asset -> Maintenance integration fix. Asset
+                // Show's "Transaction History" IS this asset's maintenance
+                // history (no separate table) -- completing a Work Order
+                // used to leave it silently absent. Uses the SAME
+                // AssetTransaction model/table every other asset lifecycle
+                // event already writes to, not a new log.
+                \App\Models\AssetTransaction::create([
+                    'asset_id' => $workOrder->asset_id,
+                    'type' => \App\Models\AssetTransaction::TYPE_MAINTENANCE,
+                    'performed_by' => $request->user()->id,
+                    'transaction_date' => $workOrder->actual_date,
+                    'notes' => "Work Order {$workOrder->wo_number} ({$workOrder->maintenance_type}) completed.".($data['completion_notes'] ?? '' ? ' '.$data['completion_notes'] : ''),
+                ]);
             }
             $workOrder->transitionTo($data['status'], $request->user());
         } catch (ValidationException $e) {

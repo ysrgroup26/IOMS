@@ -30,7 +30,7 @@ return [
     'hse' => [
         'ppe', 'ppe-types', 'incidents', 'kpi-input', 'kpi-records', 'hse',
         'safety-observations', 'hse-inspections', 'risk-assessments',
-        'job-safety-analyses', 'permits-to-work', 'loto-records',
+        'job-safety-analyses', 'permits-to-work', 'gas-test-records', 'loto-records',
         'tbm-meetings', 'corrective-actions', 'hazard-categories',
         'safety-equipment', 'hse-materials', 'p3k-boxes',
         'contractors', 'visitors', 'controlled-documents',

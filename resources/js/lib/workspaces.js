@@ -5,6 +5,7 @@ import {
     AlertTriangle, PackageCheck, Flag, BarChart3, FileDown, GraduationCap, Clock, Eye, ListChecks,
     ShieldAlert, FileWarning, Flame, Lock, UsersRound, Stethoscope, Siren, ClipboardCheck,
     FileStack, FileQuestion, Building2, TrendingUp, Boxes, ArrowRightLeft, UserCheck, FileCheck,
+    FlaskConical,
 } from 'lucide-react';
 
 /**
@@ -121,6 +122,13 @@ export const WORKSPACES = [
             // Milestone 4, Workstream B6/B8: real backend now (PermitToWork
             // + GasTestRecord + LotoRecord).
             { name: 'Permit To Work', href: 'permits-to-work.index', icon: Flame },
+            // v1.10.7: was previously reachable ONLY by opening a specific
+            // PTW's own page -- readings themselves are real and always
+            // were, they just had no cross-permit list to link a menu item
+            // to. `gas-test-records.index` (read-only) now exists for
+            // exactly that; adding/removing a reading still only happens
+            // from within its owning permit (see GasTestRecordController).
+            { name: 'Gas Test', href: 'gas-test-records.index', icon: FlaskConical },
             { name: 'LOTO', href: 'loto-records.index', icon: Lock },
             // Milestone 4, Workstream B3: real backend now (TbmMeeting).
             { name: 'Safety Meeting (TBM)', href: 'tbm-meetings.index', icon: UsersRound },

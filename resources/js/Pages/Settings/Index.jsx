@@ -1696,10 +1696,39 @@ function AuthenticationTab() {
     );
 }
 
+// v1.10.7. Department options for the "restrict this user to one
+// department" field -- derived from the SAME `WORKSPACES` array the
+// sidebar itself uses, filtered to `tier === 'department'` (this
+// naturally excludes Reports/Administration, which aren't real
+// assignable departments, without needing a second hardcoded list to
+// keep in sync -- config('departments')'s own `assignableDepartmentKeys()`
+// on the backend does the equivalent exclusion explicitly).
+const DEPARTMENT_OPTIONS = WORKSPACES.filter((w) => w.tier === 'department').map((w) => ({ key: w.key, label: w.label }));
+
+function DepartmentField({ value, onChange }) {
+    return (
+        <div className="space-y-1.5">
+            <Label>Department Restriction</Label>
+            <Select value={value || 'none'} onValueChange={(v) => onChange(v === 'none' ? '' : v)}>
+                <SelectTrigger><SelectValue /></SelectTrigger>
+                <SelectContent>
+                    <SelectItem value="none">None -- Administrator (sees every department)</SelectItem>
+                    {DEPARTMENT_OPTIONS.map((d) => <SelectItem key={d.key} value={d.key}>{d.label}</SelectItem>)}
+                </SelectContent>
+            </Select>
+            <p className="text-xs text-graphite-400">
+                Restricts this account to only the selected department's sidebar and routes -- enforced by the backend, not just hidden from view.
+                Leave as "None" for a full Administrator (matches every account's behavior today).
+            </p>
+        </div>
+    );
+}
+
 function UsersTab({ users, roles }) {
     const [open, setOpen] = useState(false);
     const [editingRolesFor, setEditingRolesFor] = useState(null);
-    const { data, setData, post, processing, reset, errors } = useForm({ name: '', email: '', password: '', role: 'hrd' });
+    const [editingUser, setEditingUser] = useState(null);
+    const { data, setData, post, processing, reset, errors } = useForm({ name: '', email: '', password: '', role: 'hrd', department_key: '' });
     const customRoles = (roles ?? []).filter((r) => !BUILT_IN_ROLES.includes(r.name));
 
     function submit(e) {
@@ -1740,6 +1769,7 @@ function UsersTab({ users, roles }) {
                                     </SelectContent>
                                 </Select>
                             </div>
+                            <DepartmentField value={data.department_key} onChange={(v) => setData('department_key', v)} />
                             <DialogFooter><Button type="submit" disabled={processing}>Create</Button></DialogFooter>
                         </form>
                     </DialogContent>
@@ -1747,15 +1777,19 @@ function UsersTab({ users, roles }) {
             </CardHeader>
             <CardContent>
                 <Table>
-                    <TableHeader><TableRow><TableHead>Name</TableHead><TableHead>Email</TableHead><TableHead>Role</TableHead><TableHead>Custom Roles</TableHead><TableHead>Status</TableHead><TableHead /></TableRow></TableHeader>
+                    <TableHeader><TableRow><TableHead>Name</TableHead><TableHead>Email</TableHead><TableHead>Role</TableHead><TableHead>Department</TableHead><TableHead>Custom Roles</TableHead><TableHead>Status</TableHead><TableHead /></TableRow></TableHeader>
                     <TableBody>
                         {users.map((u) => {
                             const assignedCustom = customRoles.filter((r) => (u.role_ids ?? []).includes(r.id));
+                            const deptLabel = DEPARTMENT_OPTIONS.find((d) => d.key === u.department_key)?.label;
                             return (
                                 <TableRow key={u.id}>
                                     <TableCell className="font-medium">{u.name}</TableCell>
                                     <TableCell>{u.email}</TableCell>
                                     <TableCell><Badge variant={u.role === 'super_admin' ? 'default' : 'secondary'}>{ROLE_LABELS[u.role] ?? u.role}</Badge></TableCell>
+                                    <TableCell>
+                                        {deptLabel ? <Badge variant="outline">{deptLabel}</Badge> : <span className="text-xs text-graphite-400">Administrator (all)</span>}
+                                    </TableCell>
                                     <TableCell>
                                         <div className="flex flex-wrap items-center gap-1">
                                             {assignedCustom.map((r) => <Badge key={r.id} variant="outline">{r.name}</Badge>)}
@@ -1767,7 +1801,8 @@ function UsersTab({ users, roles }) {
                                         </div>
                                     </TableCell>
                                     <TableCell><Badge variant={u.is_active ? 'success' : 'secondary'}>{u.is_active ? 'Active' : 'Inactive'}</Badge></TableCell>
-                                    <TableCell>
+                                    <TableCell className="flex items-center gap-1">
+                                        <Button variant="ghost" size="icon" onClick={() => setEditingUser(u)}><Pencil className="h-4 w-4" /></Button>
                                         <Button variant="ghost" size="icon" onClick={() => destroy(u.id)}><Trash2 className="h-4 w-4 text-red-500" /></Button>
                                     </TableCell>
                                 </TableRow>
@@ -1779,7 +1814,70 @@ function UsersTab({ users, roles }) {
             {editingRolesFor && (
                 <UserRolesDialog user={editingRolesFor} customRoles={customRoles} onClose={() => setEditingRolesFor(null)} />
             )}
+            {editingUser && (
+                <EditUserDialog user={editingUser} onClose={() => setEditingUser(null)} />
+            )}
         </Card>
+    );
+}
+
+/**
+ * v1.10.7. `settings.users.update` has existed since this controller was
+ * first built, but nothing in this tab ever called it -- there was no way
+ * to edit an existing user at all (rename, change role, reset password,
+ * or set the Department Restriction this same release adds to Create).
+ * Same field set as Create, pre-filled, password left blank (only sent if
+ * actually changed -- matches UpdateUserRequest's own `nullable` rule).
+ */
+function EditUserDialog({ user, onClose }) {
+    const { data, setData, put, processing, errors } = useForm({
+        name: user.name,
+        email: user.email,
+        password: '',
+        role: user.role,
+        department_key: user.department_key || '',
+        is_active: user.is_active,
+    });
+
+    function submit(e) {
+        e.preventDefault();
+        put(route('settings.users.update', user.id), { preserveScroll: true, onSuccess: onClose });
+    }
+
+    return (
+        <Dialog open onOpenChange={(v) => !v && onClose()}>
+            <DialogContent>
+                <DialogHeader><DialogTitle>Edit {user.name}</DialogTitle></DialogHeader>
+                <form onSubmit={submit} className="space-y-3">
+                    <div className="space-y-1.5"><Label>Name</Label><Input value={data.name} onChange={(e) => setData('name', e.target.value)} /></div>
+                    <div className="space-y-1.5"><Label>Email</Label><Input type="email" value={data.email} onChange={(e) => setData('email', e.target.value)} />
+                        {errors.email && <p className="text-xs text-red-600">{errors.email}</p>}
+                    </div>
+                    <div className="space-y-1.5"><Label>New Password (leave blank to keep current)</Label><Input type="password" value={data.password} onChange={(e) => setData('password', e.target.value)} />
+                        {errors.password && <p className="text-xs text-red-600">{errors.password}</p>}
+                    </div>
+                    <div className="space-y-1.5">
+                        <Label>Role</Label>
+                        <Select value={data.role} onValueChange={(v) => setData('role', v)}>
+                            <SelectTrigger><SelectValue /></SelectTrigger>
+                            <SelectContent>
+                                <SelectItem value="super_admin">Administrator</SelectItem>
+                                <SelectItem value="hse">HSE</SelectItem>
+                                <SelectItem value="hrd">HRD</SelectItem>
+                                <SelectItem value="manager">Manager</SelectItem>
+                                <SelectItem value="warehouse">Warehouse</SelectItem>
+                            </SelectContent>
+                        </Select>
+                    </div>
+                    <DepartmentField value={data.department_key} onChange={(v) => setData('department_key', v)} />
+                    <div className="flex items-center gap-2">
+                        <Checkbox checked={data.is_active} onCheckedChange={(v) => setData('is_active', Boolean(v))} />
+                        <Label className="!mt-0">Active</Label>
+                    </div>
+                    <DialogFooter><Button type="submit" disabled={processing}>{processing && <Loader2 className="h-4 w-4 animate-spin" />} Save</Button></DialogFooter>
+                </form>
+            </DialogContent>
+        </Dialog>
     );
 }
 

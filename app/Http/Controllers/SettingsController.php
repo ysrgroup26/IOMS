@@ -83,9 +83,12 @@ class SettingsController extends Controller
             // exact identity confusion UAT flagged, visible directly in
             // this list. `whereNull` deliberately excluded too -- Master
             // has no business appearing in ANY tenant's user list.
-            'users' => User::with('roles:id,name')->where('tenant_id', $request->user()->tenant_id)->orderBy('name')->get(['id', 'name', 'email', 'role', 'is_active', 'last_login_at'])
+            // v1.10.7: `department_key` now selected too, so the Users tab
+            // can actually display/edit it -- see storeUser()'s own doc
+            // comment for why this was missing.
+            'users' => User::with('roles:id,name')->where('tenant_id', $request->user()->tenant_id)->orderBy('name')->get(['id', 'name', 'email', 'role', 'department_key', 'is_active', 'last_login_at'])
                 ->map(fn (User $u) => [
-                    ...$u->only(['id', 'name', 'email', 'role', 'is_active', 'last_login_at']),
+                    ...$u->only(['id', 'name', 'email', 'role', 'department_key', 'is_active', 'last_login_at']),
                     'role_ids' => $u->roles->pluck('id'),
                 ]),
             'filters' => ['company_id' => $companyId],
@@ -748,6 +751,22 @@ class SettingsController extends Controller
 
     // --- User Management (Super Admin only) ---
 
+    /**
+     * v1.10.7. The real, assignable subset of `config('departments')`'s
+     * keys -- 'reports' and 'administration' are listed there too, but
+     * only so their own routes are correctly denied to a Department User;
+     * they're explicitly documented as "not real departments a user can
+     * be assigned to" and must never be offered here.
+     */
+    private function assignableDepartmentKeys(): array
+    {
+        return collect(config('departments', []))
+            ->keys()
+            ->reject(fn (string $key) => in_array($key, ['reports', 'administration'], true))
+            ->values()
+            ->all();
+    }
+
     public function storeUser(Request $request): RedirectResponse
     {
         $data = $request->validate([
@@ -755,6 +774,21 @@ class SettingsController extends Controller
             'email' => ['required', 'email', 'unique:users,email'],
             'password' => ['required', 'string', 'min:8'],
             'role' => ['required', 'in:super_admin,hse,hrd,manager,warehouse'],
+            // v1.10.7 fix: this form previously had NO way to set
+            // department_key at all -- `role` (what actions a user may
+            // perform) and `department_key` (which department's
+            // navigation/routes a user is even allowed to reach) are
+            // separate mechanisms (see User::isDepartmentUser()'s own doc
+            // comment), but with no field for the second one here, every
+            // user ever created through this UI silently stayed
+            // department_key=null -- i.e. a full Administrator for
+          // navigation-restriction purposes, REGARDLESS of what role was
+            // picked. A tenant admin choosing role "HSE" reasonably
+            // expected that alone to restrict the account to HSE, and it
+            // never did. null (the default, unselected) still means
+            // "Administrator: full Department Selector" -- this is purely
+            // additive, no existing account's behavior changes.
+            'department_key' => ['nullable', 'string', Rule::in($this->assignableDepartmentKeys())],
         ]);
 
         $data['password'] = Hash::make($data['password']);
@@ -789,6 +823,8 @@ class SettingsController extends Controller
             'password' => ['nullable', 'string', 'min:8'],
             'role' => ['required', 'in:super_admin,hse,hrd,manager,warehouse'],
             'is_active' => ['boolean'],
+            // v1.10.7 fix -- see storeUser()'s own doc comment for the gap this closes.
+            'department_key' => ['nullable', 'string', Rule::in($this->assignableDepartmentKeys())],
         ]);
 
         if (! empty($data['password'])) {

@@ -15,7 +15,16 @@ class AssetTransaction extends Model
 
     public const TYPE_STATUS_CHANGE = 'status_change';
 
-    public const TYPES = [self::TYPE_ASSIGNMENT, self::TYPE_TRANSFER, self::TYPE_INSPECTION, self::TYPE_STATUS_CHANGE];
+    /**
+     * v1.10.7. Was missing entirely -- WorkOrderController completed
+     * work orders against an asset without ever writing a row here, so
+     * Asset Show's own "Transaction History" (this table IS that
+     * history, no separate maintenance-history table) never reflected
+     * real maintenance activity. See WorkOrderController::transition().
+     */
+    public const TYPE_MAINTENANCE = 'maintenance';
+
+    public const TYPES = [self::TYPE_ASSIGNMENT, self::TYPE_TRANSFER, self::TYPE_INSPECTION, self::TYPE_STATUS_CHANGE, self::TYPE_MAINTENANCE];
 
     protected $fillable = [
         'asset_id', 'type', 'from_location', 'to_location', 'from_employee_id', 'to_employee_id',

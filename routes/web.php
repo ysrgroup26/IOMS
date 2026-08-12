@@ -219,6 +219,10 @@ Route::middleware(['auth', 'restrict.platform-admin'])->group(function () {
     Route::post('/permits-to-work/{permitToWork}/transition', [PermitToWorkController::class, 'transition'])->name('permits-to-work.transition');
     Route::post('/permits-to-work/{permitToWork}/gas-tests', [GasTestRecordController::class, 'store'])->name('permits-to-work.gas-tests.store');
     Route::delete('/permits-to-work/{permitToWork}/gas-tests/{gasTest}', [GasTestRecordController::class, 'destroy'])->name('permits-to-work.gas-tests.destroy');
+    // v1.10.7: read-only, cross-permit list -- creation/deletion stays
+    // nested under the owning PermitToWork above (see
+    // GasTestRecordController's own doc comment for why).
+    Route::get('/gas-test-records', [GasTestRecordController::class, 'index'])->name('gas-test-records.index');
 
     Route::get('/loto-records', [LotoRecordController::class, 'index'])->name('loto-records.index');
     Route::get('/loto-records/create', [LotoRecordController::class, 'create'])->name('loto-records.create');

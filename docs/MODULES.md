@@ -523,6 +523,14 @@ milestone is a handful of fields against an already-existing Project. Gated by
 `User::canManageMilestones()`, which reuses the existing `canManageProjects()` rather than inventing
 a parallel permission.
 
+**v1.10.7 security fix**: every method in `MilestoneController` was completely unscoped by tenant —
+`index()` listed every tenant's projects/milestones, `store()` validated `project_id` with a raw
+`exists:projects,id` (a real IDOR: any tenant could attach a milestone to another tenant's project),
+and `update()`/`destroy()` had no ownership check on the route-bound `Milestone` at all. Fixed with
+the same tenant-scoped `Rule::in()` + `assertInCurrentTenant()` pattern every other controller in
+this codebase already uses — found during the v1.10.7 cross-module integration audit, not previously
+caught by any prior pass.
+
 ## Goods Receipt
 
 **Department:** Logistics / PPIC (v1.10.0).

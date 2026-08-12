@@ -3,10 +3,10 @@ import AuthenticatedLayout from '@/Layouts/AuthenticatedLayout';
 import { Card, CardContent, CardHeader, CardTitle } from '@/Components/ui/card';
 import { Button } from '@/Components/ui/button';
 import { Badge } from '@/Components/ui/badge';
-import { Table, TableHeader, TableBody, TableRow, TableHead, TableCell } from '@/Components/ui/table';
 import ActivityTimeline from '@/Components/shared/ActivityTimeline';
 import StatusBadge from '@/Components/shared/StatusBadge';
 import { ArrowLeft, Pencil, Send, CheckCircle2, Archive, XCircle } from 'lucide-react';
+import { assessRisk } from '@/lib/riskMatrix';
 
 export default function JobSafetyAnalysisShow({ jsa: j, activities, canManage }) {
     function transition(status, confirmMessage) {
@@ -53,21 +53,40 @@ export default function JobSafetyAnalysisShow({ jsa: j, activities, canManage })
                         </Card>
                     )}
                     <Card>
-                        <CardHeader><CardTitle>Task Steps</CardTitle></CardHeader>
-                        <CardContent className="overflow-x-auto">
-                            <Table>
-                                <TableHeader><TableRow><TableHead className="w-10">#</TableHead><TableHead>Task Step</TableHead><TableHead>Potential Hazard</TableHead><TableHead>Control Measure</TableHead></TableRow></TableHeader>
-                                <TableBody>
-                                    {(j.steps || []).map((step, i) => (
-                                        <TableRow key={i}>
-                                            <TableCell>{i + 1}</TableCell>
-                                            <TableCell>{step.task_step}</TableCell>
-                                            <TableCell>{step.potential_hazard}</TableCell>
-                                            <TableCell>{step.control_measure}</TableCell>
-                                        </TableRow>
-                                    ))}
-                                </TableBody>
-                            </Table>
+                        <CardHeader><CardTitle>Task Steps &amp; Risk Matrix</CardTitle></CardHeader>
+                        <CardContent className="space-y-4">
+                            {(j.steps || []).length === 0 ? (
+                                <p className="py-4 text-center text-sm text-graphite-400">No steps recorded.</p>
+                            ) : (j.steps || []).map((step, i) => {
+                                const initial = assessRisk(step.likelihood, step.severity);
+                                const residual = assessRisk(step.residual_likelihood, step.residual_severity);
+
+                                return (
+                                    <div key={i} className="rounded-lg border border-graphite-200 p-3.5 dark:border-slate-700">
+                                        <span className="mb-2 block text-xs font-semibold uppercase tracking-wide text-graphite-400">Step {i + 1}</span>
+                                        <p className="text-sm font-medium text-graphite-800 dark:text-slate-100">{step.task_step}</p>
+                                        <div className="mt-2 grid grid-cols-1 gap-2 text-sm sm:grid-cols-2">
+                                            <div><span className="text-xs uppercase text-graphite-400">Hazard</span><p>{step.potential_hazard || '-'}</p></div>
+                                            <div><span className="text-xs uppercase text-graphite-400">Potential Consequence</span><p>{step.consequence || '-'}</p></div>
+                                        </div>
+                                        <div className="mt-2 text-sm"><span className="text-xs uppercase text-graphite-400">Existing / Current Controls</span><p>{step.control_measure || '-'}</p></div>
+                                        <div className="mt-3 flex flex-wrap items-center gap-2 text-sm">
+                                            <span className="text-xs font-semibold uppercase text-graphite-400">Initial Risk</span>
+                                            <span>{step.likelihood ?? '-'} × {step.severity ?? '-'}</span>
+                                            <Badge variant={initial.badge}>{initial.score ?? '-'} {initial.label !== '-' && `· ${initial.label}`}</Badge>
+                                        </div>
+                                        {step.additional_controls && (
+                                            <div className="mt-2 text-sm"><span className="text-xs uppercase text-graphite-400">Additional Controls</span><p>{step.additional_controls}</p></div>
+                                        )}
+                                        <div className="mt-3 flex flex-wrap items-center gap-2 text-sm">
+                                            <span className="text-xs font-semibold uppercase text-graphite-400">Residual Risk</span>
+                                            <span>{step.residual_likelihood ?? '-'} × {step.residual_severity ?? '-'}</span>
+                                            <Badge variant={residual.badge}>{residual.score ?? '-'} {residual.label !== '-' && `· ${residual.label}`}</Badge>
+                                        </div>
+                                        {step.pic && <p className="mt-2 text-xs text-graphite-400">Responsible: {step.pic}</p>}
+                                    </div>
+                                );
+                            })}
                         </CardContent>
                     </Card>
                     <Card>

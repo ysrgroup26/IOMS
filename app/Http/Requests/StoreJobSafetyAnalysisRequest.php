@@ -30,7 +30,22 @@ class StoreJobSafetyAnalysisRequest extends FormRequest
             'steps' => ['nullable', 'array'],
             'steps.*.task_step' => ['nullable', 'string', 'max:500'],
             'steps.*.potential_hazard' => ['nullable', 'string', 'max:500'],
+            // v1.10.9 (HSE Domain Hardening, Part H/I): JSA's risk matrix
+            // fields -- previously missing here entirely, which meant
+            // `$request->validated()` (Laravel only returns keys it was
+            // told to validate, for wildcard array rules) silently
+            // stripped them out of every save even after the frontend
+            // started sending them. Mirrors RiskAssessment's own
+            // likelihood/severity (1-5, same 5x5 matrix -- see
+            // resources/js/lib/riskMatrix.js) and residual_* rules.
+            'steps.*.consequence' => ['nullable', 'string', 'max:500'],
             'steps.*.control_measure' => ['nullable', 'string', 'max:500'],
+            'steps.*.likelihood' => ['nullable', 'integer', 'min:1', 'max:5'],
+            'steps.*.severity' => ['nullable', 'integer', 'min:1', 'max:5'],
+            'steps.*.additional_controls' => ['nullable', 'string', 'max:500'],
+            'steps.*.residual_likelihood' => ['nullable', 'integer', 'min:1', 'max:5'],
+            'steps.*.residual_severity' => ['nullable', 'integer', 'min:1', 'max:5'],
+            'steps.*.pic' => ['nullable', 'string', 'max:255'],
         ];
     }
 }

@@ -377,13 +377,39 @@ queries an individual row today, unlike Safety Observation's photos or Gas Test'
 model's own `prepared_by` column doesn't match `HasWorkflow`'s default `requested_by`/`reported_by`/
 `created_by` convention.
 
+**v1.10.9 finding**: `likelihood`/`severity`/`residual_likelihood`/`residual_severity` were captured
+in the data model and validated on the backend from the start, but NOTHING anywhere in the codebase
+ever computed or displayed a risk score/level from them (confirmed via a repo-wide search before
+writing the fix — zero matches for any risk-level computation) — the risk matrix this module's own
+migration doc comment describes was never actually finished. Fixed as part of the same pass that
+built JSA's own matrix (see JSA's section below) — both now share ONE engine
+(`resources/js/lib/riskMatrix.js`), not two.
+
 ## JSA (Job Safety Analysis)
 
-**Department:** HSE (Milestone 4, Workstream B5).
+**Department:** HSE (Milestone 4, Workstream B5, risk matrix added v1.10.9).
 
 `JobSafetyAnalysis` (`app/Models/JobSafetyAnalysis.php`): identical shape/reasoning to
-`RiskAssessment` above — same lifecycle, `steps` (task_step/potential_hazard/control_measure) and
-`required_ppe` are both JSON. Numbered `JSA-{year}-{00001}`.
+`RiskAssessment` above — same lifecycle, `steps` and `required_ppe` are both JSON. Numbered
+`JSA-{year}-{00001}`.
+
+**v1.10.9 (HSE Domain Hardening)**: `steps` extended with `consequence`, `likelihood`, `severity`,
+`additional_controls`, `residual_likelihood`, `residual_severity`, `pic` — a pure JSON-shape/
+application-level change (no migration; existing JSA records simply had these keys absent, handled
+explicitly on load by merging each saved step onto a blank-field default rather than trusting the
+saved keys, so old records open with real editable 1/1 defaults instead of breaking). Initial and
+residual risk are computed live from likelihood × severity via the **same shared**
+`resources/js/lib/riskMatrix.js` HIRADC now also uses — a standard 5x5 matrix (LOW 1-4 / MEDIUM 5-9 /
+HIGH 10-14 / EXTREME 15-25), documented in that file as the one place this scale is ever defined.
+Score/level are never stored — computed fresh on every render from the two raw inputs, same
+"computed, not stored" principle as `Asset::is_overdue`/`PurchaseOrderItem::delivered_quantity`.
+`JobSafetyAnalyses/Form.jsx`/`Show.jsx` moved from a per-row table to a stacked card-per-step layout
+for the new matrix fields — a 13-column table was judged to cross into "spreadsheet, not an
+operational tool" for a document genuinely meant to be filled out and read on a jobsite.
+`RiskAssessments/Form.jsx`/`Show.jsx` kept their existing table layout (already established, already
+used before this release) and simply gained the new Initial Risk/Residual L/S/Residual Risk columns
+— less crowded to begin with (activity/hazard/existing_control vs. JSA's task_step/hazard/
+consequence/control_measure), so a table stayed readable there without the same rework.
 
 ## Permit To Work
 
@@ -410,23 +436,34 @@ table 'permit_to_works' doesn't exist`) fixed by correcting the model to match t
 table, not the other way around — see `CONVENTIONS.md`'s Migrations pitfalls for the general rule
 this established.
 
-**Gas Test** (`GasTestRecord`, child of a specific `PermitToWork` — `permit_to_work_id` is required,
-not nullable, unlike `LotoRecord`) has two entry points into the exact same
-`permits-to-work.gas-tests.store` action and the exact same table: (1) the PTW Show page's own
-embedded "Add Reading" form, the original and only entry point through v1.10.6; (2) a company-wide,
-cross-permit `GasTestRecords/Index.jsx` page (`gas-test-records.index`, added v1.10.7) with its own
-"Add Gas Test" dialog (added v1.10.8, PTW selected via dropdown) for when the user starts from HSE
-navigation rather than an already-open permit. Both post to the same controller method; there is one
-`GasTestRecord` model/table, never two.
-
 ## Gas Test
 
-**Department:** HSE (Milestone 4, Workstream B7).
+**Department:** HSE (Milestone 4, Workstream B7; location/stage added v1.10.9).
 
-`GasTestRecord` (`app/Models/GasTestRecord.php`): real child table of `PermitToWork` (O2/LEL/H2S/CO
-readings + pass/fail result) — unlike HIRADC/JSA's JSON documents, multiple gas readings ARE
+`GasTestRecord` (`app/Models/GasTestRecord.php`): real child table of `PermitToWork`
+(`permit_to_work_id` required, not nullable, unlike `LotoRecord` — a reading is meaningless without
+the permit it was taken for) — unlike HIRADC/JSA's JSON documents, multiple gas readings ARE
 genuinely time-series/individually meaningful (a permit is periodically re-tested through its
-duration). Added inline from the Permit's own Show page, no separate index/show routes.
+duration/scope), so this is a real child table, not JSON.
+
+Fields: O2/LEL/H2S/CO readings, pass/fail `result`, plus (v1.10.9) `location` (plain nullable
+string — where the reading was actually taken, e.g. "Tank TK-001" or "Cargo Hold No. 2"; pre-filled
+from the parent permit's own `location` but independently editable, since a single PTW's scope can
+span more than one sub-location) and `stage` (`GasTestRecord::STAGES` — initial/re_test/final; every
+reading is its own row, never overwritten, so one PTW can carry Initial 08:00 → Re-Test 10:30 →
+Re-Test 13:00 → Final 16:00 as four distinct records). `location` was deliberately NOT modeled as a
+foreign key to `Asset` or any other model — audited first (searched for Location/Area/Site/Facility
+concepts codebase-wide; only `Asset` and `StorageLocation` exist, neither fits: a gas-test location
+is very often not a registered Asset, and StorageLocation is warehouse-bin-specific) — plain text,
+mirroring `permits_to_work.location`'s own already-established convention exactly.
+
+Two entry points into the exact same `permits-to-work.gas-tests.store` action, one model, one table:
+(1) the PTW Show page's own embedded "Add Reading" form (the original entry point, location
+pre-filled from the permit); (2) a company-wide, cross-permit `GasTestRecords/Index.jsx` page
+(`gas-test-records.index`) with its own "Add Gas Test" dialog (PTW selected via dropdown, location
+pre-filled from whichever permit is picked). Both entry points capture location + stage identically.
+Creation/deletion still only ever happens through `GasTestRecordController::store()`/`destroy()` —
+no second creation mechanism.
 
 ## LOTO (Lockout/Tagout)
 

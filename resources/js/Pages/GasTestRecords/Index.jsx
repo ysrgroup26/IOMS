@@ -1,5 +1,5 @@
 import { Head, Link, router, useForm } from '@inertiajs/react';
-import { useState } from 'react';
+import { useEffect, useState } from 'react';
 import AuthenticatedLayout from '@/Layouts/AuthenticatedLayout';
 import { Card, CardContent } from '@/Components/ui/card';
 import { Button } from '@/Components/ui/button';
@@ -8,24 +8,27 @@ import { Label } from '@/Components/ui/label';
 import { Select, SelectTrigger, SelectValue, SelectContent, SelectItem } from '@/Components/ui/select';
 import { Table, TableHeader, TableBody, TableRow, TableHead, TableCell } from '@/Components/ui/table';
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogFooter } from '@/Components/ui/dialog';
+import { Badge } from '@/Components/ui/badge';
 import StatusBadge from '@/Components/shared/StatusBadge';
 import EmptyState from '@/Components/shared/EmptyState';
 import { FlaskConical, Plus } from 'lucide-react';
 
 /**
- * Milestone 4, v1.10.7/v1.10.8. Read-only cross-permit list, PLUS (v1.10.8)
- * an "Add Gas Test" dialog -- a second entry point into the SAME
- * `permits-to-work.gas-tests.store` action the PTW Show page's own
+ * Milestone 4, v1.10.7 - v1.10.9. Read-only cross-permit list, PLUS
+ * (v1.10.8) an "Add Gas Test" dialog -- a second entry point into the
+ * SAME `permits-to-work.gas-tests.store` action the PTW Show page's own
  * embedded form already posts to (see GasTestRecordController's own doc
- * comment). Choosing a permit here is required since GasTestRecord always
- * belongs to exactly one; opening this from within a specific permit
- * instead is still the other, unchanged entry point.
+ * comment). v1.10.9 adds Location/Object and Test Stage -- a single PTW
+ * can legitimately have several readings (Initial, Re-Test, Final), each
+ * at a specific place, never overwriting the previous one.
  */
-export default function GasTestRecordsIndex({ gasTests, filters, results, permits, can }) {
+export default function GasTestRecordsIndex({ gasTests, filters, results, stages, stageLabels, permits, can }) {
     const [addOpen, setAddOpen] = useState(false);
     const form = useForm({
         permit_to_work_id: '',
+        location: '',
         tested_at: new Date().toISOString().slice(0, 16),
+        stage: 'initial',
         o2_level: '20.9',
         lel_level: '0',
         h2s_level: '0',
@@ -34,8 +37,18 @@ export default function GasTestRecordsIndex({ gasTests, filters, results, permit
         notes: '',
     });
 
-    function applyFilter(result) {
-        router.get(route('gas-test-records.index'), { result: result === 'all' ? null : result }, { preserveState: true, replace: true });
+    // Pre-fill Location/Object from the selected permit's own `location`
+    // -- same "sensible default, still independently editable" behavior
+    // as the PTW-embedded form (Entry Point 2).
+    useEffect(() => {
+        if (!form.data.permit_to_work_id) return;
+        const permit = permits.find((p) => String(p.id) === form.data.permit_to_work_id);
+        if (permit?.location && !form.data.location) form.setData('location', permit.location);
+        // eslint-disable-next-line react-hooks/exhaustive-deps
+    }, [form.data.permit_to_work_id]);
+
+    function applyFilters(overrides = {}) {
+        router.get(route('gas-test-records.index'), { ...filters, ...overrides }, { preserveState: true, replace: true });
     }
 
     function submit(e) {
@@ -56,8 +69,15 @@ export default function GasTestRecordsIndex({ gasTests, filters, results, permit
                     <h1 className="text-lg font-bold tracking-tight text-graphite-900 dark:text-slate-50">Gas Test Records</h1>
                     <p className="text-xs text-graphite-500 dark:text-slate-400">Every atmospheric reading recorded against a Permit To Work.</p>
                 </div>
-                <div className="flex items-center gap-2">
-                    <Select value={filters.result || 'all'} onValueChange={applyFilter}>
+                <div className="flex flex-wrap items-center gap-2">
+                    <Select value={filters.stage || 'all'} onValueChange={(v) => applyFilters({ stage: v === 'all' ? null : v })}>
+                        <SelectTrigger className="w-32"><SelectValue placeholder="Stage" /></SelectTrigger>
+                        <SelectContent>
+                            <SelectItem value="all">All Stages</SelectItem>
+                            {stages.map((s) => <SelectItem key={s} value={s}>{stageLabels[s]}</SelectItem>)}
+                        </SelectContent>
+                    </Select>
+                    <Select value={filters.result || 'all'} onValueChange={(v) => applyFilters({ result: v === 'all' ? null : v })}>
                         <SelectTrigger className="w-36"><SelectValue placeholder="Result" /></SelectTrigger>
                         <SelectContent>
                             <SelectItem value="all">All Results</SelectItem>
@@ -76,11 +96,13 @@ export default function GasTestRecordsIndex({ gasTests, filters, results, permit
                         <EmptyState icon={FlaskConical} title="No gas test records" description={can.manage ? 'Click "Add Gas Test" to record the first reading.' : 'Readings are added from a Permit To Work\'s own page.'} />
                     ) : (
                         <Table>
-                            <TableHeader><TableRow><TableHead>Permit</TableHead><TableHead>Tested At</TableHead><TableHead>O2 %</TableHead><TableHead>LEL %</TableHead><TableHead>H2S ppm</TableHead><TableHead>CO ppm</TableHead><TableHead>Result</TableHead><TableHead>Tested By</TableHead></TableRow></TableHeader>
+                            <TableHeader><TableRow><TableHead>Permit</TableHead><TableHead>Location / Object</TableHead><TableHead>Stage</TableHead><TableHead>Tested At</TableHead><TableHead>O2 %</TableHead><TableHead>LEL %</TableHead><TableHead>H2S ppm</TableHead><TableHead>CO ppm</TableHead><TableHead>Result</TableHead><TableHead>Tested By</TableHead></TableRow></TableHeader>
                             <TableBody>
                                 {gasTests.data.map((g) => (
                                     <TableRow key={g.id}>
                                         <TableCell>{g.permit_to_work ? <Link href={route('permits-to-work.show', g.permit_to_work.id)} className="font-medium text-brand-700 hover:underline">{g.permit_to_work.ptw_number}</Link> : '-'}</TableCell>
+                                        <TableCell>{g.location || <span className="text-graphite-400">-</span>}</TableCell>
+                                        <TableCell><Badge variant="outline">{stageLabels[g.stage] || g.stage}</Badge></TableCell>
                                         <TableCell>{new Date(g.tested_at).toLocaleString('en-US', { day: 'numeric', month: 'short', year: 'numeric', hour: '2-digit', minute: '2-digit' })}</TableCell>
                                         <TableCell>{g.o2_level ?? '-'}</TableCell>
                                         <TableCell>{g.lel_level ?? '-'}</TableCell>
@@ -113,6 +135,19 @@ export default function GasTestRecordsIndex({ gasTests, filters, results, permit
                                 </SelectContent>
                             </Select>
                             {form.errors.permit_to_work_id && <p className="text-xs text-red-600">{form.errors.permit_to_work_id}</p>}
+                        </div>
+                        <div className="grid grid-cols-2 gap-3">
+                            <div className="space-y-1.5">
+                                <Label>Location / Object</Label>
+                                <Input placeholder="e.g. Tank TK-001, Cargo Hold No. 2" value={form.data.location} onChange={(e) => form.setData('location', e.target.value)} />
+                            </div>
+                            <div className="space-y-1.5">
+                                <Label>Test Stage</Label>
+                                <Select value={form.data.stage} onValueChange={(v) => form.setData('stage', v)}>
+                                    <SelectTrigger><SelectValue /></SelectTrigger>
+                                    <SelectContent>{stages.map((s) => <SelectItem key={s} value={s}>{stageLabels[s]}</SelectItem>)}</SelectContent>
+                                </Select>
+                            </div>
                         </div>
                         <div className="grid grid-cols-2 gap-3 sm:grid-cols-3">
                             <div className="col-span-2 space-y-1"><Label className="text-xs">Tested At</Label><Input type="datetime-local" value={form.data.tested_at} onChange={(e) => form.setData('tested_at', e.target.value)} /></div>

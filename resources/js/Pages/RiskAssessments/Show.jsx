@@ -2,10 +2,12 @@ import { Head, Link, router } from '@inertiajs/react';
 import AuthenticatedLayout from '@/Layouts/AuthenticatedLayout';
 import { Card, CardContent, CardHeader, CardTitle } from '@/Components/ui/card';
 import { Button } from '@/Components/ui/button';
+import { Badge } from '@/Components/ui/badge';
 import { Table, TableHeader, TableBody, TableRow, TableHead, TableCell } from '@/Components/ui/table';
 import ActivityTimeline from '@/Components/shared/ActivityTimeline';
 import StatusBadge from '@/Components/shared/StatusBadge';
 import { ArrowLeft, Pencil, Send, CheckCircle2, Archive, XCircle } from 'lucide-react';
+import { assessRisk } from '@/lib/riskMatrix';
 
 export default function RiskAssessmentShow({ riskAssessment: r, activities, canManage }) {
     function transition(status, confirmMessage) {
@@ -54,24 +56,34 @@ export default function RiskAssessmentShow({ riskAssessment: r, activities, canM
                                 <TableHeader>
                                     <TableRow>
                                         <TableHead>Activity</TableHead><TableHead>Hazard</TableHead><TableHead>Existing Control</TableHead>
-                                        <TableHead>L</TableHead><TableHead>S</TableHead><TableHead>Risk</TableHead>
-                                        <TableHead>Additional Control</TableHead><TableHead>PIC</TableHead><TableHead>Target</TableHead>
+                                        <TableHead>L</TableHead><TableHead>S</TableHead><TableHead>Initial Risk</TableHead>
+                                        <TableHead>Additional Control</TableHead>
+                                        <TableHead>Res. L</TableHead><TableHead>Res. S</TableHead><TableHead>Residual Risk</TableHead>
+                                        <TableHead>PIC</TableHead><TableHead>Target</TableHead>
                                     </TableRow>
                                 </TableHeader>
                                 <TableBody>
-                                    {(r.items || []).map((item, i) => (
-                                        <TableRow key={i}>
-                                            <TableCell>{item.activity}</TableCell>
-                                            <TableCell>{item.hazard}</TableCell>
-                                            <TableCell>{item.existing_control}</TableCell>
-                                            <TableCell>{item.likelihood}</TableCell>
-                                            <TableCell>{item.severity}</TableCell>
-                                            <TableCell>{(Number(item.likelihood) || 0) * (Number(item.severity) || 0)}</TableCell>
-                                            <TableCell>{item.additional_control}</TableCell>
-                                            <TableCell>{item.pic}</TableCell>
-                                            <TableCell>{item.target_date}</TableCell>
-                                        </TableRow>
-                                    ))}
+                                    {(r.items || []).map((item, i) => {
+                                        const initial = assessRisk(item.likelihood, item.severity);
+                                        const residual = assessRisk(item.residual_likelihood, item.residual_severity);
+
+                                        return (
+                                            <TableRow key={i}>
+                                                <TableCell>{item.activity}</TableCell>
+                                                <TableCell>{item.hazard}</TableCell>
+                                                <TableCell>{item.existing_control}</TableCell>
+                                                <TableCell>{item.likelihood}</TableCell>
+                                                <TableCell>{item.severity}</TableCell>
+                                                <TableCell><Badge variant={initial.badge}>{initial.score ?? '-'} {initial.label !== '-' && `· ${initial.label}`}</Badge></TableCell>
+                                                <TableCell>{item.additional_control}</TableCell>
+                                                <TableCell>{item.residual_likelihood ?? '-'}</TableCell>
+                                                <TableCell>{item.residual_severity ?? '-'}</TableCell>
+                                                <TableCell><Badge variant={residual.badge}>{residual.score ?? '-'} {residual.label !== '-' && `· ${residual.label}`}</Badge></TableCell>
+                                                <TableCell>{item.pic}</TableCell>
+                                                <TableCell>{item.target_date}</TableCell>
+                                            </TableRow>
+                                        );
+                                    })}
                                 </TableBody>
                             </Table>
                         </CardContent>

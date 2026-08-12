@@ -4,11 +4,27 @@ import { Card, CardContent, CardHeader, CardTitle } from '@/Components/ui/card';
 import { Button } from '@/Components/ui/button';
 import { Input } from '@/Components/ui/input';
 import { Label } from '@/Components/ui/label';
+import { Badge } from '@/Components/ui/badge';
 import { Select, SelectTrigger, SelectValue, SelectContent, SelectItem } from '@/Components/ui/select';
 import { Table, TableHeader, TableBody, TableRow, TableHead, TableCell } from '@/Components/ui/table';
 import { ArrowLeft, Plus, Trash2 } from 'lucide-react';
+import { assessRisk } from '@/lib/riskMatrix';
 
 const BLANK_ITEM = { activity: '', hazard: '', existing_control: '', likelihood: 1, severity: 1, additional_control: '', residual_likelihood: 1, residual_severity: 1, pic: '', target_date: '' };
+
+/**
+ * v1.10.9: risk_rating/residual_rating were always PART of this item's
+ * intended shape (see the owning migration's own doc comment) but never
+ * actually computed or shown anywhere in this form -- audited and
+ * confirmed via a repo-wide search before writing this file, not
+ * assumed. Uses the SAME shared `assessRisk()` JSA now uses too -- one
+ * risk matrix, not two.
+ */
+function RiskBadge({ likelihood, severity }) {
+    const { score, label, badge } = assessRisk(likelihood, severity);
+
+    return <Badge variant={badge}>{score ?? '-'} {label !== '-' && `· ${label}`}</Badge>;
+}
 
 export default function RiskAssessmentForm({ riskAssessment, companies, projects, raNumber }) {
     const editing = !!riskAssessment;
@@ -106,9 +122,13 @@ export default function RiskAssessmentForm({ riskAssessment, companies, projects
                                     <TableHead className="min-w-[140px]">Activity</TableHead>
                                     <TableHead className="min-w-[140px]">Hazard</TableHead>
                                     <TableHead className="min-w-[140px]">Existing Control</TableHead>
-                                    <TableHead className="w-16">L</TableHead>
-                                    <TableHead className="w-16">S</TableHead>
+                                    <TableHead className="w-14">L</TableHead>
+                                    <TableHead className="w-14">S</TableHead>
+                                    <TableHead className="min-w-[110px]">Initial Risk</TableHead>
                                     <TableHead className="min-w-[140px]">Additional Control</TableHead>
+                                    <TableHead className="w-14">Res. L</TableHead>
+                                    <TableHead className="w-14">Res. S</TableHead>
+                                    <TableHead className="min-w-[110px]">Residual Risk</TableHead>
                                     <TableHead className="min-w-[120px]">PIC</TableHead>
                                     <TableHead className="min-w-[130px]">Target Date</TableHead>
                                     <TableHead />
@@ -122,7 +142,11 @@ export default function RiskAssessmentForm({ riskAssessment, companies, projects
                                         <TableCell><Input value={item.existing_control} onChange={(e) => updateItem(i, 'existing_control', e.target.value)} /></TableCell>
                                         <TableCell><Input type="number" min="1" max="5" className="w-14" value={item.likelihood} onChange={(e) => updateItem(i, 'likelihood', e.target.value)} /></TableCell>
                                         <TableCell><Input type="number" min="1" max="5" className="w-14" value={item.severity} onChange={(e) => updateItem(i, 'severity', e.target.value)} /></TableCell>
+                                        <TableCell><RiskBadge likelihood={item.likelihood} severity={item.severity} /></TableCell>
                                         <TableCell><Input value={item.additional_control} onChange={(e) => updateItem(i, 'additional_control', e.target.value)} /></TableCell>
+                                        <TableCell><Input type="number" min="1" max="5" className="w-14" value={item.residual_likelihood} onChange={(e) => updateItem(i, 'residual_likelihood', e.target.value)} /></TableCell>
+                                        <TableCell><Input type="number" min="1" max="5" className="w-14" value={item.residual_severity} onChange={(e) => updateItem(i, 'residual_severity', e.target.value)} /></TableCell>
+                                        <TableCell><RiskBadge likelihood={item.residual_likelihood} severity={item.residual_severity} /></TableCell>
                                         <TableCell><Input value={item.pic} onChange={(e) => updateItem(i, 'pic', e.target.value)} /></TableCell>
                                         <TableCell><Input type="date" value={item.target_date || ''} onChange={(e) => updateItem(i, 'target_date', e.target.value)} /></TableCell>
                                         <TableCell><Button type="button" variant="ghost" size="icon" onClick={() => removeItem(i)}><Trash2 className="h-4 w-4 text-red-500" /></Button></TableCell>

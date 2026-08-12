@@ -14,7 +14,12 @@ import { ArrowLeft, Send, CheckCircle2, XCircle, PlayCircle, FlaskConical, Wind 
 
 export default function PermitToWorkShow({ permit: p, activities, canManage }) {
     const [gasTestOpen, setGasTestOpen] = useState(false);
-    const gasTestForm = useForm({ tested_at: new Date().toISOString().slice(0, 16), o2_level: '20.9', lel_level: '0', h2s_level: '0', co_level: '0', result: 'pass', notes: '' });
+    // v1.10.9: location pre-filled from this permit's own p.location (the
+    // scope a PTW is raised for) but independently editable -- a gas
+    // reading can be taken at a specific sub-location within that scope.
+    // stage defaults to 'initial'; a user re-testing later picks 're_test'
+    // or 'final' -- see GasTestRecord::STAGES.
+    const gasTestForm = useForm({ location: p.location || '', tested_at: new Date().toISOString().slice(0, 16), stage: 'initial', o2_level: '20.9', lel_level: '0', h2s_level: '0', co_level: '0', result: 'pass', notes: '' });
 
     function transition(status, confirmMessage) {
         if (confirmMessage && !confirm(confirmMessage)) return;
@@ -85,6 +90,14 @@ export default function PermitToWorkShow({ permit: p, activities, canManage }) {
                         <CardContent>
                             {gasTestOpen && (
                                 <form onSubmit={submitGasTest} className="mb-4 grid grid-cols-2 gap-3 rounded-md border border-graphite-100 p-3 sm:grid-cols-3">
+                                    <div className="space-y-1"><Label className="text-xs">Location / Object</Label><Input placeholder="e.g. Tank TK-001" value={gasTestForm.data.location} onChange={(e) => gasTestForm.setData('location', e.target.value)} /></div>
+                                    <div className="space-y-1">
+                                        <Label className="text-xs">Test Stage</Label>
+                                        <Select value={gasTestForm.data.stage} onValueChange={(v) => gasTestForm.setData('stage', v)}>
+                                            <SelectTrigger><SelectValue /></SelectTrigger>
+                                            <SelectContent><SelectItem value="initial">Initial</SelectItem><SelectItem value="re_test">Re-Test</SelectItem><SelectItem value="final">Final</SelectItem></SelectContent>
+                                        </Select>
+                                    </div>
                                     <div className="space-y-1"><Label className="text-xs">Tested At</Label><Input type="datetime-local" value={gasTestForm.data.tested_at} onChange={(e) => gasTestForm.setData('tested_at', e.target.value)} /></div>
                                     <div className="space-y-1"><Label className="text-xs">O2 %</Label><Input type="number" step="0.1" value={gasTestForm.data.o2_level} onChange={(e) => gasTestForm.setData('o2_level', e.target.value)} /></div>
                                     <div className="space-y-1"><Label className="text-xs">LEL %</Label><Input type="number" step="0.1" value={gasTestForm.data.lel_level} onChange={(e) => gasTestForm.setData('lel_level', e.target.value)} /></div>
@@ -104,11 +117,13 @@ export default function PermitToWorkShow({ permit: p, activities, canManage }) {
                                 <EmptyState icon={FlaskConical} title="No gas test readings recorded" />
                             ) : (
                                 <Table>
-                                    <TableHeader><TableRow><TableHead>Time</TableHead><TableHead>O2</TableHead><TableHead>LEL</TableHead><TableHead>H2S</TableHead><TableHead>CO</TableHead><TableHead>Result</TableHead><TableHead>By</TableHead></TableRow></TableHeader>
+                                    <TableHeader><TableRow><TableHead>Time</TableHead><TableHead>Location</TableHead><TableHead>Stage</TableHead><TableHead>O2</TableHead><TableHead>LEL</TableHead><TableHead>H2S</TableHead><TableHead>CO</TableHead><TableHead>Result</TableHead><TableHead>By</TableHead></TableRow></TableHeader>
                                     <TableBody>
                                         {p.gas_tests.map((g) => (
                                             <TableRow key={g.id}>
                                                 <TableCell>{new Date(g.tested_at).toLocaleString('en-US', { day: 'numeric', month: 'short', hour: 'numeric', minute: '2-digit' })}</TableCell>
+                                                <TableCell>{g.location || '-'}</TableCell>
+                                                <TableCell className="capitalize">{(g.stage || 'initial').replace('_', ' ')}</TableCell>
                                                 <TableCell>{g.o2_level ?? '-'}</TableCell>
                                                 <TableCell>{g.lel_level ?? '-'}</TableCell>
                                                 <TableCell>{g.h2s_level ?? '-'}</TableCell>

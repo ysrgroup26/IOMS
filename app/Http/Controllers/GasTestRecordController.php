@@ -31,6 +31,15 @@ use Inertia\Response;
  * creation mechanism. The PTW Show page's own embedded "Add Reading" form
  * (the original, always-existing entry point) is completely unchanged and
  * still posts to the exact same route.
+ *
+ * v1.10.9 (HSE Domain Hardening): `location` (free-text, where the
+ * reading was actually taken -- pre-filled from the permit's own
+ * `location` by the frontend, independently editable) and `stage`
+ * (initial/re_test/final -- see GasTestRecord::STAGES) added to store()'s
+ * validated data. Both are plain columns on the existing table (see that
+ * migration's own doc comment for why no new model/relation was needed) --
+ * store()/destroy()'s tenant-ownership checks are unchanged, since neither
+ * new field affects tenant ownership at all.
  */
 class GasTestRecordController extends Controller
 {
@@ -42,18 +51,21 @@ class GasTestRecordController extends Controller
             ->whereIn('company_id', $tenantCompanyIds)
             ->with('permitToWork:id,ptw_number', 'tester:id,name')
             ->when($request->input('result'), fn ($q, $v) => $q->where('result', $v))
+            ->when($request->input('stage'), fn ($q, $v) => $q->where('stage', $v))
             ->latest('tested_at')
             ->paginate(20)
             ->withQueryString();
 
         return Inertia::render('GasTestRecords/Index', [
             'gasTests' => $gasTests,
-            'filters' => $request->only('result'),
+            'filters' => $request->only('result', 'stage'),
             'results' => GasTestRecord::RESULTS,
+            'stages' => GasTestRecord::STAGES,
+            'stageLabels' => GasTestRecord::STAGE_LABELS,
             'permits' => PermitToWork::whereIn('company_id', $tenantCompanyIds)
                 ->whereIn('status', [PermitToWork::STATUS_APPROVED, PermitToWork::STATUS_ACTIVE])
                 ->orderByDesc('start_datetime')
-                ->get(['id', 'ptw_number']),
+                ->get(['id', 'ptw_number', 'location']),
             'can' => ['manage' => $request->user()->canManageHse()],
         ]);
     }
@@ -64,7 +76,9 @@ class GasTestRecordController extends Controller
         abort_unless(Company::query()->pluck('id')->contains($permitToWork->company_id), 404);
 
         $data = $request->validate([
+            'location' => ['nullable', 'string', 'max:255'],
             'tested_at' => ['required', 'date'],
+            'stage' => ['required', Rule::in(GasTestRecord::STAGES)],
             'o2_level' => ['nullable', 'numeric', 'min:0', 'max:100'],
             'lel_level' => ['nullable', 'numeric', 'min:0', 'max:100'],
             'h2s_level' => ['nullable', 'numeric', 'min:0'],
@@ -79,7 +93,7 @@ class GasTestRecordController extends Controller
             'tested_by' => $request->user()->id,
         ]);
 
-        ActivityLog::record('created', "Gas test recorded ({$gasTest->result}) for {$permitToWork->ptw_number}.", $permitToWork);
+        ActivityLog::record('created', "{$gasTest->stageLabel()} gas test recorded ({$gasTest->result}) for {$permitToWork->ptw_number}.", $permitToWork);
 
         return back()->with('success', 'Gas test recorded.');
     }

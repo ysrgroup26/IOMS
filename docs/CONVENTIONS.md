@@ -25,6 +25,13 @@ $u->only(['id', 'name', 'email', 'role', 'department_key', 'tenant_id']);
 - If a same-session emergency fix is needed before someone can reach Settings, the safe one-line
   tinker equivalent of that same UI action (assign a value already present in `config('departments')`,
   never touch any other field) is: `$u->update(['department_key' => 'hse']);`
+- **v1.10.9**: a safer, no-tinker-required alternative now exists —
+  `php artisan users:assign-department {email} {department}` (`AssignUserDepartment` command).
+  Validates the department key against `config('departments')`, refuses to touch a
+  `super_admin`/`platform_admin` account unless `--force` is passed (protects against accidentally
+  locking out an administrator), and only ever touches the one named account. Prefer this over raw
+  tinker going forward — same effect, less room for a typo'd field name or an accidentally-broad
+  query to touch the wrong row.
 - If `department_key` is already correctly set and the symptom persists, the next thing to check is
   NOT the RBAC code — it's `git log -1 --format=%H -- public/build/manifest.json` on the server vs.
   `git log -1 --format=%H` (are they from the same deploy?), per the stale-`public/build` pitfall

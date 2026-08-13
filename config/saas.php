@@ -9,17 +9,19 @@
 return [
 
     /**
-     * Whether `App\Http\Middleware\EnforceTenantEntitlement` actually
-     * blocks access for a tenant whose Subscription is unusable (expired/
-     * suspended/cancelled). Defaults false -- see that middleware's own
-     * doc comment for the specific deploy-safety reasoning (stale seeded
-     * subscription dates could otherwise lock out an existing production
-     * tenant the moment this ships). Flip via SAAS_ENFORCE_ENTITLEMENT=true
-     * in .env only after confirming the real tenant's Subscription record
-     * (Platform → Tenants → [tenant] → Subscription) has correct,
-     * current dates/status.
+     * v1.11.1 (Final Production Readiness Pass, Part 15): now defaults
+     * TRUE -- safe to do so after `Subscription::isBlocked()` was
+     * redefined to hard-block ONLY on an explicit `suspended`/`cancelled`
+     * status (always the result of a deliberate Platform Admin action),
+     * never on an expired-by-date or missing Subscription row. Those two
+     * cases are surfaced as a "degraded" warning instead (see
+     * EntitlementService::tenantIsDegraded()) rather than a block, which
+     * is what makes it finally safe to enable by default -- a stale
+     * SubscriptionSeeder-computed date can no longer lock anyone out.
+     * Still overridable via SAAS_ENFORCE_ENTITLEMENT=false in .env if a
+     * specific install needs it fully off.
      */
-    'enforce_entitlement' => env('SAAS_ENFORCE_ENTITLEMENT', false),
+    'enforce_entitlement' => env('SAAS_ENFORCE_ENTITLEMENT', true),
 
     /**
      * Default currency for new Packages/Invoices when none is specified.

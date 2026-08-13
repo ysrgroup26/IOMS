@@ -1966,6 +1966,21 @@ function SubscriptionTab({ subscription, invoices }) {
 
     return (
         <div className="space-y-4">
+            {/* v1.11.1, Part 15/16: "degraded" (expired-by-date, not yet
+                explicitly suspended) is shown as a warning here -- access
+                is NOT blocked for this state, only for an explicit
+                suspended/cancelled status (see Subscription::isBlocked()'s
+                own doc comment). */}
+            {subscription.is_degraded && (
+                <div className="rounded-md border border-amber-200 bg-amber-50 p-3 text-sm text-amber-800 dark:border-amber-900 dark:bg-amber-950/30 dark:text-amber-300">
+                    Your subscription/trial period has passed its end date. Access has not been restricted, but please renew soon to avoid interruption -- contact your platform provider.
+                </div>
+            )}
+            {!subscription.is_usable && (
+                <div className="rounded-md border border-red-200 bg-red-50 p-3 text-sm text-red-800 dark:border-red-900 dark:bg-red-950/30 dark:text-red-300">
+                    Your organization's access has been {subscription.status} by the platform provider. Contact them to restore access.
+                </div>
+            )}
             <Card>
                 <CardHeader>
                     <CardTitle>Subscription / License</CardTitle>

@@ -1059,11 +1059,14 @@ all). What was added:
   (existing department scope) — it composes with them: `tenant entitlement AND module/workspace
   grant AND department scope AND role capability = access`.
 - **`EnforceTenantEntitlement`** middleware — the backend, direct-URL-safe enforcement of the above,
-  registered globally. **Gated behind `config('saas.enforce_entitlement')`, default `false`** — see
-  that middleware's own doc comment and `docs/CONVENTIONS.md` for the specific deploy-safety
-  reasoning (a stale seeded `Subscription.ends_at` could otherwise lock out an existing production
-  tenant the moment this ships). Must be explicitly enabled (`SAAS_ENFORCE_ENTITLEMENT=true`) after
-  verifying the real tenant's Subscription record via the new Platform Admin UI.
+  registered globally. **v1.11.1: `Subscription::isBlocked()`/`isDegraded()` split the previous
+  single "usable" check into two** — blocked (hard 403) ONLY for an explicit `suspended`/`cancelled`
+  status (always a deliberate Platform Admin action); degraded (a warning banner in Settings →
+  Subscription, never a block) for expired-by-date or a completely missing Subscription row, which
+  are far more likely to be stale/unconfigured data than an actual delinquent tenant. This is what
+  made it safe to flip `config('saas.enforce_entitlement')`'s default to `true` this pass — a stale
+  seeded `Subscription.ends_at` can no longer lock anyone out; only an explicit suspend/cancel can.
+  Still overridable per-install via `SAAS_ENFORCE_ENTITLEMENT=false` in `.env`.
 - **Platform Admin console** (`/platform`): `Plans` (new page — `Package` previously had no
   create/edit UI at all, only a read-only dropdown), and `TenantDetail`'s Subscription card is now
   editable (type/status/seats/license key/dates) with an Invoices card (issue invoice, mark paid).
@@ -1076,6 +1079,56 @@ the architecture is provider-agnostic; a future gateway integration would call `
 the same way a Platform Admin does manually today, no core rewrite needed). Frontend navigation does
 NOT yet hide a workspace based on entitlement status (only the backend middleware, itself gated off
 by default, enforces it) — flagged as a follow-up, not silently claimed done.
+
+## HSE Operational Equipment (v1.11.1, Final Production Readiness Pass)
+
+**Department:** HSE. `SafetyEquipment` (Workstream B10) already existed and was reused, not
+duplicated — fixed-location operational equipment (name/type/location/serial_number/status +
+`is_overdue` computed accessor). Two gaps closed:
+
+- **`HseEquipmentType`** — a configurable master (mirrors `HazardCategory` exactly:
+  company_id/name/code/description/is_active/sort_order), replacing the old hardcoded
+  `SafetyEquipment::TYPES` PHP array. Seeded with the same codes every existing row already used
+  (fire_extinguisher, safety_shower, eyewash_station, emergency_alarm, spill_kit, other) plus the
+  newly-requested operational categories (handheld_radio/HT, gas_detector, blower, public_address/
+  TOA) — fully backward compatible, no existing `SafetyEquipment.type` value was invalidated.
+  `type` itself stays a plain string column (not an FK) — additive, zero data migration needed.
+- **`SafetyEquipmentInspection`** — real inspection history (mirrors `GasTestRecord`'s own
+  "individually meaningful, time-series" reasoning), recorded via
+  `SafetyEquipmentController::recordInspection()`. The parent `SafetyEquipment.last_inspection_date`/
+  `next_inspection_due` stay in sync (existing overdue queries/widgets already read those two columns
+  directly — kept, not replaced, to avoid rewriting every consumer to join the new child table).
+
+**Known limitation**: a dedicated Equipment Types management UI section (Super Admin adding a brand
+new type through Settings) was not built this pass — the backend CRUD (`hse-equipment-types.*`
+routes/controller) exists and works, seeded defaults cover the requested categories, but there is no
+frontend section yet to add a type beyond the seed. Flagged as a follow-up, not silently done.
+
+## HSE Inspection Categories — LSA/FFA/PPE (v1.11.1)
+
+`HseInspection` (Workstream B2) already supported a configurable `checklist_items` JSON column per
+inspection — audited first and confirmed this already satisfies "Inspection Category → Checklist →
+Result → Findings" without any new architecture. Only gap: `HseInspection::TYPES` didn't list `lsa`
+(Life Saving Appliances) or `ffa` (Fire Fighting Appliances) as explicit categories. Both added;
+`fire_safety` (the pre-existing, more generic category) was kept unchanged, not renamed, so no
+existing inspection record is affected.
+
+## Global Calendar on the Main Dashboard (v1.11.1)
+
+`DashboardController::upcomingEvents()` — a small, deliberately narrower "Upcoming" widget (next 14
+days, manual `CalendarEvent` + Permit To Work + Milestone only, capped at 8) shown directly on the
+Main Dashboard, separate from and linking to the full `Calendar/Index.jsx` page (which also
+aggregates Leave/TBM/Work Order). Not a duplicate calendar system — same tenant-safe query pattern,
+narrower source set, by design (a Dashboard widget, not the full calendar).
+
+## Man-Power / Man-Hour (v1.11.1)
+
+Audited first: no attendance/timesheet/clock-in table exists anywhere in this codebase, so actual
+**worked man-hours cannot be reliably computed** and were NOT fabricated. What genuinely exists and
+is shown on the Main Dashboard instead: `active_employees` (real headcount) and `on_shift_today`
+(real count of `EmployeeShiftAssignment` rows currently in effect). Building true man-hour tracking
+would require a new attendance/timesheet source — explicitly flagged as future work, not attempted
+this pass.
 
 ## Reusable engines (Approval, Workflow, Timeline, Import, PDF, Report Export)
 

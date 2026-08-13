@@ -32,19 +32,20 @@ use Symfony\Component\HttpFoundation\Response;
  *   the page that explains what's wrong, would be a worse product
  *   experience than the block itself.
  *
- * DEPLOY SAFETY: gated behind `config('saas.enforce_entitlement')`,
- * default `false`. Reason: `SubscriptionSeeder` gives an existing
- * installation's tenant an active Subscription with `ends_at =
- * (seed time) + 1 year` -- if that seeder was run once, long ago, in a
- * production environment that (per this project's own confirmed history
- * of seeders/migrations not always being re-run -- see the `public/build`
- * staleness incident in docs/CONVENTIONS.md) may never have been
- * refreshed since, `ends_at` could already be in the past RIGHT NOW.
- * Enabling this middleware without first confirming the real tenant's
- * Subscription dates via the new Platform Admin Subscriptions view would
- * risk an immediate, total production lockout on deploy -- the opposite
- * of "production readiness". Flip `SAAS_ENFORCE_ENTITLEMENT=true` in
- * `.env` only after verifying (or correcting) that record.
+ * DEPLOY SAFETY (v1.11.1 update): gated behind
+ * `config('saas.enforce_entitlement')`, now default TRUE -- safe as of
+ * this pass because `abort_unless(...)` below only fires on
+ * `Subscription::isBlocked()`, which is TRUE only for an explicit
+ * `suspended`/`cancelled` status (always a deliberate Platform Admin
+ * action). It is deliberately NOT true for an expired-by-date or
+ * completely missing Subscription row -- exactly the two states a stale
+ * `SubscriptionSeeder`-computed `ends_at` (seed time + 1 year, possibly
+ * seeded long ago and never refreshed -- see the `public/build` staleness
+ * incident in docs/CONVENTIONS.md for the same failure class) could
+ * otherwise produce. Those two states instead surface as a "degraded"
+ * warning (EntitlementService::tenantIsDegraded(), shown in Settings >
+ * Subscription) without blocking anything. Still overridable per-install
+ * via `SAAS_ENFORCE_ENTITLEMENT=false` in `.env`.
  */
 class EnforceTenantEntitlement
 {

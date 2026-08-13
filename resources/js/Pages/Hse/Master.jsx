@@ -20,7 +20,7 @@ import { Plus, Pencil, Trash2, AlertCircle } from 'lucide-react';
  * Material types, etc.) land on this same page as additional sections
  * rather than each growing its own standalone route.
  */
-export default function HseMaster({ hazardCategories, safetyEquipment, hseMaterials, p3kBoxes, companies, can }) {
+export default function HseMaster({ hazardCategories, safetyEquipment, equipmentTypes, hseMaterials, p3kBoxes, companies, can }) {
     const [open, setOpen] = useState(false);
     const [editing, setEditing] = useState(null);
 
@@ -159,7 +159,7 @@ export default function HseMaster({ hazardCategories, safetyEquipment, hseMateri
                 </Dialog>
             </Card>
 
-            <SafetyEquipmentSection safetyEquipment={safetyEquipment} companies={companies} can={can} />
+            <SafetyEquipmentSection safetyEquipment={safetyEquipment} equipmentTypes={equipmentTypes} companies={companies} can={can} />
             <HseMaterialSection hseMaterials={hseMaterials} companies={companies} can={can} />
             <P3kBoxSection p3kBoxes={p3kBoxes} companies={companies} can={can} />
             </div>
@@ -167,12 +167,13 @@ export default function HseMaster({ hazardCategories, safetyEquipment, hseMateri
     );
 }
 
-function SafetyEquipmentSection({ safetyEquipment, companies, can }) {
+function SafetyEquipmentSection({ safetyEquipment, equipmentTypes, companies, can }) {
     const [open, setOpen] = useState(false);
     const [editing, setEditing] = useState(null);
+    const [inspecting, setInspecting] = useState(null);
     const { data, setData, post, put, processing, reset, errors } = useForm({
         company_id: companies[0]?.id ? String(companies[0].id) : '',
-        name: '', type: 'fire_extinguisher', location: '', serial_number: '',
+        name: '', type: equipmentTypes[0]?.code || '', location: '', serial_number: '',
         last_inspection_date: '', next_inspection_due: '', status: 'active', notes: '',
     });
 
@@ -214,6 +215,7 @@ function SafetyEquipmentSection({ safetyEquipment, companies, can }) {
                                 <TableCell><Badge variant={e.status === 'active' ? 'success' : 'secondary'}>{e.status.replace('_', ' ')}</Badge></TableCell>
                                 {can.manage && (
                                     <TableCell className="flex gap-1">
+                                        <Button variant="outline" size="sm" onClick={() => setInspecting(e)}>Inspect</Button>
                                         <Button variant="ghost" size="icon" onClick={() => openEdit(e)}><Pencil className="h-4 w-4" /></Button>
                                         <Button variant="ghost" size="icon" onClick={() => destroy(e)}><Trash2 className="h-4 w-4 text-red-500" /></Button>
                                     </TableCell>
@@ -223,6 +225,7 @@ function SafetyEquipmentSection({ safetyEquipment, companies, can }) {
                     </TableBody>
                 </Table>
             </CardContent>
+            {inspecting && <EquipmentInspectionDialog equipment={inspecting} onClose={() => setInspecting(null)} />}
             <Dialog open={open} onOpenChange={setOpen}>
                 <DialogContent>
                     <DialogHeader><DialogTitle>{editing ? 'Edit' : 'Add'} Safety Equipment</DialogTitle></DialogHeader>
@@ -241,7 +244,11 @@ function SafetyEquipmentSection({ safetyEquipment, companies, can }) {
                                 <Select value={data.type} onValueChange={(v) => setData('type', v)}>
                                     <SelectTrigger><SelectValue /></SelectTrigger>
                                     <SelectContent>
-                                        {['fire_extinguisher', 'safety_shower', 'eyewash_station', 'emergency_alarm', 'spill_kit', 'other'].map((t) => <SelectItem key={t} value={t} className="capitalize">{t.replace('_', ' ')}</SelectItem>)}
+                                        {/* v1.11.1: sourced from the configurable HseEquipmentType master
+                                            (Settings/HSE Master -- Equipment Types section below) instead
+                                            of a hardcoded list -- Super Admin can add new types (e.g. a
+                                            future category) without a code change. */}
+                                        {equipmentTypes.map((t) => <SelectItem key={t.code} value={t.code}>{t.name}</SelectItem>)}
                                     </SelectContent>
                                 </Select>
                             </div>
@@ -267,6 +274,74 @@ function SafetyEquipmentSection({ safetyEquipment, companies, can }) {
                 </DialogContent>
             </Dialog>
         </Card>
+    );
+}
+
+/**
+ * v1.11.1 (HSE Domain Hardening II, Part 8). Real inspection history --
+ * shows past SafetyEquipmentInspection rows (up to what the backend
+ * eager-loaded) and a form to record a new one. Same "child table,
+ * never overwritten" pattern GasTestRecord's own multi-stage history
+ * already established.
+ */
+function EquipmentInspectionDialog({ equipment, onClose }) {
+    const { data, setData, post, processing, reset } = useForm({
+        inspection_date: new Date().toISOString().slice(0, 10),
+        condition: 'good', result: 'pass', findings: '', next_inspection_due: '', notes: '',
+    });
+
+    function submit(e) {
+        e.preventDefault();
+        post(route('safety-equipment.inspections.store', equipment.id), { preserveScroll: true, onSuccess: () => reset() });
+    }
+
+    const RESULT_BADGE = { pass: 'success', fail: 'destructive', needs_action: 'secondary' };
+
+    return (
+        <Dialog open onOpenChange={(v) => !v && onClose()}>
+            <DialogContent className="max-h-[85vh] overflow-y-auto">
+                <DialogHeader><DialogTitle>Inspection History -- {equipment.name}</DialogTitle></DialogHeader>
+
+                <form onSubmit={submit} className="mb-4 grid grid-cols-2 gap-3 rounded-md border border-graphite-100 p-3 dark:border-slate-800">
+                    <div className="space-y-1"><Label className="text-xs">Date</Label><Input type="date" value={data.inspection_date} onChange={(e) => setData('inspection_date', e.target.value)} /></div>
+                    <div className="space-y-1">
+                        <Label className="text-xs">Condition</Label>
+                        <Select value={data.condition} onValueChange={(v) => setData('condition', v)}>
+                            <SelectTrigger><SelectValue /></SelectTrigger>
+                            <SelectContent>{['good', 'fair', 'poor', 'damaged'].map((c) => <SelectItem key={c} value={c} className="capitalize">{c}</SelectItem>)}</SelectContent>
+                        </Select>
+                    </div>
+                    <div className="space-y-1">
+                        <Label className="text-xs">Result</Label>
+                        <Select value={data.result} onValueChange={(v) => setData('result', v)}>
+                            <SelectTrigger><SelectValue /></SelectTrigger>
+                            <SelectContent><SelectItem value="pass">Pass</SelectItem><SelectItem value="fail">Fail</SelectItem><SelectItem value="needs_action">Needs Action</SelectItem></SelectContent>
+                        </Select>
+                    </div>
+                    <div className="space-y-1"><Label className="text-xs">Next Due</Label><Input type="date" value={data.next_inspection_due} onChange={(e) => setData('next_inspection_due', e.target.value)} /></div>
+                    <div className="col-span-2 space-y-1"><Label className="text-xs">Findings (if any)</Label><Textarea rows={2} value={data.findings} onChange={(e) => setData('findings', e.target.value)} /></div>
+                    <div className="col-span-2"><Button type="submit" size="sm" disabled={processing}>Save Inspection</Button></div>
+                </form>
+
+                {(equipment.inspections || []).length === 0 ? (
+                    <p className="text-center text-sm text-graphite-400">No inspections recorded yet.</p>
+                ) : (
+                    <ul className="divide-y divide-graphite-100 dark:divide-slate-800">
+                        {equipment.inspections.map((i) => (
+                            <li key={i.id} className="py-2 text-sm">
+                                <div className="flex items-center justify-between">
+                                    <span className="font-medium">{new Date(i.inspection_date).toLocaleDateString('en-US', { day: 'numeric', month: 'short', year: 'numeric' })}</span>
+                                    <Badge variant={RESULT_BADGE[i.result] ?? 'secondary'} className="capitalize">{i.result.replace('_', ' ')}</Badge>
+                                </div>
+                                <p className="text-xs text-graphite-400">Condition: {i.condition} -- {i.inspector?.name || 'Unknown'}</p>
+                                {i.findings && <p className="text-xs text-graphite-600 dark:text-slate-300">{i.findings}</p>}
+                            </li>
+                        ))}
+                    </ul>
+                )}
+                <DialogFooter><Button variant="outline" onClick={onClose}>Close</Button></DialogFooter>
+            </DialogContent>
+        </Dialog>
     );
 }
 

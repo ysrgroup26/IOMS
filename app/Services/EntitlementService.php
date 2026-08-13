@@ -29,13 +29,19 @@ use App\Models\Tenant;
 class EntitlementService
 {
     /**
-     * Whether the tenant's commercial record allows using the product at
-     * all right now. A tenant with no Subscription row at all (shouldn't
-     * happen post-TenantGrantSeeder/PlatformController::storeTenant(),
-     * but fails safe rather than fatal if it somehow does) is treated as
-     * NOT usable -- "no subscription" is not the same as "unlimited
-     * access", and silently granting access to a mis-provisioned tenant
-     * would be the more dangerous failure direction.
+     * v1.11.1 (Final Production Readiness Pass, Part 15): whether the
+     * tenant's commercial record BLOCKS access right now -- only TRUE for
+     * an explicitly `suspended`/`cancelled` Subscription (see
+     * Subscription::isBlocked()'s own doc comment for why this changed
+     * from the previous, stricter version). A tenant with NO Subscription
+     * row at all (UNCONFIGURED -- shouldn't happen post-
+     * TenantGrantSeeder/PlatformController::storeTenant(), but is a real
+     * possibility for data that predates this feature) is deliberately
+     * NOT blocked -- "missing commercial record" is far more likely to be
+     * a data gap than an actual delinquent tenant, and blocking on it by
+     * default is exactly the kind of stale-data-triggered lockout this
+     * service exists to avoid. Same reasoning for an expired-but-not-
+     * suspended record.
      */
     public function tenantIsUsable(?Tenant $tenant): bool
     {
@@ -45,7 +51,19 @@ class EntitlementService
 
         $subscription = $tenant->subscription;
 
-        return $subscription !== null && $subscription->isUsable();
+        return $subscription === null || $subscription->isUsable();
+    }
+
+    /** Whether the tenant's Subscription is expired/unconfigured -- true even when NOT blocked, so the frontend can show a warning without hard-blocking anything. */
+    public function tenantIsDegraded(?Tenant $tenant): bool
+    {
+        if (! $tenant) {
+            return false;
+        }
+
+        $subscription = $tenant->subscription;
+
+        return $subscription === null || $subscription->isDegraded();
     }
 
     /**

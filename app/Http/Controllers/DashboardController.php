@@ -4,11 +4,15 @@ namespace App\Http\Controllers;
 
 use App\Models\ActivityLog;
 use App\Models\Asset;
+use App\Models\CalendarEvent;
 use App\Models\Company;
 use App\Models\CorrectiveAction;
 use App\Models\DailyReport;
 use App\Models\Employee;
+use App\Models\EmployeeShiftAssignment;
 use App\Models\Incident;
+use App\Models\Milestone;
+use App\Models\PermitToWork;
 use App\Models\PurchaseOrder;
 use App\Models\PurchaseRequisition;
 use App\Models\Stock;
@@ -145,7 +149,63 @@ class DashboardController extends Controller
                 ->whereIn('status', [WorkOrder::STATUS_SCHEDULED, WorkOrder::STATUS_IN_PROGRESS])
                 ->where('planned_date', '<=', now()->addDays(7)->toDateString())
                 ->count(),
+            // v1.11.1 (Final Production Readiness Pass, Part 5) -- a
+            // small, real "upcoming highlights" widget on the Main
+            // Dashboard, NOT a duplicate of the full Calendar page
+            // (CalendarController::index()) -- deliberately just the
+            // highest-signal sources (manual events, PTW, Milestone) over
+            // the next 14 days, capped at 8. Full multi-source list
+            // (Leave/TBM/Work Order too) stays on the dedicated Calendar
+            // page -- see docs/MODULES.md for why this widget is
+            // intentionally narrower.
+            'upcomingEvents' => $this->upcomingEvents($companyIds),
+            // v1.11.1, Part 6 -- Man-Hour/Man-Power foundation. Audited
+            // first: no attendance/timesheet/clock-in table exists
+            // anywhere in this codebase, so actual WORKED man-hours
+            // cannot be reliably computed -- NOT fabricated here. What
+            // genuinely exists and is shown instead: total active
+            // workforce, and how many are currently assigned to a shift
+            // right now (EmployeeShiftAssignment, real data, tenant-
+            // scoped). See docs/MODULES.md's own note on this limitation.
+            'manpower' => [
+                'active_employees' => Employee::whereIn('company_id', $companyIds)->active()->count(),
+                'on_shift_today' => EmployeeShiftAssignment::whereHas('employee', fn ($q) => $q->whereIn('company_id', $companyIds))
+                    ->where('status', 'active')
+                    ->where('effective_date', '<=', now()->toDateString())
+                    ->where(fn ($q) => $q->whereNull('end_date')->orWhere('end_date', '>=', now()->toDateString()))
+                    ->count(),
+            ],
         ]);
+    }
+
+    private function upcomingEvents($companyIds): array
+    {
+        $start = now()->startOfDay();
+        $end = now()->addDays(14)->endOfDay();
+
+        $manual = CalendarEvent::whereIn('company_id', $companyIds)
+            ->whereBetween('start_at', [$start, $end])
+            ->orderBy('start_at')
+            ->limit(8)
+            ->get()
+            ->map(fn (CalendarEvent $e) => ['title' => $e->title, 'date' => $e->start_at->toIso8601String(), 'type' => $e->event_type, 'url' => null]);
+
+        $permits = PermitToWork::whereIn('company_id', $companyIds)
+            ->whereIn('status', ['approved', 'active'])
+            ->whereBetween('start_datetime', [$start, $end])
+            ->orderBy('start_datetime')
+            ->limit(8)
+            ->get()
+            ->map(fn (PermitToWork $p) => ['title' => "PTW: {$p->ptw_number}", 'date' => $p->start_datetime->toIso8601String(), 'type' => 'deadline', 'url' => route('permits-to-work.show', $p->id)]);
+
+        $milestones = Milestone::whereHas('project', fn ($q) => $q->whereIn('company_id', $companyIds))
+            ->whereBetween('target_date', [$start, $end])
+            ->orderBy('target_date')
+            ->limit(8)
+            ->get()
+            ->map(fn (Milestone $m) => ['title' => "Milestone: {$m->title}", 'date' => $m->target_date->toIso8601String(), 'type' => 'deadline', 'url' => null]);
+
+        return $manual->merge($permits)->merge($milestones)->sortBy('date')->take(8)->values()->all();
     }
 
     private function availableYears(): array

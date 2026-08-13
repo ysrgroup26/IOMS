@@ -9,6 +9,7 @@ use App\Http\Controllers\Auth\NewPasswordController;
 use App\Http\Controllers\Auth\PasswordResetLinkController;
 use App\Http\Controllers\ComingSoonController;
 use App\Http\Controllers\CalendarController;
+use App\Http\Controllers\HseEquipmentTypeController;
 use App\Http\Controllers\CompetencyController;
 use App\Http\Controllers\ContractorController;
 use App\Http\Controllers\ControlledDocumentController;
@@ -478,6 +479,12 @@ Route::middleware(['auth', 'restrict.platform-admin'])->group(function () {
         Route::post('/safety-equipment', [SafetyEquipmentController::class, 'store'])->name('safety-equipment.store');
         Route::put('/safety-equipment/{safetyEquipment}', [SafetyEquipmentController::class, 'update'])->name('safety-equipment.update');
         Route::delete('/safety-equipment/{safetyEquipment}', [SafetyEquipmentController::class, 'destroy'])->name('safety-equipment.destroy');
+        Route::post('/safety-equipment/{safetyEquipment}/inspections', [SafetyEquipmentController::class, 'recordInspection'])->name('safety-equipment.inspections.store');
+
+        // v1.11.1 (HSE Domain Hardening II, Part 7).
+        Route::post('/hse-equipment-types', [HseEquipmentTypeController::class, 'store'])->name('hse-equipment-types.store');
+        Route::put('/hse-equipment-types/{hseEquipmentType}', [HseEquipmentTypeController::class, 'update'])->name('hse-equipment-types.update');
+        Route::delete('/hse-equipment-types/{hseEquipmentType}', [HseEquipmentTypeController::class, 'destroy'])->name('hse-equipment-types.destroy');
 
         Route::post('/hse-materials', [HseMaterialController::class, 'store'])->name('hse-materials.store');
         Route::put('/hse-materials/{hseMaterial}', [HseMaterialController::class, 'update'])->name('hse-materials.update');

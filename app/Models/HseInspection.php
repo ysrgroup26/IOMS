@@ -11,7 +11,18 @@ class HseInspection extends Model
 {
     use SoftDeletes;
 
-    public const TYPES = ['general', 'ppe', 'fire_safety', 'electrical', 'scaffolding', 'housekeeping', 'equipment'];
+    // v1.11.1 (HSE Domain Hardening II, Part 9): 'lsa' (Life Saving
+    // Appliances) and 'ffa' (Fire Fighting Appliances) added as explicit
+    // categories -- 'fire_safety' is kept unchanged (not renamed/removed)
+    // so every existing inspection record stays valid; 'ffa' is the new,
+    // more precise term going forward for fire-fighting-equipment-
+    // specific inspections. `checklist_items` (JSON, see below) is
+    // already a fully configurable checklist per inspection -- this
+    // constant only controls the CATEGORY label, not the items within
+    // it, so LSA/FFA/PPE checklists don't require any schema change to
+    // support (confirmed via audit before adding anything -- see
+    // docs/MODULES.md).
+    public const TYPES = ['general', 'ppe', 'lsa', 'ffa', 'fire_safety', 'electrical', 'scaffolding', 'housekeeping', 'equipment'];
 
     public const RESULTS = ['pass', 'fail'];
 

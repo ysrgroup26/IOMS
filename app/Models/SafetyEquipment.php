@@ -37,6 +37,12 @@ class SafetyEquipment extends Model
         return $this->belongsTo(Asset::class);
     }
 
+    /** v1.11.1 -- real inspection history, see SafetyEquipmentInspection's own doc comment. */
+    public function inspections()
+    {
+        return $this->hasMany(SafetyEquipmentInspection::class)->latest('inspection_date');
+    }
+
     /** Computed, not stored -- true once past next_inspection_due and still in service. */
     public function getIsOverdueAttribute(): bool
     {

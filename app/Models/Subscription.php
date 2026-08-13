@@ -114,19 +114,43 @@ class Subscription extends Model
     }
 
     /**
-     * The single question EntitlementService actually needs answered:
-     * "can this tenant use the product right now?" -- combines status
-     * AND (for non-lifetime records) the actual date, so a stale
-     * `status='active'` row past its own `ends_at` (nobody ran a renewal
-     * job yet) doesn't grant access it shouldn't.
+     * v1.11.1 (Final Production Readiness Pass, Part 15). Redefined into
+     * two separate questions, on purpose, after auditing what actually
+     * happens for each status/type combination -- the previous single
+     * isUsable() conflated "explicitly suspended by an admin" (should
+     * genuinely block access) with "expired by a date that might just be
+     * stale/never-renewed seed data" (should NOT silently lock out a
+     * paying tenant on a data assumption nobody has verified). This is
+     * what made it unsafe to enable by default before -- now it's safe:
+     *
+     * - isBlocked(): TRUE only for `suspended`/`cancelled` -- always the
+     *   result of an explicit Platform Admin action (PlatformController::
+     *   updateSubscription()), never a side effect of an unattended date
+     *   passing. This is the ONLY thing EnforceTenantEntitlement hard-
+     *   blocks on.
+     * - isDegraded(): TRUE when expired-by-date (trial or subscription)
+     *   but NOT explicitly suspended/cancelled -- surfaced as a banner/
+     *   warning (Settings > Subscription, and a Dashboard notice), never
+     *   a 403. An admin who genuinely stopped paying should be caught by
+     *   Platform Admin actually setting status=suspended, not by a cron
+     *   job or stale seed date silently doing it.
+     * - A record with no Subscription row at all (UNCONFIGURED) is
+     *   treated as degraded, not blocked, for the exact same reason.
      */
+    public function isBlocked(): bool
+    {
+        return in_array($this->status, [self::STATUS_SUSPENDED, self::STATUS_CANCELLED], true);
+    }
+
+    public function isDegraded(): bool
+    {
+        return ! $this->isBlocked() && $this->isExpired();
+    }
+
+    /** Back-compat alias -- "not hard-blocked". Used by EntitlementService::tenantIsUsable(). */
     public function isUsable(): bool
     {
-        if (in_array($this->status, [self::STATUS_SUSPENDED, self::STATUS_CANCELLED], true)) {
-            return false;
-        }
-
-        return ! $this->isExpired();
+        return ! $this->isBlocked();
     }
 
     public function seatLimit(): ?int

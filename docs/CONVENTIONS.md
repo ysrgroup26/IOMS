@@ -3,23 +3,21 @@
 House style, and a deliberately honest list of mistakes that have actually happened in this
 codebase's history — kept here so they don't get repeated in a slightly different shape.
 
-## New convention (v1.11.0) — config-gate a new enforcement middleware before shipping it live
+## Convention update (v1.11.1) — resolve, don't just gate, an unsafe default when the fix is real
 
-`EnforceTenantEntitlement` (SaaS Finalization Pass) is fully built and globally registered, but its
-actual enforcement is behind `config('saas.enforce_entitlement')`, default `false`. Reason: it
-depends on `Subscription.ends_at`/`status` data that may have been computed once, long ago, by
-`SubscriptionSeeder` (`ends_at = seed time + 1 year`) and never refreshed since — exactly the same
-"seeded/migrated once, silently stale in production" failure class already documented for
-`public/build` below. Shipping a new fail-closed enforcement layer live, on a data assumption that
-can't be verified from a coding session with no production DB access, risks bricking an existing
-paying tenant on deploy — the opposite of "production readiness". **The pattern going forward**: any
-NEW enforcement middleware whose correctness depends on data that might be stale in an
-already-running production install should ship gated behind a default-off config flag, with the
-exact verification step needed before flipping it on documented alongside it (here: check the real
-tenant's Subscription dates via Platform → Tenants → [tenant] before setting
-`SAAS_ENFORCE_ENTITLEMENT=true`). This is different from `RestrictDepartmentAccess`'s own fail-closed
-flip (v1.10.5) -- that one only affected accounts with a non-null `department_key`, which no account
-had ever been assigned outside a single test seed, so the blast radius was already known to be zero.
+`EnforceTenantEntitlement` (v1.11.0) was shipped gated behind `config('saas.enforce_entitlement')`,
+default `false`, because its "usable" check conflated "explicitly suspended by an admin" with
+"expired by a possibly-stale seeded date" — flipping it on blind risked bricking the production
+tenant. v1.11.1 resolved the ROOT problem instead of leaving the gate off forever:
+`Subscription::isBlocked()` now hard-blocks ONLY on an explicit `suspended`/`cancelled` status
+(always a deliberate Platform Admin action); an expired-by-date or completely missing Subscription
+row is `isDegraded()` instead — a warning, never a block. This made it safe to flip the config default
+to `true`. **The lesson**: a default-off safety gate on a new enforcement layer is the right move when
+you can't verify production data from a coding session, but it's a temporary fix, not the permanent
+one — the permanent fix is making the enforcement logic itself provably safe regardless of what the
+data says (only react to explicit admin actions, never to an unattended date), so the gate can come
+off default-on rather than staying off indefinitely. Still overridable per-install via
+`SAAS_ENFORCE_ENTITLEMENT=false` for an operator who wants it fully off regardless.
 
 ## Operational runbook — diagnosing "a Department User can still access other departments"
 

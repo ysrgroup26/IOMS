@@ -34,6 +34,7 @@ export default function Dashboard({
     activeProjectsCount, todaysActivities, upcomingReminders, pendingTasks, employeesNeedCompletionCount,
     recentDailyReports, recentEmployeeChanges, showAnnouncement,
     openIncidentsCount, openCapaCount, pendingProcurementCount, stockAlertCount, assetCount, maintenanceDueCount,
+    upcomingEvents, manpower,
 }) {
     const { auth, notifications, version } = usePage().props;
     const now = useClock();
@@ -345,6 +346,58 @@ export default function Dashboard({
                 Engine in this app yet (no backing data model) -- adding
                 UI for those would mean fabricating fake data, so they
                 were intentionally left out rather than faked. */}
+            {/* v1.11.1 (Final Production Readiness Pass, Part 4/5/6):
+                Calendar and Man-Hour/Man-Power widgets, required on the
+                MAIN Dashboard specifically (not only the standalone
+                Calendar page/HSE Overview) -- see DashboardController's
+                own doc comment for what "Man-Hour" actually means here
+                given no attendance/timesheet data source exists yet. */}
+            <div className="mt-4 grid grid-cols-1 gap-3 lg:grid-cols-2">
+                <Card>
+                    <CardHeader className="flex flex-row items-center justify-between space-y-0">
+                        <div>
+                            <CardTitle className="flex items-center gap-2"><CalendarDays className="h-3.5 w-3.5 text-graphite-400" /> Upcoming</CardTitle>
+                            <CardDescription>Next 14 days -- events, permits, milestones</CardDescription>
+                        </div>
+                        <Link href={route('calendar.index')} className="text-xs font-medium text-brand-600 hover:underline">Full Calendar</Link>
+                    </CardHeader>
+                    <CardContent>
+                        {upcomingEvents.length === 0 ? (
+                            <p className="py-6 text-center text-sm text-graphite-400">Nothing coming up in the next 14 days.</p>
+                        ) : (
+                            <div className="divide-y divide-graphite-100 dark:divide-slate-800">
+                                {upcomingEvents.map((e, i) => {
+                                    const content = (
+                                        <div className="flex items-center justify-between py-2 text-sm">
+                                            <span className="truncate font-medium text-graphite-700 dark:text-slate-200">{e.title}</span>
+                                            <span className="shrink-0 text-xs text-graphite-400">{new Date(e.date).toLocaleDateString('en-US', { day: 'numeric', month: 'short' })}</span>
+                                        </div>
+                                    );
+                                    return e.url ? <Link key={i} href={e.url} className="block hover:text-brand-700">{content}</Link> : <div key={i}>{content}</div>;
+                                })}
+                            </div>
+                        )}
+                    </CardContent>
+                </Card>
+
+                <Card>
+                    <CardHeader>
+                        <CardTitle className="flex items-center gap-2"><Users2 className="h-3.5 w-3.5 text-graphite-400" /> Man-Power</CardTitle>
+                        <CardDescription>Workforce currently on record -- man-hour tracking requires a timesheet source not yet in IOMS.</CardDescription>
+                    </CardHeader>
+                    <CardContent className="grid grid-cols-2 gap-3">
+                        <div className="rounded-lg border border-graphite-100 p-3 dark:border-slate-800">
+                            <p className="text-lg font-bold text-graphite-900 dark:text-slate-50">{formatNumber(manpower.active_employees)}</p>
+                            <p className="text-xs text-graphite-400">Active Employees</p>
+                        </div>
+                        <div className="rounded-lg border border-graphite-100 p-3 dark:border-slate-800">
+                            <p className="text-lg font-bold text-graphite-900 dark:text-slate-50">{formatNumber(manpower.on_shift_today)}</p>
+                            <p className="text-xs text-graphite-400">On Shift Today</p>
+                        </div>
+                    </CardContent>
+                </Card>
+            </div>
+
             <div className="mt-4 grid grid-cols-1 gap-3 lg:grid-cols-3">
                 <Card>
                     <CardHeader>

@@ -190,6 +190,7 @@ class SettingsController extends Controller
                     'ends_at' => $subscription->ends_at,
                     'trial_ends_at' => $subscription->trial_ends_at,
                     'is_usable' => $subscription->isUsable(),
+                    'is_degraded' => $subscription->isDegraded(),
                 ];
             })(),
             'invoices' => \App\Models\Invoice::where('tenant_id', $request->user()->tenant_id)

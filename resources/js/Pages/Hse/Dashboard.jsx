@@ -65,7 +65,7 @@ export default function HseDashboard({
                 <StatCard icon={ClipboardCheck} value={openCapaCount} label="Open CAPA" accent={openCapaCount > 0 ? 'amber' : null} href={route('corrective-actions.index')} />
             </div>
 
-            <div className="mt-6 grid grid-cols-2 gap-3 sm:grid-cols-3 lg:grid-cols-4">
+            <div className="mt-6 grid grid-cols-2 gap-3 sm:grid-cols-3 lg:grid-cols-6">
                 {HSE_MODULES.map((m) => <ModuleCard key={m.title} {...m} />)}
             </div>
 

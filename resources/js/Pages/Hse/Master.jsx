@@ -159,6 +159,7 @@ export default function HseMaster({ hazardCategories, safetyEquipment, equipment
                 </Dialog>
             </Card>
 
+            <EquipmentTypesSection equipmentTypes={equipmentTypes} companies={companies} can={can} />
             <SafetyEquipmentSection safetyEquipment={safetyEquipment} equipmentTypes={equipmentTypes} companies={companies} can={can} />
             <HseMaterialSection hseMaterials={hseMaterials} companies={companies} can={can} />
             <P3kBoxSection p3kBoxes={p3kBoxes} companies={companies} can={can} />
@@ -514,6 +515,108 @@ function P3kBoxSection({ p3kBoxes, companies, can }) {
                             </Select>
                         </div>
                         <div className="space-y-1.5"><Label>Notes</Label><Textarea value={data.notes} onChange={(e) => setData('notes', e.target.value)} rows={2} /></div>
+                        <DialogFooter><Button type="button" variant="outline" onClick={() => setOpen(false)}>Cancel</Button><Button type="submit" disabled={processing}>Save</Button></DialogFooter>
+                    </form>
+                </DialogContent>
+            </Dialog>
+        </Card>
+    );
+}
+
+/**
+ * v1.11.2 (Final Completion Pass, Part 7). The management UI the previous
+ * pass left out -- backend (`hse-equipment-types.*` routes/controller,
+ * `HseEquipmentType` model) already existed and works; this is purely the
+ * missing frontend. Same CRUD shape as HazardCategorySection above (this
+ * file's own established pattern) -- create/edit/deactivate/remove. New
+ * types created here become selectable in SafetyEquipmentSection's own
+ * Type <Select> immediately (both sections consume the same `equipmentTypes`
+ * prop threaded from HazardCategoryController::master()).
+ */
+function EquipmentTypesSection({ equipmentTypes, companies, can }) {
+    const [open, setOpen] = useState(false);
+    const [editing, setEditing] = useState(null);
+    const { data, setData, post, put, processing, reset, errors } = useForm({
+        company_id: companies[0]?.id ? String(companies[0].id) : '',
+        name: '', code: '', description: '', is_active: true, sort_order: 0,
+    });
+
+    function openCreate() { setEditing(null); reset(); setOpen(true); }
+    function openEdit(t) {
+        setEditing(t);
+        setData({
+            company_id: String(t.company_id), name: t.name, code: t.code,
+            description: t.description || '', is_active: t.is_active, sort_order: t.sort_order,
+        });
+        setOpen(true);
+    }
+    function submit(e) {
+        e.preventDefault();
+        const options = { preserveScroll: true, onSuccess: () => { reset(); setOpen(false); } };
+        if (editing) { put(route('hse-equipment-types.update', editing.id), options); } else { post(route('hse-equipment-types.store'), options); }
+    }
+    function destroy(t) {
+        if (confirm(`Remove equipment type "${t.name}"? Only possible if no equipment currently uses it -- deactivate instead if unsure.`)) {
+            router.delete(route('hse-equipment-types.destroy', t.id));
+        }
+    }
+
+    return (
+        <Card>
+            <CardHeader className="flex flex-row items-center justify-between">
+                <div>
+                    <CardTitle>Equipment Types</CardTitle>
+                    <CardDescription>{equipmentTypes.length} configured -- APAR, HT, Gas Detector, Blower, TOA, and any future category. Selectable when registering Safety Equipment below.</CardDescription>
+                </div>
+                {can.manage && <Button onClick={openCreate}><Plus className="h-4 w-4" /> Add Type</Button>}
+            </CardHeader>
+            <CardContent>
+                <Table>
+                    <TableHeader><TableRow><TableHead>Name</TableHead><TableHead>Code</TableHead><TableHead>Status</TableHead>{can.manage && <TableHead />}</TableRow></TableHeader>
+                    <TableBody>
+                        {equipmentTypes.map((t) => (
+                            <TableRow key={t.id}>
+                                <TableCell className="font-medium">{t.name}</TableCell>
+                                <TableCell className="text-graphite-500"><code className="text-xs">{t.code}</code></TableCell>
+                                <TableCell><Badge variant={t.is_active ? 'success' : 'secondary'}>{t.is_active ? 'Active' : 'Inactive'}</Badge></TableCell>
+                                {can.manage && (
+                                    <TableCell className="flex gap-1">
+                                        <Button variant="ghost" size="icon" onClick={() => openEdit(t)}><Pencil className="h-4 w-4" /></Button>
+                                        <Button variant="ghost" size="icon" onClick={() => destroy(t)}><Trash2 className="h-4 w-4 text-red-500" /></Button>
+                                    </TableCell>
+                                )}
+                            </TableRow>
+                        ))}
+                    </TableBody>
+                </Table>
+            </CardContent>
+            <Dialog open={open} onOpenChange={setOpen}>
+                <DialogContent>
+                    <DialogHeader><DialogTitle>{editing ? 'Edit' : 'Add'} Equipment Type</DialogTitle></DialogHeader>
+                    <form onSubmit={submit} className="space-y-4">
+                        {!editing && (
+                            <div className="space-y-1.5">
+                                <Label>Company</Label>
+                                <Select value={data.company_id} onValueChange={(v) => setData('company_id', v)}>
+                                    <SelectTrigger><SelectValue /></SelectTrigger>
+                                    <SelectContent>{companies.map((c) => <SelectItem key={c.id} value={String(c.id)}>{c.name}</SelectItem>)}</SelectContent>
+                                </Select>
+                            </div>
+                        )}
+                        <div className="grid grid-cols-2 gap-4">
+                            <div className="space-y-1.5"><Label>Name</Label><Input value={data.name} onChange={(e) => setData('name', e.target.value)} placeholder="e.g. Emergency Light" />{errors.name && <p className="text-xs text-red-600">{errors.name}</p>}</div>
+                            <div className="space-y-1.5">
+                                <Label>Code</Label>
+                                <Input value={data.code} onChange={(e) => setData('code', e.target.value)} placeholder="e.g. emergency_light" disabled={!!editing} />
+                                {errors.code && <p className="text-xs text-red-600">{errors.code}</p>}
+                                {editing && <p className="text-xs text-graphite-400">Code can't change once equipment may reference it.</p>}
+                            </div>
+                        </div>
+                        <div className="space-y-1.5"><Label>Description (optional)</Label><Textarea value={data.description} onChange={(e) => setData('description', e.target.value)} rows={2} /></div>
+                        <label className="flex items-center gap-2 text-sm">
+                            <Checkbox checked={data.is_active} onCheckedChange={(v) => setData('is_active', !!v)} />
+                            Active
+                        </label>
                         <DialogFooter><Button type="button" variant="outline" onClick={() => setOpen(false)}>Cancel</Button><Button type="submit" disabled={processing}>Save</Button></DialogFooter>
                     </form>
                 </DialogContent>

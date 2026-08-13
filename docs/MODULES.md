@@ -1099,10 +1099,17 @@ duplicated — fixed-location operational equipment (name/type/location/serial_n
   `next_inspection_due` stay in sync (existing overdue queries/widgets already read those two columns
   directly — kept, not replaced, to avoid rewriting every consumer to join the new child table).
 
-**Known limitation**: a dedicated Equipment Types management UI section (Super Admin adding a brand
-new type through Settings) was not built this pass — the backend CRUD (`hse-equipment-types.*`
-routes/controller) exists and works, seeded defaults cover the requested categories, but there is no
-frontend section yet to add a type beyond the seed. Flagged as a follow-up, not silently done.
+**v1.11.2 update — Equipment Types management UI completed.** The prior pass's stated limitation
+("no frontend UI yet to add a brand-new type beyond the seed") is closed: `EquipmentTypesSection`
+in `resources/js/Pages/Hse/Master.jsx` (reachable from HSE → Master Data → Equipment Types) gives
+Admins create/edit/deactivate/remove against the already-existing `hse-equipment-types.*` routes —
+no backend change was needed, since `HseEquipmentTypeController` was already correctly tenant-scoped
+(`Company::query()->pluck('id')` + `Rule::in()` on create, `abort_unless(...->contains(...))` on
+update/destroy) and `destroy()` already refuses to delete a type with equipment referencing it. The
+`code` field is editable only at creation (matches the backend's `alpha_dash`+uniqueness constraint,
+since `SafetyEquipment.type` stores the code as a plain string, not an FK). New types created here
+are immediately selectable in `SafetyEquipmentSection`'s own Type dropdown on the same page, since
+both sections consume the same `equipmentTypes` prop from `HazardCategoryController::master()`.
 
 ## HSE Inspection Categories — LSA/FFA/PPE (v1.11.1)
 

@@ -3,6 +3,24 @@
 House style, and a deliberately honest list of mistakes that have actually happened in this
 codebase's history — kept here so they don't get repeated in a slightly different shape.
 
+## New convention (v1.11.0) — config-gate a new enforcement middleware before shipping it live
+
+`EnforceTenantEntitlement` (SaaS Finalization Pass) is fully built and globally registered, but its
+actual enforcement is behind `config('saas.enforce_entitlement')`, default `false`. Reason: it
+depends on `Subscription.ends_at`/`status` data that may have been computed once, long ago, by
+`SubscriptionSeeder` (`ends_at = seed time + 1 year`) and never refreshed since — exactly the same
+"seeded/migrated once, silently stale in production" failure class already documented for
+`public/build` below. Shipping a new fail-closed enforcement layer live, on a data assumption that
+can't be verified from a coding session with no production DB access, risks bricking an existing
+paying tenant on deploy — the opposite of "production readiness". **The pattern going forward**: any
+NEW enforcement middleware whose correctness depends on data that might be stale in an
+already-running production install should ship gated behind a default-off config flag, with the
+exact verification step needed before flipping it on documented alongside it (here: check the real
+tenant's Subscription dates via Platform → Tenants → [tenant] before setting
+`SAAS_ENFORCE_ENTITLEMENT=true`). This is different from `RestrictDepartmentAccess`'s own fail-closed
+flip (v1.10.5) -- that one only affected accounts with a non-null `department_key`, which no account
+had ever been assigned outside a single test seed, so the blast radius was already known to be zero.
+
 ## Operational runbook — diagnosing "a Department User can still access other departments"
 
 `RestrictDepartmentAccess` (registered globally in `bootstrap/app.php`, re-verified there directly

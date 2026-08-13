@@ -1,6 +1,7 @@
 <?php
 
 use App\Http\Middleware\CheckRole;
+use App\Http\Middleware\EnforceTenantEntitlement;
 use App\Http\Middleware\HandleInertiaRequests;
 use App\Http\Middleware\IdentifyTenant;
 use App\Http\Middleware\ResolveTenant;
@@ -26,6 +27,13 @@ return Application::configure(basePath: dirname(__DIR__))
             ResolveTenant::class,
             HandleInertiaRequests::class,
             IdentifyTenant::class,
+            // v1.11.0: entitlement (does the tenant's subscription allow
+            // using the product at all) checked before department scope
+            // (which department can THIS user reach) -- a tenant-wide
+            // block should never depend on which department a route
+            // happens to belong to. Default no-op -- see its own doc
+            // comment for the config('saas.enforce_entitlement') gate.
+            EnforceTenantEntitlement::class,
             RestrictDepartmentAccess::class,
             AddLinkHeadersForPreloadedAssets::class,
         ]);

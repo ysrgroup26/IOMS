@@ -8,6 +8,7 @@ use App\Http\Controllers\Auth\AuthenticatedSessionController;
 use App\Http\Controllers\Auth\NewPasswordController;
 use App\Http\Controllers\Auth\PasswordResetLinkController;
 use App\Http\Controllers\ComingSoonController;
+use App\Http\Controllers\CalendarController;
 use App\Http\Controllers\CompetencyController;
 use App\Http\Controllers\ContractorController;
 use App\Http\Controllers\ControlledDocumentController;
@@ -115,6 +116,13 @@ Route::middleware(['auth', 'restrict.platform-admin'])->group(function () {
     // Work Center (v1.8.0): the global cross-department "what needs my
     // attention" surface -- see WorkCenterController's own doc comment.
     Route::get('/work-center', [WorkCenterController::class, 'index'])->name('work-center.index');
+
+    // Global Calendar (v1.11.0, SaaS Finalization Pass) -- see
+    // CalendarController's own doc comment.
+    Route::get('/calendar', [CalendarController::class, 'index'])->name('calendar.index');
+    Route::post('/calendar', [CalendarController::class, 'store'])->name('calendar.store');
+    Route::put('/calendar/{calendarEvent}', [CalendarController::class, 'update'])->name('calendar.update');
+    Route::delete('/calendar/{calendarEvent}', [CalendarController::class, 'destroy'])->name('calendar.destroy');
 
     // Analytics Framework (Milestone 3, Task #64) -- index() renders every
     // dataset visible to the current tenant's enabled modules; show()
@@ -667,4 +675,12 @@ Route::middleware(['auth', 'role:platform_admin'])->prefix('platform')->name('pl
     Route::put('/tenants/{tenant}/status', [PlatformController::class, 'updateTenantStatus'])->name('tenants.update-status');
     Route::get('/tenants/{tenant}/grants', [PlatformController::class, 'tenantGrants'])->name('tenants.grants');
     Route::put('/tenants/{tenant}/grants', [PlatformController::class, 'updateTenantGrants'])->name('tenants.grants.update');
+
+    // v1.11.0 (SaaS Finalization Pass).
+    Route::put('/tenants/{tenant}/subscription', [PlatformController::class, 'updateSubscription'])->name('tenants.subscription.update');
+    Route::post('/tenants/{tenant}/invoices', [PlatformController::class, 'storeInvoice'])->name('tenants.invoices.store');
+    Route::put('/invoices/{invoice}/mark-paid', [PlatformController::class, 'markInvoicePaid'])->name('invoices.mark-paid');
+    Route::get('/plans', [PlatformController::class, 'plans'])->name('plans');
+    Route::post('/plans', [PlatformController::class, 'storePlan'])->name('plans.store');
+    Route::put('/plans/{plan}', [PlatformController::class, 'updatePlan'])->name('plans.update');
 });

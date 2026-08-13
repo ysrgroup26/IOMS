@@ -51,6 +51,13 @@ class RestrictDepartmentAccess
     private const UNIVERSAL_PREFIXES = [
         'dashboard', 'home', 'work-center', 'approvals', 'notifications',
         'search', 'logout', 'login', 'password',
+        // v1.11.0: the Global Calendar aggregates events FROM several
+        // departments (Leave/HR, PTW+TBM/HSE, Milestone/Project,
+        // Work Order/Maintenance) into one cross-department view by
+        // design (see CalendarController's own doc comment) -- it isn't
+        // owned by any single department, the same reasoning as
+        // 'dashboard' itself.
+        'calendar',
     ];
 
     public function handle(Request $request, Closure $next): Response

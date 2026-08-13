@@ -31,7 +31,7 @@ const ROLE_LABELS = {
     warehouse: 'Warehouse',
 };
 
-export default function SettingsIndex({ company, companies, departments, positions, kpiCategories, users, can, filters, roles, permissionCatalog, numberingFormats, approvalFlows, numberingModuleKeys, notificationPreferences, documentTemplates, documentModuleKeys, fieldMappings }) {
+export default function SettingsIndex({ company, companies, departments, positions, kpiCategories, users, can, filters, roles, permissionCatalog, numberingFormats, approvalFlows, numberingModuleKeys, notificationPreferences, documentTemplates, documentModuleKeys, fieldMappings, subscription, invoices }) {
     // System-level tabs (Companies, Users, Backup) are Super-Admin-only.
     // HSE sees only the operational tabs (Departments, Positions).
     const canSystem = can?.manage_system;
@@ -64,6 +64,7 @@ export default function SettingsIndex({ company, companies, departments, positio
                     {canSystem && <Tabs.Trigger value="notifications" className={TAB_CLASS}>Notifications</Tabs.Trigger>}
                     {canSystem && <Tabs.Trigger value="documents" className={TAB_CLASS}>Documents</Tabs.Trigger>}
                     {canSystem && <Tabs.Trigger value="field-mapping" className={TAB_CLASS}>Import/Export Mapping</Tabs.Trigger>}
+                    {canSystem && <Tabs.Trigger value="subscription" className={TAB_CLASS}>Subscription</Tabs.Trigger>}
                     {canSystem && <Tabs.Trigger value="backup" className={TAB_CLASS}>Backup &amp; Restore</Tabs.Trigger>}
                 </Tabs.List>
 
@@ -86,6 +87,7 @@ export default function SettingsIndex({ company, companies, departments, positio
                 {canSystem && <Tabs.Content value="notifications"><NotificationPreferencesTab preferences={notificationPreferences} /></Tabs.Content>}
                 {canSystem && <Tabs.Content value="documents"><DocumentTemplatesTab documentTemplates={documentTemplates} moduleKeys={documentModuleKeys} /></Tabs.Content>}
                 {canSystem && <Tabs.Content value="field-mapping"><FieldMappingTab fieldMappings={fieldMappings} /></Tabs.Content>}
+                {canSystem && <Tabs.Content value="subscription"><SubscriptionTab subscription={subscription} invoices={invoices} /></Tabs.Content>}
                 {canSystem && <Tabs.Content value="backup"><BackupTab /></Tabs.Content>}
             </Tabs.Root>
         </AuthenticatedLayout>
@@ -1932,6 +1934,87 @@ function UserRolesDialog({ user, customRoles, onClose }) {
                 </form>
             </DialogContent>
         </Dialog>
+    );
+}
+
+const SUB_STATUS_VARIANT = {
+    active: 'success', trial: 'default', grace_period: 'default',
+    expired: 'destructive', suspended: 'destructive', cancelled: 'secondary',
+};
+
+const INVOICE_STATUS_VARIANT = { draft: 'secondary', issued: 'default', paid: 'success', overdue: 'destructive', void: 'secondary' };
+
+/**
+ * v1.11.0 (SaaS Finalization Pass, Part 19). Tenant Admin's read-only
+ * view of their own commercial record -- changing plan/type/status stays
+ * Platform Admin-only (PlatformController::updateSubscription()), this
+ * tab only displays what SettingsController::index() already resolved.
+ * If lifetime, explicitly shows "Lifetime License" and never a
+ * recurring-renewal date, per the explicit product requirement.
+ */
+function SubscriptionTab({ subscription, invoices }) {
+    if (!subscription) {
+        return (
+            <Card>
+                <CardHeader><CardTitle>Subscription</CardTitle></CardHeader>
+                <CardContent><p className="text-sm text-graphite-400">No subscription record found for your organization. Contact your platform provider.</p></CardContent>
+            </Card>
+        );
+    }
+
+    const formatDate = (v) => (v ? new Date(v).toLocaleDateString(undefined, { dateStyle: 'medium' }) : '—');
+
+    return (
+        <div className="space-y-4">
+            <Card>
+                <CardHeader>
+                    <CardTitle>Subscription / License</CardTitle>
+                    <CardDescription>Your organization's current plan and commercial status.</CardDescription>
+                </CardHeader>
+                <CardContent className="grid grid-cols-1 gap-4 sm:grid-cols-2">
+                    <div className="space-y-3 text-sm">
+                        <div className="flex items-center justify-between border-b border-graphite-100 pb-2 dark:border-slate-800"><span className="text-graphite-500">Plan</span><span className="font-medium">{subscription.package_name ?? '—'}</span></div>
+                        <div className="flex items-center justify-between border-b border-graphite-100 pb-2 dark:border-slate-800"><span className="text-graphite-500">License Type</span><span className="font-medium capitalize">{subscription.type ?? 'subscription'}</span></div>
+                        <div className="flex items-center justify-between border-b border-graphite-100 pb-2 dark:border-slate-800"><span className="text-graphite-500">Status</span><Badge variant={SUB_STATUS_VARIANT[subscription.status] ?? 'secondary'} className="capitalize">{subscription.status?.replace('_', ' ')}</Badge></div>
+                        <div className="flex items-center justify-between border-b border-graphite-100 pb-2 dark:border-slate-800"><span className="text-graphite-500">Seat Limit</span><span className="font-medium">{subscription.seat_limit ?? 'Unlimited'}</span></div>
+                    </div>
+                    <div className="space-y-3 text-sm">
+                        <div className="flex items-center justify-between border-b border-graphite-100 pb-2 dark:border-slate-800"><span className="text-graphite-500">Start Date</span><span className="font-medium">{formatDate(subscription.starts_at)}</span></div>
+                        {subscription.type === 'lifetime' ? (
+                            <div className="flex items-center justify-between border-b border-graphite-100 pb-2 dark:border-slate-800"><span className="text-graphite-500">Expiry</span><Badge variant="success">Lifetime License -- no expiry</Badge></div>
+                        ) : (
+                            <div className="flex items-center justify-between border-b border-graphite-100 pb-2 dark:border-slate-800"><span className="text-graphite-500">{subscription.status === 'trial' ? 'Trial Ends' : 'Renewal / Expiry'}</span><span className="font-medium">{formatDate(subscription.status === 'trial' ? subscription.trial_ends_at : subscription.ends_at)}</span></div>
+                        )}
+                        <div className="flex items-center justify-between border-b border-graphite-100 pb-2 dark:border-slate-800"><span className="text-graphite-500">Billing Cycle</span><span className="font-medium capitalize">{subscription.type === 'lifetime' ? 'N/A' : subscription.billing_cycle}</span></div>
+                        <div className="flex items-center justify-between pb-2"><span className="text-graphite-500">Currently Usable</span>{subscription.is_usable ? <Badge variant="success">Yes</Badge> : <Badge variant="destructive">No -- contact your provider</Badge>}</div>
+                    </div>
+                </CardContent>
+            </Card>
+
+            <Card>
+                <CardHeader><CardTitle>Invoices</CardTitle><CardDescription>Billing history for your organization.</CardDescription></CardHeader>
+                <CardContent className="p-0">
+                    {invoices.length === 0 ? (
+                        <p className="p-4 text-center text-sm text-graphite-400">No invoices yet.</p>
+                    ) : (
+                        <Table>
+                            <TableHeader><TableRow><TableHead>Invoice #</TableHead><TableHead>Amount</TableHead><TableHead>Due</TableHead><TableHead>Status</TableHead><TableHead>Payment Date</TableHead></TableRow></TableHeader>
+                            <TableBody>
+                                {invoices.map((inv) => (
+                                    <TableRow key={inv.id}>
+                                        <TableCell className="font-medium">{inv.invoice_number}</TableCell>
+                                        <TableCell>{inv.currency} {Number(inv.amount).toLocaleString()}</TableCell>
+                                        <TableCell>{formatDate(inv.due_date)}</TableCell>
+                                        <TableCell><Badge variant={INVOICE_STATUS_VARIANT[inv.status] ?? 'secondary'}>{inv.status}</Badge></TableCell>
+                                        <TableCell>{formatDate(inv.payment_date)}</TableCell>
+                                    </TableRow>
+                                ))}
+                            </TableBody>
+                        </Table>
+                    )}
+                </CardContent>
+            </Card>
+        </div>
     );
 }
 

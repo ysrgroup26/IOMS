@@ -3,7 +3,7 @@ import { useState } from 'react';
 import {
     LogOut, Menu, X,
     Bell, User as UserIcon, ChevronDown, Sun, Moon, ChevronRight,
-    ClipboardCheck, CheckSquare, HardHat, Inbox, Lock, LayoutDashboard,
+    ClipboardCheck, CheckSquare, HardHat, Inbox, Lock, LayoutDashboard, CalendarDays,
 } from 'lucide-react';
 import { cn } from '@/lib/utils';
 import { useClock } from '@/lib/useClock';
@@ -349,6 +349,18 @@ function TopBar({ onOpenSidebar, isDepartmentUser, departments, activeWorkspace,
             >
                 <LayoutDashboard className="h-3.5 w-3.5 shrink-0" />
                 <span className="hidden sm:inline">Dashboard</span>
+            </Link>
+
+            {/* Calendar (v1.11.0): same "pinned, not a department" reasoning
+                as Dashboard above -- it aggregates events across several
+                departments by design (see CalendarController's own doc
+                comment), so it isn't owned by any single one of them. */}
+            <Link
+                href={route('calendar.index')}
+                className="flex h-8 items-center gap-1.5 rounded-md px-2.5 text-xs font-medium text-graphite-600 transition-colors hover:bg-graphite-50 dark:text-slate-300 dark:hover:bg-slate-800"
+            >
+                <CalendarDays className="h-3.5 w-3.5 shrink-0" />
+                <span className="hidden sm:inline">Calendar</span>
             </Link>
 
             {/* Department Selector -- a single dropdown at every breakpoint,

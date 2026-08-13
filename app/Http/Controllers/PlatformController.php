@@ -5,6 +5,7 @@ namespace App\Http\Controllers;
 use App\Http\Requests\StoreTenantRequest;
 use App\Http\Requests\UpdateTenantRequest;
 use App\Models\ActivityLog;
+use App\Models\Invoice;
 use App\Models\Module;
 use App\Models\Package;
 use App\Models\Scopes\TenantScope;
@@ -162,13 +163,152 @@ class PlatformController extends Controller
         return Inertia::render('Platform/TenantDetail', [
             'tenant' => $tenant->only(['id', 'name', 'slug', 'status', 'trial_ends_at', 'created_at', 'updated_at', 'companies_count', 'users_count']),
             'subscription' => $tenant->subscription ? [
+                'id' => $tenant->subscription->id,
+                'package_id' => $tenant->subscription->package_id,
                 'package_name' => $tenant->subscription->package?->name,
+                'type' => $tenant->subscription->type,
                 'status' => $tenant->subscription->status,
                 'billing_cycle' => $tenant->subscription->billing_cycle,
+                'seat_limit' => $tenant->subscription->seatLimit(),
+                'license_key' => $tenant->subscription->license_key,
+                'billing_reference' => $tenant->subscription->billing_reference,
                 'starts_at' => $tenant->subscription->starts_at,
                 'ends_at' => $tenant->subscription->ends_at,
+                'trial_ends_at' => $tenant->subscription->trial_ends_at,
+                'notes' => $tenant->subscription->notes,
+                'is_usable' => $tenant->subscription->isUsable(),
             ] : null,
             'administrator' => $administrator,
+            'packages' => Package::active()->orderBy('sort_order')->get(['id', 'name', 'slug']),
+            'subscriptionTypes' => Subscription::TYPES,
+            'subscriptionStatuses' => Subscription::STATUSES,
+            'invoices' => Invoice::where('tenant_id', $tenant->id)->latest()->get(['id', 'invoice_number', 'amount', 'currency', 'status', 'due_date', 'payment_date', 'created_at']),
+        ]);
+    }
+
+    /**
+     * v1.11.0 (SaaS Finalization Pass, Part 10). Updates the tenant's
+     * CURRENT (latest) Subscription row in place -- same "edit in place,
+     * only a genuine plan change creates a new history row" convention
+     * updateTenant() already established for package_id. `ends_at`/
+     * `trial_ends_at` are cleared server-side whenever `type` is set to
+     * lifetime, regardless of what the form submitted, so a lifetime
+     * record can never carry a stale/misleading expiry date.
+     */
+    public function updateSubscription(Request $request, Tenant $tenant): RedirectResponse
+    {
+        $validated = $request->validate([
+            'package_id' => ['required', 'exists:packages,id'],
+            'type' => ['required', Rule::in(Subscription::TYPES)],
+            'status' => ['required', Rule::in(Subscription::STATUSES)],
+            'billing_cycle' => ['required', Rule::in([Subscription::CYCLE_MONTHLY, Subscription::CYCLE_YEARLY])],
+            'seat_limit' => ['nullable', 'integer', 'min:1'],
+            'license_key' => ['nullable', 'string', 'max:255'],
+            'billing_reference' => ['nullable', 'string', 'max:255'],
+            'starts_at' => ['nullable', 'date'],
+            'ends_at' => ['nullable', 'date'],
+            'notes' => ['nullable', 'string', 'max:2000'],
+        ]);
+
+        if ($validated['type'] === Subscription::TYPE_LIFETIME) {
+            $validated['ends_at'] = null;
+            $validated['trial_ends_at'] = null;
+        }
+
+        $subscription = $tenant->subscription;
+
+        if ($subscription) {
+            $subscription->update([...$validated, 'created_by' => $subscription->created_by ?? $request->user()->id]);
+        } else {
+            Subscription::create([...$validated, 'tenant_id' => $tenant->id, 'created_by' => $request->user()->id]);
+        }
+
+        ActivityLog::record('updated', "Tenant \"{$tenant->name}\" subscription/license updated ({$validated['type']}, {$validated['status']}).");
+
+        return back()->with('success', 'Subscription updated.');
+    }
+
+    /** v1.11.0, Part 16. Manual invoice creation -- no payment gateway exists, this is the admin-recorded billing document itself. */
+    public function storeInvoice(Request $request, Tenant $tenant): RedirectResponse
+    {
+        $validated = $request->validate([
+            'period_start' => ['nullable', 'date'],
+            'period_end' => ['nullable', 'date'],
+            'amount' => ['required', 'numeric', 'min:0'],
+            'currency' => ['required', 'string', 'max:3'],
+            'due_date' => ['nullable', 'date'],
+            'notes' => ['nullable', 'string', 'max:2000'],
+        ]);
+
+        Invoice::create([
+            ...$validated,
+            'invoice_number' => Invoice::generateNumber($tenant->id),
+            'tenant_id' => $tenant->id,
+            'subscription_id' => $tenant->subscription?->id,
+            'status' => Invoice::STATUS_ISSUED,
+            'created_by' => $request->user()->id,
+        ]);
+
+        ActivityLog::record('created', "Invoice issued for tenant \"{$tenant->name}\".");
+
+        return back()->with('success', 'Invoice created.');
+    }
+
+    /** v1.11.0, Part 16. The ONLY place `status` can become 'paid' -- always an explicit admin action recording a payment that happened outside this system, never inferred. */
+    public function markInvoicePaid(Request $request, Invoice $invoice): RedirectResponse
+    {
+        $validated = $request->validate([
+            'payment_reference' => ['nullable', 'string', 'max:255'],
+            'payment_method' => ['nullable', 'string', 'max:100'],
+        ]);
+
+        $invoice->markPaid($validated['payment_reference'] ?? null, $validated['payment_method'] ?? null);
+
+        ActivityLog::record('updated', "Invoice {$invoice->invoice_number} marked paid.");
+
+        return back()->with('success', 'Invoice marked as paid.');
+    }
+
+    /** v1.11.0, Part 9/18. Plan/Edition catalog management -- was previously read-only (Package::active() for a dropdown); this is the actual CRUD surface. */
+    public function plans(): Response
+    {
+        return Inertia::render('Platform/Plans', [
+            'plans' => Package::orderBy('sort_order')->get(),
+        ]);
+    }
+
+    public function storePlan(Request $request): RedirectResponse
+    {
+        $validated = $this->validatePlan($request);
+        Package::create($validated);
+
+        ActivityLog::record('created', "Plan \"{$validated['name']}\" was created.");
+
+        return back()->with('success', 'Plan created.');
+    }
+
+    public function updatePlan(Request $request, Package $plan): RedirectResponse
+    {
+        $validated = $this->validatePlan($request, $plan);
+        $plan->update($validated);
+
+        ActivityLog::record('updated', "Plan \"{$plan->name}\" was updated.");
+
+        return back()->with('success', 'Plan updated.');
+    }
+
+    private function validatePlan(Request $request, ?Package $plan = null): array
+    {
+        return $request->validate([
+            'name' => ['required', 'string', 'max:255'],
+            'slug' => ['required', 'string', 'max:100', Rule::unique('packages', 'slug')->ignore($plan?->id)],
+            'description' => ['nullable', 'string', 'max:2000'],
+            'price_monthly' => ['nullable', 'numeric', 'min:0'],
+            'price_yearly' => ['nullable', 'numeric', 'min:0'],
+            'max_users' => ['nullable', 'integer', 'min:1'],
+            'max_companies' => ['nullable', 'integer', 'min:1'],
+            'is_active' => ['boolean'],
+            'sort_order' => ['nullable', 'integer', 'min:0'],
         ]);
     }
 

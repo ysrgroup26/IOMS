@@ -1019,6 +1019,64 @@ its own workspace, separate from any module's own embedded reports (e.g. PPE's R
 inside the HSE workspace's PPE module, not duplicated here) — this is the cross-cutting,
 company-wide report surface, not a per-module one.
 
+## Global Calendar (v1.11.0, SaaS Finalization Pass)
+
+**Not a department** — pinned in the top bar next to Dashboard (`CalendarController`, route
+`calendar.index`), reachable regardless of which department is active. Aggregates two kinds of
+events: real, editable `CalendarEvent` rows (manual events — title/description/start/end/all_day/
+event_type/department_key/responsible_user, tenant-owned via `company_id`) and **read-only "virtual"
+events** computed live from other modules' own existing due-date fields — Leave (`start_date`/
+`end_date`), Permit To Work (`start_datetime`/`end_datetime`), TBM (`meeting_date`), Milestone
+(`target_date`), Work Order (`planned_date`). No second events table per module was created — each
+source is queried live via the same tenant-safe `Company::query()->pluck('id')` pattern used
+everywhere else, shaped into one Unified Event DTO. Deliberately excludes sources with no single
+unambiguous date (e.g. Gas Test — a reading, not a scheduled event) rather than forcing one in.
+Frontend: `Calendar/Index.jsx`, month grid + agenda view built with `date-fns` (already a dependency
+— no new library added). `RestrictDepartmentAccess`'s `UNIVERSAL_PREFIXES` includes `calendar`
+(same reasoning as `dashboard` itself: it's cross-department by design, owned by none of them).
+
+## SaaS / Licensing / Subscription / Billing (v1.11.0, SaaS Finalization Pass)
+
+**Extends, does not duplicate**, the Milestone 2 `Package`/`Subscription` models (`Package` = Plan/
+Edition, `Subscription` = the commercial-access record per Tenant) and the Milestone 3
+`tenant_modules`/`tenant_workspaces` grant tables (which module/workspace keys a tenant may use at
+all). What was added:
+
+- **`Subscription.type`** (trial / subscription / lifetime) — previously only `status` existed,
+  conflating "what kind of commercial arrangement" with "is it usable right now". A lifetime record
+  has `ends_at`/`trial_ends_at` forced null server-side and `Subscription::isExpired()` always
+  returns false for it — perpetual usage rights to the purchased edition, deliberately generic (no
+  tenant is ever hardcoded as lifetime in application code). `seat_limit`, `license_key`,
+  `billing_reference`, `notes`, `created_by` also added (all nullable, additive).
+- **`Invoice`** (genuinely new — confirmed via search that no billing/invoice concept existed
+  anywhere before this) — one row per billing document, tenant-owned, optionally linked to the
+  Subscription it bills for. No payment gateway integration exists; `markPaid()` is the ONLY way
+  `status` becomes `'paid'`, always an explicit Platform Admin action recording a payment that
+  happened outside this system, never a fabricated confirmation.
+- **`EntitlementService`** (`app/Services/EntitlementService.php`) — the single new authority for
+  "is this tenant's subscription usable right now". Deliberately does NOT reimplement
+  `Tenant::modules()`/`workspaces()` (existing grant mechanism) or `RestrictDepartmentAccess`
+  (existing department scope) — it composes with them: `tenant entitlement AND module/workspace
+  grant AND department scope AND role capability = access`.
+- **`EnforceTenantEntitlement`** middleware — the backend, direct-URL-safe enforcement of the above,
+  registered globally. **Gated behind `config('saas.enforce_entitlement')`, default `false`** — see
+  that middleware's own doc comment and `docs/CONVENTIONS.md` for the specific deploy-safety
+  reasoning (a stale seeded `Subscription.ends_at` could otherwise lock out an existing production
+  tenant the moment this ships). Must be explicitly enabled (`SAAS_ENFORCE_ENTITLEMENT=true`) after
+  verifying the real tenant's Subscription record via the new Platform Admin UI.
+- **Platform Admin console** (`/platform`): `Plans` (new page — `Package` previously had no
+  create/edit UI at all, only a read-only dropdown), and `TenantDetail`'s Subscription card is now
+  editable (type/status/seats/license key/dates) with an Invoices card (issue invoice, mark paid).
+- **Tenant Admin view**: Settings → Subscription tab (read-only — changing it stays Platform Admin-
+  only) shows plan/type/status/dates/seats/invoices; explicitly renders "Lifetime License -- no
+  expiry" rather than a misleading renewal date when `type === 'lifetime'`.
+
+**Known limitation, explicitly not built this pass**: no payment gateway is connected (by design —
+the architecture is provider-agnostic; a future gateway integration would call `Invoice::markPaid()`
+the same way a Platform Admin does manually today, no core rewrite needed). Frontend navigation does
+NOT yet hide a workspace based on entitlement status (only the backend middleware, itself gated off
+by default, enforces it) — flagged as a follow-up, not silently claimed done.
+
 ## Reusable engines (Approval, Workflow, Timeline, Import, PDF, Report Export)
 
 These aren't a "module" with their own page — they're cross-cutting infrastructure consumed by the

@@ -166,6 +166,35 @@ class SettingsController extends Controller
                     'export' => app(\App\Services\FieldMappingService::class)->resolve($moduleKey, 'export'),
                 ],
             ]),
+            // v1.11.0 (SaaS Finalization Pass, Part 19). Tenant Admin's
+            // own read-only view of their commercial record -- Platform
+            // Admin (PlatformController) is the only place that can
+            // CHANGE it, matching "Do NOT give Tenant Admin platform-
+            // level access." Only this tenant's own tenant_id is ever
+            // queried, never another tenant's.
+            'subscription' => (function () use ($request) {
+                $tenant = $request->user()->tenant;
+                $subscription = $tenant?->subscription;
+
+                if (! $subscription) {
+                    return null;
+                }
+
+                return [
+                    'package_name' => $subscription->package?->name,
+                    'type' => $subscription->type,
+                    'status' => $subscription->status,
+                    'billing_cycle' => $subscription->billing_cycle,
+                    'seat_limit' => $subscription->seatLimit(),
+                    'starts_at' => $subscription->starts_at,
+                    'ends_at' => $subscription->ends_at,
+                    'trial_ends_at' => $subscription->trial_ends_at,
+                    'is_usable' => $subscription->isUsable(),
+                ];
+            })(),
+            'invoices' => \App\Models\Invoice::where('tenant_id', $request->user()->tenant_id)
+                ->latest()
+                ->get(['id', 'invoice_number', 'amount', 'currency', 'status', 'due_date', 'payment_date']),
         ]);
     }
 

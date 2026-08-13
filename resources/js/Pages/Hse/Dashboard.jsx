@@ -5,7 +5,36 @@ import StatCard from '@/Components/shared/StatCard';
 import StatusBadge from '@/Components/shared/StatusBadge';
 import EmptyState from '@/Components/shared/EmptyState';
 import { Card, CardContent, CardHeader, CardTitle } from '@/Components/ui/card';
-import { FolderKanban, AlertTriangle, HardHat, History, Eye, Flame, ShieldAlert, ClipboardCheck } from 'lucide-react';
+import ModuleCard from '@/Components/shared/ModuleCard';
+import {
+    FolderKanban, AlertTriangle, HardHat, History, Eye, Flame, ShieldAlert, ClipboardCheck,
+    ClipboardList, FileWarning, Lock, UsersRound, FlaskConical, UserCheck, FileCheck, FileStack,
+} from 'lucide-react';
+
+/**
+ * v1.11.0 (SaaS Finalization Pass, Part 3). The shared "module card" grid
+ * every department Overview should use for its own operational shortcuts
+ * -- proof-of-pattern applied here first (HSE has the most modules of any
+ * department in this codebase). Remaining department dashboards (HR,
+ * Project Management, Logistics, Procurement) still use their own
+ * pre-existing widget layout below the stat cards -- retrofitting them to
+ * this same grid is flagged as a follow-up, not silently claimed done
+ * here (see docs/CONVENTIONS.md).
+ */
+const HSE_MODULES = [
+    { icon: Eye, title: 'Safety Observation', description: 'One-click hazard/near-miss reporting.', href: 'safety-observations.index' },
+    { icon: ClipboardCheck, title: 'HSE Inspection', description: 'Scheduled inspections with findings.', href: 'hse-inspections.index' },
+    { icon: UsersRound, title: 'Safety Meeting (TBM)', description: 'Toolbox meeting records.', href: 'tbm-meetings.index' },
+    { icon: ShieldAlert, title: 'HIRADC / Risk Assessment', description: 'Hazard identification & risk matrix.', href: 'risk-assessments.index' },
+    { icon: FileWarning, title: 'JSA', description: 'Job safety analysis with risk matrix.', href: 'job-safety-analyses.index' },
+    { icon: Flame, title: 'Permit To Work', description: 'Hot work, confined space, and more.', href: 'permits-to-work.index' },
+    { icon: FlaskConical, title: 'Gas Test', description: 'Atmospheric readings across all permits.', href: 'gas-test-records.index' },
+    { icon: Lock, title: 'LOTO', description: 'Lockout/tagout energy isolation.', href: 'loto-records.index' },
+    { icon: ClipboardCheck, title: 'Corrective Actions (CAPA)', description: 'Cross-source corrective action tracking.', href: 'corrective-actions.index' },
+    { icon: UserCheck, title: 'Contractor Management', description: 'Contractor register, workers, documents.', href: 'contractors.index' },
+    { icon: FileCheck, title: 'Visitor Management', description: 'Site access register.', href: 'visitors.index' },
+    { icon: FileStack, title: 'Document Control', description: 'Controlled documents with version history.', href: 'controlled-documents.index' },
+];
 
 /**
  * HSE Dashboard (v1.10.0). Distinct from PPE's own dashboard
@@ -34,6 +63,10 @@ export default function HseDashboard({
                 <StatCard icon={ShieldAlert} value={overdueSafetyEquipmentCount} label="Overdue Equipment" accent={overdueSafetyEquipmentCount > 0 ? 'red' : null} href={route('hse.master')} />
                 <StatCard icon={ShieldAlert} value={overdueP3kCount} label="Overdue P3K" accent={overdueP3kCount > 0 ? 'red' : null} href={route('hse.master')} />
                 <StatCard icon={ClipboardCheck} value={openCapaCount} label="Open CAPA" accent={openCapaCount > 0 ? 'amber' : null} href={route('corrective-actions.index')} />
+            </div>
+
+            <div className="mt-6 grid grid-cols-2 gap-3 sm:grid-cols-3 lg:grid-cols-4">
+                {HSE_MODULES.map((m) => <ModuleCard key={m.title} {...m} />)}
             </div>
 
             <div className="mt-4 grid grid-cols-1 gap-3 lg:grid-cols-3">

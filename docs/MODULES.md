@@ -1230,6 +1230,88 @@ not merely listed:
   have gotten a 403 trying to use the Equipment Types feature, despite it being an HSE-only page.
   Added, along with the new `hse-checklist-templates` prefix for this same pass's new routes.
 
+## Global Dashboard/Overview + HSE Master Data UX Rework (v1.11.3)
+
+A UI/IA pass, not a new-feature pass (except the three brand-new department Overviews below) — same
+controllers, routes, services, RBAC, and tenant scoping throughout; only the *visual system* changed.
+Audited first (3 parallel read-only agents covering every dashboard controller/page, the HSE Master
+Data architecture, and the Calendar Engine) before any edit — see the plan file this pass was executed
+from for the full audit findings.
+
+**Shared component tightening**: `StatCard` shrunk from `p-5`/`h-11 w-11` icon to `p-3.5`/`h-9 w-9`,
+matching `ModuleCard`'s already-established scale exactly (StatCard used to be visually LARGER than
+the module-shortcut grid beneath it, backwards from the intended hierarchy). `PageHeader` converged
+from `text-2xl` to `text-lg`, resolving three different header type scales that were simultaneously in
+use across the app (this component's own former size, PPE/Platform/Rosters' hand-rolled `text-lg`,
+Main Dashboard's hand-rolled `text-base` hero). New `DashboardShell` (PageHeader + consistent spacing
+wrapper) and `ActivityList` (generalizes the "divide-y list + empty state" pattern that was hand-rolled
+8+ times across dashboards) added to `Components/shared/`. Unlike `StatCard`'s own prior doc comment
+("consolidating the three existing implementations is a separate follow-up, not bundled here" — which
+never happened), this pass adopts the tightened components into every dashboard in the SAME pass.
+
+**Main Dashboard**: swapped its local `PrimaryCard` for the shared `StatCard` (verified drop-in safe —
+`PrimaryCard` was already at the same compact scale, and every call site uses named props, so removing
+it and pointing at `StatCard` needed no call-site changes). Its hand-duplicated "Management Calendar"
+markup (byte-for-byte the same shape as `DepartmentCalendarWidget`) now imports and uses that shared
+component instead — the one real Calendar-side duplication the audit found; `CalendarService` itself
+needed zero changes, it was already correctly split into `managementEvents()`/`departmentEvents()`.
+
+**HSE Master Data** (`Hse/Master.jsx`): was one 756-line page with six CRUD sections stacked flat, no
+grouping — confusing as "one long unrelated CRUD page" per explicit feedback. Regrouped into 4 tabs
+based on the *actual* data relationships (audited, not assumed to match the initially-proposed
+grouping): **Safety Equipment** (Equipment Types → Safety Equipment Register → Inspection History, a
+strict producer/consumer chain), **Inspection Templates** (Checklist Templates only — already a fully
+working feature before this pass, just visually unseparated from "actual inspection record"),
+**Hazard Categories** (its own tab — feeds Safety Observations only, not folded into "risk references"
+broadly since it has no relation to RiskAssessment/JSA), **HSE Supplies & Facilities** (HSE Materials +
+P3K Boxes). Client-side, single-route tabs (`?tab=` mirrored via plain history API, no Inertia
+round-trip) — not `ModuleTabNav`'s route-per-tab pattern, since all 6 sections still share one
+efficient, N+1-free controller call (`HazardCategoryController::master()`); every section component is
+UNCHANGED internally, only moved and grouped. Hazard Categories' inline CRUD block (previously the only
+section not following the named-component pattern) was extracted into its own `HazardCategoriesSection`
+component for consistency with the other five.
+
+**Safety Equipment ↔ Asset**: kept as two separate systems (`SafetyEquipment` is HSE's own
+inspection-cadence register; `Asset` is the general company-asset ledger — different operational
+rhythms, forcing a merge would lose one side's shape or bolt HSE fields onto every non-HSE asset).
+The nullable `SafetyEquipment.asset_id` FK (added `2026_08_22_100094`, fully wired at the model layer
+both directions since then) was scaffolded but never exposed in any form or validation array — now
+surfaced as an optional "Link to Company Asset" `Select` on the Safety Equipment form, and added to
+`SafetyEquipmentController::store()`/`update()`'s validation (`nullable`, tenant-scoped `Rule::in()`).
+Purely additive; every existing `SafetyEquipment` row keeps working with no asset link at all.
+
+**Three new department Overviews** — Asset Management, Maintenance, Quality Control previously had NO
+Overview route at all (confirmed via audit: no `'Overview'` item in `workspaces.js` for any of the
+three). Built following the exact existing dashboard-controller pattern (constructor-inject
+`DashboardStatsService` + `CalendarService`, `resolveCompanyIds(null)`, tenant-scoped queries) and
+using the shared component set from day one (`DashboardShell`/`StatCard`/`ModuleCard`/`ActivityList`/
+`DepartmentCalendarWidget` — no legacy pattern to inherit since there was no prior page):
+
+- `AssetDashboardController` / `Assets/Dashboard.jsx` (`asset-management.dashboard`) — KPIs from real
+  `Asset` data only (counts by status, category breakdown). No fabricated "utilization %" or similar
+  without a real source.
+- `MaintenanceDashboardController` / `Maintenance/Dashboard.jsx` (`maintenance.dashboard`) — KPIs from
+  `WorkOrder`/`MaintenanceRequest`. Its Department Calendar is genuine reuse, not new plumbing:
+  `CalendarService::provideWorkOrders()` already stamps `department_key = 'maintenance'` on every
+  WorkOrder virtual event, so `departmentEvents($companyIds, 'maintenance')` surfaces real
+  planned-maintenance dates with zero new Calendar Engine code.
+- `QualityControlDashboardController` / `QualityControl/Dashboard.jsx` (`quality-control.dashboard`)
+  — KPIs from `InspectionRequest`/`Ncr` (Milestone 4, Acceleration Part 3 — QC Foundation).
+
+Warehouse (`warehouses.master`, intentionally folded into Logistics per existing design) and Finance
+(`ComingSoon.jsx`, no backing models exist at all) were deliberately left untouched — building a
+Finance Overview would necessarily show fabricated data, which this project's own rules forbid.
+
+**PPE Dashboard**: swapped its local `StatCard` clone for the shared one (same named-prop shape,
+verified drop-in safe the same way as Main Dashboard's swap) and adopted `PageHeader` — closes the
+last dashboard-level component-duplication the audit found.
+
+**Not changed**: Platform Dashboard (different audience/layout, SaaS admin surface — out of scope),
+`Rosters/Overview` (a filtered table, not a stat dashboard — out of scope). No migration, no RBAC/
+middleware change, no tenant-scoping logic change — every new query uses the same
+`resolveCompanyIds()`/`whereIn('company_id', ...)` pattern already used everywhere else.
+`config('saas.enforce_entitlement')` untouched.
+
 ## Reusable engines (Approval, Workflow, Timeline, Import, PDF, Report Export)
 
 These aren't a "module" with their own page — they're cross-cutting infrastructure consumed by the

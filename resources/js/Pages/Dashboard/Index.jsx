@@ -9,6 +9,8 @@ import { Badge } from '@/Components/ui/badge';
 import { Button } from '@/Components/ui/button';
 import { Select, SelectTrigger, SelectValue, SelectContent, SelectItem } from '@/Components/ui/select';
 import KpiSummaryCard from '@/Components/shared/KpiSummaryCard';
+import DepartmentCalendarWidget from '@/Components/shared/DepartmentCalendarWidget';
+import StatCard from '@/Components/shared/StatCard';
 import PeriodFilter from '@/Components/shared/PeriodFilter';
 import BrandWatermark from '@/Components/shared/BrandWatermark';
 import { useClock, greetingFor } from '@/lib/useClock';
@@ -194,10 +196,10 @@ export default function Dashboard({
                 All four are now navigation widgets (v1.5.2), not dead
                 statistics. */}
             <div className="mt-4 grid grid-cols-2 gap-3 lg:grid-cols-4">
-                <PrimaryCard icon={Users} value={`${formatNumber(companyHeadcount.overall_total)} Employees`} label="Active Workforce" href={route('employees.index')} />
-                <PrimaryCard icon={FolderKanban} value={`${formatNumber(activeProjectsCount)} Active Projects`} label="Running Projects" href={route('projects.index')} />
-                <PrimaryCard icon={Building2} value={formatNumber(companyHeadcount.by_company.length)} label="Companies" href={route('settings.index') + '?tab=companies'} />
-                <PrimaryCard icon={CalendarDays} value={currentMonth} label="Current Period" href={route('kpi-records.index', { year: filters.year, month: filters.month })} />
+                <StatCard icon={Users} value={`${formatNumber(companyHeadcount.overall_total)} Employees`} label="Active Workforce" href={route('employees.index')} />
+                <StatCard icon={FolderKanban} value={`${formatNumber(activeProjectsCount)} Active Projects`} label="Running Projects" href={route('projects.index')} />
+                <StatCard icon={Building2} value={formatNumber(companyHeadcount.by_company.length)} label="Companies" href={route('settings.index') + '?tab=companies'} />
+                <StatCard icon={CalendarDays} value={currentMonth} label="Current Period" href={route('kpi-records.index', { year: filters.year, month: filters.month })} />
             </div>
 
             {/* Milestone 4, Acceleration Part 7 -- Executive cross-department
@@ -205,12 +207,12 @@ export default function Dashboard({
                 actual tables (see DashboardController's own doc comment) --
                 additive to this page, no existing widget touched. */}
             <div className="mt-3 grid grid-cols-2 gap-3 sm:grid-cols-3 lg:grid-cols-6">
-                <PrimaryCard icon={AlertTriangle} value={formatNumber(openIncidentsCount)} label="Open Incidents" href={route('incidents.index')} />
-                <PrimaryCard icon={ClipboardCheck} value={formatNumber(openCapaCount)} label="Open CAPA" href={route('corrective-actions.index')} />
-                <PrimaryCard icon={ShoppingCart} value={formatNumber(pendingProcurementCount)} label="Pending Procurement" href={route('procurement.dashboard')} />
-                <PrimaryCard icon={Boxes} value={formatNumber(stockAlertCount)} label="Stock Alerts" href={route('stock.index', { low_stock: 1 })} />
-                <PrimaryCard icon={Box} value={formatNumber(assetCount)} label="Active Assets" href={route('assets.index')} />
-                <PrimaryCard icon={Wrench} value={formatNumber(maintenanceDueCount)} label="Maintenance Due (7d)" href={route('work-orders.index')} />
+                <StatCard icon={AlertTriangle} value={formatNumber(openIncidentsCount)} label="Open Incidents" href={route('incidents.index')} />
+                <StatCard icon={ClipboardCheck} value={formatNumber(openCapaCount)} label="Open CAPA" href={route('corrective-actions.index')} />
+                <StatCard icon={ShoppingCart} value={formatNumber(pendingProcurementCount)} label="Pending Procurement" href={route('procurement.dashboard')} />
+                <StatCard icon={Boxes} value={formatNumber(stockAlertCount)} label="Stock Alerts" href={route('stock.index', { low_stock: 1 })} />
+                <StatCard icon={Box} value={formatNumber(assetCount)} label="Active Assets" href={route('assets.index')} />
+                <StatCard icon={Wrench} value={formatNumber(maintenanceDueCount)} label="Maintenance Due (7d)" href={route('work-orders.index')} />
             </div>
 
             {/* Pending Tasks -- Universal Task Engine Dashboard integration
@@ -353,32 +355,17 @@ export default function Dashboard({
                 own doc comment for what "Man-Hour" actually means here
                 given no attendance/timesheet data source exists yet. */}
             <div className="mt-4 grid grid-cols-1 gap-3 lg:grid-cols-2">
-                <Card>
-                    <CardHeader className="flex flex-row items-center justify-between space-y-0">
-                        <div>
-                            <CardTitle className="flex items-center gap-2"><CalendarDays className="h-3.5 w-3.5 text-graphite-400" /> Management Calendar</CardTitle>
-                            <CardDescription>Next 14 days -- events explicitly marked for management, plus permits & milestones</CardDescription>
-                        </div>
-                        <Link href={route('calendar.index')} className="text-xs font-medium text-brand-600 hover:underline">Full Calendar</Link>
-                    </CardHeader>
-                    <CardContent>
-                        {upcomingEvents.length === 0 ? (
-                            <p className="py-6 text-center text-sm text-graphite-400">Nothing coming up in the next 14 days.</p>
-                        ) : (
-                            <div className="divide-y divide-graphite-100 dark:divide-slate-800">
-                                {upcomingEvents.map((e, i) => {
-                                    const content = (
-                                        <div className="flex items-center justify-between py-2 text-sm">
-                                            <span className="truncate font-medium text-graphite-700 dark:text-slate-200">{e.title}</span>
-                                            <span className="shrink-0 text-xs text-graphite-400">{new Date(e.start).toLocaleDateString('en-US', { day: 'numeric', month: 'short' })}</span>
-                                        </div>
-                                    );
-                                    return e.url ? <Link key={i} href={e.url} className="block hover:text-brand-700">{content}</Link> : <div key={i}>{content}</div>;
-                                })}
-                            </div>
-                        )}
-                    </CardContent>
-                </Card>
+                {/* v1.11.3: was hand-duplicated inline markup, byte-for-byte
+                    the same shape as DepartmentCalendarWidget -- now reuses
+                    that shared component directly (see docs/CONVENTIONS.md
+                    for why this was worth fixing: a shared component that
+                    only 5 of 6 intended callers actually use isn't fully
+                    shared). Data/query unchanged -- still managementEvents(). */}
+                <DepartmentCalendarWidget
+                    events={upcomingEvents}
+                    title="Management Calendar"
+                    description="Next 14 days -- events explicitly marked for management, plus permits & milestones"
+                />
 
                 <Card>
                     <CardHeader>
@@ -618,23 +605,6 @@ function SummaryStat({ icon: Icon, value, label, accent, href }) {
                 <p className="truncate text-[11px] text-graphite-400">{label}</p>
             </div>
         </div>
-    );
-    return href ? <Link href={href}>{content}</Link> : content;
-}
-
-function PrimaryCard({ icon: Icon, label, value, href }) {
-    const content = (
-        <Card className="h-full rounded-2xl border-graphite-200 bg-white/85 shadow-card backdrop-blur-sm transition-all duration-200 hover:-translate-y-0.5 hover:shadow-card-hover">
-            <CardContent className="flex items-center gap-3 p-3.5">
-                <div className="flex h-9 w-9 shrink-0 items-center justify-center rounded-xl bg-brand-50 text-brand-600">
-                    <Icon className="h-4 w-4" />
-                </div>
-                <div className="min-w-0 space-y-0.5">
-                    <p className="truncate text-sm font-bold text-graphite-900">{value}</p>
-                    <p className="text-[11px] font-medium uppercase tracking-wide text-graphite-400">{label}</p>
-                </div>
-            </CardContent>
-        </Card>
     );
     return href ? <Link href={href}>{content}</Link> : content;
 }

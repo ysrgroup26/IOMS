@@ -5,6 +5,7 @@ namespace App\Http\Controllers;
 use App\Http\Requests\StoreHazardCategoryRequest;
 use App\Http\Requests\UpdateHazardCategoryRequest;
 use App\Models\ActivityLog;
+use App\Models\Asset;
 use App\Models\Company;
 use App\Models\HazardCategory;
 use App\Models\HseChecklistTemplate;
@@ -50,6 +51,13 @@ class HazardCategoryController extends Controller
             'checklistTemplates' => HseChecklistTemplate::whereIn('company_id', $companyIds)
                 ->orderBy('category')->orderBy('sort_order')->get(),
             'inspectionTypes' => HseInspection::TYPES,
+            // v1.11.3 (Global Dashboard/Overview UX Rework, Part 2) -- the
+            // optional SafetyEquipment.asset_id link (nullable FK, already
+            // wired at the model layer since 2026_08_22_100094, never
+            // exposed in the UI until now) needs a tenant-scoped Asset
+            // picker on the Safety Equipment form. Column-limited select,
+            // same tenant-scoping pattern as every other dropdown here.
+            'assets' => Asset::whereIn('company_id', $companyIds)->orderBy('name')->get(['id', 'name', 'asset_code']),
             'companies' => Company::active()->orderBy('name')->get(['id', 'name']),
             'can' => ['manage' => request()->user()->isAdmin()],
         ]);

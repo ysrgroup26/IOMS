@@ -11,16 +11,121 @@ import { Table, TableHeader, TableBody, TableRow, TableHead, TableCell } from '@
 import { Select, SelectTrigger, SelectValue, SelectContent, SelectItem } from '@/Components/ui/select';
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogFooter } from '@/Components/ui/dialog';
 import { Checkbox } from '@/Components/ui/checkbox';
-import { Plus, Pencil, Trash2, AlertCircle } from 'lucide-react';
+import { Plus, Pencil, Trash2, AlertCircle, HardHat, ClipboardList, ShieldAlert, Package } from 'lucide-react';
+import { cn } from '@/lib/utils';
 
 /**
- * Milestone 4, Workstream B0 (HSE Foundation/Master Data). Hazard Category
- * master on its own setup page -- mirrors Shifts/Master.jsx's section
- * shape exactly. Future HSE masters (Safety Equipment types, Safety
- * Material types, etc.) land on this same page as additional sections
- * rather than each growing its own standalone route.
+ * Milestone 4, Workstream B0 (HSE Foundation/Master Data), IA reworked
+ * v1.11.3 (Global Dashboard/Overview UX Rework, Part 1). Six CRUD
+ * sections (Hazard Categories, Equipment Types, Safety Equipment,
+ * HSE Materials, P3K Boxes, Checklist Templates) used to stack flat, top
+ * to bottom, with no grouping -- confusing as "one long unrelated CRUD
+ * page" per explicit user feedback. Grouped into 4 tabs based on actual
+ * data relationships (audited, not assumed):
+ *
+ * - Safety Equipment: Equipment Types (config) -> Safety Equipment
+ *   Register (physical items) -> Inspection History (child records) --
+ *   a strict producer/consumer chain.
+ * - Inspection Templates: Checklist Templates only -- reusable
+ *   definitions, kept separate from actual inspection EXECUTION records
+ *   (which live on a different route entirely, HseInspections/*,
+ *   untouched by this page).
+ * - Hazard Categories: its own tab -- feeds Safety Observations, an
+ *   unrelated consumer to both groups above (NOT folded into "risk
+ *   references" broadly; it has no relation to RiskAssessment/JSA).
+ * - HSE Supplies & Facilities: HSE Materials + P3K Boxes -- both are
+ *   stock/facility registers with inspection-due tracking, the closest
+ *   in shape to each other of anything left.
+ *
+ * Client-side, single-route tabs (not `ModuleTabNav`'s route-per-tab
+ * pattern -- all 6 sections still share one efficient, N+1-free
+ * controller call, `HazardCategoryController::master()`; splitting into
+ * separate routes would be new backend surface for no benefit). `?tab=`
+ * mirrors the active tab via plain history API (no Inertia round-trip --
+ * every section's data is already loaded) so links/bookmarks still work.
+ * Every section component below is UNCHANGED internally -- this only
+ * moves and groups them.
  */
-export default function HseMaster({ hazardCategories, safetyEquipment, equipmentTypes, hseMaterials, p3kBoxes, checklistTemplates = [], inspectionTypes = [], companies, can }) {
+const TABS = [
+    { key: 'equipment', label: 'Safety Equipment', icon: HardHat },
+    { key: 'templates', label: 'Inspection Templates', icon: ClipboardList },
+    { key: 'hazards', label: 'Hazard Categories', icon: ShieldAlert },
+    { key: 'supplies', label: 'HSE Supplies & Facilities', icon: Package },
+];
+
+function initialTab() {
+    if (typeof window === 'undefined') return TABS[0].key;
+    const requested = new URLSearchParams(window.location.search).get('tab');
+    return TABS.some((t) => t.key === requested) ? requested : TABS[0].key;
+}
+
+export default function HseMaster({ hazardCategories, safetyEquipment, equipmentTypes, hseMaterials, p3kBoxes, checklistTemplates = [], inspectionTypes = [], assets = [], companies, can }) {
+    const [activeTab, setActiveTab] = useState(initialTab);
+
+    function selectTab(key) {
+        setActiveTab(key);
+        if (typeof window !== 'undefined') {
+            const url = new URL(window.location.href);
+            url.searchParams.set('tab', key);
+            window.history.replaceState({}, '', url);
+        }
+    }
+
+    return (
+        <AuthenticatedLayout>
+            <Head title="HSE Master Data" />
+
+            <div className="mb-4">
+                <h1 className="text-lg font-bold tracking-tight text-graphite-900 dark:text-slate-50">HSE Master Data</h1>
+                <p className="mt-0.5 text-xs text-graphite-500 dark:text-slate-400">
+                    Configure HSE catalogs shared across HSE modules. Nothing here is hard-coded.
+                </p>
+            </div>
+
+            <div className="mb-4 flex flex-wrap gap-1 border-b border-graphite-200 dark:border-slate-800">
+                {TABS.map((tab) => (
+                    <button
+                        key={tab.key}
+                        type="button"
+                        onClick={() => selectTab(tab.key)}
+                        className={cn(
+                            'flex items-center gap-1.5 border-b-2 px-3 py-1.5 text-xs font-medium transition-colors',
+                            activeTab === tab.key
+                                ? 'border-brand-600 text-brand-700 dark:text-brand-400'
+                                : 'border-transparent text-graphite-500 hover:border-graphite-300 hover:text-graphite-800 dark:text-slate-400 dark:hover:text-slate-200'
+                        )}
+                    >
+                        <tab.icon className="h-3.5 w-3.5" /> {tab.label}
+                    </button>
+                ))}
+            </div>
+
+            <div className="space-y-4">
+                {activeTab === 'equipment' && (
+                    <>
+                        <EquipmentTypesSection equipmentTypes={equipmentTypes} companies={companies} can={can} />
+                        <SafetyEquipmentSection safetyEquipment={safetyEquipment} equipmentTypes={equipmentTypes} assets={assets} companies={companies} can={can} />
+                    </>
+                )}
+                {activeTab === 'templates' && (
+                    <ChecklistTemplatesSection checklistTemplates={checklistTemplates} inspectionTypes={inspectionTypes} companies={companies} can={can} />
+                )}
+                {activeTab === 'hazards' && (
+                    <HazardCategoriesSection hazardCategories={hazardCategories} companies={companies} can={can} />
+                )}
+                {activeTab === 'supplies' && (
+                    <>
+                        <HseMaterialSection hseMaterials={hseMaterials} companies={companies} can={can} />
+                        <P3kBoxSection p3kBoxes={p3kBoxes} companies={companies} can={can} />
+                    </>
+                )}
+            </div>
+        </AuthenticatedLayout>
+    );
+}
+
+/** Extracted from HseMaster's own body (was inline, unlike every other section) so it follows the same named-component pattern as EquipmentTypesSection/SafetyEquipmentSection/etc -- CRUD logic unchanged. */
+function HazardCategoriesSection({ hazardCategories, companies, can }) {
     const [open, setOpen] = useState(false);
     const [editing, setEditing] = useState(null);
 
@@ -67,117 +172,98 @@ export default function HseMaster({ hazardCategories, safetyEquipment, equipment
     }
 
     return (
-        <AuthenticatedLayout>
-            <Head title="HSE Master Data" />
-
-            <div className="mb-6">
-                <h1 className="text-lg font-bold tracking-tight text-graphite-900">HSE Master Data</h1>
-                <p className="mt-1 text-sm text-graphite-500">
-                    Configure HSE catalogs shared across HSE modules. Nothing here is hard-coded.
-                </p>
-            </div>
-
-            <div className="space-y-6">
-            <Card>
-                <CardHeader className="flex flex-row items-center justify-between">
-                    <div>
-                        <CardTitle>Hazard Categories</CardTitle>
-                        <CardDescription>{hazardCategories.length} configured -- used by Safety Observation and future HIRADC/JSA</CardDescription>
-                    </div>
-                    {can.manage && <Button onClick={openCreate}><Plus className="h-4 w-4" /> Add Category</Button>}
-                </CardHeader>
-                <CardContent>
-                    <Table>
-                        <TableHeader>
-                            <TableRow>
-                                <TableHead>Name</TableHead>
-                                <TableHead>Code</TableHead>
-                                <TableHead>Observations</TableHead>
-                                <TableHead>Status</TableHead>
-                                {can.manage && <TableHead />}
+        <Card>
+            <CardHeader className="flex flex-row items-center justify-between">
+                <div>
+                    <CardTitle>Hazard Categories</CardTitle>
+                    <CardDescription>{hazardCategories.length} configured -- used by Safety Observation</CardDescription>
+                </div>
+                {can.manage && <Button onClick={openCreate}><Plus className="h-4 w-4" /> Add Category</Button>}
+            </CardHeader>
+            <CardContent>
+                <Table>
+                    <TableHeader>
+                        <TableRow>
+                            <TableHead>Name</TableHead>
+                            <TableHead>Code</TableHead>
+                            <TableHead>Observations</TableHead>
+                            <TableHead>Status</TableHead>
+                            {can.manage && <TableHead />}
+                        </TableRow>
+                    </TableHeader>
+                    <TableBody>
+                        {hazardCategories.map((c) => (
+                            <TableRow key={c.id}>
+                                <TableCell className="font-medium">{c.name}</TableCell>
+                                <TableCell className="text-graphite-500">{c.code || '-'}</TableCell>
+                                <TableCell>{c.safety_observations_count}</TableCell>
+                                <TableCell><Badge variant={c.is_active ? 'success' : 'secondary'}>{c.is_active ? 'Active' : 'Inactive'}</Badge></TableCell>
+                                {can.manage && (
+                                    <TableCell className="flex gap-1">
+                                        <Button variant="ghost" size="icon" onClick={() => openEdit(c)}><Pencil className="h-4 w-4" /></Button>
+                                        <Button variant="ghost" size="icon" onClick={() => destroy(c)}><Trash2 className="h-4 w-4 text-red-500" /></Button>
+                                    </TableCell>
+                                )}
                             </TableRow>
-                        </TableHeader>
-                        <TableBody>
-                            {hazardCategories.map((c) => (
-                                <TableRow key={c.id}>
-                                    <TableCell className="font-medium">{c.name}</TableCell>
-                                    <TableCell className="text-graphite-500">{c.code || '-'}</TableCell>
-                                    <TableCell>{c.safety_observations_count}</TableCell>
-                                    <TableCell><Badge variant={c.is_active ? 'success' : 'secondary'}>{c.is_active ? 'Active' : 'Inactive'}</Badge></TableCell>
-                                    {can.manage && (
-                                        <TableCell className="flex gap-1">
-                                            <Button variant="ghost" size="icon" onClick={() => openEdit(c)}><Pencil className="h-4 w-4" /></Button>
-                                            <Button variant="ghost" size="icon" onClick={() => destroy(c)}><Trash2 className="h-4 w-4 text-red-500" /></Button>
-                                        </TableCell>
-                                    )}
-                                </TableRow>
-                            ))}
-                        </TableBody>
-                    </Table>
-                </CardContent>
+                        ))}
+                    </TableBody>
+                </Table>
+            </CardContent>
 
-                <Dialog open={open} onOpenChange={setOpen}>
-                    <DialogContent>
-                        <DialogHeader><DialogTitle>{editing ? 'Edit Hazard Category' : 'Add Hazard Category'}</DialogTitle></DialogHeader>
-                        <form onSubmit={submit} className="space-y-4">
+            <Dialog open={open} onOpenChange={setOpen}>
+                <DialogContent>
+                    <DialogHeader><DialogTitle>{editing ? 'Edit Hazard Category' : 'Add Hazard Category'}</DialogTitle></DialogHeader>
+                    <form onSubmit={submit} className="space-y-4">
+                        <div className="space-y-1.5">
+                            <Label>Company</Label>
+                            <Select value={data.company_id} onValueChange={(v) => setData('company_id', v)}>
+                                <SelectTrigger><SelectValue placeholder="Select company" /></SelectTrigger>
+                                <SelectContent>
+                                    {companies.map((c) => <SelectItem key={c.id} value={String(c.id)}>{c.name}</SelectItem>)}
+                                </SelectContent>
+                            </Select>
+                            {errors.company_id && <p className="text-xs text-red-600">{errors.company_id}</p>}
+                        </div>
+                        <div className="grid grid-cols-2 gap-4">
                             <div className="space-y-1.5">
-                                <Label>Company</Label>
-                                <Select value={data.company_id} onValueChange={(v) => setData('company_id', v)}>
-                                    <SelectTrigger><SelectValue placeholder="Select company" /></SelectTrigger>
-                                    <SelectContent>
-                                        {companies.map((c) => <SelectItem key={c.id} value={String(c.id)}>{c.name}</SelectItem>)}
-                                    </SelectContent>
-                                </Select>
-                                {errors.company_id && <p className="text-xs text-red-600">{errors.company_id}</p>}
-                            </div>
-                            <div className="grid grid-cols-2 gap-4">
-                                <div className="space-y-1.5">
-                                    <Label>Name</Label>
-                                    <Input value={data.name} onChange={(e) => setData('name', e.target.value)} placeholder="e.g. Working at Height" />
-                                    {errors.name && <p className="text-xs text-red-600">{errors.name}</p>}
-                                </div>
-                                <div className="space-y-1.5">
-                                    <Label>Code (optional)</Label>
-                                    <Input value={data.code} onChange={(e) => setData('code', e.target.value)} placeholder="e.g. WAH" />
-                                    {errors.code && <p className="text-xs text-red-600">{errors.code}</p>}
-                                </div>
+                                <Label>Name</Label>
+                                <Input value={data.name} onChange={(e) => setData('name', e.target.value)} placeholder="e.g. Working at Height" />
+                                {errors.name && <p className="text-xs text-red-600">{errors.name}</p>}
                             </div>
                             <div className="space-y-1.5">
-                                <Label>Description (optional)</Label>
-                                <Textarea value={data.description} onChange={(e) => setData('description', e.target.value)} rows={2} />
+                                <Label>Code (optional)</Label>
+                                <Input value={data.code} onChange={(e) => setData('code', e.target.value)} placeholder="e.g. WAH" />
+                                {errors.code && <p className="text-xs text-red-600">{errors.code}</p>}
                             </div>
-                            <label className="flex items-center gap-2 text-sm">
-                                <Checkbox checked={data.is_active} onCheckedChange={(v) => setData('is_active', !!v)} />
-                                Active
-                            </label>
-                            <DialogFooter>
-                                <Button type="button" variant="outline" onClick={() => setOpen(false)}>Cancel</Button>
-                                <Button type="submit" disabled={processing}>Save</Button>
-                            </DialogFooter>
-                        </form>
-                    </DialogContent>
-                </Dialog>
-            </Card>
-
-            <EquipmentTypesSection equipmentTypes={equipmentTypes} companies={companies} can={can} />
-            <SafetyEquipmentSection safetyEquipment={safetyEquipment} equipmentTypes={equipmentTypes} companies={companies} can={can} />
-            <HseMaterialSection hseMaterials={hseMaterials} companies={companies} can={can} />
-            <P3kBoxSection p3kBoxes={p3kBoxes} companies={companies} can={can} />
-            <ChecklistTemplatesSection checklistTemplates={checklistTemplates} inspectionTypes={inspectionTypes} companies={companies} can={can} />
-            </div>
-        </AuthenticatedLayout>
+                        </div>
+                        <div className="space-y-1.5">
+                            <Label>Description (optional)</Label>
+                            <Textarea value={data.description} onChange={(e) => setData('description', e.target.value)} rows={2} />
+                        </div>
+                        <label className="flex items-center gap-2 text-sm">
+                            <Checkbox checked={data.is_active} onCheckedChange={(v) => setData('is_active', !!v)} />
+                            Active
+                        </label>
+                        <DialogFooter>
+                            <Button type="button" variant="outline" onClick={() => setOpen(false)}>Cancel</Button>
+                            <Button type="submit" disabled={processing}>Save</Button>
+                        </DialogFooter>
+                    </form>
+                </DialogContent>
+            </Dialog>
+        </Card>
     );
 }
 
-function SafetyEquipmentSection({ safetyEquipment, equipmentTypes, companies, can }) {
+function SafetyEquipmentSection({ safetyEquipment, equipmentTypes, assets = [], companies, can }) {
     const [open, setOpen] = useState(false);
     const [editing, setEditing] = useState(null);
     const [inspecting, setInspecting] = useState(null);
     const { data, setData, post, put, processing, reset, errors } = useForm({
         company_id: companies[0]?.id ? String(companies[0].id) : '',
         name: '', type: equipmentTypes[0]?.code || '', location: '', serial_number: '',
-        last_inspection_date: '', next_inspection_due: '', status: 'active', notes: '',
-    });
+        last_inspection_date: '', next_inspection_due: '', status: 'active', notes: '', asset_id: '',
+    }).transform((formData) => ({ ...formData, asset_id: formData.asset_id || null }));
 
     function openCreate() { setEditing(null); reset(); setOpen(true); }
     function openEdit(e) {
@@ -186,6 +272,7 @@ function SafetyEquipmentSection({ safetyEquipment, equipmentTypes, companies, ca
             company_id: String(e.company_id), name: e.name, type: e.type, location: e.location || '',
             serial_number: e.serial_number || '', last_inspection_date: e.last_inspection_date?.slice(0, 10) || '',
             next_inspection_due: e.next_inspection_due?.slice(0, 10) || '', status: e.status, notes: e.notes || '',
+            asset_id: e.asset_id ? String(e.asset_id) : '',
         });
         setOpen(true);
     }
@@ -262,6 +349,17 @@ function SafetyEquipmentSection({ safetyEquipment, equipmentTypes, companies, ca
                         <div className="grid grid-cols-2 gap-4">
                             <div className="space-y-1.5"><Label>Last Inspection</Label><Input type="date" value={data.last_inspection_date} onChange={(e) => setData('last_inspection_date', e.target.value)} /></div>
                             <div className="space-y-1.5"><Label>Next Inspection Due</Label><Input type="date" value={data.next_inspection_due} onChange={(e) => setData('next_inspection_due', e.target.value)} /></div>
+                        </div>
+                        <div className="space-y-1.5">
+                            <Label>Link to Company Asset (optional)</Label>
+                            <Select value={data.asset_id || '__none'} onValueChange={(v) => setData('asset_id', v === '__none' ? '' : v)}>
+                                <SelectTrigger><SelectValue placeholder="Not linked" /></SelectTrigger>
+                                <SelectContent>
+                                    <SelectItem value="__none">Not linked</SelectItem>
+                                    {assets.map((a) => <SelectItem key={a.id} value={String(a.id)}>{a.asset_code ? `${a.asset_code} -- ${a.name}` : a.name}</SelectItem>)}
+                                </SelectContent>
+                            </Select>
+                            <p className="text-xs text-graphite-400">Only if this equipment is also tracked in the general Asset register (e.g. a capitalized gas detector). Purely optional -- HSE tracking works fully without it.</p>
                         </div>
                         <div className="space-y-1.5">
                             <Label>Status</Label>

@@ -5,6 +5,8 @@ import { Badge } from '@/Components/ui/badge';
 import { Select, SelectTrigger, SelectValue, SelectContent, SelectItem } from '@/Components/ui/select';
 import { HardHat, AlertTriangle, ShieldAlert, RefreshCw, UserX } from 'lucide-react';
 import PpeTabNav from '@/Components/shared/PpeTabNav';
+import PageHeader from '@/Components/shared/PageHeader';
+import StatCard from '@/Components/shared/StatCard';
 import { formatNumber } from '@/lib/utils';
 
 export default function PpeDashboard({ totalActive, expiringSoonCount, expiredCount, replacementDueCount, noPpeAssignedCount, countsByType, expiringSoon, companies, filters }) {
@@ -29,11 +31,7 @@ export default function PpeDashboard({ totalActive, expiringSoonCount, expiredCo
 
             <PpeTabNav />
 
-            <div className="mb-6 flex flex-wrap items-center justify-between gap-3">
-                <div>
-                    <h1 className="text-lg font-bold tracking-tight text-graphite-900">PPE Dashboard</h1>
-                    <p className="mt-1 text-sm text-graphite-500">Replacement-due overview across all PPE types. Click a card to see the full list.</p>
-                </div>
+            <PageHeader title="PPE Dashboard" subtitle="Replacement-due overview across all PPE types. Click a card to see the full list.">
                 <Select value={filters.company_id ? String(filters.company_id) : 'all'} onValueChange={updateCompany}>
                     <SelectTrigger className="w-40"><SelectValue placeholder="Company" /></SelectTrigger>
                     <SelectContent>
@@ -41,14 +39,14 @@ export default function PpeDashboard({ totalActive, expiringSoonCount, expiredCo
                         {companies.map((c) => <SelectItem key={c.id} value={String(c.id)}>{c.name}</SelectItem>)}
                     </SelectContent>
                 </Select>
-            </div>
+            </PageHeader>
 
             <div className="grid grid-cols-2 gap-3 sm:grid-cols-3 lg:grid-cols-5">
-                <StatCard href={employeesUrl({ effective_status: 'active' })} icon={HardHat} label="Active PPE Issued" value={totalActive} />
-                <StatCard href={employeesUrl({ effective_status: 'expiring_soon' })} icon={AlertTriangle} label="Expiring in 30 Days" value={expiringSoonCount} accent="amber" />
-                <StatCard href={employeesUrl({ effective_status: 'expired' })} icon={ShieldAlert} label="Expired" value={expiredCount} accent="red" />
-                <StatCard href={route('ppe.replacement-due')} icon={RefreshCw} label="Replacement Due" value={replacementDueCount} accent="amber" />
-                <StatCard href={employeesUrl({ no_ppe_assigned: '1' })} icon={UserX} label="No PPE Assigned" value={noPpeAssignedCount} accent="red" />
+                <StatCard href={employeesUrl({ effective_status: 'active' })} icon={HardHat} label="Active PPE Issued" value={formatNumber(totalActive)} />
+                <StatCard href={employeesUrl({ effective_status: 'expiring_soon' })} icon={AlertTriangle} label="Expiring in 30 Days" value={formatNumber(expiringSoonCount)} accent="amber" />
+                <StatCard href={employeesUrl({ effective_status: 'expired' })} icon={ShieldAlert} label="Expired" value={formatNumber(expiredCount)} accent="red" />
+                <StatCard href={route('ppe.replacement-due')} icon={RefreshCw} label="Replacement Due" value={formatNumber(replacementDueCount)} accent="amber" />
+                <StatCard href={employeesUrl({ no_ppe_assigned: '1' })} icon={UserX} label="No PPE Assigned" value={formatNumber(noPpeAssignedCount)} accent="red" />
             </div>
 
             <div className="mt-6 grid grid-cols-1 gap-4 lg:grid-cols-2">
@@ -93,27 +91,5 @@ export default function PpeDashboard({ totalActive, expiringSoonCount, expiredCo
                 </Card>
             </div>
         </AuthenticatedLayout>
-    );
-}
-
-function StatCard({ href, icon: Icon, label, value, accent }) {
-    const colors = {
-        amber: 'bg-amber-50 text-amber-600',
-        red: 'bg-red-50 text-red-600',
-    };
-    return (
-        <Link href={href}>
-            <Card className="rounded-2xl bg-white/85 backdrop-blur-sm transition-all duration-200 hover:-translate-y-0.5 hover:shadow-card-hover">
-                <CardContent className="flex items-center gap-3 p-3.5">
-                    <div className={`flex h-9 w-9 shrink-0 items-center justify-center rounded-lg ${colors[accent] || 'bg-brand-50 text-brand-600'}`}>
-                        <Icon className="h-4 w-4" />
-                    </div>
-                    <div className="space-y-0.5">
-                        <p className="text-[11px] text-graphite-400">{label}</p>
-                        <p className="text-sm font-semibold text-graphite-800">{formatNumber(value)}</p>
-                    </div>
-                </CardContent>
-            </Card>
-        </Link>
     );
 }

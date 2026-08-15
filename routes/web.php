@@ -4,6 +4,7 @@ use App\Http\Controllers\ActivityCenterController;
 use App\Http\Controllers\AnalyticsController;
 use App\Http\Controllers\ApprovalController;
 use App\Http\Controllers\AssetController;
+use App\Http\Controllers\AssetDashboardController;
 use App\Http\Controllers\Auth\AuthenticatedSessionController;
 use App\Http\Controllers\Auth\NewPasswordController;
 use App\Http\Controllers\Auth\PasswordResetLinkController;
@@ -42,6 +43,7 @@ use App\Http\Controllers\KpiRecordController;
 use App\Http\Controllers\LeaveRequestController;
 use App\Http\Controllers\LogisticsDashboardController;
 use App\Http\Controllers\LotoRecordController;
+use App\Http\Controllers\MaintenanceDashboardController;
 use App\Http\Controllers\MaintenanceRequestController;
 use App\Http\Controllers\MaterialRequestController;
 use App\Http\Controllers\MilestoneController;
@@ -61,6 +63,7 @@ use App\Http\Controllers\PpeTypeController;
 use App\Http\Controllers\ProjectActivityController;
 use App\Http\Controllers\ProjectController;
 use App\Http\Controllers\ProjectManagementDashboardController;
+use App\Http\Controllers\QualityControlDashboardController;
 use App\Http\Controllers\ReportCenterController;
 use App\Http\Controllers\ReportController;
 use App\Http\Controllers\RosterController;
@@ -643,6 +646,15 @@ Route::middleware(['auth', 'restrict.platform-admin'])->group(function () {
     Route::delete('/milestones/{milestone}', [MilestoneController::class, 'destroy'])->name('milestones.destroy');
 
     Route::get('/logistics/dashboard', [LogisticsDashboardController::class, 'index'])->name('logistics.dashboard');
+
+    // v1.11.3 (Global Dashboard/Overview UX Rework, Part 4) -- these three
+    // departments had no Overview route at all before this pass (confirmed
+    // via audit: no Overview item in workspaces.js). Same route shape as
+    // every other department dashboard above.
+    Route::get('/asset-management/dashboard', [AssetDashboardController::class, 'index'])->name('asset-management.dashboard');
+    Route::get('/maintenance/dashboard', [MaintenanceDashboardController::class, 'index'])->name('maintenance.dashboard');
+    Route::get('/quality-control/dashboard', [QualityControlDashboardController::class, 'index'])->name('quality-control.dashboard');
+
     Route::get('/goods-receipts', [GoodsReceiptController::class, 'index'])->name('goods-receipts.index');
     Route::get('/goods-receipts/create', [GoodsReceiptController::class, 'create'])->name('goods-receipts.create');
     Route::post('/goods-receipts', [GoodsReceiptController::class, 'store'])->name('goods-receipts.store');

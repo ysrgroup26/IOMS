@@ -3,6 +3,7 @@
 namespace App\Http\Controllers;
 
 use App\Models\ActivityLog;
+use App\Models\Asset;
 use App\Models\Company;
 use App\Models\HseEquipmentType;
 use App\Models\SafetyEquipment;
@@ -44,6 +45,11 @@ class SafetyEquipmentController extends Controller
             'next_inspection_due' => ['nullable', 'date'],
             'status' => ['required', Rule::in(SafetyEquipment::STATUSES)],
             'notes' => ['nullable', 'string', 'max:1000'],
+            // v1.11.3 (Global Dashboard/Overview UX Rework, Part 2) --
+            // optional link to the general Asset register, tenant-scoped
+            // the same way as every other Rule::in() here. Frontend sends
+            // null (never '') when unset, via useForm().transform().
+            'asset_id' => ['nullable', Rule::in(Asset::whereIn('company_id', $tenantCompanyIds)->pluck('id'))],
         ]);
 
         $equipment = SafetyEquipment::create($data);
@@ -69,6 +75,11 @@ class SafetyEquipmentController extends Controller
             'next_inspection_due' => ['nullable', 'date'],
             'status' => ['required', Rule::in(SafetyEquipment::STATUSES)],
             'notes' => ['nullable', 'string', 'max:1000'],
+            // v1.11.3 (Global Dashboard/Overview UX Rework, Part 2) --
+            // optional link to the general Asset register, tenant-scoped
+            // the same way as every other Rule::in() here. Frontend sends
+            // null (never '') when unset, via useForm().transform().
+            'asset_id' => ['nullable', Rule::in(Asset::whereIn('company_id', $tenantCompanyIds)->pluck('id'))],
         ]);
 
         $safetyEquipment->update($data);

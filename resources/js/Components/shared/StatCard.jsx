@@ -3,14 +3,18 @@ import { Card, CardContent } from '@/Components/ui/card';
 import { cn } from '@/lib/utils';
 
 /**
- * Shared Statistic Card (v1.6.5 foundation). Dashboard's `PrimaryCard`,
- * Home's `StatCard`, and PPE Dashboard's `StatCard` are three separate
- * implementations of essentially the same icon+value+label card, each
- * with slightly different sizing/color details. This is the canonical
- * version for any *new* stat card going forward -- the three existing
- * ones were deliberately left as-is (each already works, and each page
- * has small intentional differences in accent handling); consolidating
- * them onto this component is a separate follow-up, not bundled here.
+ * Shared Statistic Card (v1.6.5 foundation, tightened v1.11.3 -- Global
+ * Dashboard/Overview UX Rework Part 4). Dashboard's `PrimaryCard`, Home's
+ * `StatCard`, and PPE Dashboard's `StatCard` were three separate
+ * implementations of essentially the same icon+value+label card; this is
+ * now the ONE version, adopted by every dashboard page in the same pass
+ * that tightened it (see docs/CONVENTIONS.md -- the earlier "separate
+ * follow-up" note here is exactly the kind of deferred adoption that
+ * never happened, so this time the adoption isn't deferred).
+ *
+ * Sized to match `ModuleCard`'s own scale exactly (p-3.5, h-9/h-4 icon)
+ * so KPI cards read as visually secondary to the page, not larger than
+ * the module-shortcut grid beneath them.
  *
  * Usage:
  *   <StatCard icon={Users} value="128" label="Employees" href={route('employees.index')} />
@@ -25,13 +29,13 @@ export default function StatCard({ icon: Icon, value, label, href, accent }) {
 
     const content = (
         <Card className={cn('h-full rounded-2xl bg-white/85 backdrop-blur-sm transition-all duration-200 dark:bg-slate-900/85', href && 'hover:-translate-y-0.5 hover:shadow-card-hover')}>
-            <CardContent className="flex items-center gap-4 p-5">
-                <div className={cn('flex h-11 w-11 shrink-0 items-center justify-center rounded-xl', iconClass)}>
-                    <Icon className="h-5 w-5" />
+            <CardContent className="flex items-center gap-3 p-3.5">
+                <div className={cn('flex h-9 w-9 shrink-0 items-center justify-center rounded-xl', iconClass)}>
+                    <Icon className="h-4 w-4" />
                 </div>
                 <div className="min-w-0">
-                    <p className="truncate text-lg font-bold text-graphite-900 dark:text-slate-50">{value}</p>
-                    <p className="text-xs font-medium uppercase tracking-wide text-graphite-400 dark:text-slate-500">{label}</p>
+                    <p className="truncate text-base font-bold leading-tight text-graphite-900 dark:text-slate-50">{value}</p>
+                    <p className="truncate text-xs font-medium uppercase tracking-wide text-graphite-400 dark:text-slate-500">{label}</p>
                 </div>
             </CardContent>
         </Card>

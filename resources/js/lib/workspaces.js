@@ -275,6 +275,9 @@ export const WORKSPACES = [
         tier: 'department',
         items: [
             { name: 'Dashboard', href: 'dashboard', icon: LayoutDashboard, global: true },
+            // v1.11.3 (Global Dashboard/Overview UX Rework, Part 4) -- this
+            // department had no Overview at all before this pass.
+            { name: 'Overview', href: 'asset-management.dashboard', icon: LayoutDashboard },
             // Milestone 4, Acceleration Part 1C: real backend now (Asset +
             // AssetTransaction) -- full Purchase->Receive->Register->
             // Assign->Operate->Inspect->Maintain->Retire lifecycle.
@@ -290,6 +293,9 @@ export const WORKSPACES = [
         tier: 'department',
         items: [
             { name: 'Dashboard', href: 'dashboard', icon: LayoutDashboard, global: true },
+            // v1.11.3 (Global Dashboard/Overview UX Rework, Part 4) -- this
+            // department had no Overview at all before this pass.
+            { name: 'Overview', href: 'maintenance.dashboard', icon: LayoutDashboard },
             // Milestone 4, Acceleration Part 2: real backend now
             // (MaintenanceRequest + WorkOrder). Request -> Approved ->
             // Work Order -> Execution -> Completed, spare parts posted via
@@ -307,6 +313,9 @@ export const WORKSPACES = [
         tier: 'department',
         items: [
             { name: 'Dashboard', href: 'dashboard', icon: LayoutDashboard, global: true },
+            // v1.11.3 (Global Dashboard/Overview UX Rework, Part 4) -- this
+            // department had no Overview at all before this pass.
+            { name: 'Overview', href: 'quality-control.dashboard', icon: LayoutDashboard },
             // Milestone 4, Acceleration Part 3: real backend now
             // (InspectionRequest + InspectionResult + Ncr). NCR raises a
             // real CorrectiveAction (reused, not duplicated -- same

@@ -3,6 +3,27 @@
 House style, and a deliberately honest list of mistakes that have actually happened in this
 codebase's history — kept here so they don't get repeated in a slightly different shape.
 
+## Known Pitfall (v1.11.3): a new shared component must be adopted by existing callers in the SAME
+## pass it's introduced, not deferred as a "separate follow-up" — deferred adoption reliably never
+## happens
+
+`StatCard`'s own doc comment (written in the Milestone 4 foundation pass) explicitly said
+consolidating the Dashboard/Home/PPE Dashboard's three separate stat-card implementations onto the new
+shared component was "a separate follow-up, not bundled here." That follow-up never happened — by the
+v1.11.3 Global Dashboard/Overview UX Rework (several major passes later), Main Dashboard still had its
+own local `PrimaryCard` and PPE Dashboard still had its own local `StatCard`, both nearly identical to
+the shared one, both never migrated. Same pattern with `DepartmentCalendarWidget`: built specifically
+so the Main Dashboard's Management Calendar and every department's Department Calendar would share one
+component, but Main Dashboard's own usage was hand-duplicated inline instead — the "shared" component
+was actually only adopted by 5 of its 6 intended callers.
+
+**The lesson**: when introducing or meaningfully changing a shared component, adopt it into every
+existing page that has the pattern it replaces in the SAME commit/pass — "swap the old ones over
+later" is not a real plan, it's how the codebase ends up with 2-3 near-identical implementations of
+the same card for months. If adoption is genuinely out of scope for the current task, say so
+explicitly and flag it as follow-up work in the PR/commit description (not just a code comment), so
+it's visible rather than silently forgotten.
+
 ## CRITICAL — Known Pitfall (v1.11.2, production incident #4): this codebase has TWO equally-valid
 ## tenant company-ID patterns (`Collection` and plain `array`) — a shared service consumed by both
 ## must accept `Collection|array`, not whichever one its first caller happened to use

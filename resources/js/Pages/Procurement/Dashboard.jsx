@@ -5,9 +5,19 @@ import StatCard from '@/Components/shared/StatCard';
 import StatusBadge from '@/Components/shared/StatusBadge';
 import EmptyState from '@/Components/shared/EmptyState';
 import { Card, CardContent, CardHeader, CardTitle } from '@/Components/ui/card';
-import { FileStack, FileQuestion, ShoppingCart, AlertTriangle, Truck, CheckCircle2, Building2, Clock, ScaleIcon } from 'lucide-react';
+import ModuleCard from '@/Components/shared/ModuleCard';
+import DepartmentCalendarWidget from '@/Components/shared/DepartmentCalendarWidget';
+import { FileStack, FileQuestion, ShoppingCart, AlertTriangle, Truck, CheckCircle2, Building2, Clock, ScaleIcon, PackageCheck } from 'lucide-react';
 
 const MONTHS = ['Jan', 'Feb', 'Mar', 'Apr', 'May', 'Jun', 'Jul', 'Aug', 'Sep', 'Oct', 'Nov', 'Dec'];
+
+const PROCUREMENT_MODULES = [
+    { icon: FileStack, title: 'Purchase Requisitions', description: 'Internal purchase requests.', href: 'purchase-requisitions.index' },
+    { icon: FileQuestion, title: 'RFQ', description: 'Request for quotation & comparison.', href: 'rfqs.index' },
+    { icon: ShoppingCart, title: 'Purchase Orders', description: 'PO issuance & approval.', href: 'purchase-orders.index' },
+    { icon: PackageCheck, title: 'Goods Receipts', description: 'GRN against PO delivery.', href: 'goods-receipts.index' },
+    { icon: Building2, title: 'Vendors', description: 'Vendor master & performance.', href: 'vendors.index' },
+];
 
 function idr(n) {
     return Number(n || 0).toLocaleString('id-ID', { style: 'currency', currency: 'IDR', maximumFractionDigits: 0 });
@@ -22,7 +32,7 @@ export default function ProcurementDashboard({
     pendingPRCount, openRfqCount, quotationsAwaitingEvaluationCount, pendingPOApprovalCount,
     openPOCount, overdueDeliveryCount, partiallyDeliveredCount, completedPOCount,
     procurementValueYtd, monthlyTrend, departmentBreakdown, purchaseCycleDaysAvg,
-    activeVendorCount, recentPOs,
+    activeVendorCount, recentPOs, departmentCalendar,
 }) {
     const maxTrend = Math.max(1, ...Object.values(monthlyTrend));
 
@@ -51,6 +61,10 @@ export default function ProcurementDashboard({
                         <p className="text-xl font-bold text-graphite-900 dark:text-slate-50">{idr(procurementValueYtd)}</p>
                     </div>
                 </div>
+            </div>
+
+            <div className="mt-6 grid grid-cols-2 gap-3 sm:grid-cols-3 lg:grid-cols-6">
+                {PROCUREMENT_MODULES.map((m) => <ModuleCard key={m.title} {...m} />)}
             </div>
 
             <div className="mt-4 grid grid-cols-1 gap-3 lg:grid-cols-2">
@@ -90,7 +104,7 @@ export default function ProcurementDashboard({
                 </Card>
             </div>
 
-            <div className="mt-4">
+            <div className="mt-4 grid grid-cols-1 gap-3 lg:grid-cols-2">
                 <Card>
                     <CardHeader><CardTitle>Recent Purchase Orders</CardTitle></CardHeader>
                     <CardContent>
@@ -111,6 +125,8 @@ export default function ProcurementDashboard({
                         )}
                     </CardContent>
                 </Card>
+
+                <DepartmentCalendarWidget events={departmentCalendar} title="Procurement Calendar" description="RFQ & delivery deadlines, next 3 weeks" />
             </div>
         </AuthenticatedLayout>
     );

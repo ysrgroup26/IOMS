@@ -356,8 +356,8 @@ export default function Dashboard({
                 <Card>
                     <CardHeader className="flex flex-row items-center justify-between space-y-0">
                         <div>
-                            <CardTitle className="flex items-center gap-2"><CalendarDays className="h-3.5 w-3.5 text-graphite-400" /> Upcoming</CardTitle>
-                            <CardDescription>Next 14 days -- events, permits, milestones</CardDescription>
+                            <CardTitle className="flex items-center gap-2"><CalendarDays className="h-3.5 w-3.5 text-graphite-400" /> Management Calendar</CardTitle>
+                            <CardDescription>Next 14 days -- events explicitly marked for management, plus permits & milestones</CardDescription>
                         </div>
                         <Link href={route('calendar.index')} className="text-xs font-medium text-brand-600 hover:underline">Full Calendar</Link>
                     </CardHeader>
@@ -370,7 +370,7 @@ export default function Dashboard({
                                     const content = (
                                         <div className="flex items-center justify-between py-2 text-sm">
                                             <span className="truncate font-medium text-graphite-700 dark:text-slate-200">{e.title}</span>
-                                            <span className="shrink-0 text-xs text-graphite-400">{new Date(e.date).toLocaleDateString('en-US', { day: 'numeric', month: 'short' })}</span>
+                                            <span className="shrink-0 text-xs text-graphite-400">{new Date(e.start).toLocaleDateString('en-US', { day: 'numeric', month: 'short' })}</span>
                                         </div>
                                     );
                                     return e.url ? <Link key={i} href={e.url} className="block hover:text-brand-700">{content}</Link> : <div key={i}>{content}</div>;

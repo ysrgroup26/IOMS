@@ -1019,21 +1019,57 @@ its own workspace, separate from any module's own embedded reports (e.g. PPE's R
 inside the HSE workspace's PPE module, not duplicated here) — this is the cross-cutting,
 company-wide report surface, not a per-module one.
 
-## Global Calendar (v1.11.0, SaaS Finalization Pass)
+## Global Calendar — the ONE Calendar Engine (v1.11.0, revised v1.11.2)
 
 **Not a department** — pinned in the top bar next to Dashboard (`CalendarController`, route
-`calendar.index`), reachable regardless of which department is active. Aggregates two kinds of
-events: real, editable `CalendarEvent` rows (manual events — title/description/start/end/all_day/
-event_type/department_key/responsible_user, tenant-owned via `company_id`) and **read-only "virtual"
-events** computed live from other modules' own existing due-date fields — Leave (`start_date`/
-`end_date`), Permit To Work (`start_datetime`/`end_datetime`), TBM (`meeting_date`), Milestone
-(`target_date`), Work Order (`planned_date`). No second events table per module was created — each
-source is queried live via the same tenant-safe `Company::query()->pluck('id')` pattern used
-everywhere else, shaped into one Unified Event DTO. Deliberately excludes sources with no single
-unambiguous date (e.g. Gas Test — a reading, not a scheduled event) rather than forcing one in.
-Frontend: `Calendar/Index.jsx`, month grid + agenda view built with `date-fns` (already a dependency
-— no new library added). `RestrictDepartmentAccess`'s `UNIVERSAL_PREFIXES` includes `calendar`
-(same reasoning as `dashboard` itself: it's cross-department by design, owned by none of them).
+`calendar.index`), reachable regardless of which department is active, and still the full unfiltered
+view of every event. Aggregates two kinds of events: real, editable `CalendarEvent` rows (manual
+events — title/description/start/end/all_day/event_type/department_key/responsible_user/
+`is_management_event`, tenant-owned via `company_id`) and **read-only "virtual" events** computed
+live from other modules' own existing due-date fields — Leave (`start_date`/`end_date`), Permit To
+Work (`start_datetime`/`end_datetime`), TBM (`meeting_date`), Milestone (`target_date`), Work Order
+(`planned_date`). No second events table per module was created — each source is queried live via
+the same tenant-safe `Company::query()->pluck('id')` pattern used everywhere else. Deliberately
+excludes sources with no single unambiguous date (e.g. Gas Test — a reading, not a scheduled event)
+rather than forcing one in. Frontend: `Calendar/Index.jsx`, month grid + agenda view built with
+`date-fns` (already a dependency — no new library added). `RestrictDepartmentAccess`'s
+`UNIVERSAL_PREFIXES` includes `calendar` (cross-department by design, owned by none of them).
+
+**v1.11.2 (Final Completion Pass, Part 2/3/4/5) — Management Calendar vs Department Calendar split.**
+The aggregation itself was extracted out of `CalendarController` into `App\Services\CalendarService`
+(`aggregate()`) so there is exactly ONE engine behind three views, not three copies of the same
+five-source query:
+
+- **`CalendarService::managementEvents()`** — powers the Main Dashboard's "Management Calendar"
+  widget. Shows manual events an authorized manager/admin explicitly flagged
+  `is_management_event = true` ("Show on Management Calendar" checkbox in the create/edit dialog,
+  only rendered when `can.markManagement` is true), UNION a small fixed set of virtual sources that
+  are inherently cross-department significant regardless of any flag (Permit To Work, Milestone —
+  the same two sources the pre-`v1.11.2` Dashboard widget already surfaced, kept rather than
+  silently narrowed). The Dashboard is NOT a dumping ground for every department's operational
+  events — only what's explicitly promoted, plus those two always-relevant sources.
+- **`CalendarService::departmentEvents($companyIds, $departmentKey)`** — powers the
+  `DepartmentCalendarWidget` shared component now on the HR/HSE/Project Management/Logistics/
+  Procurement Overview pages (`resources/js/Components/shared/DepartmentCalendarWidget.jsx`, one
+  component reused by all five, not five variants). Filters the same aggregate to events already
+  carrying that department's `department_key` (both manual and virtual — the virtual providers
+  already stamped a `department_key` per source: leave→hr, ptw/tbm→hse, milestone→project-
+  management, work-order→maintenance). Logistics and Procurement have no virtual source of their own
+  yet, so their widget currently only shows manual events explicitly tagged with that department —
+  correctly empty otherwise, not fabricated.
+
+**Calendar RBAC (v1.11.2, Part 5)**: CREATE/EDIT of a manual event stays open to any authenticated
+tenant user (still primarily a lightweight scheduling tool at that level) — VIEW is implicitly
+everyone's via the full Calendar page and the two widgets. Only Super Admin / HSE (`isAdmin()`) /
+Manager (`isManager()`) may set `is_management_event` (`CalendarController::canSetManagementFlag()`)
+— reuses the existing role system, no new role concept added. An unauthorized user's edit silently
+preserves whatever the flag already was rather than erroring the whole edit. DELETE stays restricted
+to the event's own tenant via `assertInCurrentTenant()`, the same 404-not-403 ownership pattern used
+throughout this codebase.
+
+**Migration**: `2026_08_15_100113_add_is_management_event_to_calendar_events_table.php` — one
+additive boolean column, default `false`, so every existing manual event starts off the Management
+Calendar until explicitly opted in. No new table — still one Calendar Engine.
 
 ## SaaS / Licensing / Subscription / Billing (v1.11.0, SaaS Finalization Pass)
 
@@ -1111,22 +1147,48 @@ since `SafetyEquipment.type` stores the code as a plain string, not an FK). New 
 are immediately selectable in `SafetyEquipmentSection`'s own Type dropdown on the same page, since
 both sections consume the same `equipmentTypes` prop from `HazardCategoryController::master()`.
 
-## HSE Inspection Categories — LSA/FFA/PPE (v1.11.1)
+## HSE Inspection Categories — LSA/FFA/PPE (v1.11.1, templates added v1.11.2)
 
 `HseInspection` (Workstream B2) already supported a configurable `checklist_items` JSON column per
 inspection — audited first and confirmed this already satisfies "Inspection Category → Checklist →
-Result → Findings" without any new architecture. Only gap: `HseInspection::TYPES` didn't list `lsa`
-(Life Saving Appliances) or `ffa` (Fire Fighting Appliances) as explicit categories. Both added;
-`fire_safety` (the pre-existing, more generic category) was kept unchanged, not renamed, so no
-existing inspection record is affected.
+Result → Findings" without any new architecture. `HseInspection::TYPES` lists `lsa`
+(Life Saving Appliances) and `ffa` (Fire Fighting Appliances) as explicit categories alongside the
+pre-existing `ppe` and `fire_safety` (kept unchanged, not renamed, so no existing inspection record
+is affected).
 
-## Global Calendar on the Main Dashboard (v1.11.1)
+**v1.11.2 (Final Completion Pass, Part 9) — actual checklist TEMPLATES, not just category labels.**
+`HseChecklistTemplate` (new, additive table `hse_checklist_templates`) is a named, reusable seed for
+`HseInspection.checklist_items` — `category` (validated against `HseInspection::TYPES`, the exact
+same source of truth the Inspection form's own type dropdown uses, so a future inspection type is
+automatically a valid template category with no schema change), `name`, `items` (JSON array of
+`{label}`), `is_active`, `sort_order`. This is still ONE inspection engine — a template never creates
+a separate FFA/LSA/PPE table or form, it only prefills the existing one. CRUD lives on the shared HSE
+Master Data page (`ChecklistTemplatesSection` in `resources/js/Pages/Hse/Master.jsx`, routes
+`hse-checklist-templates.*`, mirrors `HseEquipmentTypeController`'s own tenant-safe pattern). In
+`HseInspections/Form.jsx`, a "Load Template" dropdown (filtered to whichever `inspection_type` is
+currently selected) replaces the current checklist rows with the template's items — a confirm prompt
+guards against silently discarding a partially-filled checklist.
 
-`DashboardController::upcomingEvents()` — a small, deliberately narrower "Upcoming" widget (next 14
-days, manual `CalendarEvent` + Permit To Work + Milestone only, capped at 8) shown directly on the
-Main Dashboard, separate from and linking to the full `Calendar/Index.jsx` page (which also
-aggregates Leave/TBM/Work Order). Not a duplicate calendar system — same tenant-safe query pattern,
-narrower source set, by design (a Dashboard widget, not the full calendar).
+The owning migration seeds one default template per existing company for exactly the three
+categories the spec gave example item lists for:
+- **FFA**: equipment available, correct location, physical condition, safety seal/pin, pressure
+  gauge, hose/nozzle condition, signage, inspection tag.
+- **LSA**: availability, correct storage location, physical condition, accessibility, identification/
+  marking.
+- **PPE**: helmet, safety shoes, gloves, safety glasses, coverall.
+
+Additive only — never overwrites a company's own later edits (a per-company-per-category existence
+check guards the seed insert).
+
+## Calendar widgets on the Main Dashboard and Department Overviews (v1.11.1, revised v1.11.2)
+
+See the "Global Calendar — the ONE Calendar Engine" section above for the full Management vs
+Department Calendar architecture. In short: `DashboardController` shows
+`CalendarService::managementEvents()` (next 14 days, capped at 8) as the Main Dashboard's Management
+Calendar; HR/HSE/Project Management/Logistics/Procurement Overview pages each show
+`CalendarService::departmentEvents($companyIds, $departmentKey)` (next 3 weeks, capped at 6) via the
+shared `DepartmentCalendarWidget` component. Both are narrower views over the same aggregation the
+full `Calendar/Index.jsx` page uses — not duplicate calendar systems.
 
 ## Man-Power / Man-Hour (v1.11.1)
 
@@ -1136,6 +1198,34 @@ is shown on the Main Dashboard instead: `active_employees` (real headcount) and 
 (real count of `EmployeeShiftAssignment` rows currently in effect). Building true man-hour tracking
 would require a new attendance/timesheet source — explicitly flagged as future work, not attempted
 this pass.
+
+## Overview ModuleCard rollout (v1.11.2, Final Completion Pass Part 1)
+
+The `ModuleCard` grid pattern (previously HSE-only, per the prior pass's explicit note) is now on
+every department Overview page that actually has one: HR, HSE, Project Management, Logistics,
+Procurement (`HR_MODULES`/`PM_MODULES`/`LOGISTICS_MODULES`/`PROCUREMENT_MODULES` constant arrays in
+each `Dashboard.jsx`, same shape as HSE's own `HSE_MODULES`). Departments with **no dedicated
+Overview/Dashboard page at all** — Warehouse, Asset Management, Maintenance, Quality Control,
+Finance, Contractor, Visitor, Document Control, Reports, Administration — were deliberately NOT given
+a new Overview page just to host a card grid ("do not invent modules"); they still link back to the
+global Dashboard as before. Building a real Overview for any of them is future work, not silently
+done here.
+
+## v1.11.2 security fixes (Final Completion Pass, Part 19)
+
+Two confirmed, real issues found and fixed while extending the department dashboards/routes above —
+not merely listed:
+
+- **`HrDashboardController` had zero company/tenant scoping** — every query (`Employee::count()`,
+  `LeaveRequest::where(...)`, `KpiRecord::forPeriod(...)`, etc.) queried across every tenant in the
+  database, unlike its 4 sibling department dashboard controllers (Hse/ProjectManagement/Logistics/
+  Procurement), all already fixed for the exact same bug class in earlier passes. Fixed the same way:
+  `DashboardStatsService::resolveCompanyIds()`, not a new copy of the scoping logic.
+- **`config/departments.php` was missing `hse-equipment-types` from the `hse` department's route
+  prefix list** — since `RestrictDepartmentAccess` fails CLOSED for any prefix not in the map (see
+  that middleware's own v1.10.5 doc comment), an HSE Department User (`department_key = 'hse'`) would
+  have gotten a 403 trying to use the Equipment Types feature, despite it being an HSE-only page.
+  Added, along with the new `hse-checklist-templates` prefix for this same pass's new routes.
 
 ## Reusable engines (Approval, Workflow, Timeline, Import, PDF, Report Export)
 

@@ -33,6 +33,7 @@ return [
         'job-safety-analyses', 'permits-to-work', 'gas-test-records', 'loto-records',
         'tbm-meetings', 'corrective-actions', 'hazard-categories',
         'safety-equipment', 'hse-materials', 'p3k-boxes',
+        'hse-equipment-types', 'hse-checklist-templates',
         'contractors', 'visitors', 'controlled-documents',
     ],
     'project-management' => [

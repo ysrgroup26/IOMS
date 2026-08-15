@@ -4,17 +4,27 @@ import PageHeader from '@/Components/shared/PageHeader';
 import StatCard from '@/Components/shared/StatCard';
 import EmptyState from '@/Components/shared/EmptyState';
 import { Card, CardContent, CardHeader, CardTitle } from '@/Components/ui/card';
-import { PackageSearch, ClipboardCheck, PackageCheck, Boxes, ArrowRightLeft } from 'lucide-react';
+import ModuleCard from '@/Components/shared/ModuleCard';
+import DepartmentCalendarWidget from '@/Components/shared/DepartmentCalendarWidget';
+import { PackageSearch, ClipboardCheck, PackageCheck, Boxes, ArrowRightLeft, Warehouse, Package } from 'lucide-react';
+
+const LOGISTICS_MODULES = [
+    { icon: PackageSearch, title: 'Material Requests', description: 'Request & approval workflow.', href: 'material-requests.index' },
+    { icon: PackageCheck, title: 'Goods Receipts', description: 'Incoming goods against PO.', href: 'goods-receipts.index' },
+    { icon: Warehouse, title: 'Warehouse Stock', description: 'Stock levels by warehouse.', href: 'stock.index' },
+    { icon: ArrowRightLeft, title: 'Stock Movements', description: 'Issue, transfer, adjustment log.', href: 'stock.movements' },
+    { icon: Package, title: 'Item Master', description: 'Item/material catalog.', href: 'items.index' },
+];
 
 /**
- * Logistics Dashboard (v1.10.0). Milestone 4, Acceleration Part 1B/7: Low
- * Stock + Recent Movement now have a real backing data model (Warehouse/
- * Stock/StockMovement) -- see LogisticsDashboardController's own doc
- * comment.
+ * Logistics Dashboard (v1.10.0, ModuleCard grid added v1.11.2 -- Final
+ * Completion Pass Part 1). Milestone 4, Acceleration Part 1B/7: Low Stock +
+ * Recent Movement now have a real backing data model (Warehouse/Stock/
+ * StockMovement) -- see LogisticsDashboardController's own doc comment.
  */
 export default function LogisticsDashboard({
     pendingMaterialRequests, waitingApprovals, goodsReceiptsThisMonth, materialRequestsByStatus, recentGoodsReceipts,
-    lowStockCount, recentStockMovements,
+    lowStockCount, recentStockMovements, departmentCalendar,
 }) {
     const statusEntries = Object.entries(materialRequestsByStatus || {});
 
@@ -28,6 +38,10 @@ export default function LogisticsDashboard({
                 <StatCard icon={ClipboardCheck} value={waitingApprovals} label="Waiting Approvals" accent={waitingApprovals > 0 ? 'amber' : null} href={route('work-center.index')} />
                 <StatCard icon={PackageCheck} value={goodsReceiptsThisMonth} label="Goods Received This Month" href={route('goods-receipts.index')} />
                 <StatCard icon={Boxes} value={lowStockCount} label="Low Stock Items" accent={lowStockCount > 0 ? 'red' : null} href={route('stock.index', { low_stock: 1 })} />
+            </div>
+
+            <div className="mt-6 grid grid-cols-2 gap-3 sm:grid-cols-3 lg:grid-cols-6">
+                {LOGISTICS_MODULES.map((m) => <ModuleCard key={m.title} {...m} />)}
             </div>
 
             <div className="mt-4 grid grid-cols-1 gap-3 lg:grid-cols-2">
@@ -73,7 +87,7 @@ export default function LogisticsDashboard({
                 </Card>
             </div>
 
-            <div className="mt-4">
+            <div className="mt-4 grid grid-cols-1 gap-3 lg:grid-cols-2">
                 <Card>
                     <CardHeader className="flex flex-row items-center gap-2"><ArrowRightLeft className="h-4 w-4 text-graphite-400" /><CardTitle>Recent Stock Movements</CardTitle></CardHeader>
                     <CardContent>
@@ -93,6 +107,8 @@ export default function LogisticsDashboard({
                         <Link href={route('stock.movements')} className="mt-2 inline-block text-xs font-medium text-brand-600 hover:underline">View all</Link>
                     </CardContent>
                 </Card>
+
+                <DepartmentCalendarWidget events={departmentCalendar} title="Logistics Calendar" description="Stock & delivery schedule, next 3 weeks" />
             </div>
         </AuthenticatedLayout>
     );

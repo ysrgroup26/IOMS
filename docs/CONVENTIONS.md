@@ -3,6 +3,36 @@
 House style, and a deliberately honest list of mistakes that have actually happened in this
 codebase's history — kept here so they don't get repeated in a slightly different shape.
 
+## Known Pitfall (v1.11.2) — a new route prefix must be added to config/departments.php in the SAME
+## commit it's registered, not a follow-up
+
+`HseEquipmentTypeController`'s routes (`hse-equipment-types.*`) were added in v1.11.1, but
+`config/departments.php`'s `hse` prefix list was never updated to include `hse-equipment-types`.
+Because `RestrictDepartmentAccess` fails CLOSED for any prefix not present in that map (a deliberate
+v1.10.5 change — see that middleware's own doc comment), an HSE Department User (`department_key =
+'hse'`) would have gotten a 403 on a page that should have been theirs. Found and fixed in v1.11.2
+while wiring the frontend for those same routes. **The lesson**: `routes/web.php` and
+`config/departments.php` are two halves of one fact ("this route belongs to department X") — adding
+a route without its prefix entry doesn't fail loudly at write time, it fails quietly later as a real
+user getting blocked from a page that's actually theirs. When adding any new `Route::post/put/delete`
+inside an HSE/HR/etc.-gated group, add its prefix to `config/departments.php` (or
+`RestrictDepartmentAccess::UNIVERSAL_PREFIXES` if it's genuinely cross-department) in the same change,
+and grep for the new prefix in that file as a verification step before considering the route "done".
+
+## Known Pitfall (v1.11.2) — a new department Dashboard controller must be scoped from creation, not
+## assumed safe by analogy
+
+`HrDashboardController` had zero `company_id` scoping on every query (`Employee::count()`,
+`LeaveRequest::where(...)`, etc.) — a full cross-tenant data leak on the HR Overview page. This is
+the exact bug class already fixed in `HseDashboardController`/`ProjectManagementDashboardController`/
+`LogisticsDashboardController`/`ProcurementDashboardController` (each carries its own doc comment
+explaining the same fix), but `HrDashboardController` was written earlier and never got the same
+audit pass. **The lesson**: "this bug class was already fixed in module X" is not evidence it was
+fixed everywhere it appears — when auditing for a known leak pattern, check every sibling controller
+by name, not just the ones a task happens to touch. `DashboardStatsService::resolveCompanyIds()` is
+the one reusable fix; grep for controllers extending `Controller` under `Dashboard` that construct
+queries without it before assuming a department dashboard is tenant-safe.
+
 ## Convention update (v1.11.1) — resolve, don't just gate, an unsafe default when the fix is real
 
 `EnforceTenantEntitlement` (v1.11.0) was shipped gated behind `config('saas.enforce_entitlement')`,

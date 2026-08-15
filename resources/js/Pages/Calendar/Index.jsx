@@ -8,6 +8,7 @@ import { Input } from '@/Components/ui/input';
 import { Label } from '@/Components/ui/label';
 import { Textarea } from '@/Components/ui/textarea';
 import { Badge } from '@/Components/ui/badge';
+import { Checkbox } from '@/Components/ui/checkbox';
 import { Select, SelectTrigger, SelectValue, SelectContent, SelectItem } from '@/Components/ui/select';
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogFooter } from '@/Components/ui/dialog';
 import EmptyState from '@/Components/shared/EmptyState';
@@ -163,13 +164,13 @@ export default function CalendarIndex({ events, range, eventTypes, companies, ca
                 </Card>
             )}
 
-            {createOpen && <EventDialog companies={companies} eventTypes={eventTypes} defaultDate={selectedDay} onClose={() => setCreateOpen(false)} />}
+            {createOpen && <EventDialog companies={companies} eventTypes={eventTypes} defaultDate={selectedDay} can={can} onClose={() => setCreateOpen(false)} />}
             {detailEvent && <EventDetailDialog event={detailEvent} eventTypes={eventTypes} onClose={() => setDetailEvent(null)} />}
         </AuthenticatedLayout>
     );
 }
 
-function EventDialog({ companies, eventTypes, defaultDate, onClose }) {
+function EventDialog({ companies, eventTypes, defaultDate, can, onClose }) {
     const { data, setData, post, processing, errors, reset } = useForm({
         company_id: companies[0]?.id ? String(companies[0].id) : '',
         title: '',
@@ -178,6 +179,7 @@ function EventDialog({ companies, eventTypes, defaultDate, onClose }) {
         end_at: '',
         all_day: false,
         event_type: 'general',
+        is_management_event: false,
     });
 
     function submit(e) {
@@ -210,6 +212,12 @@ function EventDialog({ companies, eventTypes, defaultDate, onClose }) {
                             </Select>
                         </div>
                     </div>
+                    {can?.markManagement && (
+                        <label className="flex items-center gap-2 text-sm">
+                            <Checkbox checked={data.is_management_event} onCheckedChange={(v) => setData('is_management_event', !!v)} />
+                            Show on Management Calendar
+                        </label>
+                    )}
                     <DialogFooter><Button type="button" variant="outline" onClick={onClose}>Cancel</Button><Button type="submit" disabled={processing}>Create</Button></DialogFooter>
                 </form>
             </DialogContent>
@@ -231,7 +239,7 @@ function EventDetailDialog({ event, onClose }) {
                     <p><span className="text-graphite-400">When: </span>{event.start && format(new Date(event.start), 'EEE, d MMM yyyy HH:mm')}{event.end && ` – ${format(new Date(event.end), 'HH:mm')}`}</p>
                     {event.description && <p><span className="text-graphite-400">Notes: </span>{event.description}</p>}
                     {event.responsible && <p><span className="text-graphite-400">Responsible: </span>{event.responsible}</p>}
-                    <p><span className="text-graphite-400">Type: </span><Badge variant={TYPE_BADGE[event.event_type] ?? 'secondary'} className="capitalize">{event.event_type}</Badge></p>
+                    <p><span className="text-graphite-400">Type: </span><Badge variant={TYPE_BADGE[event.event_type] ?? 'secondary'} className="capitalize">{event.event_type}</Badge>{event.is_management_event && <Badge variant="default" className="ml-1.5">Management Calendar</Badge>}</p>
                     {!event.editable && <p className="text-xs text-graphite-400">This event is pulled automatically from {event.source.replace('-', ' ')} and can't be edited here.</p>}
                 </div>
                 <DialogFooter>

@@ -5,6 +5,7 @@ namespace App\Http\Controllers;
 use App\Models\ActivityLog;
 use App\Models\Company;
 use App\Models\CorrectiveAction;
+use App\Models\HseChecklistTemplate;
 use App\Models\HseInspection;
 use App\Models\Project;
 use App\Models\User;
@@ -49,6 +50,14 @@ class HseInspectionController extends Controller
             'projects' => Project::whereIn('company_id', $tenantCompanyIds)->orderBy('name')->get(['id', 'name']),
             'inspectionNumber' => HseInspection::generateNumber(),
             'types' => HseInspection::TYPES,
+            // v1.11.2 (Final Completion Pass, Part 9) -- checklist templates
+            // grouped by category so the Form can offer "Load Template" for
+            // whichever inspection_type is currently selected, without a
+            // second inspection engine.
+            'checklistTemplates' => HseChecklistTemplate::whereIn('company_id', $tenantCompanyIds)
+                ->active()
+                ->orderBy('sort_order')
+                ->get(['id', 'company_id', 'category', 'name', 'items']),
         ]);
     }
 

@@ -6,6 +6,7 @@ use App\Models\PurchaseOrder;
 use App\Models\PurchaseRequisition;
 use App\Models\Rfq;
 use App\Models\Vendor;
+use App\Services\CalendarService;
 use App\Services\DashboardStatsService;
 use Illuminate\Support\Carbon;
 use Inertia\Inertia;
@@ -21,7 +22,10 @@ use Inertia\Response;
  */
 class ProcurementDashboardController extends Controller
 {
-    public function __construct(private readonly DashboardStatsService $dashboardStats) {}
+    public function __construct(
+        private readonly DashboardStatsService $dashboardStats,
+        private readonly CalendarService $calendar,
+    ) {}
 
     public function index(): Response
     {
@@ -86,6 +90,7 @@ class ProcurementDashboardController extends Controller
                 ->latest('po_date')
                 ->limit(6)
                 ->get(['id', 'po_number', 'vendor_id', 'grand_total', 'status', 'po_date']),
+            'departmentCalendar' => $this->calendar->departmentEvents($companyIds, 'procurement'),
         ]);
     }
 }

@@ -12,6 +12,7 @@ class CalendarEvent extends Model
     protected $fillable = [
         'company_id', 'title', 'description', 'start_at', 'end_at', 'all_day',
         'event_type', 'department_key', 'responsible_user_id', 'created_by',
+        'is_management_event',
     ];
 
     protected function casts(): array
@@ -20,6 +21,7 @@ class CalendarEvent extends Model
             'start_at' => 'datetime',
             'end_at' => 'datetime',
             'all_day' => 'boolean',
+            'is_management_event' => 'boolean',
         ];
     }
 

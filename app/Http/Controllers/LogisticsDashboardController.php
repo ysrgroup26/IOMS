@@ -8,6 +8,7 @@ use App\Models\GoodsReceipt;
 use App\Models\MaterialRequest;
 use App\Models\Stock;
 use App\Models\StockMovement;
+use App\Services\CalendarService;
 use App\Services\DashboardStatsService;
 use Illuminate\Support\Carbon;
 use Inertia\Inertia;
@@ -29,7 +30,10 @@ use Inertia\Response;
  */
 class LogisticsDashboardController extends Controller
 {
-    public function __construct(private readonly DashboardStatsService $dashboardStats) {}
+    public function __construct(
+        private readonly DashboardStatsService $dashboardStats,
+        private readonly CalendarService $calendar,
+    ) {}
 
     public function index(): Response
     {
@@ -70,6 +74,7 @@ class LogisticsDashboardController extends Controller
                 ->latest('id')
                 ->limit(5)
                 ->get(['id', 'movement_number', 'item_id', 'warehouse_id', 'type', 'quantity', 'movement_date']),
+            'departmentCalendar' => $this->calendar->departmentEvents($companyIds, 'logistics'),
         ]);
     }
 }

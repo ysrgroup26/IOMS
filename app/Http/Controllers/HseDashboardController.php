@@ -12,6 +12,7 @@ use App\Models\PermitToWork;
 use App\Models\Project;
 use App\Models\SafetyEquipment;
 use App\Models\SafetyObservation;
+use App\Services\CalendarService;
 use App\Services\DashboardStatsService;
 use Inertia\Inertia;
 use Inertia\Response;
@@ -41,7 +42,10 @@ use Inertia\Response;
  */
 class HseDashboardController extends Controller
 {
-    public function __construct(private readonly DashboardStatsService $dashboardStats) {}
+    public function __construct(
+        private readonly DashboardStatsService $dashboardStats,
+        private readonly CalendarService $calendar,
+    ) {}
 
     public function index(): Response
     {
@@ -99,6 +103,7 @@ class HseDashboardController extends Controller
             'openCapaCount' => CorrectiveAction::whereIn('company_id', $companyIds)
                 ->whereNotIn('status', [CorrectiveAction::STATUS_VERIFIED, CorrectiveAction::STATUS_CANCELLED])
                 ->count(),
+            'departmentCalendar' => $this->calendar->departmentEvents($companyIds, 'hse'),
         ]);
     }
 }

@@ -6,6 +6,7 @@ import StatusBadge from '@/Components/shared/StatusBadge';
 import EmptyState from '@/Components/shared/EmptyState';
 import { Card, CardContent, CardHeader, CardTitle } from '@/Components/ui/card';
 import ModuleCard from '@/Components/shared/ModuleCard';
+import DepartmentCalendarWidget from '@/Components/shared/DepartmentCalendarWidget';
 import {
     FolderKanban, AlertTriangle, HardHat, History, Eye, Flame, ShieldAlert, ClipboardCheck,
     ClipboardList, FileWarning, Lock, UsersRound, FlaskConical, UserCheck, FileCheck, FileStack,
@@ -46,7 +47,7 @@ const HSE_MODULES = [
 export default function HseDashboard({
     activeProjectsCount, openIncidentsCount, incidentsBySeverity, ppeAlertCount,
     recentIncidents, recentActivity, openSafetyObservationsCount, recentSafetyObservations,
-    openPermitsCount, overdueSafetyEquipmentCount, overdueP3kCount, openCapaCount,
+    openPermitsCount, overdueSafetyEquipmentCount, overdueP3kCount, openCapaCount, departmentCalendar,
 }) {
     return (
         <AuthenticatedLayout>
@@ -69,7 +70,7 @@ export default function HseDashboard({
                 {HSE_MODULES.map((m) => <ModuleCard key={m.title} {...m} />)}
             </div>
 
-            <div className="mt-4 grid grid-cols-1 gap-3 lg:grid-cols-3">
+            <div className="mt-4 grid grid-cols-1 gap-3 lg:grid-cols-4">
                 <Card>
                     <CardHeader><CardTitle>Recent Incidents</CardTitle></CardHeader>
                     <CardContent>
@@ -128,6 +129,8 @@ export default function HseDashboard({
                         )}
                     </CardContent>
                 </Card>
+
+                <DepartmentCalendarWidget events={departmentCalendar} title="HSE Calendar" description="Permits, TBM & inspections, next 3 weeks" />
             </div>
         </AuthenticatedLayout>
     );

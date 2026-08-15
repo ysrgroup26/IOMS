@@ -11,7 +11,17 @@ import { ArrowLeft, Plus, Trash2 } from 'lucide-react';
 
 const BLANK_ITEM = { item: '', result: 'ok', remarks: '' };
 
-export default function HseInspectionForm({ companies, projects, inspectionNumber, types }) {
+/**
+ * v1.11.2 (Final Completion Pass, Part 9). "Load Template" replaces
+ * manually retyping the FFA/LSA/PPE item list every time -- reads from
+ * `checklistTemplates` (HseChecklistTemplate, configurable per company via
+ * HSE > Master Data > Checklist Templates), filtered to whichever
+ * `inspection_type` is currently selected. Loading a template REPLACES the
+ * current checklist rows (with confirmation if any are already filled in)
+ * rather than merging, since re-loading is meant to reset to the standard
+ * list, not append to a partially-filled one.
+ */
+export default function HseInspectionForm({ companies, projects, inspectionNumber, types, checklistTemplates = [] }) {
     const { data, setData, post, processing, errors } = useForm({
         company_id: companies[0]?.id ? String(companies[0].id) : '',
         project_id: '',
@@ -26,6 +36,16 @@ export default function HseInspectionForm({ companies, projects, inspectionNumbe
         const items = [...data.checklist_items];
         items[i] = { ...items[i], [field]: value };
         setData('checklist_items', items);
+    }
+
+    const templatesForType = checklistTemplates.filter((t) => t.category === data.inspection_type);
+
+    function loadTemplate(templateId) {
+        const template = checklistTemplates.find((t) => String(t.id) === String(templateId));
+        if (!template) return;
+        const hasContent = data.checklist_items.some((i) => i.item || i.remarks);
+        if (hasContent && !confirm('Replace the current checklist with this template? Unsaved rows will be lost.')) return;
+        setData('checklist_items', template.items.map((it) => ({ item: it.label, result: 'ok', remarks: '' })));
     }
 
     function submit(e) {
@@ -80,7 +100,15 @@ export default function HseInspectionForm({ companies, projects, inspectionNumbe
                 <Card>
                     <CardHeader className="flex flex-row items-center justify-between">
                         <CardTitle>Checklist</CardTitle>
-                        <Button type="button" variant="outline" size="sm" onClick={() => setData('checklist_items', [...data.checklist_items, { ...BLANK_ITEM }])}><Plus className="h-4 w-4" /> Add Item</Button>
+                        <div className="flex items-center gap-2">
+                            {templatesForType.length > 0 && (
+                                <Select value="" onValueChange={loadTemplate}>
+                                    <SelectTrigger className="w-56"><SelectValue placeholder="Load Template..." /></SelectTrigger>
+                                    <SelectContent>{templatesForType.map((t) => <SelectItem key={t.id} value={String(t.id)}>{t.name} ({t.items.length} items)</SelectItem>)}</SelectContent>
+                                </Select>
+                            )}
+                            <Button type="button" variant="outline" size="sm" onClick={() => setData('checklist_items', [...data.checklist_items, { ...BLANK_ITEM }])}><Plus className="h-4 w-4" /> Add Item</Button>
+                        </div>
                     </CardHeader>
                     <CardContent className="overflow-x-auto">
                         <Table>

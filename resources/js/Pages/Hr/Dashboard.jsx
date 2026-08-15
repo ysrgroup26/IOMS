@@ -5,16 +5,28 @@ import StatCard from '@/Components/shared/StatCard';
 import StatusBadge from '@/Components/shared/StatusBadge';
 import EmptyState from '@/Components/shared/EmptyState';
 import { Card, CardContent, CardHeader, CardTitle } from '@/Components/ui/card';
-import { Users, UserCheck, CalendarDays, ClipboardEdit, UserCog, ClipboardList } from 'lucide-react';
+import ModuleCard from '@/Components/shared/ModuleCard';
+import DepartmentCalendarWidget from '@/Components/shared/DepartmentCalendarWidget';
+import { Users, UserCheck, CalendarDays, ClipboardEdit, UserCog, ClipboardList, GraduationCap, CalendarClock, ClipboardSignature } from 'lucide-react';
+
+const HR_MODULES = [
+    { icon: Users, title: 'Employees', description: 'Employee master records.', href: 'employees.index' },
+    { icon: CalendarDays, title: 'Leave', description: 'Leave requests & approvals.', href: 'leave-requests.index' },
+    { icon: ClipboardList, title: 'KPI Records', description: 'Performance indicator tracking.', href: 'kpi-records.index' },
+    { icon: CalendarClock, title: 'Shift Master', description: 'Shift patterns & assignment.', href: 'shifts.master' },
+    { icon: ClipboardSignature, title: 'Roster', description: 'Shift roster overview.', href: 'rosters.overview' },
+    { icon: GraduationCap, title: 'Competency', description: 'Certifications & expiry tracking.', href: 'competency.master' },
+];
 
 /**
- * HR Dashboard (v1.10.0). Operational HR information only -- see
- * HrDashboardController's own doc comment for exactly which widgets from
- * the spec were intentionally left out (no backing data model yet).
+ * HR Dashboard (v1.10.0, ModuleCard grid added v1.11.2 -- Final Completion
+ * Pass Part 1). Operational HR information only -- see HrDashboardController's
+ * own doc comment for exactly which widgets from the spec were intentionally
+ * left out (no backing data model yet).
  */
 export default function HrDashboard({
     totalEmployees, activeEmployees, employeesOnLeaveToday, pendingLeaveRequests,
-    employeesNeedCompletionCount, kpiThisMonth, recentLeaveRequests,
+    employeesNeedCompletionCount, kpiThisMonth, recentLeaveRequests, departmentCalendar,
 }) {
     return (
         <AuthenticatedLayout>
@@ -33,31 +45,39 @@ export default function HrDashboard({
                 <StatCard icon={ClipboardList} value={kpiThisMonth} label="KPI Records This Month" href={route('kpi-records.index')} />
             </div>
 
-            <Card className="mt-4">
-                <CardHeader><CardTitle>Recent Leave Requests</CardTitle></CardHeader>
-                <CardContent>
-                    {recentLeaveRequests.length === 0 ? (
-                        <EmptyState icon={CalendarDays} title="No leave requests yet" />
-                    ) : (
-                        <ul className="divide-y divide-graphite-100">
-                            {recentLeaveRequests.map((lr) => (
-                                <li key={lr.id}>
-                                    <Link href={route('leave-requests.show', lr.id)} className="flex items-center justify-between gap-2 py-2.5 text-sm hover:text-brand-700">
-                                        <span className="font-medium text-graphite-700">{lr.employee?.full_name}</span>
-                                        <span className="capitalize text-graphite-400">{lr.leave_type}</span>
-                                        <span className="text-xs text-graphite-400">
-                                            {new Date(lr.start_date).toLocaleDateString('en-US', { day: 'numeric', month: 'short' })}
-                                            {' - '}
-                                            {new Date(lr.end_date).toLocaleDateString('en-US', { day: 'numeric', month: 'short' })}
-                                        </span>
-                                        <StatusBadge value={lr.status} label={lr.status === 'submitted' ? 'Waiting Approval' : undefined} />
-                                    </Link>
-                                </li>
-                            ))}
-                        </ul>
-                    )}
-                </CardContent>
-            </Card>
+            <div className="mt-6 grid grid-cols-2 gap-3 sm:grid-cols-3 lg:grid-cols-6">
+                {HR_MODULES.map((m) => <ModuleCard key={m.title} {...m} />)}
+            </div>
+
+            <div className="mt-4 grid grid-cols-1 gap-3 lg:grid-cols-2">
+                <Card>
+                    <CardHeader><CardTitle>Recent Leave Requests</CardTitle></CardHeader>
+                    <CardContent>
+                        {recentLeaveRequests.length === 0 ? (
+                            <EmptyState icon={CalendarDays} title="No leave requests yet" />
+                        ) : (
+                            <ul className="divide-y divide-graphite-100">
+                                {recentLeaveRequests.map((lr) => (
+                                    <li key={lr.id}>
+                                        <Link href={route('leave-requests.show', lr.id)} className="flex items-center justify-between gap-2 py-2.5 text-sm hover:text-brand-700">
+                                            <span className="font-medium text-graphite-700">{lr.employee?.full_name}</span>
+                                            <span className="capitalize text-graphite-400">{lr.leave_type}</span>
+                                            <span className="text-xs text-graphite-400">
+                                                {new Date(lr.start_date).toLocaleDateString('en-US', { day: 'numeric', month: 'short' })}
+                                                {' - '}
+                                                {new Date(lr.end_date).toLocaleDateString('en-US', { day: 'numeric', month: 'short' })}
+                                            </span>
+                                            <StatusBadge value={lr.status} label={lr.status === 'submitted' ? 'Waiting Approval' : undefined} />
+                                        </Link>
+                                    </li>
+                                ))}
+                            </ul>
+                        )}
+                    </CardContent>
+                </Card>
+
+                <DepartmentCalendarWidget events={departmentCalendar} title="HR Calendar" description="Leave & company events, next 3 weeks" />
+            </div>
         </AuthenticatedLayout>
     );
 }

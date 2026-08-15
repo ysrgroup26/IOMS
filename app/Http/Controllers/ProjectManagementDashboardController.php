@@ -6,6 +6,7 @@ use App\Models\DailyReportActivity;
 use App\Models\Milestone;
 use App\Models\Project;
 use App\Models\ProjectActivity;
+use App\Services\CalendarService;
 use App\Services\DashboardStatsService;
 use Illuminate\Support\Carbon;
 use Inertia\Inertia;
@@ -25,7 +26,10 @@ use Inertia\Response;
  */
 class ProjectManagementDashboardController extends Controller
 {
-    public function __construct(private readonly DashboardStatsService $dashboardStats) {}
+    public function __construct(
+        private readonly DashboardStatsService $dashboardStats,
+        private readonly CalendarService $calendar,
+    ) {}
 
     public function index(): Response
     {
@@ -56,6 +60,7 @@ class ProjectManagementDashboardController extends Controller
                 ->orderBy('end_date')
                 ->limit(5)
                 ->get(['id', 'name', 'end_date']),
+            'departmentCalendar' => $this->calendar->departmentEvents($companyIds, 'project-management'),
         ]);
     }
 }

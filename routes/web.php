@@ -9,6 +9,7 @@ use App\Http\Controllers\Auth\NewPasswordController;
 use App\Http\Controllers\Auth\PasswordResetLinkController;
 use App\Http\Controllers\ComingSoonController;
 use App\Http\Controllers\CalendarController;
+use App\Http\Controllers\HseChecklistTemplateController;
 use App\Http\Controllers\HseEquipmentTypeController;
 use App\Http\Controllers\CompetencyController;
 use App\Http\Controllers\ContractorController;
@@ -485,6 +486,11 @@ Route::middleware(['auth', 'restrict.platform-admin'])->group(function () {
         Route::post('/hse-equipment-types', [HseEquipmentTypeController::class, 'store'])->name('hse-equipment-types.store');
         Route::put('/hse-equipment-types/{hseEquipmentType}', [HseEquipmentTypeController::class, 'update'])->name('hse-equipment-types.update');
         Route::delete('/hse-equipment-types/{hseEquipmentType}', [HseEquipmentTypeController::class, 'destroy'])->name('hse-equipment-types.destroy');
+
+        // v1.11.2 (Final Completion Pass, Part 9).
+        Route::post('/hse-checklist-templates', [HseChecklistTemplateController::class, 'store'])->name('hse-checklist-templates.store');
+        Route::put('/hse-checklist-templates/{hseChecklistTemplate}', [HseChecklistTemplateController::class, 'update'])->name('hse-checklist-templates.update');
+        Route::delete('/hse-checklist-templates/{hseChecklistTemplate}', [HseChecklistTemplateController::class, 'destroy'])->name('hse-checklist-templates.destroy');
 
         Route::post('/hse-materials', [HseMaterialController::class, 'store'])->name('hse-materials.store');
         Route::put('/hse-materials/{hseMaterial}', [HseMaterialController::class, 'update'])->name('hse-materials.update');

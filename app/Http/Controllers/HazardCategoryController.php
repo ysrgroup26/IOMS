@@ -7,7 +7,9 @@ use App\Http\Requests\UpdateHazardCategoryRequest;
 use App\Models\ActivityLog;
 use App\Models\Company;
 use App\Models\HazardCategory;
+use App\Models\HseChecklistTemplate;
 use App\Models\HseEquipmentType;
+use App\Models\HseInspection;
 use App\Models\HseMaterial;
 use App\Models\P3kBox;
 use App\Models\SafetyEquipment;
@@ -43,6 +45,11 @@ class HazardCategoryController extends Controller
             'equipmentTypes' => HseEquipmentType::whereIn('company_id', $companyIds)->active()->get(),
             'hseMaterials' => HseMaterial::whereIn('company_id', $companyIds)->orderBy('name')->get(),
             'p3kBoxes' => P3kBox::whereIn('company_id', $companyIds)->with('inspector:id,name')->orderBy('location')->get(),
+            // v1.11.2 (Final Completion Pass, Part 9) -- LSA/FFA/PPE
+            // checklist templates, same shared setup page.
+            'checklistTemplates' => HseChecklistTemplate::whereIn('company_id', $companyIds)
+                ->orderBy('category')->orderBy('sort_order')->get(),
+            'inspectionTypes' => HseInspection::TYPES,
             'companies' => Company::active()->orderBy('name')->get(['id', 'name']),
             'can' => ['manage' => request()->user()->isAdmin()],
         ]);

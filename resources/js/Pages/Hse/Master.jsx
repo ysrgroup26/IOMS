@@ -20,7 +20,7 @@ import { Plus, Pencil, Trash2, AlertCircle } from 'lucide-react';
  * Material types, etc.) land on this same page as additional sections
  * rather than each growing its own standalone route.
  */
-export default function HseMaster({ hazardCategories, safetyEquipment, equipmentTypes, hseMaterials, p3kBoxes, companies, can }) {
+export default function HseMaster({ hazardCategories, safetyEquipment, equipmentTypes, hseMaterials, p3kBoxes, checklistTemplates = [], inspectionTypes = [], companies, can }) {
     const [open, setOpen] = useState(false);
     const [editing, setEditing] = useState(null);
 
@@ -163,6 +163,7 @@ export default function HseMaster({ hazardCategories, safetyEquipment, equipment
             <SafetyEquipmentSection safetyEquipment={safetyEquipment} equipmentTypes={equipmentTypes} companies={companies} can={can} />
             <HseMaterialSection hseMaterials={hseMaterials} companies={companies} can={can} />
             <P3kBoxSection p3kBoxes={p3kBoxes} companies={companies} can={can} />
+            <ChecklistTemplatesSection checklistTemplates={checklistTemplates} inspectionTypes={inspectionTypes} companies={companies} can={can} />
             </div>
         </AuthenticatedLayout>
     );
@@ -613,6 +614,135 @@ function EquipmentTypesSection({ equipmentTypes, companies, can }) {
                             </div>
                         </div>
                         <div className="space-y-1.5"><Label>Description (optional)</Label><Textarea value={data.description} onChange={(e) => setData('description', e.target.value)} rows={2} /></div>
+                        <label className="flex items-center gap-2 text-sm">
+                            <Checkbox checked={data.is_active} onCheckedChange={(v) => setData('is_active', !!v)} />
+                            Active
+                        </label>
+                        <DialogFooter><Button type="button" variant="outline" onClick={() => setOpen(false)}>Cancel</Button><Button type="submit" disabled={processing}>Save</Button></DialogFooter>
+                    </form>
+                </DialogContent>
+            </Dialog>
+        </Card>
+    );
+}
+
+/**
+ * v1.11.2 (Final Completion Pass, Part 9). LSA/FFA/PPE checklist TEMPLATES
+ * -- the reusable item lists the previous pass's category labels alone
+ * didn't cover. A template is just a named seed for
+ * HseInspection.checklist_items (already JSON, already fully configurable)
+ * -- reuses the existing inspection engine, no second FFA/LSA/PPE system.
+ * `category` reuses HseInspection::TYPES (`inspectionTypes` prop) as its
+ * own source of truth, so a future inspection type is automatically a
+ * valid template category with no code change here.
+ */
+function ChecklistTemplatesSection({ checklistTemplates, inspectionTypes, companies, can }) {
+    const [open, setOpen] = useState(false);
+    const [editing, setEditing] = useState(null);
+    const { data, setData, post, put, processing, reset, errors, transform } = useForm({
+        company_id: companies[0]?.id ? String(companies[0].id) : '',
+        category: inspectionTypes[0] ?? 'ppe',
+        name: '',
+        items: [{ label: '' }],
+        is_active: true,
+        sort_order: 0,
+    });
+
+    function openCreate() { setEditing(null); reset(); setOpen(true); }
+    function openEdit(t) {
+        setEditing(t);
+        setData({
+            company_id: String(t.company_id), category: t.category, name: t.name,
+            items: t.items?.length ? t.items : [{ label: '' }],
+            is_active: t.is_active, sort_order: t.sort_order,
+        });
+        setOpen(true);
+    }
+    function submit(e) {
+        e.preventDefault();
+        transform((d) => ({ ...d, items: d.items.filter((i) => i.label.trim() !== '') }));
+        const options = { preserveScroll: true, onSuccess: () => { reset(); setOpen(false); } };
+        if (editing) { put(route('hse-checklist-templates.update', editing.id), options); } else { post(route('hse-checklist-templates.store'), options); }
+    }
+    function destroy(t) {
+        if (confirm(`Remove checklist template "${t.name}"?`)) {
+            router.delete(route('hse-checklist-templates.destroy', t.id));
+        }
+    }
+    function updateItemLabel(i, value) {
+        const items = [...data.items];
+        items[i] = { ...items[i], label: value };
+        setData('items', items);
+    }
+
+    return (
+        <Card>
+            <CardHeader className="flex flex-row items-center justify-between">
+                <div>
+                    <CardTitle>Checklist Templates</CardTitle>
+                    <CardDescription>{checklistTemplates.length} configured -- reusable item lists for LSA/FFA/PPE and any other inspection category. Selectable via "Load Template" when recording an HSE Inspection.</CardDescription>
+                </div>
+                {can.manage && <Button onClick={openCreate}><Plus className="h-4 w-4" /> Add Template</Button>}
+            </CardHeader>
+            <CardContent>
+                <Table>
+                    <TableHeader><TableRow><TableHead>Name</TableHead><TableHead>Category</TableHead><TableHead>Items</TableHead><TableHead>Status</TableHead>{can.manage && <TableHead />}</TableRow></TableHeader>
+                    <TableBody>
+                        {checklistTemplates.map((t) => (
+                            <TableRow key={t.id}>
+                                <TableCell className="font-medium">{t.name}</TableCell>
+                                <TableCell className="capitalize">{t.category.replace('_', ' ')}</TableCell>
+                                <TableCell>{t.items?.length ?? 0}</TableCell>
+                                <TableCell><Badge variant={t.is_active ? 'success' : 'secondary'}>{t.is_active ? 'Active' : 'Inactive'}</Badge></TableCell>
+                                {can.manage && (
+                                    <TableCell className="flex gap-1">
+                                        <Button variant="ghost" size="icon" onClick={() => openEdit(t)}><Pencil className="h-4 w-4" /></Button>
+                                        <Button variant="ghost" size="icon" onClick={() => destroy(t)}><Trash2 className="h-4 w-4 text-red-500" /></Button>
+                                    </TableCell>
+                                )}
+                            </TableRow>
+                        ))}
+                    </TableBody>
+                </Table>
+            </CardContent>
+            <Dialog open={open} onOpenChange={setOpen}>
+                <DialogContent className="max-w-lg">
+                    <DialogHeader><DialogTitle>{editing ? 'Edit' : 'Add'} Checklist Template</DialogTitle></DialogHeader>
+                    <form onSubmit={submit} className="space-y-4">
+                        {!editing && (
+                            <div className="space-y-1.5">
+                                <Label>Company</Label>
+                                <Select value={data.company_id} onValueChange={(v) => setData('company_id', v)}>
+                                    <SelectTrigger><SelectValue /></SelectTrigger>
+                                    <SelectContent>{companies.map((c) => <SelectItem key={c.id} value={String(c.id)}>{c.name}</SelectItem>)}</SelectContent>
+                                </Select>
+                            </div>
+                        )}
+                        <div className="grid grid-cols-2 gap-4">
+                            <div className="space-y-1.5"><Label>Name</Label><Input value={data.name} onChange={(e) => setData('name', e.target.value)} placeholder="e.g. Standard FFA Inspection" />{errors.name && <p className="text-xs text-red-600">{errors.name}</p>}</div>
+                            <div className="space-y-1.5">
+                                <Label>Category</Label>
+                                <Select value={data.category} onValueChange={(v) => setData('category', v)}>
+                                    <SelectTrigger><SelectValue /></SelectTrigger>
+                                    <SelectContent>{inspectionTypes.map((t) => <SelectItem key={t} value={t} className="capitalize">{t.replace('_', ' ')}</SelectItem>)}</SelectContent>
+                                </Select>
+                            </div>
+                        </div>
+                        <div className="space-y-1.5">
+                            <div className="flex items-center justify-between">
+                                <Label>Checklist Items</Label>
+                                <Button type="button" variant="outline" size="sm" onClick={() => setData('items', [...data.items, { label: '' }])}><Plus className="h-3.5 w-3.5" /> Add Item</Button>
+                            </div>
+                            <div className="max-h-64 space-y-1.5 overflow-y-auto">
+                                {data.items.map((item, i) => (
+                                    <div key={i} className="flex items-center gap-1.5">
+                                        <Input value={item.label} onChange={(e) => updateItemLabel(i, e.target.value)} placeholder={`Item ${i + 1}`} />
+                                        <Button type="button" variant="ghost" size="icon" onClick={() => setData('items', data.items.filter((_, idx) => idx !== i))}><Trash2 className="h-4 w-4 text-red-500" /></Button>
+                                    </div>
+                                ))}
+                            </div>
+                            {errors.items && <p className="text-xs text-red-600">{errors.items}</p>}
+                        </div>
                         <label className="flex items-center gap-2 text-sm">
                             <Checkbox checked={data.is_active} onCheckedChange={(v) => setData('is_active', !!v)} />
                             Active

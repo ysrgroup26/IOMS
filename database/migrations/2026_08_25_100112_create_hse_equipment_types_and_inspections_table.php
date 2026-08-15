@@ -34,6 +34,59 @@ return new class extends Migration
      *    `gas_test_records`' own "individually meaningful, time-series"
      *    reasoning exactly) so a piece of equipment's full inspection
      *    history is queryable, not overwritten on each re-inspection.
+     *
+     * v1.11.2 production incident: `php artisan migrate` failed at this
+     * migration with MySQL errno 150 ("foreign key constraint is
+     * incorrectly formed") on
+     * `safety_equipment_inspections_safety_equipment_id_foreign`. Root
+     * cause, confirmed against Laravel's own MySQL grammar
+     * (vendor/laravel/framework/.../Schema/Grammars/MySqlGrammar.php
+     * `compileCreateTable()` vs. the base `compileForeign()`), NOT
+     * guessed: Laravel compiles a `CREATE TABLE` and every subsequent
+     * `->constrained()` foreign key as SEPARATE statements, in that
+     * order -- the CREATE TABLE always succeeds first (all columns,
+     * unconstrained), then each `alter table ... add constraint ...
+     * foreign key` runs as its own statement afterward. That means the
+     * failure on `safety_equipment_id`'s FK left
+     * `safety_equipment_inspections` PARTIALLY created in production --
+     * the table exists with every column, but with ZERO of its three
+     * foreign keys attached (company_id's and inspector_id's FK
+     * statements never even ran, since they were queued after the one
+     * that failed).
+     *
+     * That partial state made a naive retry actively dangerous:
+     * `Schema::createIfMissing()` is a no-op once `Schema::hasTable()` is
+     * true, so simply re-running this file again would silently SKIP
+     * re-creating the table and never re-attempt the missing foreign
+     * keys -- masking the bug as a "successful" migration while leaving
+     * the table permanently unconstrained. Column types were verified
+     * (not assumed) to already match: `$table->id()` and
+     * `$table->foreignId(...)` both compile to `bigint(20) unsigned`, and
+     * `git log --follow` on both this file and
+     * `2026_08_20_100074_create_safety_equipment_table.php` shows neither
+     * ever used a legacy `increments()`/int definition -- there is no
+     * type mismatch in the code that created `safety_equipment.id`.
+     *
+     * Given a genuine mismatch couldn't be confirmed from the repository
+     * alone (this environment has no live database access) and the
+     * explicit instruction not to guess or require manual SQL, this
+     * migration is now:
+     * - Retry-safe: table creation is decoupled from FK creation, and
+     *   each foreign key is added only if not already present (checked
+     *   via `information_schema`, not assumed) -- safe to re-run any
+     *   number of times, whether the table is missing, partially
+     *   created, or already fully constrained.
+     * - Self-verifying: `safety_equipment`'s actual storage engine is
+     *   read from `information_schema.TABLES` at migration time and
+     *   converted to InnoDB in place ONLY if it is not already InnoDB
+     *   (an engine mismatch -- e.g. a table created while
+     *   `config('database.connections.mysql.engine')` was not yet set to
+     *   `InnoDB`, or under a MySQL server whose own default differs -- is
+     *   the single most common real-world cause of an otherwise-
+     *   type-matching FK failing with errno 150). This never touches
+     *   `safety_equipment`'s column definitions, primary key, or data --
+     *   an engine conversion is a standard, non-destructive, in-place
+     *   MySQL operation, not a rebuild.
      */
     public function up(): void
     {
@@ -50,12 +103,23 @@ return new class extends Migration
             $table->unique(['company_id', 'code']);
         });
 
+        // Self-heal: if `safety_equipment` is not InnoDB, MySQL refuses
+        // any foreign key referencing it with exactly the error this
+        // migration hit (errno 150). A no-op statement if it's already
+        // InnoDB (the normal case) -- only ever changes storage engine,
+        // never column types/PK/data.
+        $this->ensureInnoDb('safety_equipment');
+
+        // Table creation and FK creation are deliberately decoupled (see
+        // the class doc comment above) so a partially-created table from
+        // a previous failed attempt can be safely completed on retry
+        // without Schema::createIfMissing() skipping the FK work.
         Schema::createIfMissing('safety_equipment_inspections', function (Blueprint $table) {
             $table->id();
-            $table->foreignId('safety_equipment_id')->constrained()->cascadeOnDelete();
-            $table->foreignId('company_id')->constrained()->restrictOnDelete();
+            $table->unsignedBigInteger('safety_equipment_id');
+            $table->unsignedBigInteger('company_id');
             $table->date('inspection_date');
-            $table->foreignId('inspector_id')->nullable()->constrained('users')->nullOnDelete();
+            $table->unsignedBigInteger('inspector_id')->nullable();
             $table->string('condition')->default('good'); // good, fair, poor, damaged
             $table->string('result')->default('pass'); // pass, fail, needs_action
             $table->text('findings')->nullable();
@@ -65,6 +129,22 @@ return new class extends Migration
 
             $table->index(['safety_equipment_id', 'inspection_date']);
         });
+
+        $this->addForeignKeyIfMissing(
+            'safety_equipment_inspections',
+            'safety_equipment_inspections_safety_equipment_id_foreign',
+            fn (Blueprint $table) => $table->foreign('safety_equipment_id')->references('id')->on('safety_equipment')->cascadeOnDelete()
+        );
+        $this->addForeignKeyIfMissing(
+            'safety_equipment_inspections',
+            'safety_equipment_inspections_company_id_foreign',
+            fn (Blueprint $table) => $table->foreign('company_id')->references('id')->on('companies')->restrictOnDelete()
+        );
+        $this->addForeignKeyIfMissing(
+            'safety_equipment_inspections',
+            'safety_equipment_inspections_inspector_id_foreign',
+            fn (Blueprint $table) => $table->foreign('inspector_id')->references('id')->on('users')->nullOnDelete()
+        );
 
         // Seed every company that already has SafetyEquipment rows with
         // the exact set of type codes those rows already use (so no
@@ -102,5 +182,36 @@ return new class extends Migration
     {
         Schema::dropIfExists('safety_equipment_inspections');
         Schema::dropIfExists('hse_equipment_types');
+    }
+
+    /** Converts a table to InnoDB in place if (and only if) it isn't already -- see class doc comment. Column defs/PK/data untouched. */
+    private function ensureInnoDb(string $table): void
+    {
+        if (! Schema::hasTable($table)) {
+            return;
+        }
+
+        $row = DB::selectOne(
+            'select engine from information_schema.tables where table_schema = database() and table_name = ?',
+            [$table]
+        );
+
+        if ($row && $row->engine && strtolower($row->engine) !== 'innodb') {
+            DB::statement("ALTER TABLE `{$table}` ENGINE = InnoDB");
+        }
+    }
+
+    /** Adds a named foreign key only if it doesn't already exist -- makes this migration safe to re-run against a partially-created table. */
+    private function addForeignKeyIfMissing(string $table, string $constraintName, \Closure $define): void
+    {
+        $row = DB::selectOne(
+            "select 1 as found from information_schema.table_constraints
+             where constraint_schema = database() and table_name = ? and constraint_name = ? and constraint_type = 'FOREIGN KEY'",
+            [$table, $constraintName]
+        );
+
+        if (! $row) {
+            Schema::table($table, $define);
+        }
     }
 };

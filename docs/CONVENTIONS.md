@@ -3,7 +3,52 @@
 House style, and a deliberately honest list of mistakes that have actually happened in this
 codebase's history — kept here so they don't get repeated in a slightly different shape.
 
-## CRITICAL — Known Pitfall (v1.11.2, production incident): a new migration's filename timestamp
+## CRITICAL — Known Pitfall (v1.11.2, production incident #2): `Schema::create()`'s foreign keys run
+## as SEPARATE statements AFTER the table exists — a failed FK leaves a partially-created table, and
+## `Schema::createIfMissing()` will then silently skip completing it on retry
+
+Production `php artisan migrate` failed on
+`2026_08_25_100112_create_hse_equipment_types_and_inspections_table` with MySQL errno 150 ("foreign
+key constraint is incorrectly formed") on `safety_equipment_inspections_safety_equipment_id_foreign`.
+Confirmed from Laravel's own source
+(`vendor/laravel/framework/.../Schema/Grammars/MySqlGrammar.php`: `compileCreateTable()` builds only
+columns + engine/encoding; `compileForeign()` — inherited from the base `Grammar` — compiles every
+`->constrained()`/`->foreign()` call as its own subsequent `alter table ... add constraint ...
+foreign key` statement) — NOT guessed: **`CREATE TABLE` always fully succeeds first, unconstrained;
+each foreign key is added by a separate statement afterward.** When one of those ALTER statements
+fails, the table already exists with every column but is missing that FK and every FK queued after
+it. `Schema::createIfMissing()` (this project's own retry-safety macro, see the pitfall above it)
+checks `Schema::hasTable()` — true once the CREATE succeeded — so a naive retry after any fix would
+silently skip re-creating the table and never re-attempt the missing FKs, "succeeding" while leaving
+the table permanently unconstrained.
+
+Column types were verified, not assumed, to already match (`$table->id()` and
+`$table->foreignId(...)` both compile to `bigint(20) unsigned` — checked against
+`vendor/laravel/framework/.../Schema/Blueprint.php`), and `git log --follow` confirmed neither
+`safety_equipment`'s nor this migration's definition ever used a legacy `increments()`/int type. With
+no live database access to confirm the exact production anomaly (a stale storage engine on
+`safety_equipment` — not InnoDB — is the most likely real-world cause of errno 150 when types
+genuinely match, e.g. from a moment when `config('database.connections.mysql.engine')` wasn't yet set
+to `InnoDB`), the fix makes the migration **self-verifying and retry-safe** instead of guessing at a
+one-shot repair:
+- Table creation and FK creation are decoupled — the table's columns are created via
+  `Schema::createIfMissing()` as plain `unsignedBigInteger` columns (no inline `->constrained()`),
+  then each FK is added via a small `addForeignKeyIfMissing()` helper that checks
+  `information_schema.table_constraints` for that exact constraint name before adding it — safe to
+  re-run against a table that's missing, partially created, or already fully constrained.
+- `ensureInnoDb()` reads `information_schema.tables.engine` for `safety_equipment` and converts it to
+  InnoDB in place ONLY if it isn't already — a standard, non-destructive MySQL operation that never
+  touches column definitions, the primary key, or data.
+
+**The lesson**: any migration using `Schema::createIfMissing()` alongside inline
+`->foreignId()->constrained()` calls has a hidden retry hazard — if the FK step ever fails partway,
+the retry-safety macro that's supposed to make the migration safe to re-run instead makes it silently
+incomplete. New migrations combining table creation with foreign keys on a table that isn't a
+long-established, already-proven-safe reference (like `companies`/`users`, used successfully by
+dozens of migrations) should decouple creation from FK-addition and guard each FK individually, the
+same way this fix does.
+
+## CRITICAL — Known Pitfall (v1.11.2, production incident #1): a new migration's filename timestamp
 ## must be LATER than every existing migration in the repo, never the real wall-clock date
 
 This project's migration filenames are a **fictional forward-dated sequence** (already stamped past

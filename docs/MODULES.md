@@ -1067,9 +1067,12 @@ preserves whatever the flag already was rather than erroring the whole edit. DEL
 to the event's own tenant via `assertInCurrentTenant()`, the same 404-not-403 ownership pattern used
 throughout this codebase.
 
-**Migration**: `2026_08_15_100113_add_is_management_event_to_calendar_events_table.php` — one
+**Migration**: `2026_08_26_100113_add_is_management_event_to_calendar_events_table.php` — one
 additive boolean column, default `false`, so every existing manual event starts off the Management
-Calendar until explicitly opted in. No new table — still one Calendar Engine.
+Calendar until explicitly opted in. No new table — still one Calendar Engine. (Originally filed as
+`2026_08_15_100113` and renamed after a production deploy caught it sorting — and therefore
+running — before `2026_08_24_100111_create_calendar_events_table`, the migration that creates the
+table it alters; see the "migration filename ordering" pitfall in `docs/CONVENTIONS.md`.)
 
 ## SaaS / Licensing / Subscription / Billing (v1.11.0, SaaS Finalization Pass)
 

@@ -3,6 +3,32 @@
 House style, and a deliberately honest list of mistakes that have actually happened in this
 codebase's history — kept here so they don't get repeated in a slightly different shape.
 
+## CRITICAL — Known Pitfall (v1.11.2, production incident): a new migration's filename timestamp
+## must be LATER than every existing migration in the repo, never the real wall-clock date
+
+This project's migration filenames are a **fictional forward-dated sequence** (already stamped past
+`2026_08_25` at the time of writing, months ahead of any real calendar date) — not real creation
+dates. `2026_08_15_100113_add_is_management_event_to_calendar_events_table.php` and
+`2026_08_15_100114_create_hse_checklist_templates_table.php` were added using the actual current
+date (`2026-08-15`), which put them BEFORE `2026_08_24_100111_create_calendar_events_table.php` in
+filename sort order — the exact migration the first of the two alters. Laravel runs migrations in
+filename order, so on the very first production `php artisan migrate` this failed hard:
+`SQLSTATE[42S02]: Base table or view not found: calendar_events doesn't exist`, and because
+`migrate` stops on the first exception, it also silently blocked every migration after it in sort
+order (the ~20 migrations from `2026_08_16` through `2026_08_25`, none of which had run yet either).
+
+**Fix**: renamed both files to `2026_08_26_100113`/`2026_08_26_100114` (after the latest existing
+migration), confirmed safe because production had never successfully run the failing migration (it
+was the one erroring, and `calendar_events` was confirmed not to exist) — no migration batch/`ran`
+history needed reconciling. A full repo-wide audit script (`Schema::create`/`createIfMissing` vs.
+`Schema::table`/`->constrained()`, cross-referenced against filename sort order) confirmed zero other
+ordering violations across all 134 migration files.
+
+**The lesson, going forward**: before adding a new migration, check `ls database/migrations | sort |
+tail -5` (or equivalent) and pick a timestamp *after* the latest existing file — never `date +%Y_%m_%d`
+verbatim, since this repo's fictional sequence has consistently run ahead of the real calendar. This
+is now the required first step whenever creating a new migration file in this project.
+
 ## Known Pitfall (v1.11.2) — a new route prefix must be added to config/departments.php in the SAME
 ## commit it's registered, not a follow-up
 

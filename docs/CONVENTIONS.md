@@ -3,6 +3,33 @@
 House style, and a deliberately honest list of mistakes that have actually happened in this
 codebase's history — kept here so they don't get repeated in a slightly different shape.
 
+## CRITICAL — Known Pitfall (v1.11.2, production incident #3): a global middleware's `handle()` can
+## only ever receive `(Request $request, Closure $next)` — a type-hinted service as a third
+## parameter is silently unreachable and crashes every request
+
+`EnforceTenantEntitlement` was registered globally on the `web` middleware group in `bootstrap/app.php`
+(`$middleware->web(append: [EnforceTenantEntitlement::class, ...])`) but declared
+`handle(Request $request, Closure $next, EntitlementService $entitlements)`. Laravel's Pipeline always
+invokes `handle($request, $next)` — exactly 2 arguments — for middleware registered as a bare class
+string. A third `handle()` parameter is populated ONLY for route middleware referenced with an
+explicit `:parameter` string (e.g. `'role' => CheckRole::class` used as `role:admin`, where Laravel
+splits the string after `:` and appends the pieces after `$next`) — it is never resolved via the
+container just because it's type-hinted, the way constructor parameters are. The result: every single
+web request, including guest `/login` before authentication even runs, threw `ArgumentCountError: Too
+few arguments to function ...::handle(), 2 passed ... and exactly 3 expected` — a full site outage,
+confirmed from the production stack trace.
+
+**Fix**: constructor-inject the service instead (`public function __construct(private readonly
+EntitlementService $entitlements) {}`), matching the pattern this codebase's own
+`HandleInertiaRequests` middleware already uses for `WorkCenterService`. `handle()` now matches
+Laravel's real global-middleware contract exactly: `handle(Request $request, Closure $next): Response`.
+
+**The lesson**: before adding any parameter to a middleware's `handle()` beyond `$request`/`$next`,
+check how that middleware is registered in `bootstrap/app.php` first. If it's `$middleware->web(...)`,
+`$middleware->append(...)`, or any bare-class-string registration, ANY dependency it needs must be
+constructor-injected, never a `handle()` parameter — that pattern is reserved for `$middleware->alias()`
+entries that routes reference with an explicit `name:param` string.
+
 ## CRITICAL — Known Pitfall (v1.11.2, production incident #2): `Schema::create()`'s foreign keys run
 ## as SEPARATE statements AFTER the table exists — a failed FK leaves a partially-created table, and
 ## `Schema::createIfMissing()` will then silently skip completing it on retry

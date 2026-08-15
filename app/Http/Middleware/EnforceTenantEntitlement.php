@@ -46,6 +46,25 @@ use Symfony\Component\HttpFoundation\Response;
  * warning (EntitlementService::tenantIsDegraded(), shown in Settings >
  * Subscription) without blocking anything. Still overridable per-install
  * via `SAAS_ENFORCE_ENTITLEMENT=false` in `.env`.
+ *
+ * PRODUCTION INCIDENT (v1.11.2.3): registered globally on the `web`
+ * middleware group as a bare class string
+ * (`bootstrap/app.php`'s `$middleware->web(append: [...])`), Laravel's
+ * Pipeline always invokes `handle($request, $next)` for it -- exactly 2
+ * arguments. A THIRD `handle()` parameter is only ever populated for
+ * ROUTE middleware referenced with an explicit `:parameter` string (e.g.
+ * `role:admin`, which Laravel splits and appends after `$next`); it is
+ * never resolved via the container just because it's type-hinted, the
+ * way constructor injection is. Type-hinting `EntitlementService` as a
+ * third `handle()` param here made EVERY web request -- including guest
+ * `/login`, before authentication could even run -- throw
+ * `ArgumentCountError: Too few arguments... 2 passed... exactly 3
+ * expected`, a full site outage (confirmed from the production stack
+ * trace, not guessed). Fixed by constructor-injecting `EntitlementService`
+ * instead (services ARE container-resolved when Laravel instantiates the
+ * middleware class itself) -- `handle()` now matches Laravel's actual
+ * global-middleware contract, `handle(Request $request, Closure $next):
+ * Response`, exactly.
  */
 class EnforceTenantEntitlement
 {
@@ -54,7 +73,11 @@ class EnforceTenantEntitlement
         'notifications', 'work-center', 'search',
     ];
 
-    public function handle(Request $request, Closure $next, EntitlementService $entitlements): Response
+    public function __construct(private readonly EntitlementService $entitlements)
+    {
+    }
+
+    public function handle(Request $request, Closure $next): Response
     {
         if (! config('saas.enforce_entitlement', false)) {
             return $next($request);
@@ -74,7 +97,7 @@ class EnforceTenantEntitlement
         }
 
         abort_unless(
-            $entitlements->tenantIsUsable($user->tenant),
+            $this->entitlements->tenantIsUsable($user->tenant),
             403,
             'Your organization\'s subscription is not currently active. Contact your administrator or see Settings for details.'
         );

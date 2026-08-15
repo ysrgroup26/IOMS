@@ -3,6 +3,36 @@
 House style, and a deliberately honest list of mistakes that have actually happened in this
 codebase's history — kept here so they don't get repeated in a slightly different shape.
 
+## CRITICAL — Known Pitfall (v1.11.2, production incident #4): this codebase has TWO equally-valid
+## tenant company-ID patterns (`Collection` and plain `array`) — a shared service consumed by both
+## must accept `Collection|array`, not whichever one its first caller happened to use
+
+`CalendarService` (extracted from `CalendarController`, which resolves tenant company IDs via
+`Company::query()->pluck('id')` — a `Collection`) was typed `Collection $companyIds` throughout. Every
+dashboard controller (`DashboardController` and all five department dashboard controllers) resolves
+company IDs via `DashboardStatsService::resolveCompanyIds()` instead, which returns a plain `array`
+(`Company::query()->pluck('id')->all()`, or `[$companyId]` when one company is selected) — and is
+already used correctly by ~90 other `whereIn('company_id', $companyIds)` queries across those same
+controllers, since Eloquent's `whereIn()` accepts either type natively. When `CalendarService` gained
+a second and third caller group (the Main Dashboard's Management Calendar widget, then five
+department Calendar widgets) that all use the array-returning pattern, every one of those six call
+sites threw `TypeError: Argument #1 ($companyIds) must be of type Collection, array given` in
+production — confirmed from the actual stack trace, not guessed.
+
+**Fix**: widened every `$companyIds` parameter in `CalendarService` (public and private methods alike
+— PHP throws at the first parameter type mismatch it reaches, so an inner private method must accept
+the same union as the public method that forwards its argument unchanged) to `Collection|array`.
+Verified safe with zero internal behavior change: every use of `$companyIds` inside that class is
+`whereIn('company_id', $companyIds)` — never a `Collection`-only method called directly on the
+parameter — confirmed by inspection before widening the type, not assumed.
+
+**The lesson**: before giving a shared service a strict single-type parameter for something as
+common as "a list of tenant-scoped IDs," check whether this project already has more than one
+established way to produce that value (it does: `Company::query()->pluck('id')` and
+`DashboardStatsService::resolveCompanyIds()` are both correct, both used dozens of times, and return
+different types). A new shared service sitting downstream of both needs to accept both, not silently
+assume whichever pattern its first caller happened to use.
+
 ## CRITICAL — Known Pitfall (v1.11.2, production incident #3): a global middleware's `handle()` can
 ## only ever receive `(Request $request, Closure $next)` — a type-hinted service as a third
 ## parameter is silently unreachable and crashes every request

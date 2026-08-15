@@ -41,16 +41,32 @@ use Illuminate\Support\Collection;
  *   key vocabulary used by RestrictDepartmentAccess).
  *
  * Tenant safety: every query here takes an already-tenant-scoped
- * `$companyIds` collection from the caller (the same
- * `Company::query()->pluck('id')` pattern used everywhere else in this
- * codebase) -- this class never resolves tenant scope itself.
+ * `$companyIds` list from the caller -- this class never resolves tenant
+ * scope itself. It accepts `Collection|array` (not a strict `Collection`)
+ * because this codebase has TWO equally-established, equally-correct
+ * tenant-scoping patterns and this class sits downstream of both:
+ * `Company::query()->pluck('id')` (a `Collection`, used by
+ * `CalendarController` and most other tenant-scoped controllers) and
+ * `DashboardStatsService::resolveCompanyIds()` (a plain `array` --
+ * returns `[$companyId]` when a single company is selected, or
+ * `Company::query()->pluck('id')->all()` otherwise -- used by
+ * `DashboardController` and every department dashboard controller, ~90
+ * queries across those files that all already rely on Eloquent's
+ * `whereIn()` accepting either type natively). A production TypeError
+ * (v1.11.2.4) proved the strict `Collection` hint was wrong, not the
+ * callers: every dashboard controller passing its own already-correct
+ * `resolveCompanyIds()` array crashed here. Every internal use of
+ * `$companyIds` in this class is `whereIn('company_id', $companyIds)` (or
+ * `whereHas(...)->whereIn(...)`) -- confirmed by inspection, never a
+ * Collection-only method call on `$companyIds` itself -- so widening the
+ * type is a pure contract fix with no behavior change either way.
  */
 class CalendarService
 {
     /** Virtual sources always treated as management-relevant, regardless of any per-row flag (they have none). */
     private const ALWAYS_MANAGEMENT_SOURCES = ['permit-to-work', 'milestone'];
 
-    public function aggregate(Collection $companyIds, $start, $end): Collection
+    public function aggregate(Collection|array $companyIds, $start, $end): Collection
     {
         return collect()
             ->merge($this->manualEvents($companyIds, $start, $end))
@@ -63,7 +79,7 @@ class CalendarService
             ->values();
     }
 
-    public function managementEvents(Collection $companyIds, int $limit = 8, int $days = 14): array
+    public function managementEvents(Collection|array $companyIds, int $limit = 8, int $days = 14): array
     {
         $start = now()->startOfDay();
         $end = now()->addDays($days)->endOfDay();
@@ -77,7 +93,7 @@ class CalendarService
             ->all();
     }
 
-    public function departmentEvents(Collection $companyIds, string $departmentKey, int $limit = 6, int $days = 21): array
+    public function departmentEvents(Collection|array $companyIds, string $departmentKey, int $limit = 6, int $days = 21): array
     {
         $start = now()->startOfDay();
         $end = now()->addDays($days)->endOfDay();
@@ -90,7 +106,7 @@ class CalendarService
             ->all();
     }
 
-    private function manualEvents(Collection $companyIds, $start, $end): Collection
+    private function manualEvents(Collection|array $companyIds, $start, $end): Collection
     {
         return CalendarEvent::whereIn('company_id', $companyIds)
             ->whereBetween('start_at', [$start, $end])
@@ -116,7 +132,7 @@ class CalendarService
             ]);
     }
 
-    private function provideLeave(Collection $companyIds, $start, $end): Collection
+    private function provideLeave(Collection|array $companyIds, $start, $end): Collection
     {
         return LeaveRequest::whereIn('company_id', $companyIds)
             ->whereIn('status', ['approved', 'pending'])
@@ -126,7 +142,7 @@ class CalendarService
             ->map(fn ($l) => $this->dto('leave', 'leave-request', $l->id, "Leave: {$l->employee?->full_name}", $l->start_date, $l->end_date, true, $l->status, 'hr', $l->employee?->full_name, null, $l));
     }
 
-    private function providePermitToWork(Collection $companyIds, $start, $end): Collection
+    private function providePermitToWork(Collection|array $companyIds, $start, $end): Collection
     {
         return PermitToWork::whereIn('company_id', $companyIds)
             ->whereIn('status', ['approved', 'active'])
@@ -135,7 +151,7 @@ class CalendarService
             ->map(fn ($p) => $this->dto('deadline', 'permit-to-work', $p->id, "PTW: {$p->ptw_number}", $p->start_datetime, $p->end_datetime, false, $p->status, 'hse', null, route('permits-to-work.show', $p->id), $p));
     }
 
-    private function provideTbm(Collection $companyIds, $start, $end): Collection
+    private function provideTbm(Collection|array $companyIds, $start, $end): Collection
     {
         return TbmMeeting::whereIn('company_id', $companyIds)
             ->whereBetween('meeting_date', [$start, $end])
@@ -143,7 +159,7 @@ class CalendarService
             ->map(fn ($t) => $this->dto('meeting', 'tbm-meeting', $t->id, "TBM: {$t->topic}", $t->meeting_date, null, true, $t->status, 'hse', null, route('tbm-meetings.show', $t->id), $t));
     }
 
-    private function provideMilestones(Collection $companyIds, $start, $end): Collection
+    private function provideMilestones(Collection|array $companyIds, $start, $end): Collection
     {
         return Milestone::whereHas('project', fn ($q) => $q->whereIn('company_id', $companyIds))
             ->whereBetween('target_date', [$start, $end])
@@ -152,7 +168,7 @@ class CalendarService
             ->map(fn ($m) => $this->dto('deadline', 'milestone', $m->id, "Milestone: {$m->title}", $m->target_date, null, true, $m->status, 'project-management', null, null, $m->project));
     }
 
-    private function provideWorkOrders(Collection $companyIds, $start, $end): Collection
+    private function provideWorkOrders(Collection|array $companyIds, $start, $end): Collection
     {
         return WorkOrder::whereIn('company_id', $companyIds)
             ->whereIn('status', ['scheduled', 'in_progress'])

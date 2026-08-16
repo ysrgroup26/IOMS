@@ -30,6 +30,14 @@ use Inertia\Response;
  * concept in this codebase (both are immediate, already-executed records)
  * -- inventing one would be fabricated data. Recent Receiving/Issuing
  * activity lists are shown instead, which are real.
+ *
+ * v1.11.5 (Dashboard UX Completion, Phase 6) adds `inventoryHealth`: a
+ * compact table dataset (Item/Category/Location/Current Stock/
+ * Min-Reorder/Status), sorted by quantity ascending so the most at-risk
+ * stock rows surface first. Status is derived purely from the real
+ * `quantity`/`min_stock` columns already used by `lowStockCount`/
+ * `outOfStockCount` above -- same thresholds, just a 4-way label instead
+ * of a boolean.
  */
 class WarehouseDashboardController extends Controller
 {
@@ -81,6 +89,31 @@ class WarehouseDashboardController extends Controller
                 ->with('item:id,name,item_code,unit,min_stock', 'warehouse:id,name')
                 ->limit(6)
                 ->get(['id', 'item_id', 'warehouse_id', 'quantity']),
+            // Inventory Health table -- Phase 6. Item/Category/Location/
+            // Current Stock/Min-Reorder/Status, one row per stock record.
+            // Status is derived client-side-simple: out (<=0), critical
+            // (<=50% of min_stock), low (<=min_stock), else healthy --
+            // computed here from real columns only, not a fabricated field.
+            'inventoryHealth' => Stock::whereIn('company_id', $companyIds)
+                ->with('item:id,name,item_code,category,unit,min_stock', 'warehouse:id,name')
+                ->orderBy('quantity')
+                ->limit(15)
+                ->get(['id', 'item_id', 'warehouse_id', 'quantity'])
+                ->map(fn (Stock $s) => [
+                    'id' => $s->id,
+                    'item_code' => $s->item?->item_code,
+                    'item_name' => $s->item?->name,
+                    'category' => $s->item?->category,
+                    'location' => $s->warehouse?->name,
+                    'quantity' => $s->quantity,
+                    'min_stock' => $s->item?->min_stock,
+                    'unit' => $s->item?->unit,
+                    'status' => $s->quantity <= 0
+                        ? 'out_of_stock'
+                        : ($s->item?->min_stock > 0 && $s->quantity <= $s->item->min_stock * 0.5
+                            ? 'critical'
+                            : ($s->item?->min_stock > 0 && $s->quantity <= $s->item->min_stock ? 'low' : 'healthy')),
+                ]),
             'departmentCalendar' => $this->calendar->departmentEvents($companyIds, 'logistics'),
         ]);
     }

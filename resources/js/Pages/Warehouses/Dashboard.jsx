@@ -1,12 +1,24 @@
-import { Head } from '@inertiajs/react';
+import { Head, Link } from '@inertiajs/react';
 import AuthenticatedLayout from '@/Layouts/AuthenticatedLayout';
 import DashboardShell from '@/Components/shared/DashboardShell';
 import StatCard from '@/Components/shared/StatCard';
 import ModuleCard from '@/Components/shared/ModuleCard';
 import ActivityList from '@/Components/shared/ActivityList';
 import DepartmentCalendarWidget from '@/Components/shared/DepartmentCalendarWidget';
-import { Card, CardContent, CardHeader, CardTitle } from '@/Components/ui/card';
+import { Card, CardContent, CardHeader, CardTitle, CardDescription } from '@/Components/ui/card';
 import { Boxes, AlertTriangle, XCircle, PackageCheck, ArrowRightLeft, Warehouse, Box, ClipboardList } from 'lucide-react';
+
+const HEALTH_BADGES = {
+    out_of_stock: { label: 'Out of Stock', className: 'bg-red-100 text-red-700 dark:bg-red-950 dark:text-red-300' },
+    critical: { label: 'Critical', className: 'bg-red-50 text-red-600 dark:bg-red-950/50 dark:text-red-400' },
+    low: { label: 'Low', className: 'bg-amber-100 text-amber-700 dark:bg-amber-950 dark:text-amber-300' },
+    healthy: { label: 'Healthy', className: 'bg-emerald-100 text-emerald-700 dark:bg-emerald-950 dark:text-emerald-300' },
+};
+
+function HealthBadge({ status }) {
+    const cfg = HEALTH_BADGES[status] || HEALTH_BADGES.healthy;
+    return <span className={`inline-flex items-center rounded-full px-2 py-0.5 text-xs font-medium ${cfg.className}`}>{cfg.label}</span>;
+}
 
 const WAREHOUSE_MODULES = [
     { icon: Warehouse, title: 'Warehouse Master', description: 'Warehouses & storage locations.', href: 'warehouses.master' },
@@ -28,7 +40,7 @@ const WAREHOUSE_MODULES = [
  */
 export default function WarehouseDashboard({
     totalItemsCount, totalWarehousesCount, lowStockCount, outOfStockCount,
-    goodsReceiptsThisMonth, movementsThisMonth, recentReceiving, recentIssuing, lowStockItems, departmentCalendar,
+    goodsReceiptsThisMonth, movementsThisMonth, recentReceiving, recentIssuing, lowStockItems, inventoryHealth, departmentCalendar,
 }) {
     return (
         <AuthenticatedLayout>
@@ -45,6 +57,48 @@ export default function WarehouseDashboard({
                 <div className="grid grid-cols-2 gap-3 sm:grid-cols-3 lg:grid-cols-6">
                     {WAREHOUSE_MODULES.map((m) => <ModuleCard key={m.title} {...m} />)}
                 </div>
+
+                {/* Inventory Health -- compact table, Phase 6 */}
+                <Card>
+                    <CardHeader className="pb-2">
+                        <CardTitle className="text-sm">Inventory Health</CardTitle>
+                        <CardDescription>Lowest stock relative to minimum, first</CardDescription>
+                    </CardHeader>
+                    <CardContent className="overflow-x-auto">
+                        {(!inventoryHealth || inventoryHealth.length === 0) ? (
+                            <p className="py-6 text-center text-sm text-graphite-400">No stock records yet.</p>
+                        ) : (
+                            <table className="w-full min-w-[640px] text-sm">
+                                <thead>
+                                    <tr className="border-b border-graphite-100 text-left text-xs text-graphite-400 dark:border-slate-800">
+                                        <th className="py-1.5 font-medium">Item</th>
+                                        <th className="py-1.5 font-medium">Category</th>
+                                        <th className="py-1.5 font-medium">Location</th>
+                                        <th className="py-1.5 font-medium">Stock</th>
+                                        <th className="py-1.5 font-medium">Min. Reorder</th>
+                                        <th className="py-1.5 font-medium">Status</th>
+                                    </tr>
+                                </thead>
+                                <tbody className="divide-y divide-graphite-50 dark:divide-slate-800/60">
+                                    {inventoryHealth.map((row) => (
+                                        <tr key={row.id} className="hover:bg-graphite-25 dark:hover:bg-slate-900/40">
+                                            <td className="py-2 pr-2">
+                                                <p className="font-medium text-graphite-700 dark:text-slate-200">{row.item_name}</p>
+                                                <p className="text-xs text-graphite-400">{row.item_code}</p>
+                                            </td>
+                                            <td className="py-2 pr-2 capitalize text-graphite-500">{row.category ?? '—'}</td>
+                                            <td className="py-2 pr-2 text-graphite-500">{row.location ?? '—'}</td>
+                                            <td className="py-2 pr-2 tabular-nums text-graphite-700 dark:text-slate-200">{row.quantity} {row.unit}</td>
+                                            <td className="py-2 pr-2 tabular-nums text-graphite-500">{row.min_stock ?? '—'}</td>
+                                            <td className="py-2"><HealthBadge status={row.status} /></td>
+                                        </tr>
+                                    ))}
+                                </tbody>
+                            </table>
+                        )}
+                        <Link href={route('stock.index')} className="mt-2 inline-block text-xs font-medium text-brand-600 hover:underline">View full inventory</Link>
+                    </CardContent>
+                </Card>
 
                 <div className="grid grid-cols-1 gap-3 lg:grid-cols-3">
                     <Card>

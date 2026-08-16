@@ -105,6 +105,27 @@ class HseDashboardController extends Controller
             'openCapaCount' => CorrectiveAction::whereIn('company_id', $companyIds)
                 ->whereNotIn('status', [CorrectiveAction::STATUS_VERIFIED, CorrectiveAction::STATUS_CANCELLED])
                 ->count(),
+            // v1.11.5 (Dashboard UX Completion, Phase 2) -- "Action
+            // Required" panel needs actual rows, not just counts. Same
+            // WHERE clauses as the counts above (already proven correct),
+            // just also fetching the rows -- no new query logic.
+            'actionRequired' => collect()
+                ->merge(SafetyEquipment::whereIn('company_id', $companyIds)->where('status', 'active')
+                    ->whereNotNull('next_inspection_due')->whereDate('next_inspection_due', '<', now())
+                    ->limit(5)->get(['id', 'name', 'next_inspection_due'])
+                    ->map(fn (SafetyEquipment $e) => ['type' => 'Equipment Overdue', 'label' => $e->name, 'date' => $e->next_inspection_due, 'href' => route('hse.master').'?tab=equipment']))
+                ->merge(P3kBox::whereIn('company_id', $companyIds)
+                    ->whereNotNull('next_inspection_due')->whereDate('next_inspection_due', '<', now())
+                    ->limit(5)->get(['id', 'location', 'next_inspection_due'])
+                    ->map(fn (P3kBox $b) => ['type' => 'P3K Overdue', 'label' => $b->location, 'date' => $b->next_inspection_due, 'href' => route('hse.master').'?tab=supplies']))
+                ->merge(CorrectiveAction::whereIn('company_id', $companyIds)
+                    ->whereNotIn('status', [CorrectiveAction::STATUS_VERIFIED, CorrectiveAction::STATUS_CANCELLED])
+                    ->whereNotNull('due_date')->whereDate('due_date', '<', now())
+                    ->limit(5)->get(['id', 'title', 'due_date'])
+                    ->map(fn (CorrectiveAction $c) => ['type' => 'CAPA Overdue', 'label' => $c->title, 'date' => $c->due_date, 'href' => route('corrective-actions.index')]))
+                ->sortBy('date')
+                ->values()
+                ->take(8),
             'departmentCalendar' => $this->calendar->departmentEvents($companyIds, 'hse'),
             // v1.11.4 (HSE Waste Management, Part 20) -- compact summary
             // only, explicit instruction: "Do NOT turn it into another

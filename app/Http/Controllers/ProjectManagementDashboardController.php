@@ -13,13 +13,27 @@ use Inertia\Inertia;
 use Inertia\Response;
 
 /**
- * Project Management Department Dashboard (v1.10.0). Milestone 4,
- * Acceleration Part 3/7: average Project Activity progress now has a
- * real backing data model (ProjectActivity) and is included below.
- * Deliberately does NOT include a Project Calendar widget -- no calendar/
- * scheduling data model exists in this app.
+ * Project Management Department Dashboard (v1.10.0, redesigned v1.11.5 --
+ * Dashboard UX Completion, Phase 4). Milestone 4, Acceleration Part 3/7:
+ * average Project Activity progress now has a real backing data model
+ * (ProjectActivity) and is included below.
  *
- * Tenant-isolation fix (found while extending this controller for the new
+ * v1.11.5 adds a real Project Portfolio dataset (Phase 4's requirement for
+ * a compact TABLE, not a grid of project cards): for every active/ongoing
+ * project, its manager (`Project::manager()`, already an existing
+ * `belongsTo(User::class,'manager_id')` relation), its own milestone
+ * completion percentage (same numerator/denominator pattern already used
+ * for the department-wide `milestoneCompletionPercent` below, just
+ * per-project instead of aggregated), and its single nearest upcoming
+ * milestone. No new relations or columns were added -- this only
+ * re-queries relations that already existed.
+ *
+ * The doc comment that used to say "no calendar/scheduling data model
+ * exists" was stale -- `departmentCalendar` below has used
+ * `CalendarService::departmentEvents()` since an earlier pass; corrected
+ * here rather than left to keep contradicting the code beneath it.
+ *
+ * Tenant-isolation fix (found while extending this controller for the
  * Activity widget, same discipline as every other dashboard fixed this
  * milestone): every existing query here had ZERO company scoping. Fixed
  * via DashboardStatsService::resolveCompanyIds().
@@ -60,6 +74,35 @@ class ProjectManagementDashboardController extends Controller
                 ->orderBy('end_date')
                 ->limit(5)
                 ->get(['id', 'name', 'end_date']),
+            // "Project Portfolio" -- compact table dataset, Phase 4. Reuses
+            // the exact milestone-completion formula above, just scoped
+            // per-project via `loadCount`/`load` instead of one aggregate
+            // query, plus each project's single nearest open milestone.
+            'projectPortfolio' => Project::whereIn('company_id', $companyIds)
+                ->whereIn('status', ['planned', 'ongoing'])
+                ->with(['manager:id,name'])
+                ->orderBy('end_date')
+                ->limit(10)
+                ->get(['id', 'name', 'manager_id', 'status', 'end_date'])
+                ->map(function (Project $p) {
+                    $total = Milestone::where('project_id', $p->id)->count();
+                    $completed = Milestone::where('project_id', $p->id)->where('status', 'completed')->count();
+                    $nextMilestone = Milestone::where('project_id', $p->id)
+                        ->whereIn('status', ['pending', 'in_progress'])
+                        ->orderBy('target_date')
+                        ->first(['title', 'target_date']);
+
+                    return [
+                        'id' => $p->id,
+                        'name' => $p->name,
+                        'manager' => $p->manager?->name,
+                        'status' => $p->status,
+                        'progress_percent' => $total > 0 ? round(($completed / $total) * 100) : null,
+                        'next_milestone' => $nextMilestone?->title,
+                        'next_milestone_date' => $nextMilestone?->target_date,
+                        'end_date' => $p->end_date,
+                    ];
+                }),
             'departmentCalendar' => $this->calendar->departmentEvents($companyIds, 'project-management'),
         ]);
     }

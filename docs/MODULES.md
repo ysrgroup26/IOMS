@@ -1312,6 +1312,62 @@ middleware change, no tenant-scoping logic change — every new query uses the s
 `resolveCompanyIds()`/`whereIn('company_id', ...)` pattern already used everywhere else.
 `config('saas.enforce_entitlement')` untouched.
 
+## Department Dashboard UX Completion (v1.11.5)
+
+**Design principle** (the reason this pass exists): **Department Dashboard = operational control
+center. Main Dashboard = management/company-wide overview.** A department Overview should answer "what
+do I need to know or act on right now?", not "what collection of database statistics can I display?" —
+cards are supporting containers for information that benefits from grouping, not the entire page
+structure. The Main Dashboard stays the cross-department summary location and was not redesigned this
+pass; each department Overview below was restructured into an explicit information hierarchy (compact
+KPI strip → primary operational area → action/attention area → secondary information → activity +
+calendar) using the existing shared component set (`DashboardShell`/`StatCard`/`ModuleCard`/
+`ActivityList`/`StatusBadge`/`DepartmentCalendarWidget`) — no new shared components were needed, only
+applied more deliberately than before. Every KPI and list row traces to a real, tenant-scoped query;
+nothing fabricated, no fake charts.
+
+**HSE** (`HseDashboardController` / `Hse/Dashboard.jsx`): KPI strip trimmed to the 6 numbers that
+actually drive action (Open Incidents, Critical Incidents, Open Observations, Open CAPA, Active PTW,
+PPE Alerts). New `actionRequired` prop merges overdue Safety Equipment inspections, overdue P3K
+inspections, and overdue CAPA into one date-sorted, click-through list — reusing the exact WHERE
+clauses the pre-existing overdue counts already used, just also fetching rows. Recent
+Incidents/Observations/Activity moved onto `ActivityList`. Waste summary tile and Calendar kept exactly
+as built in v1.11.4/earlier, just given a wider column share.
+
+**HR** (`HrDashboardController` / `Hr/Dashboard.jsx`): added `onShiftToday` (same
+`EmployeeShiftAssignment` query the Main Dashboard's own Man-Power widget already used),
+`contractExpiringCount`/`certificationExpiringCount`, and an `attentionRequired` list merging
+`Employee.contract_end_date` and `EmployeeCompetency.expiry_date` (via its existing
+`scopeEffectiveStatus('expiring_soon')`) — both real columns that a stale doc comment had previously
+and incorrectly implied didn't exist. Workforce Status panel added alongside Attention Required.
+
+**Project Management** (`ProjectManagementDashboardController` / `ProjectManagement/Dashboard.jsx`):
+new `projectPortfolio` dataset — one row per active/planned project with its manager
+(`Project::manager()`), a per-project milestone-completion percentage (same formula as the department-
+wide aggregate, computed per project), and its nearest open milestone — rendered as a compact TABLE
+(Project/Manager/Status/Progress/Next Milestone/Due) with an inline progress bar, not a grid of project
+cards. Milestone Control and Delayed Projects moved onto `ActivityList`.
+
+**Logistics/PPIC** (`LogisticsDashboardController` / `Logistics/Dashboard.jsx`): new `materialFlow`
+prop visualizes the Material Request → Procurement → Purchase Order → Goods Receipt → Warehouse
+pipeline as five real stage counts (Procurement/PO counts reuse `PurchaseRequisition`/`PurchaseOrder`
+status constants already proven correct in `ProcurementDashboardController` — no new workflow logic),
+so PPIC can see at a glance which stage material is backing up in.
+
+**Warehouse** (`WarehouseDashboardController` / `Warehouses/Dashboard.jsx`): new `inventoryHealth`
+dataset — a compact TABLE (Item/Category/Location/Current Stock/Min-Reorder/Status), sorted by
+quantity ascending, status derived from the same `quantity`/`min_stock` thresholds `lowStockCount`/
+`outOfStockCount` already used (out of stock / critical / low / healthy). Existing Low Stock/Receiving/
+Issuing/Calendar sections kept as built in the prior Warehouse Overview pass (v1.11.3.2).
+
+**RBAC/tenant isolation**: no middleware, `config/departments.php`, or query-scoping pattern changed —
+every new/extended query in this pass uses the same `DashboardStatsService::resolveCompanyIds(null)`
++ `whereIn('company_id', ...)` pattern already audited as correct everywhere else. No new
+cross-department route links were introduced (pre-existing PM→Quality-Control ModuleCard links were
+left as found, out of this pass's scope). No local MySQL server was available in this environment (as
+in every prior pass this session) — verification below is `php -l` + `route:list` + `npm run build`,
+not a live browser click-through; stated plainly, not claimed otherwise.
+
 ## HSE Waste Management (v1.11.4)
 
 New HSE module, confirmed via repo-wide audit to not exist in any form before this pass. Built around

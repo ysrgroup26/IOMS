@@ -1,10 +1,10 @@
 import { Head, Link } from '@inertiajs/react';
 import AuthenticatedLayout from '@/Layouts/AuthenticatedLayout';
-import PageHeader from '@/Components/shared/PageHeader';
+import DashboardShell from '@/Components/shared/DashboardShell';
 import StatCard from '@/Components/shared/StatCard';
 import StatusBadge from '@/Components/shared/StatusBadge';
-import EmptyState from '@/Components/shared/EmptyState';
-import { Card, CardContent, CardHeader, CardTitle } from '@/Components/ui/card';
+import ActivityList from '@/Components/shared/ActivityList';
+import { Card, CardContent, CardHeader, CardTitle, CardDescription } from '@/Components/ui/card';
 import ModuleCard from '@/Components/shared/ModuleCard';
 import DepartmentCalendarWidget from '@/Components/shared/DepartmentCalendarWidget';
 import {
@@ -12,16 +12,6 @@ import {
     ClipboardList, FileWarning, Lock, UsersRound, FlaskConical, UserCheck, FileCheck, FileStack, Recycle,
 } from 'lucide-react';
 
-/**
- * v1.11.0 (SaaS Finalization Pass, Part 3). The shared "module card" grid
- * every department Overview should use for its own operational shortcuts
- * -- proof-of-pattern applied here first (HSE has the most modules of any
- * department in this codebase). Remaining department dashboards (HR,
- * Project Management, Logistics, Procurement) still use their own
- * pre-existing widget layout below the stat cards -- retrofitting them to
- * this same grid is flagged as a follow-up, not silently claimed done
- * here (see docs/CONVENTIONS.md).
- */
 const HSE_MODULES = [
     { icon: Eye, title: 'Safety Observation', description: 'One-click hazard/near-miss reporting.', href: 'safety-observations.index' },
     { icon: ClipboardCheck, title: 'HSE Inspection', description: 'Scheduled inspections with findings.', href: 'hse-inspections.index' },
@@ -39,126 +29,186 @@ const HSE_MODULES = [
 ];
 
 /**
- * HSE Dashboard (v1.10.0). Distinct from PPE's own dashboard
- * (route('ppe.dashboard'), still the detailed PPE-specific page) -- see
- * HseDashboardController's own doc comment for which spec widgets were
- * intentionally left out, and for Milestone 4 Workstream B's tenant-leak
- * fix + Safety Observation widget addition.
+ * HSE Dashboard (v1.10.0, redesigned v1.11.5 -- Dashboard UX Completion,
+ * Phase 2). Restructured from "row of stat cards + row of list cards"
+ * into an operational hierarchy: compact KPI strip -> Safety Performance
+ * (status breakdown) -> Action Required (real overdue items, actionable/
+ * clickable) -> HSE Activity -> Waste + Calendar. Every number here was
+ * already real before this pass (see HseDashboardController's own doc
+ * comment for the tenant-scoping history); this pass only changes HOW
+ * they're organized and adds one new real data source (`actionRequired`,
+ * built from the same WHERE clauses the existing overdue counts already
+ * used, not new query logic).
  */
 export default function HseDashboard({
     activeProjectsCount, openIncidentsCount, incidentsBySeverity, ppeAlertCount,
     recentIncidents, recentActivity, openSafetyObservationsCount, recentSafetyObservations,
-    openPermitsCount, overdueSafetyEquipmentCount, overdueP3kCount, openCapaCount, departmentCalendar, wasteSummary,
+    openPermitsCount, overdueSafetyEquipmentCount, overdueP3kCount, openCapaCount, actionRequired,
+    departmentCalendar, wasteSummary,
 }) {
     return (
         <AuthenticatedLayout>
             <Head title="HSE Dashboard" />
-            <PageHeader title="HSE Dashboard" subtitle="Operational HSE overview." />
+            <DashboardShell title="HSE Overview" subtitle="Operational safety status.">
+                {/* LEVEL 1 -- compact KPI strip */}
+                <div className="grid grid-cols-2 gap-3 lg:grid-cols-6">
+                    <StatCard icon={AlertTriangle} value={openIncidentsCount} label="Open Incidents" accent={openIncidentsCount > 0 ? 'red' : null} href={route('incidents.index')} />
+                    <StatCard icon={AlertTriangle} value={incidentsBySeverity?.critical ?? 0} label="Critical Incidents" accent={(incidentsBySeverity?.critical ?? 0) > 0 ? 'red' : null} href={route('incidents.index', { severity: 'critical' })} />
+                    <StatCard icon={Eye} value={openSafetyObservationsCount} label="Open Observations" accent={openSafetyObservationsCount > 0 ? 'amber' : null} href={route('safety-observations.index')} />
+                    <StatCard icon={ClipboardCheck} value={openCapaCount} label="Open CAPA" accent={openCapaCount > 0 ? 'amber' : null} href={route('corrective-actions.index')} />
+                    <StatCard icon={Flame} value={openPermitsCount} label="Active PTW" href={route('permits-to-work.index')} />
+                    <StatCard icon={HardHat} value={ppeAlertCount} label="PPE Alerts" accent={ppeAlertCount > 0 ? 'amber' : null} href={route('ppe.dashboard')} />
+                </div>
 
-            <div className="grid grid-cols-2 gap-3 lg:grid-cols-5">
-                <StatCard icon={FolderKanban} value={activeProjectsCount} label="Active Projects" href={route('projects.index')} />
-                <StatCard icon={AlertTriangle} value={openIncidentsCount} label="Open Incidents" accent={openIncidentsCount > 0 ? 'red' : null} href={route('incidents.index')} />
-                <StatCard icon={Eye} value={openSafetyObservationsCount} label="Open Observations" accent={openSafetyObservationsCount > 0 ? 'amber' : null} href={route('safety-observations.index')} />
-                <StatCard icon={HardHat} value={ppeAlertCount} label="PPE Alerts" accent={ppeAlertCount > 0 ? 'amber' : null} href={route('ppe.dashboard')} />
-                <StatCard icon={AlertTriangle} value={incidentsBySeverity?.critical ?? 0} label="Critical Incidents" accent={(incidentsBySeverity?.critical ?? 0) > 0 ? 'red' : null} href={route('incidents.index', { severity: 'critical' })} />
-                <StatCard icon={Flame} value={openPermitsCount} label="Open Permits" href={route('permits-to-work.index')} />
-                <StatCard icon={ShieldAlert} value={overdueSafetyEquipmentCount} label="Overdue Equipment" accent={overdueSafetyEquipmentCount > 0 ? 'red' : null} href={route('hse.master')} />
-                <StatCard icon={ShieldAlert} value={overdueP3kCount} label="Overdue P3K" accent={overdueP3kCount > 0 ? 'red' : null} href={route('hse.master')} />
-                <StatCard icon={ClipboardCheck} value={openCapaCount} label="Open CAPA" accent={openCapaCount > 0 ? 'amber' : null} href={route('corrective-actions.index')} />
-            </div>
-
-            <div className="mt-6 grid grid-cols-2 gap-3 sm:grid-cols-3 lg:grid-cols-6">
-                {HSE_MODULES.map((m) => <ModuleCard key={m.title} {...m} />)}
-            </div>
-
-            <div className="mt-4 grid grid-cols-1 gap-3 lg:grid-cols-5">
-                <Card>
-                    <CardHeader><CardTitle>Recent Incidents</CardTitle></CardHeader>
-                    <CardContent>
-                        {recentIncidents.length === 0 ? (
-                            <EmptyState icon={AlertTriangle} title="No incidents recorded" />
-                        ) : (
-                            <ul className="divide-y divide-graphite-100">
-                                {recentIncidents.map((i) => (
-                                    <li key={i.id}>
-                                        <Link href={route('incidents.show', i.id)} className="flex items-center justify-between gap-2 py-2.5 text-sm hover:text-brand-700">
-                                            <span className="min-w-0 flex-1 truncate font-medium text-graphite-700">{i.title}</span>
-                                            <StatusBadge value={i.severity} />
-                                            <StatusBadge value={i.status} />
-                                        </Link>
-                                    </li>
-                                ))}
-                            </ul>
-                        )}
-                    </CardContent>
-                </Card>
-
-                <Card>
-                    <CardHeader><CardTitle>Recent Safety Observations</CardTitle></CardHeader>
-                    <CardContent>
-                        {recentSafetyObservations.length === 0 ? (
-                            <EmptyState icon={Eye} title="No observations recorded" />
-                        ) : (
-                            <ul className="divide-y divide-graphite-100">
-                                {recentSafetyObservations.map((o) => (
-                                    <li key={o.id}>
-                                        <Link href={route('safety-observations.show', o.id)} className="flex items-center justify-between gap-2 py-2.5 text-sm hover:text-brand-700">
-                                            <span className="min-w-0 flex-1 truncate font-medium capitalize text-graphite-700">{o.type.replace('_', ' ')}</span>
-                                            <StatusBadge value={o.status} />
-                                        </Link>
-                                    </li>
-                                ))}
-                            </ul>
-                        )}
-                    </CardContent>
-                </Card>
-
-                <Card>
-                    <CardHeader className="flex flex-row items-center gap-2 space-y-0"><History className="h-4 w-4 text-graphite-400" /><CardTitle>Recent Activity</CardTitle></CardHeader>
-                    <CardContent>
-                        {recentActivity.length === 0 ? (
-                            <EmptyState icon={History} title="No recent activity" />
-                        ) : (
-                            <ul className="divide-y divide-graphite-100">
-                                {recentActivity.map((a) => (
-                                    <li key={a.id} className="py-2.5 text-sm">
-                                        <p className="text-graphite-700">{a.description}</p>
-                                        <p className="text-xs text-graphite-400">{a.user?.name} · {new Date(a.created_at).toLocaleString('en-US', { day: 'numeric', month: 'short', hour: 'numeric', minute: '2-digit' })}</p>
-                                    </li>
-                                ))}
-                            </ul>
-                        )}
-                    </CardContent>
-                </Card>
-
-                {/* v1.11.4 (HSE Waste Management, Part 20). Compact operational
-                    summary only -- explicit instruction: "Do NOT turn it into
-                    another huge card." Click-through to the full dashboard. */}
-                <Link href={route('waste.dashboard')} className="block">
-                    <Card className="h-full transition-colors hover:border-brand-300 dark:hover:border-brand-700">
-                        <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
-                            <CardTitle className="flex items-center gap-2 text-sm"><Recycle className="h-3.5 w-3.5 text-graphite-400" /> Waste</CardTitle>
+                {/* LEVEL 2/3 -- primary safety status + action required, side by side */}
+                <div className="grid grid-cols-1 gap-3 lg:grid-cols-2">
+                    <Card>
+                        <CardHeader className="pb-2">
+                            <CardTitle className="text-sm">Safety Performance</CardTitle>
+                            <CardDescription>Current status breakdown across HSE modules</CardDescription>
                         </CardHeader>
-                        <CardContent className="grid grid-cols-2 gap-2 text-xs">
-                            <div className="flex items-center justify-between rounded-md bg-graphite-50 px-2 py-1.5 dark:bg-slate-800">
-                                <span className="text-graphite-500">B3</span><span className="font-semibold">{wasteSummary.b3_stored}</span>
+                        <CardContent className="grid grid-cols-2 gap-2 text-sm sm:grid-cols-4">
+                            <div className="rounded-lg border border-graphite-100 p-2.5 dark:border-slate-800">
+                                <p className="text-xs text-graphite-400">Incidents</p>
+                                <p className="text-base font-bold text-graphite-900 dark:text-slate-50">{openIncidentsCount}</p>
+                                <p className="text-[11px] text-graphite-400">{incidentsBySeverity?.critical ?? 0} critical</p>
                             </div>
-                            <div className="flex items-center justify-between rounded-md bg-graphite-50 px-2 py-1.5 dark:bg-slate-800">
-                                <span className="text-graphite-500">Non-B3</span><span className="font-semibold">{wasteSummary.non_b3_stored}</span>
+                            <div className="rounded-lg border border-graphite-100 p-2.5 dark:border-slate-800">
+                                <p className="text-xs text-graphite-400">Observations</p>
+                                <p className="text-base font-bold text-graphite-900 dark:text-slate-50">{openSafetyObservationsCount}</p>
+                                <p className="text-[11px] text-graphite-400">open</p>
                             </div>
-                            <div className="flex items-center justify-between rounded-md bg-graphite-50 px-2 py-1.5 dark:bg-slate-800">
-                                <span className="text-graphite-500">Storage Alerts</span>
-                                <span className={`font-semibold ${wasteSummary.storage_alerts > 0 ? 'text-red-600' : ''}`}>{wasteSummary.storage_alerts}</span>
+                            <div className="rounded-lg border border-graphite-100 p-2.5 dark:border-slate-800">
+                                <p className="text-xs text-graphite-400">CAPA</p>
+                                <p className="text-base font-bold text-graphite-900 dark:text-slate-50">{openCapaCount}</p>
+                                <p className="text-[11px] text-graphite-400">open</p>
                             </div>
-                            <div className="flex items-center justify-between rounded-md bg-graphite-50 px-2 py-1.5 dark:bg-slate-800">
-                                <span className="text-graphite-500">Pending Disposal</span><span className="font-semibold">{wasteSummary.pending_disposal}</span>
+                            <div className="rounded-lg border border-graphite-100 p-2.5 dark:border-slate-800">
+                                <p className="text-xs text-graphite-400">Permits (PTW)</p>
+                                <p className="text-base font-bold text-graphite-900 dark:text-slate-50">{openPermitsCount}</p>
+                                <p className="text-[11px] text-graphite-400">active</p>
                             </div>
                         </CardContent>
                     </Card>
-                </Link>
 
-                <DepartmentCalendarWidget events={departmentCalendar} title="HSE Calendar" description="Permits, TBM & inspections, next 3 weeks" />
-            </div>
+                    <Card>
+                        <CardHeader className="pb-2">
+                            <CardTitle className="text-sm">Action Required</CardTitle>
+                            <CardDescription>Overdue equipment, P3K, and CAPA -- oldest first</CardDescription>
+                        </CardHeader>
+                        <CardContent>
+                            <ActivityList
+                                items={actionRequired}
+                                getKey={(a, i) => i}
+                                getHref={(a) => a.href}
+                                emptyIcon={ShieldAlert}
+                                emptyTitle="Nothing overdue right now"
+                                renderItem={(a) => (
+                                    <div className="flex items-center justify-between gap-2 py-2 text-sm">
+                                        <div className="min-w-0 flex-1">
+                                            <p className="truncate font-medium text-graphite-700 dark:text-slate-200">{a.label}</p>
+                                            <p className="text-xs text-red-500">{a.type}</p>
+                                        </div>
+                                        <span className="shrink-0 text-xs text-graphite-400">{new Date(a.date).toLocaleDateString('en-US', { day: 'numeric', month: 'short' })}</span>
+                                    </div>
+                                )}
+                            />
+                        </CardContent>
+                    </Card>
+                </div>
+
+                {/* LEVEL 4 -- module shortcuts, compact grid */}
+                <div className="grid grid-cols-2 gap-3 sm:grid-cols-3 lg:grid-cols-6">
+                    {HSE_MODULES.map((m) => <ModuleCard key={m.title} {...m} />)}
+                </div>
+
+                {/* LEVEL 3 -- HSE activity */}
+                <div className="grid grid-cols-1 gap-3 lg:grid-cols-3">
+                    <Card>
+                        <CardHeader className="pb-2"><CardTitle className="text-sm">Recent Incidents</CardTitle></CardHeader>
+                        <CardContent>
+                            <ActivityList
+                                items={recentIncidents}
+                                getHref={(i) => route('incidents.show', i.id)}
+                                emptyIcon={AlertTriangle}
+                                emptyTitle="No incidents recorded"
+                                renderItem={(i) => (
+                                    <div className="flex items-center justify-between gap-2 py-2 text-sm">
+                                        <span className="min-w-0 flex-1 truncate font-medium text-graphite-700">{i.title}</span>
+                                        <StatusBadge value={i.severity} />
+                                        <StatusBadge value={i.status} />
+                                    </div>
+                                )}
+                            />
+                        </CardContent>
+                    </Card>
+
+                    <Card>
+                        <CardHeader className="pb-2"><CardTitle className="text-sm">Recent Observations</CardTitle></CardHeader>
+                        <CardContent>
+                            <ActivityList
+                                items={recentSafetyObservations}
+                                getHref={(o) => route('safety-observations.show', o.id)}
+                                emptyIcon={Eye}
+                                emptyTitle="No observations recorded"
+                                renderItem={(o) => (
+                                    <div className="flex items-center justify-between gap-2 py-2 text-sm">
+                                        <span className="min-w-0 flex-1 truncate font-medium capitalize text-graphite-700">{o.type.replace('_', ' ')}</span>
+                                        <StatusBadge value={o.status} />
+                                    </div>
+                                )}
+                            />
+                        </CardContent>
+                    </Card>
+
+                    <Card>
+                        <CardHeader className="flex flex-row items-center gap-2 space-y-0 pb-2"><History className="h-3.5 w-3.5 text-graphite-400" /><CardTitle className="text-sm">Recent Activity</CardTitle></CardHeader>
+                        <CardContent>
+                            <ActivityList
+                                items={recentActivity}
+                                emptyIcon={History}
+                                emptyTitle="No recent activity"
+                                renderItem={(a) => (
+                                    <div className="py-2 text-sm">
+                                        <p className="text-graphite-700">{a.description}</p>
+                                        <p className="text-xs text-graphite-400">{a.user?.name} · {new Date(a.created_at).toLocaleString('en-US', { day: 'numeric', month: 'short', hour: 'numeric', minute: '2-digit' })}</p>
+                                    </div>
+                                )}
+                            />
+                        </CardContent>
+                    </Card>
+                </div>
+
+                {/* LEVEL 3 -- waste (compact, unchanged from the prior pass) + calendar */}
+                <div className="grid grid-cols-1 gap-3 lg:grid-cols-3">
+                    <Link href={route('waste.dashboard')} className="block">
+                        <Card className="h-full transition-colors hover:border-brand-300 dark:hover:border-brand-700">
+                            <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
+                                <CardTitle className="flex items-center gap-2 text-sm"><Recycle className="h-3.5 w-3.5 text-graphite-400" /> Waste</CardTitle>
+                            </CardHeader>
+                            <CardContent className="grid grid-cols-2 gap-2 text-xs">
+                                <div className="flex items-center justify-between rounded-md bg-graphite-50 px-2 py-1.5 dark:bg-slate-800">
+                                    <span className="text-graphite-500">B3</span><span className="font-semibold">{wasteSummary.b3_stored}</span>
+                                </div>
+                                <div className="flex items-center justify-between rounded-md bg-graphite-50 px-2 py-1.5 dark:bg-slate-800">
+                                    <span className="text-graphite-500">Non-B3</span><span className="font-semibold">{wasteSummary.non_b3_stored}</span>
+                                </div>
+                                <div className="flex items-center justify-between rounded-md bg-graphite-50 px-2 py-1.5 dark:bg-slate-800">
+                                    <span className="text-graphite-500">Storage Alerts</span>
+                                    <span className={`font-semibold ${wasteSummary.storage_alerts > 0 ? 'text-red-600' : ''}`}>{wasteSummary.storage_alerts}</span>
+                                </div>
+                                <div className="flex items-center justify-between rounded-md bg-graphite-50 px-2 py-1.5 dark:bg-slate-800">
+                                    <span className="text-graphite-500">Pending Disposal</span><span className="font-semibold">{wasteSummary.pending_disposal}</span>
+                                </div>
+                            </CardContent>
+                        </Card>
+                    </Link>
+
+                    <div className="lg:col-span-2">
+                        <DepartmentCalendarWidget events={departmentCalendar} title="HSE Calendar" description="Permits, TBM & inspections, next 3 weeks" />
+                    </div>
+                </div>
+            </DashboardShell>
         </AuthenticatedLayout>
     );
 }

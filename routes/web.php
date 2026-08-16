@@ -78,6 +78,10 @@ use App\Http\Controllers\VendorController;
 use App\Http\Controllers\VendorPerformanceController;
 use App\Http\Controllers\VendorQuotationController;
 use App\Http\Controllers\VisitorController;
+use App\Http\Controllers\WasteDashboardController;
+use App\Http\Controllers\WasteMasterController;
+use App\Http\Controllers\WasteMovementController;
+use App\Http\Controllers\WasteRecordController;
 use App\Http\Controllers\WorkOrderController;
 use App\Http\Controllers\WorkCenterController;
 use Illuminate\Support\Facades\Route;
@@ -194,6 +198,20 @@ Route::middleware(['auth', 'restrict.platform-admin'])->group(function () {
     // HSE Master Data (Milestone 4, Workstream B0): viewable by all roles,
     // same pattern.
     Route::get('/hse/master', [HazardCategoryController::class, 'master'])->name('hse.master');
+
+    // v1.11.4 (HSE Waste Management, Part 11-19). View routes open to
+    // every role, same as every other HSE module above -- write
+    // operations are gated inside each controller via canManageHse(),
+    // identical shape to Safety Observation/Incident. `config/departments.php`
+    // maps every `waste*` prefix below to `hse`.
+    Route::get('/hse/waste/master', [WasteMasterController::class, 'master'])->name('waste.master');
+    Route::get('/hse/waste/dashboard', [WasteDashboardController::class, 'index'])->name('waste.dashboard');
+    Route::get('/waste-records', [WasteRecordController::class, 'index'])->name('waste-records.index');
+    Route::get('/waste-records/create', [WasteRecordController::class, 'create'])->name('waste-records.create');
+    Route::post('/waste-records', [WasteRecordController::class, 'store'])->name('waste-records.store');
+    Route::get('/waste-records/{wasteRecord}', [WasteRecordController::class, 'show'])->name('waste-records.show');
+    Route::post('/waste-records/{wasteRecord}/transition', [WasteRecordController::class, 'transition'])->name('waste-records.transition');
+    Route::post('/waste-records/{wasteRecord}/movements', [WasteMovementController::class, 'store'])->name('waste-movements.store');
 
     // Safety Observation (Milestone 4, Workstream B1): list/detail viewable
     // by all roles; create/store/transition are canManageSafetyObservations()
@@ -510,6 +528,15 @@ Route::middleware(['auth', 'restrict.platform-admin'])->group(function () {
         Route::post('/hse-materials', [HseMaterialController::class, 'store'])->name('hse-materials.store');
         Route::put('/hse-materials/{hseMaterial}', [HseMaterialController::class, 'update'])->name('hse-materials.update');
         Route::delete('/hse-materials/{hseMaterial}', [HseMaterialController::class, 'destroy'])->name('hse-materials.destroy');
+
+        // v1.11.4 (HSE Waste Management, Part 12/15) -- master-data
+        // mutations, same role gate as every other HSE master here.
+        Route::post('/waste-types', [WasteMasterController::class, 'storeType'])->name('waste-types.store');
+        Route::put('/waste-types/{wasteType}', [WasteMasterController::class, 'updateType'])->name('waste-types.update');
+        Route::delete('/waste-types/{wasteType}', [WasteMasterController::class, 'destroyType'])->name('waste-types.destroy');
+        Route::post('/waste-storage-locations', [WasteMasterController::class, 'storeStorageLocation'])->name('waste-storage-locations.store');
+        Route::put('/waste-storage-locations/{wasteStorageLocation}', [WasteMasterController::class, 'updateStorageLocation'])->name('waste-storage-locations.update');
+        Route::delete('/waste-storage-locations/{wasteStorageLocation}', [WasteMasterController::class, 'destroyStorageLocation'])->name('waste-storage-locations.destroy');
 
         Route::post('/p3k-boxes', [P3kBoxController::class, 'store'])->name('p3k-boxes.store');
         Route::put('/p3k-boxes/{p3kBox}', [P3kBoxController::class, 'update'])->name('p3k-boxes.update');

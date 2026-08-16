@@ -39,6 +39,10 @@ class Vendor extends Model
         'bank_name', 'bank_account_number', 'bank_account_holder', 'payment_terms', 'tax_info',
         'category', 'capability', 'is_active', 'qualification_status', 'reviewed_by', 'reviewed_at',
         'qualified_until', 'rejection_reason', 'notes',
+        // v1.11.4, HSE Waste Management (Part 16) -- see the owning
+        // migration's own doc comment. Independent of `type`/`category`;
+        // a vendor can be a goods/services vendor AND a waste vendor.
+        'is_waste_vendor',
     ];
 
     protected $appends = ['is_qualification_expired'];
@@ -49,6 +53,7 @@ class Vendor extends Model
             'is_active' => 'boolean',
             'reviewed_at' => 'date',
             'qualified_until' => 'date',
+            'is_waste_vendor' => 'boolean',
         ];
     }
 
@@ -80,6 +85,12 @@ class Vendor extends Model
     public function scopeActive($query)
     {
         return $query->where('is_active', true)->orderBy('name');
+    }
+
+    /** v1.11.4, HSE Waste Management -- vendors flagged as licensed waste transporters/disposal handlers. */
+    public function scopeWasteVendors($query)
+    {
+        return $query->where('is_waste_vendor', true);
     }
 
     /** A vendor considered actually usable for a new RFQ/PO right now -- qualified, not suspended/expired. */

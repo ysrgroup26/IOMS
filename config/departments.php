@@ -35,6 +35,12 @@ return [
         'safety-equipment', 'hse-materials', 'p3k-boxes',
         'hse-equipment-types', 'hse-checklist-templates',
         'contractors', 'visitors', 'controlled-documents',
+        // v1.11.4 (HSE Waste Management) -- every route-name prefix this
+        // module introduced (routes/web.php: waste.master, waste.dashboard,
+        // waste-records.*, waste-movements.*, waste-types.*,
+        // waste-storage-locations.*), using this project's existing HSE
+        // route-naming convention, not an invented one.
+        'waste', 'waste-records', 'waste-movements', 'waste-types', 'waste-storage-locations',
     ],
     'project-management' => [
         'projects', 'daily-reports', 'milestones', 'project-management',

@@ -1312,6 +1312,60 @@ middleware change, no tenant-scoping logic change — every new query uses the s
 `resolveCompanyIds()`/`whereIn('company_id', ...)` pattern already used everywhere else.
 `config('saas.enforce_entitlement')` untouched.
 
+## HSE Waste Management (v1.11.4)
+
+New HSE module, confirmed via repo-wide audit to not exist in any form before this pass. Built around
+the requested lifecycle: **Generated → Stored → Scheduled for Pickup → In Transit → Disposed →
+Closed** — guarded by `WasteRecord::ALLOWED_TRANSITIONS` (mirrors `WorkOrder`/`MaintenanceRequest`'s
+own transition-guard pattern; invalid transitions are rejected server-side, not left to the UI).
+
+**Tables** (all additive, `Schema::createIfMissing`, verified zero migration-ordering violations via
+the same audit script used for prior incidents): `waste_types`, `waste_storage_locations`,
+`waste_records`, `waste_movements`, `waste_movement_documents`, plus one additive column —
+`vendors.is_waste_vendor` (boolean, default false) — **not** a new vendor table; explicit instruction
+was "Do NOT create WasteVendor as a duplicate vendor master."
+
+**Reuse, not duplication**:
+- Numbering: `NumberGeneratorService`'s existing `waste_record` DEFAULTS entry (`HSE-WST-{YEAR}-{SEQ}`)
+  — no new numbering engine.
+- Source: `WasteRecord.project_id`/`project_activity_id` are nullable FKs to the EXISTING
+  `projects`/`project_activities` tables — no parallel source/work-area system.
+- Vendor: `WasteMovement.vendor_id` FKs to the EXISTING `Vendor` table, filtered by the new
+  `is_waste_vendor` flag (`Vendor::scopeWasteVendors()`).
+- Documents: `WasteMovementDocument` mirrors `VendorDocument`'s exact shape and conventions
+  (`file_path`/`original_name`/`document_type`, `public` disk, `asset('storage/'.path)` URL accessor)
+  — no new file-storage mechanism.
+- Storage register: `waste_storage_locations` is a genuinely SEPARATE table from the pre-existing
+  Warehouse `storage_locations` table (2026_08_22_100088) — a deliberate non-duplication (regulated
+  temporary waste holding vs. general inventory bins), not an accidental naming collision.
+
+**Storage-limit monitoring is explicitly operational, never legal advice**: `WasteType.storage_limit_days`
+is a nullable, tenant-configured integer (per waste type, since different waste categories may need
+different monitoring windows). `WasteRecord::is_approaching_storage_limit`/`is_storage_overdue` are
+computed accessors (never stored/cached, same "never goes stale" reasoning as `SafetyEquipment::is_overdue`)
+that only activate once a threshold is actually configured — null means "no monitoring configured," never
+a fabricated default. No Indonesian regulatory limit is hardcoded anywhere in this module.
+
+**Controllers**: `WasteMasterController` (Waste Types + Storage/TPS CRUD, mirrors
+`HazardCategoryController`/`WarehouseController`'s own multi-section master-data page pattern),
+`WasteRecordController` (index/create/store/show/transition), `WasteMovementController` (records a
+movement + optional document upload, and keeps the parent `WasteRecord.status` in sync — same
+denormalized-parent-status pattern as `SafetyEquipmentController::recordInspection()`),
+`WasteDashboardController` (real, tenant-scoped KPIs only — B3/Non-B3 stored counts, awaiting
+pickup/in transit, disposed, storage alerts — nothing fabricated).
+
+**Frontend**: `Hse/WasteMaster.jsx`, `Hse/WasteManagement/{Index,Form,Show,Dashboard}.jsx`. HSE
+Overview (`Hse/Dashboard.jsx`) gained a compact click-through Waste summary tile (B3/Non-B3
+stored/storage alerts/pending disposal counts only — explicit instruction: "Do NOT turn it into
+another huge card") and a "Waste Management" `ModuleCard`/sidebar item, placed after Corrective
+Actions (CAPA) per the requested navigation position.
+
+**RBAC**: every `waste*` route-name prefix (`waste`, `waste-records`, `waste-movements`, `waste-types`,
+`waste-storage-locations`) was added to `config/departments.php`'s `hse` array — verified
+programmatically (not just by inspection) that all five resolve to `hse` before this pass was
+committed. `RestrictDepartmentAccess` itself was not modified. Write operations are gated by the
+existing `canManageHse()` check inside each controller, matching every other HSE module's pattern.
+
 ## Reusable engines (Approval, Workflow, Timeline, Import, PDF, Report Export)
 
 These aren't a "module" with their own page — they're cross-cutting infrastructure consumed by the

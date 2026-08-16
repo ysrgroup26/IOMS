@@ -12,6 +12,8 @@ use App\Models\PermitToWork;
 use App\Models\Project;
 use App\Models\SafetyEquipment;
 use App\Models\SafetyObservation;
+use App\Models\WasteRecord;
+use App\Models\WasteType;
 use App\Services\CalendarService;
 use App\Services\DashboardStatsService;
 use Inertia\Inertia;
@@ -104,6 +106,25 @@ class HseDashboardController extends Controller
                 ->whereNotIn('status', [CorrectiveAction::STATUS_VERIFIED, CorrectiveAction::STATUS_CANCELLED])
                 ->count(),
             'departmentCalendar' => $this->calendar->departmentEvents($companyIds, 'hse'),
+            // v1.11.4 (HSE Waste Management, Part 20) -- compact summary
+            // only, explicit instruction: "Do NOT turn it into another
+            // huge card." Real counts, click-through to the full Waste
+            // Management dashboard.
+            'wasteSummary' => (function () use ($companyIds) {
+                $records = WasteRecord::whereIn('company_id', $companyIds)
+                    ->whereIn('status', WasteRecord::STORED_STATUSES)
+                    ->with('wasteType:id,category')
+                    ->get();
+
+                return [
+                    'b3_stored' => $records->filter(fn (WasteRecord $r) => $r->wasteType?->category === WasteType::CATEGORY_B3)->count(),
+                    'non_b3_stored' => $records->filter(fn (WasteRecord $r) => $r->wasteType?->category === WasteType::CATEGORY_NON_B3)->count(),
+                    'storage_alerts' => $records->filter(fn (WasteRecord $r) => $r->is_approaching_storage_limit || $r->is_storage_overdue)->count(),
+                    'pending_disposal' => WasteRecord::whereIn('company_id', $companyIds)
+                        ->whereIn('status', [WasteRecord::STATUS_SCHEDULED_PICKUP, WasteRecord::STATUS_IN_TRANSIT])
+                        ->count(),
+                ];
+            })(),
         ]);
     }
 }

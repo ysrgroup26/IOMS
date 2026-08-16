@@ -54,6 +54,8 @@ class NumberGeneratorService
         'tbm' => ['prefix' => 'TBM', 'pattern' => '{PREFIX}-{YEAR}-{SEQ}', 'seq_padding' => 5, 'reset_period' => 'yearly'],
         'hse_inspection' => ['prefix' => 'HSE-INS', 'pattern' => '{PREFIX}-{YEAR}-{SEQ}', 'seq_padding' => 5, 'reset_period' => 'yearly'],
         'loto' => ['prefix' => 'LOTO', 'pattern' => '{PREFIX}-{YEAR}-{SEQ}', 'seq_padding' => 5, 'reset_period' => 'yearly'],
+        // v1.11.4, HSE Waste Management.
+        'waste_record' => ['prefix' => 'HSE-WST', 'pattern' => '{PREFIX}-{YEAR}-{SEQ}', 'seq_padding' => 5, 'reset_period' => 'yearly'],
         // Milestone 4, Workstream C (Procurement). Prefix-only defaults --
         // a Company Admin can edit these later from Settings > Numbering,
         // same as every other module. Never hard-coded to look like a

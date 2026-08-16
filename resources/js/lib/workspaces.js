@@ -5,7 +5,7 @@ import {
     AlertTriangle, PackageCheck, Flag, BarChart3, FileDown, GraduationCap, Clock, Eye, ListChecks,
     ShieldAlert, FileWarning, Flame, Lock, UsersRound, Stethoscope, Siren, ClipboardCheck,
     FileStack, FileQuestion, Building2, TrendingUp, Boxes, ArrowRightLeft, UserCheck, FileCheck,
-    FlaskConical,
+    FlaskConical, Recycle,
 } from 'lucide-react';
 
 /**
@@ -136,6 +136,12 @@ export const WORKSPACES = [
             // over the SAME CorrectiveAction rows Safety Observation/
             // Inspection/Incident already create -- not a new system.
             { name: 'Corrective Actions (CAPA)', href: 'corrective-actions.index', icon: ClipboardCheck },
+            // v1.11.4, HSE Waste Management -- single entry point
+            // (`waste.dashboard`); waste-records.*/waste-types.*/
+            // waste-storage-locations.* stay reachable from within that
+            // page rather than each getting their own sidebar row, same
+            // convention as Safety Observation/CAPA above.
+            { name: 'Waste Management', href: 'waste.dashboard', icon: Recycle },
             // Training & Competency now lives under HR -- see that
             // entry's own comment. Same one-canonical-home precedent as
             // HSE KPI above (which moved the other direction).

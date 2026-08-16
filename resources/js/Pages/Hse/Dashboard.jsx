@@ -9,7 +9,7 @@ import ModuleCard from '@/Components/shared/ModuleCard';
 import DepartmentCalendarWidget from '@/Components/shared/DepartmentCalendarWidget';
 import {
     FolderKanban, AlertTriangle, HardHat, History, Eye, Flame, ShieldAlert, ClipboardCheck,
-    ClipboardList, FileWarning, Lock, UsersRound, FlaskConical, UserCheck, FileCheck, FileStack,
+    ClipboardList, FileWarning, Lock, UsersRound, FlaskConical, UserCheck, FileCheck, FileStack, Recycle,
 } from 'lucide-react';
 
 /**
@@ -32,6 +32,7 @@ const HSE_MODULES = [
     { icon: FlaskConical, title: 'Gas Test', description: 'Atmospheric readings across all permits.', href: 'gas-test-records.index' },
     { icon: Lock, title: 'LOTO', description: 'Lockout/tagout energy isolation.', href: 'loto-records.index' },
     { icon: ClipboardCheck, title: 'Corrective Actions (CAPA)', description: 'Cross-source corrective action tracking.', href: 'corrective-actions.index' },
+    { icon: Recycle, title: 'Waste Management', description: 'B3/Non-B3 waste, storage, and disposal.', href: 'waste.dashboard' },
     { icon: UserCheck, title: 'Contractor Management', description: 'Contractor register, workers, documents.', href: 'contractors.index' },
     { icon: FileCheck, title: 'Visitor Management', description: 'Site access register.', href: 'visitors.index' },
     { icon: FileStack, title: 'Document Control', description: 'Controlled documents with version history.', href: 'controlled-documents.index' },
@@ -47,7 +48,7 @@ const HSE_MODULES = [
 export default function HseDashboard({
     activeProjectsCount, openIncidentsCount, incidentsBySeverity, ppeAlertCount,
     recentIncidents, recentActivity, openSafetyObservationsCount, recentSafetyObservations,
-    openPermitsCount, overdueSafetyEquipmentCount, overdueP3kCount, openCapaCount, departmentCalendar,
+    openPermitsCount, overdueSafetyEquipmentCount, overdueP3kCount, openCapaCount, departmentCalendar, wasteSummary,
 }) {
     return (
         <AuthenticatedLayout>
@@ -70,7 +71,7 @@ export default function HseDashboard({
                 {HSE_MODULES.map((m) => <ModuleCard key={m.title} {...m} />)}
             </div>
 
-            <div className="mt-4 grid grid-cols-1 gap-3 lg:grid-cols-4">
+            <div className="mt-4 grid grid-cols-1 gap-3 lg:grid-cols-5">
                 <Card>
                     <CardHeader><CardTitle>Recent Incidents</CardTitle></CardHeader>
                     <CardContent>
@@ -129,6 +130,32 @@ export default function HseDashboard({
                         )}
                     </CardContent>
                 </Card>
+
+                {/* v1.11.4 (HSE Waste Management, Part 20). Compact operational
+                    summary only -- explicit instruction: "Do NOT turn it into
+                    another huge card." Click-through to the full dashboard. */}
+                <Link href={route('waste.dashboard')} className="block">
+                    <Card className="h-full transition-colors hover:border-brand-300 dark:hover:border-brand-700">
+                        <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
+                            <CardTitle className="flex items-center gap-2 text-sm"><Recycle className="h-3.5 w-3.5 text-graphite-400" /> Waste</CardTitle>
+                        </CardHeader>
+                        <CardContent className="grid grid-cols-2 gap-2 text-xs">
+                            <div className="flex items-center justify-between rounded-md bg-graphite-50 px-2 py-1.5 dark:bg-slate-800">
+                                <span className="text-graphite-500">B3</span><span className="font-semibold">{wasteSummary.b3_stored}</span>
+                            </div>
+                            <div className="flex items-center justify-between rounded-md bg-graphite-50 px-2 py-1.5 dark:bg-slate-800">
+                                <span className="text-graphite-500">Non-B3</span><span className="font-semibold">{wasteSummary.non_b3_stored}</span>
+                            </div>
+                            <div className="flex items-center justify-between rounded-md bg-graphite-50 px-2 py-1.5 dark:bg-slate-800">
+                                <span className="text-graphite-500">Storage Alerts</span>
+                                <span className={`font-semibold ${wasteSummary.storage_alerts > 0 ? 'text-red-600' : ''}`}>{wasteSummary.storage_alerts}</span>
+                            </div>
+                            <div className="flex items-center justify-between rounded-md bg-graphite-50 px-2 py-1.5 dark:bg-slate-800">
+                                <span className="text-graphite-500">Pending Disposal</span><span className="font-semibold">{wasteSummary.pending_disposal}</span>
+                            </div>
+                        </CardContent>
+                    </Card>
+                </Link>
 
                 <DepartmentCalendarWidget events={departmentCalendar} title="HSE Calendar" description="Permits, TBM & inspections, next 3 weeks" />
             </div>

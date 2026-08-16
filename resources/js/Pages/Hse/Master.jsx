@@ -259,11 +259,22 @@ function SafetyEquipmentSection({ safetyEquipment, equipmentTypes, assets = [], 
     const [open, setOpen] = useState(false);
     const [editing, setEditing] = useState(null);
     const [inspecting, setInspecting] = useState(null);
-    const { data, setData, post, put, processing, reset, errors } = useForm({
+    // v1.11.3.1 (production regression fix): Inertia React's
+    // useForm().transform() is a setter, not a chainable builder -- it
+    // returns undefined (sets an internal ref), it does NOT return the
+    // form object. `useForm({...}).transform(...)` therefore evaluated to
+    // `undefined`, and destructuring `{ data, ... }` from it threw
+    // exactly "Cannot destructure property 'data' of '...transform(...)'
+    // as it is undefined" on every render of this page -- confirmed from
+    // the actual error message, not guessed. Fixed by calling
+    // `transform()` as its own statement, using the destructured form's
+    // own `transform` function.
+    const { data, setData, post, put, processing, reset, errors, transform } = useForm({
         company_id: companies[0]?.id ? String(companies[0].id) : '',
         name: '', type: equipmentTypes[0]?.code || '', location: '', serial_number: '',
         last_inspection_date: '', next_inspection_due: '', status: 'active', notes: '', asset_id: '',
-    }).transform((formData) => ({ ...formData, asset_id: formData.asset_id || null }));
+    });
+    transform((formData) => ({ ...formData, asset_id: formData.asset_id || null }));
 
     function openCreate() { setEditing(null); reset(); setOpen(true); }
     function openEdit(e) {

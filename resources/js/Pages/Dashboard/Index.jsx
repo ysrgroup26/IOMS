@@ -1,4 +1,5 @@
 import { Head, router, Link, usePage } from '@inertiajs/react';
+import StatusBadge from '@/Components/shared/StatusBadge';
 import { useState } from 'react';
 import '@/lib/chartSetup';
 import { CHART_COLORS } from '@/lib/chartSetup';
@@ -19,7 +20,7 @@ import { formatNumber, cn } from '@/lib/utils';
 import {
     Trophy, Flame, ClipboardList, Users2, FolderKanban, Activity, Bell,
     Users, Building2, CalendarDays, HardHat, CheckCircle2, AlertTriangle, Plus, UserCog, ArrowRight,
-    Sparkles, X, ClipboardCheck, ShoppingCart, Boxes, Box, Wrench,
+    Sparkles, X, ClipboardCheck, ShoppingCart, Boxes, Box, Wrench, Flag,
 } from 'lucide-react';
 
 /**
@@ -37,7 +38,7 @@ export default function Dashboard({
     activeProjectsCount, todaysActivities, upcomingReminders, pendingTasks, employeesNeedCompletionCount,
     recentDailyReports, recentEmployeeChanges, showAnnouncement,
     openIncidentsCount, openCapaCount, pendingProcurementCount, stockAlertCount, assetCount, maintenanceDueCount,
-    upcomingEvents, manpower,
+    upcomingEvents, manpower, projectSummary, upcomingMilestones,
 }) {
     const { auth, notifications, version } = usePage().props;
     const deptPrefixes = auth?.user?.department_prefixes ?? null;
@@ -389,6 +390,70 @@ export default function Dashboard({
                             <p className="text-lg font-bold text-graphite-900 dark:text-slate-50">{formatNumber(manpower.on_shift_today)}</p>
                             <p className="text-xs text-graphite-400">On Shift Today</p>
                         </div>
+                    </CardContent>
+                </Card>
+            </div>
+
+            {/* v1.11.3.2 (Priority Pass Part 4) -- Management Summary. Explicit
+                product rule: cross-department project visibility belongs on
+                the Main Dashboard ONCE, not repeated in every department
+                Overview (HSE/HR/Logistics/Warehouse Overviews show only their
+                own department's data). Real data only -- Project.manager_id
+                and Milestone.status/target_date already exist; progress is a
+                real milestone-completion percentage, not fabricated. */}
+            <div className="mt-4 grid grid-cols-1 gap-3 lg:grid-cols-2">
+                <Card>
+                    <CardHeader className="flex flex-row items-center justify-between space-y-0">
+                        <div>
+                            <CardTitle className="flex items-center gap-2"><FolderKanban className="h-3.5 w-3.5 text-graphite-400" /> Project Portfolio</CardTitle>
+                            <CardDescription>Active projects across all companies</CardDescription>
+                        </div>
+                        <Link href={route('projects.index')} className="text-xs font-medium text-brand-600 hover:underline">View all</Link>
+                    </CardHeader>
+                    <CardContent>
+                        {projectSummary.length === 0 ? (
+                            <p className="py-6 text-center text-sm text-graphite-400">No active projects.</p>
+                        ) : (
+                            <div className="divide-y divide-graphite-100 dark:divide-slate-800">
+                                {projectSummary.map((p) => (
+                                    <Link key={p.id} href={route('projects.show', p.id)} className="flex items-center justify-between gap-2 py-2 text-sm hover:text-brand-700">
+                                        <div className="min-w-0 flex-1">
+                                            <p className="truncate font-medium text-graphite-700 dark:text-slate-200">{p.name}</p>
+                                            <p className="truncate text-xs text-graphite-400">{p.manager || 'No manager assigned'}</p>
+                                        </div>
+                                        <span className="shrink-0 text-xs text-graphite-400">{p.progress_percent === null ? '—' : `${p.progress_percent}%`}</span>
+                                        <StatusBadge value={p.status} />
+                                    </Link>
+                                ))}
+                            </div>
+                        )}
+                    </CardContent>
+                </Card>
+
+                <Card>
+                    <CardHeader className="flex flex-row items-center justify-between space-y-0">
+                        <div>
+                            <CardTitle className="flex items-center gap-2"><Flag className="h-3.5 w-3.5 text-graphite-400" /> Upcoming Milestones</CardTitle>
+                            <CardDescription>Across all active projects</CardDescription>
+                        </div>
+                        <Link href={route('milestones.index')} className="text-xs font-medium text-brand-600 hover:underline">View all</Link>
+                    </CardHeader>
+                    <CardContent>
+                        {upcomingMilestones.length === 0 ? (
+                            <p className="py-6 text-center text-sm text-graphite-400">No upcoming milestones.</p>
+                        ) : (
+                            <div className="divide-y divide-graphite-100 dark:divide-slate-800">
+                                {upcomingMilestones.map((m) => (
+                                    <div key={m.id} className="flex items-center justify-between gap-2 py-2 text-sm">
+                                        <div className="min-w-0 flex-1">
+                                            <p className="truncate font-medium text-graphite-700 dark:text-slate-200">{m.title}</p>
+                                            <p className="truncate text-xs text-graphite-400">{m.project?.name}</p>
+                                        </div>
+                                        <span className="shrink-0 text-xs text-graphite-400">{new Date(m.target_date).toLocaleDateString('en-US', { day: 'numeric', month: 'short' })}</span>
+                                    </div>
+                                ))}
+                            </div>
+                        )}
                     </CardContent>
                 </Card>
             </div>

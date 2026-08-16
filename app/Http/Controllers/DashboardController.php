@@ -10,6 +10,8 @@ use App\Models\DailyReport;
 use App\Models\Employee;
 use App\Models\EmployeeShiftAssignment;
 use App\Models\Incident;
+use App\Models\Milestone;
+use App\Models\Project;
 use App\Models\PurchaseOrder;
 use App\Models\PurchaseRequisition;
 use App\Models\Stock;
@@ -162,6 +164,38 @@ class DashboardController extends Controller
             // the same CalendarService so there is one aggregation, two
             // views. See CalendarService's own doc comment for the policy.
             'upcomingEvents' => $this->calendar->managementEvents($companyIds),
+            // v1.11.3.2 (Priority Pass Part 4) -- Management Summary /
+            // cross-department executive visibility. Explicit product
+            // rule: department Overviews show only their own department's
+            // data; cross-department project visibility belongs HERE,
+            // once, not repeated in every department. Real data only --
+            // Project.manager_id already exists (belongsTo User), Milestone
+            // already has target_date/status; no field is fabricated.
+            'projectSummary' => Project::whereIn('company_id', $companyIds)
+                ->whereIn('status', ['planned', 'ongoing'])
+                ->with('manager:id,name')
+                ->withCount(['milestones as total_milestones'])
+                ->withCount(['milestones as completed_milestones' => fn ($q) => $q->where('status', 'completed')])
+                ->orderBy('end_date')
+                ->limit(6)
+                ->get(['id', 'name', 'status', 'manager_id', 'end_date'])
+                ->map(fn (Project $p) => [
+                    'id' => $p->id,
+                    'name' => $p->name,
+                    'status' => $p->status,
+                    'manager' => $p->manager?->name,
+                    'end_date' => $p->end_date,
+                    'progress_percent' => $p->total_milestones > 0
+                        ? round(($p->completed_milestones / $p->total_milestones) * 100)
+                        : null,
+                ]),
+            'upcomingMilestones' => Milestone::with('project:id,name')
+                ->whereHas('project', fn ($q) => $q->whereIn('company_id', $companyIds))
+                ->whereIn('status', ['pending', 'in_progress'])
+                ->where('target_date', '>=', now()->toDateString())
+                ->orderBy('target_date')
+                ->limit(5)
+                ->get(['id', 'project_id', 'title', 'target_date', 'status']),
             // v1.11.1, Part 6 -- Man-Hour/Man-Power foundation. Audited
             // first: no attendance/timesheet/clock-in table exists
             // anywhere in this codebase, so actual WORKED man-hours

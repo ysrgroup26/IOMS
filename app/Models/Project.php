@@ -56,6 +56,18 @@ class Project extends Model
         return $this->hasMany(ProjectActivity::class);
     }
 
+    /**
+     * v1.11.3.2 (Priority Pass Part 4). The inverse of Milestone::project()
+     * never existed on this side -- needed by the Main Dashboard's
+     * Management Summary widget (withCount(['milestones as ...'])) to
+     * compute a real milestone-completion percentage per project without
+     * a second, manual query per row.
+     */
+    public function milestones()
+    {
+        return $this->hasMany(Milestone::class);
+    }
+
     public function inspectionRequests()
     {
         return $this->hasMany(InspectionRequest::class);

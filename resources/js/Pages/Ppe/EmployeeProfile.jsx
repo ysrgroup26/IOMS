@@ -180,14 +180,40 @@ function AssignmentRow({ assignment: a, can, readOnly, onEdit, onRenew, onRemove
  * auto-computes it from the PPE type's replacement interval), and
  * Remarks. No employee search step at all.
  */
+function blankPpeItem() {
+    return { ppe_type_id: undefined, issued_date: new Date().toISOString().slice(0, 10), expiry_date: '', remarks: '' };
+}
+
+/**
+ * v1.11.3.2 (production UX fix): the backend (`PpeController::store()`,
+ * `StoreEmployeePpeBatchRequest`) has accepted an array of `items` and
+ * created one `employee_ppe` row per item in a single transaction since
+ * v1.3.1 -- but this dialog only ever operated on `data.items[0]`, with
+ * no way to add a second row, so every issuance was still effectively
+ * one-item-at-a-time despite the batch-capable backend underneath it.
+ * No schema/backend change needed -- `items` was already the right
+ * shape; this just lets the UI actually add/remove rows before one
+ * submit, matching `ChecklistTemplatesSection`'s own established
+ * dynamic-array-row pattern (Hse/Master.jsx) for consistency.
+ */
 function IssuePpeDialog({ open, onOpenChange, employee, ppeTypes }) {
     const { data, setData, post, processing, errors, reset } = useForm({
         employee_id: employee.id,
-        items: [{ ppe_type_id: undefined, issued_date: new Date().toISOString().slice(0, 10), expiry_date: '', remarks: '' }],
+        items: [blankPpeItem()],
     });
 
-    function updateItem(field, value) {
-        setData('items', [{ ...data.items[0], [field]: value }]);
+    function updateItem(index, field, value) {
+        const items = [...data.items];
+        items[index] = { ...items[index], [field]: value };
+        setData('items', items);
+    }
+
+    function addItem() {
+        setData('items', [...data.items, blankPpeItem()]);
+    }
+
+    function removeItem(index) {
+        setData('items', data.items.filter((_, i) => i !== index));
     }
 
     function submit(e) {
@@ -200,47 +226,67 @@ function IssuePpeDialog({ open, onOpenChange, employee, ppeTypes }) {
         });
     }
 
-    const canSubmit = data.items[0].ppe_type_id && data.items[0].issued_date;
+    const canSubmit = data.items.length > 0 && data.items.every((i) => i.ppe_type_id && i.issued_date);
 
     return (
         <Dialog open={open} onOpenChange={onOpenChange}>
-            <DialogContent>
+            <DialogContent className="max-w-lg">
                 <DialogHeader><DialogTitle>Issue PPE to {employee.full_name}</DialogTitle></DialogHeader>
                 <form onSubmit={submit} className="space-y-4">
-                    <div className="space-y-1.5">
-                        <Label>PPE Item</Label>
-                        <Select value={data.items[0].ppe_type_id} onValueChange={(v) => updateItem('ppe_type_id', v)}>
-                            <SelectTrigger><SelectValue placeholder="Select PPE type" /></SelectTrigger>
-                            <SelectContent>
-                                {ppeTypes.map((t) => (
-                                    <SelectItem key={t.id} value={String(t.id)}>
-                                        {t.name} {t.replacement_interval_months ? `(${t.replacement_interval_months}mo)` : '(request-based)'}
-                                    </SelectItem>
-                                ))}
-                            </SelectContent>
-                        </Select>
-                        {errors['items.0.ppe_type_id'] && <p className="text-xs text-red-600">{errors['items.0.ppe_type_id']}</p>}
+                    <div className="max-h-[60vh] space-y-3 overflow-y-auto pr-1">
+                        {data.items.map((item, index) => (
+                            <div key={index} className="space-y-3 rounded-lg border border-graphite-200 p-3 dark:border-slate-800">
+                                <div className="flex items-center justify-between">
+                                    <p className="text-xs font-semibold uppercase tracking-wide text-graphite-400">Item {index + 1}</p>
+                                    {data.items.length > 1 && (
+                                        <Button type="button" variant="ghost" size="icon" onClick={() => removeItem(index)}>
+                                            <Trash2 className="h-4 w-4 text-red-500" />
+                                        </Button>
+                                    )}
+                                </div>
+
+                                <div className="space-y-1.5">
+                                    <Label>PPE Item</Label>
+                                    <Select value={item.ppe_type_id} onValueChange={(v) => updateItem(index, 'ppe_type_id', v)}>
+                                        <SelectTrigger><SelectValue placeholder="Select PPE type" /></SelectTrigger>
+                                        <SelectContent>
+                                            {ppeTypes.map((t) => (
+                                                <SelectItem key={t.id} value={String(t.id)}>
+                                                    {t.name} {t.replacement_interval_months ? `(${t.replacement_interval_months}mo)` : '(request-based)'}
+                                                </SelectItem>
+                                            ))}
+                                        </SelectContent>
+                                    </Select>
+                                    {errors[`items.${index}.ppe_type_id`] && <p className="text-xs text-red-600">{errors[`items.${index}.ppe_type_id`]}</p>}
+                                </div>
+
+                                <div className="grid grid-cols-2 gap-3">
+                                    <div className="space-y-1.5">
+                                        <Label>Issue Date</Label>
+                                        <Input type="date" value={item.issued_date} onChange={(e) => updateItem(index, 'issued_date', e.target.value)} />
+                                    </div>
+                                    <div className="space-y-1.5">
+                                        <Label>Expiry Date (optional)</Label>
+                                        <Input type="date" value={item.expiry_date} onChange={(e) => updateItem(index, 'expiry_date', e.target.value)} placeholder="Auto-computed if blank" />
+                                        {errors[`items.${index}.expiry_date`] && <p className="text-xs text-red-600">{errors[`items.${index}.expiry_date`]}</p>}
+                                    </div>
+                                </div>
+
+                                <div className="space-y-1.5">
+                                    <Label>Remarks (optional)</Label>
+                                    <Input value={item.remarks} onChange={(e) => updateItem(index, 'remarks', e.target.value)} />
+                                </div>
+                            </div>
+                        ))}
                     </div>
 
-                    <div className="grid grid-cols-2 gap-3">
-                        <div className="space-y-1.5">
-                            <Label>Issue Date</Label>
-                            <Input type="date" value={data.items[0].issued_date} onChange={(e) => updateItem('issued_date', e.target.value)} />
-                        </div>
-                        <div className="space-y-1.5">
-                            <Label>Expiry Date (optional)</Label>
-                            <Input type="date" value={data.items[0].expiry_date} onChange={(e) => updateItem('expiry_date', e.target.value)} placeholder="Auto-computed if blank" />
-                        </div>
-                    </div>
-
-                    <div className="space-y-1.5">
-                        <Label>Remarks (optional)</Label>
-                        <Input value={data.items[0].remarks} onChange={(e) => updateItem('remarks', e.target.value)} />
-                    </div>
+                    <Button type="button" variant="outline" size="sm" onClick={addItem} className="w-full">
+                        <Plus className="h-3.5 w-3.5" /> Add PPE Item
+                    </Button>
 
                     <DialogFooter>
                         <Button type="button" variant="outline" onClick={() => onOpenChange(false)}>Cancel</Button>
-                        <Button type="submit" disabled={processing || !canSubmit}>Save</Button>
+                        <Button type="submit" disabled={processing || !canSubmit}>Save All PPE ({data.items.length})</Button>
                     </DialogFooter>
                 </form>
             </DialogContent>

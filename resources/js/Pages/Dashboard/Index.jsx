@@ -11,6 +11,7 @@ import { Select, SelectTrigger, SelectValue, SelectContent, SelectItem } from '@
 import KpiSummaryCard from '@/Components/shared/KpiSummaryCard';
 import DepartmentCalendarWidget from '@/Components/shared/DepartmentCalendarWidget';
 import StatCard from '@/Components/shared/StatCard';
+import { deptSafeHref } from '@/lib/departmentAccess';
 import PeriodFilter from '@/Components/shared/PeriodFilter';
 import BrandWatermark from '@/Components/shared/BrandWatermark';
 import { useClock, greetingFor } from '@/lib/useClock';
@@ -39,6 +40,7 @@ export default function Dashboard({
     upcomingEvents, manpower,
 }) {
     const { auth, notifications, version } = usePage().props;
+    const deptPrefixes = auth?.user?.department_prefixes ?? null;
     const now = useClock();
     const [announcementDismissed, setAnnouncementDismissed] = useState(false);
 
@@ -196,23 +198,29 @@ export default function Dashboard({
                 All four are now navigation widgets (v1.5.2), not dead
                 statistics. */}
             <div className="mt-4 grid grid-cols-2 gap-3 lg:grid-cols-4">
-                <StatCard icon={Users} value={`${formatNumber(companyHeadcount.overall_total)} Employees`} label="Active Workforce" href={route('employees.index')} />
-                <StatCard icon={FolderKanban} value={`${formatNumber(activeProjectsCount)} Active Projects`} label="Running Projects" href={route('projects.index')} />
-                <StatCard icon={Building2} value={formatNumber(companyHeadcount.by_company.length)} label="Companies" href={route('settings.index') + '?tab=companies'} />
-                <StatCard icon={CalendarDays} value={currentMonth} label="Current Period" href={route('kpi-records.index', { year: filters.year, month: filters.month })} />
+                <StatCard icon={Users} value={`${formatNumber(companyHeadcount.overall_total)} Employees`} label="Active Workforce" href={deptSafeHref('employees.index', deptPrefixes)} />
+                <StatCard icon={FolderKanban} value={`${formatNumber(activeProjectsCount)} Active Projects`} label="Running Projects" href={deptSafeHref('projects.index', deptPrefixes)} />
+                <StatCard icon={Building2} value={formatNumber(companyHeadcount.by_company.length)} label="Companies" href={deptSafeHref('settings.index', deptPrefixes) ? route('settings.index') + '?tab=companies' : undefined} />
+                <StatCard icon={CalendarDays} value={currentMonth} label="Current Period" href={deptSafeHref('kpi-records.index', deptPrefixes, { year: filters.year, month: filters.month })} />
             </div>
 
             {/* Milestone 4, Acceleration Part 7 -- Executive cross-department
                 summary. Every count below is real, tenant-scoped, over
                 actual tables (see DashboardController's own doc comment) --
-                additive to this page, no existing widget touched. */}
+                additive to this page, no existing widget touched.
+                v1.11.3.2: hrefs now go through deptSafeHref() -- a
+                department-restricted viewer (e.g. an HSE-only user) sees
+                every card's number, but a card whose route belongs to a
+                DIFFERENT department renders without a link instead of a
+                click that would 403 (RestrictDepartmentAccess itself is
+                unchanged; this only avoids exposing a link it would reject). */}
             <div className="mt-3 grid grid-cols-2 gap-3 sm:grid-cols-3 lg:grid-cols-6">
-                <StatCard icon={AlertTriangle} value={formatNumber(openIncidentsCount)} label="Open Incidents" href={route('incidents.index')} />
-                <StatCard icon={ClipboardCheck} value={formatNumber(openCapaCount)} label="Open CAPA" href={route('corrective-actions.index')} />
-                <StatCard icon={ShoppingCart} value={formatNumber(pendingProcurementCount)} label="Pending Procurement" href={route('procurement.dashboard')} />
-                <StatCard icon={Boxes} value={formatNumber(stockAlertCount)} label="Stock Alerts" href={route('stock.index', { low_stock: 1 })} />
-                <StatCard icon={Box} value={formatNumber(assetCount)} label="Active Assets" href={route('assets.index')} />
-                <StatCard icon={Wrench} value={formatNumber(maintenanceDueCount)} label="Maintenance Due (7d)" href={route('work-orders.index')} />
+                <StatCard icon={AlertTriangle} value={formatNumber(openIncidentsCount)} label="Open Incidents" href={deptSafeHref('incidents.index', deptPrefixes)} />
+                <StatCard icon={ClipboardCheck} value={formatNumber(openCapaCount)} label="Open CAPA" href={deptSafeHref('corrective-actions.index', deptPrefixes)} />
+                <StatCard icon={ShoppingCart} value={formatNumber(pendingProcurementCount)} label="Pending Procurement" href={deptSafeHref('procurement.dashboard', deptPrefixes)} />
+                <StatCard icon={Boxes} value={formatNumber(stockAlertCount)} label="Stock Alerts" href={deptSafeHref('stock.index', deptPrefixes, { low_stock: 1 })} />
+                <StatCard icon={Box} value={formatNumber(assetCount)} label="Active Assets" href={deptSafeHref('assets.index', deptPrefixes)} />
+                <StatCard icon={Wrench} value={formatNumber(maintenanceDueCount)} label="Maintenance Due (7d)" href={deptSafeHref('work-orders.index', deptPrefixes)} />
             </div>
 
             {/* Pending Tasks -- Universal Task Engine Dashboard integration

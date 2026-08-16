@@ -216,27 +216,40 @@ export const WORKSPACES = [
             { name: 'Reports', icon: FileBarChart, disabled: true },
         ],
     },
-    // Future Departments: kept visible in the selector (explicit
-    // instruction: "do not remove them"), each with a single real link to
-    // the shared ComingSoon page rather than a disabled row -- there IS
-    // somewhere real to go now, even though nothing is built yet.
+    // v1.10.6 correction, updated v1.11.3.2 (Priority Pass Part 9):
+    // 'warehouse' is deliberately NOT a "nothing built yet" placeholder
+    // like Finance -- Warehouse functionality is fully real (Stock/
+    // StockMovement/GoodsReceipt/Item), it just stays inside the
+    // Logistics / PPIC department's own RBAC group for now (explicit
+    // earlier instruction: "Warehouse stays inside Logistics, not split
+    // into its own department key yet" -- `config/departments.php` still
+    // maps every `warehouses.*`/`items.*`/`stock.*`/`goods-receipts.*`
+    // prefix to `logistics`, unchanged). This workspace's item list
+    // deliberately stays to JUST its one entry point (Overview, now
+    // pointing at the real `warehouses.dashboard` instead of the
+    // warehouse register/config page) rather than re-listing Logistics's
+    // own Item Master/Inventory/Goods Receipt/etc. items a second time --
+    // `PREFIX_TO_WORKSPACE` below requires each route prefix to be owned
+    // by exactly ONE workspace (its own doc comment, a real invariant,
+    // not decorative -- duplicating those prefixes here was tried and
+    // reverted in this same pass once it was noticed it would silently
+    // steal active-workspace highlighting away from Logistics/PPIC for
+    // its own users). Warehouse's Overview page itself still surfaces
+    // ModuleCard shortcuts to all of those pages -- the navigation depth
+    // just isn't duplicated in the sidebar item list too.
     //
-    // v1.10.6 correction: 'warehouse' is deliberately NOT a "nothing built
-    // yet" placeholder like Finance -- Warehouse functionality is fully
-    // real and already live, it just lives inside the Logistics / PPIC
-    // department above (explicit earlier instruction: "Warehouse stays
-    // inside Logistics for now, not split into its own department yet").
-    // Routing its single entry at the ComingSoon page was actively
-    // misleading -- a user clicking "Warehouse" (a completely reasonable
-    // thing to click, given its own department entry exists) landed on
-    // "hasn't been built yet" even though it plainly has been. Repointed
-    // at the SAME real route Logistics itself uses (`warehouses.master`)
-    // rather than duplicating any of Logistics's items into a second
-    // workspace -- `PREFIX_TO_WORKSPACE` below requires each route prefix
-    // to be owned by exactly one workspace, so this intentionally does
-    // NOT try to mirror Logistics's full Warehouse item list here; landing
-    // here correctly shows "Logistics / PPIC" as the active department
-    // once through, which is accurate -- that IS where the feature lives.
+    // Note (pre-existing, not introduced by this pass): Logistics's own
+    // item list also links `warehouses.master` under the same
+    // `warehouses` prefix this workspace's Overview now shares via
+    // `warehouses.dashboard`. Since this workspace is declared AFTER
+    // Logistics in WORKSPACES, PREFIX_TO_WORKSPACE's reduce means THIS
+    // workspace wins the active-highlight for any `warehouses.*` route --
+    // that was already true before this pass (Logistics's own "Warehouse"
+    // item already lost that contest to this workspace's prior
+    // `warehouses.master` Overview link). Purely a which-sidebar-item-
+    // highlights-as-active cosmetic detail, decided by array order here,
+    // NOT a security/RBAC concern -- that's governed entirely by
+    // config/departments.php, unrelated to this file.
     {
         key: 'warehouse',
         label: 'Warehouse',
@@ -244,7 +257,7 @@ export const WORKSPACES = [
         tier: 'department',
         items: [
             { name: 'Dashboard', href: 'dashboard', icon: LayoutDashboard, global: true },
-            { name: 'Overview', href: 'warehouses.master', icon: Warehouse },
+            { name: 'Overview', href: 'warehouses.dashboard', icon: Warehouse },
         ],
     },
     {

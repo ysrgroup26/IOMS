@@ -62,6 +62,21 @@ class HandleInertiaRequests extends Middleware
                     // User::isDepartmentUser()'s own doc comment.
                     'department_key' => $user->department_key,
                     'is_department_user' => $user->isDepartmentUser(),
+                    // v1.11.3.2 (production UX fix, Part 3): the exact
+                    // route-name-prefix allowlist RestrictDepartmentAccess
+                    // enforces server-side for this user, straight from
+                    // config('departments') -- the single source of truth,
+                    // not a second copy of the map. Null for an
+                    // Administrator (unrestricted). Lets cross-department
+                    // pages (chiefly the Main Dashboard, which every user
+                    // reaches regardless of department) render a stat
+                    // card's link only when the viewer can actually follow
+                    // it, instead of exposing a route that would 403 on
+                    // click -- the middleware itself is completely
+                    // unchanged and remains the real enforcement boundary.
+                    'department_prefixes' => $user->department_key
+                        ? (config('departments')[$user->department_key] ?? [])
+                        : null,
                     'avatar_url' => $user->avatarUrl(),
                 ] : null,
             ],

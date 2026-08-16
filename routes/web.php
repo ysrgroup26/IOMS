@@ -38,6 +38,7 @@ use App\Http\Controllers\JobSafetyAnalysisController;
 use App\Http\Controllers\StockController;
 use App\Http\Controllers\StockTransactionController;
 use App\Http\Controllers\WarehouseController;
+use App\Http\Controllers\WarehouseDashboardController;
 use App\Http\Controllers\KpiInputController;
 use App\Http\Controllers\KpiRecordController;
 use App\Http\Controllers\LeaveRequestController;
@@ -326,6 +327,17 @@ Route::middleware(['auth', 'restrict.platform-admin'])->group(function () {
     Route::delete('/items/{item}', [ItemController::class, 'destroy'])->name('items.destroy');
 
     // Warehouse / Inventory (Milestone 4, Acceleration Part 1B).
+    // v1.11.3.2 (Priority Pass Part 9). Named warehouses.dashboard (not
+    // warehouse.dashboard) deliberately -- the `warehouses` route-name
+    // prefix is already mapped to the 'logistics' department in
+    // config/departments.php (Warehouse stays inside Logistics, per
+    // established design -- see workspaces.js's own note), so this
+    // inherits that existing RBAC mapping with zero config change needed.
+    // A `warehouse.*` prefix would resolve to the separate, effectively
+    // unused 'warehouse' department key instead and 403 for every real
+    // Logistics user -- the same bug class just fixed on the Main
+    // Dashboard, avoided here by reusing the existing prefix family.
+    Route::get('/warehouses/dashboard', [WarehouseDashboardController::class, 'index'])->name('warehouses.dashboard');
     Route::get('/warehouses/master', [WarehouseController::class, 'master'])->name('warehouses.master');
     Route::post('/warehouses', [WarehouseController::class, 'store'])->name('warehouses.store');
     Route::put('/warehouses/{warehouse}', [WarehouseController::class, 'update'])->name('warehouses.update');

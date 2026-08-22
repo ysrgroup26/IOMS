@@ -129,7 +129,15 @@ export default function Dashboard({
                             previous session did) was itself the "duplicate
                             branding" this issue is about. Just the page
                             title and subtitle. */}
-                        <h1 className="text-xl font-bold tracking-tight text-graphite-900 dark:text-slate-50">Dashboard</h1>
+                        {/* v1.11.10 (Visual Correction, Part 0): reverted from
+                            text-xl (20px, bumped in v1.11.9) back to
+                            text-base (16px) -- direct user feedback that the
+                            "Dashboard" title read too large. This hero
+                            widget is a compact ~220px-tall banner alongside
+                            filter controls, not a full PageHeader -- it
+                            never needed the 24px "page title" treatment
+                            PageHeader itself correctly uses elsewhere. */}
+                        <h1 className="text-base font-bold tracking-tight text-graphite-900 dark:text-slate-50">Dashboard</h1>
                         <p className="text-[11px] text-graphite-500 dark:text-slate-400">Operational KPI Overview Across All Departments</p>
                     </div>
                     <div className="flex flex-wrap items-center gap-2">
@@ -398,29 +406,39 @@ export default function Dashboard({
                     </CardContent>
                 </Card>
 
-                {/* v1.11.6 (Production Readiness pass, Part 4) -- Man-Hours
-                    shown as a SEPARATE concept from Man-Power above, backed
-                    by the new ManHourLog record. "—" (not "0") whenever no
-                    record exists yet for that period, so an empty log never
-                    reads as a real zero. */}
+                {/* v1.11.6 -- Man-Hours shown as a SEPARATE concept from
+                    Man-Power above, backed by the real ManHourLog record.
+                    v1.11.10 (Part 7): when NO period has any record at all
+                    (nothing has ever been logged), the three-tile grid is
+                    replaced with one explicit "Belum ada data Man-Hour"
+                    empty state instead of three bare "—" tiles -- clearer
+                    than a dash that a viewer could misread as a zero.
+                    Partial data (e.g. today logged, YTD not) still shows
+                    "—" per-tile since the page as a whole isn't empty. */}
                 <Card>
                     <CardHeader>
                         <CardTitle className="flex items-center gap-2"><Clock className="h-3.5 w-3.5 text-graphite-400" /> Man-Hours</CardTitle>
                         <CardDescription>Actual worked hours, entered via Man-Hour (HR).</CardDescription>
                     </CardHeader>
-                    <CardContent className="grid grid-cols-3 gap-3">
-                        <div className="rounded-lg border border-graphite-100 p-3 text-center dark:border-slate-800">
-                            <p className="text-lg font-bold text-graphite-900 dark:text-slate-50">{manhours?.today ?? '—'}</p>
-                            <p className="text-xs text-graphite-400">Today</p>
-                        </div>
-                        <div className="rounded-lg border border-graphite-100 p-3 text-center dark:border-slate-800">
-                            <p className="text-lg font-bold text-graphite-900 dark:text-slate-50">{manhours?.this_month ?? '—'}</p>
-                            <p className="text-xs text-graphite-400">This Month</p>
-                        </div>
-                        <div className="rounded-lg border border-graphite-100 p-3 text-center dark:border-slate-800">
-                            <p className="text-lg font-bold text-graphite-900 dark:text-slate-50">{manhours?.ytd ?? '—'}</p>
-                            <p className="text-xs text-graphite-400">YTD</p>
-                        </div>
+                    <CardContent>
+                        {manhours?.today == null && manhours?.this_month == null && manhours?.ytd == null ? (
+                            <p className="py-3 text-center text-xs text-graphite-400">Belum ada data Man-Hour.</p>
+                        ) : (
+                            <div className="grid grid-cols-3 gap-3">
+                                <div className="rounded-lg border border-graphite-100 p-3 text-center dark:border-slate-800">
+                                    <p className="text-lg font-bold text-graphite-900 dark:text-slate-50">{manhours?.today ?? '—'}</p>
+                                    <p className="text-xs text-graphite-400">Today</p>
+                                </div>
+                                <div className="rounded-lg border border-graphite-100 p-3 text-center dark:border-slate-800">
+                                    <p className="text-lg font-bold text-graphite-900 dark:text-slate-50">{manhours?.this_month ?? '—'}</p>
+                                    <p className="text-xs text-graphite-400">This Month</p>
+                                </div>
+                                <div className="rounded-lg border border-graphite-100 p-3 text-center dark:border-slate-800">
+                                    <p className="text-lg font-bold text-graphite-900 dark:text-slate-50">{manhours?.ytd ?? '—'}</p>
+                                    <p className="text-xs text-graphite-400">YTD</p>
+                                </div>
+                            </div>
+                        )}
                     </CardContent>
                 </Card>
             </div>

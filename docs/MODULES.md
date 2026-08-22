@@ -1649,6 +1649,39 @@ shared components, without needing page-specific edits. Monthly Trend/Employees 
 on the Main Dashboard were reviewed and kept (`h-80`, a standard chart height, genuinely adding
 analytical value per this pass's own "charts only where they add value" carve-out).
 
+## Visual Correction Pass (v1.11.10)
+
+A direct, narrow correction of v1.11.9's own typography work, based on real feedback that it went too
+far in the opposite direction. Two files changed, zero PHP touched.
+
+**What was actually wrong**: `PageHeader`/`CardTitle` (24px/14px, set in v1.11.9) both already matched
+this pass's own restated targets exactly — confirmed by re-reading the new spec's own numbers, not
+changed again. The two things that genuinely read as oversized were: the Main Dashboard's hand-rolled
+hero `<h1>Dashboard</h1>` (bumped 16px→20px in v1.11.9, inside a compact ~220px banner alongside filter
+dropdowns — it never needed the same treatment as a true page title, and 20px there was visibly too
+heavy next to the filters beside it) and `StatCard`'s KPI-number weight (`font-bold` at 20px reading as
+dominant, even though 20px itself is within this pass's own stated 20-22px target). Fixed: hero title
+reverted to `text-base` (16px); `StatCard`'s value weight dialed from `font-bold` to `font-semibold` —
+size unchanged (still 20px, matching spec), only the boldness that made it feel heavy is reduced. This
+is the literal "hierarchy through weight, not size" instruction applied to the one place it hadn't been.
+
+**Man-Hour empty state** (Part 7): Main Dashboard's Man-Hours card previously showed three independent
+"—" tiles (Today/This Month/YTD) whenever nothing was recorded for that period. When ALL THREE are
+genuinely empty (nothing has ever been logged), the tile grid is now replaced with one explicit
+"Belum ada data Man-Hour." message — clearer than three dashes that could be misread as a formatting
+quirk rather than "no data exists yet." Partial data (e.g. this month logged, YTD not) still shows "—"
+per-tile, since the section as a whole isn't empty in that case.
+
+**Everything else in this directive's scope** (HSE Overview/Master Data structure, PPE workflow/filter
+persistence, HRD/PM/Logistics/Warehouse dashboard structure, Waste Management, sidebar grouping/
+typography, sidebar RBAC recursion, tenant isolation on Employee/PPE/Project/Leave/Waste, SaaS
+Plan/Subscription/Invoice architecture, the payment gateway abstraction, migration ordering) was
+audited against the actual current code and found **already correctly implemented by the passes
+immediately before this one** (v1.11.6 through v1.11.9) with no intervening change since — re-verified
+by re-reading the relevant files, not re-implemented from scratch, since nothing regressed and nothing
+in this directive's own text described new functional requirements beyond what those passes already
+built. See each of those passes' own `docs/MODULES.md` sections for the original implementation detail.
+
 ## Reusable engines (Approval, Workflow, Timeline, Import, PDF, Report Export)
 
 These aren't a "module" with their own page — they're cross-cutting infrastructure consumed by the

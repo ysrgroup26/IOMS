@@ -216,7 +216,21 @@ export default function AuthenticatedLayout({ children }) {
                         }
 
                         const hasChildren = item.children?.length > 0;
-                        const isExpanded = expandedMenus.includes(item.name);
+                        // v1.11.7 (HSE Navigation Finalization): a group
+                        // whose active state came only from localStorage
+                        // toggle history meant landing directly on a
+                        // grouped page (bookmark, reload, first visit)
+                        // rendered its own active child inside a COLLAPSED
+                        // group -- the breadcrumb still showed it (see
+                        // `activeChild` above) but the sidebar itself gave
+                        // no visible indication of where you were. Also
+                        // auto-expanding whenever the active route is
+                        // inside the group closes that gap without
+                        // touching persisted state -- purely additive, and
+                        // a no-op for every workspace that (still) has no
+                        // `children` groups.
+                        const containsActiveChild = hasChildren && item.children.some((child) => isChildRouteActive(child, currentUrl));
+                        const isExpanded = expandedMenus.includes(item.name) || containsActiveChild;
                         const active = !hasChildren && isItemActive(item, currentUrl);
 
                         if (hasChildren) {

@@ -8,11 +8,12 @@ import DepartmentCalendarWidget from '@/Components/shared/DepartmentCalendarWidg
 import { Card, CardContent, CardHeader, CardTitle, CardDescription } from '@/Components/ui/card';
 import { Boxes, AlertTriangle, XCircle, PackageCheck, ArrowRightLeft, Warehouse, Box, ClipboardList } from 'lucide-react';
 
+// v1.11.7 (Bahasa Indonesia Standardization, Part 4).
 const HEALTH_BADGES = {
-    out_of_stock: { label: 'Out of Stock', className: 'bg-red-100 text-red-700 dark:bg-red-950 dark:text-red-300' },
-    critical: { label: 'Critical', className: 'bg-red-50 text-red-600 dark:bg-red-950/50 dark:text-red-400' },
-    low: { label: 'Low', className: 'bg-amber-100 text-amber-700 dark:bg-amber-950 dark:text-amber-300' },
-    healthy: { label: 'Healthy', className: 'bg-emerald-100 text-emerald-700 dark:bg-emerald-950 dark:text-emerald-300' },
+    out_of_stock: { label: 'Stok Habis', className: 'bg-red-100 text-red-700 dark:bg-red-950 dark:text-red-300' },
+    critical: { label: 'Kritis', className: 'bg-red-50 text-red-600 dark:bg-red-950/50 dark:text-red-400' },
+    low: { label: 'Menipis', className: 'bg-amber-100 text-amber-700 dark:bg-amber-950 dark:text-amber-300' },
+    healthy: { label: 'Sehat', className: 'bg-emerald-100 text-emerald-700 dark:bg-emerald-950 dark:text-emerald-300' },
 };
 
 function HealthBadge({ status }) {
@@ -21,12 +22,12 @@ function HealthBadge({ status }) {
 }
 
 const WAREHOUSE_MODULES = [
-    { icon: Warehouse, title: 'Warehouse Master', description: 'Warehouses & storage locations.', href: 'warehouses.master' },
-    { icon: Box, title: 'Item Master', description: 'Item catalog & stock levels.', href: 'items.index' },
-    { icon: Boxes, title: 'Inventory', description: 'Current stock by warehouse.', href: 'stock.index' },
-    { icon: PackageCheck, title: 'Goods Receipt', description: 'Incoming stock records.', href: 'goods-receipts.index' },
-    { icon: ArrowRightLeft, title: 'Issue / Transfer / Adjust', description: 'Outgoing & internal stock moves.', href: 'stock.transactions.create' },
-    { icon: ClipboardList, title: 'Movement History', description: 'Full stock movement log.', href: 'stock.movements' },
+    { icon: Warehouse, title: 'Data Master Gudang', description: 'Gudang & lokasi penyimpanan.', href: 'warehouses.master' },
+    { icon: Box, title: 'Data Master Barang', description: 'Katalog barang & level stok.', href: 'items.index' },
+    { icon: Boxes, title: 'Inventaris', description: 'Stok saat ini per gudang.', href: 'stock.index' },
+    { icon: PackageCheck, title: 'Penerimaan Barang', description: 'Catatan stok masuk.', href: 'goods-receipts.index' },
+    { icon: ArrowRightLeft, title: 'Keluar / Transfer / Penyesuaian', description: 'Pergerakan stok keluar & internal.', href: 'stock.transactions.create' },
+    { icon: ClipboardList, title: 'Riwayat Pergerakan', description: 'Log lengkap pergerakan stok.', href: 'stock.movements' },
 ];
 
 /**
@@ -44,14 +45,14 @@ export default function WarehouseDashboard({
 }) {
     return (
         <AuthenticatedLayout>
-            <Head title="Warehouse Overview" />
-            <DashboardShell title="Warehouse" subtitle="Stock health, receiving, and issuing overview.">
+            <Head title="Ringkasan Gudang" />
+            <DashboardShell title="Ringkasan Gudang" subtitle="Kesehatan stok, penerimaan, dan pengeluaran.">
                 <div className="grid grid-cols-2 gap-3 lg:grid-cols-5">
-                    <StatCard icon={Box} value={totalItemsCount} label="Active Items" href={route('items.index')} />
-                    <StatCard icon={Warehouse} value={totalWarehousesCount} label="Warehouses" href={route('warehouses.master')} />
-                    <StatCard icon={AlertTriangle} value={lowStockCount} label="Low Stock" accent={lowStockCount > 0 ? 'amber' : null} href={route('stock.index', { low_stock: 1 })} />
-                    <StatCard icon={XCircle} value={outOfStockCount} label="Out of Stock" accent={outOfStockCount > 0 ? 'red' : null} href={route('stock.index')} />
-                    <StatCard icon={PackageCheck} value={goodsReceiptsThisMonth} label="Received This Month" href={route('goods-receipts.index')} />
+                    <StatCard icon={Box} value={totalItemsCount} label="Barang Aktif" href={route('items.index')} />
+                    <StatCard icon={Warehouse} value={totalWarehousesCount} label="Gudang" href={route('warehouses.master')} />
+                    <StatCard icon={AlertTriangle} value={lowStockCount} label="Stok Menipis" accent={lowStockCount > 0 ? 'amber' : null} href={route('stock.index', { low_stock: 1 })} />
+                    <StatCard icon={XCircle} value={outOfStockCount} label="Stok Habis" accent={outOfStockCount > 0 ? 'red' : null} href={route('stock.index')} />
+                    <StatCard icon={PackageCheck} value={goodsReceiptsThisMonth} label="Diterima Bulan Ini" href={route('goods-receipts.index')} />
                 </div>
 
                 <div className="grid grid-cols-2 gap-3 sm:grid-cols-3 lg:grid-cols-6">
@@ -61,21 +62,21 @@ export default function WarehouseDashboard({
                 {/* Inventory Health -- compact table, Phase 6 */}
                 <Card>
                     <CardHeader className="pb-2">
-                        <CardTitle className="text-sm">Inventory Health</CardTitle>
-                        <CardDescription>Lowest stock relative to minimum, first</CardDescription>
+                        <CardTitle className="text-sm">Kesehatan Inventaris</CardTitle>
+                        <CardDescription>Stok terendah relatif terhadap minimum, dahulu</CardDescription>
                     </CardHeader>
                     <CardContent className="overflow-x-auto">
                         {(!inventoryHealth || inventoryHealth.length === 0) ? (
-                            <p className="py-6 text-center text-sm text-graphite-400">No stock records yet.</p>
+                            <p className="py-6 text-center text-sm text-graphite-400">Belum ada catatan stok.</p>
                         ) : (
                             <table className="w-full min-w-[640px] text-sm">
                                 <thead>
                                     <tr className="border-b border-graphite-100 text-left text-xs text-graphite-400 dark:border-slate-800">
-                                        <th className="py-1.5 font-medium">Item</th>
-                                        <th className="py-1.5 font-medium">Category</th>
-                                        <th className="py-1.5 font-medium">Location</th>
-                                        <th className="py-1.5 font-medium">Stock</th>
-                                        <th className="py-1.5 font-medium">Min. Reorder</th>
+                                        <th className="py-1.5 font-medium">Barang</th>
+                                        <th className="py-1.5 font-medium">Kategori</th>
+                                        <th className="py-1.5 font-medium">Lokasi</th>
+                                        <th className="py-1.5 font-medium">Stok</th>
+                                        <th className="py-1.5 font-medium">Batas Min.</th>
                                         <th className="py-1.5 font-medium">Status</th>
                                     </tr>
                                 </thead>
@@ -96,18 +97,18 @@ export default function WarehouseDashboard({
                                 </tbody>
                             </table>
                         )}
-                        <Link href={route('stock.index')} className="mt-2 inline-block text-xs font-medium text-brand-600 hover:underline">View full inventory</Link>
+                        <Link href={route('stock.index')} className="mt-2 inline-block text-xs font-medium text-brand-600 hover:underline">Lihat seluruh inventaris</Link>
                     </CardContent>
                 </Card>
 
                 <div className="grid grid-cols-1 gap-3 lg:grid-cols-3">
                     <Card>
-                        <CardHeader><CardTitle>Low Stock Items</CardTitle></CardHeader>
+                        <CardHeader><CardTitle>Barang Stok Menipis</CardTitle></CardHeader>
                         <CardContent>
                             <ActivityList
                                 items={lowStockItems}
                                 emptyIcon={Boxes}
-                                emptyTitle="Nothing below minimum stock"
+                                emptyTitle="Tidak ada yang di bawah stok minimum"
                                 renderItem={(s) => (
                                     <div className="flex items-center justify-between gap-2 py-2 text-sm">
                                         <span className="min-w-0 flex-1 truncate font-medium text-graphite-700 dark:text-slate-200">{s.item?.item_code} -- {s.item?.name}</span>
@@ -120,13 +121,13 @@ export default function WarehouseDashboard({
                     </Card>
 
                     <Card>
-                        <CardHeader><CardTitle>Recent Receiving</CardTitle></CardHeader>
+                        <CardHeader><CardTitle>Penerimaan Terbaru</CardTitle></CardHeader>
                         <CardContent>
                             <ActivityList
                                 items={recentReceiving}
                                 getHref={(g) => route('goods-receipts.show', g.id)}
                                 emptyIcon={PackageCheck}
-                                emptyTitle="No goods receipts yet"
+                                emptyTitle="Belum ada penerimaan barang"
                                 renderItem={(g) => (
                                     <div className="flex items-center justify-between gap-2 py-2 text-sm">
                                         <span className="min-w-0 flex-1 truncate font-medium text-graphite-700 dark:text-slate-200">{g.receipt_number}</span>
@@ -139,12 +140,12 @@ export default function WarehouseDashboard({
                     </Card>
 
                     <Card>
-                        <CardHeader><CardTitle>Recent Issuing / Transfers</CardTitle></CardHeader>
+                        <CardHeader><CardTitle>Pengeluaran / Transfer Terbaru</CardTitle></CardHeader>
                         <CardContent>
                             <ActivityList
                                 items={recentIssuing}
                                 emptyIcon={ArrowRightLeft}
-                                emptyTitle="No issuing or transfers yet"
+                                emptyTitle="Belum ada pengeluaran atau transfer"
                                 renderItem={(m) => (
                                     <div className="flex items-center justify-between gap-2 py-2 text-sm">
                                         <span className="min-w-0 flex-1 truncate font-medium text-graphite-700 dark:text-slate-200">{m.item?.name}</span>
@@ -157,7 +158,7 @@ export default function WarehouseDashboard({
                     </Card>
                 </div>
 
-                <DepartmentCalendarWidget events={departmentCalendar} title="Warehouse Calendar" description="Next 3 weeks" />
+                <DepartmentCalendarWidget events={departmentCalendar} title="Kalender Gudang" description="3 minggu ke depan" />
             </DashboardShell>
         </AuthenticatedLayout>
     );

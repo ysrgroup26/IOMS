@@ -9,13 +9,14 @@ import DepartmentCalendarWidget from '@/Components/shared/DepartmentCalendarWidg
 import { Card, CardContent, CardHeader, CardTitle, CardDescription } from '@/Components/ui/card';
 import { Users, UserCheck, CalendarDays, ClipboardEdit, UserCog, ClipboardList, GraduationCap, CalendarClock, ClipboardSignature, AlertTriangle } from 'lucide-react';
 
+// v1.11.7 (Bahasa Indonesia Standardization, Part 4) -- hrefs unchanged.
 const HR_MODULES = [
-    { icon: Users, title: 'Employees', description: 'Employee master records.', href: 'employees.index' },
-    { icon: CalendarDays, title: 'Leave', description: 'Leave requests & approvals.', href: 'leave-requests.index' },
-    { icon: ClipboardList, title: 'KPI Records', description: 'Performance indicator tracking.', href: 'kpi-records.index' },
-    { icon: CalendarClock, title: 'Shift Master', description: 'Shift patterns & assignment.', href: 'shifts.master' },
-    { icon: ClipboardSignature, title: 'Roster', description: 'Shift roster overview.', href: 'rosters.overview' },
-    { icon: GraduationCap, title: 'Competency', description: 'Certifications & expiry tracking.', href: 'competency.master' },
+    { icon: Users, title: 'Karyawan', description: 'Data master karyawan.', href: 'employees.index' },
+    { icon: CalendarDays, title: 'Cuti', description: 'Pengajuan & persetujuan cuti.', href: 'leave-requests.index' },
+    { icon: ClipboardList, title: 'Catatan KPI', description: 'Pelacakan indikator kinerja.', href: 'kpi-records.index' },
+    { icon: CalendarClock, title: 'Data Master Shift', description: 'Pola shift & penugasan.', href: 'shifts.master' },
+    { icon: ClipboardSignature, title: 'Roster', description: 'Ringkasan roster shift.', href: 'rosters.overview' },
+    { icon: GraduationCap, title: 'Kompetensi', description: 'Sertifikasi & pelacakan masa berlaku.', href: 'competency.master' },
 ];
 
 /**
@@ -30,28 +31,28 @@ const HR_MODULES = [
 export default function HrDashboard({
     totalEmployees, activeEmployees, onShiftToday, employeesOnLeaveToday, pendingLeaveRequests,
     employeesNeedCompletionCount, kpiThisMonth, contractExpiringCount, certificationExpiringCount,
-    attentionRequired, recentLeaveRequests,
+    attentionRequired, recentLeaveRequests, departmentCalendar,
 }) {
     return (
         <AuthenticatedLayout>
-            <Head title="HR Dashboard" />
-            <DashboardShell title="HR Overview" subtitle="Operational HR overview.">
+            <Head title="Ringkasan HRD" />
+            <DashboardShell title="Ringkasan HRD" subtitle="Ringkasan operasional HRD.">
                 {/* LEVEL 1 -- compact KPI strip */}
                 <div className="grid grid-cols-2 gap-3 lg:grid-cols-6">
-                    <StatCard icon={Users} value={activeEmployees} label="Active Employees" href={route('employees.index', { status: 'active' })} />
-                    <StatCard icon={UserCheck} value={onShiftToday} label="On Shift Today" href={route('rosters.overview')} />
-                    <StatCard icon={CalendarDays} value={employeesOnLeaveToday} label="On Leave Today" href={route('leave-requests.index')} />
-                    <StatCard icon={ClipboardEdit} value={pendingLeaveRequests} label="Pending Leave Approvals" accent={pendingLeaveRequests > 0 ? 'amber' : null} href={route('leave-requests.index', { status: 'submitted' })} />
-                    <StatCard icon={AlertTriangle} value={contractExpiringCount} label="Contracts Expiring (30d)" accent={contractExpiringCount > 0 ? 'amber' : null} />
-                    <StatCard icon={GraduationCap} value={certificationExpiringCount} label="Certifications Expiring" accent={certificationExpiringCount > 0 ? 'amber' : null} href={route('competency.expiring-soon')} />
+                    <StatCard icon={Users} value={activeEmployees} label="Karyawan Aktif" href={route('employees.index', { status: 'active' })} />
+                    <StatCard icon={UserCheck} value={onShiftToday} label="Bertugas Hari Ini" href={route('rosters.overview')} />
+                    <StatCard icon={CalendarDays} value={employeesOnLeaveToday} label="Cuti Hari Ini" href={route('leave-requests.index')} />
+                    <StatCard icon={ClipboardEdit} value={pendingLeaveRequests} label="Cuti Menunggu Persetujuan" accent={pendingLeaveRequests > 0 ? 'amber' : null} href={route('leave-requests.index', { status: 'submitted' })} />
+                    <StatCard icon={AlertTriangle} value={contractExpiringCount} label="Kontrak Akan Berakhir (30 hr)" accent={contractExpiringCount > 0 ? 'amber' : null} />
+                    <StatCard icon={GraduationCap} value={certificationExpiringCount} label="Sertifikasi Akan Berakhir" accent={certificationExpiringCount > 0 ? 'amber' : null} href={route('competency.expiring-soon')} />
                 </div>
 
                 {/* LEVEL 2/3 -- workforce status + attention required */}
                 <div className="grid grid-cols-1 gap-3 lg:grid-cols-2">
                     <Card>
                         <CardHeader className="pb-2">
-                            <CardTitle className="text-sm">Workforce Status</CardTitle>
-                            <CardDescription>Company-wide, all companies</CardDescription>
+                            <CardTitle className="text-sm">Status Tenaga Kerja</CardTitle>
+                            <CardDescription>Seluruh perusahaan</CardDescription>
                         </CardHeader>
                         <CardContent className="grid grid-cols-2 gap-2 text-sm sm:grid-cols-4">
                             <div className="rounded-lg border border-graphite-100 p-2.5 dark:border-slate-800">
@@ -59,15 +60,15 @@ export default function HrDashboard({
                                 <p className="text-base font-bold text-graphite-900 dark:text-slate-50">{totalEmployees}</p>
                             </div>
                             <div className="rounded-lg border border-graphite-100 p-2.5 dark:border-slate-800">
-                                <p className="text-xs text-graphite-400">Active</p>
+                                <p className="text-xs text-graphite-400">Aktif</p>
                                 <p className="text-base font-bold text-graphite-900 dark:text-slate-50">{activeEmployees}</p>
                             </div>
                             <div className="rounded-lg border border-graphite-100 p-2.5 dark:border-slate-800">
-                                <p className="text-xs text-graphite-400">On Shift Today</p>
+                                <p className="text-xs text-graphite-400">Bertugas Hari Ini</p>
                                 <p className="text-base font-bold text-graphite-900 dark:text-slate-50">{onShiftToday}</p>
                             </div>
                             <div className="rounded-lg border border-graphite-100 p-2.5 dark:border-slate-800">
-                                <p className="text-xs text-graphite-400">Profiles Incomplete</p>
+                                <p className="text-xs text-graphite-400">Profil Belum Lengkap</p>
                                 <p className="text-base font-bold text-graphite-900 dark:text-slate-50">{employeesNeedCompletionCount}</p>
                             </div>
                         </CardContent>
@@ -75,8 +76,8 @@ export default function HrDashboard({
 
                     <Card>
                         <CardHeader className="pb-2">
-                            <CardTitle className="text-sm">Attention Required</CardTitle>
-                            <CardDescription>Contract & certification expiry, soonest first</CardDescription>
+                            <CardTitle className="text-sm">Perlu Perhatian</CardTitle>
+                            <CardDescription>Kontrak & sertifikasi akan berakhir, terdekat dahulu</CardDescription>
                         </CardHeader>
                         <CardContent>
                             <ActivityList
@@ -84,7 +85,7 @@ export default function HrDashboard({
                                 getKey={(a, i) => i}
                                 getHref={(a) => a.href}
                                 emptyIcon={GraduationCap}
-                                emptyTitle="Nothing expiring in the next 30 days"
+                                emptyTitle="Tidak ada yang akan berakhir dalam 30 hari ke depan"
                                 renderItem={(a) => (
                                     <div className="flex items-center justify-between gap-2 py-2 text-sm">
                                         <div className="min-w-0 flex-1">
@@ -107,13 +108,13 @@ export default function HrDashboard({
                 {/* LEVEL 3 -- recent activity + calendar */}
                 <div className="grid grid-cols-1 gap-3 lg:grid-cols-2">
                     <Card>
-                        <CardHeader className="pb-2"><CardTitle className="text-sm">Recent Leave Requests</CardTitle></CardHeader>
+                        <CardHeader className="pb-2"><CardTitle className="text-sm">Pengajuan Cuti Terbaru</CardTitle></CardHeader>
                         <CardContent>
                             <ActivityList
                                 items={recentLeaveRequests}
                                 getHref={(lr) => route('leave-requests.show', lr.id)}
                                 emptyIcon={CalendarDays}
-                                emptyTitle="No leave requests yet"
+                                emptyTitle="Belum ada pengajuan cuti"
                                 renderItem={(lr) => (
                                     <div className="flex items-center justify-between gap-2 py-2 text-sm">
                                         <span className="min-w-0 flex-1 truncate font-medium text-graphite-700 dark:text-slate-200">{lr.employee?.full_name}</span>
@@ -123,14 +124,19 @@ export default function HrDashboard({
                                             {' - '}
                                             {new Date(lr.end_date).toLocaleDateString('en-US', { day: 'numeric', month: 'short' })}
                                         </span>
-                                        <StatusBadge value={lr.status} label={lr.status === 'submitted' ? 'Waiting Approval' : undefined} />
+                                        <StatusBadge value={lr.status} label={lr.status === 'submitted' ? 'Menunggu Persetujuan' : undefined} />
                                     </div>
                                 )}
                             />
                         </CardContent>
                     </Card>
 
-                    <DepartmentCalendarWidget events={[]} title="HR Calendar" description="Leave & company events, next 3 weeks" />
+                    {/* v1.11.7 bug fix: was hardcoded events={[]}, so
+                        HrDashboardController's own `departmentCalendar`
+                        prop (real data since the department dashboards
+                        pass) was silently never rendered. Now actually
+                        wired to it. */}
+                    <DepartmentCalendarWidget events={departmentCalendar} title="Kalender HRD" description="Cuti & acara perusahaan, 3 minggu ke depan" />
                 </div>
             </DashboardShell>
         </AuthenticatedLayout>

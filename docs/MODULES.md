@@ -1485,6 +1485,85 @@ Indonesian-gateway-shaped — Midtrans/Xendit key names — no credentials commi
 configuration** before any checkout can actually run; nothing routes to this yet since there is no real
 adapter to route to.
 
+## Production Readiness Follow-Up (v1.11.7)
+
+Finishes the four items the v1.11.6 final report explicitly listed as deferred: HSE Omni Pro UX
+benchmark, HSE navigation regrouping, Bahasa Indonesia standardization, and a wider tenant-isolation
+audit. No new features, no re-redesign of already-completed work (dashboards, Waste Management, SaaS
+architecture).
+
+**HSE Omni Pro UX benchmark**: reviewed as a reference only (no code/branding/design copied). Its
+sidebar (Dashboard/Performa/Statistik/Employee/Manpower/Man-Hours/HSE Plan/Insiden/Inspeksi/CAPA/
+Audit/HIRADC/PTW) is itself fairly flat — not deeply nested — so the useful takeaway wasn't "add more
+nesting," it was: a persistent project/area filter at the top of every page (the exact pattern IOMS's
+PPE filter-persistence fix already implements), a KPI strip led by "days without incident" (not adopted
+— IOMS has no incident-free-day tracking and won't fabricate one), and an auto-generated one-line
+insight summarizing the top KPI callout (not adopted this pass — would need a real template over
+already-real data, left as a future idea, not built speculatively).
+
+**HSE navigation regrouping** (`resources/js/lib/workspaces.js`): 18 flat items → Dashboard, Overview,
+three collapsible groups (Safety Management; Permit & Work Safety; People & PPE), Waste Management
+(left top-level — a 1-item group adds a click with no scanning benefit), a fourth group (HSE Control:
+Master Data/Document Control/HSE KPI), and the two disabled placeholders (Training, Reports, left
+top-level since the `children` renderer has no disabled-child treatment). Built entirely on a
+collapsible-group mechanism (`item.children`, `AuthenticatedLayout.jsx`) that already existed in the
+sidebar component but no workspace had ever used — reused, not built new. Two real bugs in that
+existing-but-unused mechanism were found and fixed while wiring HSE into it (both are workspace-agnostic
+fixes, not HSE-specific patches):
+- A group never auto-expanded around its own active child — landing directly on a grouped page (via
+  bookmark, reload, or normal navigation before ever manually toggling the group) showed the correct
+  page but a collapsed, seemingly-unrelated sidebar. Fixed via `containsActiveChild` in
+  `AuthenticatedLayout.jsx`.
+- `applyItemGates()` (the `adminOnly`/`moduleKey` filter) and `PREFIX_TO_WORKSPACE` (the reverse
+  route→workspace lookup powering active-workspace detection/breadcrumbs) both only ever iterated the
+  flat top-level `items` array — nesting `HSE KPI` (`adminOnly`) or any grouped route would have
+  silently stopped being gated/detected the moment it moved into a group. Both now recurse into
+  `children`. Every href is otherwise byte-identical to the flat list — zero new routes, zero renamed
+  routes, zero RBAC change beyond fixing this latent gap.
+
+**HSE Master Data clarity**: kept the existing 4-tab structure and the Safety Equipment tab's inline
+"Inspect" action (a deliberate producer/consumer chain — Equipment Types → Register → Inspection
+History — documented in that page's own class comment from the prior pass, not an oversight). Per the
+explicit "improve labels rather than restructure unnecessarily" instruction: the page subtitle now
+states the master-vs-operational distinction directly, and the Safety Equipment section's own
+description explicitly calls out that its "Inspect" button records a real operational event, not
+configuration.
+
+**Bahasa Indonesia standardization**: `resources/js/lib/id.js` is the terminology map created before
+any page was touched, covering navigation and the five priority departments' vocabulary; established
+acronyms (HSE/PPE-APD/JSA/HIRADC/PTW/LOTO/CAPA/NCR/Man-Hour/Man-Power/Work Order/Asset) kept as-is
+rather than force-translated. Applied consistently to: `workspaces.js` (every nav label/item name for
+HR→HRD, HSE, Project Management→Manajemen Proyek, Logistics→Logistik/PPIC, Warehouse→Gudang, plus the
+shared "Dashboard"→"Dasbor" global link translated everywhere since it's the same link in every
+department) and the five department Overview pages in full (headers, KPI labels, section titles, table
+headers, empty states). **Not yet translated** (scope explicitly deferred, not silently dropped):
+individual module CRUD forms/dialogs/validation messages across the dozens of non-Overview pages — a
+much larger surface. `id.js`'s `t()` helper is shaped like a real i18n library's translate function
+specifically so a genuine multi-locale need later means swapping this file's internals, not every call
+site — English localization remains straightforward to add back.
+
+**Tenant isolation audit** (targeted, not exhaustive — see the final report for exact scope): the app's
+actual isolation model was confirmed to be two-tier — `TenantScope` (automatic) applies only to
+`Company`; every other tenant-owned model relies on manual `abort_unless(Company::query()->pluck('id')
+->contains($model->company_id), 404)` / `Rule::in($tenantCompanyIds)` checks, already applied
+consistently across most of the app (Incident, SafetyObservation, HseInspection, PermitToWork,
+GasTestRecord, LotoRecord, JobSafetyAnalysis, RiskAssessment, SafetyEquipment, P3kBox, WasteRecord,
+WasteMovement, Milestone, PurchaseRequisition/Order, GoodsReceipt, Warehouse, Stock/StockMovement,
+MaintenanceRequest, WorkOrder, Asset, Employee, Contractor, Visitor, ControlledDocument, Calendar — all
+verified guarded). Two confirmed, exploitable gaps found and fixed:
+- `ProjectPolicy` — same bug class as `EmployeePpePolicy` (fixed v1.11.6): `update()`/`delete()`/
+  `manageManpower()` checked only the role capability, never which tenant the Project belongs to.
+  `ProjectController::show()` also never called `$this->authorize()` at all despite `ProjectPolicy::
+  view()` existing — any authenticated user could load any tenant's project. Both fixed.
+- `LeaveRequestController::index()` had NO company/tenant scoping whatsoever — every tenant's leave
+  requests were returned to every other tenant. `show()`/`cancel()` had no per-record tenant check
+  either. Fixed with the same guard convention used everywhere else in the app.
+
+Billing data (`Subscription`/`Invoice`) was confirmed already correctly isolated — `PlatformController`
+is the only controller touching them, gated entirely behind `role:platform_admin` middleware, and no
+tenant-facing controller references either model. `PaymentTransaction`/`PaymentWebhookEvent` (added
+v1.11.6) are not yet routed to anything, so carry no exposure risk today.
+
 ## Reusable engines (Approval, Workflow, Timeline, Import, PDF, Report Export)
 
 These aren't a "module" with their own page — they're cross-cutting infrastructure consumed by the

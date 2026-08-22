@@ -80,6 +80,13 @@ class ProjectController extends Controller
 
     public function show(Project $project): Response
     {
+        // v1.11.7 tenant-isolation fix (Production Readiness Follow-Up,
+        // Part 5): this had no authorization call at all -- ProjectPolicy
+        // already defined view(), it just wasn't invoked here, so any
+        // authenticated user could load ANY tenant's project (manpower,
+        // timeline, company) by guessing an id.
+        $this->authorize('view', $project);
+
         $project->load('company', 'creator:id,name');
 
         $manpowerGrouped = $project->manpowerGroupedByDepartment()

@@ -50,13 +50,18 @@ import {
 export const WORKSPACES = [
     {
         key: 'hr',
-        label: 'Human Resources',
+        // v1.11.7 (Bahasa Indonesia Standardization, Part 4) -- "HRD" is
+        // the term Indonesian companies actually use for this department
+        // (not a forced translation of "Human Resources"), matching the
+        // terminology map in resources/js/lib/id.js. Every item name
+        // below is user-facing text only -- hrefs/route names UNCHANGED.
+        label: 'HRD',
         icon: Users,
         tier: 'department',
         items: [
-            { name: 'Dashboard', href: 'dashboard', icon: LayoutDashboard, global: true },
-            { name: 'Overview', href: 'hr.dashboard', icon: LayoutDashboard },
-            { name: 'Employees', href: 'employees.index', icon: Users, moduleKey: 'employees' },
+            { name: 'Dasbor', href: 'dashboard', icon: LayoutDashboard, global: true },
+            { name: 'Ringkasan', href: 'hr.dashboard', icon: LayoutDashboard },
+            { name: 'Karyawan', href: 'employees.index', icon: Users, moduleKey: 'employees' },
             // v1.11.6 (Production Readiness pass, Part 4): "Attendance"
             // was a disabled placeholder with no backing data. Man-Hour
             // is the closest real equivalent this pass actually built
@@ -64,34 +69,34 @@ export const WORKSPACES = [
             // the placeholder rather than sitting alongside it as a
             // second, confusing "almost the same thing" entry.
             { name: 'Man-Hour', href: 'man-hour.index', icon: ClipboardList },
-            { name: 'Leave', href: 'leave-requests.index', icon: CalendarDays },
+            { name: 'Cuti', href: 'leave-requests.index', icon: CalendarDays },
             // Milestone 4, Workstream A3: Shift & Roster Management --
             // real backend (Shift/EmployeeShiftAssignment/RosterPattern/
             // EmployeeRoster). "Shift/Roster belongs to HR/Workforce
             // Management" per spec -- other modules (HSE fatigue checks,
             // Project manpower) may consume this data later without it
             // moving out of HR.
-            { name: 'Shift & Roster', href: 'shifts.master', icon: Clock },
-            { name: 'Recruitment', icon: Users, disabled: true },
-            { name: 'Performance', icon: BadgeCheck, disabled: true },
+            { name: 'Shift & Jadwal Kerja', href: 'shifts.master', icon: Clock },
+            { name: 'Rekrutmen', icon: Users, disabled: true },
+            { name: 'Kinerja', icon: BadgeCheck, disabled: true },
             // Milestone 4, Workstream A2: Training & Competency Management
             // -- real backend now (CompetencyType/EmployeeCompetency),
             // same route/controller reachable from both HR and HSE
             // conceptually, but following the same "one canonical home,
             // not duplicated" precedent as HSE KPI below -- lives here
             // since it's fundamentally employee master data.
-            { name: 'Training & Competency', href: 'competency.master', icon: GraduationCap },
+            { name: 'Pelatihan & Kompetensi', href: 'competency.master', icon: GraduationCap },
             // v1.10.4 correction: the existing KPI implementation
             // (kpi-input.index) was mapped here in v1.10.0, but its
             // routes are already gated to role:super_admin,hse at the
             // route level -- it was always HSE's module, just
             // mis-labeled/mis-placed in nav. Moved to HSE below; this
-            // stays a locked placeholder ("HR KPI" -- a genuinely
+            // stays a locked placeholder ("KPI HRD" -- a genuinely
             // separate future concept, HR's own KPI tracking, not yet
             // built) rather than a real link.
-            { name: 'HR KPI', icon: ClipboardEdit, disabled: true },
-            { name: 'Documents', icon: ClipboardList, disabled: true },
-            { name: 'Reports', icon: FileBarChart, disabled: true },
+            { name: 'KPI HRD', icon: ClipboardEdit, disabled: true },
+            { name: 'Dokumen', icon: ClipboardList, disabled: true },
+            { name: 'Laporan', icon: FileBarChart, disabled: true },
         ],
     },
     {
@@ -99,96 +104,124 @@ export const WORKSPACES = [
         label: 'HSE',
         icon: HardHat,
         tier: 'department',
+        /**
+         * v1.11.7 (Production Readiness Follow-Up, HSE Navigation
+         * Finalization). Previously 18 flat items -- confirmed too many
+         * for an operational HSE user to scan, per direct feedback.
+         * Regrouped around WORKFLOW, not database entities, into the
+         * AuthenticatedLayout `children` mechanism (collapsible groups,
+         * localStorage-persisted expand state, auto-expands around the
+         * active route -- see that component's own doc comment on
+         * `containsActiveChild`). That mechanism already existed in the
+         * sidebar component but was unused by every workspace before this
+         * pass -- reused here, not built new.
+         *
+         * Every href below is UNCHANGED from the flat list -- this is a
+         * pure regrouping, zero new routes, zero renamed routes, zero
+         * RBAC change (`applyItemGates()` was fixed this same pass to
+         * recurse into `children` so `HSE KPI`'s `adminOnly` and `PPE
+         * Management`'s `moduleKey` gates keep working nested).
+         *
+         * Grouping rationale (benchmarked against HSE Omni Pro's own
+         * nav -- see docs/MODULES.md's "HSE Omni Pro UX Benchmark"
+         * section for the full comparison table):
+         * - Safety Management: the day-to-day reporting/finding loop
+         *   (Incident -> Observation -> Inspection -> TBM -> CAPA).
+         * - Permit & Work Safety: everything gating whether risky work
+         *   is allowed to start (PTW -> Gas Test -> LOTO) plus the two
+         *   risk-assessment documents that usually precede a permit
+         *   (JSA, HIRADC).
+         * - People & PPE: everyone who can be on site and what they're
+         *   wearing (PPE, Contractor, Visitor).
+         * - HSE Control: configuration/reference + admin-only entries
+         *   (Master Data, Document Control, HSE KPI).
+         * "Waste Management" and the two disabled placeholders
+         * (Training, Reports) were deliberately left top-level rather
+         * than force-nested into a 1-item group -- a group containing
+         * only itself adds a click with no scanning benefit, and
+         * disabled items are not supported by the `children` renderer
+         * (it has no disabled-child treatment), so nesting them would
+         * have rendered as a broken Link, not a locked row.
+         */
+        // v1.11.7 (Bahasa Indonesia Standardization, Part 4) -- every item
+        // name below translated per resources/js/lib/id.js's terminology
+        // map; hrefs/route names UNCHANGED. Established acronyms (PPE,
+        // JSA, HIRADC, PTW, LOTO, CAPA, TBM, KPI) kept as-is rather than
+        // forced into unnatural Indonesian, matching that file's own rules.
         items: [
-            { name: 'Dashboard', href: 'dashboard', icon: LayoutDashboard, global: true },
-            { name: 'Overview', href: 'hse.dashboard', icon: LayoutDashboard },
-            // PPE's own Dashboard/Employee PPE/Master/Reports split lives
-            // in PpeTabNav *within* the module, not as sidebar sub-items.
-            { name: 'PPE Management', href: 'ppe.dashboard', icon: HardHat, moduleKey: 'ppe' },
-            // v1.10.5 bugfix: this used to be a disabled "Permit To Work"
-            // placeholder sitting directly above the REAL, working entry
-            // that Workstream B6 later added below (`permits-to-work.index`,
-            // now right after JSA). Nobody removed the placeholder when the
-            // real module shipped, so the sidebar showed a locked PTW row
-            // immediately followed eventually by a working one -- read by
-            // at least one user as "PTW is locked," when only this stale
-            // duplicate was. There is now exactly one PTW nav entry.
-            { name: 'Incident Management', href: 'incidents.index', icon: AlertTriangle },
-            // Milestone 4, Workstream B1: real backend now (SafetyObservation
-            // + CorrectiveAction), same one-click-report UX as Incident.
-            { name: 'Safety Observation', href: 'safety-observations.index', icon: Eye },
-            { name: 'HSE Master Data', href: 'hse.master', icon: ListChecks },
-            // Milestone 4, Workstream B2: real backend now (HseInspection),
-            // findings raise a real CorrectiveAction (reused, not duplicated).
-            { name: 'Inspection', href: 'hse-inspections.index', icon: ClipboardCheck },
-            // Milestone 4, Workstream B4/B5: real backend now (RiskAssessment/
-            // JobSafetyAnalysis), document-level sign-off via HasWorkflow.
-            { name: 'HIRADC / Risk Assessment', href: 'risk-assessments.index', icon: ShieldAlert },
-            { name: 'JSA', href: 'job-safety-analyses.index', icon: FileWarning },
-            // Milestone 4, Workstream B6/B8: real backend now (PermitToWork
-            // + GasTestRecord + LotoRecord).
-            { name: 'Permit To Work', href: 'permits-to-work.index', icon: Flame },
-            // v1.10.7: was previously reachable ONLY by opening a specific
-            // PTW's own page -- readings themselves are real and always
-            // were, they just had no cross-permit list to link a menu item
-            // to. `gas-test-records.index` (read-only) now exists for
-            // exactly that; adding/removing a reading still only happens
-            // from within its owning permit (see GasTestRecordController).
-            { name: 'Gas Test', href: 'gas-test-records.index', icon: FlaskConical },
-            { name: 'LOTO', href: 'loto-records.index', icon: Lock },
-            // Milestone 4, Workstream B3: real backend now (TbmMeeting).
-            { name: 'Safety Meeting (TBM)', href: 'tbm-meetings.index', icon: UsersRound },
-            // Milestone 4, Workstream B15: standalone cross-source CAPA view
-            // over the SAME CorrectiveAction rows Safety Observation/
-            // Inspection/Incident already create -- not a new system.
-            { name: 'Corrective Actions (CAPA)', href: 'corrective-actions.index', icon: ClipboardCheck },
+            { name: 'Dasbor', href: 'dashboard', icon: LayoutDashboard, global: true },
+            { name: 'Ringkasan', href: 'hse.dashboard', icon: LayoutDashboard },
+            {
+                name: 'Manajemen Keselamatan',
+                icon: ShieldAlert,
+                children: [
+                    { name: 'Manajemen Insiden', href: 'incidents.index', icon: AlertTriangle },
+                    { name: 'Observasi Keselamatan', href: 'safety-observations.index', icon: Eye },
+                    { name: 'Inspeksi', href: 'hse-inspections.index', icon: ClipboardCheck },
+                    { name: 'Rapat Keselamatan (TBM)', href: 'tbm-meetings.index', icon: UsersRound },
+                    { name: 'Tindakan Perbaikan (CAPA)', href: 'corrective-actions.index', icon: ClipboardCheck },
+                ],
+            },
+            {
+                name: 'Izin & Keselamatan Kerja',
+                icon: Flame,
+                children: [
+                    { name: 'Izin Kerja (PTW)', href: 'permits-to-work.index', icon: Flame },
+                    { name: 'Uji Gas', href: 'gas-test-records.index', icon: FlaskConical },
+                    { name: 'LOTO', href: 'loto-records.index', icon: Lock },
+                    { name: 'JSA', href: 'job-safety-analyses.index', icon: FileWarning },
+                    { name: 'HIRADC / Penilaian Risiko', href: 'risk-assessments.index', icon: ShieldAlert },
+                ],
+            },
+            {
+                name: 'Personel & APD',
+                icon: UserCheck,
+                children: [
+                    // PPE's own Dashboard/Employee PPE/Master/Reports split
+                    // lives in PpeTabNav *within* the module, not as
+                    // further sidebar sub-items.
+                    { name: 'Manajemen APD', href: 'ppe.dashboard', icon: HardHat, moduleKey: 'ppe' },
+                    { name: 'Manajemen Kontraktor', href: 'contractors.index', icon: UserCheck },
+                    { name: 'Manajemen Pengunjung', href: 'visitors.index', icon: FileCheck },
+                ],
+            },
             // v1.11.4, HSE Waste Management -- single entry point
             // (`waste.dashboard`); waste-records.*/waste-types.*/
             // waste-storage-locations.* stay reachable from within that
-            // page rather than each getting their own sidebar row, same
-            // convention as Safety Observation/CAPA above.
-            { name: 'Waste Management', href: 'waste.dashboard', icon: Recycle },
-            // Training & Competency now lives under HR -- see that
-            // entry's own comment. Same one-canonical-home precedent as
-            // HSE KPI above (which moved the other direction).
-            { name: 'Training', icon: ClipboardList, disabled: true },
-            // v1.10.4 correction: moved from HR (see HR's own note above)
-            // -- same route, same controller, same permissions, same
-            // moduleKey. Nothing about the implementation changed, only
-            // which department's sidebar links to it.
-            { name: 'HSE KPI', href: 'kpi-input.index', icon: ClipboardEdit, adminOnly: true, moduleKey: 'kpi_input' },
-            // Milestone 4, Acceleration Part 4/5/6: real backend now
-            // (Contractor, Visitor, ControlledDocument). Placed under HSE
-            // -- Contractor/Visitor gates reuse the HSE operational role
-            // (canManageContractors()/canManageVisitors()), and Document
-            // Control's own gate (canManageDocuments()) does the same;
-            // none of the three warranted a standalone department yet.
-            { name: 'Contractor Management', href: 'contractors.index', icon: UserCheck },
-            { name: 'Visitor Management', href: 'visitors.index', icon: FileCheck },
-            { name: 'Document Control', href: 'controlled-documents.index', icon: FileStack },
-            // v1.10.6: removed a generic disabled "Documents" placeholder
-            // that used to sit right here -- it was the exact same
-            // "locked row beside a working one" confusion as the PTW
-            // duplicate fixed in v1.10.5, just for Documents instead of
-            // Permit To Work. "Document Control" directly above already
-            // IS this department's real document functionality; every
-            // other department's own "Documents" placeholder stays
-            // disabled because nothing real backs it there yet.
-            { name: 'Reports', icon: FileBarChart, disabled: true },
+            // page rather than each getting their own sidebar row.
+            // Left top-level (not grouped) -- see the class doc comment.
+            { name: 'Pengelolaan Limbah', href: 'waste.dashboard', icon: Recycle },
+            {
+                name: 'Kontrol HSE',
+                icon: ListChecks,
+                children: [
+                    { name: 'Data Master HSE', href: 'hse.master', icon: ListChecks },
+                    { name: 'Kontrol Dokumen', href: 'controlled-documents.index', icon: FileStack },
+                    // v1.10.4 correction: moved from HR -- same route,
+                    // controller, permissions, moduleKey, only the owning
+                    // sidebar changed.
+                    { name: 'KPI HSE', href: 'kpi-input.index', icon: ClipboardEdit, adminOnly: true, moduleKey: 'kpi_input' },
+                ],
+            },
+            // Training & Competency lives under HR -- same one-canonical-
+            // home precedent as HSE KPI above (which moved the other way).
+            { name: 'Pelatihan', icon: ClipboardList, disabled: true },
+            { name: 'Laporan', icon: FileBarChart, disabled: true },
         ],
     },
     {
         key: 'project-management',
-        label: 'Project Management',
+        // v1.11.7 (Bahasa Indonesia Standardization, Part 4).
+        label: 'Manajemen Proyek',
         icon: FolderKanban,
         tier: 'department',
         items: [
-            { name: 'Dashboard', href: 'dashboard', icon: LayoutDashboard, global: true },
-            { name: 'Overview', href: 'project-management.dashboard', icon: LayoutDashboard },
-            { name: 'Projects', href: 'projects.index', icon: FolderKanban, moduleKey: 'projects' },
+            { name: 'Dasbor', href: 'dashboard', icon: LayoutDashboard, global: true },
+            { name: 'Ringkasan', href: 'project-management.dashboard', icon: LayoutDashboard },
+            { name: 'Proyek', href: 'projects.index', icon: FolderKanban, moduleKey: 'projects' },
             // Daily Reports lives here, not HSE: it's a per-project
             // activity/progress log -- see ADR-007 for the reasoning.
-            { name: 'Daily Reports', href: 'daily-reports.index', icon: ClipboardList, moduleKey: 'daily_reports' },
+            { name: 'Laporan Harian', href: 'daily-reports.index', icon: ClipboardList, moduleKey: 'daily_reports' },
             // Milestone 4, Acceleration Part 3: real backend now
             // (ProjectActivity) -- distinct from a DailyReportActivity
             // free-text log line: this is a real owner+progress+status
@@ -197,35 +230,38 @@ export const WORKSPACES = [
             // requires a {project} param, so it's reached from within a
             // Project's own page, not as a standalone sidebar destination;
             // same reasoning as Attendance/Training above).
-            { name: 'Activities', icon: ClipboardList, disabled: true },
-            { name: 'Milestones', href: 'milestones.index', icon: Flag },
-            { name: 'Documents', icon: ClipboardList, disabled: true },
-            { name: 'Reports', icon: FileBarChart, disabled: true },
+            { name: 'Aktivitas', icon: ClipboardList, disabled: true },
+            { name: 'Milestone', href: 'milestones.index', icon: Flag },
+            { name: 'Dokumen', icon: ClipboardList, disabled: true },
+            { name: 'Laporan', icon: FileBarChart, disabled: true },
         ],
     },
     {
         key: 'logistics',
-        label: 'Logistics / PPIC',
+        // v1.11.7 (Bahasa Indonesia Standardization, Part 4) -- "PPIC"
+        // (Production Planning & Inventory Control) is itself already a
+        // standard Indonesian-industry acronym, kept as-is.
+        label: 'Logistik / PPIC',
         icon: PackageSearch,
         tier: 'department',
         items: [
-            { name: 'Dashboard', href: 'dashboard', icon: LayoutDashboard, global: true },
-            { name: 'Overview', href: 'logistics.dashboard', icon: LayoutDashboard },
-            { name: 'Material Requests', href: 'material-requests.index', icon: PackageSearch, moduleKey: 'material_requests' },
+            { name: 'Dasbor', href: 'dashboard', icon: LayoutDashboard, global: true },
+            { name: 'Ringkasan', href: 'logistics.dashboard', icon: LayoutDashboard },
+            { name: 'Permintaan Material', href: 'material-requests.index', icon: PackageSearch, moduleKey: 'material_requests' },
             // Warehouse stays inside Logistics for now, per explicit
             // instruction -- not split into its own department yet, even
             // though a separate (still-disabled) "Warehouse" department
             // also exists below for future use.
             // Milestone 4, Acceleration Part 1B: real backend now
             // (Warehouse/StorageLocation/Stock/StockMovement).
-            { name: 'Warehouse', href: 'warehouses.master', icon: Warehouse },
-            { name: 'Item Master', href: 'items.index', icon: Box },
-            { name: 'Inventory', href: 'stock.index', icon: Boxes },
-            { name: 'Goods Receipt', href: 'goods-receipts.index', icon: PackageCheck },
-            { name: 'Goods Issue / Transfer / Adjust', href: 'stock.transactions.create', icon: ArrowRightLeft },
-            { name: 'Stock Movement History', href: 'stock.movements', icon: ClipboardList },
-            { name: 'Documents', icon: ClipboardList, disabled: true },
-            { name: 'Reports', icon: FileBarChart, disabled: true },
+            { name: 'Gudang', href: 'warehouses.master', icon: Warehouse },
+            { name: 'Data Master Barang', href: 'items.index', icon: Box },
+            { name: 'Inventaris', href: 'stock.index', icon: Boxes },
+            { name: 'Penerimaan Barang', href: 'goods-receipts.index', icon: PackageCheck },
+            { name: 'Keluar / Transfer / Penyesuaian Stok', href: 'stock.transactions.create', icon: ArrowRightLeft },
+            { name: 'Riwayat Pergerakan Stok', href: 'stock.movements', icon: ClipboardList },
+            { name: 'Dokumen', icon: ClipboardList, disabled: true },
+            { name: 'Laporan', icon: FileBarChart, disabled: true },
         ],
     },
     // v1.10.6 correction, updated v1.11.3.2 (Priority Pass Part 9):
@@ -264,12 +300,13 @@ export const WORKSPACES = [
     // config/departments.php, unrelated to this file.
     {
         key: 'warehouse',
-        label: 'Warehouse',
+        // v1.11.7 (Bahasa Indonesia Standardization, Part 4).
+        label: 'Gudang',
         icon: Warehouse,
         tier: 'department',
         items: [
-            { name: 'Dashboard', href: 'dashboard', icon: LayoutDashboard, global: true },
-            { name: 'Overview', href: 'warehouses.dashboard', icon: Warehouse },
+            { name: 'Dasbor', href: 'dashboard', icon: LayoutDashboard, global: true },
+            { name: 'Ringkasan', href: 'warehouses.dashboard', icon: Warehouse },
         ],
     },
     {
@@ -278,7 +315,7 @@ export const WORKSPACES = [
         icon: ShoppingCart,
         tier: 'department',
         items: [
-            { name: 'Dashboard', href: 'dashboard', icon: LayoutDashboard, global: true },
+            { name: 'Dasbor', href: 'dashboard', icon: LayoutDashboard, global: true },
             // Milestone 4, Workstream C: real backend now (Vendor,
             // PurchaseRequisition, Rfq/VendorQuotation, PurchaseOrder) --
             // a genuine cross-department procurement engine, not owned by
@@ -299,7 +336,7 @@ export const WORKSPACES = [
         icon: Box,
         tier: 'department',
         items: [
-            { name: 'Dashboard', href: 'dashboard', icon: LayoutDashboard, global: true },
+            { name: 'Dasbor', href: 'dashboard', icon: LayoutDashboard, global: true },
             // v1.11.3 (Global Dashboard/Overview UX Rework, Part 4) -- this
             // department had no Overview at all before this pass.
             { name: 'Overview', href: 'asset-management.dashboard', icon: LayoutDashboard },
@@ -317,7 +354,7 @@ export const WORKSPACES = [
         icon: Wrench,
         tier: 'department',
         items: [
-            { name: 'Dashboard', href: 'dashboard', icon: LayoutDashboard, global: true },
+            { name: 'Dasbor', href: 'dashboard', icon: LayoutDashboard, global: true },
             // v1.11.3 (Global Dashboard/Overview UX Rework, Part 4) -- this
             // department had no Overview at all before this pass.
             { name: 'Overview', href: 'maintenance.dashboard', icon: LayoutDashboard },
@@ -337,7 +374,7 @@ export const WORKSPACES = [
         icon: BadgeCheck,
         tier: 'department',
         items: [
-            { name: 'Dashboard', href: 'dashboard', icon: LayoutDashboard, global: true },
+            { name: 'Dasbor', href: 'dashboard', icon: LayoutDashboard, global: true },
             // v1.11.3 (Global Dashboard/Overview UX Rework, Part 4) -- this
             // department had no Overview at all before this pass.
             { name: 'Overview', href: 'quality-control.dashboard', icon: LayoutDashboard },
@@ -357,7 +394,7 @@ export const WORKSPACES = [
         icon: DollarSign,
         tier: 'department',
         items: [
-            { name: 'Dashboard', href: 'dashboard', icon: LayoutDashboard, global: true },
+            { name: 'Dasbor', href: 'dashboard', icon: LayoutDashboard, global: true },
             { name: 'Overview', href: 'finance.coming-soon', icon: DollarSign },
         ],
     },
@@ -435,11 +472,31 @@ function isDepartmentTier(workspace) {
     return workspace.tier === 'department';
 }
 
-/** Applies the same two-gate filter every item already had (adminOnly against `isAdmin`, moduleKey against the enabled-modules list). */
+/**
+ * Applies the same two-gate filter every item already had (adminOnly
+ * against `isAdmin`, moduleKey against the enabled-modules list).
+ *
+ * v1.11.7 (HSE Navigation Finalization): now recurses into `item.children`
+ * too. Before this, an `adminOnly`/`moduleKey`-gated item nested inside a
+ * collapsible group would never be filtered at all -- this function only
+ * ever inspected the flat top-level array, and the sidebar's own
+ * `children` rendering (AuthenticatedLayout.jsx) applies no gating of its
+ * own. Not a live bug yet (no workspace used `children` before this
+ * pass), but would have become one the moment HSE's own `HSE KPI`
+ * (adminOnly) was grouped -- fixed here instead of narrowly working
+ * around it in one workspace.
+ */
 function applyItemGates(items, isAdmin, modules) {
-    return items.filter((item) =>
-        (!item.adminOnly || isAdmin) && (!item.moduleKey || modules.includes(item.moduleKey))
-    );
+    return items
+        .filter((item) =>
+            (!item.adminOnly || isAdmin) && (!item.moduleKey || modules.includes(item.moduleKey))
+        )
+        .map((item) => (item.children ? { ...item, children: applyItemGates(item.children, isAdmin, modules) } : item))
+        // A group whose every child got gated out (no combination does
+        // this today -- every HSE group keeps at least one ungated child
+        // -- but defensive against a future edit that adds one) renders
+        // nothing useful; drop it rather than show an empty expandable row.
+        .filter((item) => !item.children || item.children.length > 0);
 }
 
 // Milestone 2 (Dynamic Workspace system, Task #43). Maps the `icon`
@@ -547,11 +604,27 @@ export function getGlobalNavItems(user, enabledModules, workspaceCatalog) {
 // key, so re-assigning the same value is harmless. The Future
 // Departments' `{department}.coming-soon` route names are exactly why
 // every OTHER prefix here must also stay unique per workspace.
-const PREFIX_TO_WORKSPACE = WORKSPACES.reduce((map, workspace) => {
-    for (const item of workspace.items) {
+// v1.11.7: recurses into `item.children` too. Before this pass no
+// workspace used `children` so the flat-only loop was never wrong, but
+// HSE's new grouped items (incidents.index, safety-observations.index,
+// etc.) would otherwise silently stop mapping to the 'hse' workspace key
+// the moment they moved into a group -- breaking active-workspace
+// detection (department switcher, sidebar highlighting, breadcrumb) for
+// every regrouped route. Fixed here rather than only for HSE, so any
+// future workspace that adopts `children` gets this for free.
+function registerPrefixes(map, items, workspaceKey) {
+    for (const item of items) {
+        if (item.children) {
+            registerPrefixes(map, item.children, workspaceKey);
+            continue;
+        }
         if (!item.href || item.global) continue;
-        map[item.href.split('.')[0]] = workspace.key;
+        map[item.href.split('.')[0]] = workspaceKey;
     }
+}
+
+const PREFIX_TO_WORKSPACE = WORKSPACES.reduce((map, workspace) => {
+    registerPrefixes(map, workspace.items, workspace.key);
     return map;
 }, {});
 

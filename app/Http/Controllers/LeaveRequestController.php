@@ -3,6 +3,7 @@
 namespace App\Http\Controllers;
 
 use App\Models\ActivityLog;
+use App\Models\Company;
 use App\Models\Employee;
 use App\Models\LeaveRequest;
 use Illuminate\Http\RedirectResponse;
@@ -18,12 +19,26 @@ use Inertia\Response;
  * class: unlike Material Request there's no dynamic item table here, so
  * a separate Request class would just be indirection for a handful of
  * fields.
+ *
+ * v1.11.7 tenant-isolation fix (Production Readiness Follow-Up, Part 5):
+ * `index()` had NO company/tenant scoping at all -- every tenant's leave
+ * requests were returned to every other tenant. `show()`/`cancel()` had
+ * no per-record tenant check either -- a LeaveRequest id from any tenant
+ * could be viewed or cancelled by a user in a completely different
+ * tenant. Fixed with the same `abort_unless(Company::query()->pluck('id')
+ * ->contains(...), 404)` pattern already used throughout HSE/Logistics/
+ * Procurement controllers (see IncidentController's own doc comment for
+ * the convention this follows) -- not a new pattern, just applied here
+ * where it had been missed.
  */
 class LeaveRequestController extends Controller
 {
     public function index(Request $request): Response
     {
+        $tenantCompanyIds = Company::query()->pluck('id');
+
         $leaveRequests = LeaveRequest::query()
+            ->whereIn('company_id', $tenantCompanyIds)
             ->with('employee:id,full_name,employee_id', 'requester:id,name')
             ->when($request->input('search'), fn ($q, $v) => $q->where('leave_number', 'like', "%{$v}%"))
             ->when($request->input('status'), fn ($q, $v) => $q->where('status', $v))
@@ -40,9 +55,11 @@ class LeaveRequestController extends Controller
 
     public function create(): Response
     {
+        $tenantCompanyIds = Company::query()->pluck('id');
+
         return Inertia::render('Leave/Form', [
             'leaveRequest' => null,
-            'employees' => Employee::active()->orderBy('full_name')->get(['id', 'full_name', 'employee_id']),
+            'employees' => Employee::active()->whereIn('company_id', $tenantCompanyIds)->orderBy('full_name')->get(['id', 'full_name', 'employee_id']),
             'leaveNumber' => LeaveRequest::generateLeaveNumber(),
             'types' => LeaveRequest::TYPES,
         ]);
@@ -62,6 +79,7 @@ class LeaveRequestController extends Controller
         ]);
 
         $employee = Employee::findOrFail($data['employee_id']);
+        abort_unless(Company::query()->pluck('id')->contains($employee->company_id), 404);
 
         $leaveRequest = LeaveRequest::create([
             'leave_number' => LeaveRequest::generateLeaveNumber(),
@@ -88,6 +106,8 @@ class LeaveRequestController extends Controller
 
     public function show(LeaveRequest $leaveRequest, Request $request): Response
     {
+        $this->assertInCurrentTenant($leaveRequest);
+
         $leaveRequest->load('employee:id,full_name,employee_id', 'requester:id,name');
         $approval = $leaveRequest->latestApproval()?->load('requester:id,name', 'approver:id,name');
 
@@ -109,6 +129,7 @@ class LeaveRequestController extends Controller
     public function cancel(Request $request, LeaveRequest $leaveRequest): RedirectResponse
     {
         abort_unless($request->user()->canManageLeaveRequests(), 403);
+        $this->assertInCurrentTenant($leaveRequest);
 
         try {
             $leaveRequest->transitionTo(LeaveRequest::STATUS_CANCELLED, $request->user());
@@ -117,5 +138,11 @@ class LeaveRequestController extends Controller
         }
 
         return back()->with('flash', ['success' => 'Leave Request cancelled.']);
+    }
+
+    /** Same 404-not-403 tenant-isolation convention used throughout HSE/Logistics/Procurement -- see IncidentController's own doc comment. */
+    private function assertInCurrentTenant(LeaveRequest $leaveRequest): void
+    {
+        abort_unless(Company::query()->pluck('id')->contains($leaveRequest->company_id), 404);
     }
 }

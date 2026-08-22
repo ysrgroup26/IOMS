@@ -75,10 +75,19 @@ export default function HseMaster({ hazardCategories, safetyEquipment, equipment
         <AuthenticatedLayout>
             <Head title="HSE Master Data" />
 
+            {/* v1.11.7 (Production Readiness Follow-Up, Part 3 -- HSE
+                Master Data clarity). Per explicit user feedback this page
+                was confusing about what belongs here. Structure/routes are
+                UNCHANGED (see the class doc comment above for why the
+                Safety Equipment tab's inline inspection-recording stays --
+                it's a deliberate producer/consumer chain, not
+                accidental); this is a labeling/help-text-only clarification. */}
             <div className="mb-4">
                 <h1 className="text-lg font-bold tracking-tight text-graphite-900 dark:text-slate-50">HSE Master Data</h1>
                 <p className="mt-0.5 text-xs text-graphite-500 dark:text-slate-400">
-                    Configure HSE catalogs shared across HSE modules. Nothing here is hard-coded.
+                    Configuration &amp; reference data only -- the types, categories, templates, and registers
+                    other HSE modules draw from. Nothing here is hard-coded. Day-to-day work (recording an
+                    incident, running an inspection, issuing PPE) happens in each module's own page, not here.
                 </p>
             </div>
 
@@ -299,7 +308,15 @@ function SafetyEquipmentSection({ safetyEquipment, equipmentTypes, assets = [], 
     return (
         <Card>
             <CardHeader className="flex flex-row items-center justify-between">
-                <div><CardTitle>Safety Equipment</CardTitle><CardDescription>{safetyEquipment.length} configured -- fire extinguishers, safety showers, emergency facilities</CardDescription></div>
+                <div>
+                    <CardTitle>Safety Equipment Register</CardTitle>
+                    <CardDescription>
+                        {safetyEquipment.length} registered -- fire extinguishers, safety showers, emergency facilities.
+                        Registering an item here is configuration; the "Inspect" button below logs a real, dated
+                        operational record, kept on this page only because it belongs directly to the item it's
+                        inspecting -- not because it's configuration too.
+                    </CardDescription>
+                </div>
                 {can.manage && <Button onClick={openCreate}><Plus className="h-4 w-4" /> Add Equipment</Button>}
             </CardHeader>
             <CardContent>

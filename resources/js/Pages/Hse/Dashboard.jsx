@@ -12,20 +12,22 @@ import {
     ClipboardList, FileWarning, Lock, UsersRound, FlaskConical, UserCheck, FileCheck, FileStack, Recycle,
 } from 'lucide-react';
 
+// v1.11.7 (Bahasa Indonesia Standardization, Part 4) -- translated per
+// resources/js/lib/id.js's terminology map; hrefs unchanged.
 const HSE_MODULES = [
-    { icon: Eye, title: 'Safety Observation', description: 'One-click hazard/near-miss reporting.', href: 'safety-observations.index' },
-    { icon: ClipboardCheck, title: 'HSE Inspection', description: 'Scheduled inspections with findings.', href: 'hse-inspections.index' },
-    { icon: UsersRound, title: 'Safety Meeting (TBM)', description: 'Toolbox meeting records.', href: 'tbm-meetings.index' },
-    { icon: ShieldAlert, title: 'HIRADC / Risk Assessment', description: 'Hazard identification & risk matrix.', href: 'risk-assessments.index' },
-    { icon: FileWarning, title: 'JSA', description: 'Job safety analysis with risk matrix.', href: 'job-safety-analyses.index' },
-    { icon: Flame, title: 'Permit To Work', description: 'Hot work, confined space, and more.', href: 'permits-to-work.index' },
-    { icon: FlaskConical, title: 'Gas Test', description: 'Atmospheric readings across all permits.', href: 'gas-test-records.index' },
-    { icon: Lock, title: 'LOTO', description: 'Lockout/tagout energy isolation.', href: 'loto-records.index' },
-    { icon: ClipboardCheck, title: 'Corrective Actions (CAPA)', description: 'Cross-source corrective action tracking.', href: 'corrective-actions.index' },
-    { icon: Recycle, title: 'Waste Management', description: 'B3/Non-B3 waste, storage, and disposal.', href: 'waste.dashboard' },
-    { icon: UserCheck, title: 'Contractor Management', description: 'Contractor register, workers, documents.', href: 'contractors.index' },
-    { icon: FileCheck, title: 'Visitor Management', description: 'Site access register.', href: 'visitors.index' },
-    { icon: FileStack, title: 'Document Control', description: 'Controlled documents with version history.', href: 'controlled-documents.index' },
+    { icon: Eye, title: 'Observasi Keselamatan', description: 'Pelaporan bahaya/nyaris celaka satu klik.', href: 'safety-observations.index' },
+    { icon: ClipboardCheck, title: 'Inspeksi HSE', description: 'Inspeksi terjadwal dengan temuan.', href: 'hse-inspections.index' },
+    { icon: UsersRound, title: 'Rapat Keselamatan (TBM)', description: 'Catatan toolbox meeting.', href: 'tbm-meetings.index' },
+    { icon: ShieldAlert, title: 'HIRADC / Penilaian Risiko', description: 'Identifikasi bahaya & matriks risiko.', href: 'risk-assessments.index' },
+    { icon: FileWarning, title: 'JSA', description: 'Analisis keselamatan kerja dengan matriks risiko.', href: 'job-safety-analyses.index' },
+    { icon: Flame, title: 'Izin Kerja (PTW)', description: 'Pekerjaan panas, ruang terbatas, dan lainnya.', href: 'permits-to-work.index' },
+    { icon: FlaskConical, title: 'Uji Gas', description: 'Pembacaan atmosfer di semua izin kerja.', href: 'gas-test-records.index' },
+    { icon: Lock, title: 'LOTO', description: 'Isolasi energi lockout/tagout.', href: 'loto-records.index' },
+    { icon: ClipboardCheck, title: 'Tindakan Perbaikan (CAPA)', description: 'Pelacakan tindakan perbaikan lintas sumber.', href: 'corrective-actions.index' },
+    { icon: Recycle, title: 'Pengelolaan Limbah', description: 'Limbah B3/Non-B3, penyimpanan, dan pembuangan.', href: 'waste.dashboard' },
+    { icon: UserCheck, title: 'Manajemen Kontraktor', description: 'Register kontraktor, pekerja, dokumen.', href: 'contractors.index' },
+    { icon: FileCheck, title: 'Manajemen Pengunjung', description: 'Register akses lokasi.', href: 'visitors.index' },
+    { icon: FileStack, title: 'Kontrol Dokumen', description: 'Dokumen terkendali dengan riwayat versi.', href: 'controlled-documents.index' },
 ];
 
 /**
@@ -48,53 +50,53 @@ export default function HseDashboard({
 }) {
     return (
         <AuthenticatedLayout>
-            <Head title="HSE Dashboard" />
-            <DashboardShell title="HSE Overview" subtitle="Operational safety status.">
+            <Head title="Ringkasan HSE" />
+            <DashboardShell title="Ringkasan HSE" subtitle="Status keselamatan operasional.">
                 {/* LEVEL 1 -- compact KPI strip */}
                 <div className="grid grid-cols-2 gap-3 lg:grid-cols-6">
-                    <StatCard icon={AlertTriangle} value={openIncidentsCount} label="Open Incidents" accent={openIncidentsCount > 0 ? 'red' : null} href={route('incidents.index')} />
-                    <StatCard icon={AlertTriangle} value={incidentsBySeverity?.critical ?? 0} label="Critical Incidents" accent={(incidentsBySeverity?.critical ?? 0) > 0 ? 'red' : null} href={route('incidents.index', { severity: 'critical' })} />
-                    <StatCard icon={Eye} value={openSafetyObservationsCount} label="Open Observations" accent={openSafetyObservationsCount > 0 ? 'amber' : null} href={route('safety-observations.index')} />
-                    <StatCard icon={ClipboardCheck} value={openCapaCount} label="Open CAPA" accent={openCapaCount > 0 ? 'amber' : null} href={route('corrective-actions.index')} />
-                    <StatCard icon={Flame} value={openPermitsCount} label="Active PTW" href={route('permits-to-work.index')} />
-                    <StatCard icon={HardHat} value={ppeAlertCount} label="PPE Alerts" accent={ppeAlertCount > 0 ? 'amber' : null} href={route('ppe.dashboard')} />
+                    <StatCard icon={AlertTriangle} value={openIncidentsCount} label="Insiden Terbuka" accent={openIncidentsCount > 0 ? 'red' : null} href={route('incidents.index')} />
+                    <StatCard icon={AlertTriangle} value={incidentsBySeverity?.critical ?? 0} label="Insiden Kritis" accent={(incidentsBySeverity?.critical ?? 0) > 0 ? 'red' : null} href={route('incidents.index', { severity: 'critical' })} />
+                    <StatCard icon={Eye} value={openSafetyObservationsCount} label="Observasi Terbuka" accent={openSafetyObservationsCount > 0 ? 'amber' : null} href={route('safety-observations.index')} />
+                    <StatCard icon={ClipboardCheck} value={openCapaCount} label="CAPA Terbuka" accent={openCapaCount > 0 ? 'amber' : null} href={route('corrective-actions.index')} />
+                    <StatCard icon={Flame} value={openPermitsCount} label="Izin Kerja Aktif" href={route('permits-to-work.index')} />
+                    <StatCard icon={HardHat} value={ppeAlertCount} label="Peringatan APD" accent={ppeAlertCount > 0 ? 'amber' : null} href={route('ppe.dashboard')} />
                 </div>
 
                 {/* LEVEL 2/3 -- primary safety status + action required, side by side */}
                 <div className="grid grid-cols-1 gap-3 lg:grid-cols-2">
                     <Card>
                         <CardHeader className="pb-2">
-                            <CardTitle className="text-sm">Safety Performance</CardTitle>
-                            <CardDescription>Current status breakdown across HSE modules</CardDescription>
+                            <CardTitle className="text-sm">Performa Keselamatan</CardTitle>
+                            <CardDescription>Rincian status terkini di seluruh modul HSE</CardDescription>
                         </CardHeader>
                         <CardContent className="grid grid-cols-2 gap-2 text-sm sm:grid-cols-4">
                             <div className="rounded-lg border border-graphite-100 p-2.5 dark:border-slate-800">
-                                <p className="text-xs text-graphite-400">Incidents</p>
+                                <p className="text-xs text-graphite-400">Insiden</p>
                                 <p className="text-base font-bold text-graphite-900 dark:text-slate-50">{openIncidentsCount}</p>
-                                <p className="text-[11px] text-graphite-400">{incidentsBySeverity?.critical ?? 0} critical</p>
+                                <p className="text-[11px] text-graphite-400">{incidentsBySeverity?.critical ?? 0} kritis</p>
                             </div>
                             <div className="rounded-lg border border-graphite-100 p-2.5 dark:border-slate-800">
-                                <p className="text-xs text-graphite-400">Observations</p>
+                                <p className="text-xs text-graphite-400">Observasi</p>
                                 <p className="text-base font-bold text-graphite-900 dark:text-slate-50">{openSafetyObservationsCount}</p>
-                                <p className="text-[11px] text-graphite-400">open</p>
+                                <p className="text-[11px] text-graphite-400">terbuka</p>
                             </div>
                             <div className="rounded-lg border border-graphite-100 p-2.5 dark:border-slate-800">
                                 <p className="text-xs text-graphite-400">CAPA</p>
                                 <p className="text-base font-bold text-graphite-900 dark:text-slate-50">{openCapaCount}</p>
-                                <p className="text-[11px] text-graphite-400">open</p>
+                                <p className="text-[11px] text-graphite-400">terbuka</p>
                             </div>
                             <div className="rounded-lg border border-graphite-100 p-2.5 dark:border-slate-800">
-                                <p className="text-xs text-graphite-400">Permits (PTW)</p>
+                                <p className="text-xs text-graphite-400">Izin Kerja (PTW)</p>
                                 <p className="text-base font-bold text-graphite-900 dark:text-slate-50">{openPermitsCount}</p>
-                                <p className="text-[11px] text-graphite-400">active</p>
+                                <p className="text-[11px] text-graphite-400">aktif</p>
                             </div>
                         </CardContent>
                     </Card>
 
                     <Card>
                         <CardHeader className="pb-2">
-                            <CardTitle className="text-sm">Action Required</CardTitle>
-                            <CardDescription>Overdue equipment, P3K, and CAPA -- oldest first</CardDescription>
+                            <CardTitle className="text-sm">Tindakan Diperlukan</CardTitle>
+                            <CardDescription>Peralatan, P3K, dan CAPA yang terlambat -- terlama dahulu</CardDescription>
                         </CardHeader>
                         <CardContent>
                             <ActivityList
@@ -102,7 +104,7 @@ export default function HseDashboard({
                                 getKey={(a, i) => i}
                                 getHref={(a) => a.href}
                                 emptyIcon={ShieldAlert}
-                                emptyTitle="Nothing overdue right now"
+                                emptyTitle="Tidak ada yang terlambat saat ini"
                                 renderItem={(a) => (
                                     <div className="flex items-center justify-between gap-2 py-2 text-sm">
                                         <div className="min-w-0 flex-1">
@@ -125,29 +127,29 @@ export default function HseDashboard({
                     doc comment on `safetyKpi.lost_time_metrics_available`. */}
                 <Card>
                     <CardHeader className="pb-2">
-                        <CardTitle className="text-sm">Man-Hours &amp; Safety KPI Foundation</CardTitle>
-                        <CardDescription>Real data only -- rates requiring untracked fields show as not available</CardDescription>
+                        <CardTitle className="text-sm">Man-Hour &amp; Fondasi KPI Keselamatan</CardTitle>
+                        <CardDescription>Hanya data nyata -- rasio yang memerlukan data belum tercatat ditampilkan sebagai tidak tersedia</CardDescription>
                     </CardHeader>
                     <CardContent className="grid grid-cols-2 gap-2 text-sm sm:grid-cols-5">
                         <div className="rounded-lg border border-graphite-100 p-2.5 dark:border-slate-800">
-                            <p className="text-xs text-graphite-400">Man-Hours Today</p>
+                            <p className="text-xs text-graphite-400">Man-Hour Hari Ini</p>
                             <p className="text-base font-bold text-graphite-900 dark:text-slate-50">{manHours?.today ?? '—'}</p>
                         </div>
                         <div className="rounded-lg border border-graphite-100 p-2.5 dark:border-slate-800">
-                            <p className="text-xs text-graphite-400">Man-Hours This Month</p>
+                            <p className="text-xs text-graphite-400">Man-Hour Bulan Ini</p>
                             <p className="text-base font-bold text-graphite-900 dark:text-slate-50">{manHours?.this_month ?? '—'}</p>
                         </div>
                         <div className="rounded-lg border border-graphite-100 p-2.5 dark:border-slate-800">
-                            <p className="text-xs text-graphite-400">Man-Hours YTD</p>
+                            <p className="text-xs text-graphite-400">Man-Hour Tahun Berjalan</p>
                             <p className="text-base font-bold text-graphite-900 dark:text-slate-50">{manHours?.ytd ?? '—'}</p>
                         </div>
                         <div className="rounded-lg border border-graphite-100 p-2.5 dark:border-slate-800">
-                            <p className="text-xs text-graphite-400">Recordable Injuries YTD</p>
+                            <p className="text-xs text-graphite-400">Cedera Tercatat Tahun Berjalan</p>
                             <p className="text-base font-bold text-graphite-900 dark:text-slate-50">{safetyKpi?.recordable_injuries_ytd ?? 0}</p>
                         </div>
                         <div className="rounded-lg border border-dashed border-graphite-200 p-2.5 dark:border-slate-700">
                             <p className="text-xs text-graphite-400">LTI / LTIFR / TRIR</p>
-                            <p className="text-xs italic text-graphite-400">Not available -- requires lost-time-day &amp; recordability tracking not yet captured</p>
+                            <p className="text-xs italic text-graphite-400">Tidak tersedia -- memerlukan data hari-hilang-kerja &amp; klasifikasi tingkat keparahan yang belum tercatat</p>
                         </div>
                     </CardContent>
                 </Card>
@@ -160,13 +162,13 @@ export default function HseDashboard({
                 {/* LEVEL 3 -- HSE activity */}
                 <div className="grid grid-cols-1 gap-3 lg:grid-cols-3">
                     <Card>
-                        <CardHeader className="pb-2"><CardTitle className="text-sm">Recent Incidents</CardTitle></CardHeader>
+                        <CardHeader className="pb-2"><CardTitle className="text-sm">Insiden Terbaru</CardTitle></CardHeader>
                         <CardContent>
                             <ActivityList
                                 items={recentIncidents}
                                 getHref={(i) => route('incidents.show', i.id)}
                                 emptyIcon={AlertTriangle}
-                                emptyTitle="No incidents recorded"
+                                emptyTitle="Belum ada insiden tercatat"
                                 renderItem={(i) => (
                                     <div className="flex items-center justify-between gap-2 py-2 text-sm">
                                         <span className="min-w-0 flex-1 truncate font-medium text-graphite-700">{i.title}</span>
@@ -179,13 +181,13 @@ export default function HseDashboard({
                     </Card>
 
                     <Card>
-                        <CardHeader className="pb-2"><CardTitle className="text-sm">Recent Observations</CardTitle></CardHeader>
+                        <CardHeader className="pb-2"><CardTitle className="text-sm">Observasi Terbaru</CardTitle></CardHeader>
                         <CardContent>
                             <ActivityList
                                 items={recentSafetyObservations}
                                 getHref={(o) => route('safety-observations.show', o.id)}
                                 emptyIcon={Eye}
-                                emptyTitle="No observations recorded"
+                                emptyTitle="Belum ada observasi tercatat"
                                 renderItem={(o) => (
                                     <div className="flex items-center justify-between gap-2 py-2 text-sm">
                                         <span className="min-w-0 flex-1 truncate font-medium capitalize text-graphite-700">{o.type.replace('_', ' ')}</span>
@@ -197,12 +199,12 @@ export default function HseDashboard({
                     </Card>
 
                     <Card>
-                        <CardHeader className="flex flex-row items-center gap-2 space-y-0 pb-2"><History className="h-3.5 w-3.5 text-graphite-400" /><CardTitle className="text-sm">Recent Activity</CardTitle></CardHeader>
+                        <CardHeader className="flex flex-row items-center gap-2 space-y-0 pb-2"><History className="h-3.5 w-3.5 text-graphite-400" /><CardTitle className="text-sm">Aktivitas Terbaru</CardTitle></CardHeader>
                         <CardContent>
                             <ActivityList
                                 items={recentActivity}
                                 emptyIcon={History}
-                                emptyTitle="No recent activity"
+                                emptyTitle="Belum ada aktivitas terbaru"
                                 renderItem={(a) => (
                                     <div className="py-2 text-sm">
                                         <p className="text-graphite-700">{a.description}</p>
@@ -219,7 +221,7 @@ export default function HseDashboard({
                     <Link href={route('waste.dashboard')} className="block">
                         <Card className="h-full transition-colors hover:border-brand-300 dark:hover:border-brand-700">
                             <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
-                                <CardTitle className="flex items-center gap-2 text-sm"><Recycle className="h-3.5 w-3.5 text-graphite-400" /> Waste</CardTitle>
+                                <CardTitle className="flex items-center gap-2 text-sm"><Recycle className="h-3.5 w-3.5 text-graphite-400" /> Limbah</CardTitle>
                             </CardHeader>
                             <CardContent className="grid grid-cols-2 gap-2 text-xs">
                                 <div className="flex items-center justify-between rounded-md bg-graphite-50 px-2 py-1.5 dark:bg-slate-800">
@@ -229,18 +231,18 @@ export default function HseDashboard({
                                     <span className="text-graphite-500">Non-B3</span><span className="font-semibold">{wasteSummary.non_b3_stored}</span>
                                 </div>
                                 <div className="flex items-center justify-between rounded-md bg-graphite-50 px-2 py-1.5 dark:bg-slate-800">
-                                    <span className="text-graphite-500">Storage Alerts</span>
+                                    <span className="text-graphite-500">Peringatan Penyimpanan</span>
                                     <span className={`font-semibold ${wasteSummary.storage_alerts > 0 ? 'text-red-600' : ''}`}>{wasteSummary.storage_alerts}</span>
                                 </div>
                                 <div className="flex items-center justify-between rounded-md bg-graphite-50 px-2 py-1.5 dark:bg-slate-800">
-                                    <span className="text-graphite-500">Pending Disposal</span><span className="font-semibold">{wasteSummary.pending_disposal}</span>
+                                    <span className="text-graphite-500">Menunggu Pembuangan</span><span className="font-semibold">{wasteSummary.pending_disposal}</span>
                                 </div>
                             </CardContent>
                         </Card>
                     </Link>
 
                     <div className="lg:col-span-2">
-                        <DepartmentCalendarWidget events={departmentCalendar} title="HSE Calendar" description="Permits, TBM & inspections, next 3 weeks" />
+                        <DepartmentCalendarWidget events={departmentCalendar} title="Kalender HSE" description="Izin kerja, TBM & inspeksi, 3 minggu ke depan" />
                     </div>
                 </div>
             </DashboardShell>

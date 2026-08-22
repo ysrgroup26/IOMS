@@ -55,7 +55,7 @@ export default function LogisticsDashboard({
                 {/* LEVEL 2 -- Material Flow pipeline */}
                 <Card>
                     <CardHeader className="pb-2">
-                        <CardTitle className="text-sm">Alur Material</CardTitle>
+                        <CardTitle>Alur Material</CardTitle>
                         <CardDescription>Item terbuka per tahap, saat ini</CardDescription>
                     </CardHeader>
                     <CardContent>
@@ -64,7 +64,7 @@ export default function LogisticsDashboard({
                                 <div key={stage.key} className="flex items-center gap-1">
                                     <div className="flex min-w-[110px] flex-col items-center gap-1 rounded-lg border border-graphite-100 px-3 py-2.5 dark:border-slate-800">
                                         <stage.icon className="h-4 w-4 text-graphite-400" />
-                                        <span className="text-lg font-bold text-graphite-900 dark:text-slate-50">{materialFlow?.[stage.key] ?? 0}</span>
+                                        <span className="text-lg font-semibold text-graphite-900 dark:text-slate-50">{materialFlow?.[stage.key] ?? 0}</span>
                                         <span className="text-center text-[11px] leading-tight text-graphite-500">{stage.label}</span>
                                     </div>
                                     {i < FLOW_STAGES.length - 1 && <ChevronRight className="h-4 w-4 shrink-0 text-graphite-300" />}
@@ -82,7 +82,7 @@ export default function LogisticsDashboard({
                 {/* LEVEL 4 -- status breakdown + recent receipts */}
                 <div className="grid grid-cols-1 gap-3 lg:grid-cols-2">
                     <Card>
-                        <CardHeader className="pb-2"><CardTitle className="text-sm">Permintaan Material per Status</CardTitle></CardHeader>
+                        <CardHeader className="pb-2"><CardTitle>Permintaan Material per Status</CardTitle></CardHeader>
                         <CardContent>
                             <ActivityList
                                 items={statusEntries}
@@ -102,7 +102,7 @@ export default function LogisticsDashboard({
                     </Card>
 
                     <Card>
-                        <CardHeader className="pb-2"><CardTitle className="text-sm">Penerimaan Barang Terbaru</CardTitle></CardHeader>
+                        <CardHeader className="pb-2"><CardTitle>Penerimaan Barang Terbaru</CardTitle></CardHeader>
                         <CardContent>
                             <ActivityList
                                 items={recentGoodsReceipts}
@@ -125,7 +125,7 @@ export default function LogisticsDashboard({
                 {/* LEVEL 5 -- recent movements + calendar */}
                 <div className="grid grid-cols-1 gap-3 lg:grid-cols-2">
                     <Card>
-                        <CardHeader className="flex flex-row items-center gap-2 pb-2"><ArrowRightLeft className="h-4 w-4 text-graphite-400" /><CardTitle className="text-sm">Pergerakan Stok Terbaru</CardTitle></CardHeader>
+                        <CardHeader className="flex flex-row items-center gap-2 pb-2"><ArrowRightLeft className="h-4 w-4 text-graphite-400" /><CardTitle>Pergerakan Stok Terbaru</CardTitle></CardHeader>
                         <CardContent>
                             <ActivityList
                                 items={recentStockMovements}

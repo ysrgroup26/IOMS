@@ -396,11 +396,11 @@ export default function Dashboard({
                     </CardHeader>
                     <CardContent className="grid grid-cols-2 gap-3">
                         <div className="rounded-lg border border-graphite-100 p-3 dark:border-slate-800">
-                            <p className="text-lg font-bold text-graphite-900 dark:text-slate-50">{formatNumber(manpower.active_employees)}</p>
+                            <p className="text-base font-semibold text-graphite-900 dark:text-slate-50">{formatNumber(manpower.active_employees)}</p>
                             <p className="text-xs text-graphite-400">Active Employees</p>
                         </div>
                         <div className="rounded-lg border border-graphite-100 p-3 dark:border-slate-800">
-                            <p className="text-lg font-bold text-graphite-900 dark:text-slate-50">{formatNumber(manpower.on_shift_today)}</p>
+                            <p className="text-base font-semibold text-graphite-900 dark:text-slate-50">{formatNumber(manpower.on_shift_today)}</p>
                             <p className="text-xs text-graphite-400">On Shift Today</p>
                         </div>
                     </CardContent>
@@ -426,15 +426,15 @@ export default function Dashboard({
                         ) : (
                             <div className="grid grid-cols-3 gap-3">
                                 <div className="rounded-lg border border-graphite-100 p-3 text-center dark:border-slate-800">
-                                    <p className="text-lg font-bold text-graphite-900 dark:text-slate-50">{manhours?.today ?? '—'}</p>
+                                    <p className="text-base font-semibold text-graphite-900 dark:text-slate-50">{manhours?.today ?? '—'}</p>
                                     <p className="text-xs text-graphite-400">Today</p>
                                 </div>
                                 <div className="rounded-lg border border-graphite-100 p-3 text-center dark:border-slate-800">
-                                    <p className="text-lg font-bold text-graphite-900 dark:text-slate-50">{manhours?.this_month ?? '—'}</p>
+                                    <p className="text-base font-semibold text-graphite-900 dark:text-slate-50">{manhours?.this_month ?? '—'}</p>
                                     <p className="text-xs text-graphite-400">This Month</p>
                                 </div>
                                 <div className="rounded-lg border border-graphite-100 p-3 text-center dark:border-slate-800">
-                                    <p className="text-lg font-bold text-graphite-900 dark:text-slate-50">{manhours?.ytd ?? '—'}</p>
+                                    <p className="text-base font-semibold text-graphite-900 dark:text-slate-50">{manhours?.ytd ?? '—'}</p>
                                     <p className="text-xs text-graphite-400">YTD</p>
                                 </div>
                             </div>
@@ -730,7 +730,7 @@ function SummaryStat({ icon: Icon, value, label, accent, href }) {
                 <Icon className="h-3.5 w-3.5" />
             </div>
             <div className="min-w-0 space-y-0.5">
-                <p className={cn('text-sm font-bold leading-tight', color)}>{value}</p>
+                <p className={cn('text-sm font-semibold leading-tight', color)}>{value}</p>
                 <p className="truncate text-[11px] text-graphite-400">{label}</p>
             </div>
         </div>

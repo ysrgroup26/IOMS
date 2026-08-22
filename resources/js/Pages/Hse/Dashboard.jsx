@@ -71,7 +71,7 @@ export default function HseDashboard({
                 <div className="grid grid-cols-1 gap-3 lg:grid-cols-2">
                     <Card>
                         <CardHeader className="pb-2">
-                            <CardTitle className="text-sm">Performa Keselamatan</CardTitle>
+                            <CardTitle>Performa Keselamatan</CardTitle>
                             <CardDescription>Rincian status terkini di seluruh modul HSE</CardDescription>
                         </CardHeader>
                         <CardContent className="grid grid-cols-2 gap-2 text-sm sm:grid-cols-4">
@@ -100,7 +100,7 @@ export default function HseDashboard({
 
                     <Card>
                         <CardHeader className="pb-2">
-                            <CardTitle className="text-sm">Tindakan Diperlukan</CardTitle>
+                            <CardTitle>Tindakan Diperlukan</CardTitle>
                             <CardDescription>Peralatan, P3K, dan CAPA yang terlambat -- terlama dahulu</CardDescription>
                         </CardHeader>
                         <CardContent>
@@ -140,7 +140,7 @@ export default function HseDashboard({
                     "not available" state, and StatCard has no such mode. */}
                 <Card>
                     <CardHeader className="pb-2">
-                        <CardTitle className="text-sm">Man-Hour &amp; Fondasi KPI Keselamatan</CardTitle>
+                        <CardTitle>Man-Hour &amp; Fondasi KPI Keselamatan</CardTitle>
                         <CardDescription>Hanya data nyata -- rasio yang memerlukan data belum tercatat ditampilkan sebagai tidak tersedia</CardDescription>
                     </CardHeader>
                     <CardContent className="grid grid-cols-2 gap-2 sm:grid-cols-5">
@@ -163,7 +163,7 @@ export default function HseDashboard({
                 {/* LEVEL 3 -- HSE activity */}
                 <div className="grid grid-cols-1 gap-3 lg:grid-cols-3">
                     <Card>
-                        <CardHeader className="pb-2"><CardTitle className="text-sm">Insiden Terbaru</CardTitle></CardHeader>
+                        <CardHeader className="pb-2"><CardTitle>Insiden Terbaru</CardTitle></CardHeader>
                         <CardContent>
                             <ActivityList
                                 items={recentIncidents}
@@ -182,7 +182,7 @@ export default function HseDashboard({
                     </Card>
 
                     <Card>
-                        <CardHeader className="pb-2"><CardTitle className="text-sm">Observasi Terbaru</CardTitle></CardHeader>
+                        <CardHeader className="pb-2"><CardTitle>Observasi Terbaru</CardTitle></CardHeader>
                         <CardContent>
                             <ActivityList
                                 items={recentSafetyObservations}
@@ -200,7 +200,7 @@ export default function HseDashboard({
                     </Card>
 
                     <Card>
-                        <CardHeader className="flex flex-row items-center gap-2 space-y-0 pb-2"><History className="h-3.5 w-3.5 text-graphite-400" /><CardTitle className="text-sm">Aktivitas Terbaru</CardTitle></CardHeader>
+                        <CardHeader className="flex flex-row items-center gap-2 space-y-0 pb-2"><History className="h-3.5 w-3.5 text-graphite-400" /><CardTitle>Aktivitas Terbaru</CardTitle></CardHeader>
                         <CardContent>
                             <ActivityList
                                 items={recentActivity}

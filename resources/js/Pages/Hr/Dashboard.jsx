@@ -51,32 +51,32 @@ export default function HrDashboard({
                 <div className="grid grid-cols-1 gap-3 lg:grid-cols-2">
                     <Card>
                         <CardHeader className="pb-2">
-                            <CardTitle className="text-sm">Status Tenaga Kerja</CardTitle>
+                            <CardTitle>Status Tenaga Kerja</CardTitle>
                             <CardDescription>Seluruh perusahaan</CardDescription>
                         </CardHeader>
                         <CardContent className="grid grid-cols-2 gap-2 text-sm sm:grid-cols-4">
                             <div className="rounded-lg border border-graphite-100 p-2.5 dark:border-slate-800">
                                 <p className="text-xs text-graphite-400">Total</p>
-                                <p className="text-base font-bold text-graphite-900 dark:text-slate-50">{totalEmployees}</p>
+                                <p className="text-base font-semibold text-graphite-900 dark:text-slate-50">{totalEmployees}</p>
                             </div>
                             <div className="rounded-lg border border-graphite-100 p-2.5 dark:border-slate-800">
                                 <p className="text-xs text-graphite-400">Aktif</p>
-                                <p className="text-base font-bold text-graphite-900 dark:text-slate-50">{activeEmployees}</p>
+                                <p className="text-base font-semibold text-graphite-900 dark:text-slate-50">{activeEmployees}</p>
                             </div>
                             <div className="rounded-lg border border-graphite-100 p-2.5 dark:border-slate-800">
                                 <p className="text-xs text-graphite-400">Bertugas Hari Ini</p>
-                                <p className="text-base font-bold text-graphite-900 dark:text-slate-50">{onShiftToday}</p>
+                                <p className="text-base font-semibold text-graphite-900 dark:text-slate-50">{onShiftToday}</p>
                             </div>
                             <div className="rounded-lg border border-graphite-100 p-2.5 dark:border-slate-800">
                                 <p className="text-xs text-graphite-400">Profil Belum Lengkap</p>
-                                <p className="text-base font-bold text-graphite-900 dark:text-slate-50">{employeesNeedCompletionCount}</p>
+                                <p className="text-base font-semibold text-graphite-900 dark:text-slate-50">{employeesNeedCompletionCount}</p>
                             </div>
                         </CardContent>
                     </Card>
 
                     <Card>
                         <CardHeader className="pb-2">
-                            <CardTitle className="text-sm">Perlu Perhatian</CardTitle>
+                            <CardTitle>Perlu Perhatian</CardTitle>
                             <CardDescription>Kontrak & sertifikasi akan berakhir, terdekat dahulu</CardDescription>
                         </CardHeader>
                         <CardContent>
@@ -108,7 +108,7 @@ export default function HrDashboard({
                 {/* LEVEL 3 -- recent activity + calendar */}
                 <div className="grid grid-cols-1 gap-3 lg:grid-cols-2">
                     <Card>
-                        <CardHeader className="pb-2"><CardTitle className="text-sm">Pengajuan Cuti Terbaru</CardTitle></CardHeader>
+                        <CardHeader className="pb-2"><CardTitle>Pengajuan Cuti Terbaru</CardTitle></CardHeader>
                         <CardContent>
                             <ActivityList
                                 items={recentLeaveRequests}

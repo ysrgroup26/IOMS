@@ -64,7 +64,7 @@ export default function ProjectManagementDashboard({
                 {/* LEVEL 2 -- Project Portfolio, a compact TABLE not cards */}
                 <Card>
                     <CardHeader className="pb-2">
-                        <CardTitle className="text-sm">Portofolio Proyek</CardTitle>
+                        <CardTitle>Portofolio Proyek</CardTitle>
                         <CardDescription>Proyek aktif & terencana, tenggat terdekat dahulu</CardDescription>
                     </CardHeader>
                     <CardContent className="overflow-x-auto">
@@ -110,7 +110,7 @@ export default function ProjectManagementDashboard({
                 {/* LEVEL 4 -- milestone control + delayed projects + calendar */}
                 <div className="grid grid-cols-1 gap-3 lg:grid-cols-3">
                     <Card>
-                        <CardHeader className="pb-2"><CardTitle className="text-sm">Kontrol Milestone</CardTitle></CardHeader>
+                        <CardHeader className="pb-2"><CardTitle>Kontrol Milestone</CardTitle></CardHeader>
                         <CardContent>
                             <ActivityList
                                 items={upcomingMilestones}
@@ -133,7 +133,7 @@ export default function ProjectManagementDashboard({
                     </Card>
 
                     <Card>
-                        <CardHeader className="pb-2"><CardTitle className="text-sm">Proyek Terlambat</CardTitle></CardHeader>
+                        <CardHeader className="pb-2"><CardTitle>Proyek Terlambat</CardTitle></CardHeader>
                         <CardContent>
                             <ActivityList
                                 items={delayedProjects}

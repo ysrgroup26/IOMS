@@ -62,7 +62,7 @@ export default function WarehouseDashboard({
                 {/* Inventory Health -- compact table, Phase 6 */}
                 <Card>
                     <CardHeader className="pb-2">
-                        <CardTitle className="text-sm">Kesehatan Inventaris</CardTitle>
+                        <CardTitle>Kesehatan Inventaris</CardTitle>
                         <CardDescription>Stok terendah relatif terhadap minimum, dahulu</CardDescription>
                     </CardHeader>
                     <CardContent className="overflow-x-auto">

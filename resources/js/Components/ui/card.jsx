@@ -1,8 +1,10 @@
 import * as React from 'react';
 import { cn } from '@/lib/utils';
 
+// v1.11.14: radius one step down, rounded-xl (12px) -> rounded-[10px] --
+// the directive's own repeated exact "radius: 10px" for cards/KPI boxes.
 const Card = React.forwardRef(({ className, ...props }, ref) => (
-    <div ref={ref} className={cn('rounded-xl border border-graphite-200 bg-white shadow-card dark:border-slate-800 dark:bg-slate-900', className)} {...props} />
+    <div ref={ref} className={cn('rounded-[10px] border border-graphite-200 bg-white shadow-card dark:border-slate-800 dark:bg-slate-900', className)} {...props} />
 ));
 Card.displayName = 'Card';
 
@@ -15,21 +17,12 @@ const CardHeader = React.forwardRef(({ className, ...props }, ref) => (
 ));
 CardHeader.displayName = 'CardHeader';
 
-// v1.11.9 (Enterprise UI/UX Refinement Part 2 -- typography audit): this
-// was `text-[13px] lg:text-xs`, meaning every CardTitle in the app got
-// SMALLER (13px -> 12px) at desktop width -- backwards for an
-// enterprise app whose stated primary target is desktop/laptop (Part
-// 12), and well under this pass's own "section title ~15-17px"
-// guideline. Fixed to a single, non-shrinking 14px across breakpoints --
-// a deliberately conservative step given how many pages this single
-// component touches (used by essentially every Card in the app); still
-// short of the 15-17px upper guideline, but a safe, verified-by-build
-// improvement rather than a blast-radius risk this pass can't visually
-// confirm everywhere. Callers that already locally override with
-// `text-sm` (14px, several department dashboards) now match the
-// default exactly instead of coincidentally happening to agree with it.
+// v1.11.9 fixed a backwards mobile-first shrink (13px->12px at desktop).
+// v1.11.14 maps this component to the directive's own "Card Title: 13px/
+// 600" line exactly (distinct from "Section Title: 14px/600" -- this
+// component is the per-Card header, not a page-level section divider).
 const CardTitle = React.forwardRef(({ className, ...props }, ref) => (
-    <h3 ref={ref} className={cn('text-sm font-semibold text-graphite-800 dark:text-slate-100', className)} {...props} />
+    <h3 ref={ref} className={cn('text-[13px] font-semibold text-graphite-800 dark:text-slate-100', className)} {...props} />
 ));
 CardTitle.displayName = 'CardTitle';
 

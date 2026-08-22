@@ -21,14 +21,15 @@ import { ArrowRight } from 'lucide-react';
 export default function ModuleCard({ icon: Icon, title, description, href, status = 'active', queryParams }) {
     const isActive = status === 'active' && !!href;
 
-    // Kept in lockstep with StatCard's own icon/padding/radius scale
-    // (v1.11.12: 36x36 icon / 10px icon radius / 14px card padding) so
-    // neither tile ever reads larger than the other on the same page.
+    // v1.11.14: kept in lockstep with StatCard's own further-compacted
+    // default scale (32x32 icon / 9px icon radius / 16px icon glyph /
+    // 12px card padding / 10px card radius) so neither tile ever reads
+    // larger than the other on the same page.
     const body = (
         <>
             <div className="flex items-center justify-between gap-2">
-                <span className="flex h-9 w-9 shrink-0 items-center justify-center rounded-[10px] bg-brand-50 text-brand-600 dark:bg-brand-950/40 dark:text-brand-400">
-                    {Icon && <Icon className="h-[18px] w-[18px]" />}
+                <span className="flex h-8 w-8 shrink-0 items-center justify-center rounded-[9px] bg-brand-50 text-brand-600 dark:bg-brand-950/40 dark:text-brand-400">
+                    {Icon && <Icon className="h-4 w-4" />}
                 </span>
                 {status === 'planned' && <Badge variant="secondary" className="shrink-0">Coming Soon</Badge>}
                 {status === 'locked' && <Badge variant="destructive" className="shrink-0">Not in plan</Badge>}
@@ -39,7 +40,7 @@ export default function ModuleCard({ icon: Icon, title, description, href, statu
         </>
     );
 
-    const className = 'block h-full rounded-xl border border-graphite-200 bg-white/85 p-3.5 backdrop-blur-sm transition-all duration-200 dark:border-slate-800 dark:bg-slate-900/85 ' +
+    const className = 'block h-full rounded-[10px] border border-graphite-200 bg-white/85 p-3 backdrop-blur-sm transition-all duration-200 dark:border-slate-800 dark:bg-slate-900/85 ' +
         (isActive ? 'hover:-translate-y-0.5 hover:shadow-card-hover cursor-pointer' : 'opacity-70 cursor-not-allowed');
 
     if (isActive) {

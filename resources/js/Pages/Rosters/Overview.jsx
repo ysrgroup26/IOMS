@@ -25,7 +25,7 @@ export default function RosterOverview({ rosters, companies, filters }) {
 
             <div className="mb-6 flex flex-wrap items-center justify-between gap-3">
                 <div>
-                    <h1 className="text-lg font-bold tracking-tight text-graphite-900">Roster Overview</h1>
+                    <h1 className="text-2xl font-bold tracking-tight text-graphite-900">Roster Overview</h1>
                     <p className="mt-1 text-sm text-graphite-500">Current employee rosters -- shift, site, and today's duty status.</p>
                 </div>
                 <Select value={filters.company_id ? String(filters.company_id) : 'all'} onValueChange={changeCompany}>

@@ -51,7 +51,7 @@ export default function TaskForm({ task, users, companies, statuses, priorities 
                 <ArrowLeft className="h-4 w-4" /> Back
             </Link>
 
-            <h1 className="mb-6 text-lg font-bold tracking-tight text-graphite-900">{isEdit ? `Edit ${task.task_number}` : 'New Task'}</h1>
+            <h1 className="mb-6 text-2xl font-bold tracking-tight text-graphite-900">{isEdit ? `Edit ${task.task_number}` : 'New Task'}</h1>
 
             <Card className="max-w-2xl">
                 <CardHeader>

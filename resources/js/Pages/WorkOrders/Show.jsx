@@ -45,7 +45,7 @@ export default function WorkOrderShow({ workOrder: wo, activities, canManage, wa
 
             <div className="mb-4 flex flex-wrap items-start justify-between gap-3">
                 <div>
-                    <h1 className="flex items-center gap-2 text-lg font-bold tracking-tight text-graphite-900">{wo.wo_number}<StatusBadge value={wo.status} /></h1>
+                    <h1 className="flex items-center gap-2 text-2xl font-bold tracking-tight text-graphite-900">{wo.wo_number}<StatusBadge value={wo.status} /></h1>
                     <p className="text-xs capitalize text-graphite-500">{wo.maintenance_type} · {wo.asset?.name} ({wo.asset?.asset_code}) · planned {new Date(wo.planned_date).toLocaleDateString('en-US', { day: 'numeric', month: 'short', year: 'numeric' })}</p>
                 </div>
                 {canManage && (

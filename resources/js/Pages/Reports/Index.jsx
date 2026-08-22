@@ -37,7 +37,7 @@ export default function ReportsIndex({ report, filters, companies, departments, 
 
             <div className="mb-6 flex flex-wrap items-center justify-between gap-3">
                 <div>
-                    <h1 className="text-lg font-bold tracking-tight text-graphite-900">Reports</h1>
+                    <h1 className="text-2xl font-bold tracking-tight text-graphite-900">Reports</h1>
                     <p className="mt-1 text-sm text-graphite-500">KPI report grouped by department, mirroring the Excel format.</p>
                 </div>
                 <div className="flex gap-2">

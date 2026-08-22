@@ -76,7 +76,7 @@ export default function EmployeeForm({ employee, companies, departments, positio
                 <ArrowLeft className="h-4 w-4" /> Back to Employees
             </Link>
 
-            <h1 className="mb-6 text-lg font-bold tracking-tight text-graphite-900">
+            <h1 className="mb-6 text-2xl font-bold tracking-tight text-graphite-900">
                 {isEdit ? 'Edit Employee' : 'Add Employee'}
             </h1>
 

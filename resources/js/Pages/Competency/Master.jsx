@@ -84,7 +84,7 @@ export default function CompetencyMaster({ competencyTypes, companies, positions
 
             <div className="mb-6 flex flex-wrap items-center justify-between gap-3">
                 <div>
-                    <h1 className="text-lg font-bold tracking-tight text-graphite-900">Training &amp; Competency Master</h1>
+                    <h1 className="text-2xl font-bold tracking-tight text-graphite-900">Training &amp; Competency Master</h1>
                     <p className="mt-1 text-sm text-graphite-500">
                         Configure the training and certification catalog. Nothing here is hard-coded -- everything is editable.
                     </p>

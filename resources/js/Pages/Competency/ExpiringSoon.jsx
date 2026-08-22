@@ -30,7 +30,7 @@ export default function CompetencyExpiringSoon({ items, companies, filters }) {
 
             <div className="mb-6 flex flex-wrap items-center justify-between gap-3">
                 <div>
-                    <h1 className="text-lg font-bold tracking-tight text-graphite-900">Competency Expiring Soon</h1>
+                    <h1 className="text-2xl font-bold tracking-tight text-graphite-900">Competency Expiring Soon</h1>
                     <p className="mt-1 text-sm text-graphite-500">
                         Training and certifications expiring within 30 days, or already expired.
                     </p>

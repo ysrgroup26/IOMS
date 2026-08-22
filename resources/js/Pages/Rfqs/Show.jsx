@@ -73,7 +73,7 @@ export default function RfqShow({ rfq, activities, canManage }) {
 
             <div className="mb-4 flex flex-wrap items-start justify-between gap-3">
                 <div>
-                    <h1 className="flex items-center gap-2 text-lg font-bold tracking-tight text-graphite-900">{rfq.rfq_number}<StatusBadge value={rfq.status} /></h1>
+                    <h1 className="flex items-center gap-2 text-2xl font-bold tracking-tight text-graphite-900">{rfq.rfq_number}<StatusBadge value={rfq.status} /></h1>
                     <p className="text-xs text-graphite-500">
                         <Link href={route('purchase-requisitions.show', rfq.purchase_requisition.id)} className="hover:underline">{rfq.purchase_requisition.pr_number}</Link>
                         {' · '}Deadline {new Date(rfq.quotation_deadline).toLocaleDateString('en-US', { day: 'numeric', month: 'long', year: 'numeric' })} · Buyer {rfq.buyer?.name}

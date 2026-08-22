@@ -23,7 +23,7 @@ export default function PurchaseRequisitionShow({ purchaseRequisition: pr, activ
 
             <div className="mb-4 flex flex-wrap items-start justify-between gap-3">
                 <div>
-                    <h1 className="flex items-center gap-2 text-lg font-bold tracking-tight text-graphite-900">
+                    <h1 className="flex items-center gap-2 text-2xl font-bold tracking-tight text-graphite-900">
                         {pr.pr_number}<StatusBadge value={pr.priority} /><StatusBadge value={pr.status} />
                     </h1>
                     <p className="text-xs text-graphite-500">

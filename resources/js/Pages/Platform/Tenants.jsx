@@ -100,7 +100,7 @@ export default function PlatformTenants({ tenants, packages }) {
 
             <div className="mb-6 flex flex-wrap items-center justify-between gap-3">
                 <div>
-                    <h1 className="text-lg font-bold tracking-tight text-graphite-900">Tenants</h1>
+                    <h1 className="text-2xl font-bold tracking-tight text-graphite-900">Tenants</h1>
                     <p className="mt-1 text-sm text-graphite-500">
                         Every paying customer organization on this platform. Suspending a tenant is the coarse
                         platform-level kill switch -- it does not delete any of that tenant's data.

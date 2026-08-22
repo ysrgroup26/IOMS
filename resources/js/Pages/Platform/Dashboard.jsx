@@ -19,7 +19,7 @@ export default function PlatformDashboard({ stats, recent_tenants: recentTenants
             <Head title="Platform Dashboard" />
 
             <div className="mb-6">
-                <h1 className="text-lg font-bold tracking-tight text-graphite-900">Platform Dashboard</h1>
+                <h1 className="text-2xl font-bold tracking-tight text-graphite-900">Platform Dashboard</h1>
                 <p className="mt-1 text-sm text-graphite-500">
                     Cross-tenant overview -- Tenants, Packages, and Subscriptions across the whole platform.
                 </p>

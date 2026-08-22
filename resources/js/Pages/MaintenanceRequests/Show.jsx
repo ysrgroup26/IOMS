@@ -22,7 +22,7 @@ export default function MaintenanceRequestShow({ maintenanceRequest: mr, activit
 
             <div className="mb-4 flex flex-wrap items-start justify-between gap-3">
                 <div>
-                    <h1 className="flex items-center gap-2 text-lg font-bold tracking-tight text-graphite-900">{mr.request_number}<StatusBadge value={mr.priority} /><StatusBadge value={mr.status} /></h1>
+                    <h1 className="flex items-center gap-2 text-2xl font-bold tracking-tight text-graphite-900">{mr.request_number}<StatusBadge value={mr.priority} /><StatusBadge value={mr.status} /></h1>
                     <p className="text-xs text-graphite-500">{mr.asset?.name} ({mr.asset?.asset_code}) · {new Date(mr.request_date).toLocaleDateString('en-US', { day: 'numeric', month: 'long', year: 'numeric' })}</p>
                 </div>
                 {canManage && (

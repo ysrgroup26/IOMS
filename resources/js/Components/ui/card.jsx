@@ -11,13 +11,28 @@ const CardHeader = React.forwardRef(({ className, ...props }, ref) => (
 ));
 CardHeader.displayName = 'CardHeader';
 
+// v1.11.9 (Enterprise UI/UX Refinement Part 2 -- typography audit): this
+// was `text-[13px] lg:text-xs`, meaning every CardTitle in the app got
+// SMALLER (13px -> 12px) at desktop width -- backwards for an
+// enterprise app whose stated primary target is desktop/laptop (Part
+// 12), and well under this pass's own "section title ~15-17px"
+// guideline. Fixed to a single, non-shrinking 14px across breakpoints --
+// a deliberately conservative step given how many pages this single
+// component touches (used by essentially every Card in the app); still
+// short of the 15-17px upper guideline, but a safe, verified-by-build
+// improvement rather than a blast-radius risk this pass can't visually
+// confirm everywhere. Callers that already locally override with
+// `text-sm` (14px, several department dashboards) now match the
+// default exactly instead of coincidentally happening to agree with it.
 const CardTitle = React.forwardRef(({ className, ...props }, ref) => (
-    <h3 ref={ref} className={cn('text-[13px] font-semibold text-graphite-800 dark:text-slate-100 lg:text-xs', className)} {...props} />
+    <h3 ref={ref} className={cn('text-sm font-semibold text-graphite-800 dark:text-slate-100', className)} {...props} />
 ));
 CardTitle.displayName = 'CardTitle';
 
+// Same backwards mobile-first shrink as CardTitle above (text-xs -> 11px
+// at desktop) -- fixed the same way, one non-shrinking 12px.
 const CardDescription = React.forwardRef(({ className, ...props }, ref) => (
-    <p ref={ref} className={cn('text-xs text-graphite-500 dark:text-slate-400 lg:text-[11px]', className)} {...props} />
+    <p ref={ref} className={cn('text-xs text-graphite-500 dark:text-slate-400', className)} {...props} />
 ));
 CardDescription.displayName = 'CardDescription';
 

@@ -31,7 +31,7 @@ export default function MilestonesIndex({ milestones, projects, filters, can }) 
 
             <div className="mb-4 flex flex-wrap items-center justify-between gap-3">
                 <div>
-                    <h1 className="text-lg font-bold tracking-tight text-graphite-900 dark:text-slate-50">Milestones</h1>
+                    <h1 className="text-2xl font-bold tracking-tight text-graphite-900 dark:text-slate-50">Milestones</h1>
                     <p className="text-xs text-graphite-500 dark:text-slate-400">Key dates across every project.</p>
                 </div>
                 {can.manage && (

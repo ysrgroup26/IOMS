@@ -129,7 +129,7 @@ export default function Dashboard({
                             previous session did) was itself the "duplicate
                             branding" this issue is about. Just the page
                             title and subtitle. */}
-                        <h1 className="text-base font-bold tracking-tight text-graphite-900 dark:text-slate-50">Dashboard</h1>
+                        <h1 className="text-xl font-bold tracking-tight text-graphite-900 dark:text-slate-50">Dashboard</h1>
                         <p className="text-[11px] text-graphite-500 dark:text-slate-400">Operational KPI Overview Across All Departments</p>
                     </div>
                     <div className="flex flex-wrap items-center gap-2">
@@ -157,8 +157,6 @@ export default function Dashboard({
                 <HeroSummary
                     name={auth?.user?.name?.split(' ')[0]}
                     now={now}
-                    employeeCount={companyHeadcount.overall_total}
-                    activeProjects={activeProjectsCount}
                     ltiCount={summary.categories.find((c) => c.code === 'lti')?.total ?? 0}
                     ppeAlertCount={notifications?.ppe_alert_count ?? 0}
                 />
@@ -658,18 +656,25 @@ export default function Dashboard({
  * module doesn't exist yet (see ROADMAP.md's v2.0 plans) -- PPE Alerts
  * was used instead of inventing a number that isn't backed by real data.
  */
-function HeroSummary({ name, now, employeeCount, activeProjects, ltiCount, ppeAlertCount }) {
+/**
+ * v1.11.9 (Enterprise UI/UX Refinement Part 1): this used to also show
+ * Employees + Active Projects -- the EXACT two metrics the "Primary
+ * cards" StatCard grid immediately below it already shows, so the very
+ * first viewport displayed the same two numbers twice. Consolidated down
+ * to what's actually unique here: the greeting, and the two SAFETY-
+ * relevant alerts (LTI, PPE) that appear nowhere else on this page --
+ * nothing informative was removed, only the literal duplicate.
+ */
+function HeroSummary({ name, now, ltiCount, ppeAlertCount }) {
     const hasWarnings = ppeAlertCount > 0 || ltiCount > 0;
 
     return (
         <Card className="border-graphite-200 bg-white/70 shadow-card backdrop-blur-sm">
             <CardContent className="p-3.5">
                 <h2 className="text-[13px] font-bold text-graphite-900">{greetingFor(now)}, {name} 👋</h2>
-                <p className="mt-1 text-[11px] font-semibold uppercase tracking-wide text-graphite-400">Today's Summary</p>
+                <p className="mt-1 text-[11px] font-semibold uppercase tracking-wide text-graphite-400">Today's Alerts</p>
 
-                <div className="mt-3 grid grid-cols-2 gap-3 sm:grid-cols-4">
-                    <SummaryStat icon={Users} value={formatNumber(employeeCount)} label="Employees" href={route('employees.index')} />
-                    <SummaryStat icon={FolderKanban} value={formatNumber(activeProjects)} label="Active Projects" href={route('projects.index')} />
+                <div className="mt-3 grid grid-cols-2 gap-3">
                     <SummaryStat icon={AlertTriangle} value={formatNumber(ltiCount)} label="Lost Time Incidents" accent={ltiCount > 0 ? 'red' : null} />
                     <SummaryStat icon={HardHat} value={formatNumber(ppeAlertCount)} label="PPE Alerts" accent={ppeAlertCount > 0 ? 'amber' : null} href={route('ppe.dashboard')} />
                 </div>

@@ -1604,6 +1604,51 @@ turn it back into a giant flat page" instruction asked to change); PPE workflow,
 Waste Management, Calendar, and every backend/RBAC/tenant-isolation mechanism (all explicitly
 out-of-scope for a visual-only pass and confirmed untouched by the empty PHP diff).
 
+## Enterprise UI/UX Visual Refinement, Part 2 (v1.11.9)
+
+Continues v1.11.8's shared-component work with the page-wide typography pass and Main Dashboard
+consolidation its own final report flagged as not yet done. Zero PHP files touched (confirmed via
+`git status`), same visual-only scope.
+
+**Page title typography, app-wide**: every hand-rolled `<h1 className="text-lg font-bold
+tracking-tight text-graphite-900...">` across the app (76 files — every module's Index/Show/Master
+page) was at 18px, well under this pass's own "page title ~24-28px" guideline. Fixed with a single
+mechanical, safe `sed` replace to `text-2xl` (24px) across every file sharing that exact class string —
+a pure Tailwind class swap, no logic touched, verified by a full `npm run build` afterward. `PageHeader`
+(the shared component the same pages should eventually migrate to) got the identical bump.
+
+**`CardTitle`/`CardDescription` — a real bug, not just under-sizing**: both had a backwards
+mobile-first responsive rule (`text-[13px] lg:text-xs` and `text-xs lg:text-[11px]`) that made section
+titles/descriptions get SMALLER at desktop width — the opposite of intended, and directly contradicting
+this app's own stated desktop-primary design target. Fixed to one non-shrinking size each (14px/12px) —
+a deliberately conservative step given `CardTitle` alone is used on nearly every `Card` in the app;
+still short of the "15-17px" upper guideline, but a safe, build-verified improvement rather than a
+blast-radius risk with no way to visually confirm every one of its hundreds of call sites in this
+environment.
+
+**`StatCard` KPI number size**: bumped from `text-base` (16px) to `text-xl` (20px) — the low end of
+this pass's own "KPI number 20-26px" guideline. Card footprint (padding, icon size) unchanged, so the
+number gains visual weight without the tile itself growing.
+
+**Main Dashboard KPI redundancy** (the concrete example this pass's own directive was written to force
+finding): `HeroSummary`'s "Today's Summary" stat row and the "Primary cards" `StatCard` grid immediately
+below it both showed Employees and Active Projects — the exact same two numbers, twice, inside the
+first viewport. Consolidated by removing the duplicate pair from `HeroSummary` (renamed "Today's
+Alerts") and keeping only what's genuinely unique there: the greeting and the two safety-relevant
+alerts (Lost Time Incidents, PPE Alerts) that appear nowhere else on the page — no information lost,
+only the literal duplicate removed. The hero title itself (`text-base`, 16px, hand-rolled separately
+from `PageHeader`) was bumped to `text-xl` (20px) for the same consistency reason.
+
+**Not further restructured this pass** (time-bounded triage, not found-and-skipped): HSE/HR/Project
+Management/Logistics/Warehouse Overview page STRUCTURE was confirmed already compliant with this pass's
+own hierarchy guidance from the v1.11.5/v1.11.6 passes (KPI strip → status/action → operational →
+activity → calendar; PM's portfolio is already a table, not cards; Logistics' material flow is already
+a compact horizontal strip, not five cards; Warehouse's Inventory Health is already a table) — these
+inherit the `StatCard`/`CardTitle`/`PageHeader` fixes above automatically since they already use those
+shared components, without needing page-specific edits. Monthly Trend/Employees by Department charts
+on the Main Dashboard were reviewed and kept (`h-80`, a standard chart height, genuinely adding
+analytical value per this pass's own "charts only where they add value" carve-out).
+
 ## Reusable engines (Approval, Workflow, Timeline, Import, PDF, Report Export)
 
 These aren't a "module" with their own page — they're cross-cutting infrastructure consumed by the

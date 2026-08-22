@@ -51,7 +51,7 @@ export default function TaskShow({ task, can }) {
             <div className="mb-6 flex flex-wrap items-start justify-between gap-3">
                 <div>
                     <div className="flex items-center gap-2">
-                        <h1 className="text-lg font-bold tracking-tight text-graphite-900">{task.title}</h1>
+                        <h1 className="text-2xl font-bold tracking-tight text-graphite-900">{task.title}</h1>
                         {task.is_overdue && (
                             <span className="flex items-center gap-1 rounded-full bg-red-50 px-2 py-0.5 text-xs font-semibold text-red-600">
                                 <AlertTriangle className="h-3.5 w-3.5" /> Overdue

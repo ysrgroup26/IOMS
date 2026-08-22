@@ -50,7 +50,7 @@ export default function ContractorShow({ contractor: c, canManage, documentTypes
 
             <div className="mb-4 flex flex-wrap items-start justify-between gap-3">
                 <div>
-                    <h1 className="flex items-center gap-2 text-lg font-bold tracking-tight text-graphite-900">
+                    <h1 className="flex items-center gap-2 text-2xl font-bold tracking-tight text-graphite-900">
                         {c.company_name}
                         <StatusBadge value={c.approval_status === 'approved' ? 'approved' : c.approval_status === 'rejected' ? 'rejected' : c.approval_status} />
                     </h1>

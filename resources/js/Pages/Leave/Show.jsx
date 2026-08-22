@@ -24,7 +24,7 @@ export default function LeaveShow({ leaveRequest: lr, approval, activities, canD
 
             <div className="mb-4 flex flex-wrap items-start justify-between gap-3">
                 <div>
-                    <h1 className="flex items-center gap-2 text-lg font-bold tracking-tight text-graphite-900">
+                    <h1 className="flex items-center gap-2 text-2xl font-bold tracking-tight text-graphite-900">
                         {lr.leave_number}
                         <StatusBadge value={lr.status} label={lr.status === 'submitted' ? 'Waiting Approval' : undefined} />
                     </h1>

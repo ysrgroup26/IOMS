@@ -41,7 +41,7 @@ export default function PermitToWorkShow({ permit: p, activities, canManage }) {
 
             <div className="mb-4 flex flex-wrap items-start justify-between gap-3">
                 <div>
-                    <h1 className="flex items-center gap-2 text-lg font-bold tracking-tight text-graphite-900">{p.ptw_number}<StatusBadge value={p.status} /></h1>
+                    <h1 className="flex items-center gap-2 text-2xl font-bold tracking-tight text-graphite-900">{p.ptw_number}<StatusBadge value={p.status} /></h1>
                     <p className="text-xs capitalize text-graphite-500">{p.permit_type.replace('_', ' ')} · {new Date(p.start_datetime).toLocaleString('en-US', { day: 'numeric', month: 'short', hour: 'numeric', minute: '2-digit' })} - {new Date(p.end_datetime).toLocaleString('en-US', { hour: 'numeric', minute: '2-digit' })}{p.location && ` · ${p.location}`}</p>
                 </div>
                 {canManage && (

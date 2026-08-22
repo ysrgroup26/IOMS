@@ -44,7 +44,7 @@ export default function TasksIndex({ tasks, users, filters, statuses, priorities
 
             <div className="mb-6 flex flex-wrap items-center justify-between gap-3">
                 <div>
-                    <h1 className="text-lg font-bold tracking-tight text-graphite-900">Tasks</h1>
+                    <h1 className="text-2xl font-bold tracking-tight text-graphite-900">Tasks</h1>
                     <p className="mt-1 text-sm text-graphite-500">{tasks.total} task(s) total</p>
                 </div>
                 <Button asChild><Link href={route('tasks.create')}><Plus className="h-4 w-4" /> New Task</Link></Button>

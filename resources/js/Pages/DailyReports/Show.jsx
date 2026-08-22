@@ -23,7 +23,7 @@ export default function DailyReportShow({ report, can }) {
             <div className="mb-6 flex flex-wrap items-start justify-between gap-3">
                 <div>
                     <div className="flex items-center gap-2">
-                        <h1 className="text-lg font-bold tracking-tight text-graphite-900">
+                        <h1 className="text-2xl font-bold tracking-tight text-graphite-900">
                             {new Date(report.report_date).toLocaleDateString('en-US', { weekday: 'long', day: 'numeric', month: 'long', year: 'numeric' })}
                         </h1>
                         <Badge variant={report.report_type === 'overtime' ? 'secondary' : 'outline'} className="capitalize">{report.report_type}</Badge>

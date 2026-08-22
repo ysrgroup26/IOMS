@@ -22,7 +22,7 @@ export default function VisitorShow({ visitor: v, canManage }) {
 
             <div className="mb-4 flex flex-wrap items-start justify-between gap-3">
                 <div>
-                    <h1 className="flex items-center gap-2 text-lg font-bold tracking-tight text-graphite-900">{v.name}<StatusBadge value={v.status === 'approved' || v.status === 'checked_in' ? 'approved' : v.status === 'rejected' ? 'rejected' : v.status} label={v.status.replace('_', ' ')} /></h1>
+                    <h1 className="flex items-center gap-2 text-2xl font-bold tracking-tight text-graphite-900">{v.name}<StatusBadge value={v.status === 'approved' || v.status === 'checked_in' ? 'approved' : v.status === 'rejected' ? 'rejected' : v.status} label={v.status.replace('_', ' ')} /></h1>
                     <p className="text-xs text-graphite-500">{v.visitor_number} · {v.visitor_company || 'No company'} · Host: {v.host_employee?.full_name}</p>
                 </div>
                 {canManage && (

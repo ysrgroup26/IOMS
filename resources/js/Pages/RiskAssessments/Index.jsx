@@ -20,7 +20,7 @@ export default function RiskAssessmentsIndex({ riskAssessments, filters, can }) 
 
             <div className="mb-4 flex flex-wrap items-center justify-between gap-3">
                 <div>
-                    <h1 className="text-lg font-bold tracking-tight text-graphite-900 dark:text-slate-50">HIRADC / Risk Assessment</h1>
+                    <h1 className="text-2xl font-bold tracking-tight text-graphite-900 dark:text-slate-50">HIRADC / Risk Assessment</h1>
                     <p className="text-xs text-graphite-500 dark:text-slate-400">Hazard Identification, Risk Assessment and Determining Control.</p>
                 </div>
                 {can.manage && (

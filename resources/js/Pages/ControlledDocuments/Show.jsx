@@ -32,7 +32,7 @@ export default function ControlledDocumentShow({ document: d, activities, canMan
 
             <div className="mb-4 flex flex-wrap items-start justify-between gap-3">
                 <div>
-                    <h1 className="flex items-center gap-2 text-lg font-bold tracking-tight text-graphite-900">{d.title}<StatusBadge value={d.status === 'effective' ? 'approved' : d.status === 'obsolete' ? 'secondary' : d.status} /></h1>
+                    <h1 className="flex items-center gap-2 text-2xl font-bold tracking-tight text-graphite-900">{d.title}<StatusBadge value={d.status === 'effective' ? 'approved' : d.status === 'obsolete' ? 'secondary' : d.status} /></h1>
                     <p className="text-xs text-graphite-500">{d.document_number} · v{d.version} {d.category && `· ${d.category}`} {d.department && `· ${d.department.name}`}</p>
                 </div>
                 {canManage && (

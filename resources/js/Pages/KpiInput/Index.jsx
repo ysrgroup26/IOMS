@@ -21,7 +21,7 @@ export default function KpiInputIndex({ departments, companies, categories, quic
             <Head title="Input KPI" />
 
             <div className="mb-6">
-                <h1 className="text-lg font-bold tracking-tight text-graphite-900">Input KPI</h1>
+                <h1 className="text-2xl font-bold tracking-tight text-graphite-900">Input KPI</h1>
                 <p className="mt-1 text-sm text-graphite-500">Record HSE activity occurrences. Every entry adds +1 to the selected category.</p>
             </div>
 

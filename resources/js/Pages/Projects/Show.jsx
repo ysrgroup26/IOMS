@@ -45,7 +45,7 @@ export default function ProjectShow({ project, manpowerGrouped, timeline, availa
             <div className="mb-6 flex flex-wrap items-start justify-between gap-3">
                 <div>
                     <div className="flex items-center gap-2">
-                        <h1 className="text-lg font-bold tracking-tight text-graphite-900">{project.name}</h1>
+                        <h1 className="text-2xl font-bold tracking-tight text-graphite-900">{project.name}</h1>
                         <Badge variant={STATUS_VARIANT[project.status]} className="capitalize">{project.status}</Badge>
                     </div>
                     <div className="mt-1 flex flex-wrap items-center gap-x-4 gap-y-1 text-sm text-graphite-500">

@@ -29,7 +29,7 @@ export default function ActivityCenterIndex({ activities, filters, options }) {
             <Head title="Activity Center" />
 
             <div className="mb-6">
-                <h1 className="text-lg font-bold tracking-tight text-graphite-900">Activity Center</h1>
+                <h1 className="text-2xl font-bold tracking-tight text-graphite-900">Activity Center</h1>
                 <p className="mt-1 text-sm text-graphite-500">Audit trail across every module -- filterable by user, company, department, module, and date.</p>
             </div>
 

@@ -83,7 +83,7 @@ export default function HseMaster({ hazardCategories, safetyEquipment, equipment
                 it's a deliberate producer/consumer chain, not
                 accidental); this is a labeling/help-text-only clarification. */}
             <div className="mb-4">
-                <h1 className="text-lg font-bold tracking-tight text-graphite-900 dark:text-slate-50">HSE Master Data</h1>
+                <h1 className="text-2xl font-bold tracking-tight text-graphite-900 dark:text-slate-50">HSE Master Data</h1>
                 <p className="mt-0.5 text-xs text-graphite-500 dark:text-slate-400">
                     Configuration &amp; reference data only -- the types, categories, templates, and registers
                     other HSE modules draw from. Nothing here is hard-coded. Day-to-day work (recording an

@@ -83,7 +83,7 @@ export default function MaterialRequestForm({ materialRequest, companies, depart
             </Link>
 
             <div className="mb-4">
-                <h1 className="text-lg font-bold tracking-tight text-graphite-900">{isEdit ? 'Edit Material Request' : 'New Material Request'}</h1>
+                <h1 className="text-2xl font-bold tracking-tight text-graphite-900">{isEdit ? 'Edit Material Request' : 'New Material Request'}</h1>
                 <p className="text-xs text-graphite-500">{requestNumber}</p>
             </div>
 

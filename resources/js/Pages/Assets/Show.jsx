@@ -30,7 +30,7 @@ export default function AssetShow({ asset: a, employees, canManage }) {
 
             <div className="mb-4 flex flex-wrap items-start justify-between gap-3">
                 <div>
-                    <h1 className="flex items-center gap-2 text-lg font-bold tracking-tight text-graphite-900">{a.name}<StatusBadge value={a.status === 'active' || a.status === 'assigned' ? 'active' : a.status} label={a.status.replace('_', ' ')} /></h1>
+                    <h1 className="flex items-center gap-2 text-2xl font-bold tracking-tight text-graphite-900">{a.name}<StatusBadge value={a.status === 'active' || a.status === 'assigned' ? 'active' : a.status} label={a.status.replace('_', ' ')} /></h1>
                     <p className="text-xs text-graphite-500">{a.asset_code} · {a.category || 'Uncategorized'} {a.location && `· ${a.location}`}</p>
                 </div>
                 {canManage && (

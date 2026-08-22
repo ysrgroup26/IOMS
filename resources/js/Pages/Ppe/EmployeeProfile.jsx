@@ -62,7 +62,7 @@ export default function PpeEmployeeProfile({ employee, assignments, ppeTypes, ca
             {/* Overview */}
             <div className="mb-4 flex flex-wrap items-start justify-between gap-3">
                 <div>
-                    <h1 className="text-lg font-bold tracking-tight text-graphite-900 dark:text-slate-50">{employee.full_name}</h1>
+                    <h1 className="text-2xl font-bold tracking-tight text-graphite-900 dark:text-slate-50">{employee.full_name}</h1>
                     <p className="mt-1 text-sm text-graphite-500 dark:text-slate-400">
                         {employee.employee_id} &middot; {employee.department?.name || '—'} &middot; {employee.company?.name || '—'}
                     </p>

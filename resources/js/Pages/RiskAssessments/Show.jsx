@@ -25,7 +25,7 @@ export default function RiskAssessmentShow({ riskAssessment: r, activities, canM
 
             <div className="mb-4 flex flex-wrap items-start justify-between gap-3">
                 <div>
-                    <h1 className="flex items-center gap-2 text-lg font-bold tracking-tight text-graphite-900">{r.ra_number}<StatusBadge value={r.status} /></h1>
+                    <h1 className="flex items-center gap-2 text-2xl font-bold tracking-tight text-graphite-900">{r.ra_number}<StatusBadge value={r.status} /></h1>
                     <p className="text-xs text-graphite-500">{r.title} · {new Date(r.assessment_date).toLocaleDateString('en-US', { day: 'numeric', month: 'long', year: 'numeric' })}{r.location && ` · ${r.location}`}{r.project && ` · ${r.project.name}`}</p>
                 </div>
                 {canManage && (

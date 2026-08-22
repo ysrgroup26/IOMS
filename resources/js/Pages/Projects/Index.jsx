@@ -30,7 +30,7 @@ export default function ProjectsIndex({ projects, companies, filters, can }) {
 
             <div className="mb-6 flex flex-wrap items-center justify-between gap-3">
                 <div>
-                    <h1 className="text-lg font-bold tracking-tight text-graphite-900">Projects</h1>
+                    <h1 className="text-2xl font-bold tracking-tight text-graphite-900">Projects</h1>
                     <p className="mt-1 text-sm text-graphite-500">{projects.total} projects total</p>
                 </div>
                 {can.manage && (

@@ -38,6 +38,12 @@ export default function StatCard({ icon: Icon, value, label, href, accent }) {
     };
     const iconClass = accentClasses[accent] || 'bg-brand-50 text-brand-600 dark:bg-brand-950/40 dark:text-brand-400';
 
+    // v1.11.9 (Enterprise UI/UX Refinement Part 2): value bumped from
+    // text-base (16px) to text-xl (20px) -- the typography audit's own
+    // target range for a KPI number is 20-26px, and 16px read as
+    // undersized/flat next to the rest of this pass's density work.
+    // Card footprint (p-3.5, h-9 icon) is UNCHANGED -- the number gets
+    // more visual weight without the tile itself getting bigger.
     const content = (
         <Card className={cn('h-full rounded-2xl bg-white/85 backdrop-blur-sm transition-all duration-200 dark:bg-slate-900/85', href && 'hover:-translate-y-0.5 hover:shadow-card-hover')}>
             <CardContent className="flex items-center gap-3 p-3.5">
@@ -45,8 +51,8 @@ export default function StatCard({ icon: Icon, value, label, href, accent }) {
                     <Icon className="h-4 w-4" />
                 </div>
                 <div className="min-w-0">
-                    <p className="truncate text-base font-bold leading-tight text-graphite-900 dark:text-slate-50">{value}</p>
-                    <p className="truncate text-xs font-medium uppercase tracking-wide text-graphite-400 dark:text-slate-500">{label}</p>
+                    <p className="truncate text-xl font-bold leading-tight text-graphite-900 dark:text-slate-50">{value}</p>
+                    <p className="truncate text-[11px] font-medium uppercase tracking-wide text-graphite-400 dark:text-slate-500">{label}</p>
                 </div>
             </CardContent>
         </Card>

@@ -36,7 +36,7 @@ export default function PlatformTenantGrants({ tenant, modules, workspaces }) {
             </Link>
 
             <div className="mb-6">
-                <h1 className="text-2xl font-bold tracking-tight text-graphite-900">{tenant.name} -- Module &amp; Workspace Grants</h1>
+                <h1 className="text-[22px] font-semibold tracking-tight text-graphite-900">{tenant.name} -- Module &amp; Workspace Grants</h1>
                 <p className="mt-1 text-sm text-graphite-500">
                     Only modules and workspaces checked here can be enabled by this tenant's own Administrator
                     (Settings &rarr; Module Visibility / Department Navigation). Unchecking one here immediately

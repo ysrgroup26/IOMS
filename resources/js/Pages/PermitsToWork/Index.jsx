@@ -20,7 +20,7 @@ export default function PermitsToWorkIndex({ permits, filters, can }) {
 
             <div className="mb-4 flex flex-wrap items-center justify-between gap-3">
                 <div>
-                    <h1 className="text-2xl font-bold tracking-tight text-graphite-900 dark:text-slate-50">Permit To Work</h1>
+                    <h1 className="text-[22px] font-semibold tracking-tight text-graphite-900 dark:text-slate-50">Permit To Work</h1>
                     <p className="text-xs text-graphite-500 dark:text-slate-400">Hot work, confined space, working at height and other high-risk permits.</p>
                 </div>
                 {can.manage && (<Button asChild><Link href={route('permits-to-work.create')}><Plus className="h-4 w-4" /> New Permit</Link></Button>)}

@@ -27,7 +27,7 @@ export default function MaterialRequestsIndex({ requests, filters, can }) {
 
             <div className="mb-4 flex flex-wrap items-center justify-between gap-3">
                 <div>
-                    <h1 className="text-2xl font-bold tracking-tight text-graphite-900 dark:text-slate-50">Material Requests</h1>
+                    <h1 className="text-[22px] font-semibold tracking-tight text-graphite-900 dark:text-slate-50">Material Requests</h1>
                     <p className="text-xs text-graphite-500 dark:text-slate-400">Request operational materials -- barricades, first aid, signage, and more.</p>
                 </div>
                 {can.manage && (

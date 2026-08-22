@@ -3,57 +3,53 @@ import { Card, CardContent } from '@/Components/ui/card';
 import { cn } from '@/lib/utils';
 
 /**
- * Shared Statistic Card (v1.6.5 foundation, tightened v1.11.3 -- Global
- * Dashboard/Overview UX Rework Part 4). Dashboard's `PrimaryCard`, Home's
- * `StatCard`, and PPE Dashboard's `StatCard` were three separate
- * implementations of essentially the same icon+value+label card; this is
- * now the ONE version, adopted by every dashboard page in the same pass
- * that tightened it (see docs/CONVENTIONS.md -- the earlier "separate
- * follow-up" note here is exactly the kind of deferred adoption that
- * never happened, so this time the adoption isn't deferred).
+ * Shared Statistic Card (v1.6.5 foundation, tightened through v1.11.12,
+ * exact spec applied in v1.11.12/13 -- Final Visual Design System pass,
+ * against the actual reference screenshots in v1.11.13). Pixel/hex
+ * targets implemented precisely rather than re-guessed:
+ * - Icon container 36x36 (`h-9 w-9`), radius 10px (`rounded-[10px]`,
+ *   Tailwind has no built-in step between `rounded-lg` 8px and
+ *   `rounded-xl` 12px), icon glyph 18px (`h-[18px] w-[18px]`).
+ * - Card padding 14px (`p-3.5`).
+ * - KPI number 20px/600 (`text-xl font-semibold`), label 11px/500.
+ * - Accent colors pull from the exact-hex `success`/`warning`/`danger`
+ *   tokens in tailwind.config.js (Tailwind's own `emerald-600`/
+ *   `amber-600`/`red-600` render #059669/#d97706/#dc2626, not this
+ *   spec's #16A34A/#F59E0B/#EF4444) and Tailwind's own `violet-50`/
+ *   `violet-600` for purple (already an exact match, no new token).
  *
- * Sized to match `ModuleCard`'s own scale exactly (p-3.5, h-9/h-4 icon)
- * so KPI cards read as visually secondary to the page, not larger than
- * the module-shortcut grid beneath them.
+ * v1.11.13: `size="sm"` added. The reference screenshots show TWO
+ * distinct KPI card scales on the same HSE Overview page -- a primary
+ * row (this component's default size) and a visually smaller
+ * "Ringkasan KPI" secondary row (Fatalitas/LTI/FAC/etc.) -- not one
+ * scale used everywhere. `size="sm"` matches that second scale exactly
+ * (spec's own "Small KPI Cards" section): 18px number, 32x32 icon,
+ * 12px padding, same 10px icon radius.
  *
  * Usage:
  *   <StatCard icon={Users} value="128" label="Employees" href={route('employees.index')} />
  *   <StatCard icon={AlertTriangle} value="3" label="PPE Alerts" accent="amber" />
- *
- * v1.11.8 (Enterprise UI/UX Refinement, Part 8/23): `green`/`purple`
- * added alongside the existing `red`/`amber` -- the full semantic
- * palette the design system now documents (blue=primary/general,
- * green=healthy/active/completed, amber=warning/pending, red=critical/
- * overdue, purple=assets/administration/planning, neutral=inactive).
- * Colors communicate meaning, chosen per-metric by the caller -- this
- * component doesn't decide meaning for anyone, only renders it.
+ *   <StatCard icon={Skull} value="0" label="Fatalitas" accent="red" size="sm" />
  */
-export default function StatCard({ icon: Icon, value, label, href, accent }) {
+export default function StatCard({ icon: Icon, value, label, href, accent, size = 'default' }) {
     const accentClasses = {
-        red: 'bg-red-50 text-red-600 dark:bg-red-950/40 dark:text-red-400',
-        amber: 'bg-amber-50 text-amber-600 dark:bg-amber-950/40 dark:text-amber-400',
-        green: 'bg-emerald-50 text-emerald-600 dark:bg-emerald-950/40 dark:text-emerald-400',
+        red: 'bg-danger-light text-danger dark:bg-red-950/40 dark:text-red-400',
+        amber: 'bg-warning-light text-warning dark:bg-amber-950/40 dark:text-amber-400',
+        green: 'bg-success-light text-success dark:bg-emerald-950/40 dark:text-emerald-400',
         purple: 'bg-violet-50 text-violet-600 dark:bg-violet-950/40 dark:text-violet-400',
         neutral: 'bg-graphite-100 text-graphite-500 dark:bg-slate-800 dark:text-slate-400',
     };
     const iconClass = accentClasses[accent] || 'bg-brand-50 text-brand-600 dark:bg-brand-950/40 dark:text-brand-400';
+    const isSmall = size === 'sm';
 
-    // v1.11.9 bumped value text-base (16px) -> text-xl (20px) -- kept,
-    // 20px matches v1.11.10's own explicit "KPI number ~20-22px" target
-    // and the same directive said not to shrink it back down. What DID
-    // change (v1.11.10, Part 0/3 -- direct feedback that KPI numbers now
-    // read too dominant/heavy): weight dialed back from `font-bold` to
-    // `font-semibold`. Same explicit instruction as everywhere else in
-    // this pass -- hierarchy comes from weight/color, not size -- so the
-    // fix for "too visually heavy" is less weight, not a smaller number.
     const content = (
-        <Card className={cn('h-full rounded-2xl bg-white/85 backdrop-blur-sm transition-all duration-200 dark:bg-slate-900/85', href && 'hover:-translate-y-0.5 hover:shadow-card-hover')}>
-            <CardContent className="flex items-center gap-3 p-3.5">
-                <div className={cn('flex h-9 w-9 shrink-0 items-center justify-center rounded-xl', iconClass)}>
-                    <Icon className="h-4 w-4" />
+        <Card className={cn('h-full rounded-xl bg-white/85 backdrop-blur-sm transition-all duration-200 dark:bg-slate-900/85', href && 'hover:-translate-y-0.5 hover:shadow-card-hover')}>
+            <CardContent className={cn('flex items-center', isSmall ? 'gap-2.5 p-3' : 'gap-3 p-3.5')}>
+                <div className={cn('flex shrink-0 items-center justify-center rounded-[10px]', isSmall ? 'h-8 w-8' : 'h-9 w-9', iconClass)}>
+                    <Icon className={isSmall ? 'h-4 w-4' : 'h-[18px] w-[18px]'} />
                 </div>
                 <div className="min-w-0">
-                    <p className="truncate text-xl font-semibold leading-tight text-graphite-900 dark:text-slate-50">{value}</p>
+                    <p className={cn('truncate font-semibold leading-tight text-graphite-900 dark:text-slate-50', isSmall ? 'text-lg' : 'text-xl')}>{value}</p>
                     <p className="truncate text-[11px] font-medium uppercase tracking-wide text-graphite-400 dark:text-slate-500">{label}</p>
                 </div>
             </CardContent>

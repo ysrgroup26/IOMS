@@ -23,13 +23,23 @@ const TableRow = React.forwardRef(({ className, ...props }, ref) => (
 ));
 TableRow.displayName = 'TableRow';
 
+// v1.11.12 (Final Visual Design System pass): header font/color already
+// matched the exact spec (11px/600/#64748B at desktop, via the existing
+// lg:text-[11px] + font-semibold + text-graphite-500 -- graphite-500 IS
+// #64748b) -- unchanged. Row height didn't: this pass's own "Row height
+// 40-48px" is taller than the previous compaction pass's padding
+// produced (~28-32px at desktop). Cell vertical padding bumped to a
+// uniform py-2.5 (20px) -- no further desktop-only shrink for padding
+// specifically, since shrinking it further would fall back under the
+// spec's own floor -- landing the row in the 40-48px band at both the
+// 13px (base) and 12px (desktop) text sizes.
 const TableHead = React.forwardRef(({ className, ...props }, ref) => (
     <th ref={ref} className={cn('h-9 px-3 text-left align-middle text-xs font-semibold uppercase tracking-wide text-graphite-500 dark:text-slate-400 lg:h-8 lg:px-2.5 lg:text-[11px]', className)} {...props} />
 ));
 TableHead.displayName = 'TableHead';
 
 const TableCell = React.forwardRef(({ className, ...props }, ref) => (
-    <td ref={ref} className={cn('px-3 py-2 align-middle text-[13px] text-graphite-700 dark:text-slate-300 lg:px-2.5 lg:py-1.5 lg:text-xs', className)} {...props} />
+    <td ref={ref} className={cn('px-3 py-2.5 align-middle text-[13px] text-graphite-700 dark:text-slate-300 lg:px-2.5 lg:text-xs', className)} {...props} />
 ));
 TableCell.displayName = 'TableCell';
 

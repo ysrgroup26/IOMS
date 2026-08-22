@@ -34,7 +34,7 @@ export default function WasteMaster({ wasteTypes, storageLocations, companies, c
             </Link>
 
             <div className="mb-4">
-                <h1 className="text-2xl font-bold tracking-tight text-graphite-900 dark:text-slate-50">Waste Management Master Data</h1>
+                <h1 className="text-[22px] font-semibold tracking-tight text-graphite-900 dark:text-slate-50">Waste Management Master Data</h1>
                 <p className="mt-0.5 text-xs text-graphite-500 dark:text-slate-400">
                     Configure waste types and storage/TPS locations. Storage limits are an operational monitoring setting, not legal advice.
                 </p>

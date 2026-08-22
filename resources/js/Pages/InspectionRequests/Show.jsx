@@ -28,7 +28,7 @@ export default function InspectionRequestShow({ inspection: i, canManage }) {
 
             <div className="mb-4 flex flex-wrap items-start justify-between gap-3">
                 <div>
-                    <h1 className="flex items-center gap-2 text-2xl font-bold tracking-tight text-graphite-900">
+                    <h1 className="flex items-center gap-2 text-[22px] font-semibold tracking-tight text-graphite-900">
                         {i.inspection_number}<StatusBadge value={i.status} />
                         {i.result && <StatusBadge value={i.result === 'passed' ? 'approved' : 'rejected'} label={i.result} />}
                     </h1>

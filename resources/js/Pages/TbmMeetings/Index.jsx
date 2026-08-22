@@ -18,7 +18,7 @@ export default function TbmMeetingsIndex({ meetings, filters, can }) {
 
             <div className="mb-4 flex flex-wrap items-center justify-between gap-3">
                 <div>
-                    <h1 className="text-2xl font-bold tracking-tight text-graphite-900 dark:text-slate-50">Toolbox Meeting (TBM)</h1>
+                    <h1 className="text-[22px] font-semibold tracking-tight text-graphite-900 dark:text-slate-50">Toolbox Meeting (TBM)</h1>
                     <p className="text-xs text-graphite-500 dark:text-slate-400">Pre-work safety briefings and attendance.</p>
                 </div>
                 {can.manage && (<Button asChild><Link href={route('tbm-meetings.create')}><Plus className="h-4 w-4" /> Record TBM</Link></Button>)}

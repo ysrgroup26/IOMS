@@ -37,7 +37,7 @@ export default function ProjectForm({ project, companies }) {
                 <ArrowLeft className="h-4 w-4" /> Back to Projects
             </Link>
 
-            <h1 className="mb-6 text-2xl font-bold tracking-tight text-graphite-900">
+            <h1 className="mb-6 text-[22px] font-semibold tracking-tight text-graphite-900">
                 {isEdit ? 'Edit Project' : 'Add Project'}
             </h1>
 

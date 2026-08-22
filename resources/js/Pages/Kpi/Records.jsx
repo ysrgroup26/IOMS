@@ -29,7 +29,7 @@ export default function KpiRecords({ records, categories, companies, filters, av
             </Link>
 
             <div className="mb-6">
-                <h1 className="text-2xl font-bold tracking-tight text-graphite-900">
+                <h1 className="text-[22px] font-semibold tracking-tight text-graphite-900">
                     KPI Records {activeCategory && <span className="text-graphite-400">&middot; {activeCategory.name}</span>}
                 </h1>
                 <p className="mt-1 text-sm text-graphite-500">{records.total} occurrence(s) matching the current filters</p>

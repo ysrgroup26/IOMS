@@ -141,7 +141,17 @@ export default function AuthenticatedLayout({ children }) {
     }
 
     return (
-        <div className="min-h-screen bg-white dark:bg-slate-950">
+        // v1.11.12 (Final Visual Design System pass): root was bg-white --
+        // the spec explicitly distinguishes "Page Background: #F8FAFC"
+        // from "Card Background: #FFFFFF", and every card already sits on
+        // a white Card component (ui/card.jsx) -- with the page ALSO
+        // white, cards had no background contrast to read against at all,
+        // just borders/shadow doing all the separation work. graphite-50
+        // is an exact hex match for #F8FAFC. Sidebar/TopBar keep their own
+        // explicit bg-white below (the spec's own "Sidebar/Top Navigation
+        // background: #FFFFFF") so they read as distinct raised surfaces
+        // against this canvas, not the other way around.
+        <div className="min-h-screen bg-graphite-50 dark:bg-slate-950">
             {/* Mobile overlay */}
             {sidebarOpen && (
                 <div
@@ -158,7 +168,13 @@ export default function AuthenticatedLayout({ children }) {
                 the logo now the dominant visual element. */}
             <aside
                 className={cn(
-                    'fixed inset-y-0 left-0 z-50 flex w-[220px] flex-col transform border-r border-graphite-200 bg-white transition-transform duration-200 ease-in-out dark:border-slate-800 dark:bg-slate-950 lg:translate-x-0',
+                    // v1.11.12 (Final Visual Design System pass): width
+                    // spec restates 240px -- the stale comment above (from
+                    // v1.6.2) already claimed this value, but the actual
+                    // class had drifted to 220px at some point without the
+                    // comment being corrected. Fixed to match both the
+                    // comment and the current spec.
+                    'fixed inset-y-0 left-0 z-50 flex w-[240px] flex-col transform border-r border-graphite-200 bg-white transition-transform duration-200 ease-in-out dark:border-slate-800 dark:bg-slate-950 lg:translate-x-0',
                     sidebarOpen ? 'translate-x-0' : '-translate-x-full'
                 )}
             >
@@ -205,7 +221,7 @@ export default function AuthenticatedLayout({ children }) {
                             return (
                                 <div
                                     key={item.name}
-                                    className="flex h-9 cursor-not-allowed items-center gap-2.5 rounded-[10px] px-3 text-xs font-medium text-graphite-300 dark:text-slate-600"
+                                    className="flex h-9 cursor-not-allowed items-center gap-2.5 rounded-[10px] px-3 text-[13px] font-medium text-graphite-300 dark:text-slate-600"
                                     title={`${item.name} -- coming soon`}
                                 >
                                     <Icon className="h-4 w-4 shrink-0 text-graphite-200 dark:text-slate-700" />
@@ -236,13 +252,25 @@ export default function AuthenticatedLayout({ children }) {
                         if (hasChildren) {
                             return (
                                 <div key={item.name}>
+                                    {/* v1.11.13 (reference-screenshot pass): the spec/reference
+                                        draws a real distinction between "Sidebar Group Label"
+                                        (11px/500) and "Sidebar Menu"/"Nested item" (both 13px/500)
+                                        -- three separate categories, not one flat size. v1.11.11
+                                        had collapsed group header and child down to the same 12px,
+                                        which undid that distinction. Restored here: this group
+                                        TOGGLE button is the "group label" (11px, muted, acts as an
+                                        organizational label first and a button second); children
+                                        below go back up to 13px as "nested item," matching plain
+                                        leaf items' own "main menu" size exactly -- differentiated
+                                        from their parent by being SMALLER-LABELED-parent/LARGER-
+                                        item, not by the reverse. */}
                                     <button
                                         type="button"
                                         onClick={() => toggleMenu(item.name)}
-                                        className="flex h-9 w-full items-center gap-2.5 rounded-[10px] px-3 text-xs font-medium text-graphite-600 transition-all duration-150 hover:bg-graphite-50 hover:text-graphite-900 dark:text-slate-400 dark:hover:bg-slate-900 dark:hover:text-slate-100"
+                                        className="flex h-9 w-full items-center gap-2.5 rounded-[10px] px-3 text-[11px] font-medium text-graphite-500 transition-all duration-150 hover:bg-graphite-50 hover:text-graphite-900 dark:text-slate-400 dark:hover:bg-slate-900 dark:hover:text-slate-100"
                                     >
                                         <Icon className="h-4 w-4 shrink-0 text-graphite-400 dark:text-slate-500" />
-                                        <span className="flex-1 text-left">{item.name}</span>
+                                        <span className="flex-1 text-left uppercase tracking-wide">{item.name}</span>
                                         <ChevronDown className={cn('h-3.5 w-3.5 shrink-0 text-graphite-400 transition-transform duration-200 dark:text-slate-500', isExpanded && 'rotate-180')} />
                                     </button>
                                     {/* CSS-grid expand/collapse -- same
@@ -250,22 +278,13 @@ export default function AuthenticatedLayout({ children }) {
                                         Selected Employees panel: animates
                                         to natural height with no JS
                                         measurement needed. */}
-                                    {/* v1.11.8 (Enterprise UI/UX Refinement, Part 3): root cause of
-                                        "child items feel like headings" -- children rendered at
-                                        `text-sm` (14px) while the PARENT group header above uses
-                                        `text-xs` (12px), so a nested item like "Manajemen Insiden"
-                                        was literally larger than its own parent "Manajemen
-                                        Keselamatan". Parent sizing is left untouched per explicit
-                                        instruction ("already relatively good... do not enlarge
-                                        dropdown parents") -- children are brought down to match
-                                        instead: 13px (an arbitrary value; Tailwind has no built-in
-                                        step between 12/14px), tighter line-height, less vertical
-                                        padding (py-1.5 -> py-1), and slightly reduced indentation
-                                        (ml-4/pl-3 -> ml-3.5/pl-2.5). Active/hover/icon/expand
-                                        behavior unchanged. */}
+                                    {/* v1.11.13: nested item row height set to the spec's exact
+                                        34px (h-[34px]); indentation ml-4/pl-2.5 kept (already
+                                        within the 20-24px target measured from the row's own
+                                        left edge). */}
                                     <div className={cn('grid transition-[grid-template-rows] duration-200 ease-in-out', isExpanded ? 'grid-rows-[1fr]' : 'grid-rows-[0fr]')}>
                                         <div className="overflow-hidden">
-                                            <div className="ml-3.5 mt-0.5 space-y-0.5 border-l border-graphite-100 pl-2.5 dark:border-slate-800">
+                                            <div className="ml-4 mt-0.5 space-y-0.5 border-l border-graphite-100 pl-2.5 dark:border-slate-800">
                                                 {item.children.map((child) => {
                                                     const childActive = isChildRouteActive(child, currentUrl);
                                                     const ChildIcon = child.icon;
@@ -274,8 +293,8 @@ export default function AuthenticatedLayout({ children }) {
                                                             key={child.name}
                                                             href={route(child.href)}
                                                             className={cn(
-                                                                'flex items-center gap-2 rounded-lg px-2.5 py-1 text-[13px] leading-tight transition-colors duration-150',
-                                                                childActive ? 'font-semibold text-brand-700 dark:text-brand-400' : 'font-normal text-graphite-500 hover:text-graphite-800 dark:text-slate-500 dark:hover:text-slate-200'
+                                                                'flex h-[34px] items-center gap-2 rounded-lg px-2.5 text-[13px] leading-tight transition-colors duration-150',
+                                                                childActive ? 'font-semibold text-brand-600 dark:text-brand-400' : 'font-normal text-graphite-500 hover:text-graphite-800 dark:text-slate-500 dark:hover:text-slate-200'
                                                             )}
                                                         >
                                                             {ChildIcon && <ChildIcon className="h-3.5 w-3.5 shrink-0" />}
@@ -295,9 +314,16 @@ export default function AuthenticatedLayout({ children }) {
                                 key={item.name}
                                 href={route(item.href, item.queryParams)}
                                 className={cn(
-                                    'relative flex h-9 items-center gap-2.5 rounded-[10px] px-3 text-xs font-medium transition-all duration-150',
+                                    // v1.11.13: bumped text-xs(12px) -> text-[13px], matching
+                                    // this pass's "Main menu text: 13px/500" exactly.
+                                    'relative flex h-9 items-center gap-2.5 rounded-[10px] px-3 text-[13px] font-medium transition-all duration-150',
+                                    // v1.11.12: active text was text-brand-700 (#1D4ED8) --
+                                    // spec's exact "Active text: #2563EB" is brand-600, one
+                                    // shade lighter. Active background (bg-brand-50 = #EFF6FF)
+                                    // and the active indicator bar (bg-brand-600, a few lines
+                                    // below) already matched exactly.
                                     active
-                                        ? 'bg-brand-50 font-semibold text-brand-700 dark:bg-brand-950/40 dark:text-brand-400'
+                                        ? 'bg-brand-50 font-semibold text-brand-600 dark:bg-brand-950/40 dark:text-brand-400'
                                         : 'text-graphite-600 hover:bg-graphite-50 hover:text-graphite-900 dark:text-slate-400 dark:hover:bg-slate-900 dark:hover:text-slate-100'
                                 )}
                             >
@@ -325,7 +351,8 @@ export default function AuthenticatedLayout({ children }) {
             <AboutDialog open={aboutOpen} onOpenChange={setAboutOpen} />
 
             {/* Main content */}
-            <div className="lg:pl-[220px]">
+            {/* Must match the sidebar's own w-[240px] above -- a fixed sidebar needs an equal content offset or it overlaps. */}
+            <div className="lg:pl-[240px]">
                 <TopBar
                     onOpenSidebar={() => setSidebarOpen(true)}
                     isDepartmentUser={isDepartmentUser}

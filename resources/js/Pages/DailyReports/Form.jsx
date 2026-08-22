@@ -64,7 +64,7 @@ export default function DailyReportForm({ report, projects, departmentSuggestion
                 <ArrowLeft className="h-4 w-4" /> Back to Daily Reports
             </Link>
 
-            <h1 className="mb-6 text-2xl font-bold tracking-tight text-graphite-900">
+            <h1 className="mb-6 text-[22px] font-semibold tracking-tight text-graphite-900">
                 {isEdit ? 'Edit Daily Report' : 'New Daily Report'}
             </h1>
 

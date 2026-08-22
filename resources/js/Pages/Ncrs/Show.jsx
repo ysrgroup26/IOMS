@@ -28,7 +28,7 @@ export default function NcrShow({ ncr: n, canManage, users }) {
 
             <div className="mb-4 flex flex-wrap items-start justify-between gap-3">
                 <div>
-                    <h1 className="flex items-center gap-2 text-2xl font-bold tracking-tight text-graphite-900">{n.ncr_number}<StatusBadge value={n.severity === 'critical' ? 'critical' : n.severity} /><StatusBadge value={n.status === 'closed' ? 'approved' : n.status} label={n.status.replace('_', ' ')} /></h1>
+                    <h1 className="flex items-center gap-2 text-[22px] font-semibold tracking-tight text-graphite-900">{n.ncr_number}<StatusBadge value={n.severity === 'critical' ? 'critical' : n.severity} /><StatusBadge value={n.status === 'closed' ? 'approved' : n.status} label={n.status.replace('_', ' ')} /></h1>
                     <p className="text-xs text-graphite-500">{new Date(n.raised_date).toLocaleDateString('en-US', { day: 'numeric', month: 'long', year: 'numeric' })} · Raised by {n.raiser?.name}</p>
                 </div>
                 {canManage && n.status !== 'closed' && (

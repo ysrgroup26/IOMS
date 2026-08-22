@@ -43,7 +43,7 @@ export default function VendorShow({ vendor: v, activities, canManage, documentT
 
             <div className="mb-4 flex flex-wrap items-start justify-between gap-3">
                 <div>
-                    <h1 className="flex items-center gap-2 text-2xl font-bold tracking-tight text-graphite-900">
+                    <h1 className="flex items-center gap-2 text-[22px] font-semibold tracking-tight text-graphite-900">
                         {v.name}
                         <StatusBadge value={v.qualification_status === 'qualified' ? 'approved' : v.qualification_status === 'rejected' ? 'rejected' : v.qualification_status} label={v.qualification_status.replace('_', ' ')} />
                         {v.is_qualification_expired && <StatusBadge value="expired" />}

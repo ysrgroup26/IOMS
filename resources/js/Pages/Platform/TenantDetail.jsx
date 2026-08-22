@@ -57,7 +57,7 @@ export default function PlatformTenantDetail({ tenant, subscription, administrat
             <div className="mb-6 flex flex-wrap items-center justify-between gap-3">
                 <div>
                     <div className="flex items-center gap-2">
-                        <h1 className="text-2xl font-bold tracking-tight text-graphite-900">{tenant.name}</h1>
+                        <h1 className="text-[22px] font-semibold tracking-tight text-graphite-900">{tenant.name}</h1>
                         <Badge variant={STATUS_VARIANT[tenant.status] ?? 'secondary'}>{tenant.status}</Badge>
                     </div>
                     <p className="mt-1 text-sm text-graphite-500">/{tenant.slug} -- Tenant #{tenant.id}</p>

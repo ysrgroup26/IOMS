@@ -23,7 +23,7 @@ export default function PurchaseOrderShow({ purchaseOrder: po, activities, canMa
 
             <div className="mb-4 flex flex-wrap items-start justify-between gap-3">
                 <div>
-                    <h1 className="flex items-center gap-2 text-2xl font-bold tracking-tight text-graphite-900">{po.po_number}<StatusBadge value={po.status} /></h1>
+                    <h1 className="flex items-center gap-2 text-[22px] font-semibold tracking-tight text-graphite-900">{po.po_number}<StatusBadge value={po.status} /></h1>
                     <p className="text-xs text-graphite-500">{po.vendor?.name} · {new Date(po.po_date).toLocaleDateString('en-US', { day: 'numeric', month: 'long', year: 'numeric' })}{po.delivery_date && ` · due ${new Date(po.delivery_date).toLocaleDateString('en-US', { day: 'numeric', month: 'short', year: 'numeric' })}`}</p>
                 </div>
                 <div className="flex flex-wrap items-center gap-2">

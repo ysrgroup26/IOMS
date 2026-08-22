@@ -29,7 +29,7 @@ export default function PlatformPlans({ plans }) {
 
             <div className="mb-6 flex flex-wrap items-center justify-between gap-3">
                 <div>
-                    <h1 className="text-2xl font-bold tracking-tight text-graphite-900">Plans / Editions</h1>
+                    <h1 className="text-[22px] font-semibold tracking-tight text-graphite-900">Plans / Editions</h1>
                     <p className="mt-1 text-sm text-graphite-500">The pricing/feature tiers tenants can be subscribed to.</p>
                 </div>
                 <Button size="sm" onClick={() => setDialogPlan({})}><Plus className="h-4 w-4" /> New Plan</Button>

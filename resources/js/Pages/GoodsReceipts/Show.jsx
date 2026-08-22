@@ -15,7 +15,7 @@ export default function GoodsReceiptShow({ goodsReceipt: gr, activities }) {
             </Link>
 
             <div className="mb-4">
-                <h1 className="text-2xl font-bold tracking-tight text-graphite-900">{gr.receipt_number}</h1>
+                <h1 className="text-[22px] font-semibold tracking-tight text-graphite-900">{gr.receipt_number}</h1>
                 <p className="text-xs text-graphite-500">
                     {new Date(gr.received_date).toLocaleDateString('en-US', { day: 'numeric', month: 'long', year: 'numeric' })}
                     {gr.material_request && ` · ${gr.material_request.request_number}`}

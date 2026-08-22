@@ -48,7 +48,7 @@ export default function SafetyObservationShow({ observation: o, activities, canM
 
             <div className="mb-4 flex flex-wrap items-start justify-between gap-3">
                 <div>
-                    <h1 className="flex items-center gap-2 text-2xl font-bold tracking-tight text-graphite-900">
+                    <h1 className="flex items-center gap-2 text-[22px] font-semibold tracking-tight text-graphite-900">
                         {o.observation_number}
                         {o.severity && <StatusBadge value={o.severity} />}
                         <StatusBadge value={o.status} />

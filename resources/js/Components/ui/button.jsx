@@ -3,8 +3,18 @@ import { Slot } from '@radix-ui/react-slot';
 import { cva } from 'class-variance-authority';
 import { cn } from '@/lib/utils';
 
+// v1.11.12 (Final Visual Design System pass): default button height was
+// h-8(32px) shrinking to lg:h-7(28px) on desktop -- this pass's own exact
+// spec wants "Button height: 34-36px", the OPPOSITE direction from that
+// desktop-only shrink (a comfortable click target, not a density
+// target -- density comes from KPI/table/typography sizing, not making
+// buttons smaller). Base+desktop both set to h-9 (36px) for `default`;
+// text dropped from text-[13px] to text-xs (12px/500), matching the
+// spec's "Button: 12px" exactly. `sm`/`icon` left as their own smaller,
+// deliberately-secondary scale -- the spec's number is for the everyday
+// primary/secondary button, not every size variant.
 const buttonVariants = cva(
-    'inline-flex items-center justify-center gap-1.5 whitespace-nowrap rounded-lg text-[13px] font-medium transition-colors focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2 disabled:pointer-events-none disabled:opacity-50 [&_svg]:shrink-0',
+    'inline-flex items-center justify-center gap-1.5 whitespace-nowrap rounded-lg text-xs font-medium transition-colors focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2 disabled:pointer-events-none disabled:opacity-50 [&_svg]:shrink-0',
     {
         variants: {
             variant: {
@@ -16,17 +26,10 @@ const buttonVariants = cva(
                 link: 'text-primary underline-offset-4 hover:underline',
             },
             size: {
-                // v1.6.7 Beta UI compaction (first pass): h-9 -> h-8 etc.
-                // as the mobile/tablet-safe base. This session's density
-                // pass adds `lg:` overrides on TOP of that base for
-                // desktop specifically -- touch targets on mobile/tablet
-                // stay exactly as they were; only pointer/desktop screens
-                // get the further reduction, per the explicit "do not
-                // negatively impact tablet or mobile" requirement.
-                default: 'h-8 px-3.5 py-1.5 lg:h-7',
+                default: 'h-9 px-3',
                 sm: 'h-7 rounded-md px-2.5 text-xs lg:h-6',
-                lg: 'h-9 rounded-md px-6 lg:h-8',
-                icon: 'h-8 w-8 lg:h-7 lg:w-7',
+                lg: 'h-9 rounded-md px-6',
+                icon: 'h-9 w-9 lg:h-8 lg:w-8',
             },
         },
         defaultVariants: {

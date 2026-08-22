@@ -18,7 +18,7 @@ export default function DailyReportsIndex({ reports, projects, companies, filter
 
             <div className="mb-6 flex flex-wrap items-center justify-between gap-3">
                 <div>
-                    <h1 className="text-2xl font-bold tracking-tight text-graphite-900">Daily Reports</h1>
+                    <h1 className="text-[22px] font-semibold tracking-tight text-graphite-900">Daily Reports</h1>
                     <p className="mt-1 text-sm text-graphite-500">{reports.total} reports total</p>
                 </div>
                 {can.manage && (

@@ -21,8 +21,10 @@ const SelectGroup = SelectPrimitive.Group;
 const SelectTrigger = React.forwardRef(({ className, children, ...props }, ref) => (
     <SelectPrimitive.Trigger
         ref={ref}
+        // v1.11.12: same fix as Input -- h-9(36px) uniform (was h-8
+        // shrinking to lg:h-7/28px), px-3(12px) horizontal padding.
         className={cn(
-            'flex h-8 w-full items-center justify-between rounded-lg border border-input bg-white px-2.5 py-1.5 text-[13px] text-graphite-900 shadow-sm dark:border-slate-700 dark:bg-slate-900 dark:text-slate-100 lg:h-7 lg:text-xs',
+            'flex h-9 w-full items-center justify-between rounded-lg border border-input bg-white px-3 py-1.5 text-[13px] text-graphite-900 shadow-sm dark:border-slate-700 dark:bg-slate-900 dark:text-slate-100 lg:text-xs',
             'placeholder:text-graphite-400 focus:outline-none focus:ring-2 focus:ring-ring focus:ring-offset-1',
             'disabled:cursor-not-allowed disabled:opacity-50',
             className

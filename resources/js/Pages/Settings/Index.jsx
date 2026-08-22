@@ -41,7 +41,7 @@ export default function SettingsIndex({ company, companies, departments, positio
             <Head title="Settings" />
 
             <div className="mb-6">
-                <h1 className="text-2xl font-bold tracking-tight text-graphite-900">Settings</h1>
+                <h1 className="text-[22px] font-semibold tracking-tight text-graphite-900">Settings</h1>
                 <p className="mt-1 text-sm text-graphite-500">Company info, master data, users, and backups.</p>
             </div>
 

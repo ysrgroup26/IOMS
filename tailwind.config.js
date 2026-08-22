@@ -67,6 +67,32 @@ export default {
                     800: '#1e293b',
                     900: '#0f172a',
                 },
+                // v1.11.12 (Final Visual Design System pass): exact-hex
+                // semantic tokens for the three shades that DIDN'T
+                // already match this pass's spec. Tailwind's own
+                // `emerald-600`/`amber-600`/`red-600` (what StatCard's
+                // accent classes used before this pass) render
+                // #059669/#d97706/#dc2626, not the #16A34A/#F59E0B/
+                // #EF4444 this spec calls for (those are actually
+                // Tailwind's `green-600`/`amber-500`/`red-500` -- easy to
+                // reach for the wrong shade by name alone). Named `success`/
+                // `warning`/`danger` here (deliberately NOT `green`/
+                // `amber`/`red`/`purple` -- those are Tailwind's own
+                // built-in palette names; `extend.colors` REPLACES a
+                // built-in palette entirely rather than merging into it,
+                // so reusing one of those names would have silently
+                // deleted every other shade of that color Tailwind ships,
+                // e.g. `red-50`/`red-100` used elsewhere in the app for
+                // unrelated things). Purple needed no new token at all --
+                // Tailwind's own `violet-600`/`violet-50` are already
+                // exactly `#7C3AED`/`#F5F3FF`, confirmed before adding
+                // anything here.
+                // v1.11.13: success-light corrected #F0FDF4 -> #ECFDF5 --
+                // the latest reference screenshots + spec restate this
+                // exact hex (Tailwind's own emerald-50, not green-50).
+                success: { DEFAULT: '#16A34A', light: '#ECFDF5' },
+                warning: { DEFAULT: '#F59E0B', light: '#FFFBEB' },
+                danger: { DEFAULT: '#EF4444', light: '#FEF2F2' },
             },
             borderRadius: {
                 lg: 'var(--radius)',
@@ -78,7 +104,11 @@ export default {
                 sans: ['Inter', 'ui-sans-serif', 'system-ui', 'sans-serif'],
             },
             boxShadow: {
-                card: '0 1px 2px 0 rgba(15, 23, 42, 0.04), 0 1px 3px 0 rgba(15, 23, 42, 0.06)',
+                // v1.11.12: simplified to the exact single-layer shadow
+                // this pass's spec calls for ("Do NOT use strong
+                // shadows") -- was a two-layer shadow with a second,
+                // more visible 0.06-alpha layer stacked on top.
+                card: '0 1px 2px 0 rgba(15, 23, 42, 0.04)',
                 'card-hover': '0 4px 12px 0 rgba(15, 23, 42, 0.08)',
             },
             keyframes: {

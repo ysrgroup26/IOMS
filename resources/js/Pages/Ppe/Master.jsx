@@ -62,7 +62,7 @@ export default function PpeMaster({ ppeTypes, can }) {
 
             <div className="mb-6 flex flex-wrap items-center justify-between gap-3">
                 <div>
-                    <h1 className="text-2xl font-bold tracking-tight text-graphite-900">PPE Master</h1>
+                    <h1 className="text-[22px] font-semibold tracking-tight text-graphite-900">PPE Master</h1>
                     <p className="mt-1 text-sm text-graphite-500">
                         Configure PPE types and replacement intervals. No hardcoded values — everything here is editable.
                     </p>

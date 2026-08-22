@@ -19,7 +19,7 @@ export default function ComingSoon({ label }) {
                     <div className="flex h-12 w-12 items-center justify-center rounded-full bg-graphite-100 text-graphite-400 dark:bg-slate-800 dark:text-slate-500">
                         <Construction className="h-6 w-6" />
                     </div>
-                    <h1 className="text-2xl font-bold tracking-tight text-graphite-900 dark:text-slate-50">{label}</h1>
+                    <h1 className="text-[22px] font-semibold tracking-tight text-graphite-900 dark:text-slate-50">{label}</h1>
                     <p className="max-w-sm text-sm text-graphite-500 dark:text-slate-400">
                         This department is on the IOMS roadmap but hasn't been built yet. Check back in a future release.
                     </p>

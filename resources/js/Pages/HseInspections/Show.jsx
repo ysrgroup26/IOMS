@@ -29,7 +29,7 @@ export default function HseInspectionShow({ inspection: i, activities, canManage
             </Link>
 
             <div className="mb-4">
-                <h1 className="flex items-center gap-2 text-2xl font-bold tracking-tight text-graphite-900">
+                <h1 className="flex items-center gap-2 text-[22px] font-semibold tracking-tight text-graphite-900">
                     {i.inspection_number}
                     <StatusBadge value={i.overall_result === 'fail' ? 'rejected' : 'approved'} label={i.overall_result} />
                 </h1>

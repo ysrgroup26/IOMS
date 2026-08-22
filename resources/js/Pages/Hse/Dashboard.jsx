@@ -9,7 +9,7 @@ import ModuleCard from '@/Components/shared/ModuleCard';
 import DepartmentCalendarWidget from '@/Components/shared/DepartmentCalendarWidget';
 import {
     FolderKanban, AlertTriangle, HardHat, History, Eye, Flame, ShieldAlert, ClipboardCheck,
-    ClipboardList, FileWarning, Lock, UsersRound, FlaskConical, UserCheck, FileCheck, FileStack, Recycle,
+    ClipboardList, FileWarning, Lock, UsersRound, FlaskConical, UserCheck, FileCheck, FileStack, Recycle, Clock,
 } from 'lucide-react';
 
 // v1.11.7 (Bahasa Indonesia Standardization, Part 4) -- translated per
@@ -77,22 +77,22 @@ export default function HseDashboard({
                         <CardContent className="grid grid-cols-2 gap-2 text-sm sm:grid-cols-4">
                             <div className="rounded-lg border border-graphite-100 p-2.5 dark:border-slate-800">
                                 <p className="text-xs text-graphite-400">Insiden</p>
-                                <p className="text-base font-bold text-graphite-900 dark:text-slate-50">{openIncidentsCount}</p>
+                                <p className="text-base font-semibold text-graphite-900 dark:text-slate-50">{openIncidentsCount}</p>
                                 <p className="text-[11px] text-graphite-400">{incidentsBySeverity?.critical ?? 0} kritis</p>
                             </div>
                             <div className="rounded-lg border border-graphite-100 p-2.5 dark:border-slate-800">
                                 <p className="text-xs text-graphite-400">Observasi</p>
-                                <p className="text-base font-bold text-graphite-900 dark:text-slate-50">{openSafetyObservationsCount}</p>
+                                <p className="text-base font-semibold text-graphite-900 dark:text-slate-50">{openSafetyObservationsCount}</p>
                                 <p className="text-[11px] text-graphite-400">terbuka</p>
                             </div>
                             <div className="rounded-lg border border-graphite-100 p-2.5 dark:border-slate-800">
                                 <p className="text-xs text-graphite-400">CAPA</p>
-                                <p className="text-base font-bold text-graphite-900 dark:text-slate-50">{openCapaCount}</p>
+                                <p className="text-base font-semibold text-graphite-900 dark:text-slate-50">{openCapaCount}</p>
                                 <p className="text-[11px] text-graphite-400">terbuka</p>
                             </div>
                             <div className="rounded-lg border border-graphite-100 p-2.5 dark:border-slate-800">
                                 <p className="text-xs text-graphite-400">Izin Kerja (PTW)</p>
-                                <p className="text-base font-bold text-graphite-900 dark:text-slate-50">{openPermitsCount}</p>
+                                <p className="text-base font-semibold text-graphite-900 dark:text-slate-50">{openPermitsCount}</p>
                                 <p className="text-[11px] text-graphite-400">aktif</p>
                             </div>
                         </CardContent>
@@ -130,31 +130,27 @@ export default function HseDashboard({
                     Fatality intentionally show "Not available" rather than a
                     fabricated formula -- see HseDashboardController's own
                     doc comment on `safetyKpi.lost_time_metrics_available`. */}
+                {/* v1.11.13: the four real metrics below now reuse the shared
+                    StatCard's `size="sm"` variant (added this pass to match
+                    the reference screenshots' own smaller "Ringkasan KPI"
+                    scale) instead of hand-rolled div markup -- proper
+                    component reuse, not a styling duplicate. The 5th tile
+                    (LTI/LTIFR/TRIR) stays its own dashed, message-only
+                    treatment since it isn't a metric -- it's an explicit
+                    "not available" state, and StatCard has no such mode. */}
                 <Card>
                     <CardHeader className="pb-2">
                         <CardTitle className="text-sm">Man-Hour &amp; Fondasi KPI Keselamatan</CardTitle>
                         <CardDescription>Hanya data nyata -- rasio yang memerlukan data belum tercatat ditampilkan sebagai tidak tersedia</CardDescription>
                     </CardHeader>
-                    <CardContent className="grid grid-cols-2 gap-2 text-sm sm:grid-cols-5">
-                        <div className="rounded-lg border border-graphite-100 p-2.5 dark:border-slate-800">
-                            <p className="text-xs text-graphite-400">Man-Hour Hari Ini</p>
-                            <p className="text-base font-bold text-graphite-900 dark:text-slate-50">{manHours?.today ?? '—'}</p>
-                        </div>
-                        <div className="rounded-lg border border-graphite-100 p-2.5 dark:border-slate-800">
-                            <p className="text-xs text-graphite-400">Man-Hour Bulan Ini</p>
-                            <p className="text-base font-bold text-graphite-900 dark:text-slate-50">{manHours?.this_month ?? '—'}</p>
-                        </div>
-                        <div className="rounded-lg border border-graphite-100 p-2.5 dark:border-slate-800">
-                            <p className="text-xs text-graphite-400">Man-Hour Tahun Berjalan</p>
-                            <p className="text-base font-bold text-graphite-900 dark:text-slate-50">{manHours?.ytd ?? '—'}</p>
-                        </div>
-                        <div className="rounded-lg border border-graphite-100 p-2.5 dark:border-slate-800">
-                            <p className="text-xs text-graphite-400">Cedera Tercatat Tahun Berjalan</p>
-                            <p className="text-base font-bold text-graphite-900 dark:text-slate-50">{safetyKpi?.recordable_injuries_ytd ?? 0}</p>
-                        </div>
-                        <div className="rounded-lg border border-dashed border-graphite-200 p-2.5 dark:border-slate-700">
-                            <p className="text-xs text-graphite-400">LTI / LTIFR / TRIR</p>
-                            <p className="text-xs italic text-graphite-400">Tidak tersedia -- memerlukan data hari-hilang-kerja &amp; klasifikasi tingkat keparahan yang belum tercatat</p>
+                    <CardContent className="grid grid-cols-2 gap-2 sm:grid-cols-5">
+                        <StatCard size="sm" icon={Clock} value={manHours?.today ?? '—'} label="Man-Hour Hari Ini" />
+                        <StatCard size="sm" icon={Clock} value={manHours?.this_month ?? '—'} label="Man-Hour Bulan Ini" />
+                        <StatCard size="sm" icon={Clock} value={manHours?.ytd ?? '—'} label="Man-Hour Tahun Berjalan" />
+                        <StatCard size="sm" icon={AlertTriangle} value={safetyKpi?.recordable_injuries_ytd ?? 0} label="Cedera Tercatat YTD" accent={safetyKpi?.recordable_injuries_ytd > 0 ? 'amber' : 'green'} />
+                        <div className="rounded-xl border border-dashed border-graphite-200 p-3 dark:border-slate-700">
+                            <p className="text-[11px] font-medium uppercase tracking-wide text-graphite-400">LTI / LTIFR / TRIR</p>
+                            <p className="mt-1 text-[11px] italic leading-snug text-graphite-400">Tidak tersedia -- memerlukan data hari-hilang-kerja &amp; klasifikasi tingkat keparahan yang belum tercatat</p>
                         </div>
                     </CardContent>
                 </Card>

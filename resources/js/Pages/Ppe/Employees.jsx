@@ -62,7 +62,7 @@ export default function PpeEmployees({ employees, companies, departments, filter
             <PpeTabNav />
 
             <div className="mb-6">
-                <h1 className="text-2xl font-bold tracking-tight text-graphite-900 dark:text-slate-50">Employee PPE</h1>
+                <h1 className="text-[22px] font-semibold tracking-tight text-graphite-900 dark:text-slate-50">Employee PPE</h1>
                 <p className="mt-1 text-sm text-graphite-500 dark:text-slate-400">Select an employee to view or manage their PPE</p>
             </div>
 

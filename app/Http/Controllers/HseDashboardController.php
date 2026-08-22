@@ -118,14 +118,44 @@ class HseDashboardController extends Controller
                     ->whereNotNull('next_inspection_due')->whereDate('next_inspection_due', '<', now())
                     ->limit(5)->get(['id', 'location', 'next_inspection_due'])
                     ->map(fn (P3kBox $b) => ['type' => 'P3K Overdue', 'label' => $b->location, 'date' => $b->next_inspection_due, 'href' => route('hse.master').'?tab=supplies']))
+                // v1.11.6 fix: `corrective_actions` has no `title` column
+                // (confirmed against 2026_08_19_100064_create_corrective_
+                // actions_table -- the actual free-text field is `action`)
+                // -- this was the exact root cause of the HSE Overview
+                // HTTP 500 (a QueryException on an unknown column, the
+                // same class of bug this pass was told to watch for).
                 ->merge(CorrectiveAction::whereIn('company_id', $companyIds)
                     ->whereNotIn('status', [CorrectiveAction::STATUS_VERIFIED, CorrectiveAction::STATUS_CANCELLED])
                     ->whereNotNull('due_date')->whereDate('due_date', '<', now())
-                    ->limit(5)->get(['id', 'title', 'due_date'])
-                    ->map(fn (CorrectiveAction $c) => ['type' => 'CAPA Overdue', 'label' => $c->title, 'date' => $c->due_date, 'href' => route('corrective-actions.index')]))
+                    ->limit(5)->get(['id', 'action', 'due_date'])
+                    ->map(fn (CorrectiveAction $c) => ['type' => 'CAPA Overdue', 'label' => $c->action, 'date' => $c->due_date, 'href' => route('corrective-actions.index')]))
                 ->sortBy('date')
                 ->values()
                 ->take(8),
+            // v1.11.6 (Production Readiness pass, Part 4/5) -- real
+            // Man-Hours (see ManHourLog) plus a Safety KPI Foundation
+            // built ONLY from data that actually exists: open injury-
+            // category incidents (a real, already-captured field) and
+            // total Man-Hours for the same period. LTI/LTIFR/TRIR/
+            // Fatality rate are deliberately NOT computed -- Incident has
+            // no lost-time-days or fatality/recordability classification
+            // captured anywhere, so those formulas would need fabricated
+            // inputs. `safetyKpi.lost_time_metrics_available` is false so
+            // the frontend can render an honest "not available" state
+            // instead of a fake number.
+            'manHours' => [
+                'today' => $this->dashboardStats->sumManHours($companyIds, now()->toDateString(), now()->toDateString()),
+                'this_month' => $this->dashboardStats->sumManHours($companyIds, now()->startOfMonth()->toDateString(), now()->toDateString()),
+                'ytd' => $this->dashboardStats->sumManHours($companyIds, now()->startOfYear()->toDateString(), now()->toDateString()),
+            ],
+            'safetyKpi' => [
+                'man_hours_ytd' => $this->dashboardStats->sumManHours($companyIds, now()->startOfYear()->toDateString(), now()->toDateString()),
+                'recordable_injuries_ytd' => Incident::where(fn ($q) => $q->whereIn('company_id', $companyIds)->orWhereNull('company_id'))
+                    ->where('category', 'injury')
+                    ->whereYear('incident_date', now()->year)
+                    ->count(),
+                'lost_time_metrics_available' => false,
+            ],
             'departmentCalendar' => $this->calendar->departmentEvents($companyIds, 'hse'),
             // v1.11.4 (HSE Waste Management, Part 20) -- compact summary
             // only, explicit instruction: "Do NOT turn it into another

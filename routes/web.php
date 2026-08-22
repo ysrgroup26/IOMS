@@ -42,6 +42,7 @@ use App\Http\Controllers\WarehouseDashboardController;
 use App\Http\Controllers\KpiInputController;
 use App\Http\Controllers\KpiRecordController;
 use App\Http\Controllers\LeaveRequestController;
+use App\Http\Controllers\ManHourController;
 use App\Http\Controllers\LogisticsDashboardController;
 use App\Http\Controllers\LotoRecordController;
 use App\Http\Controllers\MaintenanceDashboardController;
@@ -668,6 +669,11 @@ Route::middleware(['auth', 'restrict.platform-admin'])->group(function () {
     Route::post('/leave-requests', [LeaveRequestController::class, 'store'])->name('leave-requests.store');
     Route::get('/leave-requests/{leaveRequest}', [LeaveRequestController::class, 'show'])->name('leave-requests.show');
     Route::post('/leave-requests/{leaveRequest}/cancel', [LeaveRequestController::class, 'cancel'])->name('leave-requests.cancel');
+
+    // Man-Hour (v1.11.6, Production Readiness pass, Part 4) -- HR-owned operational log, see ManHourController's own doc comment.
+    Route::get('/man-hour', [ManHourController::class, 'index'])->name('man-hour.index');
+    Route::post('/man-hour', [ManHourController::class, 'store'])->name('man-hour.store');
+    Route::delete('/man-hour/{manHourLog}', [ManHourController::class, 'destroy'])->name('man-hour.destroy');
 
     Route::get('/hse/dashboard', [HseDashboardController::class, 'index'])->name('hse.dashboard');
     Route::get('/incidents', [IncidentController::class, 'index'])->name('incidents.index');

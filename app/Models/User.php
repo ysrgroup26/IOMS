@@ -180,7 +180,9 @@ class User extends Authenticatable
     }
 
     /**
-     * HRD: read-only (dashboard, employees, reports). Unchanged from v1.
+     * HRD role check. The "read-only" doc comment this used to carry is
+     * stale as of the HR Leave Requests module (v1.10.0+) -- HRD now has
+     * a real write surface via canManageLeaveRequests() below.
      */
     public function isHrd(): bool
     {
@@ -279,10 +281,31 @@ class User extends Authenticatable
         return $this->isSuperAdmin() || $this->isHse();
     }
 
-    /** Leave (v1.10.0) -- same operational-staff gate as Material Request; creation/editing is staff-on-behalf-of-employee, not employee self-service (no employee login exists). */
+    /**
+     * v1.11.6 bug fix (Production Readiness pass): this checked isHse()
+     * instead of isHrd() -- almost certainly a copy/paste from the HSE
+     * permission methods immediately around it (canManageIncidents,
+     * canManageSafetyObservations both legitimately use isHse()). Effect
+     * in production: the actual HRD role could not manage its own
+     * Leave Requests module (config/departments.php scopes
+     * 'leave-requests' under the 'hr' department, not 'hse'), while HSE
+     * users incorrectly could. Root cause confirmed by cross-referencing
+     * the department-prefix map, not guessed.
+     */
     public function canManageLeaveRequests(): bool
     {
-        return $this->isSuperAdmin() || $this->isHse();
+        return $this->isSuperAdmin() || $this->isHrd();
+    }
+
+    /**
+     * Man-Hour log entry (v1.11.6) -- HR-owned operational data (same
+     * "staff records on behalf of employees" shape as Leave), gated to
+     * HRD the same way. HSE and other departments read the aggregated
+     * totals (see HseDashboardController) but do not enter the records.
+     */
+    public function canManageManHour(): bool
+    {
+        return $this->isSuperAdmin() || $this->isHrd();
     }
 
     /** Incident Management (v1.10.0) -- HSE's own domain, same gate as PPE/Employees. */

@@ -20,7 +20,7 @@ import { formatNumber, cn } from '@/lib/utils';
 import {
     Trophy, Flame, ClipboardList, Users2, FolderKanban, Activity, Bell,
     Users, Building2, CalendarDays, HardHat, CheckCircle2, AlertTriangle, Plus, UserCog, ArrowRight,
-    Sparkles, X, ClipboardCheck, ShoppingCart, Boxes, Box, Wrench, Flag,
+    Sparkles, X, ClipboardCheck, ShoppingCart, Boxes, Box, Wrench, Flag, Clock,
 } from 'lucide-react';
 
 /**
@@ -38,7 +38,7 @@ export default function Dashboard({
     activeProjectsCount, todaysActivities, upcomingReminders, pendingTasks, employeesNeedCompletionCount,
     recentDailyReports, recentEmployeeChanges, showAnnouncement,
     openIncidentsCount, openCapaCount, pendingProcurementCount, stockAlertCount, assetCount, maintenanceDueCount,
-    upcomingEvents, manpower, projectSummary, upcomingMilestones,
+    upcomingEvents, manpower, manhours, projectSummary, upcomingMilestones,
 }) {
     const { auth, notifications, version } = usePage().props;
     const deptPrefixes = auth?.user?.department_prefixes ?? null;
@@ -357,13 +357,14 @@ export default function Dashboard({
                 Engine in this app yet (no backing data model) -- adding
                 UI for those would mean fabricating fake data, so they
                 were intentionally left out rather than faked. */}
-            {/* v1.11.1 (Final Production Readiness Pass, Part 4/5/6):
-                Calendar and Man-Hour/Man-Power widgets, required on the
-                MAIN Dashboard specifically (not only the standalone
-                Calendar page/HSE Overview) -- see DashboardController's
-                own doc comment for what "Man-Hour" actually means here
-                given no attendance/timesheet data source exists yet. */}
-            <div className="mt-4 grid grid-cols-1 gap-3 lg:grid-cols-2">
+            {/* v1.11.1 (Final Production Readiness Pass, Part 4/5/6),
+                widened v1.11.6 once Man-Hours became real data: Calendar,
+                Man-Power, and Man-Hours widgets, required on the MAIN
+                Dashboard specifically (not only the standalone Calendar
+                page/HSE Overview). Man-Power and Man-Hours are shown as
+                two SEPARATE cards -- see DashboardController's own doc
+                comment on `manhours`. */}
+            <div className="mt-4 grid grid-cols-1 gap-3 lg:grid-cols-3">
                 {/* v1.11.3: was hand-duplicated inline markup, byte-for-byte
                     the same shape as DepartmentCalendarWidget -- now reuses
                     that shared component directly (see docs/CONVENTIONS.md
@@ -379,7 +380,7 @@ export default function Dashboard({
                 <Card>
                     <CardHeader>
                         <CardTitle className="flex items-center gap-2"><Users2 className="h-3.5 w-3.5 text-graphite-400" /> Man-Power</CardTitle>
-                        <CardDescription>Workforce currently on record -- man-hour tracking requires a timesheet source not yet in IOMS.</CardDescription>
+                        <CardDescription>Workforce currently on record.</CardDescription>
                     </CardHeader>
                     <CardContent className="grid grid-cols-2 gap-3">
                         <div className="rounded-lg border border-graphite-100 p-3 dark:border-slate-800">
@@ -389,6 +390,32 @@ export default function Dashboard({
                         <div className="rounded-lg border border-graphite-100 p-3 dark:border-slate-800">
                             <p className="text-lg font-bold text-graphite-900 dark:text-slate-50">{formatNumber(manpower.on_shift_today)}</p>
                             <p className="text-xs text-graphite-400">On Shift Today</p>
+                        </div>
+                    </CardContent>
+                </Card>
+
+                {/* v1.11.6 (Production Readiness pass, Part 4) -- Man-Hours
+                    shown as a SEPARATE concept from Man-Power above, backed
+                    by the new ManHourLog record. "—" (not "0") whenever no
+                    record exists yet for that period, so an empty log never
+                    reads as a real zero. */}
+                <Card>
+                    <CardHeader>
+                        <CardTitle className="flex items-center gap-2"><Clock className="h-3.5 w-3.5 text-graphite-400" /> Man-Hours</CardTitle>
+                        <CardDescription>Actual worked hours, entered via Man-Hour (HR).</CardDescription>
+                    </CardHeader>
+                    <CardContent className="grid grid-cols-3 gap-3">
+                        <div className="rounded-lg border border-graphite-100 p-3 text-center dark:border-slate-800">
+                            <p className="text-lg font-bold text-graphite-900 dark:text-slate-50">{manhours?.today ?? '—'}</p>
+                            <p className="text-xs text-graphite-400">Today</p>
+                        </div>
+                        <div className="rounded-lg border border-graphite-100 p-3 text-center dark:border-slate-800">
+                            <p className="text-lg font-bold text-graphite-900 dark:text-slate-50">{manhours?.this_month ?? '—'}</p>
+                            <p className="text-xs text-graphite-400">This Month</p>
+                        </div>
+                        <div className="rounded-lg border border-graphite-100 p-3 text-center dark:border-slate-800">
+                            <p className="text-lg font-bold text-graphite-900 dark:text-slate-50">{manhours?.ytd ?? '—'}</p>
+                            <p className="text-xs text-graphite-400">YTD</p>
                         </div>
                     </CardContent>
                 </Card>

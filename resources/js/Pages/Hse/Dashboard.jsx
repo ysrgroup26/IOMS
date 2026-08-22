@@ -44,7 +44,7 @@ export default function HseDashboard({
     activeProjectsCount, openIncidentsCount, incidentsBySeverity, ppeAlertCount,
     recentIncidents, recentActivity, openSafetyObservationsCount, recentSafetyObservations,
     openPermitsCount, overdueSafetyEquipmentCount, overdueP3kCount, openCapaCount, actionRequired,
-    departmentCalendar, wasteSummary,
+    manHours, safetyKpi, departmentCalendar, wasteSummary,
 }) {
     return (
         <AuthenticatedLayout>
@@ -116,6 +116,41 @@ export default function HseDashboard({
                         </CardContent>
                     </Card>
                 </div>
+
+                {/* v1.11.6 (Production Readiness pass, Part 4/5) -- Man-Hours
+                    (real data, ManHourLog) and a Safety KPI Foundation built
+                    ONLY from data that actually exists. LTI/LTIFR/TRIR/
+                    Fatality intentionally show "Not available" rather than a
+                    fabricated formula -- see HseDashboardController's own
+                    doc comment on `safetyKpi.lost_time_metrics_available`. */}
+                <Card>
+                    <CardHeader className="pb-2">
+                        <CardTitle className="text-sm">Man-Hours &amp; Safety KPI Foundation</CardTitle>
+                        <CardDescription>Real data only -- rates requiring untracked fields show as not available</CardDescription>
+                    </CardHeader>
+                    <CardContent className="grid grid-cols-2 gap-2 text-sm sm:grid-cols-5">
+                        <div className="rounded-lg border border-graphite-100 p-2.5 dark:border-slate-800">
+                            <p className="text-xs text-graphite-400">Man-Hours Today</p>
+                            <p className="text-base font-bold text-graphite-900 dark:text-slate-50">{manHours?.today ?? '—'}</p>
+                        </div>
+                        <div className="rounded-lg border border-graphite-100 p-2.5 dark:border-slate-800">
+                            <p className="text-xs text-graphite-400">Man-Hours This Month</p>
+                            <p className="text-base font-bold text-graphite-900 dark:text-slate-50">{manHours?.this_month ?? '—'}</p>
+                        </div>
+                        <div className="rounded-lg border border-graphite-100 p-2.5 dark:border-slate-800">
+                            <p className="text-xs text-graphite-400">Man-Hours YTD</p>
+                            <p className="text-base font-bold text-graphite-900 dark:text-slate-50">{manHours?.ytd ?? '—'}</p>
+                        </div>
+                        <div className="rounded-lg border border-graphite-100 p-2.5 dark:border-slate-800">
+                            <p className="text-xs text-graphite-400">Recordable Injuries YTD</p>
+                            <p className="text-base font-bold text-graphite-900 dark:text-slate-50">{safetyKpi?.recordable_injuries_ytd ?? 0}</p>
+                        </div>
+                        <div className="rounded-lg border border-dashed border-graphite-200 p-2.5 dark:border-slate-700">
+                            <p className="text-xs text-graphite-400">LTI / LTIFR / TRIR</p>
+                            <p className="text-xs italic text-graphite-400">Not available -- requires lost-time-day &amp; recordability tracking not yet captured</p>
+                        </div>
+                    </CardContent>
+                </Card>
 
                 {/* LEVEL 4 -- module shortcuts, compact grid */}
                 <div className="grid grid-cols-2 gap-3 sm:grid-cols-3 lg:grid-cols-6">

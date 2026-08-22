@@ -22,10 +22,27 @@ const FILTER_LABELS = {
  * it again here would be exactly the "duplicate information" the spec
  * calls out. The entire card is the click target (no separate "View"
  * button, also per explicit instruction).
+ *
+ * v1.11.6 (Production Readiness pass, Part 2): root cause of "filters
+ * reset after Add PPE" was that navigating into an employee's profile
+ * dropped the current company/department/search/page context from the
+ * URL entirely -- the profile page's "Back to Employee PPE" link had
+ * nothing to reconstruct it from. Filters were already URL-driven here
+ * (the actual list page); the fix is carrying that same query string
+ * along into the profile URL so it survives the round trip, not
+ * inventing new global/session state.
  */
 export default function PpeEmployees({ employees, companies, departments, filters }) {
     function applyFilters(overrides = {}) {
         router.get(route('ppe.employees'), { ...filters, ...overrides }, { preserveState: true, replace: true });
+    }
+
+    function employeeHref(employeeId) {
+        const params = { ...filters, page: employees.current_page > 1 ? employees.current_page : undefined };
+        const query = new URLSearchParams(
+            Object.entries(params).filter(([, v]) => v !== null && v !== undefined && v !== '')
+        ).toString();
+        return route('ppe.employees.show', employeeId) + (query ? `?${query}` : '');
     }
 
     const availableDepartments = filters.company_id
@@ -98,7 +115,7 @@ export default function PpeEmployees({ employees, companies, departments, filter
                             {employees.data.map((emp) => (
                                 <Link
                                     key={emp.id}
-                                    href={route('ppe.employees.show', emp.id)}
+                                    href={employeeHref(emp.id)}
                                     className="flex items-center justify-between gap-4 px-4 py-2 transition-colors hover:bg-graphite-50 dark:hover:bg-slate-800/60"
                                 >
                                     <span className="min-w-0 flex-1 truncate text-[13px] font-medium text-graphite-900 dark:text-slate-100">{emp.full_name}</span>

@@ -1422,6 +1422,69 @@ programmatically (not just by inspection) that all five resolve to `hse` before 
 committed. `RestrictDepartmentAccess` itself was not modified. Write operations are gated by the
 existing `canManageHse()` check inside each controller, matching every other HSE module's pattern.
 
+## Production Readiness + HSE Operational Fix Pass (v1.11.6)
+
+**Bug fixes (real root causes, not guessed)**:
+- **HSE Overview HTTP 500**: `HseDashboardController`'s `actionRequired` (added v1.11.5) selected a
+  `title` column on `corrective_actions` that doesn't exist — the real free-text field is `action`
+  (confirmed against `2026_08_19_100064_create_corrective_actions_table`). Fixed the `get([...])`
+  select and the `->map()` accessor. This is the exact "database column doesn't match code" bug class
+  the project has hit before (`permits_to_work` vs `permit_to_works`) — that one was already correctly
+  handled (`PermitToWork::$table` is explicitly set), it was this newly-added query that regressed.
+- **HRD could not manage its own Leave Requests**: `User::canManageLeaveRequests()` checked `isHse()`
+  instead of `isHrd()` — almost certainly a copy/paste from the HSE-domain permission methods
+  immediately around it. `config/departments.php` scopes `leave-requests` under `hr`, confirming the
+  intended gate. Fixed; `isHrd()`'s stale "read-only" doc comment corrected too.
+- **PPE record edit was structurally incomplete**: the only Edit UI (`EmployeeProfile.jsx`'s
+  `EditAssignmentDialog`) and its backend (`UpdateEmployeePpeRequest`) only ever handled `status`/
+  `remarks` — there was no way to correct a wrong PPE type or a typo'd issue/expiry date once issued,
+  short of Delete + re-Issue. Both request validation and the dialog now also handle `ppe_type_id`/
+  `issued_date`/`expiry_date`. `employee_id` deliberately stays non-editable (reassignment isn't a
+  correction); there is no `quantity` field to add — `employee_ppe` is already one row per physical
+  item.
+- **PPE filter/context loss**: navigating from the filtered Employee PPE list into an employee's
+  profile dropped company/department/search/page from the URL; the profile's "Back to Employee PPE"
+  link had nothing to reconstruct it from. `Employees.jsx` now carries the current filters (and page)
+  into the profile URL as a query string; `PpeController::employeeProfile()` echoes them back as a
+  `backUrl` prop the profile page's Back link uses. Pure URL-state, no new global/session state.
+- **Tenant-isolation gap on `EmployeePpe` update/delete**: `EmployeePpe` has no `tenant_id` of its own
+  and no global scope (the app's single tenant-isolation anchor, `TenantScope`, is applied only to
+  `Company` — see that class's own doc comment), so `{employeePpe}` route-model-binding on
+  update/destroy previously succeeded for ANY tenant's record given a guessable id; the Policy only
+  ever checked the role capability. `EmployeePpePolicy::update()`/`delete()` now also confirm the
+  record's employee's company still resolves (i.e. belongs to the current tenant) before allowing the
+  action. `PpeController::update()` was also missing its `$this->authorize()` call entirely — added,
+  matching `completeReplacement()`'s existing pattern. **This same route-model-binding gap likely
+  exists on other single-record endpoints across the app** (not audited exhaustively this pass) — see
+  the final report's Security section.
+
+**Man-Hour (new, minimal, real)**: no attendance/timesheet/clock-in model existed anywhere in this
+codebase — `EmployeeShiftAssignment`/`Shift` only capture *scheduled* shift membership, never actual
+worked hours. `ManHourLog` (`man_hour_logs`, one row per employee per work date, `regular_hours` +
+`overtime_hours` entered explicitly, `total_hours` a computed accessor never a stored column) is the
+new minimal operational record the spec asked for, owned by HR (`canManageManHour()`, gated the same
+way as Leave). `DashboardStatsService::sumManHours()` (shared by `DashboardController` and
+`HseDashboardController`) returns `null` — not `0` — when no rows exist for a period, so an empty log
+never reads as a real zero. Main Dashboard now shows Man-Power and Man-Hours as two separate cards;
+HSE Overview shows Man-Hours Today/This Month/YTD plus a Safety KPI Foundation panel that
+**deliberately does not compute LTI/LTIFR/TRIR/Fatality rate** — `Incident` has no lost-time-days or
+recordability/fatality classification captured anywhere, so those formulas would need fabricated
+inputs; the panel shows an explicit "not available" state instead ("Attendance", the sidebar's old
+disabled placeholder, was replaced by the real "Man-Hour" item rather than left alongside it).
+
+**SaaS foundation audit**: `Tenant → Company → Subscription (trial/subscription/lifetime, generic,
+never hardcoded to one tenant) → Invoice` already existed from a prior Milestone 2/SaaS Finalization
+pass and needed no rebuild. What did not exist: any payment-gateway integration, webhook handling, or
+transaction/idempotency ledger. Added as pure architecture, not a live integration:
+`App\Contracts\PaymentGatewayInterface` (`createCheckout`/`createPayment`/`getPaymentStatus`/
+`verifyWebhookSignature`/`handleWebhook`/`refund`), bound by default to `NullPaymentGateway` (throws a
+clear "no payment gateway is configured" on every call — never a fake success), `payment_transactions`
+(one row per gateway attempt) and `payment_webhook_events` (a `(gateway, event_id)`-unique idempotency
+ledger so a duplicate webhook delivery can never double-apply), `config/payment.php` (env-driven,
+Indonesian-gateway-shaped — Midtrans/Xendit key names — no credentials committed). **Requires provider
+configuration** before any checkout can actually run; nothing routes to this yet since there is no real
+adapter to route to.
+
 ## Reusable engines (Approval, Workflow, Timeline, Import, PDF, Report Export)
 
 These aren't a "module" with their own page — they're cross-cutting infrastructure consumed by the

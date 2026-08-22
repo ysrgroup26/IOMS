@@ -196,14 +196,10 @@ class DashboardController extends Controller
                 ->orderBy('target_date')
                 ->limit(5)
                 ->get(['id', 'project_id', 'title', 'target_date', 'status']),
-            // v1.11.1, Part 6 -- Man-Hour/Man-Power foundation. Audited
-            // first: no attendance/timesheet/clock-in table exists
-            // anywhere in this codebase, so actual WORKED man-hours
-            // cannot be reliably computed -- NOT fabricated here. What
-            // genuinely exists and is shown instead: total active
-            // workforce, and how many are currently assigned to a shift
-            // right now (EmployeeShiftAssignment, real data, tenant-
-            // scoped). See docs/MODULES.md's own note on this limitation.
+            // v1.11.1, Part 6 -- Man-Power foundation. What genuinely
+            // exists and is shown: total active workforce, and how many
+            // are currently assigned to a shift right now
+            // (EmployeeShiftAssignment, real data, tenant-scoped).
             'manpower' => [
                 'active_employees' => Employee::whereIn('company_id', $companyIds)->active()->count(),
                 'on_shift_today' => EmployeeShiftAssignment::whereHas('employee', fn ($q) => $q->whereIn('company_id', $companyIds))
@@ -211,6 +207,18 @@ class DashboardController extends Controller
                     ->where('effective_date', '<=', now()->toDateString())
                     ->where(fn ($q) => $q->whereNull('end_date')->orWhere('end_date', '>=', now()->toDateString()))
                     ->count(),
+            ],
+            // v1.11.6 (Production Readiness pass, Part 4) -- Man-Hour is
+            // now a real, separate data source (ManHourLog, see its own
+            // migration doc comment) and deliberately shown as a
+            // DIFFERENT concept from Man-Power above, not conflated with
+            // headcount. `null` (not 0) whenever zero rows exist yet for
+            // a period, so an empty log reads as "not recorded" rather
+            // than a real zero.
+            'manhours' => [
+                'today' => $this->stats->sumManHours($companyIds, now()->toDateString(), now()->toDateString()),
+                'this_month' => $this->stats->sumManHours($companyIds, now()->startOfMonth()->toDateString(), now()->toDateString()),
+                'ytd' => $this->stats->sumManHours($companyIds, now()->startOfYear()->toDateString(), now()->toDateString()),
             ],
         ]);
     }

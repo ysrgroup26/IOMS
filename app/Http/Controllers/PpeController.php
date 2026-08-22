@@ -88,8 +88,19 @@ class PpeController extends Controller
      * place -- current/expiring/expired items, full issue/replacement
      * history. Issue PPE from here already knows the employee, so that
      * dialog no longer needs an employee search step.
+     *
+     * v1.11.6 (Production Readiness pass, Part 2 -- PPE filter/context
+     * loss): this route now accepts the SAME filter query params as
+     * employees() (company_id/department_id/search/page) purely to hand
+     * them back to the frontend as `backUrl`, so the "Back to Employee
+     * PPE" link (and the post-Add-PPE redirect, which uses `back()` and
+     * therefore returns to whatever URL the browser was actually on)
+     * reconstructs the exact list the user came from instead of a blank
+     * one. No new persistence layer -- this is the existing
+     * employees()'s own filter contract, just round-tripped through the
+     * URL.
      */
-    public function employeeProfile(Employee $employee): Response
+    public function employeeProfile(Request $request, Employee $employee): Response
     {
         $employee->load('company:id,name', 'department:id,name');
 
@@ -99,11 +110,14 @@ class PpeController extends Controller
             ->latest('issued_date')
             ->get();
 
+        $listFilters = $request->only('company_id', 'department_id', 'search', 'page');
+
         return Inertia::render('Ppe/EmployeeProfile', [
             'employee' => $employee,
             'assignments' => $assignments,
             'ppeTypes' => PpeType::active()->get(),
             'can' => ['manage' => request()->user()->canManagePpeDistribution()],
+            'backUrl' => route('ppe.employees').(count(array_filter($listFilters)) ? '?'.http_build_query(array_filter($listFilters)) : ''),
         ]);
     }
 
@@ -210,16 +224,26 @@ class PpeController extends Controller
     }
 
     /**
-     * Manual lifecycle transition only (issued/in_use/replacement_requested/
-     * replacement_approved/replacement_completed/archived) -- never used for
-     * expiry-based classification, which is fully automatic (see
+     * Lifecycle transition (issued/in_use/replacement_requested/
+     * replacement_approved/replacement_completed/archived) -- never used
+     * for expiry-based classification, which is fully automatic (see
      * EmployeePpe::getEffectiveStatusAttribute()). For the special
      * "Replacement Completed" transition specifically, use
      * completeReplacement() below instead of this generic update -- that
      * one also creates the new issuance record.
+     *
+     * v1.11.6: now also accepts optional ppe_type_id/issued_date/
+     * expiry_date corrections (see UpdateEmployeePpeRequest's own doc
+     * comment for why). `$this->authorize()` was previously missing here
+     * entirely -- the FormRequest's own authorize() only ever checked the
+     * role capability, never EmployeePpePolicy's tenant-isolation check
+     * (added this same pass), so that check was dead code until this
+     * call was added.
      */
     public function update(UpdateEmployeePpeRequest $request, EmployeePpe $employeePpe): RedirectResponse
     {
+        $this->authorize('update', $employeePpe);
+
         $employeePpe->update($request->validated());
         $employeePpe->load('employee', 'ppeType');
 

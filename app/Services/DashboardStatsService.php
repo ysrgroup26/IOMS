@@ -7,6 +7,7 @@ use App\Models\Department;
 use App\Models\Employee;
 use App\Models\KpiCategory;
 use App\Models\KpiRecord;
+use App\Models\ManHourLog;
 use App\Models\Project;
 use Illuminate\Support\Carbon;
 
@@ -308,5 +309,24 @@ class DashboardStatsService
         $top = $query->first();
 
         return $top ? ['employee_id' => $top->id, 'name' => $top->full_name, 'total' => (int) $top->total] : null;
+    }
+
+    /**
+     * v1.11.6 (Production Readiness pass, Part 4) -- shared by
+     * DashboardController and HseDashboardController, the two places
+     * Man-Hours are surfaced. Returns null (not 0) when no ManHourLog
+     * rows exist for the period at all, so an empty log reads as "not
+     * recorded" rather than a genuine zero -- per the explicit
+     * instruction not to let an empty dataset masquerade as a real zero.
+     */
+    public function sumManHours(array $companyIds, string $from, string $to): ?float
+    {
+        $query = ManHourLog::whereIn('company_id', $companyIds)->whereBetween('work_date', [$from, $to]);
+
+        if (! $query->exists()) {
+            return null;
+        }
+
+        return (float) $query->selectRaw('SUM(regular_hours + overtime_hours) as total')->value('total');
     }
 }

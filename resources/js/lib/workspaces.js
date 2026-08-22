@@ -57,7 +57,13 @@ export const WORKSPACES = [
             { name: 'Dashboard', href: 'dashboard', icon: LayoutDashboard, global: true },
             { name: 'Overview', href: 'hr.dashboard', icon: LayoutDashboard },
             { name: 'Employees', href: 'employees.index', icon: Users, moduleKey: 'employees' },
-            { name: 'Attendance', icon: ClipboardList, disabled: true },
+            // v1.11.6 (Production Readiness pass, Part 4): "Attendance"
+            // was a disabled placeholder with no backing data. Man-Hour
+            // is the closest real equivalent this pass actually built
+            // (regular/overtime hours per employee per date) -- replaces
+            // the placeholder rather than sitting alongside it as a
+            // second, confusing "almost the same thing" entry.
+            { name: 'Man-Hour', href: 'man-hour.index', icon: ClipboardList },
             { name: 'Leave', href: 'leave-requests.index', icon: CalendarDays },
             // Milestone 4, Workstream A3: Shift & Roster Management --
             // real backend (Shift/EmployeeShiftAssignment/RosterPattern/

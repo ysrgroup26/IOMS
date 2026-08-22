@@ -36,7 +36,7 @@ function humanize(value) {
  * items rather than only expired ones. No new backend needed; this is
  * the same dialog with a different label/trigger context.
  */
-export default function PpeEmployeeProfile({ employee, assignments, ppeTypes, can }) {
+export default function PpeEmployeeProfile({ employee, assignments, ppeTypes, can, backUrl }) {
     const [issueOpen, setIssueOpen] = useState(false);
     const [editingAssignment, setEditingAssignment] = useState(null);
     const [renewingAssignment, setRenewingAssignment] = useState(null);
@@ -55,7 +55,7 @@ export default function PpeEmployeeProfile({ employee, assignments, ppeTypes, ca
         <AuthenticatedLayout>
             <Head title={`${employee.full_name} - PPE`} />
 
-            <Link href={route('ppe.employees')} className="mb-4 inline-flex items-center gap-1 text-sm text-graphite-500 hover:text-graphite-800">
+            <Link href={backUrl || route('ppe.employees')} className="mb-4 inline-flex items-center gap-1 text-sm text-graphite-500 hover:text-graphite-800">
                 <ArrowLeft className="h-4 w-4" /> Back to Employee PPE
             </Link>
 
@@ -130,7 +130,7 @@ export default function PpeEmployeeProfile({ employee, assignments, ppeTypes, ca
             </Card>
 
             <IssuePpeDialog open={issueOpen} onOpenChange={setIssueOpen} employee={employee} ppeTypes={ppeTypes} />
-            <EditAssignmentDialog assignment={editingAssignment} onOpenChange={() => setEditingAssignment(null)} />
+            <EditAssignmentDialog assignment={editingAssignment} ppeTypes={ppeTypes} onOpenChange={() => setEditingAssignment(null)} />
             <RenewAssignmentDialog assignment={renewingAssignment} onOpenChange={() => setRenewingAssignment(null)} />
         </AuthenticatedLayout>
     );
@@ -294,12 +294,29 @@ function IssuePpeDialog({ open, onOpenChange, employee, ppeTypes }) {
     );
 }
 
-function EditAssignmentDialog({ assignment, onOpenChange }) {
-    const { data, setData, put, processing, reset } = useForm({ status: '', remarks: '' });
+/**
+ * v1.11.6 (Production Readiness pass, Part 1): previously Status +
+ * Remarks only, matching the (also just-fixed) backend validation --
+ * that meant a wrong PPE type or a typo'd issue date could never be
+ * corrected once issued, only worked around by Delete + re-Issue. Now
+ * also edits PPE Type/Issue Date/Expiry Date. Employee is intentionally
+ * not editable here -- reassigning an item to a different employee isn't
+ * a correction, see UpdateEmployeePpeRequest's own doc comment.
+ */
+function EditAssignmentDialog({ assignment, ppeTypes, onOpenChange }) {
+    const { data, setData, put, processing, errors, reset } = useForm({
+        status: '', remarks: '', ppe_type_id: '', issued_date: '', expiry_date: '',
+    });
 
     useEffect(() => {
         if (assignment) {
-            setData({ status: assignment.status, remarks: assignment.remarks || '' });
+            setData({
+                status: assignment.status,
+                remarks: assignment.remarks || '',
+                ppe_type_id: String(assignment.ppe_type_id ?? assignment.ppe_type.id),
+                issued_date: assignment.issued_date ? assignment.issued_date.slice(0, 10) : '',
+                expiry_date: assignment.expiry_date ? assignment.expiry_date.slice(0, 10) : '',
+            });
         }
     }, [assignment?.id]);
 
@@ -320,6 +337,30 @@ function EditAssignmentDialog({ assignment, onOpenChange }) {
             <DialogContent>
                 <DialogHeader><DialogTitle>Edit {assignment.ppe_type.name}</DialogTitle></DialogHeader>
                 <form onSubmit={submit} className="space-y-4">
+                    <div className="space-y-1.5">
+                        <Label>PPE Type</Label>
+                        <Select value={data.ppe_type_id} onValueChange={(v) => setData('ppe_type_id', v)}>
+                            <SelectTrigger><SelectValue /></SelectTrigger>
+                            <SelectContent>
+                                {ppeTypes.map((t) => (
+                                    <SelectItem key={t.id} value={String(t.id)}>{t.name}</SelectItem>
+                                ))}
+                            </SelectContent>
+                        </Select>
+                        {errors.ppe_type_id && <p className="text-xs text-red-600">{errors.ppe_type_id}</p>}
+                    </div>
+                    <div className="grid grid-cols-2 gap-3">
+                        <div className="space-y-1.5">
+                            <Label>Issue Date</Label>
+                            <Input type="date" value={data.issued_date} onChange={(e) => setData('issued_date', e.target.value)} />
+                            {errors.issued_date && <p className="text-xs text-red-600">{errors.issued_date}</p>}
+                        </div>
+                        <div className="space-y-1.5">
+                            <Label>Expiry Date</Label>
+                            <Input type="date" value={data.expiry_date} onChange={(e) => setData('expiry_date', e.target.value)} />
+                            {errors.expiry_date && <p className="text-xs text-red-600">{errors.expiry_date}</p>}
+                        </div>
+                    </div>
                     <div className="space-y-1.5">
                         <Label>Status</Label>
                         <Select value={data.status} onValueChange={(v) => setData('status', v)}>

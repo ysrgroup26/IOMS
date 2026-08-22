@@ -55,7 +55,7 @@ export default function ProjectManagementDashboard({
                 {/* LEVEL 1 -- compact KPI strip */}
                 <div className="grid grid-cols-2 gap-3 lg:grid-cols-5">
                     <StatCard icon={FolderKanban} value={activeProjectsCount} label="Proyek Aktif" href={route('projects.index')} />
-                    <StatCard icon={AlertTriangle} value={delayedProjectsCount} label="Proyek Terlambat" accent={delayedProjectsCount > 0 ? 'red' : null} href={route('projects.index')} />
+                    <StatCard icon={AlertTriangle} value={delayedProjectsCount} label="Proyek Terlambat" accent={delayedProjectsCount > 0 ? 'red' : 'green'} href={route('projects.index')} />
                     <StatCard icon={Flag} value={milestoneCompletionPercent === null ? '—' : `${milestoneCompletionPercent}%`} label="Penyelesaian Milestone" href={route('milestones.index')} />
                     <StatCard icon={ListTodo} value={avgActivityProgressPercent === null ? '—' : `${avgActivityProgressPercent}%`} label="Rata-rata Progres Aktivitas" />
                     <StatCard icon={ClipboardList} value={todaysActivitiesCount} label="Aktivitas Hari Ini" href={route('daily-reports.index')} />

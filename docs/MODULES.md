@@ -1564,6 +1564,46 @@ is the only controller touching them, gated entirely behind `role:platform_admin
 tenant-facing controller references either model. `PaymentTransaction`/`PaymentWebhookEvent` (added
 v1.11.6) are not yet routed to anything, so carry no exposure risk today.
 
+## Enterprise UI/UX Visual Refinement (v1.11.8)
+
+A visual/UX-only pass — zero PHP files touched, zero routes/migrations/RBAC changed (confirmed via
+`git status`: every changed file this pass is under `resources/js/`). Scope was shared components,
+sidebar typography, and semantic color across the five priority department dashboards + Main Dashboard.
+
+**Sidebar typography root cause** (`AuthenticatedLayout.jsx`): the reported "child items feel like
+headings" (e.g. "Manajemen Insiden" reading larger than its own parent "Manajemen Keselamatan") had a
+concrete cause — nested `children` links rendered at `text-sm` (14px) while the parent group header
+above them used `text-xs` (12px), so children were literally larger than their parent. Parent sizing
+was left untouched per explicit instruction ("already relatively good... do not enlarge dropdown
+parents"); children were brought down to `text-[13px]` with tighter line-height, reduced vertical
+padding (`py-1.5`→`py-1`), and slightly reduced indentation (`ml-4/pl-3`→`ml-3.5/pl-2.5`). Active/hover/
+expand/auto-expand behavior (the `containsActiveChild` fix from v1.11.7) is untouched.
+
+**Terminology correction**: this pass's own instruction explicitly reverses part of v1.11.7's Bahasa
+Indonesia work — "Dashboard" is preferred over "Dasbor" for that one term specifically (every other
+translated term from v1.11.7 stands). Reverted in both `resources/js/lib/id.js` (the terminology
+dictionary) and every `workspaces.js` nav item using it (the shared "Dashboard" link pinned atop every
+department's item list).
+
+**Semantic color system**: `StatCard` gained `green`/`purple`/`neutral` accent options alongside the
+existing `red`/`amber` (the full palette this pass's brief specifies: blue=primary/general,
+green=healthy/active/completed, amber=warning/pending, red=critical/overdue, purple=assets/
+administration/planning, neutral=inactive/informational). Applied across Main Dashboard (Active
+Projects/green, Companies+Current Period/neutral, Open Incidents/red-or-green, Open CAPA/amber-or-green,
+Pending Procurement/purple, Stock Alerts/amber-or-green, Active Assets/purple, Maintenance Due/amber-
+or-green) and HSE/HR/Project Management/Logistics/Warehouse Overviews (every KPI tile whose accent
+previously fell back to `null`/default blue on a healthy zero-count now explicitly reads `green`
+instead, so "nothing wrong right now" is visually distinct from "here's a number to look at" rather
+than defaulting to the same brand blue as every informational tile).
+
+**Not restructured this pass** (audited, found already compliant with this pass's own direction, or
+explicitly out of scope): Top Navigation (already `h-14`/`text-xs` — confirmed compact, no change
+needed); HSE Master Data's 4-tab structure and Safety Equipment's inline inspection action (both kept
+exactly as v1.11.6/v1.11.7 left them — deliberate, documented design, not something this pass's "don't
+turn it back into a giant flat page" instruction asked to change); PPE workflow, filter persistence,
+Waste Management, Calendar, and every backend/RBAC/tenant-isolation mechanism (all explicitly
+out-of-scope for a visual-only pass and confirmed untouched by the empty PHP diff).
+
 ## Reusable engines (Approval, Workflow, Timeline, Import, PDF, Report Export)
 
 These aren't a "module" with their own page — they're cross-cutting infrastructure consumed by the

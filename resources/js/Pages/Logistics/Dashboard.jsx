@@ -47,9 +47,9 @@ export default function LogisticsDashboard({
                 {/* LEVEL 1 -- compact KPI strip */}
                 <div className="grid grid-cols-2 gap-3 lg:grid-cols-4">
                     <StatCard icon={PackageSearch} value={pendingMaterialRequests} label="Permintaan Material Tertunda" href={route('material-requests.index', { status: 'submitted' })} />
-                    <StatCard icon={ClipboardCheck} value={waitingApprovals} label="Menunggu Persetujuan" accent={waitingApprovals > 0 ? 'amber' : null} href={route('work-center.index')} />
+                    <StatCard icon={ClipboardCheck} value={waitingApprovals} label="Menunggu Persetujuan" accent={waitingApprovals > 0 ? 'amber' : 'green'} href={route('work-center.index')} />
                     <StatCard icon={PackageCheck} value={goodsReceiptsThisMonth} label="Diterima Bulan Ini" href={route('goods-receipts.index')} />
-                    <StatCard icon={Boxes} value={lowStockCount} label="Barang Stok Menipis" accent={lowStockCount > 0 ? 'red' : null} href={route('stock.index', { low_stock: 1 })} />
+                    <StatCard icon={Boxes} value={lowStockCount} label="Barang Stok Menipis" accent={lowStockCount > 0 ? 'red' : 'green'} href={route('stock.index', { low_stock: 1 })} />
                 </div>
 
                 {/* LEVEL 2 -- Material Flow pipeline */}

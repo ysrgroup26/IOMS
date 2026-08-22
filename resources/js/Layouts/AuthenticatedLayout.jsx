@@ -250,9 +250,22 @@ export default function AuthenticatedLayout({ children }) {
                                         Selected Employees panel: animates
                                         to natural height with no JS
                                         measurement needed. */}
+                                    {/* v1.11.8 (Enterprise UI/UX Refinement, Part 3): root cause of
+                                        "child items feel like headings" -- children rendered at
+                                        `text-sm` (14px) while the PARENT group header above uses
+                                        `text-xs` (12px), so a nested item like "Manajemen Insiden"
+                                        was literally larger than its own parent "Manajemen
+                                        Keselamatan". Parent sizing is left untouched per explicit
+                                        instruction ("already relatively good... do not enlarge
+                                        dropdown parents") -- children are brought down to match
+                                        instead: 13px (an arbitrary value; Tailwind has no built-in
+                                        step between 12/14px), tighter line-height, less vertical
+                                        padding (py-1.5 -> py-1), and slightly reduced indentation
+                                        (ml-4/pl-3 -> ml-3.5/pl-2.5). Active/hover/icon/expand
+                                        behavior unchanged. */}
                                     <div className={cn('grid transition-[grid-template-rows] duration-200 ease-in-out', isExpanded ? 'grid-rows-[1fr]' : 'grid-rows-[0fr]')}>
                                         <div className="overflow-hidden">
-                                            <div className="ml-4 mt-0.5 space-y-0.5 border-l border-graphite-100 pl-3">
+                                            <div className="ml-3.5 mt-0.5 space-y-0.5 border-l border-graphite-100 pl-2.5 dark:border-slate-800">
                                                 {item.children.map((child) => {
                                                     const childActive = isChildRouteActive(child, currentUrl);
                                                     const ChildIcon = child.icon;
@@ -261,12 +274,12 @@ export default function AuthenticatedLayout({ children }) {
                                                             key={child.name}
                                                             href={route(child.href)}
                                                             className={cn(
-                                                                'flex items-center gap-2.5 rounded-lg px-3 py-1.5 text-sm transition-colors duration-150',
-                                                                childActive ? 'font-semibold text-brand-700' : 'text-graphite-500 hover:text-graphite-800'
+                                                                'flex items-center gap-2 rounded-lg px-2.5 py-1 text-[13px] leading-tight transition-colors duration-150',
+                                                                childActive ? 'font-semibold text-brand-700 dark:text-brand-400' : 'font-normal text-graphite-500 hover:text-graphite-800 dark:text-slate-500 dark:hover:text-slate-200'
                                                             )}
                                                         >
-                                                            {ChildIcon && <ChildIcon className="h-4 w-4 shrink-0" />}
-                                                            {child.name}
+                                                            {ChildIcon && <ChildIcon className="h-3.5 w-3.5 shrink-0" />}
+                                                            <span className="truncate">{child.name}</span>
                                                         </Link>
                                                     );
                                                 })}

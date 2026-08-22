@@ -50,8 +50,8 @@ export default function WarehouseDashboard({
                 <div className="grid grid-cols-2 gap-3 lg:grid-cols-5">
                     <StatCard icon={Box} value={totalItemsCount} label="Barang Aktif" href={route('items.index')} />
                     <StatCard icon={Warehouse} value={totalWarehousesCount} label="Gudang" href={route('warehouses.master')} />
-                    <StatCard icon={AlertTriangle} value={lowStockCount} label="Stok Menipis" accent={lowStockCount > 0 ? 'amber' : null} href={route('stock.index', { low_stock: 1 })} />
-                    <StatCard icon={XCircle} value={outOfStockCount} label="Stok Habis" accent={outOfStockCount > 0 ? 'red' : null} href={route('stock.index')} />
+                    <StatCard icon={AlertTriangle} value={lowStockCount} label="Stok Menipis" accent={lowStockCount > 0 ? 'amber' : 'green'} href={route('stock.index', { low_stock: 1 })} />
+                    <StatCard icon={XCircle} value={outOfStockCount} label="Stok Habis" accent={outOfStockCount > 0 ? 'red' : 'green'} href={route('stock.index')} />
                     <StatCard icon={PackageCheck} value={goodsReceiptsThisMonth} label="Diterima Bulan Ini" href={route('goods-receipts.index')} />
                 </div>
 

@@ -59,7 +59,7 @@ export const WORKSPACES = [
         icon: Users,
         tier: 'department',
         items: [
-            { name: 'Dasbor', href: 'dashboard', icon: LayoutDashboard, global: true },
+            { name: 'Dashboard', href: 'dashboard', icon: LayoutDashboard, global: true },
             { name: 'Ringkasan', href: 'hr.dashboard', icon: LayoutDashboard },
             { name: 'Karyawan', href: 'employees.index', icon: Users, moduleKey: 'employees' },
             // v1.11.6 (Production Readiness pass, Part 4): "Attendance"
@@ -149,7 +149,7 @@ export const WORKSPACES = [
         // JSA, HIRADC, PTW, LOTO, CAPA, TBM, KPI) kept as-is rather than
         // forced into unnatural Indonesian, matching that file's own rules.
         items: [
-            { name: 'Dasbor', href: 'dashboard', icon: LayoutDashboard, global: true },
+            { name: 'Dashboard', href: 'dashboard', icon: LayoutDashboard, global: true },
             { name: 'Ringkasan', href: 'hse.dashboard', icon: LayoutDashboard },
             {
                 name: 'Manajemen Keselamatan',
@@ -216,7 +216,7 @@ export const WORKSPACES = [
         icon: FolderKanban,
         tier: 'department',
         items: [
-            { name: 'Dasbor', href: 'dashboard', icon: LayoutDashboard, global: true },
+            { name: 'Dashboard', href: 'dashboard', icon: LayoutDashboard, global: true },
             { name: 'Ringkasan', href: 'project-management.dashboard', icon: LayoutDashboard },
             { name: 'Proyek', href: 'projects.index', icon: FolderKanban, moduleKey: 'projects' },
             // Daily Reports lives here, not HSE: it's a per-project
@@ -245,7 +245,7 @@ export const WORKSPACES = [
         icon: PackageSearch,
         tier: 'department',
         items: [
-            { name: 'Dasbor', href: 'dashboard', icon: LayoutDashboard, global: true },
+            { name: 'Dashboard', href: 'dashboard', icon: LayoutDashboard, global: true },
             { name: 'Ringkasan', href: 'logistics.dashboard', icon: LayoutDashboard },
             { name: 'Permintaan Material', href: 'material-requests.index', icon: PackageSearch, moduleKey: 'material_requests' },
             // Warehouse stays inside Logistics for now, per explicit
@@ -305,7 +305,7 @@ export const WORKSPACES = [
         icon: Warehouse,
         tier: 'department',
         items: [
-            { name: 'Dasbor', href: 'dashboard', icon: LayoutDashboard, global: true },
+            { name: 'Dashboard', href: 'dashboard', icon: LayoutDashboard, global: true },
             { name: 'Ringkasan', href: 'warehouses.dashboard', icon: Warehouse },
         ],
     },
@@ -315,7 +315,7 @@ export const WORKSPACES = [
         icon: ShoppingCart,
         tier: 'department',
         items: [
-            { name: 'Dasbor', href: 'dashboard', icon: LayoutDashboard, global: true },
+            { name: 'Dashboard', href: 'dashboard', icon: LayoutDashboard, global: true },
             // Milestone 4, Workstream C: real backend now (Vendor,
             // PurchaseRequisition, Rfq/VendorQuotation, PurchaseOrder) --
             // a genuine cross-department procurement engine, not owned by
@@ -336,7 +336,7 @@ export const WORKSPACES = [
         icon: Box,
         tier: 'department',
         items: [
-            { name: 'Dasbor', href: 'dashboard', icon: LayoutDashboard, global: true },
+            { name: 'Dashboard', href: 'dashboard', icon: LayoutDashboard, global: true },
             // v1.11.3 (Global Dashboard/Overview UX Rework, Part 4) -- this
             // department had no Overview at all before this pass.
             { name: 'Overview', href: 'asset-management.dashboard', icon: LayoutDashboard },
@@ -354,7 +354,7 @@ export const WORKSPACES = [
         icon: Wrench,
         tier: 'department',
         items: [
-            { name: 'Dasbor', href: 'dashboard', icon: LayoutDashboard, global: true },
+            { name: 'Dashboard', href: 'dashboard', icon: LayoutDashboard, global: true },
             // v1.11.3 (Global Dashboard/Overview UX Rework, Part 4) -- this
             // department had no Overview at all before this pass.
             { name: 'Overview', href: 'maintenance.dashboard', icon: LayoutDashboard },
@@ -374,7 +374,7 @@ export const WORKSPACES = [
         icon: BadgeCheck,
         tier: 'department',
         items: [
-            { name: 'Dasbor', href: 'dashboard', icon: LayoutDashboard, global: true },
+            { name: 'Dashboard', href: 'dashboard', icon: LayoutDashboard, global: true },
             // v1.11.3 (Global Dashboard/Overview UX Rework, Part 4) -- this
             // department had no Overview at all before this pass.
             { name: 'Overview', href: 'quality-control.dashboard', icon: LayoutDashboard },
@@ -394,7 +394,7 @@ export const WORKSPACES = [
         icon: DollarSign,
         tier: 'department',
         items: [
-            { name: 'Dasbor', href: 'dashboard', icon: LayoutDashboard, global: true },
+            { name: 'Dashboard', href: 'dashboard', icon: LayoutDashboard, global: true },
             { name: 'Overview', href: 'finance.coming-soon', icon: DollarSign },
         ],
     },

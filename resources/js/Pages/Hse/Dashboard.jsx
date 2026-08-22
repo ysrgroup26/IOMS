@@ -53,13 +53,18 @@ export default function HseDashboard({
             <Head title="Ringkasan HSE" />
             <DashboardShell title="Ringkasan HSE" subtitle="Status keselamatan operasional.">
                 {/* LEVEL 1 -- compact KPI strip */}
+                {/* v1.11.8 (Enterprise UI/UX Refinement, Part 9): a zero/clear
+                    count now reads as `green` (healthy) instead of falling
+                    back to the default blue brand color -- makes "nothing
+                    wrong right now" visually distinct from "here's a
+                    number to look at" everywhere else on the page. */}
                 <div className="grid grid-cols-2 gap-3 lg:grid-cols-6">
-                    <StatCard icon={AlertTriangle} value={openIncidentsCount} label="Insiden Terbuka" accent={openIncidentsCount > 0 ? 'red' : null} href={route('incidents.index')} />
-                    <StatCard icon={AlertTriangle} value={incidentsBySeverity?.critical ?? 0} label="Insiden Kritis" accent={(incidentsBySeverity?.critical ?? 0) > 0 ? 'red' : null} href={route('incidents.index', { severity: 'critical' })} />
-                    <StatCard icon={Eye} value={openSafetyObservationsCount} label="Observasi Terbuka" accent={openSafetyObservationsCount > 0 ? 'amber' : null} href={route('safety-observations.index')} />
-                    <StatCard icon={ClipboardCheck} value={openCapaCount} label="CAPA Terbuka" accent={openCapaCount > 0 ? 'amber' : null} href={route('corrective-actions.index')} />
+                    <StatCard icon={AlertTriangle} value={openIncidentsCount} label="Insiden Terbuka" accent={openIncidentsCount > 0 ? 'red' : 'green'} href={route('incidents.index')} />
+                    <StatCard icon={AlertTriangle} value={incidentsBySeverity?.critical ?? 0} label="Insiden Kritis" accent={(incidentsBySeverity?.critical ?? 0) > 0 ? 'red' : 'green'} href={route('incidents.index', { severity: 'critical' })} />
+                    <StatCard icon={Eye} value={openSafetyObservationsCount} label="Observasi Terbuka" accent={openSafetyObservationsCount > 0 ? 'amber' : 'green'} href={route('safety-observations.index')} />
+                    <StatCard icon={ClipboardCheck} value={openCapaCount} label="CAPA Terbuka" accent={openCapaCount > 0 ? 'amber' : 'green'} href={route('corrective-actions.index')} />
                     <StatCard icon={Flame} value={openPermitsCount} label="Izin Kerja Aktif" href={route('permits-to-work.index')} />
-                    <StatCard icon={HardHat} value={ppeAlertCount} label="Peringatan APD" accent={ppeAlertCount > 0 ? 'amber' : null} href={route('ppe.dashboard')} />
+                    <StatCard icon={HardHat} value={ppeAlertCount} label="Peringatan APD" accent={ppeAlertCount > 0 ? 'amber' : 'green'} href={route('ppe.dashboard')} />
                 </div>
 
                 {/* LEVEL 2/3 -- primary safety status + action required, side by side */}

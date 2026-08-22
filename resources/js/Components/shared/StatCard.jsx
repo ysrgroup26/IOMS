@@ -19,11 +19,22 @@ import { cn } from '@/lib/utils';
  * Usage:
  *   <StatCard icon={Users} value="128" label="Employees" href={route('employees.index')} />
  *   <StatCard icon={AlertTriangle} value="3" label="PPE Alerts" accent="amber" />
+ *
+ * v1.11.8 (Enterprise UI/UX Refinement, Part 8/23): `green`/`purple`
+ * added alongside the existing `red`/`amber` -- the full semantic
+ * palette the design system now documents (blue=primary/general,
+ * green=healthy/active/completed, amber=warning/pending, red=critical/
+ * overdue, purple=assets/administration/planning, neutral=inactive).
+ * Colors communicate meaning, chosen per-metric by the caller -- this
+ * component doesn't decide meaning for anyone, only renders it.
  */
 export default function StatCard({ icon: Icon, value, label, href, accent }) {
     const accentClasses = {
         red: 'bg-red-50 text-red-600 dark:bg-red-950/40 dark:text-red-400',
         amber: 'bg-amber-50 text-amber-600 dark:bg-amber-950/40 dark:text-amber-400',
+        green: 'bg-emerald-50 text-emerald-600 dark:bg-emerald-950/40 dark:text-emerald-400',
+        purple: 'bg-violet-50 text-violet-600 dark:bg-violet-950/40 dark:text-violet-400',
+        neutral: 'bg-graphite-100 text-graphite-500 dark:bg-slate-800 dark:text-slate-400',
     };
     const iconClass = accentClasses[accent] || 'bg-brand-50 text-brand-600 dark:bg-brand-950/40 dark:text-brand-400';
 

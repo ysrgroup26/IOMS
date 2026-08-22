@@ -197,12 +197,18 @@ export default function Dashboard({
 
             {/* 1. Primary cards -- the only "large" cards on this page.
                 All four are now navigation widgets (v1.5.2), not dead
-                statistics. */}
+                statistics.
+                v1.11.8 (Enterprise UI/UX Refinement, Part 7/8/23): the
+                whole page previously rendered every StatCard in the same
+                blue brand color regardless of what it measured -- fixed
+                by assigning `accent` per the semantic meaning of each
+                metric (green=healthy/active, amber=needs attention,
+                red=critical, purple=assets/planning), not decoratively. */}
             <div className="mt-4 grid grid-cols-2 gap-3 lg:grid-cols-4">
                 <StatCard icon={Users} value={`${formatNumber(companyHeadcount.overall_total)} Employees`} label="Active Workforce" href={deptSafeHref('employees.index', deptPrefixes)} />
-                <StatCard icon={FolderKanban} value={`${formatNumber(activeProjectsCount)} Active Projects`} label="Running Projects" href={deptSafeHref('projects.index', deptPrefixes)} />
-                <StatCard icon={Building2} value={formatNumber(companyHeadcount.by_company.length)} label="Companies" href={deptSafeHref('settings.index', deptPrefixes) ? route('settings.index') + '?tab=companies' : undefined} />
-                <StatCard icon={CalendarDays} value={currentMonth} label="Current Period" href={deptSafeHref('kpi-records.index', deptPrefixes, { year: filters.year, month: filters.month })} />
+                <StatCard icon={FolderKanban} value={`${formatNumber(activeProjectsCount)} Active Projects`} label="Running Projects" accent="green" href={deptSafeHref('projects.index', deptPrefixes)} />
+                <StatCard icon={Building2} value={formatNumber(companyHeadcount.by_company.length)} label="Companies" accent="neutral" href={deptSafeHref('settings.index', deptPrefixes) ? route('settings.index') + '?tab=companies' : undefined} />
+                <StatCard icon={CalendarDays} value={currentMonth} label="Current Period" accent="neutral" href={deptSafeHref('kpi-records.index', deptPrefixes, { year: filters.year, month: filters.month })} />
             </div>
 
             {/* Milestone 4, Acceleration Part 7 -- Executive cross-department
@@ -216,12 +222,12 @@ export default function Dashboard({
                 click that would 403 (RestrictDepartmentAccess itself is
                 unchanged; this only avoids exposing a link it would reject). */}
             <div className="mt-3 grid grid-cols-2 gap-3 sm:grid-cols-3 lg:grid-cols-6">
-                <StatCard icon={AlertTriangle} value={formatNumber(openIncidentsCount)} label="Open Incidents" href={deptSafeHref('incidents.index', deptPrefixes)} />
-                <StatCard icon={ClipboardCheck} value={formatNumber(openCapaCount)} label="Open CAPA" href={deptSafeHref('corrective-actions.index', deptPrefixes)} />
-                <StatCard icon={ShoppingCart} value={formatNumber(pendingProcurementCount)} label="Pending Procurement" href={deptSafeHref('procurement.dashboard', deptPrefixes)} />
-                <StatCard icon={Boxes} value={formatNumber(stockAlertCount)} label="Stock Alerts" href={deptSafeHref('stock.index', deptPrefixes, { low_stock: 1 })} />
-                <StatCard icon={Box} value={formatNumber(assetCount)} label="Active Assets" href={deptSafeHref('assets.index', deptPrefixes)} />
-                <StatCard icon={Wrench} value={formatNumber(maintenanceDueCount)} label="Maintenance Due (7d)" href={deptSafeHref('work-orders.index', deptPrefixes)} />
+                <StatCard icon={AlertTriangle} value={formatNumber(openIncidentsCount)} label="Open Incidents" accent={openIncidentsCount > 0 ? 'red' : 'green'} href={deptSafeHref('incidents.index', deptPrefixes)} />
+                <StatCard icon={ClipboardCheck} value={formatNumber(openCapaCount)} label="Open CAPA" accent={openCapaCount > 0 ? 'amber' : 'green'} href={deptSafeHref('corrective-actions.index', deptPrefixes)} />
+                <StatCard icon={ShoppingCart} value={formatNumber(pendingProcurementCount)} label="Pending Procurement" accent="purple" href={deptSafeHref('procurement.dashboard', deptPrefixes)} />
+                <StatCard icon={Boxes} value={formatNumber(stockAlertCount)} label="Stock Alerts" accent={stockAlertCount > 0 ? 'amber' : 'green'} href={deptSafeHref('stock.index', deptPrefixes, { low_stock: 1 })} />
+                <StatCard icon={Box} value={formatNumber(assetCount)} label="Active Assets" accent="purple" href={deptSafeHref('assets.index', deptPrefixes)} />
+                <StatCard icon={Wrench} value={formatNumber(maintenanceDueCount)} label="Maintenance Due (7d)" accent={maintenanceDueCount > 0 ? 'amber' : 'green'} href={deptSafeHref('work-orders.index', deptPrefixes)} />
             </div>
 
             {/* Pending Tasks -- Universal Task Engine Dashboard integration

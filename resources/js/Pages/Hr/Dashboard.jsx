@@ -42,9 +42,9 @@ export default function HrDashboard({
                     <StatCard icon={Users} value={activeEmployees} label="Karyawan Aktif" href={route('employees.index', { status: 'active' })} />
                     <StatCard icon={UserCheck} value={onShiftToday} label="Bertugas Hari Ini" href={route('rosters.overview')} />
                     <StatCard icon={CalendarDays} value={employeesOnLeaveToday} label="Cuti Hari Ini" href={route('leave-requests.index')} />
-                    <StatCard icon={ClipboardEdit} value={pendingLeaveRequests} label="Cuti Menunggu Persetujuan" accent={pendingLeaveRequests > 0 ? 'amber' : null} href={route('leave-requests.index', { status: 'submitted' })} />
-                    <StatCard icon={AlertTriangle} value={contractExpiringCount} label="Kontrak Akan Berakhir (30 hr)" accent={contractExpiringCount > 0 ? 'amber' : null} />
-                    <StatCard icon={GraduationCap} value={certificationExpiringCount} label="Sertifikasi Akan Berakhir" accent={certificationExpiringCount > 0 ? 'amber' : null} href={route('competency.expiring-soon')} />
+                    <StatCard icon={ClipboardEdit} value={pendingLeaveRequests} label="Cuti Menunggu Persetujuan" accent={pendingLeaveRequests > 0 ? 'amber' : 'green'} href={route('leave-requests.index', { status: 'submitted' })} />
+                    <StatCard icon={AlertTriangle} value={contractExpiringCount} label="Kontrak Akan Berakhir (30 hr)" accent={contractExpiringCount > 0 ? 'amber' : 'green'} />
+                    <StatCard icon={GraduationCap} value={certificationExpiringCount} label="Sertifikasi Akan Berakhir" accent={certificationExpiringCount > 0 ? 'amber' : 'green'} href={route('competency.expiring-soon')} />
                 </div>
 
                 {/* LEVEL 2/3 -- workforce status + attention required */}

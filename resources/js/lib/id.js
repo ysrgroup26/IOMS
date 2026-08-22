@@ -36,7 +36,11 @@
  */
 export const ID = {
     // Global / navigation chrome
-    dashboard: 'Dasbor',
+    // v1.11.8 (Enterprise UI/UX Refinement, Part 4): explicit override --
+    // "Dashboard" is acceptable and preferred over "Dasbor" (reverts the
+    // v1.11.7 translation of this one term; every other term in this file
+    // is unaffected).
+    dashboard: 'Dashboard',
     overview: 'Ringkasan',
     department: 'Departemen',
     settings: 'Pengaturan',

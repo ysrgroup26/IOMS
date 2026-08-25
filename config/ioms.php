@@ -17,7 +17,7 @@ return [
     |
     */
 
-    'version' => '2.1.0',
+    'version' => '2.2.0',
 
     // Tester / Beta / Stable -- tracks the release stage explicitly.
     // Previously only implied in conversation, never actually stored.
@@ -25,7 +25,7 @@ return [
 
     'edition' => 'Enterprise Edition',
 
-    'build' => '2026.08.25.1',
+    'build' => '2026.08.25.2',
 
     'release_date' => '2026-08-25',
 
@@ -44,11 +44,12 @@ return [
     'documentation_url' => 'docs.iomsplatform.com',
 
     'whats_new' => [
-        'HSE Starter package is now genuinely operational: Man-Hour recording opened to HSE (previously HRD-only, violating the "module must not require another paid module for shared core data" rule)',
-        'New tenant creation now actually grants Module/Workspace access based on the chosen Package (Starter=HSE, Professional=HSE+HRD, Enterprise=all) -- previously the Package selection had no effect on tenant access at all',
-        'Optional per-workspace entitlement enforcement added to EnforceTenantEntitlement (off by default pending Tenant Grant verification -- see SAAS_ENFORCE_WORKSPACE_ENTITLEMENT)',
-        'PPE Dashboard: added a visible "+ Tambah APD" action (was missing entirely)',
-        'Man-Hour navigation added directly under the HSE workspace, alongside its existing HRD entry -- one shared data source, two department entry points',
+        'Fixed the Man-Hour page HTTP 500 -- root cause confirmed: an ambiguous SQL column error once Employee sort-ordering joins Department/Position (both gained their own company_id/id columns since this query was written)',
+        'Quick Actions is now role/department-aware and covers every department (HSE, HR, Project, Logistics, Warehouse, Procurement) -- was 4 hardcoded links visible to everyone regardless of access',
+        'Work Center ("My Workspace") now surfaces real cross-department alerts too -- CAPA due, PTW pending, stock alerts, maintenance due, PR/PO pending -- not just PPE',
+        'Global Search extended to PPE, CAPA, PTW, Assets, and Vendors, and fixed a real cross-tenant data-leak bug where search results were not scoped to the current organization at all',
+        'Fixed a cross-tenant leak in Work Center: pending-approval and PPE-alert counts were not scoped to the current organization and could include other tenants\' data',
+        'Sidebar navigation reverted to English (Dashboard, PPE Management, Man-Hour, etc.) -- page content stays natural Bahasa Indonesia',
     ],
 
     /*
@@ -63,6 +64,7 @@ return [
     */
 
     'version_history' => [
+        ['version' => '2.2.0', 'date' => '2026-08-25', 'summary' => 'IOMS OS Ecosystem pass: Man-Hour 500 root-caused and fixed (ambiguous SQL column), Quick Actions and Work Center Action Center extended across every department, Global Search extended (PPE/CAPA/PTW/Assets/Vendors) and its cross-tenant scoping gap fixed, a second cross-tenant leak fixed in Work Center approvals/PPE-alerts, sidebar navigation language reverted to English.'],
         ['version' => '2.1.0', 'date' => '2026-08-25', 'summary' => 'HSE Starter package made genuinely operational: Man-Hour opened to HSE (entitlement-dependency-rule fix), Package-to-Workspace/Module grant mapping wired into tenant creation, PPE Dashboard "+" action fix, optional per-workspace entitlement enforcement (off by default).'],
         ['version' => '2.0.0', 'date' => '2026-08-16', 'summary' => 'Milestone 2: Tenancy Foundation, Platform Super Admin, Package/Subscription structure, RBAC (spatie/laravel-permission), DB-driven Module and Workspace catalogs, Platform Super Admin console.'],
         ['version' => '1.6.10', 'date' => '2026-08-11', 'summary' => 'Material Request complete workflow (HasWorkflow trait); RBAC options evaluated (Spatie Permission recommended, docs/ADR/006); new Warehouse role.'],

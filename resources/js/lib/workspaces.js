@@ -47,21 +47,30 @@ import {
  *     department. See `app/Models/User.php`'s own note on `department_key`
  *     for why this is opt-in and changes nothing for any existing user.
  */
+/**
+ * v2.2.0 (IOMS OS Ecosystem pass, Part 10 -- Language Direction). Every
+ * item `name` in this file was translated to Indonesian in v1.11.7
+ * ("Bahasa Indonesia Standardization"); that direction is now REVERSED
+ * for navigation specifically -- explicit product decision: SIDEBAR /
+ * NAVIGATION / MENU stays ENGLISH (the terminology an operator actually
+ * scans quickly and the vocabulary already used in training/documents),
+ * while PAGE CONTENT (headers, descriptions, empty states, statuses)
+ * stays natural Bahasa Indonesia. This file only ever controlled
+ * navigation labels -- page-level Indonesian text (e.g. "Belum ada data
+ * Man-Hour.", "Menunggu persetujuan.") lives in each Pages/*.jsx file
+ * and is UNCHANGED by this pass. Hrefs/route names/moduleKeys were never
+ * touched by either language pass -- only the `name` strings.
+ */
 export const WORKSPACES = [
     {
         key: 'hr',
-        // v1.11.7 (Bahasa Indonesia Standardization, Part 4) -- "HRD" is
-        // the term Indonesian companies actually use for this department
-        // (not a forced translation of "Human Resources"), matching the
-        // terminology map in resources/js/lib/id.js. Every item name
-        // below is user-facing text only -- hrefs/route names UNCHANGED.
-        label: 'HRD',
+        label: 'HR',
         icon: Users,
         tier: 'department',
         items: [
             { name: 'Dashboard', href: 'dashboard', icon: LayoutDashboard, global: true },
-            { name: 'Ringkasan', href: 'hr.dashboard', icon: LayoutDashboard },
-            { name: 'Karyawan', href: 'employees.index', icon: Users, moduleKey: 'employees' },
+            { name: 'Overview', href: 'hr.dashboard', icon: LayoutDashboard },
+            { name: 'Employees', href: 'employees.index', icon: Users, moduleKey: 'employees' },
             // v1.11.6 (Production Readiness pass, Part 4): "Attendance"
             // was a disabled placeholder with no backing data. Man-Hour
             // is the closest real equivalent this pass actually built
@@ -69,23 +78,23 @@ export const WORKSPACES = [
             // the placeholder rather than sitting alongside it as a
             // second, confusing "almost the same thing" entry.
             { name: 'Man-Hour', href: 'man-hour.index', icon: ClipboardList },
-            { name: 'Cuti', href: 'leave-requests.index', icon: CalendarDays },
+            { name: 'Leave', href: 'leave-requests.index', icon: CalendarDays },
             // Milestone 4, Workstream A3: Shift & Roster Management --
             // real backend (Shift/EmployeeShiftAssignment/RosterPattern/
             // EmployeeRoster). "Shift/Roster belongs to HR/Workforce
             // Management" per spec -- other modules (HSE fatigue checks,
             // Project manpower) may consume this data later without it
             // moving out of HR.
-            { name: 'Shift & Jadwal Kerja', href: 'shifts.master', icon: Clock },
-            { name: 'Rekrutmen', icon: Users, disabled: true },
-            { name: 'Kinerja', icon: BadgeCheck, disabled: true },
+            { name: 'Shift & Roster', href: 'shifts.master', icon: Clock },
+            { name: 'Recruitment', icon: Users, disabled: true },
+            { name: 'Performance', icon: BadgeCheck, disabled: true },
             // Milestone 4, Workstream A2: Training & Competency Management
             // -- real backend now (CompetencyType/EmployeeCompetency),
             // same route/controller reachable from both HR and HSE
             // conceptually, but following the same "one canonical home,
             // not duplicated" precedent as HSE KPI below -- lives here
             // since it's fundamentally employee master data.
-            { name: 'Pelatihan & Kompetensi', href: 'competency.master', icon: GraduationCap },
+            { name: 'Training & Competency', href: 'competency.master', icon: GraduationCap },
             // v1.10.4 correction: the existing KPI implementation
             // (kpi-input.index) was mapped here in v1.10.0, but its
             // routes are already gated to role:super_admin,hse at the
@@ -94,9 +103,9 @@ export const WORKSPACES = [
             // stays a locked placeholder ("KPI HRD" -- a genuinely
             // separate future concept, HR's own KPI tracking, not yet
             // built) rather than a real link.
-            { name: 'KPI HRD', icon: ClipboardEdit, disabled: true },
-            { name: 'Dokumen', icon: ClipboardList, disabled: true },
-            { name: 'Laporan', icon: FileBarChart, disabled: true },
+            { name: 'HR KPI', icon: ClipboardEdit, disabled: true },
+            { name: 'Documents', icon: ClipboardList, disabled: true },
+            { name: 'Reports', icon: FileBarChart, disabled: true },
         ],
     },
     {
@@ -150,39 +159,39 @@ export const WORKSPACES = [
         // forced into unnatural Indonesian, matching that file's own rules.
         items: [
             { name: 'Dashboard', href: 'dashboard', icon: LayoutDashboard, global: true },
-            { name: 'Ringkasan', href: 'hse.dashboard', icon: LayoutDashboard },
+            { name: 'Overview', href: 'hse.dashboard', icon: LayoutDashboard },
             {
-                name: 'Manajemen Keselamatan',
+                name: 'Safety Management',
                 icon: ShieldAlert,
                 children: [
-                    { name: 'Manajemen Insiden', href: 'incidents.index', icon: AlertTriangle },
-                    { name: 'Observasi Keselamatan', href: 'safety-observations.index', icon: Eye },
-                    { name: 'Inspeksi', href: 'hse-inspections.index', icon: ClipboardCheck },
-                    { name: 'Rapat Keselamatan (TBM)', href: 'tbm-meetings.index', icon: UsersRound },
-                    { name: 'Tindakan Perbaikan (CAPA)', href: 'corrective-actions.index', icon: ClipboardCheck },
+                    { name: 'Incident Management', href: 'incidents.index', icon: AlertTriangle },
+                    { name: 'Safety Observation', href: 'safety-observations.index', icon: Eye },
+                    { name: 'Inspection', href: 'hse-inspections.index', icon: ClipboardCheck },
+                    { name: 'TBM', href: 'tbm-meetings.index', icon: UsersRound },
+                    { name: 'CAPA', href: 'corrective-actions.index', icon: ClipboardCheck },
                 ],
             },
             {
-                name: 'Izin & Keselamatan Kerja',
+                name: 'Permit & Work Safety',
                 icon: Flame,
                 children: [
-                    { name: 'Izin Kerja (PTW)', href: 'permits-to-work.index', icon: Flame },
-                    { name: 'Uji Gas', href: 'gas-test-records.index', icon: FlaskConical },
+                    { name: 'PTW', href: 'permits-to-work.index', icon: Flame },
+                    { name: 'Gas Test', href: 'gas-test-records.index', icon: FlaskConical },
                     { name: 'LOTO', href: 'loto-records.index', icon: Lock },
                     { name: 'JSA', href: 'job-safety-analyses.index', icon: FileWarning },
-                    { name: 'HIRADC / Penilaian Risiko', href: 'risk-assessments.index', icon: ShieldAlert },
+                    { name: 'HIRADC', href: 'risk-assessments.index', icon: ShieldAlert },
                 ],
             },
             {
-                name: 'Personel & APD',
+                name: 'People & PPE',
                 icon: UserCheck,
                 children: [
                     // PPE's own Dashboard/Employee PPE/Master/Reports split
                     // lives in PpeTabNav *within* the module, not as
                     // further sidebar sub-items.
-                    { name: 'Manajemen APD', href: 'ppe.dashboard', icon: HardHat, moduleKey: 'ppe' },
-                    { name: 'Manajemen Kontraktor', href: 'contractors.index', icon: UserCheck },
-                    { name: 'Manajemen Pengunjung', href: 'visitors.index', icon: FileCheck },
+                    { name: 'PPE Management', href: 'ppe.dashboard', icon: HardHat, moduleKey: 'ppe' },
+                    { name: 'Contractor Management', href: 'contractors.index', icon: UserCheck },
+                    { name: 'Visitor Management', href: 'visitors.index', icon: FileCheck },
                 ],
             },
             // v1.11.4, HSE Waste Management -- single entry point
@@ -190,7 +199,7 @@ export const WORKSPACES = [
             // waste-storage-locations.* stay reachable from within that
             // page rather than each getting their own sidebar row.
             // Left top-level (not grouped) -- see the class doc comment.
-            { name: 'Pengelolaan Limbah', href: 'waste.dashboard', icon: Recycle },
+            { name: 'Waste Management', href: 'waste.dashboard', icon: Recycle },
             // v1.11.15 (SaaS Package + Ecosystem pass, Part 6/7): Man-Hour
             // is genuinely shared HR+HSE data (see User::canManageManHour(),
             // same pass) -- HSE needs it directly for safety-KPI input, not
@@ -199,36 +208,36 @@ export const WORKSPACES = [
             // duplicate page/controller/table.
             { name: 'Man-Hour', href: 'man-hour.index', icon: Clock },
             {
-                name: 'Kontrol HSE',
+                name: 'HSE Control',
                 icon: ListChecks,
                 children: [
-                    { name: 'Data Master HSE', href: 'hse.master', icon: ListChecks },
-                    { name: 'Kontrol Dokumen', href: 'controlled-documents.index', icon: FileStack },
+                    { name: 'HSE Master Data', href: 'hse.master', icon: ListChecks },
+                    { name: 'Document Control', href: 'controlled-documents.index', icon: FileStack },
                     // v1.10.4 correction: moved from HR -- same route,
                     // controller, permissions, moduleKey, only the owning
                     // sidebar changed.
-                    { name: 'KPI HSE', href: 'kpi-input.index', icon: ClipboardEdit, adminOnly: true, moduleKey: 'kpi_input' },
+                    { name: 'HSE KPI', href: 'kpi-input.index', icon: ClipboardEdit, adminOnly: true, moduleKey: 'kpi_input' },
                 ],
             },
             // Training & Competency lives under HR -- same one-canonical-
             // home precedent as HSE KPI above (which moved the other way).
-            { name: 'Pelatihan', icon: ClipboardList, disabled: true },
-            { name: 'Laporan', icon: FileBarChart, disabled: true },
+            { name: 'Training', icon: ClipboardList, disabled: true },
+            { name: 'Reports', icon: FileBarChart, disabled: true },
         ],
     },
     {
         key: 'project-management',
         // v1.11.7 (Bahasa Indonesia Standardization, Part 4).
-        label: 'Manajemen Proyek',
+        label: 'Project Management',
         icon: FolderKanban,
         tier: 'department',
         items: [
             { name: 'Dashboard', href: 'dashboard', icon: LayoutDashboard, global: true },
-            { name: 'Ringkasan', href: 'project-management.dashboard', icon: LayoutDashboard },
-            { name: 'Proyek', href: 'projects.index', icon: FolderKanban, moduleKey: 'projects' },
+            { name: 'Overview', href: 'project-management.dashboard', icon: LayoutDashboard },
+            { name: 'Projects', href: 'projects.index', icon: FolderKanban, moduleKey: 'projects' },
             // Daily Reports lives here, not HSE: it's a per-project
             // activity/progress log -- see ADR-007 for the reasoning.
-            { name: 'Laporan Harian', href: 'daily-reports.index', icon: ClipboardList, moduleKey: 'daily_reports' },
+            { name: 'Daily Reports', href: 'daily-reports.index', icon: ClipboardList, moduleKey: 'daily_reports' },
             // Milestone 4, Acceleration Part 3: real backend now
             // (ProjectActivity) -- distinct from a DailyReportActivity
             // free-text log line: this is a real owner+progress+status
@@ -237,10 +246,10 @@ export const WORKSPACES = [
             // requires a {project} param, so it's reached from within a
             // Project's own page, not as a standalone sidebar destination;
             // same reasoning as Attendance/Training above).
-            { name: 'Aktivitas', icon: ClipboardList, disabled: true },
+            { name: 'Activities', icon: ClipboardList, disabled: true },
             { name: 'Milestone', href: 'milestones.index', icon: Flag },
-            { name: 'Dokumen', icon: ClipboardList, disabled: true },
-            { name: 'Laporan', icon: FileBarChart, disabled: true },
+            { name: 'Documents', icon: ClipboardList, disabled: true },
+            { name: 'Reports', icon: FileBarChart, disabled: true },
         ],
     },
     {
@@ -248,27 +257,27 @@ export const WORKSPACES = [
         // v1.11.7 (Bahasa Indonesia Standardization, Part 4) -- "PPIC"
         // (Production Planning & Inventory Control) is itself already a
         // standard Indonesian-industry acronym, kept as-is.
-        label: 'Logistik / PPIC',
+        label: 'Logistics / PPIC',
         icon: PackageSearch,
         tier: 'department',
         items: [
             { name: 'Dashboard', href: 'dashboard', icon: LayoutDashboard, global: true },
-            { name: 'Ringkasan', href: 'logistics.dashboard', icon: LayoutDashboard },
-            { name: 'Permintaan Material', href: 'material-requests.index', icon: PackageSearch, moduleKey: 'material_requests' },
+            { name: 'Overview', href: 'logistics.dashboard', icon: LayoutDashboard },
+            { name: 'Material Request', href: 'material-requests.index', icon: PackageSearch, moduleKey: 'material_requests' },
             // Warehouse stays inside Logistics for now, per explicit
             // instruction -- not split into its own department yet, even
             // though a separate (still-disabled) "Warehouse" department
             // also exists below for future use.
             // Milestone 4, Acceleration Part 1B: real backend now
             // (Warehouse/StorageLocation/Stock/StockMovement).
-            { name: 'Gudang', href: 'warehouses.master', icon: Warehouse },
-            { name: 'Data Master Barang', href: 'items.index', icon: Box },
-            { name: 'Inventaris', href: 'stock.index', icon: Boxes },
-            { name: 'Penerimaan Barang', href: 'goods-receipts.index', icon: PackageCheck },
-            { name: 'Keluar / Transfer / Penyesuaian Stok', href: 'stock.transactions.create', icon: ArrowRightLeft },
-            { name: 'Riwayat Pergerakan Stok', href: 'stock.movements', icon: ClipboardList },
-            { name: 'Dokumen', icon: ClipboardList, disabled: true },
-            { name: 'Laporan', icon: FileBarChart, disabled: true },
+            { name: 'Warehouse', href: 'warehouses.master', icon: Warehouse },
+            { name: 'Item Master', href: 'items.index', icon: Box },
+            { name: 'Inventory', href: 'stock.index', icon: Boxes },
+            { name: 'Goods Receipt', href: 'goods-receipts.index', icon: PackageCheck },
+            { name: 'Stock Out / Transfer / Adjustment', href: 'stock.transactions.create', icon: ArrowRightLeft },
+            { name: 'Stock Movement History', href: 'stock.movements', icon: ClipboardList },
+            { name: 'Documents', icon: ClipboardList, disabled: true },
+            { name: 'Reports', icon: FileBarChart, disabled: true },
         ],
     },
     // v1.10.6 correction, updated v1.11.3.2 (Priority Pass Part 9):
@@ -308,12 +317,12 @@ export const WORKSPACES = [
     {
         key: 'warehouse',
         // v1.11.7 (Bahasa Indonesia Standardization, Part 4).
-        label: 'Gudang',
+        label: 'Warehouse',
         icon: Warehouse,
         tier: 'department',
         items: [
             { name: 'Dashboard', href: 'dashboard', icon: LayoutDashboard, global: true },
-            { name: 'Ringkasan', href: 'warehouses.dashboard', icon: Warehouse },
+            { name: 'Overview', href: 'warehouses.dashboard', icon: Warehouse },
         ],
     },
     {

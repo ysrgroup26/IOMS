@@ -1,11 +1,17 @@
 import { useState, useRef, useEffect } from 'react';
 import { Link } from '@inertiajs/react';
-import { Search, Users, FolderKanban, AlertTriangle, PackageSearch, CalendarDays, Flag, PackageCheck, Building2 } from 'lucide-react';
+import {
+    Search, Users, FolderKanban, AlertTriangle, PackageSearch, CalendarDays, Flag, PackageCheck, Building2,
+    HardHat, ClipboardCheck, Flame, Box, Truck,
+} from 'lucide-react';
 
 // Milestone 3 (Task #52): generalized beyond Employees/Projects to every
 // real module with a search-worthy detail page. Adding a category later
 // = one more entry here + the matching key in GlobalSearchController's
 // response, nothing else in this component changes.
+// v2.2.0 (IOMS OS Ecosystem pass, Part 7): added PPE/CAPA/PTW/Asset/
+// Vendor -- see GlobalSearchController's own doc comment for the
+// tenant-scoping + RBAC-gating fix that came with these.
 const CATEGORIES = [
     { key: 'employees', label: 'Employees', icon: Users },
     { key: 'projects', label: 'Projects', icon: FolderKanban },
@@ -15,6 +21,11 @@ const CATEGORIES = [
     { key: 'milestones', label: 'Milestones', icon: Flag },
     { key: 'goods_receipts', label: 'Goods Receipts', icon: PackageCheck },
     { key: 'companies', label: 'Companies', icon: Building2 },
+    { key: 'ppe', label: 'PPE', icon: HardHat },
+    { key: 'capas', label: 'CAPA', icon: ClipboardCheck },
+    { key: 'ptws', label: 'PTW', icon: Flame },
+    { key: 'assets', label: 'Assets', icon: Box },
+    { key: 'vendors', label: 'Vendors', icon: Truck },
 ];
 
 const EMPTY_RESULTS = Object.fromEntries(CATEGORIES.map((c) => [c.key, []]));

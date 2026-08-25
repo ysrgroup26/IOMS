@@ -19,6 +19,7 @@ use App\Models\Task;
 use App\Models\WorkOrder;
 use App\Services\CalendarService;
 use App\Services\DashboardStatsService;
+use App\Services\WorkCenterService;
 use Illuminate\Http\Request;
 use Illuminate\Support\Carbon;
 use Inertia\Inertia;
@@ -29,6 +30,7 @@ class DashboardController extends Controller
     public function __construct(
         private readonly DashboardStatsService $stats,
         private readonly CalendarService $calendar,
+        private readonly WorkCenterService $workCenter,
     ) {}
 
     /**
@@ -118,6 +120,16 @@ class DashboardController extends Controller
                 ->orderByRaw('due_date IS NULL, due_date ASC')
                 ->limit(5)
                 ->get(['id', 'task_number', 'title', 'priority', 'status', 'due_date']),
+            // v2.2.0 (IOMS OS Ecosystem pass, Part 5 -- Quick Actions): was
+            // 4 hardcoded links (New Project/Daily Report/New Employee/
+            // Issue PPE) baked directly into Dashboard/Index.jsx, shown to
+            // every user regardless of role/module/department. Replaced
+            // with the same module-gated, role-gated, department-tagged
+            // list Work Center's own Quick Actions bar already uses (see
+            // WorkCenterService::quickActionsFor()'s own doc comment) --
+            // one implementation, two surfaces, per this app's established
+            // "topbar badge and full page share one query" convention.
+            'quickActions' => $this->workCenter->quickActionsFor($request->user()),
             // Employee Import (v1.6.8) -- real count of employees whose
             // profile_status accessor resolves to needs_completion
             // (department_id null), scoped the same way every other

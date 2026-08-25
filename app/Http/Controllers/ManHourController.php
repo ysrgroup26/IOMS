@@ -46,7 +46,29 @@ class ManHourController extends Controller
 
         return Inertia::render('ManHour/Index', [
             'logs' => $logs,
-            'employees' => Employee::whereIn('company_id', $companyIds)->active()->orderedForDisplay()->get(['id', 'full_name', 'department_id', 'company_id']),
+            // ROOT CAUSE of the reported Man-Hour HTTP 500 (v2.2.0
+            // investigation): `orderedForDisplay()` INNER JOINs
+            // `departments` and LEFT JOINs `positions` -- both of which
+            // (since 2026_07_16_100002 / 2026_08_11_100035) now have
+            // their own `company_id` AND `id` columns, same as
+            // `employees`. The previous unqualified `whereIn('company_id',
+            // ...)` and `get(['id', ... 'company_id'])` became genuinely
+            // ambiguous column references the moment that join was added
+            // to the query -- MySQL throws "Column 'company_id'/'id' in
+            // {where clause|field list} is ambiguous", a real
+            // QueryException surfacing as a 500. This exact hazard is
+            // already documented and fixed elsewhere in this codebase --
+            // see ProjectController::show()'s "$availableEmployees" query
+            // and its own comment ("unqualified references here would be
+            // ambiguous once combined with that join") -- ManHourController
+            // was simply the one call site that never got the same
+            // treatment. Fully qualifying every reference here matches
+            // that established, working pattern exactly.
+            'employees' => Employee::query()
+                ->whereIn('employees.company_id', $companyIds)
+                ->active()
+                ->orderedForDisplay()
+                ->get(['employees.id', 'employees.full_name', 'employees.department_id', 'employees.company_id']),
             'projects' => Project::whereIn('company_id', $companyIds)->orderBy('name')->get(['id', 'name']),
             'companies' => Company::active()->orderBy('name')->get(['id', 'name']),
             'filters' => $request->only('company_id', 'employee_id', 'department_id', 'from', 'to'),

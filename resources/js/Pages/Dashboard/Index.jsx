@@ -21,7 +21,18 @@ import {
     Trophy, Flame, ClipboardList, Users2, FolderKanban, Activity, Bell,
     Users, Building2, CalendarDays, HardHat, CheckCircle2, AlertTriangle, Plus, UserCog, ArrowRight,
     Sparkles, X, ClipboardCheck, ShoppingCart, Boxes, Box, Wrench, Flag, Clock,
+    Eye, FileWarning, ShieldAlert, FlaskConical, GraduationCap, PackagePlus, PackageCheck,
+    ArrowRightLeft, FileStack, UserPlus, CheckSquare,
 } from 'lucide-react';
+
+// v2.2.0 (IOMS OS Ecosystem pass, Part 5): matches every icon key
+// WorkCenterService::quickActionsFor() can emit -- same list as
+// WorkCenter/Index.jsx's own QUICK_ACTION_ICONS map.
+const QUICK_ACTION_ICONS = {
+    HardHat, AlertTriangle, Eye, ClipboardCheck, Flame, FileWarning, ShieldAlert, FlaskConical,
+    UserPlus, Clock, CalendarDays, GraduationCap, FolderKanban, ClipboardList, Flag,
+    PackagePlus, FileStack, ShoppingCart, PackageCheck, ArrowRightLeft, CheckSquare,
+};
 
 /**
  * v1.3.2 redesign: visual hierarchy now goes
@@ -35,7 +46,7 @@ import {
 export default function Dashboard({
     filters, availableYears, currentMonth, companies, summary, companyHeadcount,
     departmentDistribution, monthlyTrend, leaderboards,
-    activeProjectsCount, todaysActivities, upcomingReminders, pendingTasks, employeesNeedCompletionCount,
+    activeProjectsCount, todaysActivities, upcomingReminders, pendingTasks, quickActions, employeesNeedCompletionCount,
     recentDailyReports, recentEmployeeChanges, showAnnouncement,
     openIncidentsCount, openCapaCount, pendingProcurementCount, stockAlertCount, assetCount, maintenanceDueCount,
     upcomingEvents, manpower, manhours, projectSummary, upcomingMilestones,
@@ -364,11 +375,13 @@ export default function Dashboard({
 
             {/* 4. Secondary info -- de-emphasized, further down the page.
                 v1.6.3: added Quick Actions using real, existing create
-                pages. "Pending Tasks" and "Pending Approval" were also
-                requested here, but there's no Task Engine or Approval
-                Engine in this app yet (no backing data model) -- adding
-                UI for those would mean fabricating fake data, so they
-                were intentionally left out rather than faked. */}
+                pages. Pending Tasks is rendered above (§ "Pending Tasks"
+                card) now that the Universal Task Engine is real data --
+                this comment previously said neither existed yet; both do
+                now, see v2.2.0's note on the Quick Actions card itself for
+                what changed there. Pending Approval intentionally lives on
+                Work Center instead of duplicating it here (one
+                implementation, see WorkCenterService). */}
             {/* v1.11.1 (Final Production Readiness Pass, Part 4/5/6),
                 widened v1.11.6 once Man-Hours became real data: Calendar,
                 Man-Power, and Man-Hours widgets, required on the MAIN
@@ -556,13 +569,28 @@ export default function Dashboard({
                 <Card>
                     <CardHeader>
                         <CardTitle className="flex items-center gap-2"><Plus className="h-3.5 w-3.5 text-graphite-400" /> Quick Actions</CardTitle>
-                        <CardDescription>Jump straight to a common task</CardDescription>
+                        {/* v2.2.0 (IOMS OS Ecosystem pass, Part 5): this card used
+                            to be 4 links, hardcoded, shown to every user
+                            regardless of role/department/module. Now driven by
+                            `quickActions` (WorkCenterService::quickActionsFor()),
+                            the same list Work Center's own Quick Actions bar
+                            uses -- module-gated, role-gated, and department-
+                            tagged for Department Users. */}
+                        <CardDescription>Aksi cepat sesuai peran dan departemen Anda</CardDescription>
                     </CardHeader>
                     <CardContent className="grid grid-cols-2 gap-2">
-                        <Button variant="outline" size="sm" asChild><Link href={route('projects.create')}><Plus className="h-3.5 w-3.5" /> New Project</Link></Button>
-                        <Button variant="outline" size="sm" asChild><Link href={route('daily-reports.create')}><Plus className="h-3.5 w-3.5" /> Daily Report</Link></Button>
-                        <Button variant="outline" size="sm" asChild><Link href={route('employees.create')}><Plus className="h-3.5 w-3.5" /> New Employee</Link></Button>
-                        <Button variant="outline" size="sm" asChild><Link href={route('ppe.index')}><Plus className="h-3.5 w-3.5" /> Issue PPE</Link></Button>
+                        {quickActions?.length > 0 ? (
+                            quickActions.map((action) => {
+                                const Icon = QUICK_ACTION_ICONS[action.icon] || Plus;
+                                return (
+                                    <Button key={action.url + action.label} variant="outline" size="sm" asChild>
+                                        <Link href={action.url}><Icon className="h-3.5 w-3.5" /> {action.label}</Link>
+                                    </Button>
+                                );
+                            })
+                        ) : (
+                            <p className="col-span-2 text-xs text-graphite-400">Belum ada aksi cepat yang tersedia untuk peran Anda.</p>
+                        )}
                     </CardContent>
                 </Card>
             </div>

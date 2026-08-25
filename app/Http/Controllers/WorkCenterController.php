@@ -66,6 +66,12 @@ class WorkCenterController extends Controller
                     'url' => route('ppe.dashboard'),
                 ],
             ],
+            // v2.2.0 (IOMS OS Ecosystem pass, Part 6 -- My Tasks / Action
+            // Center): real cross-department alerts (CAPA due, PTW
+            // pending, stock alert, maintenance due, PR/PO pending),
+            // gated per-item by the viewing user's own capabilities --
+            // see WorkCenterService::actionAlertsFor()'s own doc comment.
+            'actionAlerts' => $this->workCenter->actionAlertsFor($user),
             'notifications' => [
                 'unread_count' => Notification::where('user_id', $user->id)->unread()->count(),
                 'recent' => Notification::where('user_id', $user->id)
@@ -92,46 +98,11 @@ class WorkCenterController extends Controller
                     'module' => $log->module,
                     'created_at' => $log->created_at->diffForHumans(),
                 ]),
-            'quickActions' => $this->quickActionsFor($user),
+            // v2.2.0: moved to WorkCenterService::quickActionsFor() so the
+            // Main Dashboard can reuse the exact same list -- see that
+            // method's own doc comment.
+            'quickActions' => $this->workCenter->quickActionsFor($user),
         ]);
-    }
-
-    /**
-     * Module-gated, role-gated pointers into each module's own "create"
-     * route -- reuses the exact same enabled-module + role checks each
-     * module's own sidebar entry already applies (see
-     * resources/js/lib/workspaces.js), so a quick action never appears
-     * for a module the tenant hasn't enabled or a user can't reach.
-     * Deliberately not a full permission engine: existing `role:` route
-     * middleware still gates the destination if this list is ever wrong.
-     */
-    private function quickActionsFor($user): array
-    {
-        // Same "granted ∩ stored-enabled" resolution HandleInertiaRequests
-        // uses for the sidebar (see its own long comment on why this reads
-        // CompanySetting uncached) -- kept intentionally minimal here since
-        // quick actions are a convenience shortcut, not the access-control
-        // boundary (the destination route's own middleware still gates it).
-        $grantedKeys = $user->tenant ? $user->tenant->modules()->pluck('key')->all() : [];
-        $stored = json_decode(
-            \App\Models\CompanySetting::where('key', 'enabled_modules')->value('value') ?? json_encode($grantedKeys),
-            true
-        ) ?? $grantedKeys;
-        $enabledModules = collect(array_intersect($stored, $grantedKeys));
-        $actions = [];
-
-        if ($enabledModules->contains('material_requests')) {
-            $actions[] = ['label' => 'New Material Request', 'url' => route('material-requests.create'), 'icon' => 'PackagePlus'];
-        }
-        if ($enabledModules->contains('employees') && $user->isAdmin()) {
-            $actions[] = ['label' => 'Add Employee', 'url' => route('employees.create'), 'icon' => 'UserPlus'];
-        }
-        if ($enabledModules->contains('ppe')) {
-            $actions[] = ['label' => 'PPE Dashboard', 'url' => route('ppe.dashboard'), 'icon' => 'HardHat'];
-        }
-        $actions[] = ['label' => 'New Task', 'url' => route('tasks.create'), 'icon' => 'CheckSquare'];
-
-        return $actions;
     }
 
     /**

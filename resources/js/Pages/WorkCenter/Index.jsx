@@ -8,10 +8,21 @@ import { Button } from '@/Components/ui/button';
 import {
     CheckSquare, ClipboardCheck, HardHat, ArrowRight, Bell, History,
     PackagePlus, UserPlus, Plus,
+    AlertTriangle, Eye, Flame, FileWarning, ShieldAlert, FlaskConical,
+    Clock, CalendarDays, GraduationCap, FolderKanban, ClipboardList, Flag,
+    FileStack, ShoppingCart, PackageCheck, ArrowRightLeft,
 } from 'lucide-react';
 import { cn } from '@/lib/utils';
 
-const QUICK_ACTION_ICONS = { PackagePlus, UserPlus, HardHat, CheckSquare };
+// v2.2.0 (IOMS OS Ecosystem pass, Part 5): extended to match every icon
+// key WorkCenterController::quickActionsFor() can now emit (HSE/HRD/
+// Project/Logistics/Warehouse actions, not only the original 4).
+const QUICK_ACTION_ICONS = {
+    PackagePlus, UserPlus, HardHat, CheckSquare,
+    AlertTriangle, Eye, ClipboardCheck, Flame, FileWarning, ShieldAlert, FlaskConical,
+    Clock, CalendarDays, GraduationCap, FolderKanban, ClipboardList, Flag,
+    FileStack, ShoppingCart, PackageCheck, ArrowRightLeft,
+};
 
 /**
  * Work Center / "My Workspace" (v1.8.0, extended Milestone 3 Task #63).
@@ -28,8 +39,9 @@ const QUICK_ACTION_ICONS = { PackagePlus, UserPlus, HardHat, CheckSquare };
  * Enterprise Dashboard epic -- all real data from the Notification
  * Center / Activity Center / module registry, not placeholders.
  */
-export default function WorkCenterIndex({ approvals, tasks, alerts, notifications, recentActivity, quickActions }) {
-    const hasAnything = approvals.length > 0 || tasks.length > 0 || (alerts?.ppe?.count ?? 0) > 0;
+export default function WorkCenterIndex({ approvals, tasks, alerts, actionAlerts, notifications, recentActivity, quickActions }) {
+    const alertCount = (alerts?.ppe?.count ?? 0) + (actionAlerts?.length ?? 0);
+    const hasAnything = approvals.length > 0 || tasks.length > 0 || alertCount > 0;
 
     return (
         <AuthenticatedLayout>
@@ -112,8 +124,8 @@ export default function WorkCenterIndex({ approvals, tasks, alerts, notification
                     <Section
                         title="Alerts"
                         icon={HardHat}
-                        count={alerts?.ppe?.count ?? 0}
-                        emptyLabel="No PPE alerts right now."
+                        count={alertCount}
+                        emptyLabel="Tidak ada peringatan saat ini."
                     >
                         {(alerts?.ppe?.count ?? 0) > 0 && (
                             <WorkItem
@@ -123,6 +135,18 @@ export default function WorkCenterIndex({ approvals, tasks, alerts, notification
                                 badge={<StatusBadge value="expired" label={`${alerts.ppe.count} item(s)`} />}
                             />
                         )}
+                        {/* v2.2.0 (IOMS OS Ecosystem pass, Part 6): real
+                            cross-department alerts (CAPA due, PTW pending,
+                            stock alert, maintenance due, PR/PO pending) --
+                            see WorkCenterService::actionAlertsFor(). */}
+                        {(actionAlerts ?? []).map((alert) => (
+                            <WorkItem
+                                key={`alert-${alert.key}`}
+                                href={alert.url}
+                                title={alert.label}
+                                badge={<StatusBadge value="expiring_soon" label={`${alert.count}`} />}
+                            />
+                        ))}
                     </Section>
                 </div>
             )}

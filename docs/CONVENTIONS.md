@@ -3,6 +3,58 @@
 House style, and a deliberately honest list of mistakes that have actually happened in this
 codebase's history — kept here so they don't get repeated in a slightly different shape.
 
+## CRITICAL — Known Pitfall (v2.2.0): a `scopeXyz()` that joins a second table can make an
+## already-correct, already-working caller's unqualified column references retroactively ambiguous
+
+`Employee::scopeOrderedForDisplay()` (`app/Models/Employee.php`) INNER JOINs `departments` and LEFT
+JOINs `positions`, then `select('employees.*')`. Every column both those tables also happen to have
+(`id`, `company_id`, `department_id`) becomes genuinely ambiguous SQL the moment this scope is
+chained onto a query that referenced any of those columns unqualified elsewhere in the same chain —
+regardless of whether that unqualified reference was written before or after `orderedForDisplay()`
+in the fluent chain, since MySQL evaluates the final assembled statement as a whole. This is exactly
+what caused the real, confirmed Man-Hour HTTP 500: `ManHourController::index()`'s
+`Employee::whereIn('company_id', ...)->...->get(['id', ..., 'company_id'])` call had been written
+correctly (schema-valid, no typo) — it only became broken retroactively, the day someone added
+`company_id`/`sort_order` columns to `departments`/`positions` (2026-07-16 / 2026-08-11) that this
+Employee query itself never touched. Confirmed by static SQL-ambiguity analysis, then cross-checked
+against `ProjectController::show()`'s `$availableEmployees` query, which had *already* hit and fixed
+this exact hazard for itself and left a comment explaining why every column must be qualified
+(`employees.id` not `id`) once `orderedForDisplay()` is in the chain — `PpeController::employees()`
+follows the same discipline. `ManHourController` was simply the one call site nobody had gone back
+to fix once the hazard became live.
+
+**The general lesson**: when a shared query scope adds a `join()`, EVERY existing caller of that
+scope is a live ambiguity risk the moment the joined table gains a same-named column — not just new
+callers written after the join was added. Grep every caller of a scope before adding a `join()` to
+it (or before adding a column to a table already joined by an existing scope), and qualify every
+column reference (`table.column`) in any query that uses `orderedForDisplay()` or a similar
+join-adding scope, even if the query "looks" unambiguous today.
+
+## CRITICAL — Known Pitfall (v2.2.0): `WorkCenterService`'s original approvals/PPE-alert queries had
+## no tenant boundary at all — a null `company_id` silently meant "show it to everyone, every tenant"
+
+Two real, confirmed cross-tenant leaks existed in `app/Services/WorkCenterService.php` before this
+pass, both with the same root shape: a query intended to be "global across companies within one
+tenant" was actually global across *every tenant*, because nothing in the query ever consulted
+`Company::query()->pluck('id')` (the `TenantScope`-filtered set every other tenant-safe query in this
+app resolves via `DashboardStatsService::resolveCompanyIds()`).
+
+- `pendingApprovalsFor()`: only ever narrowed by `$user->company_id === $approvable->company_id`, and
+  only when `$user->company_id` was set — but "most internal staff (managers, HSE, Super Admin) have
+  a null `company_id` by design" (this method's own pre-existing doc comment), so for the common case
+  the check was skipped entirely and every tenant's pending approvals were returned.
+- `ppeAlertCount()`: no scoping of any kind — summed expiring/expired PPE across every tenant into
+  the topbar bell badge and Work Center's own alert count.
+
+**The general lesson**: a per-user or per-company narrowing check (`if ($user->company_id) {...}`)
+is not a substitute for a tenant boundary, and a check that's conditionally skipped for the *common*
+case (most users have a null field) is really no check at all for that case. Any query aggregating
+across "the current company/companies" — not just search, not just one controller — needs
+`resolveCompanyIds()` (or the equivalent relation-based scope) applied unconditionally, checked
+first, before any narrower per-user filter runs on top of it. See also the Global Search fix in this
+same pass (`GlobalSearchController`), which had an identical class of gap across every one of its
+original 8 categories.
+
 ## CRITICAL — Known Pitfall (v2.1.0): a fully-built enforcement mechanism with zero call sites is
 ## indistinguishable from "working" until someone greps for its callers, not just its definition
 

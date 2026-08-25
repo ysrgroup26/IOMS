@@ -2,8 +2,9 @@ import { Head, router, Link } from '@inertiajs/react';
 import AuthenticatedLayout from '@/Layouts/AuthenticatedLayout';
 import { Card, CardContent, CardHeader, CardTitle, CardDescription } from '@/Components/ui/card';
 import { Badge } from '@/Components/ui/badge';
+import { Button } from '@/Components/ui/button';
 import { Select, SelectTrigger, SelectValue, SelectContent, SelectItem } from '@/Components/ui/select';
-import { HardHat, AlertTriangle, ShieldAlert, RefreshCw, UserX } from 'lucide-react';
+import { HardHat, AlertTriangle, ShieldAlert, RefreshCw, UserX, Plus } from 'lucide-react';
 import PpeTabNav from '@/Components/shared/PpeTabNav';
 import PageHeader from '@/Components/shared/PageHeader';
 import StatCard from '@/Components/shared/StatCard';
@@ -31,6 +32,16 @@ export default function PpeDashboard({ totalActive, expiringSoonCount, expiredCo
 
             <PpeTabNav />
 
+            {/* v1.11.15 (SaaS Package + Ecosystem pass, Part 3): this was
+                the page an HSE user actually lands on for "PPE Management"
+                (see workspaces.js's "Manajemen APD" link -> `ppe.dashboard`),
+                and it had no visible "+" action anywhere -- only StatCards
+                and read-only lists. The real Issue PPE flow already lives on
+                Employee PPE Profile (select employee -> Issue PPE), correct
+                and unchanged; this button doesn't reinvent it, it just gets
+                the user to that existing flow's first step instead of
+                requiring them to already know to click the "Employee PPE"
+                tab first. */}
             <PageHeader title="PPE Dashboard" subtitle="Replacement-due overview across all PPE types. Click a card to see the full list.">
                 <Select value={filters.company_id ? String(filters.company_id) : 'all'} onValueChange={updateCompany}>
                     <SelectTrigger className="w-40"><SelectValue placeholder="Company" /></SelectTrigger>
@@ -39,6 +50,9 @@ export default function PpeDashboard({ totalActive, expiringSoonCount, expiredCo
                         {companies.map((c) => <SelectItem key={c.id} value={String(c.id)}>{c.name}</SelectItem>)}
                     </SelectContent>
                 </Select>
+                <Button asChild>
+                    <Link href={route('ppe.employees')}><Plus className="h-4 w-4" /> Tambah APD</Link>
+                </Button>
             </PageHeader>
 
             <div className="grid grid-cols-2 gap-3 sm:grid-cols-3 lg:grid-cols-5">

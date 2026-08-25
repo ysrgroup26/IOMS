@@ -17,7 +17,7 @@ return [
     |
     */
 
-    'version' => '2.0.0',
+    'version' => '2.1.0',
 
     // Tester / Beta / Stable -- tracks the release stage explicitly.
     // Previously only implied in conversation, never actually stored.
@@ -25,9 +25,9 @@ return [
 
     'edition' => 'Enterprise Edition',
 
-    'build' => '2026.08.16.1',
+    'build' => '2026.08.25.1',
 
-    'release_date' => '2026-08-16',
+    'release_date' => '2026-08-25',
 
     'developer' => 'Yofhanza Shultona Rizqi S.',
 
@@ -44,11 +44,11 @@ return [
     'documentation_url' => 'docs.iomsplatform.com',
 
     'whats_new' => [
-        'Multi-tenant SaaS foundation: Tenant model above Company, tenant-scoped isolation via TenantScope, Platform Super Admin distinction',
-        'RBAC infrastructure via spatie/laravel-permission -- tenant-scoped roles/permissions, editable from Settings > Roles & Permissions',
-        'Package + Subscription structure for future billing, seeded with Starter/Professional/Enterprise tiers',
-        'Module and Department (Workspace) catalogs moved from config files into the database -- Super Admin can rename/reorder/enable without a deploy',
-        'New Platform Super Admin console (/platform) for cross-tenant Tenant/Package/Subscription management',
+        'HSE Starter package is now genuinely operational: Man-Hour recording opened to HSE (previously HRD-only, violating the "module must not require another paid module for shared core data" rule)',
+        'New tenant creation now actually grants Module/Workspace access based on the chosen Package (Starter=HSE, Professional=HSE+HRD, Enterprise=all) -- previously the Package selection had no effect on tenant access at all',
+        'Optional per-workspace entitlement enforcement added to EnforceTenantEntitlement (off by default pending Tenant Grant verification -- see SAAS_ENFORCE_WORKSPACE_ENTITLEMENT)',
+        'PPE Dashboard: added a visible "+ Tambah APD" action (was missing entirely)',
+        'Man-Hour navigation added directly under the HSE workspace, alongside its existing HRD entry -- one shared data source, two department entry points',
     ],
 
     /*
@@ -63,6 +63,7 @@ return [
     */
 
     'version_history' => [
+        ['version' => '2.1.0', 'date' => '2026-08-25', 'summary' => 'HSE Starter package made genuinely operational: Man-Hour opened to HSE (entitlement-dependency-rule fix), Package-to-Workspace/Module grant mapping wired into tenant creation, PPE Dashboard "+" action fix, optional per-workspace entitlement enforcement (off by default).'],
         ['version' => '2.0.0', 'date' => '2026-08-16', 'summary' => 'Milestone 2: Tenancy Foundation, Platform Super Admin, Package/Subscription structure, RBAC (spatie/laravel-permission), DB-driven Module and Workspace catalogs, Platform Super Admin console.'],
         ['version' => '1.6.10', 'date' => '2026-08-11', 'summary' => 'Material Request complete workflow (HasWorkflow trait); RBAC options evaluated (Spatie Permission recommended, docs/ADR/006); new Warehouse role.'],
         ['version' => '1.6.9', 'date' => '2026-08-09', 'summary' => 'Universal Approval Engine and Activity Timeline viewer -- verified ActivityLog already existed before building anything new.'],

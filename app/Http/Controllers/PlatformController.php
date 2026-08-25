@@ -119,6 +119,25 @@ class PlatformController extends Controller
                 'ends_at' => now()->addMonth(),
             ]);
 
+            // v1.11.15 (SaaS Package + Ecosystem pass, Part 1/26/27):
+            // previously the chosen Package had NO effect on what this
+            // tenant could actually reach -- storeTenant() never granted
+            // any Module/Workspace row at all, and a Platform Admin had
+            // to remember to visit Tenant Grants separately afterward.
+            // Package::defaultWorkspaceKeys()/defaultModuleKeys() is the
+            // canonical Starter=HSE/Professional=HSE+HRD/Enterprise=all
+            // mapping this pass defines; applied here so a new tenant is
+            // usable immediately, matching what its Subscription actually
+            // says it bought. A Platform Admin can still hand-adjust
+            // individual grants afterward via the existing Tenant Grants
+            // page -- this only sets sensible defaults, it doesn't remove
+            // that page's own purpose.
+            $package = Package::find($validated['package_id']);
+            if ($package) {
+                $tenant->workspaces()->sync(Workspace::whereIn('key', $package->defaultWorkspaceKeys())->pluck('id'));
+                $tenant->modules()->sync(Module::whereIn('key', $package->defaultModuleKeys())->pluck('id'));
+            }
+
             User::create([
                 'name' => $validated['admin_name'],
                 'email' => $validated['admin_email'],

@@ -191,6 +191,13 @@ export const WORKSPACES = [
             // page rather than each getting their own sidebar row.
             // Left top-level (not grouped) -- see the class doc comment.
             { name: 'Pengelolaan Limbah', href: 'waste.dashboard', icon: Recycle },
+            // v1.11.15 (SaaS Package + Ecosystem pass, Part 6/7): Man-Hour
+            // is genuinely shared HR+HSE data (see User::canManageManHour(),
+            // same pass) -- HSE needs it directly for safety-KPI input, not
+            // only as a read-only number on its own Overview. Same route
+            // HR's own sidebar already links to (`man-hour.index`), no
+            // duplicate page/controller/table.
+            { name: 'Man-Hour', href: 'man-hour.index', icon: Clock },
             {
                 name: 'Kontrol HSE',
                 icon: ListChecks,

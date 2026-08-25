@@ -102,6 +102,29 @@ class EnforceTenantEntitlement
             'Your organization\'s subscription is not currently active. Contact your administrator or see Settings for details.'
         );
 
+        // v1.11.15 (SaaS Package + Ecosystem pass, Part 26/27): the
+        // per-workspace (department) entitlement check -- see this
+        // class's own doc comment on `enforce_workspace_entitlement` for
+        // why this is a NEW, separate, off-by-default check rather than
+        // folded into the subscription-usability block above. Reuses the
+        // exact same `config('departments')` prefix map
+        // `RestrictDepartmentAccess` already uses (a workspace key IS a
+        // department key in this app -- Workspace::key/config
+        // ('departments') top-level keys are the same vocabulary), so no
+        // second copy of that mapping was introduced.
+        if (config('saas.enforce_workspace_entitlement', false)) {
+            $owningWorkspace = collect(config('departments', []))
+                ->search(fn (array $prefixes) => in_array($prefix, $prefixes, true));
+
+            if ($owningWorkspace !== false) {
+                abort_unless(
+                    $this->entitlements->tenantCanUseWorkspace($user->tenant, $owningWorkspace),
+                    403,
+                    'This department is not included in your organization\'s current subscription plan.'
+                );
+            }
+        }
+
         return $next($request);
     }
 }

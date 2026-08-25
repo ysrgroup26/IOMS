@@ -58,6 +58,14 @@ class RestrictDepartmentAccess
         // owned by any single department, the same reasoning as
         // 'dashboard' itself.
         'calendar',
+        // v1.11.15 (SaaS Package + Ecosystem pass, Part 27 -- Entitlement
+        // Dependency Rule): Man-Hour is genuinely shared HR+HSE
+        // operational data (User::canManageManHour() now grants both),
+        // the exact same "aggregates/serves several departments, owned by
+        // none of them" shape as 'calendar' above -- moved here from the
+        // `hr`-only entry in config/departments.php, which only supports
+        // one owning department per prefix.
+        'man-hour',
     ];
 
     public function handle(Request $request, Closure $next): Response

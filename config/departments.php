@@ -20,8 +20,12 @@ return [
         'employees', 'employee-competencies', 'employee-rosters',
         'employee-shift-assignments', 'leave-requests', 'shifts', 'rosters',
         'roster-patterns', 'competency', 'competency-types', 'hr',
-        // v1.11.6 (Man-Hour) -- HR-owned operational log, see ManHourController's own doc comment.
-        'man-hour',
+        // v1.11.15: 'man-hour' moved OUT of this list -- see
+        // RestrictDepartmentAccess::UNIVERSAL_PREFIXES for why (genuinely
+        // shared HR+HSE data, same reasoning already applied to
+        // 'calendar'; this map only supports one owning department per
+        // prefix, and Man-Hour legitimately has two consumers now that
+        // `canManageManHour()` also grants HSE).
     ],
     // v1.10.5: expanded from the pre-Workstream-B list (ppe, incidents,
     // kpi-input, kpi-records, hse) to cover every HSE route prefix that

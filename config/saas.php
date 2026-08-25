@@ -24,6 +24,32 @@ return [
     'enforce_entitlement' => env('SAAS_ENFORCE_ENTITLEMENT', true),
 
     /**
+     * v1.11.15 (SaaS Package + Ecosystem pass, Part 26/27): a genuine
+     * gap found by auditing, not assumed -- `EntitlementService::
+     * tenantCanUseModule()`/`tenantCanUseWorkspace()` (the per-tenant
+     * Module/Workspace grant check, backing the existing Platform Admin
+     * "Tenant Grants" UI) were fully implemented but never actually
+     * CALLED anywhere in the request lifecycle -- confirmed via a
+     * whole-codebase grep, not guessed. `EnforceTenantEntitlement` only
+     * ever checked subscription usability (active/suspended), never
+     * per-workspace grants, so every tenant regardless of Package could
+     * reach every department, gated only by role (isHse()/isHrd()/etc.).
+     * Wired into that same middleware this pass (see its own doc
+     * comment) -- but defaulted OFF here, separate from
+     * `enforce_entitlement` above, because this environment has no way
+     * to verify the currently-live production tenant's own Module/
+     * Workspace grant rows are actually populated correctly before
+     * flipping on a NEW enforcement path that could otherwise lock out
+     * the one real tenant currently using this system. Enable via
+     * SAAS_ENFORCE_WORKSPACE_ENTITLEMENT=true once a Platform Admin has
+     * confirmed (via Tenant Grants) that the existing tenant's grants
+     * cover what it actually uses -- `TenantGrantSeeder` already grants
+     * the default tenant everything, so this is very likely already
+     * safe to enable, just not verifiable from here.
+     */
+    'enforce_workspace_entitlement' => env('SAAS_ENFORCE_WORKSPACE_ENTITLEMENT', false),
+
+    /**
      * Default currency for new Packages/Invoices when none is specified.
      * Purely a UI/creation default, never validated against -- an
      * invoice can be issued in any currency string.

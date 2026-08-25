@@ -3,6 +3,40 @@
 House style, and a deliberately honest list of mistakes that have actually happened in this
 codebase's history — kept here so they don't get repeated in a slightly different shape.
 
+## CRITICAL — Known Pitfall (v2.1.0): a fully-built enforcement mechanism with zero call sites is
+## indistinguishable from "working" until someone greps for its callers, not just its definition
+
+A full SaaS Package/Subscription/Module/Workspace entitlement system existed end-to-end at the data
+and service layer — `Package::hasFeature()`, `EntitlementService::tenantCanUseModule()` /
+`tenantCanUseWorkspace()`, `Tenant::modules()`/`workspaces()` pivot relations, and a working Platform
+Admin "Tenant Grants" UI to edit them — and looked, from reading any single one of those files in
+isolation, like a real, enforced feature. It was not: a whole-codebase grep found **zero callers** of
+`hasFeature()`/`tenantCanUseModule()`/`tenantCanUseWorkspace()` anywhere outside their own
+definitions and seeders. `EnforceTenantEntitlement` (the one middleware positioned to use them) only
+ever checked subscription status (`tenantIsUsable()`), never per-tenant grants. Separately,
+`PlatformController::storeTenant()` created a `Subscription` row pointing at a chosen `Package` but
+never translated that choice into any `Module`/`Workspace` grant at all — so a brand-new tenant's
+Package selection had **no effect whatsoever** on what it could access; access was gated only by role
+(`isHse()`/`isHrd()`/etc.), identically regardless of plan.
+
+**Why this matters beyond this one instance**: "the model/service/UI for X exists" is not evidence
+that X is enforced. The only way to confirm a check is real is to find where it's actually called in
+the live request path (a middleware, a policy, a controller gate) — not to find where it's defined.
+Static reading that stops at "the function exists and looks correct" will confidently report a
+feature as working when it is architecturally inert.
+
+**Fix shape used**: (1) added a canonical `Package::defaultWorkspaceKeys()`/`defaultModuleKeys()`
+mapping (Starter=HSE, Professional=HSE+HRD, Enterprise=all); (2) applied it in `storeTenant()` so
+new tenants get real grants matching what they bought; (3) wired the actual per-workspace check into
+`EnforceTenantEntitlement`, but behind a **new, separate, off-by-default** config flag
+(`saas.enforce_workspace_entitlement`) rather than turning it on immediately — because this
+environment had no way to verify the one live production tenant's existing grant rows actually cover
+what it currently uses, and flipping on new enforcement blind risks locking out the only real tenant
+this system serves. See [[entitlement-dependency-rule]] for the related "must not require a whole
+paid module for shared core data" rule this same audit pass also found and fixed
+(`User::canManageManHour()` incorrectly required HRD for Man-Hour, which is genuinely shared HSE
+data too — see `App\Models\User::canManageManHour()`'s own doc comment).
+
 ## Known Pitfall (v1.11.3): a new shared component must be adopted by existing callers in the SAME
 ## pass it's introduced, not deferred as a "separate follow-up" — deferred adoption reliably never
 ## happens

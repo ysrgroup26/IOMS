@@ -298,14 +298,23 @@ class User extends Authenticatable
     }
 
     /**
-     * Man-Hour log entry (v1.11.6) -- HR-owned operational data (same
-     * "staff records on behalf of employees" shape as Leave), gated to
-     * HRD the same way. HSE and other departments read the aggregated
-     * totals (see HseDashboardController) but do not enter the records.
+     * v1.11.15 (SaaS Package + Ecosystem pass, Part 27 -- Entitlement
+     * Dependency Rule): previously `isSuperAdmin() || isHrd()` only. That
+     * is exactly the "module must not require another paid module merely
+     * because it uses shared core data" violation the entitlement rule
+     * forbids -- Man-Hour is real HSE safety-KPI input (see
+     * HseDashboardController's own `safetyKpi`/`manHours` props), and a
+     * Starter (HSE-only) tenant has no HRD seat to grant this permission
+     * to at all, so HSE could see the read-only aggregated totals but
+     * could never actually RECORD an hour. HSE added alongside HRD --
+     * both departments write to the one shared `ManHourLog` source (see
+     * that model's own doc comment for why there is only one table, not
+     * two), matching the "ONE source of truth, two consumers" shape Part
+     * 6/7 of that pass describes.
      */
     public function canManageManHour(): bool
     {
-        return $this->isSuperAdmin() || $this->isHrd();
+        return $this->isSuperAdmin() || $this->isHrd() || $this->isHse();
     }
 
     /** Incident Management (v1.10.0) -- HSE's own domain, same gate as PPE/Employees. */

@@ -168,6 +168,54 @@ fixed roles) — not preemptively, because migrating now would mean rewriting ev
 `isX()`/`canX()` call site for a problem that doesn't exist yet. Re-read that ADR before deciding
 to introduce a permission package; the reasoning for waiting is specific, not just inertia.
 
+**Update (Milestone 2 / v2.0.0):** `spatie/laravel-permission` was in fact added — roles/permissions
+now exist, are tenant-scoped, and are editable from Settings. No controller has been migrated from
+the `role` column + `isX()/canX()` methods described above to permission checks yet; that remains the
+live authorization path this section documents. Both systems currently coexist.
+
+## SaaS Entitlement chain (Package → Subscription, and Package → Module/Workspace grants)
+
+Two separate questions, both under the `Package` umbrella, answered by two separate mechanisms —
+worth keeping distinct because they were built at different times and, until v2.1.0, only one of
+them actually did anything at request time:
+
+1. **"Is this tenant's subscription usable at all right now?"** — `Subscription` (status
+   active/suspended/cancelled, dates) → `EntitlementService::tenantIsUsable()` /
+   `tenantIsDegraded()` → enforced by `EnforceTenantEntitlement` middleware (registered globally on
+   the `web` group), gated by `config('saas.enforce_entitlement')` (default `true`). This part has
+   worked and been enforced since v1.11.1.
+2. **"Is this specific department/workspace included in what this tenant bought?"** —
+   `Tenant::modules()` / `Tenant::workspaces()` (pivot tables `tenant_modules`/`tenant_workspaces`,
+   editable per-tenant from the Platform Admin "Tenant Grants" page) → `EntitlementService::
+   tenantCanUseModule()` / `tenantCanUseWorkspace()`. **Until v2.1.0 these methods had zero callers
+   anywhere in the request path** — fully built, never wired in — so every tenant could reach every
+   department regardless of Package, gated only by role. See `docs/CONVENTIONS.md`'s "a fully-built
+   enforcement mechanism with zero call sites" pitfall entry for the full audit finding.
+
+As of v2.1.0:
+- `Package::defaultWorkspaceKeys()` / `defaultModuleKeys()` (on `app/Models/Package.php`) is the
+  canonical Starter=HSE / Professional=HSE+HRD / Enterprise=all-workspaces mapping, keyed by
+  `Package::slug` so a display-name rename can't silently break it.
+- `PlatformController::storeTenant()` now calls `$tenant->workspaces()->sync(...)` /
+  `$tenant->modules()->sync(...)` using that mapping immediately after creating the `Subscription`,
+  so a new tenant's Module/Workspace grants actually reflect the Package it was created with. A
+  Platform Admin can still hand-adjust individual grants afterward via the existing Tenant Grants
+  page — this only sets sensible defaults at creation time.
+- The actual per-request enforcement of #2 is now wired into `EnforceTenantEntitlement`, but behind
+  its own separate flag, `config('saas.enforce_workspace_entitlement')` — **default `false`**, unlike
+  `enforce_entitlement` above. It defaults off because this system has one long-lived production
+  tenant whose existing Module/Workspace grant rows have not been runtime-verified to cover
+  everything it currently uses (`TenantGrantSeeder` grants the default tenant everything
+  unconditionally, which makes enabling this very likely safe, but "very likely" is not the same as
+  verified). Enable via `SAAS_ENFORCE_WORKSPACE_ENTITLEMENT=true` only after a Platform Admin
+  confirms via Tenant Grants that every tenant's grants cover its actual usage.
+
+**Entitlement Dependency Rule**: a module must never gate on another *paid* module purely because it
+shares core data with it. `Employee` is core data shared by both HSE and HRD; PPE (HSE) correctly
+depends only on `Employee`, never on HRD being enabled. The one violation of this rule found in this
+codebase (`User::canManageManHour()` requiring `isHrd()` for what is genuinely shared HSE+HRD
+Man-Hour data) was fixed in v2.1.0 — see that method's own doc comment.
+
 ## Navigation Architecture (Department → Item, v1.10.2)
 
 The app nav is a two-level **Department → Item** structure, not a single flat sidebar. Internally

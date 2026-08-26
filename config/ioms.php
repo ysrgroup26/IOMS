@@ -17,7 +17,7 @@ return [
     |
     */
 
-    'version' => '2.2.0',
+    'version' => '2.3.0',
 
     // Tester / Beta / Stable -- tracks the release stage explicitly.
     // Previously only implied in conversation, never actually stored.
@@ -25,9 +25,9 @@ return [
 
     'edition' => 'Enterprise Edition',
 
-    'build' => '2026.08.25.2',
+    'build' => '2026.08.29.1',
 
-    'release_date' => '2026-08-25',
+    'release_date' => '2026-08-29',
 
     'developer' => 'Yofhanza Shultona Rizqi S.',
 
@@ -44,12 +44,10 @@ return [
     'documentation_url' => 'docs.iomsplatform.com',
 
     'whats_new' => [
-        'Fixed the Man-Hour page HTTP 500 -- root cause confirmed: an ambiguous SQL column error once Employee sort-ordering joins Department/Position (both gained their own company_id/id columns since this query was written)',
-        'Quick Actions is now role/department-aware and covers every department (HSE, HR, Project, Logistics, Warehouse, Procurement) -- was 4 hardcoded links visible to everyone regardless of access',
-        'Work Center ("My Workspace") now surfaces real cross-department alerts too -- CAPA due, PTW pending, stock alerts, maintenance due, PR/PO pending -- not just PPE',
-        'Global Search extended to PPE, CAPA, PTW, Assets, and Vendors, and fixed a real cross-tenant data-leak bug where search results were not scoped to the current organization at all',
-        'Fixed a cross-tenant leak in Work Center: pending-approval and PPE-alert counts were not scoped to the current organization and could include other tenants\' data',
-        'Sidebar navigation reverted to English (Dashboard, PPE Management, Man-Hour, etc.) -- page content stays natural Bahasa Indonesia',
+        'New: Waste Container Inventory -- track physical waste containers (drums, IBC tanks, jumbo bags) as total/available/in-use/damaged stock, separate from Waste Records (the actual waste material)',
+        'Re-verified the v2.2.0 Man-Hour HTTP 500 fix -- confirmed still correct and intact',
+        'Audited PPE Master Edit visibility -- confirmed working as designed (Super Admin only, per the existing v1.3 spec); no change needed',
+        'Quick Actions gained a "New Waste Record" entry for HSE',
     ],
 
     /*
@@ -64,6 +62,7 @@ return [
     */
 
     'version_history' => [
+        ['version' => '2.3.0', 'date' => '2026-08-29', 'summary' => 'HSE Operations pass: new Waste Container Inventory (physical drum/IBC/jumbo-bag stock, separate from waste material records), Man-Hour 500 fix re-verified, PPE Master Edit audited and confirmed correct, Quick Actions gained a Waste entry.'],
         ['version' => '2.2.0', 'date' => '2026-08-25', 'summary' => 'IOMS OS Ecosystem pass: Man-Hour 500 root-caused and fixed (ambiguous SQL column), Quick Actions and Work Center Action Center extended across every department, Global Search extended (PPE/CAPA/PTW/Assets/Vendors) and its cross-tenant scoping gap fixed, a second cross-tenant leak fixed in Work Center approvals/PPE-alerts, sidebar navigation language reverted to English.'],
         ['version' => '2.1.0', 'date' => '2026-08-25', 'summary' => 'HSE Starter package made genuinely operational: Man-Hour opened to HSE (entitlement-dependency-rule fix), Package-to-Workspace/Module grant mapping wired into tenant creation, PPE Dashboard "+" action fix, optional per-workspace entitlement enforcement (off by default).'],
         ['version' => '2.0.0', 'date' => '2026-08-16', 'summary' => 'Milestone 2: Tenancy Foundation, Platform Super Admin, Package/Subscription structure, RBAC (spatie/laravel-permission), DB-driven Module and Workspace catalogs, Platform Super Admin console.'],

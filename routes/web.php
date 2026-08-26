@@ -79,6 +79,7 @@ use App\Http\Controllers\VendorController;
 use App\Http\Controllers\VendorPerformanceController;
 use App\Http\Controllers\VendorQuotationController;
 use App\Http\Controllers\VisitorController;
+use App\Http\Controllers\WasteContainerController;
 use App\Http\Controllers\WasteDashboardController;
 use App\Http\Controllers\WasteMasterController;
 use App\Http\Controllers\WasteMovementController;
@@ -207,6 +208,13 @@ Route::middleware(['auth', 'restrict.platform-admin'])->group(function () {
     // maps every `waste*` prefix below to `hse`.
     Route::get('/hse/waste/master', [WasteMasterController::class, 'master'])->name('waste.master');
     Route::get('/hse/waste/dashboard', [WasteDashboardController::class, 'index'])->name('waste.dashboard');
+    // v2.3.0 (HSE Operations + IOMS OS Ecosystem pass, Part 7/11) --
+    // Waste Container Inventory: physical container/equipment stock
+    // (drums, IBC tanks, jumbo bags), separate from Waste Records
+    // (actual waste material). Read route grouped with the other GET
+    // waste.* routes above; mutation routes below, same
+    // role:super_admin,hse group as waste-types/waste-storage-locations.
+    Route::get('/waste-containers', [WasteContainerController::class, 'index'])->name('waste-containers.index');
     Route::get('/waste-records', [WasteRecordController::class, 'index'])->name('waste-records.index');
     Route::get('/waste-records/create', [WasteRecordController::class, 'create'])->name('waste-records.create');
     Route::post('/waste-records', [WasteRecordController::class, 'store'])->name('waste-records.store');
@@ -538,6 +546,13 @@ Route::middleware(['auth', 'restrict.platform-admin'])->group(function () {
         Route::post('/waste-storage-locations', [WasteMasterController::class, 'storeStorageLocation'])->name('waste-storage-locations.store');
         Route::put('/waste-storage-locations/{wasteStorageLocation}', [WasteMasterController::class, 'updateStorageLocation'])->name('waste-storage-locations.update');
         Route::delete('/waste-storage-locations/{wasteStorageLocation}', [WasteMasterController::class, 'destroyStorageLocation'])->name('waste-storage-locations.destroy');
+
+        // v2.3.0 (HSE Operations + IOMS OS Ecosystem pass, Part 7) --
+        // Waste Container Inventory mutations, same gate as the two
+        // master-data groups directly above.
+        Route::post('/waste-containers', [WasteContainerController::class, 'store'])->name('waste-containers.store');
+        Route::put('/waste-containers/{wasteContainer}', [WasteContainerController::class, 'update'])->name('waste-containers.update');
+        Route::delete('/waste-containers/{wasteContainer}', [WasteContainerController::class, 'destroy'])->name('waste-containers.destroy');
 
         Route::post('/p3k-boxes', [P3kBoxController::class, 'store'])->name('p3k-boxes.store');
         Route::put('/p3k-boxes/{p3kBox}', [P3kBoxController::class, 'update'])->name('p3k-boxes.update');

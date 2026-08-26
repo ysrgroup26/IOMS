@@ -6,10 +6,14 @@ import ModuleCard from '@/Components/shared/ModuleCard';
 import ActivityList from '@/Components/shared/ActivityList';
 import { Card, CardContent, CardHeader, CardTitle } from '@/Components/ui/card';
 import { Button } from '@/Components/ui/button';
-import { Recycle, AlertTriangle, Truck, CheckCircle2, Warehouse as WarehouseIcon, ClipboardList, Settings, ArrowLeft } from 'lucide-react';
+import { Recycle, AlertTriangle, Truck, CheckCircle2, Warehouse as WarehouseIcon, ClipboardList, Settings, ArrowLeft, Boxes } from 'lucide-react';
 
 const WASTE_MODULES = [
     { icon: ClipboardList, title: 'Waste Records', description: 'Full generation-to-disposal register.', href: 'waste-records.index' },
+    // v2.3.0 (HSE Operations + IOMS OS Ecosystem pass, Part 7/11) --
+    // Waste Container Inventory (physical drums/IBC tanks/jumbo bags --
+    // NOT the waste material itself, see Waste Records above for that).
+    { icon: Boxes, title: 'Waste Inventory', description: 'Container/equipment stock: total, available, in use, damaged.', href: 'waste-containers.index' },
     { icon: Settings, title: 'Waste Master Data', description: 'Waste types & storage/TPS locations.', href: 'waste.master' },
 ];
 

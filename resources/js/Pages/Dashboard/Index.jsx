@@ -22,16 +22,17 @@ import {
     Users, Building2, CalendarDays, HardHat, CheckCircle2, AlertTriangle, Plus, UserCog, ArrowRight,
     Sparkles, X, ClipboardCheck, ShoppingCart, Boxes, Box, Wrench, Flag, Clock,
     Eye, FileWarning, ShieldAlert, FlaskConical, GraduationCap, PackagePlus, PackageCheck,
-    ArrowRightLeft, FileStack, UserPlus, CheckSquare,
+    ArrowRightLeft, FileStack, UserPlus, CheckSquare, Recycle,
 } from 'lucide-react';
 
 // v2.2.0 (IOMS OS Ecosystem pass, Part 5): matches every icon key
 // WorkCenterService::quickActionsFor() can emit -- same list as
 // WorkCenter/Index.jsx's own QUICK_ACTION_ICONS map.
+// v2.3.0: added Recycle for the new "New Waste Record" quick action.
 const QUICK_ACTION_ICONS = {
     HardHat, AlertTriangle, Eye, ClipboardCheck, Flame, FileWarning, ShieldAlert, FlaskConical,
     UserPlus, Clock, CalendarDays, GraduationCap, FolderKanban, ClipboardList, Flag,
-    PackagePlus, FileStack, ShoppingCart, PackageCheck, ArrowRightLeft, CheckSquare,
+    PackagePlus, FileStack, ShoppingCart, PackageCheck, ArrowRightLeft, CheckSquare, Recycle,
 };
 
 /**

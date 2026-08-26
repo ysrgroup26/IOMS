@@ -47,6 +47,10 @@ return [
         // waste-storage-locations.*), using this project's existing HSE
         // route-naming convention, not an invented one.
         'waste', 'waste-records', 'waste-movements', 'waste-types', 'waste-storage-locations',
+        // v2.3.0 (HSE Operations + IOMS OS Ecosystem pass, Part 7) --
+        // Waste Container Inventory, same 'hse' ownership as every other
+        // waste-* prefix above.
+        'waste-containers',
     ],
     'project-management' => [
         'projects', 'daily-reports', 'milestones', 'project-management',

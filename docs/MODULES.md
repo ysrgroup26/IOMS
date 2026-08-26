@@ -1422,6 +1422,45 @@ programmatically (not just by inspection) that all five resolve to `hse` before 
 committed. `RestrictDepartmentAccess` itself was not modified. Write operations are gated by the
 existing `canManageHse()` check inside each controller, matching every other HSE module's pattern.
 
+### Waste Container Inventory (v2.3.0)
+
+A second, genuinely separate concept added alongside the above: **physical container/equipment
+stock** (drums, IBC tanks, jumbo bags) tracked as total/available/in_use/damaged counts — e.g. "30
+drums total, 23 available, 5 in use, 2 damaged." This is deliberately **not** the same thing as
+`WasteRecord` (actual waste material, tracked by weight/volume — "1,200 Liter used oil") or
+`WasteStorageLocation` (a TPS/storage *place* register). Confirmed via a full audit before building
+anything that no existing table/model (`WasteStorageLocation`, `Asset`, `Item`/`Stock`, `EmployeePpe`/
+`PpeType`) already represents this shape — see the owning migration's own doc comment for the
+per-model comparison.
+
+**Table**: `waste_container_inventories` (additive, `Schema::createIfMissing`) —
+`company_id, container_type, code?, unit, total_quantity, in_use_quantity, damaged_quantity,
+capacity?, capacity_unit?, storage_location_id?, status, notes?, created_by?`. `available_quantity`
+is a computed accessor (`total - in_use - damaged`, floored at 0) — never a stored column, matching
+`Stock::getAvailableQuantityAttribute()`'s and `WasteRecord`'s own accessor conventions elsewhere in
+this codebase. `storage_location_id` optionally FKs into the EXISTING `waste_storage_locations` table
+— reused, not duplicated. No stock-movement/history table was introduced: the explicit product
+instruction was "do not fabricate movement history, let the user establish the current stock state,"
+so this table holds current counts only, edited directly (same as how `waste_types`/
+`waste_storage_locations` themselves are edited).
+
+**Model**: `WasteContainerInventory` — `STATUS_ACTIVE`/`STATUS_UNDER_MAINTENANCE`/`STATUS_DISPOSED`.
+
+**Controller**: `WasteContainerController` (index/store/update/destroy), same
+`abort_unless(canManageHse())` + manual `Company::pluck('id')->contains($record->company_id)` tenant
+check pattern as `WasteMasterController` — not a Policy class, matching that controller's own style
+for this module. Validates `in_use + damaged <= total` server-side so `available_quantity` can never
+represent an impossible state.
+
+**Frontend**: `Hse/WasteContainers.jsx` — a compact StatCard summary (Total/Available/In Use/Damaged)
++ one CRUD table, reached via a "Waste Inventory" `ModuleCard` on the existing Waste Management
+dashboard (`Hse/WasteManagement/Dashboard.jsx`) — no new sidebar item (Waste Management stays the
+single top-level nav entry point it already was; this is one more in-page link, same as Waste
+Records/Waste Master already are).
+
+**RBAC**: `waste-containers` added to `config/departments.php`'s `hse` array alongside the other
+`waste*` prefixes.
+
 ## Production Readiness + HSE Operational Fix Pass (v1.11.6)
 
 **Bug fixes (real root causes, not guessed)**:

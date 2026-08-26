@@ -256,6 +256,12 @@ class WorkCenterService
             $actions[] = ['label' => 'New JSA', 'url' => route('job-safety-analyses.create'), 'icon' => 'FileWarning', 'department' => 'hse'];
             $actions[] = ['label' => 'New HIRADC', 'url' => route('risk-assessments.create'), 'icon' => 'ShieldAlert', 'department' => 'hse'];
             $actions[] = ['label' => 'Gas Test', 'url' => route('gas-test-records.index'), 'icon' => 'FlaskConical', 'department' => 'hse'];
+            // v2.3.0 (HSE Operations + IOMS OS Ecosystem pass, Part 17):
+            // "+ Waste" -- points at New Waste Record (the actual waste
+            // material entry point), not Container Inventory, which is a
+            // separate stock-management concept reached from the Waste
+            // Management dashboard itself.
+            $actions[] = ['label' => 'New Waste Record', 'url' => route('waste-records.create'), 'icon' => 'Recycle', 'department' => 'hse'];
         }
 
         // -- HRD --

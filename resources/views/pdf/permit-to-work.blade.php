@@ -98,14 +98,24 @@
     @if($permit->riskAssessment || $permit->jsa)
         <div class="section-title">Related Documents</div>
         <table class="meta-table">
-            <tr>
-                @if($permit->riskAssessment)
-                    <td class="meta-label">HIRADC</td><td class="meta-colon">:</td><td>{{ $permit->riskAssessment->ra_number }}</td>
-                @endif
-                @if($permit->jsa)
-                    <td class="meta-label">JSA</td><td class="meta-colon">:</td><td>{{ $permit->jsa->jsa_number }}</td>
-                @endif
-            </tr>
+            {{-- v2.10.0 (PTW Document Polish pass, Phase 3D): previously
+                 showed only the bare reference number ("HIRADC: 12"),
+                 not richer already-loaded data. RiskAssessment.title /
+                 JobSafetyAnalysis.job_title are already eager-loaded by
+                 this method's own ->load() above (full models, no
+                 column restriction) -- no new query, no new relation. --}}
+            @if($permit->riskAssessment)
+                <tr>
+                    <td class="meta-label">HIRADC</td><td class="meta-colon">:</td>
+                    <td>{{ $permit->riskAssessment->ra_number }} -- {{ $permit->riskAssessment->title }}</td>
+                </tr>
+            @endif
+            @if($permit->jsa)
+                <tr>
+                    <td class="meta-label">JSA</td><td class="meta-colon">:</td>
+                    <td>{{ $permit->jsa->jsa_number }} -- {{ $permit->jsa->job_title }}</td>
+                </tr>
+            @endif
         </table>
     @endif
 
@@ -137,7 +147,7 @@
     <table class="meta-table">
         <tr>
             <td class="meta-label">Requested By</td><td class="meta-colon">:</td><td>{{ $permit->requester->name ?? '-' }}</td>
-            <td class="meta-label">HSE Approver</td><td class="meta-colon">:</td><td>{{ $permit->hseApprover->name ?? '-' }}</td>
+            <td class="meta-label">HSE Approver</td><td class="meta-colon">:</td><td>{{ $permit->hseApprover->name ?? ($permit->status === 'submitted' ? 'Menunggu Persetujuan' : '-') }}</td>
         </tr>
         @if($permit->closer)
             <tr>
@@ -146,6 +156,18 @@
             </tr>
         @endif
     </table>
+
+    {{-- v2.10.0 (PTW Document Polish pass, Phase 3D): same rejection-reason
+         banner the browser Document view has shown since v2.6.0 -- was
+         entirely missing from the PDF until this pass, a real
+         browser/PDF parity gap this pass's own audit found. Never
+         fabricated: shows a plain "no reason recorded" fallback for a
+         permit rejected before v2.4.0 added the reason field. --}}
+    @if($permit->status === 'rejected')
+        <p class="body-text" style="margin-top: 8px; padding: 6px 8px; border: 1px solid #cc0000; color: #cc0000;">
+            <strong>Alasan Penolakan:</strong> {{ $rejectionReason ?? 'Tidak ada alasan tercatat.' }}
+        </p>
+    @endif
 
     <table class="signatures">
         <tr>

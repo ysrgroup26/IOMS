@@ -285,6 +285,15 @@ class PermitToWorkController extends Controller
             'company' => $permitToWork->company,
             'documentTemplate' => $documents->resolveTemplate('permit_to_work', $permitToWork->company_id),
             'branding' => $documents->branding(),
+            // v2.10.0 (PTW Document Polish pass, Phase 3D). REAL,
+            // CONFIRMED gap found by this pass's own audit: the browser
+            // Document view has shown the rejection reason since v2.6.0,
+            // but this PDF endpoint never received or rendered it at
+            // all -- the two outputs materially differed on a rejected
+            // permit. Same rejectionReasonFor() helper document()
+            // already uses (added in Phase 3B), reused here rather than
+            // a third copy of the lookup.
+            'rejectionReason' => $this->rejectionReasonFor($permitToWork),
         ], "{$permitToWork->ptw_number}.pdf");
     }
 

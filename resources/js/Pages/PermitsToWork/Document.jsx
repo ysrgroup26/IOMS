@@ -30,11 +30,40 @@ export default function PermitToWorkDocument({ permit: p, company, documentTempl
         <AuthenticatedLayout>
             <Head title={`${p.ptw_number} -- Document`} />
 
+            {/* v2.10.0 (PTW Document Polish pass, Phase 3D): the isolation
+                rule (visibility: hidden on body *, visible on the print
+                area) was already correct and is unchanged. Three real
+                print-quality gaps found by this pass's own audit and
+                fixed here:
+                1. This app's dark mode is CLASS-based (tailwind.config.js
+                   darkMode: ['class']), not a media query -- the `.dark`
+                   class on <html> stays present during print, so every
+                   `dark:` utility on this page (dark:bg-slate-900,
+                   dark:text-slate-100, etc.) would otherwise still apply
+                   to a printed page, risking white-on-white or
+                   low-contrast output for anyone printing with dark mode
+                   on. Forced back to plain black-on-white inside the
+                   print area, unconditionally.
+                2. No `@page` rule existed -- added A4 size + sane margins
+                   instead of relying on the browser's own default print
+                   margins/orientation.
+                3. No `break-inside: avoid` anywhere -- a Section or the
+                   signature block could previously split awkwardly
+                   across a page boundary. */}
             <style>{`
                 @media print {
+                    @page { size: A4; margin: 14mm; }
                     body * { visibility: hidden; }
                     #ptw-print-area, #ptw-print-area * { visibility: visible; }
-                    #ptw-print-area { position: absolute; left: 0; top: 0; width: 100%; padding: 0; margin: 0; box-shadow: none !important; border: none !important; }
+                    #ptw-print-area {
+                        position: absolute; left: 0; top: 0; width: 100%;
+                        padding: 0; margin: 0; box-shadow: none !important; border: none !important;
+                        color: #000 !important; background: #fff !important;
+                    }
+                    #ptw-print-area * {
+                        color: #000 !important; background: transparent !important; border-color: #999 !important;
+                    }
+                    #ptw-print-area [data-print-section] { break-inside: avoid; }
                     .no-print { display: none !important; }
                 }
             `}</style>
@@ -102,17 +131,24 @@ export default function PermitToWorkDocument({ permit: p, company, documentTempl
                     ) : (
                         <p className="text-sm italic text-graphite-400">Tidak ada catatan pengendalian risiko tambahan.</p>
                     )}
+                    {/* v2.10.0 (PTW Document Polish pass, Phase 3D): was
+                        just a bare reference code ("HIRADC: 12"), not
+                        the richer data already available -- `document()`
+                        eager-loads the FULL RiskAssessment/
+                        JobSafetyAnalysis models (no column restriction),
+                        so `title`/`job_title` were already sitting
+                        unused in the response. No new query. */}
                     {(p.risk_assessment || p.jsa) && (
-                        <div className="mt-3 flex flex-wrap gap-4 text-sm">
+                        <div className="mt-3 space-y-1.5 text-sm">
                             {p.risk_assessment && (
-                                <span className="rounded border border-graphite-200 px-2 py-1 text-graphite-700 dark:border-slate-700 dark:text-slate-300">
-                                    HIRADC: {p.risk_assessment.ra_number}
-                                </span>
+                                <p className="rounded border border-graphite-200 px-2 py-1.5 text-graphite-700 dark:border-slate-700 dark:text-slate-300">
+                                    <span className="font-medium">HIRADC:</span> {p.risk_assessment.ra_number} -- {p.risk_assessment.title}
+                                </p>
                             )}
                             {p.jsa && (
-                                <span className="rounded border border-graphite-200 px-2 py-1 text-graphite-700 dark:border-slate-700 dark:text-slate-300">
-                                    JSA: {p.jsa.jsa_number}
-                                </span>
+                                <p className="rounded border border-graphite-200 px-2 py-1.5 text-graphite-700 dark:border-slate-700 dark:text-slate-300">
+                                    <span className="font-medium">JSA:</span> {p.jsa.jsa_number} -- {p.jsa.job_title}
+                                </p>
                             )}
                         </div>
                     )}
@@ -185,8 +221,14 @@ export default function PermitToWorkDocument({ permit: p, company, documentTempl
 
                 {/* Signature area -- placeholders only where a real
                     person is actually associated with that role; never a
-                    fake signature for a role no one has filled yet. */}
-                <div className="mt-8 grid grid-cols-1 gap-8 border-t border-graphite-200 pt-6 dark:border-slate-700 sm:grid-cols-3">
+                    fake signature for a role no one has filled yet.
+                    "Area Authority / PIC" will currently ALWAYS render
+                    blank: `area_authority_id` has no writer anywhere in
+                    this codebase (confirmed again by this pass's own
+                    audit) -- an honest blank block for an unwired field,
+                    per the explicit "do not invent an Area Authority
+                    workflow" instruction, not a bug to fix here. */}
+                <div data-print-section className="mt-8 grid grid-cols-1 gap-8 border-t border-graphite-200 pt-6 dark:border-slate-700 sm:grid-cols-3">
                     <SignatureBlock role="Applicant" name={p.requester?.name} />
                     <SignatureBlock role="HSE Approver" name={p.hse_approver?.name} />
                     <SignatureBlock role="Area Authority / PIC" name={p.area_authority?.name} />
@@ -204,7 +246,7 @@ export default function PermitToWorkDocument({ permit: p, company, documentTempl
 
 function Section({ title, icon: Icon, children }) {
     return (
-        <div className="mt-5">
+        <div data-print-section className="mt-5">
             <p className="mb-2 flex items-center gap-1.5 border-b border-graphite-200 pb-1 text-[11px] font-bold uppercase tracking-wide text-graphite-900 dark:border-slate-700 dark:text-slate-100">
                 {Icon && <Icon className="h-3.5 w-3.5 text-graphite-400" />}
                 {title}

@@ -571,6 +571,37 @@ new model, no duplicated PTW logic.
   Incident field entry points beyond what Phase 3A's Field Home tiles already provide, no offline/PWA/
   push infrastructure, no new role.
 
+**v2.10.0 (PTW Document Polish pass, Phase 3D)** — audited the Document view against the PDF fresh
+(re-read both from disk, not assumed complete) and found two real, confirmed gaps, both fixed; no new
+document/table/route.
+- **Browser Document vs. PDF parity gap, closed**: the browser Document view has shown the rejection
+  reason banner since v2.6.0, but `pdf()` never received or rendered it at all — a rejected permit's
+  PDF and its browser document materially differed. Fixed by passing the SAME
+  `rejectionReasonFor()` helper's result (already extracted in Phase 3B, shared with `show()`) into
+  `pdf()`'s render data too, and added the identical banner to the Blade template.
+- **HIRADC/JSA were under-showing already-loaded data**: both outputs previously rendered only the
+  bare reference number ("HIRADC: 12"). `document()`/`pdf()` already eager-load the FULL
+  `RiskAssessment`/`JobSafetyAnalysis` models (no column restriction) — `title`/`job_title` were
+  sitting unused in the response. Both outputs now show `{number} -- {title}`, no new query.
+- **Print output made dark-mode-safe**: this app's dark mode is class-based
+  (`tailwind.config.js` `darkMode: ['class']`), meaning the `.dark` class on `<html>` stays present
+  during a browser print — every `dark:` utility on the Document page would otherwise still apply to
+  the printed page, risking unreadable (e.g. near-white-on-white) output for anyone printing with dark
+  mode on. The print media rule now forces plain black-on-white unconditionally inside the print area,
+  independent of the viewer's theme.
+- **`@page { size: A4; margin: 14mm; }`** added — previously relied entirely on the browser's own
+  default print margins/orientation. **`break-inside: avoid`** added to every section
+  (`data-print-section`) and the signature block, so a section can no longer split awkwardly across a
+  page boundary.
+- **Confirmed correct, not changed**: Gas Test's per-reading O2/LEL/H2S/CO columns already match the
+  real schema (one row per test event, four gas readings inline — there is no discrete "gas type" or
+  "threshold/limit" column in `gas_test_records` to show, so none was fabricated). The
+  "Area Authority / PIC" signature block will still always render blank — `area_authority_id` has no
+  writer anywhere in this codebase (re-confirmed by this pass's own audit) — an honest blank block for
+  an unwired field, not a bug; no Area Authority workflow was invented to fill it.
+- No database change. No new route. No RBAC/authorization change — `pdf()`/`document()` still use the
+  identical `assertInCurrentTenant()` guard; only the data passed to the existing render calls changed.
+
 ## Gas Test
 
 **Department:** HSE (Milestone 4, Workstream B7; location/stage added v1.10.9).

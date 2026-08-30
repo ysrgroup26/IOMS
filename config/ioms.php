@@ -17,7 +17,7 @@ return [
     |
     */
 
-    'version' => '2.9.0',
+    'version' => '2.10.0',
 
     // Tester / Beta / Stable -- tracks the release stage explicitly.
     // Previously only implied in conversation, never actually stored.
@@ -25,9 +25,9 @@ return [
 
     'edition' => 'Enterprise Edition',
 
-    'build' => '2026.09.04.1',
+    'build' => '2026.09.05.1',
 
-    'release_date' => '2026-09-04',
+    'release_date' => '2026-09-05',
 
     'developer' => 'Yofhanza Shultona Rizqi S.',
 
@@ -44,8 +44,9 @@ return [
     'documentation_url' => 'docs.iomsplatform.com',
 
     'whats_new' => [
-        'New "My PTW" -- a simple, card-based view of the permits you requested, with Pending/Approved/Active/Rejected/Closed filters and one-tap Resubmit for rejected permits',
-        'Field Home now shows how many of your permits are pending approval or active',
+        'PTW PDF now includes the rejection reason, matching what the in-browser document already showed -- these two outputs no longer disagree',
+        'PTW document (browser and PDF) now shows the linked HIRADC/JSA title, not just the reference number',
+        'Printing a PTW document is now safe with dark mode on -- always prints in plain black and white with proper A4 margins',
     ],
 
     /*
@@ -60,6 +61,7 @@ return [
     */
 
     'version_history' => [
+        ['version' => '2.10.0', 'date' => '2026-09-05', 'summary' => 'PTW Document Polish pass (Phase 3D): fixed a real PDF/browser-document parity gap (rejection reason was missing from the PDF), HIRADC/JSA now show title/job_title not just the reference number, print output made dark-mode-safe with proper A4 page setup and break-inside protection. No database change, no new route.'],
         ['version' => '2.9.0', 'date' => '2026-09-04', 'summary' => 'Field/Foreman Experience pass (Phase 3C -- My PTW): new requester-scoped, card-based My PTW view (permits-to-work.mine) with real status filter counts and inline Resubmit for rejected permits; Field Home\'s My PTW tile now links here with live pending/active counts. No new table, no new role, no database change.'],
         ['version' => '2.8.0', 'date' => '2026-09-03', 'summary' => 'PTW Mobile / Task-First pass (Phase 3B): mobile card list for PTW Index (status always visible, no horizontal scroll), a real "resubmit" action for rejected permits (the state machine already allowed it, the UI never exposed it), rejection reason surfaced on the Show page, remaining mobile grid fixes.'],
         ['version' => '2.7.0', 'date' => '2026-09-02', 'summary' => 'Field/Foreman Experience pass (Phase 3A): the universal dashboard route now branches to a new task-first Field Home page for Department Users -- large action tiles (Create PTW/My PTW/Checklist/Observation/Incident/My Tasks), reusing existing routes and WorkCenterService counts, no new RBAC, no database change.'],

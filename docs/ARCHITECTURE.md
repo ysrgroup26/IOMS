@@ -228,6 +228,58 @@ depends only on `Employee`, never on HRD being enabled. The one violation of thi
 codebase (`User::canManageManHour()` requiring `isHrd()` for what is genuinely shared HSE+HRD
 Man-Hour data) was fixed in v2.1.0 — see that method's own doc comment.
 
+## SaaS Productization: Plan/Pricing Foundation (v2.14.0)
+
+**`Package` IS the SaaS Plan entity — no separate `plans` table exists or was created.** A fresh
+audit (see this phase's own directive, Part 3) confirmed `Package` already carried nearly everything
+a Plan needs (`name`, `slug`, `description`, `price_monthly`, `price_yearly`, `max_users`,
+`max_companies`, `is_active`, `sort_order`) — only four fields were genuinely missing and were added
+to the existing table (one migration, no new table): `currency`, `trial_days`, `is_public` (whether a
+plan should appear on the Plans comparison page — an internal/retired plan can stay assigned to a
+tenant without being offered to anyone else), `is_custom` (marks a plan as "contact us" pricing —
+Enterprise — instead of a fixed self-serve number). `billing_interval` was deliberately NOT added as
+a fifth column — the existing `price_monthly`/`price_yearly` dual-column shape already represents
+both intervals.
+
+**Pricing is never hardcoded in a component.** `App\Services\PricingService` is the single place a
+`Package` row becomes display data — `publicPlans()`/`summarize()` return `{amount, currency,
+formatted}` per interval, with `formatted` reading `"Hubungi Kami"` for an `is_custom` plan or
+`"Gratis"` for a zero price, never a fabricated number. `resources/js/Pages/Subscription/Plans.jsx`
+(tenant-facing, route `subscription.plans`, open to every authenticated tenant user — see that
+route's own comment for why it's placed outside the role-restricted groups around it) and
+`resources/js/Pages/Platform/Plans.jsx` (Platform Admin CRUD, unchanged surface, four new fields
+added to its form) both consume this same service/shape — a future payment-gateway integration reads
+prices from the exact same source, not a second copy.
+
+**Trial**: `Subscription`'s state machine already had everything Part 6 asked for (`STATUS_TRIAL`,
+`trial_ends_at`) — the one missing piece was a per-Plan "how many days" input, now `Package.trial_days`
+(nullable — null means this plan has no trial). `PlatformController::updateSubscription()` derives a
+blank `trial_ends_at` from the selected package's `trial_days` when status is set to `trial`; an
+explicitly-entered date is always respected as-is. No automatic trial-expiry cron exists or was added
+— expiry stays a computed, non-blocking "degraded" state exactly as v1.11.1 designed it (see the SaaS
+Entitlement chain section above); actually converting an expired trial to active/expired remains a
+Platform Admin action, matching this phase's explicit "payment conversion belongs to a later phase."
+
+**Upgrade/Downgrade domain (documented, not built)**: per this phase's own Part 10, the intended
+future behavior is recorded here rather than implemented with no real caller yet. A plan change should
+eventually be representable as one of: *effective immediately* (today's only actual behavior —
+`updateSubscription()` edits the current Subscription row in place) or *effective next billing cycle*
+(a pending change, not yet representable — would need a `pending_package_id`/`pending_effective_at`
+pair on `Subscription`, deliberately NOT added yet since nothing reads or writes it). "Upgrade" vs.
+"downgrade" is not a distinct code path today — both are the same `package_id` edit; the distinction
+only matters once proration/billing rules exist, which is out of scope until the Checkout/Billing
+phase.
+
+**Billing-ready architecture (documented boundary, no new tables)**: `Invoice`, `PaymentTransaction`,
+`PaymentWebhookEvent`, and `PaymentGatewayInterface`/`NullPaymentGateway` already exist (an earlier
+pass provisioned them) and were re-confirmed still correctly unwired this phase — no route or
+controller calls the gateway interface, `NullPaymentGateway` throws on every method rather than faking
+success. Intended future relationship, for the next phase to build against rather than re-derive:
+`Subscription` (1) → `Invoice` (many, one per billing period) → `PaymentTransaction` (many, one per
+attempt) → `PaymentWebhookEvent` (gateway callbacks, verified+processed independently of the
+transaction they relate to, so a replayed/out-of-order webhook can't double-apply a payment). This
+phase added no table to that chain — `packages`' four new columns are the only schema change.
+
 ## Navigation Architecture (Department → Item, v1.10.2)
 
 The app nav is a two-level **Department → Item** structure, not a single flat sidebar. Internally

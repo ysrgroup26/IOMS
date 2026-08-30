@@ -226,12 +226,24 @@ class PlatformController extends Controller
             'billing_reference' => ['nullable', 'string', 'max:255'],
             'starts_at' => ['nullable', 'date'],
             'ends_at' => ['nullable', 'date'],
+            'trial_ends_at' => ['nullable', 'date'],
             'notes' => ['nullable', 'string', 'max:2000'],
         ]);
 
         if ($validated['type'] === Subscription::TYPE_LIFETIME) {
             $validated['ends_at'] = null;
             $validated['trial_ends_at'] = null;
+        } elseif ($validated['status'] === Subscription::STATUS_TRIAL && empty($validated['trial_ends_at'])) {
+            // v2.14.0 (SaaS Productization, Part 6): the missing trial
+            // foundation piece -- a trial status previously had no way to
+            // derive its own end date from the chosen Package's
+            // `trial_days` unless a Platform Admin filled in
+            // `trial_ends_at` by hand. Only fills a BLANK field; an
+            // explicitly-entered date is always respected as-is.
+            $package = Package::find($validated['package_id']);
+            if ($package?->trial_days) {
+                $validated['trial_ends_at'] = now()->addDays($package->trial_days);
+            }
         }
 
         $subscription = $tenant->subscription;
@@ -316,6 +328,15 @@ class PlatformController extends Controller
         return back()->with('success', 'Plan updated.');
     }
 
+    /**
+     * v2.14.0 (SaaS Productization / Pricing Foundation, Part 3/7) added
+     * `currency`/`trial_days`/`is_public`/`is_custom` -- see that
+     * migration's own doc comment for why exactly these four and nothing
+     * more. `price_monthly`/`price_yearly` stay `nullable` (unchanged) --
+     * a `is_custom=true` plan legitimately has no fixed price at all, and
+     * `PricingService` already knows to show "Hubungi Kami" instead of a
+     * number for it rather than treating a null as zero.
+     */
     private function validatePlan(Request $request, ?Package $plan = null): array
     {
         return $request->validate([
@@ -324,9 +345,13 @@ class PlatformController extends Controller
             'description' => ['nullable', 'string', 'max:2000'],
             'price_monthly' => ['nullable', 'numeric', 'min:0'],
             'price_yearly' => ['nullable', 'numeric', 'min:0'],
+            'currency' => ['nullable', 'string', 'max:3'],
+            'trial_days' => ['nullable', 'integer', 'min:0', 'max:365'],
             'max_users' => ['nullable', 'integer', 'min:1'],
             'max_companies' => ['nullable', 'integer', 'min:1'],
             'is_active' => ['boolean'],
+            'is_public' => ['boolean'],
+            'is_custom' => ['boolean'],
             'sort_order' => ['nullable', 'integer', 'min:0'],
         ]);
     }

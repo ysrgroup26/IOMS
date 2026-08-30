@@ -1,4 +1,4 @@
-import { Head, useForm, router, usePage } from '@inertiajs/react';
+import { Head, Link, useForm, router, usePage } from '@inertiajs/react';
 import { useState, useEffect } from 'react';
 import * as Tabs from '@radix-ui/react-tabs';
 import ImageUploadField from '@/Components/shared/ImageUploadField';
@@ -1988,9 +1988,15 @@ function SubscriptionTab({ subscription, invoices }) {
                 </div>
             )}
             <Card>
-                <CardHeader>
-                    <CardTitle>Subscription / License</CardTitle>
-                    <CardDescription>Your organization's current plan and commercial status.</CardDescription>
+                <CardHeader className="flex flex-row items-start justify-between gap-3">
+                    <div>
+                        <CardTitle>Subscription / License</CardTitle>
+                        <CardDescription>Your organization's current plan and commercial status.</CardDescription>
+                    </div>
+                    {/* v2.14.0 (SaaS Productization, Part 8): links to the new
+                        data-driven Plans page rather than duplicating a plan
+                        comparison inline on this tab. */}
+                    <Button variant="outline" size="sm" asChild><Link href={route('subscription.plans')}>Lihat Paket Lain</Link></Button>
                 </CardHeader>
                 <CardContent className="grid grid-cols-1 gap-4 sm:grid-cols-2">
                     <div className="space-y-3 text-sm">

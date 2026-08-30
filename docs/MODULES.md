@@ -1359,6 +1359,35 @@ the same way a Platform Admin does manually today, no core rewrite needed). Fron
 NOT yet hide a workspace based on entitlement status (only the backend middleware, itself gated off
 by default, enforces it) — flagged as a follow-up, not silently claimed done.
 
+### SaaS Productization / Pricing Foundation (v2.14.0)
+
+Turns the above architecture into an actual Plan/Pricing product surface, without touching payment
+processing. Full reasoning in `docs/ARCHITECTURE.md`'s "SaaS Productization: Plan/Pricing Foundation"
+section — summary here:
+
+- **`Package` confirmed as the canonical Plan entity** (no second `plans` table) — one migration
+  added the only four genuinely-missing fields: `currency`, `trial_days`, `is_public`, `is_custom`.
+- **`App\Services\PricingService`** (new) — the single place a `Package` row becomes
+  `{amount, currency, formatted}` display data. No component hardcodes a price; `is_custom` plans show
+  `"Hubungi Kami"`, never a fabricated number. Both the new tenant-facing Plans page and the existing
+  Platform Admin Plans CRUD page read from it.
+- **New tenant-facing page**: `Subscription/Plans.jsx`, route `subscription.plans`
+  (`SettingsController::plans()`) — monthly/yearly toggle, plan comparison with real
+  Workspace/Module labels per plan (via `Package::defaultWorkspaceKeys()`/`defaultModuleKeys()`, the
+  same mapping tenant provisioning already uses), current-plan highlight. Open to every authenticated
+  tenant user (not gated to Super Admin/HSE — see that route's own comment in `routes/web.php` for a
+  route-group placement mistake caught and fixed during this same pass, documented in
+  `docs/CONVENTIONS.md`). No payment/checkout action anywhere on it — a disabled "Hubungi
+  Administrator untuk Upgrade" button only.
+- **Trial**: `Package.trial_days` is the missing per-Plan input the existing `Subscription` trial
+  state machine needed; `PlatformController::updateSubscription()` derives a blank `trial_ends_at`
+  from it when status is set to `trial`. No automatic expiry cron was added — unchanged from v1.11.1's
+  deliberate "expiry stays a computed, non-blocking degraded state" design above.
+- **Explicitly NOT built this pass** (next phase's scope): final pricing decision (existing seeded
+  monthly/yearly numbers were left untouched, not treated as final), checkout, payment gateway wiring
+  (the interface/tables above remain unwired), upgrade/downgrade self-service (still a Platform Admin
+  edit), invoices beyond the existing manual issue/mark-paid flow.
+
 ## HSE Operational Equipment (v1.11.1, Final Production Readiness Pass)
 
 **Department:** HSE. `SafetyEquipment` (Workstream B10) already existed and was reused, not

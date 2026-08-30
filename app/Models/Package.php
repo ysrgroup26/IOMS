@@ -18,10 +18,14 @@ class Package extends Model
         'description',
         'price_monthly',
         'price_yearly',
+        'currency',
+        'trial_days',
         'max_users',
         'max_companies',
         'features',
         'is_active',
+        'is_public',
+        'is_custom',
         'sort_order',
     ];
 
@@ -30,8 +34,11 @@ class Package extends Model
         return [
             'price_monthly' => 'decimal:2',
             'price_yearly' => 'decimal:2',
+            'trial_days' => 'integer',
             'features' => 'array',
             'is_active' => 'boolean',
+            'is_public' => 'boolean',
+            'is_custom' => 'boolean',
         ];
     }
 
@@ -48,6 +55,12 @@ class Package extends Model
     public function scopeActive($query)
     {
         return $query->where('is_active', true);
+    }
+
+    /** v2.14.0 (SaaS Productization). Plans a tenant should actually be offered on a Plans/pricing comparison page -- excludes both inactive AND internal-only (`is_public=false`) plans. */
+    public function scopePublic($query)
+    {
+        return $query->where('is_public', true);
     }
 
     /**

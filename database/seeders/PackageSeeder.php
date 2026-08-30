@@ -27,6 +27,20 @@ class PackageSeeder extends Seeder
      * `defaultModuleKeys()` and `PlatformController::storeTenant()`), but
      * corrected here too so the stored catalog description matches what
      * the tenant actually gets, not a stale, narrower list.
+     *
+     * v2.14.0 (SaaS Productization / Pricing Foundation): added
+     * `currency`/`trial_days`/`is_public`/`is_custom`. Deliberately did
+     * NOT touch any `price_monthly`/`price_yearly` value already seeded
+     * here -- those are an existing, prior business decision recorded in
+     * this repository, and this phase's own directive explicitly forbids
+     * inventing/changing final prices without a documented decision.
+     * Enterprise becomes `is_custom = true` (sold by negotiation, matching
+     * its "Hubungi Kami" presentation on the Plans page) -- its existing
+     * `price_monthly`/`price_yearly` values are left in place rather than
+     * nulled out, since `PricingService` already ignores the numeric
+     * price entirely once `is_custom` is true, and leaving them intact
+     * avoids a destructive-looking change to existing seed data for a
+     * purely cosmetic/presentation flag.
      */
     public function run(): void
     {
@@ -37,9 +51,13 @@ class PackageSeeder extends Seeder
                 'description' => 'A fully operational HSE product for a single company -- incidents, observations, inspections, PPE, PTW, CAPA, and every other HSE module, without requiring HRD.',
                 'price_monthly' => 0,
                 'price_yearly' => 0,
+                'currency' => 'IDR',
+                'trial_days' => null,
                 'max_users' => 10,
                 'max_companies' => 1,
                 'features' => ['employees', 'ppe', 'kpi_input', 'reports'],
+                'is_public' => true,
+                'is_custom' => false,
                 'sort_order' => 1,
             ],
             [
@@ -48,9 +66,13 @@ class PackageSeeder extends Seeder
                 'description' => 'HSE plus HRD/workforce management and cross-department management visibility, for growing operations across multiple companies.',
                 'price_monthly' => 49,
                 'price_yearly' => 490,
+                'currency' => 'IDR',
+                'trial_days' => 14,
                 'max_users' => 50,
                 'max_companies' => 5,
                 'features' => ['employees', 'ppe', 'kpi_input', 'reports', 'projects', 'daily_reports', 'material_requests'],
+                'is_public' => true,
+                'is_custom' => false,
                 'sort_order' => 2,
             ],
             [
@@ -59,9 +81,13 @@ class PackageSeeder extends Seeder
                 'description' => 'Full IOMS -- every department (HSE, HRD, Project Management, Logistics/PPIC, Warehouse, Procurement, Asset Management, Maintenance, Quality Control) and unlimited users/companies.',
                 'price_monthly' => 149,
                 'price_yearly' => 1490,
+                'currency' => 'IDR',
+                'trial_days' => null,
                 'max_users' => null,
                 'max_companies' => null,
                 'features' => ['employees', 'ppe', 'kpi_input', 'reports', 'projects', 'daily_reports', 'material_requests'],
+                'is_public' => true,
+                'is_custom' => true,
                 'sort_order' => 3,
             ],
         ];

@@ -15,6 +15,7 @@ use App\Models\NumberingFormat;
 use App\Models\Position;
 use App\Models\User;
 use App\Models\Workspace;
+use App\Services\PricingService;
 use Illuminate\Http\RedirectResponse;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Hash;
@@ -196,6 +197,39 @@ class SettingsController extends Controller
             'invoices' => \App\Models\Invoice::where('tenant_id', $request->user()->tenant_id)
                 ->latest()
                 ->get(['id', 'invoice_number', 'amount', 'currency', 'status', 'due_date', 'payment_date']),
+        ]);
+    }
+
+    /**
+     * v2.14.0 (SaaS Productization / Pricing Foundation, Part 8/9). The
+     * tenant-facing Plans/pricing comparison page -- data-driven entirely
+     * from `PricingService`/`Package`, never a hand-maintained UI table,
+     * so it can never drift from what a Platform Admin actually
+     * configured in Platform > Plans. Deliberately open to every
+     * authenticated tenant user (not gated to Super Admin the way
+     * updateCompany()/Company Settings are) -- knowing what plans exist
+     * and what the tenant's own plan includes is not privileged
+     * information, matching Part 8's "tenant-facing subscription
+     * overview" requirement. A Platform Admin has no tenant (see
+     * User::isPlatformAdmin()) and reaches this same information via
+     * Platform > Plans instead -- RestrictPlatformAdminFromTenantRoutes
+     * already keeps them off tenant routes generally.
+     *
+     * No checkout, no payment action here -- see this page's own "Contact
+     * administrator to upgrade" CTA. Upgrading a plan remains a Platform
+     * Admin action via PlatformController::updateSubscription(), exactly
+     * as it already was before this page existed.
+     */
+    public function plans(Request $request): Response
+    {
+        $pricing = app(PricingService::class);
+        $tenant = $request->user()->tenant;
+        $currentPackage = $tenant?->subscription?->package;
+
+        return Inertia::render('Subscription/Plans', [
+            'plans' => $pricing->publicPlans(),
+            'currentPlan' => $currentPackage ? $pricing->summarize($currentPackage) : null,
+            'currentPlanId' => $currentPackage?->id,
         ]);
     }
 

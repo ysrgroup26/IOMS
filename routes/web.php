@@ -598,6 +598,22 @@ Route::middleware(['auth', 'restrict.platform-admin'])->group(function () {
         Route::post('/settings/authentication', [SettingsController::class, 'updateAuthentication'])->name('settings.authentication');
     });
 
+    // v2.14.0 (SaaS Productization / Pricing Foundation, Part 8/9).
+    // Tenant-facing Plans comparison page. Deliberately placed OUTSIDE
+    // the `role:super_admin,hse` group above (and the `role:super_admin`
+    // group below) -- knowing what plans exist and what the tenant's own
+    // plan includes is not privileged information (see
+    // SettingsController::plans()'s own doc comment), so every
+    // authenticated tenant user should reach it, not only Super
+    // Admin/HSE. Still inside the outer `auth`+`restrict.platform-admin`
+    // group, so a Platform Admin (no tenant) cannot reach it, matching
+    // every other tenant route in this file. This exact "route
+    // accidentally nested inside a role-restricted group" shape is a
+    // documented, previously-real bug in this codebase -- see
+    // docs/CONVENTIONS.md's "Known Pitfalls" -- so this placement was
+    // deliberate, not incidental.
+    Route::get('/subscription/plans', [SettingsController::class, 'plans'])->name('subscription.plans');
+
     /*
     |--------------------------------------------------------------------------
     | Super Admin only: Company management, User management, company

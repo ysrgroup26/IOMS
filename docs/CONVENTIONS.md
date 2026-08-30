@@ -3,6 +3,23 @@
 House style, and a deliberately honest list of mistakes that have actually happened in this
 codebase's history — kept here so they don't get repeated in a slightly different shape.
 
+## Known Pitfall (v2.14.0): adding one route inside an existing `Route::get(...)->name('settings.index')`
+## block visually looks safe but can silently land inside a role-restricted sub-group a few lines later
+
+While building the tenant-facing Plans page this pass, a new `subscription.plans` route was first
+added directly after `Route::get('/settings', ...)` (routes/web.php) — which reads as a safe,
+general spot, but that line is actually the FIRST line inside `Route::middleware('role:super_admin,
+hse')->group(...)`, a restrictive sub-group that doesn't close for another ~120 lines. The route was
+built specifically to be open to every authenticated tenant user (Part 8's "not privileged
+information"), and it silently would not have been — caught only because `php artisan route:list
+--json` was actually run and its `middleware` array inspected, not assumed from the surrounding code's
+indentation. This is the same failure class CLAUDE.md's own "verify before building" section already
+warns about (Material Request/PPE Replacement Request once being accidentally nested inside
+`role:super_admin`) — the lesson repeats because visual proximity to a `Route::get('/x', ...)` line is
+not evidence of which `Route::middleware(...)->group()` it's actually inside; only tracing the actual
+`Route::middleware(...)->group(function () { ... })` open/close pairs (or running `route:list` and
+reading the `middleware` column) tells you.
+
 ## Convention (v2.13.0): flipping an enforcement flag on safely needs a "zero grants = allowed"
 ## default PLUS a real top-up tool — not just careful reasoning about the one tenant you can see
 

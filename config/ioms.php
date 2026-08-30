@@ -17,7 +17,7 @@ return [
     |
     */
 
-    'version' => '2.14.0',
+    'version' => '2.15.0',
 
     // Tester / Beta / Stable -- tracks the release stage explicitly.
     // Previously only implied in conversation, never actually stored.
@@ -44,11 +44,10 @@ return [
     'documentation_url' => 'docs.iomsplatform.com',
 
     'whats_new' => [
-        'New Plans page (Settings > Subscription > Lihat Paket Lain) -- compare what each subscription plan includes (departments, user/company limits, trial length), always reading live from the plan catalog, never a hardcoded price',
-        'Platform Admin\'s Plan/Edition management now supports currency, trial length, "show on Plans page", and "custom/contact us" pricing for a plan',
-        'Package/Workspace entitlement is now actually enforced server-side by default (previously built but never enabled) -- a company\'s subscription plan now genuinely limits which departments it can reach, not just what the sidebar shows',
-        'A tenant that predates this feature (no grants on record) is never locked out by this change -- only tenants with real, current grants are restricted, and a new admin command safely tops up any tenant whose grants fell behind',
-        'Subscription and entitlement-denied messages now show in Bahasa Indonesia instead of English',
+        'Every dialog/popup in the app is now mobile-safe -- tall forms scroll within the dialog instead of getting cut off at the bottom of the screen on smaller phones',
+        'Page headers now stack cleanly on mobile (title above, actions below) instead of squeezing onto one row',
+        'Incident list now shows as readable cards on mobile instead of a sideways-scrolling table',
+        'Status badges are more consistent -- "Overdue" and "High priority" now show as a distinct amber warning instead of the same red as "Rejected"/"Critical"',
     ],
 
     /*
@@ -63,6 +62,7 @@ return [
     */
 
     'version_history' => [
+        ['version' => '2.15.0', 'date' => '2026-08-30', 'summary' => 'Product UI/UX Finalization: fixed the dialog component app-wide so tall forms no longer clip off-screen on mobile (max-h + internal scroll + safe margin, previously only one page had opted in); PageHeader now stacks title-above-actions on mobile instead of squeezing both onto one row; added a warning Badge variant so "Overdue"/"High priority" read distinctly from "Rejected"/"Critical"; Incident list converted to the proven PTW mobile-card pattern. Audit-first, shared-components-first pass -- no business logic, dashboard widgets, sidebar structure, or Field Home scope changed.'],
         ['version' => '2.14.0', 'date' => '2026-08-30', 'summary' => 'SaaS Productization / Pricing Foundation: Package confirmed as the canonical Plan entity (currency/trial_days/is_public/is_custom added, no new plans table); new PricingService is the single source of formatted plan pricing (never hardcoded in a component); new tenant-facing Plans comparison page; trial-days-to-trial_ends_at wiring; upgrade/downgrade and billing-ready architecture documented for a later phase. No checkout, payment gateway, or final pricing decision -- explicitly out of scope.'],
         ['version' => '2.13.0', 'date' => '2026-08-30', 'summary' => 'SaaS Phase 1 -- Subscription Architecture & Entitlement Enforcement: server-side per-workspace entitlement enforcement enabled by default (previously built, never wired on); a tenant with no grant rows is now safely treated as fully allowed instead of fully denied, so this cannot lock out a pre-existing tenant; new `tenants:sync-grants` command additively tops up a partially-granted tenant to its Package baseline; entitlement-denied messages now in Bahasa Indonesia. No new table, no payment/billing/pricing/checkout work (explicitly out of scope for this phase).'],
         ['version' => '2.12.0', 'date' => '2026-09-07', 'summary' => 'Product Finalization pass: fixed three real cross-tenant leaks found by a fresh security audit (Material Request full IDOR across 9 controller methods, PPE Replacement Request view/PDF IDOR, KpiRecordController default-state full leak), fixed a hardcoded-branding PDF footer, added two missing delete confirmations, improved the Employees empty state. No database change, no new route.'],

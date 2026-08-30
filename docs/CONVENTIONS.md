@@ -3,6 +3,23 @@
 House style, and a deliberately honest list of mistakes that have actually happened in this
 codebase's history — kept here so they don't get repeated in a slightly different shape.
 
+## Convention (v2.15.0): a shared-component fix reaches every caller for free, but only the callers
+## that actually use the shared component -- 8+ pages hand-roll their own status/badge colors instead
+
+Auditing `StatusBadge` usage for the UI/UX Finalization pass found the mapping itself was fine, but
+roughly 8 pages (`Calendar/Index.jsx`, `Employees/Index.jsx`, `Employees/Profile.jsx`,
+`Platform/TenantDetail.jsx`, `Projects/Show.jsx`, `Settings/Index.jsx`, `Subscription/Plans.jsx`, and
+notably `Dashboard/Index.jsx` in ONE place while correctly using `StatusBadge` elsewhere in that same
+file) still hand-roll their own `variant="success"|"destructive"|...` status color logic. This is the
+same lesson as `PageHeader`'s standalone hand-rolled duplicate in `PermitsToWork/Index.jsx` (found in
+an earlier pass) in a new shape: a shared component only fixes what actually calls it. When adding a
+new status/priority display anywhere, reach for `<StatusBadge value={...} />` first and check
+`StatusBadge.jsx`'s `STATUS_MAP` before inventing a new inline color mapping — extend the shared map
+if a status is missing from it, don't duplicate the pattern locally. The known hand-rolled instances
+above were left as-is this pass (retrofitting every one is a separate, lower-urgency task, same
+disposition as `StatusBadge`'s own original doc comment already took toward pre-existing per-page
+maps) except `Dashboard/Index.jsx`'s pending-tasks list, fixed as this pattern's own demonstration.
+
 ## Known Pitfall (v2.14.0): adding one route inside an existing `Route::get(...)->name('settings.index')`
 ## block visually looks safe but can silently land inside a role-restricted sub-group a few lines later
 

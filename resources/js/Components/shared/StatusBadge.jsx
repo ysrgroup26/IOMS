@@ -29,10 +29,15 @@ const STATUS_MAP = {
     // 'closed' never had its own entry), making a finished PTW visually
     // indistinguishable from an in-progress one on the list.
     closed: 'secondary',
+    // v2.15.0 (Product UI/UX Finalization, Part 12): "Overdue" is
+    // distinct from "Rejected"/"Expired" -- it's a warning to act on,
+    // not a hard failure -- so it gets the new `warning` Badge variant
+    // rather than borrowing `destructive`.
+    overdue: 'warning',
     // Priority
     low: 'secondary',
     medium: 'outline',
-    high: 'destructive',
+    high: 'warning',
     critical: 'destructive',
     // PPE lifecycle
     issued: 'outline',

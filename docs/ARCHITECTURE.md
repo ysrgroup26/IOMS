@@ -395,3 +395,44 @@ v1.9.0 sections for the full reasoning.
   `resources/js/lib/useTheme.js`) — the implementation is intact, just hidden, pending a future
   version turning it back on. Don't remove the dark-mode Tailwind classes (`dark:*`) when touching
   a page; they're dead code for now, not wrong code.
+
+## Product UI/UX Finalization (v2.15.0)
+
+A scoped polish pass, not a redesign — per that phase's own directive, "fix shared components first"
+before touching individual pages, so a fix reaches every page that already uses the shared primitive
+rather than being applied page-by-page. Audited first (Tailwind config, `app.css`, every `ui/`
+primitive, `StatusBadge`, `PageHeader`, `AuthenticatedLayout`, and a representative page set) — the
+underlying design tokens (the `graphite` neutral scale, `success`/`warning`/`danger` semantic colors,
+12px-based radius scale, subtle single-layer shadows) were already sound and left untouched; only two
+genuine, global gaps were fixed, plus a couple of representative-page/one-off improvements:
+
+- **`ui/dialog.jsx`**: `DialogContent` had no horizontal safety margin on mobile (`w-full max-w-lg`,
+  nothing preventing it from touching the viewport edge) and, more importantly, **no `max-h`/
+  `overflow-y-auto` at all** — a tall form dialog on a short/narrow viewport had no way to scroll to
+  content past the viewport height (confirmed only one dialog anywhere in the app,
+  `Ppe/ReplacementDue.jsx`, had opted into this itself). Fixed once, globally: `w-[calc(100%-2rem)]`
+  (guarantees a 1rem margin under the `max-w-*` cap) + `max-h-[85vh] overflow-y-auto` as the default
+  for every dialog; a page's own `className` override still wins via `tailwind-merge`.
+- **`Components/shared/PageHeader.jsx`**: was `flex-wrap items-center justify-between` at every
+  breakpoint — title and action buttons sat side-by-side even on a narrow phone, wrapping only once
+  they literally didn't fit, an accidental rather than deliberate mobile layout. Now stacks
+  title-above-actions below `sm`, reverts to the original side-by-side row at `sm:` and up.
+- **`ui/badge.jsx`**: added a `warning` variant, consuming the `warning`/`warning-light` Tailwind
+  tokens that already existed in `tailwind.config.js` but had no consumer anywhere. `StatusBadge`
+  now maps `overdue` and priority `high` to it (previously indistinguishable from `destructive`
+  `critical`) — see `docs/MODULES.md` for the full status/priority mapping.
+- **`Incidents/Index.jsx`** converted to the same mobile card-list pattern already proven on
+  `PermitsToWork/Index.jsx` (`md:hidden` card list + `hidden md:table` desktop table) as this phase's
+  one representative Part 10/14D table conversion — the 7-column table previously had no mobile
+  fallback at all. The same pattern should be applied to other actionable-record tables
+  (`CorrectiveActions/Index.jsx` and similar) as a follow-up; this phase did not attempt a full
+  app-wide table conversion (out of proportion for a "polish, not redesign" phase).
+
+**Deliberately not changed this pass**: the sidebar's department/workspace grouping (audited, already
+clear — HSE's nested sub-groups, flat lists elsewhere — no artificial restructuring for its own
+sake), the topbar (audited, already responsively hides secondary elements below `xl`/`sm`), the
+Enterprise Dashboard's business logic/widget set (visual hierarchy only, if touched at all), Field
+Home (already appropriately minimal per its own prior-phase doc comment), and the large number of
+form pages using an un-prefixed `grid-cols-2` for a plain two-field row — reviewed and left as-is,
+since two short field pairs stacking correctly at their card's own width is not the same failure mode
+as a dense multi-column dashboard grid.

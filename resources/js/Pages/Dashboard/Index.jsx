@@ -269,10 +269,14 @@ export default function Dashboard({
                                 className="flex items-center justify-between gap-3 px-5 py-3 text-sm transition-colors hover:bg-graphite-50"
                             >
                                 <span className="min-w-0 flex-1 truncate font-medium text-graphite-800">{task.title}</span>
-                                <Badge variant={task.priority === 'critical' || task.priority === 'high' ? 'destructive' : 'outline'}>
-                                    {task.priority}
-                                </Badge>
-                                <Badge variant="secondary">{task.status.replace('_', ' ')}</Badge>
+                                {/* v2.15.0 (Product UI/UX Finalization, Part 12): was a
+                                    hand-rolled priority color map living right next to a
+                                    StatusBadge import used elsewhere in this same file --
+                                    consolidated onto the one shared status/priority
+                                    vocabulary so "high" reads as warning (amber), not the
+                                    same destructive red as "critical". */}
+                                <StatusBadge value={task.priority} />
+                                <StatusBadge value={task.status} />
                                 <span className="w-24 shrink-0 text-right text-xs text-graphite-400">
                                     {task.due_date ? new Date(task.due_date).toLocaleDateString('en-US', { day: 'numeric', month: 'short' }) : 'No due date'}
                                 </span>

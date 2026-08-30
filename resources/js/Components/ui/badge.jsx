@@ -16,6 +16,15 @@ const badgeVariants = cva(
                 secondary: 'border-transparent bg-graphite-100 text-graphite-700 dark:bg-slate-700 dark:text-slate-200',
                 destructive: 'border-transparent bg-red-100 text-red-700 dark:bg-red-950/50 dark:text-red-300',
                 success: 'border-transparent bg-success-light text-success dark:bg-emerald-950/50 dark:text-emerald-300',
+                // v2.15.0 (Product UI/UX Finalization, Part 12). The
+                // `warning` token already existed in tailwind.config.js
+                // but nothing consumed it -- every "not quite an error"
+                // state (overdue, degraded, expiring soon) had to borrow
+                // `destructive` (too alarming) or `secondary` (too
+                // muted). Distinct amber so "Overdue" reads differently
+                // from "Rejected" at a glance, matching this Part's own
+                // example status list.
+                warning: 'border-transparent bg-warning-light text-warning dark:bg-amber-950/50 dark:text-amber-300',
                 outline: 'border-graphite-200 text-graphite-600 dark:border-slate-600 dark:text-slate-300',
             },
         },

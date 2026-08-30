@@ -45,6 +45,90 @@ class PermitToWorkController extends Controller
         ]);
     }
 
+    /**
+     * v2.9.0 (Field/Foreman Experience pass, Phase 3C -- My PTW). A
+     * separate, field-oriented view over the SAME `permits_to_work`
+     * table `index()` already queries above -- no new table, no new
+     * model, no duplicated backend logic. The one real difference:
+     * scoped to `requested_by = $request->user()->id` in addition to
+     * the same tenant scope `index()` already uses, so a field user
+     * sees only the permits they themselves requested -- confirmed via
+     * this pass's own audit that `requested_by` (via
+     * `PermitToWork::requester()`) is the ONLY existing ownership
+     * field on this model; no new column/relationship was introduced.
+     *
+     * Ownership filtering happens entirely server-side from the
+     * authenticated session (`$request->user()->id`) -- there is no
+     * client-supplied "whose permits" parameter of any kind, so this
+     * can never be used to browse another user's permits by guessing a
+     * query string.
+     *
+     * `status` here accepts exactly the model's own real status values
+     * (draft/submitted/approved/active/rejected/closed/cancelled) plus
+     * `all` -- no new grouping/synthetic status invented. Same
+     * `paginate(20)` as `index()`, reused rather than a new pagination
+     * scheme.
+     */
+    public function myIndex(Request $request): Response
+    {
+        $user = $request->user();
+        $tenantCompanyIds = Company::query()->pluck('id');
+
+        $permits = PermitToWork::query()
+            ->whereIn('company_id', $tenantCompanyIds)
+            ->where('requested_by', $user->id)
+            ->with('project:id,name')
+            ->when($request->input('status') && $request->input('status') !== 'all', fn ($q, $v) => $q->where('status', $request->input('status')))
+            ->latest('start_datetime')
+            ->paginate(20)
+            ->withQueryString();
+
+        // v2.9.0: rejection reasons for the current page's rejected
+        // items ONLY -- one batched query (not N+1 per rejected item),
+        // matching the product's "REJECTED / Reason: ... / [Resubmit]"
+        // card requirement so a field user sees WHY without navigating
+        // to Show first. Same ActivityLog.meta trail
+        // rejectionReasonFor() (used by show()/document()) already
+        // reads -- reused, not a new source of truth.
+        $rejectedIds = $permits->getCollection()->where('status', PermitToWork::STATUS_REJECTED)->pluck('id');
+        $rejectionReasons = $rejectedIds->isEmpty() ? collect() : ActivityLog::where('subject_type', PermitToWork::class)
+            ->whereIn('subject_id', $rejectedIds)
+            ->where('action', PermitToWork::STATUS_REJECTED)
+            ->latest()
+            ->get()
+            ->unique('subject_id')
+            ->mapWithKeys(fn ($log) => [$log->subject_id => $log->meta['comments'] ?? null]);
+
+        $permits->getCollection()->transform(function (PermitToWork $p) use ($rejectionReasons) {
+            $p->rejection_reason = $rejectionReasons->get($p->id);
+
+            return $p;
+        });
+
+        // Real, tenant+requester-scoped counts for the filter tabs and
+        // for Field Home's own summary -- one cheap grouped query, not
+        // one query per status.
+        $counts = PermitToWork::query()
+            ->whereIn('company_id', $tenantCompanyIds)
+            ->where('requested_by', $user->id)
+            ->selectRaw('status, count(*) as total')
+            ->groupBy('status')
+            ->pluck('total', 'status');
+
+        return Inertia::render('PermitsToWork/MyIndex', [
+            'permits' => $permits,
+            'filters' => $request->only('status'),
+            'counts' => [
+                'all' => $counts->sum(),
+                'submitted' => $counts->get(PermitToWork::STATUS_SUBMITTED, 0),
+                'approved' => $counts->get(PermitToWork::STATUS_APPROVED, 0),
+                'active' => $counts->get(PermitToWork::STATUS_ACTIVE, 0),
+                'rejected' => $counts->get(PermitToWork::STATUS_REJECTED, 0),
+                'closed' => $counts->get(PermitToWork::STATUS_CLOSED, 0),
+            ],
+        ]);
+    }
+
     public function create(Request $request): Response
     {
         abort_unless($request->user()->canManageHse(), 403);

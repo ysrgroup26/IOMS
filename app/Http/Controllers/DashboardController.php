@@ -11,6 +11,7 @@ use App\Models\Employee;
 use App\Models\EmployeeShiftAssignment;
 use App\Models\Incident;
 use App\Models\Milestone;
+use App\Models\PermitToWork;
 use App\Models\Project;
 use App\Models\PurchaseOrder;
 use App\Models\PurchaseRequisition;
@@ -302,7 +303,29 @@ class DashboardController extends Controller
         if ($user->canManageHse()) {
             $tiles[] = ['label' => 'Create PTW', 'description' => 'Ajukan izin kerja baru.', 'href' => route('permits-to-work.create'), 'icon' => 'Flame'];
         }
-        $tiles[] = ['label' => 'My PTW', 'description' => 'Lihat status izin kerja Anda.', 'href' => route('permits-to-work.index'), 'icon' => 'ClipboardList'];
+        // v2.9.0 (Field/Foreman Experience pass, Phase 3C): now points at
+        // the new field-oriented `permits-to-work.mine` (My PTW) instead
+        // of the enterprise `permits-to-work.index` -- same underlying
+        // data, requester-scoped and card-based instead of the full
+        // enterprise table. Description shows real pending/active counts
+        // (from the same tenant+requester-scoped query `myIndex()` uses)
+        // rather than a generic label, matching the product's own "3
+        // pending approval, 2 active" example.
+        $tenantCompanyIds = $this->stats->resolveCompanyIds(null);
+        $myPtwPendingCount = PermitToWork::whereIn('company_id', $tenantCompanyIds)
+            ->where('requested_by', $user->id)
+            ->where('status', PermitToWork::STATUS_SUBMITTED)
+            ->count();
+        $myPtwActiveCount = PermitToWork::whereIn('company_id', $tenantCompanyIds)
+            ->where('requested_by', $user->id)
+            ->where('status', PermitToWork::STATUS_ACTIVE)
+            ->count();
+        $myPtwParts = array_filter([
+            $myPtwPendingCount > 0 ? "{$myPtwPendingCount} menunggu persetujuan" : null,
+            $myPtwActiveCount > 0 ? "{$myPtwActiveCount} aktif" : null,
+        ]);
+        $myPtwDescription = $myPtwParts ? implode(', ', $myPtwParts) : 'Lihat status izin kerja Anda.';
+        $tiles[] = ['label' => 'My PTW', 'description' => $myPtwDescription, 'href' => route('permits-to-work.mine'), 'icon' => 'ClipboardList'];
         if ($user->canManageHse()) {
             $tiles[] = ['label' => 'Digital Checklist', 'description' => 'Mulai inspeksi/checklist baru.', 'href' => route('hse-inspections.create'), 'icon' => 'ClipboardCheck'];
         }

@@ -536,6 +536,41 @@ left what already worked alone.
   status value; every existing authorization check (`canManageHse()`, `assertInCurrentTenant()`)
   unchanged.
 
+**v2.9.0 (Field/Foreman Experience pass, Phase 3C — My PTW)** — a second, field-oriented view over the
+SAME `permits_to_work` table the enterprise `PermitsToWork/Index.jsx` already lists. No new table, no
+new model, no duplicated PTW logic.
+- **Ownership**: confirmed via a fresh audit that `requested_by` (→ `PermitToWork::requester()`) is the
+  ONLY existing ownership field on this model — no new column/relationship introduced. `My PTW`
+  (`PermitToWorkController::myIndex()`, route `permits-to-work.mine` → `/permits-to-work/mine`,
+  registered ahead of the `{permitToWork}` wildcard so it can't be swallowed as an ID) filters
+  server-side on `requested_by = $request->user()->id` in addition to the same tenant scope `index()`
+  already applies — there is no client-suppliable "whose permits" parameter anywhere, so this can never
+  be used to browse another user's permits by guessing a query string.
+- **Frontend**: new `PermitsToWork/MyIndex.jsx` — always a compact card list (never the dense
+  enterprise table, on any viewport, per the explicit product direction), a horizontally-scrollable
+  filter-tab row (All/Pending/Approved/Active/Rejected/Closed, exact real status values — no synthetic
+  grouping invented), and a real per-status count badge on each tab from one grouped `COUNT(*) ...
+  GROUP BY status` query. Create PTW still goes to the exact same `permits-to-work.create` form from
+  Phase 1; every card's action goes to the exact same `Show.jsx` (View PTW Document/Download PDF/
+  Print/Resubmit, all from Phases 2/3B) — no duplicated detail logic, no second PTW form.
+- **Rejected cards** show the rejection reason inline and a direct "Resubmit" button (posts to the same
+  `permits-to-work.transition` → `draft`, the identical real transition Phase 3B added to `Show.jsx`) —
+  reasons for the current page's rejected items are fetched with ONE batched `ActivityLog` query
+  (`whereIn('subject_id', $rejectedIds)`), not one query per card.
+- **Field Home integration** (`DashboardController::fieldHome()`): the "My PTW" tile now points at
+  `permits-to-work.mine` instead of the enterprise `permits-to-work.index`, and its description shows
+  real pending/active counts ("N menunggu persetujuan, M aktif") from the same tenant+requester-scoped
+  query, or a generic fallback when there's nothing to report — never a fabricated number.
+- **Role limitation, unchanged from Phase 3A**: there is still no dedicated Foreman/field role.
+  `isDepartmentUser()` remains the same documented MVP proxy this pass builds on top of, not a new
+  concept — see `DashboardController::index()`'s own doc comment.
+- **Enterprise experience untouched**: `PermitsToWork/Index.jsx` (the table, its Type/Status filters,
+  its own `permits-to-work.index` route) was NOT modified — HSE/Admin users keep exactly the view they
+  already had.
+- **Deferred to a later phase, not built now**: no changes to Digital Checklist/Safety Observation/
+  Incident field entry points beyond what Phase 3A's Field Home tiles already provide, no offline/PWA/
+  push infrastructure, no new role.
+
 ## Gas Test
 
 **Department:** HSE (Milestone 4, Workstream B7; location/stage added v1.10.9).

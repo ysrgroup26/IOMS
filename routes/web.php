@@ -255,6 +255,12 @@ Route::middleware(['auth', 'restrict.platform-admin'])->group(function () {
     // Permit To Work + Gas Test + LOTO (Milestone 4, Workstream B6/B7/B8).
     Route::get('/permits-to-work', [PermitToWorkController::class, 'index'])->name('permits-to-work.index');
     Route::get('/permits-to-work/create', [PermitToWorkController::class, 'create'])->name('permits-to-work.create');
+    // v2.9.0 (Field/Foreman Experience pass, Phase 3C -- My PTW). MUST
+    // stay registered before the `/permits-to-work/{permitToWork}` show
+    // route directly below -- otherwise Laravel's route-model-binding
+    // would try to resolve the literal segment "mine" as a PermitToWork
+    // ID and 404 instead of reaching this controller method.
+    Route::get('/permits-to-work/mine', [PermitToWorkController::class, 'myIndex'])->name('permits-to-work.mine');
     Route::post('/permits-to-work', [PermitToWorkController::class, 'store'])->name('permits-to-work.store');
     Route::get('/permits-to-work/{permitToWork}', [PermitToWorkController::class, 'show'])->name('permits-to-work.show');
     // v2.4.0 (PTW UX + Field Operations pass, Part 13) -- PTW PDF

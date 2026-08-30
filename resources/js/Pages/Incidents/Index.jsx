@@ -66,7 +66,14 @@ export default function IncidentsIndex({ incidents, filters, can }) {
             <Card>
                 <CardContent className="p-0">
                     {incidents.data.length === 0 ? (
-                        <EmptyState icon={AlertTriangle} title="No incidents recorded" description="Report an incident to start tracking it." />
+                        <EmptyState
+                            icon={AlertTriangle}
+                            title="Belum ada insiden."
+                            description="Laporkan insiden pertama untuk mulai mencatatnya."
+                            action={can.manage && (
+                                <Button asChild size="sm"><Link href={route('incidents.create')}><Plus className="h-4 w-4" /> Report Incident</Link></Button>
+                            )}
+                        />
                     ) : (
                         <Table>
                             <TableHeader>

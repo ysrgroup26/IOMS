@@ -69,7 +69,7 @@ export default function PpeEmployeeProfile({ employee, assignments, ppeTypes, ca
                 </div>
             </div>
 
-            <div className="mb-4 grid grid-cols-3 gap-3">
+            <div className="mb-4 grid grid-cols-3 gap-2 sm:gap-3">
                 <Card><CardContent className="p-3.5 text-center"><p className="text-xl font-bold text-emerald-600">{current.length}</p><p className="mt-0.5 text-[11px] text-graphite-400">Current</p></CardContent></Card>
                 <Card><CardContent className="p-3.5 text-center"><p className="text-xl font-bold text-red-600">{expired.length}</p><p className="mt-0.5 text-[11px] text-graphite-400">Expired</p></CardContent></Card>
                 <Card><CardContent className="p-3.5 text-center"><p className="text-xl font-bold text-graphite-600 dark:text-slate-300">{assignments.length}</p><p className="mt-0.5 text-[11px] text-graphite-400">Total Ever Issued</p></CardContent></Card>
@@ -260,7 +260,7 @@ function IssuePpeDialog({ open, onOpenChange, employee, ppeTypes }) {
                                     {errors[`items.${index}.ppe_type_id`] && <p className="text-xs text-red-600">{errors[`items.${index}.ppe_type_id`]}</p>}
                                 </div>
 
-                                <div className="grid grid-cols-2 gap-3">
+                                <div className="grid grid-cols-1 gap-3 sm:grid-cols-2">
                                     <div className="space-y-1.5">
                                         <Label>Issue Date</Label>
                                         <Input type="date" value={item.issued_date} onChange={(e) => updateItem(index, 'issued_date', e.target.value)} />
@@ -349,7 +349,7 @@ function EditAssignmentDialog({ assignment, ppeTypes, onOpenChange }) {
                         </Select>
                         {errors.ppe_type_id && <p className="text-xs text-red-600">{errors.ppe_type_id}</p>}
                     </div>
-                    <div className="grid grid-cols-2 gap-3">
+                    <div className="grid grid-cols-1 gap-3 sm:grid-cols-2">
                         <div className="space-y-1.5">
                             <Label>Issue Date</Label>
                             <Input type="date" value={data.issued_date} onChange={(e) => setData('issued_date', e.target.value)} />

@@ -9,11 +9,13 @@ use App\Models\Employee;
 use App\Models\EmployeePpe;
 use App\Models\GoodsReceipt;
 use App\Models\Incident;
+use App\Models\JobSafetyAnalysis;
 use App\Models\LeaveRequest;
 use App\Models\MaterialRequest;
 use App\Models\Milestone;
 use App\Models\PermitToWork;
 use App\Models\Project;
+use App\Models\RiskAssessment;
 use App\Models\Vendor;
 use App\Services\DashboardStatsService;
 use Illuminate\Http\Request;
@@ -256,6 +258,40 @@ class GlobalSearchController extends Controller
                 ])
             : collect();
 
+        // v2.5.0 (Field HSE Experience pass, Part 23): HIRADC/JSA were
+        // confirmed missing from Global Search via this pass's own audit
+        // -- the previous pass's doc comment listed every deliberately
+        // deferred category but never mentioned these two, so this was a
+        // genuine gap, not an intentional omission. Same tenant-scoping +
+        // RBAC-gating pattern as every other category above.
+        $hiradcs = ($user && $user->canManageHse())
+            ? RiskAssessment::query()
+                ->whereIn('company_id', $companyIds)
+                ->where(fn ($q) => $q->where('ra_number', 'like', "%{$query}%")->orWhere('title', 'like', "%{$query}%"))
+                ->limit(5)
+                ->get(['id', 'ra_number', 'title', 'status'])
+                ->map(fn (RiskAssessment $r) => [
+                    'id' => $r->id,
+                    'title' => $r->ra_number.' -- '.$r->title,
+                    'subtitle' => ucfirst(str_replace('_', ' ', $r->status)),
+                    'url' => route('risk-assessments.show', $r->id),
+                ])
+            : collect();
+
+        $jsas = ($user && $user->canManageHse())
+            ? JobSafetyAnalysis::query()
+                ->whereIn('company_id', $companyIds)
+                ->where(fn ($q) => $q->where('jsa_number', 'like', "%{$query}%")->orWhere('job_title', 'like', "%{$query}%"))
+                ->limit(5)
+                ->get(['id', 'jsa_number', 'job_title', 'status'])
+                ->map(fn (JobSafetyAnalysis $j) => [
+                    'id' => $j->id,
+                    'title' => $j->jsa_number.' -- '.$j->job_title,
+                    'subtitle' => ucfirst(str_replace('_', ' ', $j->status)),
+                    'url' => route('job-safety-analyses.show', $j->id),
+                ])
+            : collect();
+
         return response()->json([
             'employees' => $employees,
             'projects' => $projects,
@@ -270,6 +306,8 @@ class GlobalSearchController extends Controller
             'ptws' => $ptws,
             'assets' => $assets,
             'vendors' => $vendors,
+            'hiradcs' => $hiradcs,
+            'jsas' => $jsas,
         ]);
     }
 
@@ -279,6 +317,7 @@ class GlobalSearchController extends Controller
             'employees' => [], 'projects' => [], 'incidents' => [], 'material_requests' => [],
             'leave_requests' => [], 'milestones' => [], 'goods_receipts' => [], 'companies' => [],
             'ppe' => [], 'capas' => [], 'ptws' => [], 'assets' => [], 'vendors' => [],
+            'hiradcs' => [], 'jsas' => [],
         ];
     }
 }

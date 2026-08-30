@@ -34,13 +34,23 @@ export default function ModuleTabNav({ tabs }) {
                         key={tab.href}
                         href={route(tab.href)}
                         className={cn(
-                            'border-b-2 px-3 py-1.5 text-xs font-medium transition-colors',
+                            'flex items-center gap-1.5 border-b-2 px-3 py-1.5 text-xs font-medium transition-colors',
                             active
                                 ? 'border-brand-600 text-brand-700 dark:text-brand-400'
                                 : 'border-transparent text-graphite-500 hover:border-graphite-300 hover:text-graphite-800 dark:text-slate-400 dark:hover:text-slate-200'
                         )}
                     >
                         {tab.name}
+                        {/* v2.5.0 (Field HSE Experience pass, Part 11): optional
+                            small pill so a config/admin-only tab (e.g. PPE
+                            Master) reads visibly different in KIND from the
+                            daily-operations tabs next to it, not just by RBAC
+                            hiding its buttons once you're already there. */}
+                        {tab.badge && (
+                            <span className="rounded-full bg-graphite-100 px-1.5 py-0.5 text-[9px] font-semibold uppercase tracking-wide text-graphite-500 dark:bg-slate-800 dark:text-slate-400">
+                                {tab.badge}
+                            </span>
+                        )}
                     </Link>
                 );
             })}

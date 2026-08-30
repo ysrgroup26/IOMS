@@ -65,7 +65,7 @@ export default function HseInspectionForm({ companies, projects, inspectionNumbe
                 <Card>
                     <CardHeader><CardTitle>Record HSE Inspection -- {inspectionNumber}</CardTitle></CardHeader>
                     <CardContent className="space-y-4">
-                        <div className="grid grid-cols-2 gap-3">
+                        <div className="grid grid-cols-1 gap-3 sm:grid-cols-2">
                             <div className="space-y-1.5">
                                 <Label>Inspection Type</Label>
                                 <Select value={data.inspection_type} onValueChange={(v) => setData('inspection_type', v)}>
@@ -77,7 +77,7 @@ export default function HseInspectionForm({ companies, projects, inspectionNumbe
                         </div>
                         <div className="space-y-1.5"><Label>Location</Label><Input value={data.location} onChange={(e) => setData('location', e.target.value)} /></div>
                         <div className="space-y-1.5"><Label>Notes (optional)</Label><Textarea value={data.notes} onChange={(e) => setData('notes', e.target.value)} rows={2} /></div>
-                        <div className="grid grid-cols-2 gap-3">
+                        <div className="grid grid-cols-1 gap-3 sm:grid-cols-2">
                             <div className="space-y-1.5">
                                 <Label>Project (optional)</Label>
                                 <Select value={data.project_id || 'none'} onValueChange={(v) => setData('project_id', v === 'none' ? '' : v)}>
@@ -99,7 +99,28 @@ export default function HseInspectionForm({ companies, projects, inspectionNumbe
 
                 <Card>
                     <CardHeader className="flex flex-row items-center justify-between">
-                        <CardTitle>Checklist</CardTitle>
+                        <div>
+                            <CardTitle>Checklist</CardTitle>
+                            {/* v2.5.0 (Field HSE Experience pass, Part 7):
+                                a real, honest progress indicator -- NOT a
+                                fabricated "X/Y completed" count, since
+                                every item defaults to `result: 'ok'`
+                                (BLANK_ITEM above) rather than an
+                                unanswered state, so "completed" has no
+                                real meaning in this data model without a
+                                bigger, riskier change to that default.
+                                What IS real and useful: how many items
+                                exist, and how many are currently flagged
+                                Not OK (the ones that will need a CAPA). */}
+                            <p className="text-xs text-graphite-400">
+                                {data.checklist_items.length} item{data.checklist_items.length !== 1 ? 's' : ''}
+                                {data.checklist_items.some((i) => i.result === 'not_ok') && (
+                                    <span className="ml-1 text-red-600">
+                                        · {data.checklist_items.filter((i) => i.result === 'not_ok').length} Not OK
+                                    </span>
+                                )}
+                            </p>
+                        </div>
                         <div className="flex items-center gap-2">
                             {templatesForType.length > 0 && (
                                 <Select value="" onValueChange={loadTemplate}>

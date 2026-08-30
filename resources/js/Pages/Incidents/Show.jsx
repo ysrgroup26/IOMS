@@ -93,7 +93,7 @@ export default function IncidentShow({ incident: i, activities, canManage, users
                             <CardContent>
                                 {canManage ? (
                                     <form onSubmit={submitInvestigation} className="space-y-3">
-                                        <div className="grid grid-cols-2 gap-3">
+                                        <div className="grid grid-cols-1 gap-3 sm:grid-cols-2">
                                             <div className="space-y-1.5">
                                                 <Label>Method</Label>
                                                 <Select value={investigationForm.data.method} onValueChange={(v) => investigationForm.setData('method', v)}>
@@ -127,7 +127,7 @@ export default function IncidentShow({ incident: i, activities, canManage, users
                             {findingOpen && (
                                 <form onSubmit={submitFinding} className="space-y-3 rounded-md border border-graphite-100 p-3">
                                     <div className="space-y-1.5"><Label>Action</Label><Input value={findingForm.data.action} onChange={(e) => findingForm.setData('action', e.target.value)} /></div>
-                                    <div className="grid grid-cols-3 gap-3">
+                                    <div className="grid grid-cols-1 gap-3 sm:grid-cols-3">
                                         <div className="space-y-1.5">
                                             <Label>Assigned To</Label>
                                             <Select value={findingForm.data.assigned_to} onValueChange={(v) => findingForm.setData('assigned_to', v)}>

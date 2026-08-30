@@ -72,7 +72,7 @@ export default function HseInspectionShow({ inspection: i, activities, canManage
                             <CardContent>
                                 <form onSubmit={submitFinding} className="space-y-3">
                                     <div className="space-y-1.5"><Label>Action</Label><Input value={findingForm.data.action} onChange={(e) => findingForm.setData('action', e.target.value)} /></div>
-                                    <div className="grid grid-cols-3 gap-3">
+                                    <div className="grid grid-cols-1 gap-3 sm:grid-cols-3">
                                         <div className="space-y-1.5">
                                             <Label>Assigned To</Label>
                                             <Select value={findingForm.data.assigned_to} onValueChange={(v) => findingForm.setData('assigned_to', v)}>

@@ -18,15 +18,37 @@ use Inertia\Response;
  */
 class CorrectiveActionController extends Controller
 {
+    /**
+     * v2.5.0 (Field HSE Experience pass, Part 10 -- CAPA). Added a real
+     * `overdue` quick-filter and a tenant-scoped summary count (Open/
+     * Overdue/In Progress/Closed), per the explicit product requirement
+     * that CAPA should read as an ACTION MANAGEMENT tool ("make overdue
+     * actions obvious"), not a plain database table. `is_overdue` itself
+     * stays a computed accessor on the model (never stored -- see its
+     * own doc comment) so the raw-SQL equivalent below (due_date in the
+     * past AND not yet completed/verified/cancelled) is kept in sync
+     * with `CorrectiveAction::getIsOverdueAttribute()`'s exact logic by
+     * hand -- if that accessor's rule ever changes, this query needs the
+     * same change.
+     */
     public function index(Request $request): Response
     {
         $tenantCompanyIds = Company::query()->pluck('id');
+        $openStatuses = [CorrectiveAction::STATUS_OPEN, CorrectiveAction::STATUS_IN_PROGRESS];
+
+        $overdueClause = fn ($q) => $q
+            ->whereNotNull('due_date')
+            ->where('due_date', '<', now()->toDateString())
+            ->whereIn('status', $openStatuses);
+
+        $baseQuery = fn () => CorrectiveAction::query()->whereIn('company_id', $tenantCompanyIds);
 
         $actions = CorrectiveAction::query()
             ->whereIn('company_id', $tenantCompanyIds)
             ->with('assignee:id,name', 'source')
             ->when($request->input('status'), fn ($q, $v) => $q->where('status', $v))
             ->when($request->input('priority'), fn ($q, $v) => $q->where('priority', $v))
+            ->when($request->boolean('overdue'), $overdueClause)
             ->latest()
             ->paginate(20)
             ->withQueryString()
@@ -45,7 +67,16 @@ class CorrectiveActionController extends Controller
 
         return Inertia::render('CorrectiveActions/Index', [
             'actions' => $actions,
-            'filters' => $request->only('status', 'priority'),
+            'filters' => $request->only('status', 'priority', 'overdue'),
+            // $baseQuery() returns a fresh Builder on every call -- no
+            // clone needed, each of these four counts runs its own
+            // independent query.
+            'summary' => [
+                'open' => $baseQuery()->where('status', CorrectiveAction::STATUS_OPEN)->count(),
+                'in_progress' => $baseQuery()->where('status', CorrectiveAction::STATUS_IN_PROGRESS)->count(),
+                'overdue' => $overdueClause($baseQuery())->count(),
+                'closed' => $baseQuery()->whereIn('status', [CorrectiveAction::STATUS_COMPLETED, CorrectiveAction::STATUS_VERIFIED])->count(),
+            ],
             'can' => ['manage' => $request->user()->canManageHse()],
         ]);
     }

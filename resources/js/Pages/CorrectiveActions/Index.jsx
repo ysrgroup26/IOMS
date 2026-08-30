@@ -6,14 +6,42 @@ import { Table, TableHeader, TableBody, TableRow, TableHead, TableCell } from '@
 import { Button } from '@/Components/ui/button';
 import StatusBadge from '@/Components/shared/StatusBadge';
 import EmptyState from '@/Components/shared/EmptyState';
-import { ClipboardList, ChevronLeft, ChevronRight } from 'lucide-react';
+import StatCard from '@/Components/shared/StatCard';
+import { ClipboardList, ChevronLeft, ChevronRight, CircleDot, AlertTriangle, Clock, CheckCircle2 } from 'lucide-react';
 
-export default function CorrectiveActionsIndex({ actions, filters, can }) {
+/**
+ * v2.5.0 (Field HSE Experience pass, Part 10 -- CAPA). Added the compact
+ * Open/Overdue/In Progress/Closed summary row + an "Overdue" quick
+ * filter chip, per the explicit "CAPA should be an ACTION MANAGEMENT
+ * tool... make overdue actions obvious" requirement. Reuses the existing
+ * StatCard component (same one every dashboard uses) rather than
+ * inventing new summary-card markup -- the Overdue card is clickable
+ * (toggles the `overdue=1` filter, same query-string pattern the rest of
+ * this page already uses) so it doubles as both an indicator and a
+ * shortcut, matching StatCard's existing `href`-as-filter-shortcut
+ * pattern used elsewhere in this codebase.
+ */
+export default function CorrectiveActionsIndex({ actions, filters, summary, can }) {
     function applyFilters(overrides = {}) {
         router.get(route('corrective-actions.index'), { ...filters, ...overrides }, { preserveState: true, replace: true });
     }
 
+    function overdueHref() {
+        // Build from only the truthy filter values -- `filters` (from
+        // Request::only()) carries `null` for every absent query param,
+        // and URLSearchParams would otherwise stringify that literal
+        // null into the query string.
+        const merged = { ...filters, overdue: filters.overdue ? '' : '1' };
+        const params = new URLSearchParams(Object.fromEntries(Object.entries(merged).filter(([, v]) => !!v)));
+        return route('corrective-actions.index') + '?' + params.toString();
+    }
+
     function updateStatus(a, status) {
+        // v2.5.0 (Field HSE Experience pass, Part 38): only the
+        // destructive-feeling transition (Cancelled) asks for
+        // confirmation -- In Progress/Completed/Verified stay one-click,
+        // matching "do not over-confirm harmless actions."
+        if (status === 'cancelled' && !confirm('Batalkan tindakan CAPA ini?')) return;
         router.post(route('corrective-actions.update-status', a.id), { status }, { preserveScroll: true });
     }
 
@@ -23,7 +51,14 @@ export default function CorrectiveActionsIndex({ actions, filters, can }) {
 
             <div className="mb-4">
                 <h1 className="text-[22px] font-semibold tracking-tight text-graphite-900 dark:text-slate-50">Corrective Actions (CAPA)</h1>
-                <p className="text-xs text-graphite-500 dark:text-slate-400">One consolidated view across Safety Observation, HSE Inspection, and Incident findings.</p>
+                <p className="text-xs text-graphite-500 dark:text-slate-400">Satu tampilan gabungan dari temuan Safety Observation, HSE Inspection, dan Incident.</p>
+            </div>
+
+            <div className="mb-4 grid grid-cols-2 gap-3 sm:grid-cols-4">
+                <StatCard icon={CircleDot} value={summary.open} label="Open" />
+                <StatCard icon={AlertTriangle} value={summary.overdue} label="Overdue" accent={summary.overdue > 0 ? 'red' : null} href={overdueHref()} />
+                <StatCard icon={Clock} value={summary.in_progress} label="In Progress" accent="amber" />
+                <StatCard icon={CheckCircle2} value={summary.closed} label="Closed" accent="green" />
             </div>
 
             <Card className="mb-4">
@@ -54,7 +89,11 @@ export default function CorrectiveActionsIndex({ actions, filters, can }) {
             <Card>
                 <CardContent className="p-0">
                     {actions.data.length === 0 ? (
-                        <EmptyState icon={ClipboardList} title="No corrective actions" description="Findings raised from Safety Observation, Inspection, or Incident will appear here." />
+                        <EmptyState
+                            icon={ClipboardList}
+                            title="Belum ada CAPA."
+                            description="Temuan dari Safety Observation, Inspection, atau Incident akan muncul di sini."
+                        />
                     ) : (
                         <Table>
                             <TableHeader><TableRow><TableHead>Action</TableHead><TableHead>Source</TableHead><TableHead>Assigned To</TableHead><TableHead>Due</TableHead><TableHead>Priority</TableHead><TableHead>Status</TableHead>{can.manage && <TableHead />}</TableRow></TableHeader>

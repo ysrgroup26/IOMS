@@ -2,7 +2,7 @@ import { useState, useRef, useEffect } from 'react';
 import { Link } from '@inertiajs/react';
 import {
     Search, Users, FolderKanban, AlertTriangle, PackageSearch, CalendarDays, Flag, PackageCheck, Building2,
-    HardHat, ClipboardCheck, Flame, Box, Truck,
+    HardHat, ClipboardCheck, Flame, Box, Truck, ShieldAlert, FileWarning,
 } from 'lucide-react';
 
 // Milestone 3 (Task #52): generalized beyond Employees/Projects to every
@@ -12,6 +12,8 @@ import {
 // v2.2.0 (IOMS OS Ecosystem pass, Part 7): added PPE/CAPA/PTW/Asset/
 // Vendor -- see GlobalSearchController's own doc comment for the
 // tenant-scoping + RBAC-gating fix that came with these.
+// v2.5.0 (Field HSE Experience pass, Part 23): added HIRADC/JSA --
+// confirmed missing via audit, not a previously-deferred category.
 const CATEGORIES = [
     { key: 'employees', label: 'Employees', icon: Users },
     { key: 'projects', label: 'Projects', icon: FolderKanban },
@@ -26,6 +28,8 @@ const CATEGORIES = [
     { key: 'ptws', label: 'PTW', icon: Flame },
     { key: 'assets', label: 'Assets', icon: Box },
     { key: 'vendors', label: 'Vendors', icon: Truck },
+    { key: 'hiradcs', label: 'HIRADC', icon: ShieldAlert },
+    { key: 'jsas', label: 'JSA', icon: FileWarning },
 ];
 
 const EMPTY_RESULTS = Object.fromEntries(CATEGORIES.map((c) => [c.key, []]));

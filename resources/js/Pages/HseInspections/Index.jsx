@@ -42,7 +42,14 @@ export default function HseInspectionsIndex({ inspections, filters, can }) {
             <Card>
                 <CardContent className="p-0">
                     {inspections.data.length === 0 ? (
-                        <EmptyState icon={ClipboardCheck} title="No inspections recorded" description="Record an inspection to start tracking it." />
+                        <EmptyState
+                            icon={ClipboardCheck}
+                            title="Belum ada inspeksi."
+                            description="Catat inspeksi pertama untuk mulai memantau area kerja."
+                            action={can.manage && (
+                                <Button asChild size="sm"><Link href={route('hse-inspections.create')}><Plus className="h-4 w-4" /> Record Inspection</Link></Button>
+                            )}
+                        />
                     ) : (
                         <Table>
                             <TableHeader><TableRow><TableHead>Inspection No.</TableHead><TableHead>Type</TableHead><TableHead>Date</TableHead><TableHead>Location</TableHead><TableHead>Inspector</TableHead><TableHead>Result</TableHead></TableRow></TableHeader>

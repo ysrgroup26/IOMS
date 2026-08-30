@@ -136,13 +136,13 @@ function CreateReplacementRequestDialog({ open, onOpenChange, items, onSuccess }
                 <form onSubmit={(e) => submit(e, 'submitted')} className="space-y-3">
                     {items.map((item, index) => (
                         <div key={item.id} className="rounded-lg border border-graphite-100 p-3">
-                            <div className="grid grid-cols-2 gap-x-4 gap-y-1 text-xs text-graphite-500">
+                            <div className="grid grid-cols-1 gap-x-4 gap-y-1 text-xs text-graphite-500 sm:grid-cols-2">
                                 <span><strong className="text-graphite-800">{item.employee_name}</strong> ({item.employee_code}{item.nik ? ` / ${item.nik}` : ''})</span>
                                 <span>{item.department || '-'}</span>
                                 <span>{item.ppe_type}</span>
                                 <span>Expired {item.expiry_date}</span>
                             </div>
-                            <div className="mt-2 grid grid-cols-3 gap-2">
+                            <div className="mt-2 grid grid-cols-1 gap-2 sm:grid-cols-3">
                                 <div className="space-y-1">
                                     <Label className="text-[11px]">Quantity</Label>
                                     <Input type="number" min="1" value={data.items[index]?.quantity || '1'} onChange={(e) => updateItem(index, 'quantity', e.target.value)} />

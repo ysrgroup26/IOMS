@@ -552,6 +552,16 @@ stays visible to every tenant; company-scoped incidents are now tenant-isolated 
 `assertInCurrentTenant()` 404-not-403 guard pattern used throughout this workstream. Raw `exists:`
 validation rules in `store()` were replaced with `Rule::in()` over tenant-scoped id collections.
 
+**v2.5.0 (Field HSE Experience pass, Phase 2 -- CAPA as an action management tool)**:
+`CorrectiveActionController::index()` gained a tenant-scoped `summary` (Open/Overdue/In Progress/
+Closed counts) and a real `overdue` quick-filter, matching `CorrectiveAction::getIsOverdueAttribute()`'s
+exact logic by hand in raw SQL (that accessor stays computed/never stored, per its own doc comment --
+if its rule ever changes, this query needs the same change made alongside it). Frontend
+(`CorrectiveActions/Index.jsx`) renders these as a compact `StatCard` row, the Overdue card itself a
+clickable filter shortcut. The destructive-feeling `cancelled` status transition now asks for
+confirmation; the other three (`in_progress`/`completed`/`verified`) stay one-click, per the explicit
+"do not over-confirm harmless actions" product direction.
+
 ## Safety Equipment, HSE Materials, P3K
 
 **Department:** HSE (Milestone 4, Workstream B10/B11/B12).

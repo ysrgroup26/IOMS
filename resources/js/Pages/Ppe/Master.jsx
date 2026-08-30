@@ -64,7 +64,7 @@ export default function PpeMaster({ ppeTypes, can }) {
                 <div>
                     <h1 className="text-[22px] font-semibold tracking-tight text-graphite-900">PPE Master</h1>
                     <p className="mt-1 text-sm text-graphite-500">
-                        Configure PPE types and replacement intervals. No hardcoded values — everything here is editable.
+                        Data konfigurasi, bukan operasional harian -- atur jenis APD dan interval penggantian di sini. Untuk mengeluarkan/mengganti APD karyawan, buka tab Employee PPE.
                     </p>
                 </div>
                 {can.manage && (

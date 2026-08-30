@@ -48,7 +48,7 @@ export default function IncidentForm({ companies, projects, incidentNumber, seve
                             <Textarea value={data.description} onChange={(e) => setData('description', e.target.value)} rows={4} />
                         </div>
 
-                        <div className="grid grid-cols-2 gap-3">
+                        <div className="grid grid-cols-1 gap-3 sm:grid-cols-2">
                             <div className="space-y-1.5">
                                 <Label>Date</Label>
                                 <Input type="date" value={data.incident_date} onChange={(e) => setData('incident_date', e.target.value)} />
@@ -60,7 +60,7 @@ export default function IncidentForm({ companies, projects, incidentNumber, seve
                             </div>
                         </div>
 
-                        <div className="grid grid-cols-2 gap-3">
+                        <div className="grid grid-cols-1 gap-3 sm:grid-cols-2">
                             <div className="space-y-1.5">
                                 <Label>Severity</Label>
                                 <Select value={data.severity} onValueChange={(v) => setData('severity', v)}>

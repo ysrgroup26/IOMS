@@ -1,13 +1,28 @@
 import { Head, useForm, Link } from '@inertiajs/react';
 import AuthenticatedLayout from '@/Layouts/AuthenticatedLayout';
-import { Card, CardContent, CardHeader, CardTitle } from '@/Components/ui/card';
+import { Card, CardContent, CardHeader, CardTitle, CardDescription } from '@/Components/ui/card';
 import { Button } from '@/Components/ui/button';
 import { Input } from '@/Components/ui/input';
 import { Label } from '@/Components/ui/label';
 import { Textarea } from '@/Components/ui/textarea';
 import { Select, SelectTrigger, SelectValue, SelectContent, SelectItem } from '@/Components/ui/select';
-import { ArrowLeft } from 'lucide-react';
+import CollapsibleSection from '@/Components/shared/CollapsibleSection';
+import { ArrowLeft, ShieldCheck } from 'lucide-react';
 
+/**
+ * v2.4.0 (PTW UX + Field Operations pass, Phase 1). Was previously one
+ * flat Card with every field shown at once (13 fields, no grouping) and
+ * a `grid-cols-2` block with no mobile fallback -- confirmed via this
+ * pass's own audit before touching anything. Reworked around progressive
+ * disclosure: required work info always visible, Safety Controls as its
+ * own clearly-labeled section (per the explicit product structure), and
+ * Required Qualification / Linked HIRADC / Linked JSA moved into a
+ * collapsed "Optional / Advanced" section (CollapsibleSection, new this
+ * pass) -- nothing here changes what data is collected or how it's
+ * validated/stored; StorePermitToWorkRequest and PermitToWorkController
+ * are untouched. Every grid now has an explicit `sm:` fallback so it
+ * stacks on a phone instead of staying 2 columns squeezed.
+ */
 export default function PermitToWorkForm({ companies, projects, riskAssessments, jsas, ptwNumber, types }) {
     const { data, setData, post, processing, errors } = useForm({
         company_id: companies[0]?.id ? String(companies[0].id) : '',
@@ -36,10 +51,23 @@ export default function PermitToWorkForm({ companies, projects, riskAssessments,
                 <Button variant="ghost" size="sm" asChild><Link href={route('permits-to-work.index')}><ArrowLeft className="h-4 w-4" /> Back</Link></Button>
             </div>
 
-            <form onSubmit={submit} className="mx-auto max-w-xl">
+            <form onSubmit={submit} className="mx-auto max-w-xl space-y-4">
                 <Card>
-                    <CardHeader><CardTitle>New Permit To Work -- {ptwNumber}</CardTitle></CardHeader>
+                    <CardHeader>
+                        <CardTitle>New Permit To Work -- {ptwNumber}</CardTitle>
+                        <CardDescription>Isi data pekerjaan yang akan dilakukan.</CardDescription>
+                    </CardHeader>
                     <CardContent className="space-y-4">
+                        {companies.length > 1 && (
+                            <div className="space-y-1.5">
+                                <Label>Company</Label>
+                                <Select value={data.company_id} onValueChange={(v) => setData('company_id', v)}>
+                                    <SelectTrigger><SelectValue /></SelectTrigger>
+                                    <SelectContent>{companies.map((c) => <SelectItem key={c.id} value={String(c.id)}>{c.name}</SelectItem>)}</SelectContent>
+                                </Select>
+                                {errors.company_id && <p className="text-xs text-red-600">{errors.company_id}</p>}
+                            </div>
+                        )}
                         <div className="space-y-1.5">
                             <Label>Permit Type</Label>
                             <Select value={data.permit_type} onValueChange={(v) => setData('permit_type', v)}>
@@ -49,14 +77,14 @@ export default function PermitToWorkForm({ companies, projects, riskAssessments,
                         </div>
                         <div className="space-y-1.5">
                             <Label>Work Description</Label>
-                            <Textarea value={data.work_description} onChange={(e) => setData('work_description', e.target.value)} rows={3} />
+                            <Textarea value={data.work_description} onChange={(e) => setData('work_description', e.target.value)} rows={3} placeholder="Apa pekerjaan yang akan dilakukan?" />
                             {errors.work_description && <p className="text-xs text-red-600">{errors.work_description}</p>}
                         </div>
                         <div className="space-y-1.5">
                             <Label>Location</Label>
-                            <Input value={data.location} onChange={(e) => setData('location', e.target.value)} />
+                            <Input value={data.location} onChange={(e) => setData('location', e.target.value)} placeholder="Contoh: Dock 1 atau Area Tanki" />
                         </div>
-                        <div className="grid grid-cols-2 gap-3">
+                        <div className="grid grid-cols-1 gap-3 sm:grid-cols-2">
                             <div className="space-y-1.5">
                                 <Label>Start</Label>
                                 <Input type="datetime-local" value={data.start_datetime} onChange={(e) => setData('start_datetime', e.target.value)} />
@@ -69,47 +97,49 @@ export default function PermitToWorkForm({ companies, projects, riskAssessments,
                             </div>
                         </div>
                         <div className="space-y-1.5">
-                            <Label>Required Qualification (optional)</Label>
-                            <Input value={data.required_qualification} onChange={(e) => setData('required_qualification', e.target.value)} placeholder="e.g. Confined Space Entry Certificate -- informational only, not auto-checked" />
-                        </div>
-                        <div className="space-y-1.5">
-                            <Label>Precautions (optional)</Label>
-                            <Textarea value={data.precautions} onChange={(e) => setData('precautions', e.target.value)} rows={2} />
-                        </div>
-                        <div className="grid grid-cols-2 gap-3">
-                            <div className="space-y-1.5">
-                                <Label>Linked HIRADC (optional)</Label>
-                                <Select value={data.risk_assessment_id || 'none'} onValueChange={(v) => setData('risk_assessment_id', v === 'none' ? '' : v)}>
-                                    <SelectTrigger><SelectValue placeholder="None" /></SelectTrigger>
-                                    <SelectContent><SelectItem value="none">None</SelectItem>{riskAssessments.map((r) => <SelectItem key={r.id} value={String(r.id)}>{r.ra_number}</SelectItem>)}</SelectContent>
-                                </Select>
-                            </div>
-                            <div className="space-y-1.5">
-                                <Label>Linked JSA (optional)</Label>
-                                <Select value={data.jsa_id || 'none'} onValueChange={(v) => setData('jsa_id', v === 'none' ? '' : v)}>
-                                    <SelectTrigger><SelectValue placeholder="None" /></SelectTrigger>
-                                    <SelectContent><SelectItem value="none">None</SelectItem>{jsas.map((j) => <SelectItem key={j.id} value={String(j.id)}>{j.jsa_number}</SelectItem>)}</SelectContent>
-                                </Select>
-                            </div>
-                        </div>
-                        <div className="space-y-1.5">
                             <Label>Project (optional)</Label>
                             <Select value={data.project_id || 'none'} onValueChange={(v) => setData('project_id', v === 'none' ? '' : v)}>
                                 <SelectTrigger><SelectValue placeholder="No project" /></SelectTrigger>
                                 <SelectContent><SelectItem value="none">No project</SelectItem>{projects.map((p) => <SelectItem key={p.id} value={String(p.id)}>{p.name}</SelectItem>)}</SelectContent>
                             </Select>
                         </div>
-                        <div className="space-y-1.5">
-                            <Label>Company</Label>
-                            <Select value={data.company_id} onValueChange={(v) => setData('company_id', v)}>
-                                <SelectTrigger><SelectValue /></SelectTrigger>
-                                <SelectContent>{companies.map((c) => <SelectItem key={c.id} value={String(c.id)}>{c.name}</SelectItem>)}</SelectContent>
-                            </Select>
-                            {errors.company_id && <p className="text-xs text-red-600">{errors.company_id}</p>}
-                        </div>
-                        <Button type="submit" disabled={processing} className="w-full">Create Permit</Button>
                     </CardContent>
                 </Card>
+
+                <Card>
+                    <CardHeader>
+                        <CardTitle className="flex items-center gap-2 text-sm"><ShieldCheck className="h-4 w-4 text-graphite-400" /> Safety Controls</CardTitle>
+                        <CardDescription>Apa langkah pengamanan yang diperlukan untuk pekerjaan ini?</CardDescription>
+                    </CardHeader>
+                    <CardContent>
+                        <Textarea value={data.precautions} onChange={(e) => setData('precautions', e.target.value)} rows={3} placeholder="Contoh: pasang fire watch, siapkan APAR, isolasi area kerja" />
+                    </CardContent>
+                </Card>
+
+                <CollapsibleSection title="Optional / Advanced" description="Isi jika diperlukan -- kualifikasi, HIRADC, atau JSA terkait.">
+                    <div className="space-y-1.5">
+                        <Label>Required Qualification (optional)</Label>
+                        <Input value={data.required_qualification} onChange={(e) => setData('required_qualification', e.target.value)} placeholder="Contoh: Sertifikat Confined Space Entry -- informasi saja, tidak diverifikasi otomatis" />
+                    </div>
+                    <div className="grid grid-cols-1 gap-3 sm:grid-cols-2">
+                        <div className="space-y-1.5">
+                            <Label>Linked HIRADC (optional)</Label>
+                            <Select value={data.risk_assessment_id || 'none'} onValueChange={(v) => setData('risk_assessment_id', v === 'none' ? '' : v)}>
+                                <SelectTrigger><SelectValue placeholder="None" /></SelectTrigger>
+                                <SelectContent><SelectItem value="none">None</SelectItem>{riskAssessments.map((r) => <SelectItem key={r.id} value={String(r.id)}>{r.ra_number}</SelectItem>)}</SelectContent>
+                            </Select>
+                        </div>
+                        <div className="space-y-1.5">
+                            <Label>Linked JSA (optional)</Label>
+                            <Select value={data.jsa_id || 'none'} onValueChange={(v) => setData('jsa_id', v === 'none' ? '' : v)}>
+                                <SelectTrigger><SelectValue placeholder="None" /></SelectTrigger>
+                                <SelectContent><SelectItem value="none">None</SelectItem>{jsas.map((j) => <SelectItem key={j.id} value={String(j.id)}>{j.jsa_number}</SelectItem>)}</SelectContent>
+                            </Select>
+                        </div>
+                    </div>
+                </CollapsibleSection>
+
+                <Button type="submit" disabled={processing} className="w-full" size="lg">Submit PTW</Button>
             </form>
         </AuthenticatedLayout>
     );

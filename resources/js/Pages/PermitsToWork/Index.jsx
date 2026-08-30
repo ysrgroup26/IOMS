@@ -56,7 +56,14 @@ export default function PermitsToWorkIndex({ permits, filters, can }) {
             <Card>
                 <CardContent className="p-0">
                     {permits.data.length === 0 ? (
-                        <EmptyState icon={FileWarning} title="No permits recorded" description="Create a Permit To Work to start tracking it." />
+                        <EmptyState
+                            icon={FileWarning}
+                            title="Belum ada PTW."
+                            description="Buat izin kerja pertama untuk memulai."
+                            action={can.manage && (
+                                <Button asChild size="sm"><Link href={route('permits-to-work.create')}><Plus className="h-4 w-4" /> New Permit</Link></Button>
+                            )}
+                        />
                     ) : (
                         <Table>
                             <TableHeader>

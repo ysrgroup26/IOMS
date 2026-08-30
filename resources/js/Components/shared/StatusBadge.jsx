@@ -23,6 +23,12 @@ const STATUS_MAP = {
     waiting: 'secondary',
     completed: 'success',
     cancelled: 'secondary',
+    // v2.4.0 (PTW UX + Field Operations pass, Part 6): PermitToWork's
+    // 'closed' status fell through to the generic 'outline' default
+    // (confirmed via audit -- 'active' was already mapped 'success' but
+    // 'closed' never had its own entry), making a finished PTW visually
+    // indistinguishable from an in-progress one on the list.
+    closed: 'secondary',
     // Priority
     low: 'secondary',
     medium: 'outline',

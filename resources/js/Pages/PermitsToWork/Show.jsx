@@ -10,7 +10,7 @@ import { Table, TableHeader, TableBody, TableRow, TableHead, TableCell } from '@
 import ActivityTimeline from '@/Components/shared/ActivityTimeline';
 import StatusBadge from '@/Components/shared/StatusBadge';
 import EmptyState from '@/Components/shared/EmptyState';
-import { ArrowLeft, Send, CheckCircle2, XCircle, PlayCircle, FlaskConical, Wind } from 'lucide-react';
+import { ArrowLeft, Send, CheckCircle2, XCircle, PlayCircle, FlaskConical, Wind, Download, Printer } from 'lucide-react';
 
 export default function PermitToWorkShow({ permit: p, activities, canManage }) {
     const [gasTestOpen, setGasTestOpen] = useState(false);
@@ -24,6 +24,18 @@ export default function PermitToWorkShow({ permit: p, activities, canManage }) {
     function transition(status, confirmMessage) {
         if (confirmMessage && !confirm(confirmMessage)) return;
         router.post(route('permits-to-work.transition', p.id), { status });
+    }
+
+    // v2.4.0 (PTW UX + Field Operations pass, Part 14): rejecting now
+    // requires a short reason -- a native prompt() rather than a new
+    // Dialog component, matching this page's own existing lightweight
+    // confirm()-based interaction style rather than introducing a new UI
+    // pattern for one field.
+    function reject() {
+        const reason = prompt('Alasan penolakan PTW ini?');
+        if (reason === null) return;
+        if (!reason.trim()) { alert('Alasan penolakan wajib diisi.'); return; }
+        router.post(route('permits-to-work.transition', p.id), { status: 'rejected', reason: reason.trim() });
     }
 
     function submitGasTest(e) {
@@ -44,20 +56,32 @@ export default function PermitToWorkShow({ permit: p, activities, canManage }) {
                     <h1 className="flex items-center gap-2 text-[22px] font-semibold tracking-tight text-graphite-900">{p.ptw_number}<StatusBadge value={p.status} /></h1>
                     <p className="text-xs capitalize text-graphite-500">{p.permit_type.replace('_', ' ')} · {new Date(p.start_datetime).toLocaleString('en-US', { day: 'numeric', month: 'short', hour: 'numeric', minute: '2-digit' })} - {new Date(p.end_datetime).toLocaleString('en-US', { hour: 'numeric', minute: '2-digit' })}{p.location && ` · ${p.location}`}</p>
                 </div>
-                {canManage && (
-                    <div className="flex flex-wrap items-center gap-2">
+                <div className="flex flex-wrap items-center gap-2">
+                    {/* v2.4.0 (PTW UX + Field Operations pass, Part 13):
+                        Download PDF / Print -- always visible to anyone
+                        who can view this permit (not gated by canManage,
+                        matching the product requirement that a Foreman
+                        must be able to download/print their own approved
+                        PTW to share on-site). */}
+                    <Button variant="outline" asChild><a href={route('permits-to-work.pdf', p.id)} target="_blank" rel="noopener noreferrer"><Download className="h-4 w-4" /> Download PDF</a></Button>
+                    {/* Opens the same inline PDF in a new tab -- the
+                        browser's own PDF viewer provides Print from
+                        there (Ctrl+P / its own print icon); no separate
+                        print-only rendering pipeline exists or is needed. */}
+                    <Button variant="outline" asChild><a href={route('permits-to-work.pdf', p.id)} target="_blank" rel="noopener noreferrer"><Printer className="h-4 w-4" /> Print</a></Button>
+                    {canManage && (<>
                         {p.status === 'draft' && (<Button variant="outline" onClick={() => transition('submitted', 'Submit for approval?')}><Send className="h-4 w-4" /> Submit</Button>)}
                         {p.status === 'submitted' && (<>
                             <Button onClick={() => transition('approved', 'Approve this permit?')}><CheckCircle2 className="h-4 w-4" /> Approve</Button>
-                            <Button variant="outline" className="text-red-600" onClick={() => transition('rejected', 'Reject this permit?')}>Reject</Button>
+                            <Button variant="outline" className="text-red-600" onClick={reject}>Reject</Button>
                         </>)}
                         {p.status === 'approved' && (<Button onClick={() => transition('active', 'Activate this permit -- work may begin?')}><PlayCircle className="h-4 w-4" /> Activate</Button>)}
                         {p.status === 'active' && (<Button onClick={() => transition('closed', 'Close this permit -- work complete?')}><CheckCircle2 className="h-4 w-4" /> Close</Button>)}
                         {!['closed', 'cancelled'].includes(p.status) && (
-                            <Button variant="ghost" className="text-red-600" onClick={() => transition('cancelled', 'Cancel this permit?')}><XCircle className="h-4 w-4" /> Cancel</Button>
+                            <Button variant="ghost" className="text-red-600" onClick={() => transition('cancelled', 'Batalkan PTW ini? PTW yang sudah dibatalkan tidak bisa digunakan kembali.')}><XCircle className="h-4 w-4" /> Cancel</Button>
                         )}
-                    </div>
-                )}
+                    </>)}
+                </div>
             </div>
 
             <div className="grid grid-cols-1 gap-4 lg:grid-cols-3">

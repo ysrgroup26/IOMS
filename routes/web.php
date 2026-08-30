@@ -257,6 +257,9 @@ Route::middleware(['auth', 'restrict.platform-admin'])->group(function () {
     Route::get('/permits-to-work/create', [PermitToWorkController::class, 'create'])->name('permits-to-work.create');
     Route::post('/permits-to-work', [PermitToWorkController::class, 'store'])->name('permits-to-work.store');
     Route::get('/permits-to-work/{permitToWork}', [PermitToWorkController::class, 'show'])->name('permits-to-work.show');
+    // v2.4.0 (PTW UX + Field Operations pass, Part 13) -- PTW PDF
+    // document, see PermitToWorkController::pdf()'s own doc comment.
+    Route::get('/permits-to-work/{permitToWork}/pdf', [PermitToWorkController::class, 'pdf'])->name('permits-to-work.pdf');
     Route::post('/permits-to-work/{permitToWork}/transition', [PermitToWorkController::class, 'transition'])->name('permits-to-work.transition');
     Route::post('/permits-to-work/{permitToWork}/gas-tests', [GasTestRecordController::class, 'store'])->name('permits-to-work.gas-tests.store');
     Route::delete('/permits-to-work/{permitToWork}/gas-tests/{gasTest}', [GasTestRecordController::class, 'destroy'])->name('permits-to-work.gas-tests.destroy');

@@ -436,6 +436,39 @@ table 'permit_to_works' doesn't exist`) fixed by correcting the model to match t
 table, not the other way around — see `CONVENTIONS.md`'s Migrations pitfalls for the general rule
 this established.
 
+**v2.4.0 (PTW UX + Field Operations pass, Phase 1)** — the first module brought to a
+production-grade UX/document pass, others to follow in later phases per that directive's own
+sequencing:
+- **Create form** (`PermitsToWork/Form.jsx`) reworked around progressive disclosure: required work
+  info + a distinct "Safety Controls" section always visible, `required_qualification`/Linked
+  HIRADC/Linked JSA moved into a new collapsed "Optional / Advanced" section
+  (`Components/shared/CollapsibleSection.jsx` — the first collapsible-section primitive in this
+  codebase; none existed before, confirmed via audit). No field/validation/route changed — purely a
+  layout regroup, same `StorePermitToWorkRequest` rules as before.
+- **`store()` fixed to actually submit, not just save a Draft**: previously created the permit in
+  `STATUS_DRAFT` and stopped, even though the Create form's only button says "Submit PTW" — HSE
+  could never see it as pending without a separate manual "Submit" click on the Show page first. Now
+  immediately calls `transitionTo(STATUS_SUBMITTED, ...)` right after creation, reusing the existing
+  `HasWorkflow` state machine (no bypass, no new status) so Create → Pending Approval is one action,
+  matching the product's own acceptance-test description of this flow.
+- **PDF document generation wired in**: `PermitToWorkController::pdf()` (route
+  `permits-to-work.pdf`) + `resources/views/pdf/permit-to-work.blade.php`, following the EXACT same
+  `PdfGeneratorService`/`DocumentEngine` pattern `MaterialRequestController::pdf()` already uses
+  (optional per-tenant letterhead via `DocumentEngine::resolveTemplate('permit_to_work', ...)`, null
+  until a Company Admin creates one). PTW had been explicitly named a "future" consumer in
+  `PdfGeneratorService`'s own doc comment since v1.6.8 — this is that follow-up. "Download PDF" and
+  "Print" (opens the same inline PDF; the browser's own PDF viewer provides Print from there, no
+  second rendering pipeline) are visible to anyone who can view the permit, not gated to HSE, since a
+  Foreman must be able to download/share their own permit.
+- **Reject now requires a reason** (`transition()`'s `reason` field, `required_if:status,rejected`),
+  passed through to the existing `HasWorkflow::transitionTo()` `$meta['comments']` parameter that
+  `notifyStatusChange()` already reads — a rejected requester's notification now actually explains
+  why.
+- `StatusBadge` gained a `closed` mapping (previously fell through to the generic default, making a
+  finished PTW visually indistinguishable from an in-progress one).
+- Every grid in `Form.jsx` now has an explicit `sm:` responsive fallback (previously stayed 2 columns
+  at any width — "desktop shrunk," not actually responsive).
+
 ## Gas Test
 
 **Department:** HSE (Milestone 4, Workstream B7; location/stage added v1.10.9).

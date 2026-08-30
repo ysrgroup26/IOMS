@@ -299,6 +299,12 @@ v1.9.0 sections for the full reasoning.
   new status badge, tab nav, empty state, or workflow action UI. `StatusBadge` in particular has a
   single canonical status-to-color mapping meant to cover every module's statuses in one place;
   extend it, don't create a parallel one.
+- **`CollapsibleSection`** (v2.4.0, PTW UX + Field Operations pass) — the progressive-disclosure
+  primitive: a labeled, collapsed-by-default section for optional/advanced form fields, so a form
+  can show the minimum required fields first without a second bespoke show/hide implementation per
+  page. First real consumer is `PermitsToWork/Form.jsx`'s "Optional / Advanced" section; reuse this
+  for any other form that needs the same "required fields visible, optional fields on demand"
+  pattern rather than building a new toggle.
 - **Module top navigation** uses `ModuleTabNav` (a generic component taking a `tabs` prop) — PPE's
   navigation is the reference implementation; a new module's own `XTabNav.jsx` should be a thin
   wrapper around `ModuleTabNav`, not a reimplementation.

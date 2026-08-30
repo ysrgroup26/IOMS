@@ -42,8 +42,43 @@ class DashboardController extends Controller
      * Home and Dashboard overlapped, and the instruction was to keep
      * whichever query, not build two.
      */
+    /**
+     * v2.7.0 (Field/Foreman Experience pass, Phase 3A). `dashboard` is
+     * the one universal landing route every role already lands on
+     * post-login (see AuthenticatedSessionController -- only Platform
+     * Admin has a separate redirect) and is already in
+     * RestrictDepartmentAccess::UNIVERSAL_PREFIXES, so branching HERE
+     * needed no new route, no middleware change, and no risk to the
+     * existing enterprise Dashboard path below (untouched, same
+     * queries, same props, same page).
+     *
+     * Audit finding this pass acted on: `department_key`
+     * (`User::isDepartmentUser()`) is the ONLY existing mechanism that
+     * already narrows a user's experience to one operational area, is
+     * already live (Settings > Users + `php artisan
+     * users:assign-department`), and is already consumed by
+     * `WorkCenterService::quickActionsFor()`'s department filter -- no
+     * dedicated "Foreman" role exists anywhere in this codebase (6 real
+     * roles total: super_admin/hse/hrd/manager/warehouse/platform_admin,
+     * confirmed via a full audit of User.php before writing this), and
+     * inventing one would violate the explicit "do not invent a new RBAC
+     * system" instruction. Reusing `isDepartmentUser()` here is a
+     * deliberate, documented MVP proxy -- it will also affect an
+     * office-based, single-department user who isn't literally in the
+     * field, not just literal Foremen; that's an accepted, honest
+     * limitation of this pass (see the Phase 3 audit report), not a
+     * hidden assumption. A future pass can add a finer per-account
+     * "experience mode" preference if that proves too coarse in
+     * practice -- deliberately NOT built now, since department_key
+     * already does the job for this MVP and adding a new column wasn't
+     * "absolutely required."
+     */
     public function index(Request $request): Response
     {
+        if ($request->user()->isDepartmentUser()) {
+            return $this->fieldHome($request);
+        }
+
         $year = (int) $request->input('year', now()->format('Y'));
         $month = $request->input('month') ? (int) $request->input('month') : null;
         $companyId = $request->input('company_id') ? (int) $request->input('company_id') : null;
@@ -240,5 +275,49 @@ class DashboardController extends Controller
         $currentYear = (int) now()->format('Y');
 
         return range($currentYear, $currentYear - 4);
+    }
+
+    /**
+     * v2.7.0 (Field/Foreman Experience pass, Phase 3A). Task-first
+     * landing page for a Department User -- greeting + a small set of
+     * large, obviously-tappable action tiles (Create PTW/My PTW/Digital
+     * Checklist/Safety Observation/Report Incident/My Tasks), each
+     * gated by the SAME `canManage*()` capability method its own
+     * destination page already enforces (no new authorization surface,
+     * no gate weakened -- a tile simply doesn't render if the user
+     * couldn't actually use what it links to). Every destination is an
+     * EXISTING route (`permits-to-work.create`, `hse-inspections.create`,
+     * `safety-observations.create`, `incidents.create`,
+     * `permits-to-work.index`, `work-center.index`) -- no new pages
+     * except the landing page itself, no duplicated backend logic.
+     * `pendingApprovalsFor()`/`myTasksFor()` counts are reused verbatim
+     * from `WorkCenterService` (the same queries the Work Center topbar
+     * badge and page already use) rather than re-derived.
+     */
+    private function fieldHome(Request $request): Response
+    {
+        $user = $request->user();
+
+        $tiles = [];
+        if ($user->canManageHse()) {
+            $tiles[] = ['label' => 'Create PTW', 'description' => 'Ajukan izin kerja baru.', 'href' => route('permits-to-work.create'), 'icon' => 'Flame'];
+        }
+        $tiles[] = ['label' => 'My PTW', 'description' => 'Lihat status izin kerja Anda.', 'href' => route('permits-to-work.index'), 'icon' => 'ClipboardList'];
+        if ($user->canManageHse()) {
+            $tiles[] = ['label' => 'Digital Checklist', 'description' => 'Mulai inspeksi/checklist baru.', 'href' => route('hse-inspections.create'), 'icon' => 'ClipboardCheck'];
+        }
+        if ($user->canManageSafetyObservations()) {
+            $tiles[] = ['label' => 'Safety Observation', 'description' => 'Laporkan temuan/observasi.', 'href' => route('safety-observations.create'), 'icon' => 'Eye'];
+        }
+        if ($user->canManageIncidents()) {
+            $tiles[] = ['label' => 'Report Incident', 'description' => 'Laporkan insiden dengan cepat.', 'href' => route('incidents.create'), 'icon' => 'AlertTriangle'];
+        }
+        $tiles[] = ['label' => 'My Tasks', 'description' => 'Persetujuan dan tugas yang menunggu Anda.', 'href' => route('work-center.index'), 'icon' => 'CheckSquare'];
+
+        return Inertia::render('Field/Home', [
+            'tiles' => $tiles,
+            'pendingApprovalsCount' => $this->workCenter->pendingApprovalsFor($user)->count(),
+            'myTasksCount' => $this->workCenter->myTasksFor($user)->count(),
+        ]);
     }
 }

@@ -251,6 +251,20 @@ reasoning across every refinement (v1.8.0 through v1.10.2). This section is the 
   assigned one. `getSelectableDepartments()` collapses to their one department; the Department
   Selector doesn't render for them; their sidebar always shows only that department. See
   `ADR/007`'s v1.10.2 section for why this wasn't retrofitted onto the existing role system.
+- **Field/Foreman landing experience** (v2.7.0, Field/Foreman Experience pass, Phase 3A): the single
+  universal `dashboard` route (every role's post-login landing page except Platform Admin) now
+  branches server-side in `DashboardController::index()` — `$request->user()->isDepartmentUser()`
+  renders a separate, task-first `Field/Home` page instead of the enterprise `Dashboard/Index`. No
+  new route, no middleware change (`dashboard` was already in `RestrictDepartmentAccess::
+  UNIVERSAL_PREFIXES`), no new RBAC concept — a full audit before this pass confirmed no dedicated
+  "Foreman" role exists (6 real roles total: `super_admin/hse/hrd/manager/warehouse/platform_admin`),
+  and `department_key` was the only existing, already-live mechanism that narrows a user's experience
+  at all. This is a deliberate, documented MVP proxy, not a claim that every Department User is
+  literally a field worker — see `DashboardController::index()`'s own doc comment for the honest
+  limitation and the reasoning for not inventing a new column/role to solve it more precisely yet.
+  `Field/Home`'s action tiles reuse the exact same `canManage*()` gates their destination routes
+  already enforce, and its pending-approvals/tasks counts are read verbatim from
+  `WorkCenterService` (no duplicated query).
 - **A department disappears from the switcher once it has zero visible items** for the current user
   — disabled items never get filtered this way (they carry no `moduleKey`), so a department made
   entirely of placeholders (Warehouse, Maintenance, Quality Control, Finance) still always appears.

@@ -478,8 +478,23 @@ class PpeController extends Controller
         ]);
     }
 
+    /**
+     * v2.12.0 (Product Finalization pass, Part 26 -- Security). CONFIRMED
+     * P0 via this pass's own audit: `showReplacementRequest()` and
+     * `replacementRequestPdf()` had NO tenant-ownership check at all --
+     * a user could view or download the PDF of another tenant's PPE
+     * Replacement Request purely by changing the ID in the URL. Same
+     * `assertInCurrentTenant()` 404 guard this codebase uses everywhere
+     * else, added here.
+     */
+    private function assertReplacementRequestInCurrentTenant(PpeReplacementRequest $replacementRequest): void
+    {
+        abort_unless(Company::query()->pluck('id')->contains($replacementRequest->company_id), 404);
+    }
+
     public function showReplacementRequest(PpeReplacementRequest $replacementRequest): Response
     {
+        $this->assertReplacementRequestInCurrentTenant($replacementRequest);
         $replacementRequest->load(
             'company:id,name',
             'requester:id,name',
@@ -495,6 +510,7 @@ class PpeController extends Controller
 
     public function replacementRequestPdf(PpeReplacementRequest $replacementRequest, PdfGeneratorService $pdf): HttpResponse
     {
+        $this->assertReplacementRequestInCurrentTenant($replacementRequest);
         $replacementRequest->load(
             'company',
             'requester',

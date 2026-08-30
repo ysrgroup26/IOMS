@@ -101,8 +101,34 @@ class MaterialRequestController extends Controller
         return redirect()->route('material-requests.index')->with('flash', ['success' => 'Material Request created.']);
     }
 
+    /**
+     * v2.12.0 (Product Finalization pass, Part 26 -- Security). CONFIRMED
+     * P0 via this pass's own audit: every method in this controller that
+     * receives a route-bound MaterialRequest (show/edit/update/destroy/
+     * process/complete/reopen/cancel/pdf) had NO tenant-ownership check
+     * at all -- `MaterialRequest` carries no `TenantScope`, and none of
+     * these methods ever verified the bound record actually belongs to
+     * the current tenant before acting on it. A user could view, edit,
+     * process, download the PDF of, or cancel another tenant's Material
+     * Request purely by changing the `{materialRequest}` ID in the URL.
+     * `index()`'s own `scopeVisibleTo()` also had a related gap (its
+     * Super Admin bypass returned literally every tenant's rows, not
+     * just the current tenant's -- fixed in the model, see
+     * MaterialRequest::scopeVisibleTo()'s own updated doc comment).
+     * Fixed here by adding the identical `assertInCurrentTenant()`
+     * 404-not-403 guard this codebase already uses everywhere else
+     * (WasteRecordController/EmployeeController/AssetController/
+     * VendorController/PermitToWorkController, etc.) to every method
+     * below that accepts a route-bound record.
+     */
+    private function assertInCurrentTenant(MaterialRequest $materialRequest): void
+    {
+        abort_unless(Company::query()->pluck('id')->contains($materialRequest->company_id), 404);
+    }
+
     public function show(MaterialRequest $materialRequest, Request $request): InertiaResponse
     {
+        $this->assertInCurrentTenant($materialRequest);
         $materialRequest->load('company:id,name', 'department:id,name', 'project:id,name', 'requester:id,name', 'items');
         $approval = $materialRequest->latestApproval()?->load('requester:id,name', 'approver:id,name');
 
@@ -127,6 +153,7 @@ class MaterialRequestController extends Controller
 
     public function edit(MaterialRequest $materialRequest): InertiaResponse
     {
+        $this->assertInCurrentTenant($materialRequest);
         $materialRequest->load('items');
 
         return Inertia::render('MaterialRequests/Form', [
@@ -140,6 +167,7 @@ class MaterialRequestController extends Controller
 
     public function update(UpdateMaterialRequestRequest $request, MaterialRequest $materialRequest): RedirectResponse
     {
+        $this->assertInCurrentTenant($materialRequest);
         $data = $request->validated();
 
         DB::transaction(function () use ($data, $request, $materialRequest) {
@@ -211,6 +239,8 @@ class MaterialRequestController extends Controller
 
     public function destroy(MaterialRequest $materialRequest): RedirectResponse
     {
+        $this->assertInCurrentTenant($materialRequest);
+
         // Only draft requests can be deleted -- once submitted, a request
         // is a real document that may already be printed/circulating.
         if ($materialRequest->status !== MaterialRequest::STATUS_DRAFT) {
@@ -235,6 +265,7 @@ class MaterialRequestController extends Controller
      */
     public function process(Request $request, MaterialRequest $materialRequest): RedirectResponse
     {
+        $this->assertInCurrentTenant($materialRequest);
         $this->authorizeWorkflowAction($request, 'processors');
 
         try {
@@ -248,6 +279,7 @@ class MaterialRequestController extends Controller
 
     public function complete(Request $request, MaterialRequest $materialRequest): RedirectResponse
     {
+        $this->assertInCurrentTenant($materialRequest);
         $this->authorizeWorkflowAction($request, 'processors');
 
         try {
@@ -269,6 +301,7 @@ class MaterialRequestController extends Controller
      */
     public function reopen(Request $request, MaterialRequest $materialRequest): RedirectResponse
     {
+        $this->assertInCurrentTenant($materialRequest);
         $this->authorizeWorkflowAction($request, 'overriders');
 
         try {
@@ -282,6 +315,7 @@ class MaterialRequestController extends Controller
 
     public function cancel(Request $request, MaterialRequest $materialRequest): RedirectResponse
     {
+        $this->assertInCurrentTenant($materialRequest);
         $this->authorizeWorkflowAction($request, 'overriders');
 
         try {
@@ -301,6 +335,7 @@ class MaterialRequestController extends Controller
 
     public function pdf(MaterialRequest $materialRequest, PdfGeneratorService $pdf, DocumentEngine $documents): Response
     {
+        $this->assertInCurrentTenant($materialRequest);
         $materialRequest->load('company', 'department', 'project', 'requester', 'items');
 
         // Milestone 3 (Dynamic Document Engine, Task #66): first real

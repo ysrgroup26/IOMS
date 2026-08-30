@@ -493,8 +493,14 @@ function DocumentTemplatesTab({ documentTemplates, moduleKeys }) {
         });
     }
 
+    // v2.12.0 (Product Finalization pass, Part 19 -- destructive action
+    // confirmation): every sibling delete on this page already confirms
+    // (companies/departments/positions/KPI categories/users) -- this one
+    // was the sole exception, firing instantly on click.
     function destroy(id) {
-        router.delete(route('settings.documents.destroy', id), { preserveScroll: true });
+        if (confirm('Remove this document template?')) {
+            router.delete(route('settings.documents.destroy', id), { preserveScroll: true });
+        }
     }
 
     return (

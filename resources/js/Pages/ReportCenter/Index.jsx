@@ -43,8 +43,13 @@ export default function ReportCenterIndex({ available, schedules }) {
         scheduleForm.post(route('report-center.schedules.store'), { preserveScroll: true });
     };
 
+    // v2.12.0 (Product Finalization pass, Part 19 -- destructive action
+    // confirmation): fired instantly on click with no confirmation --
+    // every other delete flow in this app confirms first.
     const deleteSchedule = (id) => {
-        router.delete(route('report-center.schedules.destroy', id), { preserveScroll: true });
+        if (confirm('Remove this scheduled report?')) {
+            router.delete(route('report-center.schedules.destroy', id), { preserveScroll: true });
+        }
     };
 
     if (!available || available.length === 0) {

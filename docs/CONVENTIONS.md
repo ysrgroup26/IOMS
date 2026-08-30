@@ -3,6 +3,38 @@
 House style, and a deliberately honest list of mistakes that have actually happened in this
 codebase's history — kept here so they don't get repeated in a slightly different shape.
 
+## CRITICAL — Known Pitfall (v2.12.0): a `scopeVisibleTo()`/access-control method written BEFORE
+## multi-tenancy existed can silently become a cross-tenant leak once multi-tenancy is added, if
+## nobody goes back and updates it
+
+Found during the Product Finalization pass's own security audit, in **three separate places at
+once**, all the same root cause: `MaterialRequest::scopeVisibleTo()`, `PpeReplacementRequest::
+scopeVisibleTo()`, and `KpiRecordController::index()`'s company-scoping join were all written during
+Milestone 3 (Material Request / PPE Replacement / KPI Records), **before** Milestone 2's Tenancy
+Foundation existed. At the time, "Super Admin sees every row" and "no company filter selected shows
+every row" were both correct — there was only ever one company universe to see. When multi-tenancy
+was added later, nobody revisited these three call sites, so they kept doing exactly what they always
+did — except "every row" now silently meant **every tenant's** rows, not just the current tenant's.
+
+Concretely, before this pass's fix:
+- `MaterialRequestController`: **every** method that received a route-bound `MaterialRequest`
+  (`show`/`edit`/`update`/`destroy`/`process`/`complete`/`reopen`/`cancel`/`pdf`) had *no* tenant
+  check of any kind — a user could view, edit, or download the PDF of another tenant's Material
+  Request purely by changing the `{materialRequest}` ID in the URL. `MaterialRequest` carries no
+  `TenantScope`.
+- `PpeController::showReplacementRequest()`/`replacementRequestPdf()`: identical gap, identical fix.
+- `KpiRecordController::index()`: the tenant-scoping `departments` join was applied only inside
+  `when($companyId, ...)` — on the default landing state (no `?company_id=` selected, i.e. every
+  normal page load), it returned every tenant's KPI records.
+
+**The general lesson**: `Company::query()->pluck('id')` (already `TenantScope`-filtered) is the one
+correct tenant boundary in this codebase — every access-control method needs it as an *unconditional*
+floor, never only inside a `when($optionalFilter, ...)` closure, and never bypassed by a "sees
+everything" role check without first re-establishing where "everything" ends. When multi-tenancy is
+retrofitted onto an existing feature, grep for every existing `scopeVisibleTo()`/`isSuperAdmin()`-
+bypass/`when($companyId, ...)`-only pattern in the codebase and re-audit each one individually — the
+tenant boundary does not appear automatically just because `TenantScope` was added to `Company`.
+
 ## CRITICAL — Known Pitfall (v2.2.0): a `scopeXyz()` that joins a second table can make an
 ## already-correct, already-working caller's unqualified column references retroactively ambiguous
 

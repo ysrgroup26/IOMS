@@ -98,8 +98,27 @@ class MaterialRequest extends Model
         return $this->hasMany(MaterialRequestItem::class)->orderBy('sort_order');
     }
 
+    /**
+     * v2.12.0 (Product Finalization pass, Part 26 -- Security). CONFIRMED
+     * P0 fix: this scope predates the Milestone 2 Tenancy Foundation --
+     * back when "company" was the only top-level differentiator, "Super
+     * Admin sees everything" correctly meant "sees every company," since
+     * there was only ever one tenant. Multi-tenancy was added later
+     * without updating this scope, so the Super Admin bypass below
+     * (`return $query` with no further constraint) had been silently
+     * returning EVERY TENANT's material requests, not just the current
+     * tenant's -- a real cross-tenant leak for exactly the role most
+     * likely to be trusted with broad access. Fixed by making the
+     * tenant boundary (`Company::query()->pluck('id')`, already
+     * TenantScope-filtered) an unconditional floor BEFORE the existing
+     * Super-Admin-sees-every-company-in-their-own-tenant /
+     * regular-user-sees-only-their-own-company-id narrowing, which is
+     * otherwise unchanged.
+     */
     public function scopeVisibleTo($query, $user)
     {
+        $query->whereIn('company_id', Company::query()->pluck('id'));
+
         if ($user->isSuperAdmin()) {
             return $query;
         }

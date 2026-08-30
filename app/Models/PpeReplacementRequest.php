@@ -44,8 +44,18 @@ class PpeReplacementRequest extends Model
         return $this->hasMany(PpeReplacementRequestItem::class);
     }
 
+    /**
+     * v2.12.0 (Product Finalization pass, Part 26 -- Security). Same
+     * fix, same reasoning as MaterialRequest::scopeVisibleTo() (see its
+     * own updated doc comment) -- this scope predates multi-tenancy;
+     * its Super Admin bypass was silently returning every tenant's PPE
+     * replacement requests, not just the current tenant's. Tenant
+     * boundary made unconditional before the existing narrowing.
+     */
     public function scopeVisibleTo($query, $user)
     {
+        $query->whereIn('company_id', Company::query()->pluck('id'));
+
         if ($user->isSuperAdmin()) {
             return $query;
         }

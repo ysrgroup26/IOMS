@@ -111,7 +111,16 @@ export default function EmployeesIndex({ employees, companies, departments, filt
                     </TableHeader>
                     <TableBody>
                         {employees.data.length === 0 ? (
-                            <TableRow><TableCell colSpan={6} className="py-10 text-center text-graphite-400">No employees found.</TableCell></TableRow>
+                            <TableRow>
+                                <TableCell colSpan={6} className="py-10 text-center">
+                                    <p className="text-sm font-medium text-graphite-500">Belum ada data karyawan.</p>
+                                    {can.manage && (
+                                        <Button asChild size="sm" className="mt-3">
+                                            <Link href={route('employees.create')}><Plus className="h-4 w-4" /> Add Employee</Link>
+                                        </Button>
+                                    )}
+                                </TableCell>
+                            </TableRow>
                         ) : employees.data.map((emp) => (
                             <TableRow key={emp.id} className="cursor-pointer" onClick={() => router.visit(route('employees.show', emp.id))}>
                                 <TableCell className="flex items-center gap-3 font-medium text-graphite-800">

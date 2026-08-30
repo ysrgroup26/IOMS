@@ -502,6 +502,40 @@ presentation that read like an actual HSE permit document.
 - Security: `document()` uses the identical `assertInCurrentTenant()` 404 guard as `show()`/`pdf()` —
   no new authorization surface, no gate weakened.
 
+**v2.8.0 (PTW Mobile / Task-First pass, Phase 3B)** — audited every PTW page fresh (not assuming
+prior-pass findings still held) from a field-user perspective; fixed what the audit actually found,
+left what already worked alone.
+- **`PermitsToWork/Index.jsx`**: previously one enterprise `<Table>` for every viewport, Status as the
+  rightmost of 6 columns — on a phone this meant scrolling horizontally just to see status, the one
+  thing that matters most. Added a genuine mobile card list (`md:hidden`) alongside the existing
+  desktop table (`hidden md:block`, completely unchanged) — same `permits` data, a second
+  presentation for narrow viewports: PTW number + status together up top (no scrolling), permit type,
+  work description, location + start date, one obvious "View PTW" action.
+- **A real, pre-existing gap closed**: `PermitToWork::$transitions[REJECTED]` has always allowed
+  `[draft, cancelled]` — a genuine "resubmit" path already modeled in the backend — but `transition()`'s
+  own validation `Rule::in([...])` never included `STATUS_DRAFT`, and `Show.jsx` never rendered a
+  button for it. A rejected permit's UI had ZERO available action besides Cancel, despite the state
+  machine supporting resubmission. Fixed on both ends: `STATUS_DRAFT` added to the allow-list, and a
+  "Resubmit" button added to `Show.jsx` for `rejected` status — moves back to Draft, after which the
+  existing Draft "Submit" button carries it to Submitted again (the two-step path the model actually
+  defines; no direct `rejected -> submitted` shortcut was invented).
+- **Rejection reason surfaced on `Show.jsx` itself**, not just the Document view — previously only
+  reachable via the Activity timeline card (secondary, off-screen on mobile without scrolling) or the
+  separate Document page. `PermitToWorkController::rejectionReasonFor()` extracted out of `document()`
+  (same lookup, now shared, not duplicated) so `show()` can pass it too.
+- Mobile grid fixes: the Requested By/HSE Approver/Closed By row (`grid-cols-3`, no fallback) and the
+  Gas Test "Add Reading" form (`grid-cols-2`, no true 1-column mobile fallback) both now stack properly
+  on a phone (`grid-cols-1 sm:grid-cols-... `).
+- Explicitly NOT changed, confirmed already correct via this pass's fresh audit: PTW Create form
+  (progressive disclosure, responsive grids, natural-Indonesian placeholders — all already in place
+  from Phase 1), the one-step Submit-to-Pending-Approval behavior, StatusBadge's status vocabulary
+  (kept in English per "follow existing IOMS language conventions rather than introducing inconsistent
+  translations everywhere" — only helper text/banners are Indonesian, matching the rest of this
+  module).
+- No database change. No new route. No RBAC change — `Rule::in()` widened by exactly one already-legal
+  status value; every existing authorization check (`canManageHse()`, `assertInCurrentTenant()`)
+  unchanged.
+
 ## Gas Test
 
 **Department:** HSE (Milestone 4, Workstream B7; location/stage added v1.10.9).

@@ -10,9 +10,9 @@ import { Table, TableHeader, TableBody, TableRow, TableHead, TableCell } from '@
 import ActivityTimeline from '@/Components/shared/ActivityTimeline';
 import StatusBadge from '@/Components/shared/StatusBadge';
 import EmptyState from '@/Components/shared/EmptyState';
-import { ArrowLeft, Send, CheckCircle2, XCircle, PlayCircle, FlaskConical, Wind, Download, Printer, FileText } from 'lucide-react';
+import { ArrowLeft, Send, CheckCircle2, XCircle, PlayCircle, FlaskConical, Wind, Download, Printer, FileText, RotateCcw } from 'lucide-react';
 
-export default function PermitToWorkShow({ permit: p, activities, canManage }) {
+export default function PermitToWorkShow({ permit: p, activities, canManage, rejectionReason }) {
     const [gasTestOpen, setGasTestOpen] = useState(false);
     // v1.10.9: location pre-filled from this permit's own p.location (the
     // scope a PTW is raised for) but independently editable -- a gas
@@ -91,6 +91,18 @@ export default function PermitToWorkShow({ permit: p, activities, canManage }) {
                             <Button onClick={() => transition('approved', 'Approve this permit?')}><CheckCircle2 className="h-4 w-4" /> Approve</Button>
                             <Button variant="outline" className="text-red-600" onClick={reject}>Reject</Button>
                         </>)}
+                        {/* v2.8.0 (PTW Mobile / Task-First pass, Phase 3B,
+                            Part 7): PermitToWork's own $transitions array
+                            has always allowed rejected -> draft (a real
+                            "resubmit" path -- not invented here), but no
+                            button ever triggered it -- a rejected permit
+                            previously had zero available action besides
+                            Cancel. Moves back to Draft; the existing
+                            Draft "Submit" button above then carries it to
+                            Submitted again, matching the two-step state
+                            machine exactly as modeled, not bypassing it
+                            with a direct rejected->submitted shortcut. */}
+                        {p.status === 'rejected' && (<Button variant="outline" onClick={() => transition('draft', 'Kembalikan PTW ini ke Draft untuk diajukan ulang?')}><RotateCcw className="h-4 w-4" /> Resubmit</Button>)}
                         {p.status === 'approved' && (<Button onClick={() => transition('active', 'Activate this permit -- work may begin?')}><PlayCircle className="h-4 w-4" /> Activate</Button>)}
                         {p.status === 'active' && (<Button onClick={() => transition('closed', 'Close this permit -- work complete?')}><CheckCircle2 className="h-4 w-4" /> Close</Button>)}
                         {!['closed', 'cancelled'].includes(p.status) && (
@@ -100,6 +112,22 @@ export default function PermitToWorkShow({ permit: p, activities, canManage }) {
                 </div>
             </div>
 
+            {/* v2.8.0 (PTW Mobile / Task-First pass, Phase 3B, Part 6):
+                rejection reason previously only ever appeared inside the
+                Activity timeline card (secondary, off-screen on mobile
+                without scrolling) -- surfaced here immediately below the
+                header, matching the product's own "For rejected PTW:
+                show rejection reason if already supported" direction.
+                Never fabricated: rejectionReason is null (and this
+                banner shows a real "no reason recorded" fallback rather
+                than inventing one) for a permit rejected before v2.4.0
+                added the reason field. */}
+            {p.status === 'rejected' && (
+                <div className="mb-4 rounded-lg border border-red-200 bg-red-50 px-4 py-3 text-sm text-red-700 dark:border-red-900/50 dark:bg-red-950/30 dark:text-red-400">
+                    <span className="font-medium">Alasan Penolakan:</span> {rejectionReason || 'Tidak ada alasan tercatat.'}
+                </div>
+            )}
+
             <div className="grid grid-cols-1 gap-4 lg:grid-cols-3">
                 <div className="space-y-4 lg:col-span-2">
                     <Card>
@@ -108,7 +136,7 @@ export default function PermitToWorkShow({ permit: p, activities, canManage }) {
                             <div><span className="text-xs uppercase text-graphite-400">Work Description</span><p className="whitespace-pre-wrap">{p.work_description}</p></div>
                             {p.precautions && <div><span className="text-xs uppercase text-graphite-400">Precautions</span><p className="whitespace-pre-wrap">{p.precautions}</p></div>}
                             {p.required_qualification && <div><span className="text-xs uppercase text-graphite-400">Required Qualification</span><p>{p.required_qualification}</p></div>}
-                            <div className="grid grid-cols-3 gap-3">
+                            <div className="grid grid-cols-1 gap-3 sm:grid-cols-3">
                                 <div><span className="text-xs uppercase text-graphite-400">Requested By</span><p>{p.requester?.name}</p></div>
                                 <div><span className="text-xs uppercase text-graphite-400">HSE Approver</span><p>{p.hse_approver?.name || '-'}</p></div>
                                 <div><span className="text-xs uppercase text-graphite-400">Closed By</span><p>{p.closer?.name || '-'}</p></div>
@@ -129,7 +157,7 @@ export default function PermitToWorkShow({ permit: p, activities, canManage }) {
                         </CardHeader>
                         <CardContent>
                             {gasTestOpen && (
-                                <form onSubmit={submitGasTest} className="mb-4 grid grid-cols-2 gap-3 rounded-md border border-graphite-100 p-3 sm:grid-cols-3">
+                                <form onSubmit={submitGasTest} className="mb-4 grid grid-cols-1 gap-3 rounded-md border border-graphite-100 p-3 sm:grid-cols-2 lg:grid-cols-3">
                                     <div className="space-y-1"><Label className="text-xs">Location / Object</Label><Input placeholder="e.g. Tank TK-001" value={gasTestForm.data.location} onChange={(e) => gasTestForm.setData('location', e.target.value)} /></div>
                                     <div className="space-y-1">
                                         <Label className="text-xs">Test Stage</Label>
@@ -150,7 +178,7 @@ export default function PermitToWorkShow({ permit: p, activities, canManage }) {
                                             <SelectContent><SelectItem value="pass">Pass</SelectItem><SelectItem value="fail">Fail</SelectItem></SelectContent>
                                         </Select>
                                     </div>
-                                    <div className="col-span-2 sm:col-span-3"><Button type="submit" size="sm" disabled={gasTestForm.processing}>Save Reading</Button></div>
+                                    <div className="sm:col-span-2 lg:col-span-3"><Button type="submit" size="sm" disabled={gasTestForm.processing}>Save Reading</Button></div>
                                 </form>
                             )}
                             {(!p.gas_tests || p.gas_tests.length === 0) ? (

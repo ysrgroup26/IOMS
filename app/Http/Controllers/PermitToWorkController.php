@@ -113,6 +113,14 @@ class PermitToWorkController extends Controller
             'permit' => $permitToWork,
             'activities' => $activities,
             'canManage' => $request->user()->canManageHse(),
+            // v2.8.0 (PTW Mobile / Task-First pass, Phase 3B, Part 6/7):
+            // the Show page previously had NO way to surface WHY a
+            // permit was rejected -- confirmed via this pass's own
+            // fresh re-read, the reason only ever appeared inside the
+            // Activity timeline card (secondary, needs scrolling) or on
+            // the separate Document view. Same lookup `document()`
+            // already does, reused rather than duplicated logic.
+            'rejectionReason' => $this->rejectionReasonFor($permitToWork),
         ]);
     }
 
@@ -122,9 +130,21 @@ class PermitToWorkController extends Controller
         $this->assertInCurrentTenant($permitToWork);
 
         $data = $request->validate([
+            // v2.8.0 (PTW Mobile / Task-First pass, Phase 3B): added
+            // STATUS_DRAFT to this allow-list. The MODEL's own
+            // `$transitions` array has always allowed
+            // `rejected -> draft` (a real, existing "resubmit" path --
+            // not a transition invented by this pass), but this
+            // validation rule never included it, so the Show page had
+            // no way to actually reach it -- a rejected PTW's UI
+            // silently offered zero path back to Draft even though the
+            // backend state machine supported one. Every OTHER target
+            // here is unchanged; this only adds the one missing,
+            // already-modeled transition.
             'status' => ['required', Rule::in([
-                PermitToWork::STATUS_SUBMITTED, PermitToWork::STATUS_APPROVED, PermitToWork::STATUS_REJECTED,
-                PermitToWork::STATUS_ACTIVE, PermitToWork::STATUS_CLOSED, PermitToWork::STATUS_CANCELLED,
+                PermitToWork::STATUS_DRAFT, PermitToWork::STATUS_SUBMITTED, PermitToWork::STATUS_APPROVED,
+                PermitToWork::STATUS_REJECTED, PermitToWork::STATUS_ACTIVE, PermitToWork::STATUS_CLOSED,
+                PermitToWork::STATUS_CANCELLED,
             ])],
             // v2.4.0 (PTW UX + Field Operations pass, Part 14): "If
             // rejecting: Require a short reason." Required only for
@@ -209,33 +229,39 @@ class PermitToWorkController extends Controller
 
         $permitToWork->load('company', 'project', 'riskAssessment', 'jsa', 'requester', 'areaAuthority', 'hseApprover', 'closer', 'gasTests.tester');
 
-        // Rejection reason isn't a column on PermitToWork itself -- it
-        // was passed through transitionTo()'s $meta['comments'] param
-        // (see transition() above) into ActivityLog.meta, the same trail
-        // the Show page's Activity timeline already reads. Pulled here
-        // only when relevant (status actually rejected) so the document
-        // can show WHY, matching the directive's explicit "For rejected
-        // PTW: show rejection reason if already supported" -- never
-        // fabricated if no reason was ever recorded (older permits
-        // rejected before v2.4.0 added this field will correctly show
-        // nothing here).
-        $rejectionReason = null;
-        if ($permitToWork->status === PermitToWork::STATUS_REJECTED) {
-            $rejectionReason = ActivityLog::where('subject_type', PermitToWork::class)
-                ->where('subject_id', $permitToWork->id)
-                ->where('action', PermitToWork::STATUS_REJECTED)
-                ->latest()
-                ->value('meta');
-            $rejectionReason = $rejectionReason['comments'] ?? null;
-        }
-
         return Inertia::render('PermitsToWork/Document', [
             'permit' => $permitToWork,
             'company' => $permitToWork->company,
             'documentTemplate' => $documents->resolveTemplate('permit_to_work', $permitToWork->company_id),
             'branding' => $documents->branding(),
-            'rejectionReason' => $rejectionReason,
+            'rejectionReason' => $this->rejectionReasonFor($permitToWork),
         ]);
+    }
+
+    /**
+     * v2.8.0 (PTW Mobile / Task-First pass, Phase 3B): extracted out of
+     * `document()` (where this exact lookup already lived, verbatim) so
+     * `show()` can now surface the same rejection reason without
+     * duplicating the query. Rejection reason isn't a column on
+     * PermitToWork itself -- it was passed through transitionTo()'s
+     * $meta['comments'] param (see transition() above) into
+     * ActivityLog.meta. Returns null (never fabricated) for a permit
+     * that isn't rejected, or one rejected before v2.4.0 added this
+     * field.
+     */
+    private function rejectionReasonFor(PermitToWork $permitToWork): ?string
+    {
+        if ($permitToWork->status !== PermitToWork::STATUS_REJECTED) {
+            return null;
+        }
+
+        $meta = ActivityLog::where('subject_type', PermitToWork::class)
+            ->where('subject_id', $permitToWork->id)
+            ->where('action', PermitToWork::STATUS_REJECTED)
+            ->latest()
+            ->value('meta');
+
+        return $meta['comments'] ?? null;
     }
 
     private function assertInCurrentTenant(PermitToWork $permitToWork): void

@@ -47,6 +47,14 @@ use Symfony\Component\HttpFoundation\Response;
  * Subscription) without blocking anything. Still overridable per-install
  * via `SAAS_ENFORCE_ENTITLEMENT=false` in `.env`.
  *
+ * v2.13.0 (SaaS Phase 1): `enforce_workspace_entitlement` now defaults
+ * TRUE (see config/saas.php's own doc comment for the two safety nets
+ * that made this responsible to enable) and both denial messages below
+ * were translated to natural Bahasa Indonesia per this codebase's
+ * language convention (sidebar/navigation stays English; user-facing
+ * page/error content is Indonesian) -- these messages render verbatim
+ * on the Errors/Show.jsx page via Laravel's abort_unless() message.
+ *
  * PRODUCTION INCIDENT (v1.11.2.3): registered globally on the `web`
  * middleware group as a bare class string
  * (`bootstrap/app.php`'s `$middleware->web(append: [...])`), Laravel's
@@ -99,7 +107,7 @@ class EnforceTenantEntitlement
         abort_unless(
             $this->entitlements->tenantIsUsable($user->tenant),
             403,
-            'Your organization\'s subscription is not currently active. Contact your administrator or see Settings for details.'
+            'Langganan perusahaan Anda sedang tidak aktif. Hubungi administrator perusahaan Anda atau lihat halaman Settings untuk detail.'
         );
 
         // v1.11.15 (SaaS Package + Ecosystem pass, Part 26/27): the
@@ -120,7 +128,7 @@ class EnforceTenantEntitlement
                 abort_unless(
                     $this->entitlements->tenantCanUseWorkspace($user->tenant, $owningWorkspace),
                     403,
-                    'This department is not included in your organization\'s current subscription plan.'
+                    'Fitur ini belum tersedia untuk paket perusahaan Anda.'
                 );
             }
         }

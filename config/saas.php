@@ -35,19 +35,33 @@ return [
      * per-workspace grants, so every tenant regardless of Package could
      * reach every department, gated only by role (isHse()/isHrd()/etc.).
      * Wired into that same middleware this pass (see its own doc
-     * comment) -- but defaulted OFF here, separate from
-     * `enforce_entitlement` above, because this environment has no way
-     * to verify the currently-live production tenant's own Module/
-     * Workspace grant rows are actually populated correctly before
-     * flipping on a NEW enforcement path that could otherwise lock out
-     * the one real tenant currently using this system. Enable via
-     * SAAS_ENFORCE_WORKSPACE_ENTITLEMENT=true once a Platform Admin has
-     * confirmed (via Tenant Grants) that the existing tenant's grants
-     * cover what it actually uses -- `TenantGrantSeeder` already grants
-     * the default tenant everything, so this is very likely already
-     * safe to enable, just not verifiable from here.
+     * comment).
+     *
+     * v2.13.0 (SaaS Phase 1 -- Subscription Architecture & Entitlement
+     * Enforcement): flipped to default TRUE this pass -- Part 9 of that
+     * phase's own directive makes real backend enforcement the P0
+     * deliverable ("A Starter tenant must NOT be able to call a
+     * Professional/Enterprise endpoint simply by knowing its URL"), and
+     * two safety nets now make this safe to enable without live DB
+     * verification (which remained unavailable in this environment,
+     * same as every prior pass):
+     *   1. `EntitlementService::tenantCanUseModule()`/
+     *      `tenantCanUseWorkspace()` now treat a tenant with ZERO grant
+     *      rows as fully allowed (see that class's own doc comment) --
+     *      the exact "legacy tenant predates this feature" case is now
+     *      structurally incapable of being locked out, rather than
+     *      hoping its grants happen to be complete.
+     *   2. The new `php artisan tenants:sync-grants` command (additive
+     *      only, `--dry-run` supported) tops up a PARTIALLY-granted
+     *      tenant (e.g. one seeded by `TenantGrantSeeder` before a newer
+     *      Workspace/Module was added to the app) back up to its
+     *      Package's own baseline -- run this once after deploying this
+     *      change (dry-run first) to confirm zero unexpected
+     *      restrictions before relying on it in production.
+     * Still overridable via SAAS_ENFORCE_WORKSPACE_ENTITLEMENT=false in
+     * .env if a specific install needs it off.
      */
-    'enforce_workspace_entitlement' => env('SAAS_ENFORCE_WORKSPACE_ENTITLEMENT', false),
+    'enforce_workspace_entitlement' => env('SAAS_ENFORCE_WORKSPACE_ENTITLEMENT', true),
 
     /**
      * Default currency for new Packages/Invoices when none is specified.

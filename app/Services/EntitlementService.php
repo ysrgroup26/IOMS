@@ -67,11 +67,32 @@ class EntitlementService
     }
 
     /**
-     * Whether a specific module key is both granted (Platform ceiling,
-     * existing mechanism) AND the tenant's subscription is currently
-     * usable. Does NOT check department/role -- see this class's own doc
-     * comment for why that's deliberately left to the existing, separate
-     * mechanisms.
+     * v2.13.0 (SaaS Phase 1 -- Subscription Architecture & Entitlement
+     * Enforcement). "Ungranted" safety net, the missing piece that makes
+     * `config('saas.enforce_workspace_entitlement')` finally safe to turn
+     * on. Before this pass, a tenant with ZERO rows in `tenant_modules`/
+     * `tenant_workspaces` (never explicitly provisioned -- the exact
+     * "legacy tenant predates this feature" case Part 25 of this phase's
+     * own directive asks to handle safely) would fail EVERY
+     * `tenantCanUseModule()`/`tenantCanUseWorkspace()` check once
+     * enforcement is enabled, i.e. total lockout -- the opposite of
+     * today's actual behavior (unenforced, so an ungranted tenant
+     * currently reaches everything its role/department allows). That is
+     * exactly the "Do NOT simply deny everyone" failure this phase's
+     * directive explicitly forbids.
+     *
+     * Fixed by treating "this tenant has no grant rows for this kind of
+     * entitlement at all" as fully granted (skip the allow-list check
+     * entirely) -- a genuinely PROVISIONED tenant (has at least one row,
+     * whether from `PlatformController::storeTenant()`'s package-derived
+     * sync or `TenantGrantSeeder`'s "grant everything" seed) is
+     * unaffected and still uses the real allow-list. This is not a
+     * bypass for a chosen tenant -- it's a uniform, auditable default
+     * ("no explicit grants recorded yet" = "not yet restricted") applied
+     * identically to every tenant, and it disappears the moment any
+     * grant row exists for that tenant, at which point the real
+     * allow-list takes over completely (including correctly DENYING
+     * anything not in that tenant's own granted set).
      */
     public function tenantCanUseModule(?Tenant $tenant, string $moduleKey): bool
     {
@@ -79,14 +100,22 @@ class EntitlementService
             return false;
         }
 
+        if (! $tenant->modules()->exists()) {
+            return true;
+        }
+
         return $tenant->modules()->where('key', $moduleKey)->exists();
     }
 
-    /** Same as tenantCanUseModule() but for a workspace key -- see Tenant::workspaces(). */
+    /** Same as tenantCanUseModule() but for a workspace key -- see Tenant::workspaces() and this method's own doc comment above for the "ungranted tenant" safety net. */
     public function tenantCanUseWorkspace(?Tenant $tenant, string $workspaceKey): bool
     {
         if (! $this->tenantIsUsable($tenant)) {
             return false;
+        }
+
+        if (! $tenant->workspaces()->exists()) {
+            return true;
         }
 
         return $tenant->workspaces()->where('key', $workspaceKey)->exists();

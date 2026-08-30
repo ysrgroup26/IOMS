@@ -3,6 +3,23 @@
 House style, and a deliberately honest list of mistakes that have actually happened in this
 codebase's history — kept here so they don't get repeated in a slightly different shape.
 
+## Convention (v2.13.0): flipping an enforcement flag on safely needs a "zero grants = allowed"
+## default PLUS a real top-up tool — not just careful reasoning about the one tenant you can see
+
+`config('saas.enforce_workspace_entitlement')` sat at `false` since v2.1.0 because the reasoning for
+enabling it ("`TenantGrantSeeder` grants the default tenant everything, so it's *very likely* safe")
+was never actually verified — this environment has no database access in any session so far, so
+"very likely" could never become "confirmed." SaaS Phase 1 (v2.13.0) resolved this without ever
+touching the DB, by making the flag's activation safe **by construction** instead of by inspection:
+`EntitlementService::tenantCanUseModule()`/`tenantCanUseWorkspace()` now treat a tenant with zero
+grant rows as fully allowed (not fully denied), and a new `php artisan tenants:sync-grants --dry-run`
+command gives a real, additive, auditable way to close the gap for a tenant that has *some* but
+possibly-stale grants. The lesson: when a security flag can't be verified safe against live data,
+look for a way to make it *structurally* safe instead of deferring the decision indefinitely —
+"we can't verify it so we'll leave it off" can sit unresolved for phases at a time (it did, for four
+version bumps), while a one-time design change can make the flag's own worst case bounded and
+recoverable (a trivial `.env` revert) rather than a silent full lockout.
+
 ## CRITICAL — Known Pitfall (v2.12.0): a `scopeVisibleTo()`/access-control method written BEFORE
 ## multi-tenancy existed can silently become a cross-tenant leak once multi-tenancy is added, if
 ## nobody goes back and updates it

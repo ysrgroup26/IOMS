@@ -201,14 +201,26 @@ As of v2.1.0:
   so a new tenant's Module/Workspace grants actually reflect the Package it was created with. A
   Platform Admin can still hand-adjust individual grants afterward via the existing Tenant Grants
   page — this only sets sensible defaults at creation time.
-- The actual per-request enforcement of #2 is now wired into `EnforceTenantEntitlement`, but behind
-  its own separate flag, `config('saas.enforce_workspace_entitlement')` — **default `false`**, unlike
-  `enforce_entitlement` above. It defaults off because this system has one long-lived production
-  tenant whose existing Module/Workspace grant rows have not been runtime-verified to cover
-  everything it currently uses (`TenantGrantSeeder` grants the default tenant everything
-  unconditionally, which makes enabling this very likely safe, but "very likely" is not the same as
-  verified). Enable via `SAAS_ENFORCE_WORKSPACE_ENTITLEMENT=true` only after a Platform Admin
-  confirms via Tenant Grants that every tenant's grants cover its actual usage.
+- The actual per-request enforcement of #2 is wired into `EnforceTenantEntitlement`, behind its own
+  separate flag, `config('saas.enforce_workspace_entitlement')` — **default `true` as of v2.13.0**
+  (SaaS Phase 1). It was safe to flip from the previous `false` default because two safety nets now
+  exist together:
+  1. `EntitlementService::tenantCanUseModule()` / `tenantCanUseWorkspace()` treat a tenant with
+     **zero** grant rows in `tenant_modules`/`tenant_workspaces` as fully allowed (the allow-list
+     check is skipped entirely) rather than fully denied. A tenant with at least one grant row is
+     unaffected and goes through the real allow-list. This makes "a tenant that predates this
+     feature and was never explicitly provisioned" structurally impossible to lock out, closing the
+     exact "do not simply deny everyone" failure mode a naive enable would have hit.
+  2. `php artisan tenants:sync-grants {tenant?} {--dry-run}` (`app/Console/Commands/
+     SyncTenantGrants.php`) additively tops up a *partially*-granted tenant (e.g. one seeded before a
+     newer Workspace/Module existed) up to its Package's own `defaultWorkspaceKeys()`/
+     `defaultModuleKeys()` baseline. `syncWithoutDetaching()` only — it can never remove a grant, so
+     it can never be used to downgrade a tenant. Run with `--dry-run` first after any deploy that
+     changes this flag, to see what (if anything) would change, before relying on it.
+  Denial responses for both the subscription-usability block and the workspace-grant block now
+  render in Bahasa Indonesia (e.g. `"Fitur ini belum tersedia untuk paket perusahaan Anda."`) via
+  `Errors/Show.jsx`, matching this codebase's page-content language convention. Still overridable
+  per-install via `SAAS_ENFORCE_WORKSPACE_ENTITLEMENT=false` in `.env`.
 
 **Entitlement Dependency Rule**: a module must never gate on another *paid* module purely because it
 shares core data with it. `Employee` is core data shared by both HSE and HRD; PPE (HSE) correctly

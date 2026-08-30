@@ -17,7 +17,7 @@ return [
     |
     */
 
-    'version' => '2.12.0',
+    'version' => '2.13.0',
 
     // Tester / Beta / Stable -- tracks the release stage explicitly.
     // Previously only implied in conversation, never actually stored.
@@ -25,9 +25,9 @@ return [
 
     'edition' => 'Enterprise Edition',
 
-    'build' => '2026.09.07.1',
+    'build' => '2026.08.30.1',
 
-    'release_date' => '2026-09-07',
+    'release_date' => '2026-08-30',
 
     'developer' => 'Yofhanza Shultona Rizqi S.',
 
@@ -44,10 +44,11 @@ return [
     'documentation_url' => 'docs.iomsplatform.com',
 
     'whats_new' => [
+        'Package/Workspace entitlement is now actually enforced server-side by default (previously built but never enabled) -- a company\'s subscription plan now genuinely limits which departments it can reach, not just what the sidebar shows',
+        'A tenant that predates this feature (no grants on record) is never locked out by this change -- only tenants with real, current grants are restricted, and a new admin command safely tops up any tenant whose grants fell behind',
+        'Subscription and entitlement-denied messages now show in Bahasa Indonesia instead of English',
         'Security: fixed a real cross-tenant data leak in Material Request (view/edit/PDF/actions) and PPE Replacement Request (view/PDF) that could be reached by changing an ID in the URL',
         'Security: fixed a cross-tenant leak in the KPI Records page that showed every organization\'s records until a company filter was manually selected',
-        'PPE Replacement Request PDF now shows your own company name in the footer instead of always saying "YSR Systems"',
-        'Document Template and scheduled report deletion now ask for confirmation, like every other delete action in the system',
     ],
 
     /*
@@ -62,6 +63,7 @@ return [
     */
 
     'version_history' => [
+        ['version' => '2.13.0', 'date' => '2026-08-30', 'summary' => 'SaaS Phase 1 -- Subscription Architecture & Entitlement Enforcement: server-side per-workspace entitlement enforcement enabled by default (previously built, never wired on); a tenant with no grant rows is now safely treated as fully allowed instead of fully denied, so this cannot lock out a pre-existing tenant; new `tenants:sync-grants` command additively tops up a partially-granted tenant to its Package baseline; entitlement-denied messages now in Bahasa Indonesia. No new table, no payment/billing/pricing/checkout work (explicitly out of scope for this phase).'],
         ['version' => '2.12.0', 'date' => '2026-09-07', 'summary' => 'Product Finalization pass: fixed three real cross-tenant leaks found by a fresh security audit (Material Request full IDOR across 9 controller methods, PPE Replacement Request view/PDF IDOR, KpiRecordController default-state full leak), fixed a hardcoded-branding PDF footer, added two missing delete confirmations, improved the Employees empty state. No database change, no new route.'],
         ['version' => '2.11.0', 'date' => '2026-09-06', 'summary' => 'Field/Foreman Experience pass, Phase 3E-3H: Digital Checklist reworked into one-tap OK/Not OK/N/A cards (no more sideways scrolling), Safety Observation/JSA/HIRADC mobile grid fixes, Incident investigation Recommendations now visible read-only, a real "New LOTO" quick action added (previously had zero entry point). No database change, no new route.'],
         ['version' => '2.10.0', 'date' => '2026-09-05', 'summary' => 'PTW Document Polish pass (Phase 3D): fixed a real PDF/browser-document parity gap (rejection reason was missing from the PDF), HIRADC/JSA now show title/job_title not just the reference number, print output made dark-mode-safe with proper A4 page setup and break-inside protection. No database change, no new route.'],

@@ -184,6 +184,60 @@ class PermitToWorkController extends Controller
         ], "{$permitToWork->ptw_number}.pdf");
     }
 
+    /**
+     * v2.6.0 (PTW Document View pass). In-browser, document-oriented
+     * presentation of the permit -- the actual product gap this pass
+     * addresses: IOMS previously only ever showed PTW as application
+     * data/detail cards (`show()` above), never as something that reads
+     * like a real HSE form. This is a SEPARATE Inertia page, not a
+     * redesign of `show()` -- Show stays the operational/workflow-action
+     * page (Approve/Reject/Cancel etc.), Document is the read-oriented,
+     * shareable, print/PDF-ready presentation, matching the directive's
+     * own "Detail page keeps its workflow actions; add a `View Document`
+     * action into a separate view" structure.
+     *
+     * Reuses the EXACT same eager-loading and DocumentEngine
+     * template/branding resolution as `pdf()` above -- one data shape,
+     * two renderers (HTML page here, dompdf view there) -- so the
+     * browser document and the downloaded PDF can never drift out of
+     * sync on what data they show. No new PTW data structure, no new
+     * migration.
+     */
+    public function document(PermitToWork $permitToWork, DocumentEngine $documents): Response
+    {
+        $this->assertInCurrentTenant($permitToWork);
+
+        $permitToWork->load('company', 'project', 'riskAssessment', 'jsa', 'requester', 'areaAuthority', 'hseApprover', 'closer', 'gasTests.tester');
+
+        // Rejection reason isn't a column on PermitToWork itself -- it
+        // was passed through transitionTo()'s $meta['comments'] param
+        // (see transition() above) into ActivityLog.meta, the same trail
+        // the Show page's Activity timeline already reads. Pulled here
+        // only when relevant (status actually rejected) so the document
+        // can show WHY, matching the directive's explicit "For rejected
+        // PTW: show rejection reason if already supported" -- never
+        // fabricated if no reason was ever recorded (older permits
+        // rejected before v2.4.0 added this field will correctly show
+        // nothing here).
+        $rejectionReason = null;
+        if ($permitToWork->status === PermitToWork::STATUS_REJECTED) {
+            $rejectionReason = ActivityLog::where('subject_type', PermitToWork::class)
+                ->where('subject_id', $permitToWork->id)
+                ->where('action', PermitToWork::STATUS_REJECTED)
+                ->latest()
+                ->value('meta');
+            $rejectionReason = $rejectionReason['comments'] ?? null;
+        }
+
+        return Inertia::render('PermitsToWork/Document', [
+            'permit' => $permitToWork,
+            'company' => $permitToWork->company,
+            'documentTemplate' => $documents->resolveTemplate('permit_to_work', $permitToWork->company_id),
+            'branding' => $documents->branding(),
+            'rejectionReason' => $rejectionReason,
+        ]);
+    }
+
     private function assertInCurrentTenant(PermitToWork $permitToWork): void
     {
         abort_unless(Company::query()->pluck('id')->contains($permitToWork->company_id), 404);

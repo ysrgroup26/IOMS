@@ -10,7 +10,7 @@ import { Table, TableHeader, TableBody, TableRow, TableHead, TableCell } from '@
 import ActivityTimeline from '@/Components/shared/ActivityTimeline';
 import StatusBadge from '@/Components/shared/StatusBadge';
 import EmptyState from '@/Components/shared/EmptyState';
-import { ArrowLeft, Send, CheckCircle2, XCircle, PlayCircle, FlaskConical, Wind, Download, Printer } from 'lucide-react';
+import { ArrowLeft, Send, CheckCircle2, XCircle, PlayCircle, FlaskConical, Wind, Download, Printer, FileText } from 'lucide-react';
 
 export default function PermitToWorkShow({ permit: p, activities, canManage }) {
     const [gasTestOpen, setGasTestOpen] = useState(false);
@@ -57,12 +57,28 @@ export default function PermitToWorkShow({ permit: p, activities, canManage }) {
                     <p className="text-xs capitalize text-graphite-500">{p.permit_type.replace('_', ' ')} · {new Date(p.start_datetime).toLocaleString('en-US', { day: 'numeric', month: 'short', hour: 'numeric', minute: '2-digit' })} - {new Date(p.end_datetime).toLocaleString('en-US', { hour: 'numeric', minute: '2-digit' })}{p.location && ` · ${p.location}`}</p>
                 </div>
                 <div className="flex flex-wrap items-center gap-2">
+                    {/* v2.6.0 (PTW Document View pass): the new PRIMARY
+                        document action -- was previously just Download
+                        PDF/Print with no in-browser document presentation
+                        at all, so a permit only ever looked like an
+                        application record, never a real HSE document.
+                        Solid variant so it visually dominates the
+                        secondary actions next to it, matching the
+                        product's own "primary action should visually
+                        dominate" direction. Not gated by canManage --
+                        same reasoning as Download PDF/Print below: a
+                        Foreman must be able to open/share their own
+                        permit's document, not just HSE. */}
+                    <Button asChild><Link href={route('permits-to-work.document', p.id)}><FileText className="h-4 w-4" /> View PTW Document</Link></Button>
                     {/* v2.4.0 (PTW UX + Field Operations pass, Part 13):
                         Download PDF / Print -- always visible to anyone
                         who can view this permit (not gated by canManage,
                         matching the product requirement that a Foreman
                         must be able to download/print their own approved
-                        PTW to share on-site). */}
+                        PTW to share on-site). Kept here too (not only on
+                        the Document page) as quick secondary actions --
+                        same reasoning as "Download PDF should remain
+                        easily accessible" from the Phase 1 direction. */}
                     <Button variant="outline" asChild><a href={route('permits-to-work.pdf', p.id)} target="_blank" rel="noopener noreferrer"><Download className="h-4 w-4" /> Download PDF</a></Button>
                     {/* Opens the same inline PDF in a new tab -- the
                         browser's own PDF viewer provides Print from

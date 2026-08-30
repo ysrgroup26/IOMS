@@ -17,7 +17,7 @@ return [
     |
     */
 
-    'version' => '2.5.0',
+    'version' => '2.6.0',
 
     // Tester / Beta / Stable -- tracks the release stage explicitly.
     // Previously only implied in conversation, never actually stored.
@@ -25,9 +25,9 @@ return [
 
     'edition' => 'Enterprise Edition',
 
-    'build' => '2026.08.31.1',
+    'build' => '2026.09.01.1',
 
-    'release_date' => '2026-08-31',
+    'release_date' => '2026-09-01',
 
     'developer' => 'Yofhanza Shultona Rizqi S.',
 
@@ -44,12 +44,8 @@ return [
     'documentation_url' => 'docs.iomsplatform.com',
 
     'whats_new' => [
-        'CAPA: new Open/Overdue/In Progress/Closed summary with a clickable Overdue filter, so it reads as an action-management tool, not just a table',
-        'Global Search extended to HIRADC and JSA',
-        'PPE Master is now clearly marked as an admin/config area, distinct from day-to-day PPE operations',
-        'Mobile/responsive fixes across HSE Inspection, Incident, and PPE forms',
-        'Digital Checklist now shows a live item count and how many are flagged Not OK',
-        'Natural-language empty states (with a primary action where relevant) across Inspection, Incident, and CAPA',
+        'Permit To Work: new "View PTW Document" -- a professional, printable permit document (company header, work info, hazards/controls, gas test readings, authorization, signatures) viewable right in the browser, not just as a PDF download',
+        'PTW rejection reason now shows directly on the document when a permit was rejected',
     ],
 
     /*
@@ -64,6 +60,7 @@ return [
     */
 
     'version_history' => [
+        ['version' => '2.6.0', 'date' => '2026-09-01', 'summary' => 'PTW Document View pass: new in-browser, printable PTW document presentation (company header, work info, hazards/HIRADC/JSA, gas test, authorization, signatures), reached via a new primary "View PTW Document" action on the PTW detail page; Download PDF unchanged, reusing the existing PdfGeneratorService.'],
         ['version' => '2.5.0', 'date' => '2026-08-31', 'summary' => 'Field HSE Experience pass (Phase 2): CAPA Open/Overdue/In Progress/Closed summary + Overdue filter, Global Search gained HIRADC/JSA, PPE Master vs Operations made visually distinct, mobile-responsive fixes across HSE Inspection/Incident/PPE, natural-Indonesian empty states with primary actions.'],
         ['version' => '2.4.0', 'date' => '2026-08-30', 'summary' => 'PTW UX + Field Operations pass (Phase 1): PTW PDF document generation, Create form progressive disclosure, Submit now reaches Pending Approval in one step, Reject requires a reason, mobile/responsive fixes across the module.'],
         ['version' => '2.3.0', 'date' => '2026-08-29', 'summary' => 'HSE Operations pass: new Waste Container Inventory (physical drum/IBC/jumbo-bag stock, separate from waste material records), Man-Hour 500 fix re-verified, PPE Master Edit audited and confirmed correct, Quick Actions gained a Waste entry.'],

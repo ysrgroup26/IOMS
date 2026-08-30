@@ -469,6 +469,39 @@ sequencing:
 - Every grid in `Form.jsx` now has an explicit `sm:` responsive fallback (previously stayed 2 columns
   at any width — "desktop shrunk," not actually responsive).
 
+**v2.6.0 (PTW Document View pass)** — closed the real product gap the v2.4.0 pass left open: PTW was
+still only ever shown as application data/detail cards on `Show.jsx`; there was no in-browser
+presentation that read like an actual HSE permit document.
+- New route `permits-to-work.document` → `PermitToWorkController::document()` → new page
+  `PermitsToWork/Document.jsx`. A SEPARATE page from `Show.jsx`, not a redesign of it — Show keeps its
+  role as the workflow/action page (Approve/Reject/Cancel/Gas Test entry), Document is the
+  read-oriented, shareable, print/PDF-ready presentation. `document()` loads the exact same relations
+  and resolves the exact same `DocumentEngine` template/branding as `pdf()` — one data shape, two
+  renderers (this HTML page, and the existing `pdf/permit-to-work.blade.php`), so the browser document
+  and the downloaded PDF can never drift apart on what they show.
+- Sections: Company Header, Document Information (project/site/location/type/validity/applicant),
+  Work Information, Hazards/Risk Controls (precautions + linked HIRADC/JSA — reused relations, not
+  duplicated), Gas Test (same data `Show.jsx`'s own Gas Test card already reads), Authorization
+  (requester/HSE approver/area authority/closer, reflecting the actual workflow state — "Menunggu
+  Persetujuan" only while genuinely `submitted`, a rejection reason block only when genuinely
+  `rejected`), a 3-column signature block (blank unless a real person is actually associated with that
+  role — never a fabricated signature), and a document footer. Deliberately NO "Required PPE" section
+  — `PermitToWork` has no PPE field, and the explicit instruction was not to invent a database field
+  just for a visual section.
+- Rejection reason: not a column on `PermitToWork` — recorded via `transition()`'s existing `reason`
+  field (v2.4.0) into `ActivityLog.meta` (the same trail `Show.jsx`'s Activity timeline already reads).
+  `document()` pulls the latest `rejected`-action log's `meta.comments` for display; correctly shows
+  nothing for a PTW rejected before v2.4.0 added that field, rather than fabricating a reason.
+- Print uses the browser's own print dialog, isolated to just the document via a standard
+  `@media print { body * { visibility: hidden } #ptw-print-area { visibility: visible } }` rule
+  scoped to this page only — no second rendering pipeline, no new dependency. Download PDF is
+  unchanged, reusing the exact same route/service from v2.4.0.
+- `Show.jsx` gained a new primary "View PTW Document" action (solid button, visually dominant over the
+  existing secondary Download PDF/Print actions next to it) — not gated by `canManage`, same reasoning
+  as Download PDF/Print: a Foreman must be able to open/share their own permit's document.
+- Security: `document()` uses the identical `assertInCurrentTenant()` 404 guard as `show()`/`pdf()` —
+  no new authorization surface, no gate weakened.
+
 ## Gas Test
 
 **Department:** HSE (Milestone 4, Workstream B7; location/stage added v1.10.9).

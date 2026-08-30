@@ -260,6 +260,10 @@ Route::middleware(['auth', 'restrict.platform-admin'])->group(function () {
     // v2.4.0 (PTW UX + Field Operations pass, Part 13) -- PTW PDF
     // document, see PermitToWorkController::pdf()'s own doc comment.
     Route::get('/permits-to-work/{permitToWork}/pdf', [PermitToWorkController::class, 'pdf'])->name('permits-to-work.pdf');
+    // v2.6.0 (PTW Document View pass) -- in-browser document
+    // presentation, see PermitToWorkController::document()'s own doc
+    // comment for why this is separate from both `show` and `pdf`.
+    Route::get('/permits-to-work/{permitToWork}/document', [PermitToWorkController::class, 'document'])->name('permits-to-work.document');
     Route::post('/permits-to-work/{permitToWork}/transition', [PermitToWorkController::class, 'transition'])->name('permits-to-work.transition');
     Route::post('/permits-to-work/{permitToWork}/gas-tests', [GasTestRecordController::class, 'store'])->name('permits-to-work.gas-tests.store');
     Route::delete('/permits-to-work/{permitToWork}/gas-tests/{gasTest}', [GasTestRecordController::class, 'destroy'])->name('permits-to-work.gas-tests.destroy');

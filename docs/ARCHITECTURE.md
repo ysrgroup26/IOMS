@@ -420,7 +420,7 @@ genuine, global gaps were fixed, plus a couple of representative-page/one-off im
 - **`ui/badge.jsx`**: added a `warning` variant, consuming the `warning`/`warning-light` Tailwind
   tokens that already existed in `tailwind.config.js` but had no consumer anywhere. `StatusBadge`
   now maps `overdue` and priority `high` to it (previously indistinguishable from `destructive`
-  `critical`) — see `docs/MODULES.md` for the full status/priority mapping.
+  `critical`) — see `StatusBadge.jsx`'s own `STATUS_MAP` for the full status/priority mapping.
 - **`Incidents/Index.jsx`** converted to the same mobile card-list pattern already proven on
   `PermitsToWork/Index.jsx` (`md:hidden` card list + `hidden md:table` desktop table) as this phase's
   one representative Part 10/14D table conversion — the 7-column table previously had no mobile

@@ -17,7 +17,7 @@ return [
     |
     */
 
-    'version' => '2.10.0',
+    'version' => '2.11.0',
 
     // Tester / Beta / Stable -- tracks the release stage explicitly.
     // Previously only implied in conversation, never actually stored.
@@ -25,9 +25,9 @@ return [
 
     'edition' => 'Enterprise Edition',
 
-    'build' => '2026.09.05.1',
+    'build' => '2026.09.06.1',
 
-    'release_date' => '2026-09-05',
+    'release_date' => '2026-09-06',
 
     'developer' => 'Yofhanza Shultona Rizqi S.',
 
@@ -44,9 +44,11 @@ return [
     'documentation_url' => 'docs.iomsplatform.com',
 
     'whats_new' => [
-        'PTW PDF now includes the rejection reason, matching what the in-browser document already showed -- these two outputs no longer disagree',
-        'PTW document (browser and PDF) now shows the linked HIRADC/JSA title, not just the reference number',
-        'Printing a PTW document is now safe with dark mode on -- always prints in plain black and white with proper A4 margins',
+        'Digital Checklist: marking an item OK/Not OK/N/A is now one tap, and the checklist no longer requires scrolling sideways on a phone',
+        'Safety Observation form is now fully usable on a phone (no more squeezed side-by-side fields)',
+        'Incident: investigation Recommendations are now visible to everyone who can view the incident, not just the person editing it',
+        'JSA and HIRADC forms are now usable on a phone',
+        'New "LOTO" quick action -- previously had no entry point outside typing its URL directly',
     ],
 
     /*
@@ -61,6 +63,7 @@ return [
     */
 
     'version_history' => [
+        ['version' => '2.11.0', 'date' => '2026-09-06', 'summary' => 'Field/Foreman Experience pass, Phase 3E-3H: Digital Checklist reworked into one-tap OK/Not OK/N/A cards (no more sideways scrolling), Safety Observation/JSA/HIRADC mobile grid fixes, Incident investigation Recommendations now visible read-only, a real "New LOTO" quick action added (previously had zero entry point). No database change, no new route.'],
         ['version' => '2.10.0', 'date' => '2026-09-05', 'summary' => 'PTW Document Polish pass (Phase 3D): fixed a real PDF/browser-document parity gap (rejection reason was missing from the PDF), HIRADC/JSA now show title/job_title not just the reference number, print output made dark-mode-safe with proper A4 page setup and break-inside protection. No database change, no new route.'],
         ['version' => '2.9.0', 'date' => '2026-09-04', 'summary' => 'Field/Foreman Experience pass (Phase 3C -- My PTW): new requester-scoped, card-based My PTW view (permits-to-work.mine) with real status filter counts and inline Resubmit for rejected permits; Field Home\'s My PTW tile now links here with live pending/active counts. No new table, no new role, no database change.'],
         ['version' => '2.8.0', 'date' => '2026-09-03', 'summary' => 'PTW Mobile / Task-First pass (Phase 3B): mobile card list for PTW Index (status always visible, no horizontal scroll), a real "resubmit" action for rejected permits (the state machine already allowed it, the UI never exposed it), rejection reason surfaced on the Show page, remaining mobile grid fixes.'],

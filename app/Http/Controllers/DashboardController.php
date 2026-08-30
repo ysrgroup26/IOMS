@@ -335,6 +335,27 @@ class DashboardController extends Controller
         if ($user->canManageIncidents()) {
             $tiles[] = ['label' => 'Report Incident', 'description' => 'Laporkan insiden dengan cepat.', 'href' => route('incidents.create'), 'icon' => 'AlertTriangle'];
         }
+        // v2.11.0 (Field/Foreman Experience pass, Phase 3H.5): of the
+        // four "secondary where justified" candidates the directive
+        // named (JSA/HIRADC/Gas Test/LOTO), only LOTO is added here as
+        // its own tile. Reasoning, not an oversight: JSA/HIRADC are
+        // multi-field risk-assessment DOCUMENTS (5 header fields + N
+        // detailed rows each) typically prepared ahead of time by HSE,
+        // not a 30-second field action, and are already reachable in
+        // context from an approved PTW's own "HIRADC: ... / JSA: ..."
+        // links (Phase 3D); Gas Test already has two real entry points
+        // (PTW Show's own inline form, and GasTestRecords/Index.jsx's
+        // dialog) and needs no third. LOTO is different: it previously
+        // had ZERO entry point anywhere outside directly typing its URL
+        // -- not in quickActionsFor(), not here -- despite having a
+        // real, working, standalone Create page since an earlier pass.
+        // Adding 4 tiles here would also directly violate the explicit
+        // "do not create a giant wall of buttons, keep Field Home
+        // simple" instruction; one genuinely-missing entry point does
+        // not.
+        if ($user->canManageHse()) {
+            $tiles[] = ['label' => 'LOTO', 'description' => 'Catat isolasi Lock-Out Tag-Out.', 'href' => route('loto-records.create'), 'icon' => 'Lock'];
+        }
         $tiles[] = ['label' => 'My Tasks', 'description' => 'Persetujuan dan tugas yang menunggu Anda.', 'href' => route('work-center.index'), 'icon' => 'CheckSquare'];
 
         return Inertia::render('Field/Home', [

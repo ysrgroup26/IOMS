@@ -77,7 +77,7 @@ export default function RiskAssessmentForm({ riskAssessment, companies, projects
                             <Input value={data.title} onChange={(e) => setData('title', e.target.value)} placeholder="e.g. Working at Height -- Tank Fabrication" />
                             {errors.title && <p className="text-xs text-red-600">{errors.title}</p>}
                         </div>
-                        <div className="grid grid-cols-2 gap-3">
+                        <div className="grid grid-cols-1 gap-3 sm:grid-cols-2">
                             <div className="space-y-1.5">
                                 <Label>Assessment Date</Label>
                                 <Input type="date" value={data.assessment_date} onChange={(e) => setData('assessment_date', e.target.value)} />
@@ -87,7 +87,7 @@ export default function RiskAssessmentForm({ riskAssessment, companies, projects
                                 <Input value={data.location} onChange={(e) => setData('location', e.target.value)} />
                             </div>
                         </div>
-                        <div className="grid grid-cols-2 gap-3">
+                        <div className="grid grid-cols-1 gap-3 sm:grid-cols-2">
                             <div className="space-y-1.5">
                                 <Label>Company</Label>
                                 <Select value={data.company_id} onValueChange={(v) => setData('company_id', v)}>

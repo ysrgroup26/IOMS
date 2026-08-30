@@ -112,6 +112,12 @@ export default function IncidentShow({ incident: i, activities, canManage, users
                                     <div className="space-y-2 text-sm">
                                         <p><span className="text-xs uppercase text-graphite-400">Root Cause</span><br />{i.investigation?.root_cause || '-'}</p>
                                         <p><span className="text-xs uppercase text-graphite-400">Findings</span><br />{i.investigation?.findings || '-'}</p>
+                                        {/* v2.11.0 (Field/Foreman Experience pass, Phase 3G):
+                                            was missing from the read-only view even though
+                                            the editable form right above already collects it --
+                                            a field user without edit rights (canManage false)
+                                            could never see Recommendations at all. */}
+                                        <p><span className="text-xs uppercase text-graphite-400">Recommendations</span><br />{i.investigation?.recommendations || '-'}</p>
                                     </div>
                                 )}
                             </CardContent>

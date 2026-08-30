@@ -640,6 +640,70 @@ no second creation mechanism.
 removed_by/removed_at), matching how lockout/tagout is actually operated. Optionally linked to a
 Permit To Work. Numbered `LOTO-{year}-{00001}`.
 
+## Field / Foreman Experience — Phase 3E–3H completion (v2.11.0)
+
+Completes the Field/Foreman Experience effort started in Phase 3A (Field Home landing page) and
+carried through 3B–3D (PTW mobile/task-first UX, My PTW, PTW Document polish). Every module below was
+audited fresh from disk before any change — nothing here rebuilds an existing engine (Digital
+Checklist, CAPA linkage, Incident investigation separation, LOTO's own simple two-state lifecycle all
+predate this pass and are unchanged); only real, confirmed field-usability gaps were fixed.
+
+**Phase 3E — Digital Checklist** (`HseInspections/Form.jsx`): the checklist item entry, previously a
+wide `<Table>` (`overflow-x-auto`, `min-w-[220px]` cells) forcing horizontal scroll on any phone, with
+a 3-option dropdown per item to mark a result. Replaced with a stacked card per item — a checklist is
+inherently a linear list to work through, not tabular data needing column comparison, so this reads
+naturally on desktop too. Marking a result is now a one-tap 3-button toggle (OK / Not OK / N/A)
+instead of opening a dropdown. No change to what's collected/validated/stored — same
+`checklist_items` shape, same `HseInspectionController::store()`, same Load Template mechanism, same
+honest item-count/Not-OK indicator (from a prior pass), same `raiseFinding()` CAPA linkage on
+`Show.jsx`.
+
+**Phase 3F — Safety Observation** (`SafetyObservations/Form.jsx`, `Index.jsx`): two header grids
+(Date & Time/Location, Hazard Category/Severity) were bare `grid-cols-2` with no mobile fallback —
+now `grid-cols-1 sm:grid-cols-2`, matching every other field form in this codebase. `Index.jsx`'s
+empty state was English ("No safety observations recorded") with no action button, inconsistent with
+every other module's already-Indonesian, action-equipped empty state — brought in line
+("Belum ada observasi." + a "Report Observation" button). The quick-vs-investigation separation
+(`store()` for the fast initial report, `transition()`'s automatic CAPA creation on assignment) was
+already correct and untouched.
+
+**Phase 3G — Incident** (`Incidents/Show.jsx`): the read-only investigation view (shown to a user
+without `canManage`) displayed Root Cause and Findings but silently omitted Recommendations, even
+though the editable form directly above it already collects all three — a field user without edit
+rights could never see it. Fixed to show all three fields. `Form.jsx`'s mobile grids were already
+fixed in an earlier pass and were re-confirmed correct, not re-touched.
+
+**Phase 3H — JSA / HIRADC / Gas Test / LOTO field access**:
+- JSA (`JobSafetyAnalyses/Form.jsx`) and HIRADC (`RiskAssessments/Form.jsx`) header grids (2 each,
+  bare `grid-cols-2`) fixed to `grid-cols-1 sm:grid-cols-2`. Their per-step/per-item tables remain
+  wide enterprise tables, deliberately NOT converted to mobile cards this pass — JSA/HIRADC are
+  multi-field risk-assessment documents typically prepared by HSE ahead of time, not a field
+  quick-action, and a field user already reaches the relevant JSA/HIRADC in context from an approved
+  PTW's own "HIRADC: ... / JSA: ..." reference (Phase 3D) without needing to author one from a phone.
+- Gas Test: confirmed to already have two real entry points (PTW Show's own inline form, and
+  `GasTestRecords/Index.jsx`'s own dialog) — no third was added, no code changed.
+- **LOTO**: confirmed via a fresh audit to have zero entry point anywhere outside typing its URL
+  directly — not in `WorkCenterService::quickActionsFor()`, not on Field Home — despite having a real,
+  working, standalone Create page since an earlier pass. Added one `New LOTO` quick action (same
+  `canManageHse()` gate as its sibling HSE actions) and one secondary Field Home tile. JSA/HIRADC/Gas
+  Test deliberately did NOT get their own Field Home tiles for the reasons above — adding four more
+  tiles would violate the explicit "keep Field Home simple, no giant wall of buttons" direction; one
+  genuinely-missing entry point does not.
+
+**Field Home final tile set** (`DashboardController::fieldHome()`): Create PTW, My PTW, Digital
+Checklist, Safety Observation, Report Incident, LOTO (secondary, new this pass), My Tasks — each still
+gated by the exact same `canManage*()` capability its destination route independently enforces.
+
+**Role/RBAC**: unchanged from Phase 3A. There is still no dedicated Foreman/field role;
+`User::isDepartmentUser()` remains the same documented MVP proxy this whole Phase 3 effort is built on
+— re-confirmed, not silently carried forward, by this pass's own audit.
+
+**Explicitly deferred, not built this pass**: photo/evidence capture for Digital Checklist (the
+directive itself said not to add this infrastructure unless it already exists and is necessary — it
+doesn't exist for this module, only Safety Observation has it, and was left as-is), converting
+JSA/HIRADC's item tables to mobile cards, Product Finalization, SaaS/Subscription/Billing,
+Offline/PWA.
+
 ## TBM (Toolbox Meeting)
 
 **Department:** HSE (Milestone 4, Workstream B3).

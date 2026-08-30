@@ -10,7 +10,7 @@ import {
     PackagePlus, UserPlus, Plus,
     AlertTriangle, Eye, Flame, FileWarning, ShieldAlert, FlaskConical,
     Clock, CalendarDays, GraduationCap, FolderKanban, ClipboardList, Flag,
-    FileStack, ShoppingCart, PackageCheck, ArrowRightLeft, Recycle,
+    FileStack, ShoppingCart, PackageCheck, ArrowRightLeft, Recycle, Lock,
 } from 'lucide-react';
 import { cn } from '@/lib/utils';
 
@@ -18,11 +18,12 @@ import { cn } from '@/lib/utils';
 // key WorkCenterController::quickActionsFor() can now emit (HSE/HRD/
 // Project/Logistics/Warehouse actions, not only the original 4).
 // v2.3.0: added Recycle for the new "New Waste Record" quick action.
+// v2.11.0: added Lock for the new "New LOTO" quick action.
 const QUICK_ACTION_ICONS = {
     PackagePlus, UserPlus, HardHat, CheckSquare,
     AlertTriangle, Eye, ClipboardCheck, Flame, FileWarning, ShieldAlert, FlaskConical,
     Clock, CalendarDays, GraduationCap, FolderKanban, ClipboardList, Flag,
-    FileStack, ShoppingCart, PackageCheck, ArrowRightLeft, Recycle,
+    FileStack, ShoppingCart, PackageCheck, ArrowRightLeft, Recycle, Lock,
 };
 
 /**

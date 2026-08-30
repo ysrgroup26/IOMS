@@ -83,11 +83,11 @@ export default function JobSafetyAnalysisForm({ jsa, companies, projects, jsaNum
                             <Input value={data.job_title} onChange={(e) => setData('job_title', e.target.value)} placeholder="e.g. Confined Space Entry -- Tank Cleaning" />
                             {errors.job_title && <p className="text-xs text-red-600">{errors.job_title}</p>}
                         </div>
-                        <div className="grid grid-cols-2 gap-3">
+                        <div className="grid grid-cols-1 gap-3 sm:grid-cols-2">
                             <div className="space-y-1.5"><Label>Date</Label><Input type="date" value={data.jsa_date} onChange={(e) => setData('jsa_date', e.target.value)} /></div>
                             <div className="space-y-1.5"><Label>Location</Label><Input value={data.location} onChange={(e) => setData('location', e.target.value)} /></div>
                         </div>
-                        <div className="grid grid-cols-2 gap-3">
+                        <div className="grid grid-cols-1 gap-3 sm:grid-cols-2">
                             <div className="space-y-1.5">
                                 <Label>Company</Label>
                                 <Select value={data.company_id} onValueChange={(v) => setData('company_id', v)}>

@@ -61,7 +61,7 @@ export default function SafetyObservationForm({ companies, projects, hazardCateg
                             <Textarea value={data.immediate_action} onChange={(e) => setData('immediate_action', e.target.value)} rows={2} />
                         </div>
 
-                        <div className="grid grid-cols-2 gap-3">
+                        <div className="grid grid-cols-1 gap-3 sm:grid-cols-2">
                             <div className="space-y-1.5">
                                 <Label>Date &amp; Time</Label>
                                 <Input type="datetime-local" value={data.observed_at} onChange={(e) => setData('observed_at', e.target.value)} />
@@ -73,7 +73,7 @@ export default function SafetyObservationForm({ companies, projects, hazardCateg
                             </div>
                         </div>
 
-                        <div className="grid grid-cols-2 gap-3">
+                        <div className="grid grid-cols-1 gap-3 sm:grid-cols-2">
                             <div className="space-y-1.5">
                                 <Label>Hazard Category (optional)</Label>
                                 <Select value={data.hazard_category_id || 'none'} onValueChange={(v) => setData('hazard_category_id', v === 'none' ? '' : v)}>

@@ -6,8 +6,14 @@ import { Input } from '@/Components/ui/input';
 import { Label } from '@/Components/ui/label';
 import { Textarea } from '@/Components/ui/textarea';
 import { Select, SelectTrigger, SelectValue, SelectContent, SelectItem } from '@/Components/ui/select';
-import { Table, TableHeader, TableBody, TableRow, TableHead, TableCell } from '@/Components/ui/table';
 import { ArrowLeft, Plus, Trash2 } from 'lucide-react';
+import { cn } from '@/lib/utils';
+
+const RESULT_OPTIONS = [
+    { value: 'ok', label: 'OK', activeClass: 'border-emerald-500 bg-emerald-50 text-emerald-700 dark:border-emerald-500 dark:bg-emerald-950/40 dark:text-emerald-400' },
+    { value: 'not_ok', label: 'Not OK', activeClass: 'border-red-500 bg-red-50 text-red-700 dark:border-red-500 dark:bg-red-950/40 dark:text-red-400' },
+    { value: 'na', label: 'N/A', activeClass: 'border-graphite-400 bg-graphite-100 text-graphite-700 dark:border-slate-500 dark:bg-slate-800 dark:text-slate-200' },
+];
 
 const BLANK_ITEM = { item: '', result: 'ok', remarks: '' };
 
@@ -131,25 +137,68 @@ export default function HseInspectionForm({ companies, projects, inspectionNumbe
                             <Button type="button" variant="outline" size="sm" onClick={() => setData('checklist_items', [...data.checklist_items, { ...BLANK_ITEM }])}><Plus className="h-4 w-4" /> Add Item</Button>
                         </div>
                     </CardHeader>
-                    <CardContent className="overflow-x-auto">
-                        <Table>
-                            <TableHeader><TableRow><TableHead className="min-w-[220px]">Item</TableHead><TableHead className="w-32">Result</TableHead><TableHead className="min-w-[220px]">Remarks</TableHead><TableHead /></TableRow></TableHeader>
-                            <TableBody>
-                                {data.checklist_items.map((item, i) => (
-                                    <TableRow key={i}>
-                                        <TableCell><Input value={item.item} onChange={(e) => updateItem(i, 'item', e.target.value)} /></TableCell>
-                                        <TableCell>
-                                            <Select value={item.result} onValueChange={(v) => updateItem(i, 'result', v)}>
-                                                <SelectTrigger><SelectValue /></SelectTrigger>
-                                                <SelectContent><SelectItem value="ok">OK</SelectItem><SelectItem value="not_ok">Not OK</SelectItem><SelectItem value="na">N/A</SelectItem></SelectContent>
-                                            </Select>
-                                        </TableCell>
-                                        <TableCell><Input value={item.remarks} onChange={(e) => updateItem(i, 'remarks', e.target.value)} /></TableCell>
-                                        <TableCell><Button type="button" variant="ghost" size="icon" onClick={() => setData('checklist_items', data.checklist_items.filter((_, idx) => idx !== i))}><Trash2 className="h-4 w-4 text-red-500" /></Button></TableCell>
-                                    </TableRow>
-                                ))}
-                            </TableBody>
-                        </Table>
+                    {/* v2.11.0 (Field/Foreman Experience pass, Phase 3E --
+                        Digital Checklist). PREVIOUSLY a wide `<Table>`
+                        (Item/Result/Remarks/delete, `min-w-[220px]` cells,
+                        `overflow-x-auto`) -- forced horizontal scroll on
+                        any phone, and marking a result meant opening a
+                        3-option dropdown per item. Confirmed via this
+                        pass's own fresh audit as the clearest remaining
+                        field-usability gap in this module (the checklist
+                        engine itself, templates, and the item-count/
+                        Not-OK indicator above were all already correct
+                        and are untouched).
+                        Replaced with a stacked card per item -- a
+                        checklist is inherently a linear list to work
+                        through, not tabular data needing column
+                        comparison, so this reads naturally on desktop
+                        too, not just mobile. Result is now a one-tap
+                        3-button toggle (OK / Not OK / N/A) instead of a
+                        dropdown -- matches the explicit "clear OK / Not
+                        OK state" + "large touch targets" requirement. No
+                        change to what's collected/validated/stored --
+                        same `checklist_items` shape
+                        (`{item, result, remarks}`), same
+                        `HseInspectionController::store()`. */}
+                    <CardContent className="space-y-3">
+                        {data.checklist_items.map((item, i) => (
+                            <div key={i} className="rounded-lg border border-graphite-200 p-3 dark:border-slate-700">
+                                <div className="flex items-start gap-2">
+                                    <Input
+                                        value={item.item}
+                                        onChange={(e) => updateItem(i, 'item', e.target.value)}
+                                        placeholder="Item yang diperiksa"
+                                        className="flex-1"
+                                    />
+                                    <Button type="button" variant="ghost" size="icon" onClick={() => setData('checklist_items', data.checklist_items.filter((_, idx) => idx !== i))}>
+                                        <Trash2 className="h-4 w-4 text-red-500" />
+                                    </Button>
+                                </div>
+                                <div className="mt-2 grid grid-cols-3 gap-2">
+                                    {RESULT_OPTIONS.map((opt) => (
+                                        <button
+                                            key={opt.value}
+                                            type="button"
+                                            onClick={() => updateItem(i, 'result', opt.value)}
+                                            className={cn(
+                                                'rounded-md border py-2 text-sm font-medium transition-colors',
+                                                item.result === opt.value
+                                                    ? opt.activeClass
+                                                    : 'border-graphite-200 text-graphite-500 hover:bg-graphite-50 dark:border-slate-700 dark:text-slate-400 dark:hover:bg-slate-800'
+                                            )}
+                                        >
+                                            {opt.label}
+                                        </button>
+                                    ))}
+                                </div>
+                                <Input
+                                    value={item.remarks}
+                                    onChange={(e) => updateItem(i, 'remarks', e.target.value)}
+                                    placeholder="Catatan (opsional)"
+                                    className="mt-2"
+                                />
+                            </div>
+                        ))}
                     </CardContent>
                 </Card>
 

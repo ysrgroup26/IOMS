@@ -69,7 +69,14 @@ export default function SafetyObservationsIndex({ observations, filters, can }) 
             <Card>
                 <CardContent className="p-0">
                     {observations.data.length === 0 ? (
-                        <EmptyState icon={Eye} title="No safety observations recorded" description="Report an observation to start tracking it." />
+                        <EmptyState
+                            icon={Eye}
+                            title="Belum ada observasi."
+                            description="Laporkan temuan atau kondisi tidak aman untuk mulai mencatatnya."
+                            action={can.manage && (
+                                <Button asChild size="sm"><Link href={route('safety-observations.create')}><Plus className="h-4 w-4" /> Report Observation</Link></Button>
+                            )}
+                        />
                     ) : (
                         <Table>
                             <TableHeader>

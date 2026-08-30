@@ -256,6 +256,14 @@ class WorkCenterService
             $actions[] = ['label' => 'New JSA', 'url' => route('job-safety-analyses.create'), 'icon' => 'FileWarning', 'department' => 'hse'];
             $actions[] = ['label' => 'New HIRADC', 'url' => route('risk-assessments.create'), 'icon' => 'ShieldAlert', 'department' => 'hse'];
             $actions[] = ['label' => 'Gas Test', 'url' => route('gas-test-records.index'), 'icon' => 'FlaskConical', 'department' => 'hse'];
+            // v2.11.0 (Field/Foreman Experience pass, Phase 3H): LOTO had
+            // NO entry anywhere in this method -- confirmed via this
+            // pass's own audit (LotoRecordController/LotoRecords already
+            // has a real, working, standalone Create page since an
+            // earlier pass; it simply never got a quick-action wired in
+            // like every other HSE module here already has). Same gate
+            // as its sibling HSE actions above.
+            $actions[] = ['label' => 'New LOTO', 'url' => route('loto-records.create'), 'icon' => 'Lock', 'department' => 'hse'];
             // v2.3.0 (HSE Operations + IOMS OS Ecosystem pass, Part 17):
             // "+ Waste" -- points at New Waste Record (the actual waste
             // material entry point), not Container Inventory, which is a

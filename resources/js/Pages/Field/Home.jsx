@@ -2,11 +2,12 @@ import { Head, Link, usePage } from '@inertiajs/react';
 import AuthenticatedLayout from '@/Layouts/AuthenticatedLayout';
 import { Card, CardContent } from '@/Components/ui/card';
 import {
-    Flame, ClipboardList, ClipboardCheck, Eye, AlertTriangle, CheckSquare, ArrowRight,
+    Flame, ClipboardList, ClipboardCheck, Eye, AlertTriangle, CheckSquare, ArrowRight, Lock,
 } from 'lucide-react';
 import { useClock, greetingFor } from '@/lib/useClock';
 
-const ICONS = { Flame, ClipboardList, ClipboardCheck, Eye, AlertTriangle, CheckSquare };
+// v2.11.0 (Field/Foreman Experience pass, Phase 3H): added Lock for the new LOTO tile.
+const ICONS = { Flame, ClipboardList, ClipboardCheck, Eye, AlertTriangle, CheckSquare, Lock };
 
 /**
  * v2.7.0 (Field/Foreman Experience pass, Phase 3A). A task-first landing

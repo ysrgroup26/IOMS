@@ -17,7 +17,7 @@ return [
     |
     */
 
-    'version' => '2.17.1',
+    'version' => '2.18.0',
 
     // Tester / Beta / Stable -- tracks the release stage explicitly.
     // Previously only implied in conversation, never actually stored.
@@ -25,7 +25,7 @@ return [
 
     'edition' => 'Enterprise Edition',
 
-    'build' => '2026.08.31.3',
+    'build' => '2026.08.31.4',
 
     'release_date' => '2026-08-31',
 
@@ -44,8 +44,8 @@ return [
     'documentation_url' => 'docs.iomsplatform.com',
 
     'whats_new' => [
-        'Fixed a quota inconsistency: Starter package now allows up to 15 user accounts (was 10), matching its 15-PTW-user allowance -- a plan can no longer promise more PTW-enabled users than it allows user accounts',
-        'PTW list (HSE workspace) now shows Project, PIC, and Workforce headcount for each permit, on both desktop and mobile',
+        'New public IOMS website at the root URL -- visitors now see a real product overview (platform capabilities, PTW-to-HSE workflow, pricing) instead of being redirected straight to the login page',
+        'Pricing on the public site reads live from your package catalog -- no invented prices',
     ],
 
     /*
@@ -60,6 +60,7 @@ return [
     */
 
     'version_history' => [
+        ['version' => '2.18.0', 'date' => '2026-08-31', 'summary' => 'Public Website / Landing Page Foundation: `/` is now a genuinely public route (previously redirected straight to /login for anyone not signed in) showing a real product website -- hero, platform capabilities, PTW-to-HSE workflow story, Field/HSE/People/Data sections, industries, FAQ, and a Pricing section driven live from Package data (never a hardcoded price). New PublicLayout (separate from AuthenticatedLayout, no sidebar). No customer names/logos/counts/testimonials invented anywhere. Authenticated users hitting `/` are still redirected into the app exactly as before. No RBAC, tenant isolation, PTW workflow, or database changes.'],
         ['version' => '2.17.1', 'date' => '2026-08-31', 'summary' => 'PTW Field Workflow Verification & Correction pass: fixed the max_users(10)/max_ptw_users(15) contradiction on Starter by raising max_users to 15, and PlatformController::validatePlan() now server-enforces max_ptw_users <= max_users for any future Plan edit; PTW Index (HSE workspace) now shows Project/PIC/Workforce headcount on desktop and mobile, via N+1-free eager loading. Re-audited Requester/PIC/Workforce/security -- all confirmed correct, no changes needed there. No HSE Dashboard, Field Home scope, PTW state machine, pricing, billing, or checkout changes.'],
         ['version' => '2.17.0', 'date' => '2026-08-31', 'summary' => 'PTW Field Workflow Foundation + Controlled PTW Access: new per-user "PTW Access" grant (users.ptw_access) lets specific non-HSE Field/Operations users create PTWs, capped by a new package-level PTW user quota (packages.max_ptw_users, server-enforced with race-safe locking); Field Home\'s Create PTW tile now reflects this instead of HSE-role-only; PTW gained optional PIC/Supervisor and Workforce (real Employee references, tenant-scoped) shown consistently on Show/Document/PDF. Requester was already correctly server-derived -- confirmed, not changed. No HSE Dashboard, PTW state machine, RBAC, tenant isolation, or subscription state machine changes.'],
         ['version' => '2.16.0', 'date' => '2026-08-31', 'summary' => 'Global Mobile UX Hardening pass: fixed ModuleTabNav (PPE\'s tab bar) causing page-level horizontal scroll on mobile -- the root cause of a reported PPE screenshot regression -- by containing the scroll to the tab row itself; fixed two PPE list rows (Employees, Replacement Due) whose fixed-width columns exceeded narrow viewports; sidebar drawer now closes explicitly on mobile nav-item tap. Audited broadly (tabs, tables, dialogs, grids, fixed widths) -- most tables were already safely self-scrolling via the shared Table component\'s own wrapper, so no table changes were needed. No business logic, HSE Dashboard, Field Home, PTW workflow, RBAC, tenant isolation, subscription, or database changes.'],

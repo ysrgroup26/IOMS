@@ -468,3 +468,32 @@ Home (already appropriately minimal per its own prior-phase doc comment), and th
 form pages using an un-prefixed `grid-cols-2` for a plain two-field row — reviewed and left as-is,
 since two short field pairs stacking correctly at their card's own width is not the same failure mode
 as a dense multi-column dashboard grid.
+
+## Public Website vs. Authenticated Application (v2.18.0)
+
+`/` is now a genuinely public route — no `auth` or `guest` middleware, reachable by anyone. Previously
+`/` was `Route::redirect('/', '/dashboard')` *inside* the `auth`-required route group, so an anonymous
+visitor was bounced straight to `/login` by Laravel's own unauthenticated-request handling before
+seeing anything — the opposite of what a public-facing product website needs.
+
+- **`PublicController::home()`** branches on auth state itself, rather than being wrapped in `guest`
+  middleware: an authenticated user (tenant OR Platform Admin) is redirected into the app exactly as
+  `/` used to behave (`dashboard` or `platform.dashboard`); a guest sees `Public/Welcome.jsx`, the
+  marketing page. This is the ONLY route in the app that behaves differently for guest vs.
+  authenticated visitors at the same URL — every other route is either fully public (`/privacy`,
+  `/terms`) or fully gated (everything under the `auth` group).
+- **`resources/js/Layouts/PublicLayout.jsx`** — a separate layout from `AuthenticatedLayout`, with no
+  sidebar/Work Center/Department Selector (none of those concepts apply to an anonymous visitor). Reuses
+  `BrandWordmark` and the same `company`/`version` shared Inertia props `Auth/Login.jsx` already used
+  for an unauthenticated page — no second branding source.
+- **Data exposed to the public route is deliberately minimal and already-public-safe**: `PublicController
+  ::home()`'s only query is `PricingService::publicPlans()` — the exact same read-only source the
+  authenticated `subscription.plans` page already uses (see the SaaS Productization section above).
+  Nothing tenant-specific, no employee/user data, no subscription/invoice data is ever passed to a
+  public page.
+- **Content honesty convention** (established this pass, apply to any future public-facing content):
+  no invented customer names/logos/counts/testimonials/certifications, and no capability claimed that
+  the codebase doesn't already ship — `Public/Welcome.jsx`'s own module lists were cross-checked
+  against `resources/js/lib/workspaces.js`/`docs/MODULES.md` before being written, not invented from
+  the marketing brief alone. Pricing is entirely data-driven (`PricingService`), never a hardcoded
+  Rupiah amount — if no plan is public yet, the page shows an honest "being finalized" state instead.

@@ -61,6 +61,7 @@ use App\Http\Controllers\SafetyEquipmentController;
 use App\Http\Controllers\NotificationController;
 use App\Http\Controllers\PlatformController;
 use App\Http\Controllers\PpeController;
+use App\Http\Controllers\PublicController;
 use App\Http\Controllers\PpeTypeController;
 use App\Http\Controllers\ProjectActivityController;
 use App\Http\Controllers\ProjectController;
@@ -87,6 +88,27 @@ use App\Http\Controllers\WasteRecordController;
 use App\Http\Controllers\WorkOrderController;
 use App\Http\Controllers\WorkCenterController;
 use Illuminate\Support\Facades\Route;
+
+/*
+|--------------------------------------------------------------------------
+| Public website (v2.18.0, Public Website / Landing Page Foundation)
+|--------------------------------------------------------------------------
+| The root URL, reachable by anyone -- no `auth` or `guest` middleware.
+| Previously `/` sat INSIDE the `auth` group as a bare
+| `Route::redirect('/', '/dashboard')` (see the comment that used to live
+| there, moved below), which meant an anonymous visitor was redirected
+| straight to `/login` by Laravel's own unauthenticated-request handling
+| before ever seeing anything -- exactly the behavior this phase's own
+| directive says must stop. `PublicController::home()` now branches
+| itself: an authenticated user (tenant OR Platform Admin) is redirected
+| into the app exactly as before; a guest sees the public marketing page.
+| The `home` route NAME is preserved (nothing else in this codebase calls
+| it, confirmed by a whole-codebase grep, but kept for the same
+| backward-compatibility reason the old redirect route comment gave).
+*/
+Route::get('/', [PublicController::class, 'home'])->name('home');
+Route::get('/privacy', [PublicController::class, 'privacy'])->name('legal.privacy');
+Route::get('/terms', [PublicController::class, 'terms'])->name('legal.terms');
 
 /*
 |--------------------------------------------------------------------------
@@ -117,12 +139,12 @@ Route::post('/logout', [AuthenticatedSessionController::class, 'destroy'])
 // own doc comment for the bug this closes.
 Route::middleware(['auth', 'restrict.platform-admin'])->group(function () {
 
-    // Dashboard is the landing page (v1.9.0) -- Home was retired, its
-    // unique real feeds folded into Dashboard/Index.jsx. `home` is kept
-    // as a route NAME (redirecting to `dashboard`) purely so nothing that
-    // still calls route('home') -- old bookmarks, external links to `/`
-    // -- breaks; there is no HomeController/Home page anymore.
-    Route::redirect('/', '/dashboard')->name('home');
+    // v2.18.0: the bare `Route::redirect('/', '/dashboard')->name('home')`
+    // that used to live here moved to `PublicController::home()` above --
+    // `/` is no longer inside this auth-required group at all, since an
+    // anonymous visitor must now see the public website, not get bounced
+    // to /login. Dashboard remains the landing page for an authenticated
+    // tenant user once they DO sign in (unchanged).
     Route::get('/dashboard', [DashboardController::class, 'index'])->name('dashboard');
 
     // Work Center (v1.8.0): the global cross-department "what needs my

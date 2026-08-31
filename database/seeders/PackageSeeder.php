@@ -53,6 +53,24 @@ class PackageSeeder extends Seeder
      * data, with no code change required. Enterprise = null
      * (unlimited/custom), matching its existing `max_users`/
      * `max_companies` null convention on this same row.
+     *
+     * v2.17.1 (PTW Field Workflow Verification & Correction pass): fixed
+     * the resulting contradiction this same v2.17.0 pass had honestly
+     * flagged rather than silently ignored -- Starter's seeded
+     * `max_ptw_users` (15) exceeded its own `max_users` (10), meaning a
+     * real Starter tenant could never actually reach the PTW quota it was
+     * told it had. `max_ptw_users` represents "of this package's User
+     * Account allowance, how many may ALSO be PTW-enabled" -- a subset,
+     * never a separate/larger pool -- so `max_ptw_users <= max_users`
+     * must always hold. Fixed per the correction directive's own stated
+     * preference ("If Starter remains 15 PTW users, max_users must
+     * support at least 15 User Accounts") by raising Starter's
+     * `max_users` 10 -> 15, rather than lowering `max_ptw_users` below
+     * the phase's own explicit stated baseline. Professional (50/50) and
+     * Enterprise (null/null) were already internally consistent and are
+     * unchanged. `PlatformController::validatePlan()` now also enforces
+     * this relationship server-side for any future Plan edit -- see that
+     * method's own doc comment.
      */
     public function run(): void
     {
@@ -65,18 +83,12 @@ class PackageSeeder extends Seeder
                 'price_yearly' => 0,
                 'currency' => 'IDR',
                 'trial_days' => null,
-                // NOTE: max_ptw_users (15) exceeds max_users (10) on this
-                // seeded row -- 15 is this phase's own explicit stated
-                // baseline ("Starter package: 15 PTW-enabled users per
-                // tenant"), taken literally rather than silently
-                // reconciled against the pre-existing max_users value,
-                // which this phase was not asked to change. Flagging
-                // this honestly rather than guessing which number should
-                // move -- a real tenant can never actually hit 15
-                // PTW-enabled users while capped at 10 total users, so
-                // one of these two numbers likely needs a follow-up
-                // decision.
-                'max_users' => 10,
+                // v2.17.1 fix: max_users raised 10 -> 15 so max_ptw_users
+                // (this phase's own explicit "Starter = 15" baseline) is
+                // never larger than the pool of User Accounts it's a
+                // subset of. See this seeder's own class-level doc
+                // comment for the full correction reasoning.
+                'max_users' => 15,
                 'max_companies' => 1,
                 'max_ptw_users' => 15,
                 'features' => ['employees', 'ppe', 'kpi_input', 'reports'],

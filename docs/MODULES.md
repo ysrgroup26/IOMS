@@ -629,13 +629,17 @@ as the existing `max_users`/`max_companies` columns on that table). `Entitlement
 ptwUserQuota()`/`ptwUsersUsedCount()`/`canEnablePtwAccess()` are the enforcement surface;
 `SettingsController::updatePtwAccess()` is the only place `ptw_access` can flip false→true, inside a
 DB transaction with `lockForUpdate()` on the tenant's currently-enabled users, so two concurrent
-"enable" requests can't jointly exceed the quota. Baseline seeded: Starter = 15 (this phase's own
-explicit stated number), Professional = 50 (a proportionate, NOT final, working default — see
-`PackageSeeder`'s own comment), Enterprise = null. **Known tension, flagged not silently fixed**:
-Starter's seeded `max_ptw_users` (15) exceeds its seeded `max_users` (10) — a real tenant on Starter
-can never actually reach 15 PTW-enabled users while capped at 10 total users. Left as-is since this
-phase wasn't asked to change `max_users`, and guessing which number should move wasn't this phase's
-call to make.
+"enable" requests can't jointly exceed the quota. Baseline seeded: Starter = 15 users / 15 PTW users,
+Professional = 50 / 50 (a proportionate, NOT final, working default — see `PackageSeeder`'s own
+comment), Enterprise = null / null.
+
+**`max_users` vs `max_ptw_users` (fixed in v2.17.1)** — `max_ptw_users` is a SUBSET ceiling on
+`max_users`, never a separate or larger pool ("of this package's User Account allowance, how many may
+ALSO be PTW-enabled"). v2.17.0 originally shipped Starter with `max_ptw_users=15` against
+`max_users=10` — flagged honestly in that pass rather than silently shipped as correct. v2.17.1 fixed
+it by raising Starter's `max_users` to 15 (matching the explicit "Starter = 15 PTW users" baseline,
+per the correction directive's own stated preference), and `PlatformController::validatePlan()` now
+server-enforces `max_ptw_users <= max_users` (whenever both are set) for any future Plan edit.
 
 **PIC / Supervisor vs Requester vs Workforce** — three distinct people/concepts on one `PermitToWork`
 row, never conflated:
@@ -669,6 +673,13 @@ rule; no HSE Dashboard content was added.
 both `PermitsToWork/Document.jsx` and `pdf/permit-to-work.blade.php` identically — same data, same
 wording, an unset PIC or empty Workforce list renders an honest "-"/"Belum ada personel", never
 fabricated.
+
+**PTW Index visibility (v2.17.1)**: `PermitToWorkController::index()` now eager-loads
+`pic:id,full_name` and `withCount('personnel')` alongside the existing `project`/`requester` eager
+loads — still exactly one query per page of results, no N+1. `PermitsToWork/Index.jsx`'s desktop
+table gained Project/PIC/Workforce columns (the shared `Table` component already self-contains
+horizontal scroll via its own wrapper, so a wider table scrolls within itself, not the page); the
+mobile card list gained an optional PIC/Workforce line, shown only when actually set.
 
 ## Gas Test
 

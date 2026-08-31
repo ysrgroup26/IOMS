@@ -337,6 +337,19 @@ class PlatformController extends Controller
      * `PricingService` already knows to show "Hubungi Kami" instead of a
      * number for it rather than treating a null as zero.
      */
+    /**
+     * v2.17.1 (PTW Field Workflow Verification & Correction pass):
+     * `max_ptw_users` now server-enforces `<= max_users` whenever BOTH
+     * are set -- `max_ptw_users` represents "of this package's own User
+     * Account allowance, how many may ALSO be PTW-enabled," a subset,
+     * never a separate/larger pool. A `null` on either side means
+     * "unlimited" and is never compared against (e.g. Enterprise's
+     * null/null, or a package with unlimited users but a genuinely
+     * capped PTW count). Closes the exact contradiction v2.17.0 shipped
+     * with and honestly flagged (Starter: max_ptw_users=15 >
+     * max_users=10) -- this validation is what prevents a Platform Admin
+     * from ever re-introducing it through the Plans admin UI.
+     */
     private function validatePlan(Request $request, ?Package $plan = null): array
     {
         return $request->validate([
@@ -354,7 +367,15 @@ class PlatformController extends Controller
             // -- see the owning migration's own doc comment. `null` =
             // unlimited/custom, same convention as max_users/
             // max_companies above.
-            'max_ptw_users' => ['nullable', 'integer', 'min:0'],
+            'max_ptw_users' => [
+                'nullable', 'integer', 'min:0',
+                function (string $attribute, mixed $value, \Closure $fail) use ($request) {
+                    $maxUsers = $request->input('max_users');
+                    if ($value !== null && $maxUsers !== null && (int) $value > (int) $maxUsers) {
+                        $fail('Max PTW Users cannot exceed Max Users -- PTW Access is a subset of a package\'s User Account allowance, never a separate pool.');
+                    }
+                },
+            ],
             'is_active' => ['boolean'],
             'is_public' => ['boolean'],
             'is_custom' => ['boolean'],

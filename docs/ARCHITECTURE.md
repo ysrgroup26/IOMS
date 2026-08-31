@@ -288,6 +288,17 @@ tenant reach this department at all"; this answers "how many of this tenant's OW
 individually authorized to create a PTW") — the two questions don't collapse into each other, so no
 existing method's contract changed.
 
+- **`packages.max_users` vs `packages.max_ptw_users` — semantics, stated explicitly (v2.17.1
+  correction)**: `max_users` is the ceiling on this package's total User Account count (the existing,
+  unchanged meaning). `max_ptw_users` is the ceiling on how many of THOSE User Accounts may ALSO be
+  PTW-enabled — a subset of `max_users`, never a separate or larger pool. **`max_ptw_users` must never
+  exceed `max_users` whenever both are set** (`null` on either side means unlimited and is never
+  compared). v2.17.0 originally shipped Starter with `max_ptw_users=15` against `max_users=10` — a
+  real contradiction, honestly flagged in that pass's own commit rather than silently shipped as
+  correct. Fixed in v2.17.1 by raising Starter's `max_users` to 15 (per the correction directive's own
+  preference: "if Starter remains 15 PTW users, max_users must support at least 15 User Accounts"),
+  and `PlatformController::validatePlan()` now server-enforces this relationship for any future Plan
+  edit, so the contradiction can't be reintroduced from the Plans admin UI.
 - `packages.max_ptw_users` (nullable int, `null` = unlimited/custom) — same shape as `max_users`/
   `max_companies` on that table, editable from the existing Platform Admin Plans page, no code deploy
   required to change a Plan's quota.

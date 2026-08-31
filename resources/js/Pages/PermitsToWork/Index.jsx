@@ -101,8 +101,18 @@ export default function PermitsToWorkIndex({ permits, filters, can }) {
                                         </div>
                                         <p className="mt-1 text-sm capitalize text-graphite-700 dark:text-slate-300">{p.permit_type.replace('_', ' ')}</p>
                                         {p.work_description && <p className="mt-0.5 line-clamp-1 text-xs text-graphite-500 dark:text-slate-400">{p.work_description}</p>}
+                                        {/* v2.17.1 (Part 2/6): PIC/Workforce -- only shown
+                                            when actually set, wraps naturally rather than
+                                            forcing a single truncated line. */}
+                                        {(p.pic || p.personnel_count > 0) && (
+                                            <p className="mt-0.5 truncate text-xs text-graphite-500 dark:text-slate-400">
+                                                {p.pic && <>PIC: {p.pic.full_name}</>}
+                                                {p.pic && p.personnel_count > 0 && ' · '}
+                                                {p.personnel_count > 0 && `${p.personnel_count} personel`}
+                                            </p>
+                                        )}
                                         <div className="mt-2 flex items-center justify-between gap-2 text-xs text-graphite-400">
-                                            <span className="truncate">
+                                            <span className="min-w-0 truncate">
                                                 {p.location || '-'} &middot; {new Date(p.start_datetime).toLocaleString('en-US', { day: 'numeric', month: 'short', hour: 'numeric', minute: '2-digit' })}
                                             </span>
                                             <span className="flex shrink-0 items-center gap-0.5 font-medium text-brand-700 dark:text-brand-400">
@@ -113,18 +123,29 @@ export default function PermitsToWorkIndex({ permits, filters, can }) {
                                 ))}
                             </div>
 
+                            {/* v2.17.1 (PTW Field Workflow Verification &
+                                Correction pass, Part 2): added Project,
+                                PIC, and Workforce columns -- the shared
+                                Table component already self-contains
+                                horizontal scroll (`overflow-auto` on its
+                                own wrapper), so a wider table here scrolls
+                                within itself rather than the page, same as
+                                every other wide table in this codebase. */}
                             <Table className="hidden md:table">
                                 <TableHeader>
-                                    <TableRow><TableHead>PTW No.</TableHead><TableHead>Type</TableHead><TableHead>Start</TableHead><TableHead>Location</TableHead><TableHead>Requested By</TableHead><TableHead>Status</TableHead></TableRow>
+                                    <TableRow><TableHead>PTW No.</TableHead><TableHead>Type</TableHead><TableHead>Project</TableHead><TableHead>Start</TableHead><TableHead>Location</TableHead><TableHead>Requested By</TableHead><TableHead>PIC</TableHead><TableHead>Workforce</TableHead><TableHead>Status</TableHead></TableRow>
                                 </TableHeader>
                                 <TableBody>
                                     {permits.data.map((p) => (
                                         <TableRow key={p.id} className="cursor-pointer" onClick={() => router.visit(route('permits-to-work.show', p.id))}>
                                             <TableCell className="font-medium text-graphite-800 dark:text-slate-100">{p.ptw_number}</TableCell>
                                             <TableCell className="capitalize">{p.permit_type.replace('_', ' ')}</TableCell>
+                                            <TableCell className="max-w-[140px] truncate">{p.project?.name || '-'}</TableCell>
                                             <TableCell>{new Date(p.start_datetime).toLocaleString('en-US', { day: 'numeric', month: 'short', hour: 'numeric', minute: '2-digit' })}</TableCell>
                                             <TableCell className="max-w-[160px] truncate">{p.location || '-'}</TableCell>
                                             <TableCell>{p.requester?.name}</TableCell>
+                                            <TableCell className="max-w-[140px] truncate">{p.pic?.full_name || '-'}</TableCell>
+                                            <TableCell>{p.personnel_count > 0 ? `${p.personnel_count} orang` : '-'}</TableCell>
                                             <TableCell><StatusBadge value={p.status} /></TableCell>
                                         </TableRow>
                                     ))}

@@ -31,7 +31,17 @@ class PermitToWorkController extends Controller
 
         $permits = PermitToWork::query()
             ->whereIn('company_id', $tenantCompanyIds)
-            ->with('project:id,name', 'requester:id,name')
+            // v2.17.1 (PTW Field Workflow Verification & Correction
+            // pass, Part 2): PIC and Workforce count now surfaced on the
+            // Index list -- eager-loaded here (pic:id,full_name +
+            // withCount('personnel')) so this stays exactly one query
+            // per page of results, same N+1-free shape `with()` already
+            // used for project/requester. `pic`/`personnel` both
+            // resolve through PermitToWork's own tenant-scoped rows
+            // (already filtered by `whereIn('company_id', ...)` above),
+            // so no other tenant's Employee data can surface here.
+            ->with('project:id,name', 'requester:id,name', 'pic:id,full_name')
+            ->withCount('personnel')
             ->when($request->input('search'), fn ($q, $v) => $q->where('ptw_number', 'like', "%{$v}%")->orWhere('work_description', 'like', "%{$v}%"))
             ->when($request->input('status'), fn ($q, $v) => $q->where('status', $v))
             ->when($request->input('type'), fn ($q, $v) => $q->where('permit_type', $v))

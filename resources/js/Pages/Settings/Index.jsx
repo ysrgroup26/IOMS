@@ -35,6 +35,14 @@ export default function SettingsIndex({ company, companies, departments, positio
     // System-level tabs (Companies, Users, Backup) are Super-Admin-only.
     // HSE sees only the operational tabs (Departments, Positions).
     const canSystem = can?.manage_system;
+    // v2.19.0 (PTW Access Management Correction pass, Part 1/2): the
+    // Users tab now also opens for HSE -- but ONLY to reach the Field &
+    // PTW Access section inside it; UsersTab itself further restricts
+    // the actual User Management table (create/edit/delete/role changes)
+    // to canSystem, so this alone never grants HSE anything beyond PTW
+    // Access toggling. Same server-side canManageHse() gate the route/
+    // controller already enforce (see routes/web.php's own comment).
+    const canPtwAccess = can?.manage_ptw_access;
 
     return (
         <AuthenticatedLayout>
@@ -57,7 +65,7 @@ export default function SettingsIndex({ company, companies, departments, positio
                     <Tabs.Trigger value="positions" className={TAB_CLASS}>Positions</Tabs.Trigger>
                     <Tabs.Trigger value="kpi-categories" className={TAB_CLASS}>KPI Categories</Tabs.Trigger>
                     <Tabs.Trigger value="authentication" className={TAB_CLASS}>Authentication</Tabs.Trigger>
-                    {canSystem && <Tabs.Trigger value="users" className={TAB_CLASS}>Users</Tabs.Trigger>}
+                    {(canSystem || canPtwAccess) && <Tabs.Trigger value="users" className={TAB_CLASS}>Users</Tabs.Trigger>}
                     {canSystem && <Tabs.Trigger value="roles" className={TAB_CLASS}>Roles &amp; Permissions</Tabs.Trigger>}
                     {canSystem && <Tabs.Trigger value="numbering" className={TAB_CLASS}>Numbering</Tabs.Trigger>}
                     {canSystem && <Tabs.Trigger value="approval-flows" className={TAB_CLASS}>Approval Flow</Tabs.Trigger>}
@@ -80,7 +88,7 @@ export default function SettingsIndex({ company, companies, departments, positio
                 <Tabs.Content value="positions"><PositionsTab positions={positions} departments={departments} companies={companies} filters={filters} /></Tabs.Content>
                 <Tabs.Content value="kpi-categories"><KpiCategoriesTab kpiCategories={kpiCategories} companies={companies} /></Tabs.Content>
                 <Tabs.Content value="authentication"><AuthenticationTab /></Tabs.Content>
-                {canSystem && <Tabs.Content value="users"><UsersTab users={users} roles={roles} ptwAccess={ptwAccess} /></Tabs.Content>}
+                {(canSystem || canPtwAccess) && <Tabs.Content value="users"><UsersTab users={users} roles={roles} ptwAccess={ptwAccess} canManageUsers={canSystem} canPtwAccess={canPtwAccess} /></Tabs.Content>}
                 {canSystem && <Tabs.Content value="roles"><RolesTab roles={roles} permissionCatalog={permissionCatalog} /></Tabs.Content>}
                 {canSystem && <Tabs.Content value="numbering"><NumberingTab numberingFormats={numberingFormats} /></Tabs.Content>}
                 {canSystem && <Tabs.Content value="approval-flows"><ApprovalFlowsTab approvalFlows={approvalFlows} moduleKeys={numberingModuleKeys} /></Tabs.Content>}
@@ -1732,7 +1740,33 @@ function DepartmentField({ value, onChange }) {
     );
 }
 
-function UsersTab({ users, roles, ptwAccess }) {
+/**
+ * v2.19.0 (PTW Access Management Correction pass, Part 1). Splits what
+ * used to be one `<Card>` (User Management table with Field & PTW Access
+ * bolted onto its bottom as a `border-t` sub-section) into two
+ * INDEPENDENT cards -- the User Management card (create/edit/delete/role
+ * changes) now renders ONLY for `canManageUsers` (Super Admin), while
+ * the Field & PTW Access card renders for `canManageUsers ||
+ * canPtwAccess` (Super Admin OR HSE). Previously this whole tab was
+ * Super-Admin-only end to end, so there was no need for this split; now
+ * that HSE can reach the Users tab specifically to manage PTW Access,
+ * bolting it onto a Card that only Super Admin should see the CRUD
+ * actions of would either hide PTW Access from HSE entirely (defeating
+ * the point) or expose user create/edit/delete/role-change to HSE
+ * (explicitly forbidden by this pass's own directive). Splitting the
+ * cards is the smallest correct fix -- same components, same data, no
+ * new page.
+ */
+function UsersTab({ users, roles, ptwAccess, canManageUsers, canPtwAccess }) {
+    return (
+        <div className="space-y-4">
+            {canManageUsers && <UserManagementCard users={users} roles={roles} />}
+            {(canManageUsers || canPtwAccess) && <FieldPtwAccessCard users={users} ptwAccess={ptwAccess} />}
+        </div>
+    );
+}
+
+function UserManagementCard({ users, roles }) {
     const [open, setOpen] = useState(false);
     const [editingRolesFor, setEditingRolesFor] = useState(null);
     const [editingUser, setEditingUser] = useState(null);
@@ -1835,7 +1869,6 @@ function UsersTab({ users, roles, ptwAccess }) {
             {editingUser && (
                 <EditUserDialog user={editingUser} onClose={() => setEditingUser(null)} />
             )}
-            <FieldPtwAccessCard users={users} ptwAccess={ptwAccess} />
         </Card>
     );
 }
@@ -1872,51 +1905,58 @@ function FieldPtwAccessCard({ users, ptwAccess }) {
     }
 
     return (
-        <div className="border-t border-graphite-100 dark:border-slate-800">
-            <div className="flex flex-col gap-3 p-4 sm:flex-row sm:items-center sm:justify-between">
+        <Card>
+            <CardHeader className="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
                 <div>
-                    <h3 className="text-sm font-semibold text-graphite-900 dark:text-slate-100">Field &amp; PTW Access</h3>
-                    <p className="mt-0.5 text-xs text-graphite-500 dark:text-slate-400">
-                        Hanya pengguna dengan akses ini yang dapat membuat Permit To Work baru dari Field Home.
-                    </p>
+                    <CardTitle>Field &amp; PTW Access</CardTitle>
+                    {/* Directive's own exact Indonesian description text --
+                        deliberately verbatim, not paraphrased. */}
+                    <CardDescription>User yang diizinkan membuat pengajuan PTW.</CardDescription>
                 </div>
-                <div className="flex items-center gap-3">
-                    <Badge variant={quotaReached ? 'warning' : 'outline'}>PTW Users {used}{quota !== null ? ` / ${quota}` : ''}</Badge>
-                </div>
-            </div>
-            {quotaReached && (
-                <div className="mx-4 mb-3 rounded-md border border-amber-200 bg-amber-50 px-3 py-2 text-xs text-amber-800 dark:border-amber-900 dark:bg-amber-950/30 dark:text-amber-300">
-                    Kuota pengguna PTW paket Anda telah tercapai. Nonaktifkan salah satu pengguna, atau hubungi penyedia layanan untuk meningkatkan paket.
-                </div>
-            )}
-            <div className="px-4 pb-3">
-                <div className="relative max-w-sm">
-                    <Search className="pointer-events-none absolute left-2.5 top-1/2 h-3.5 w-3.5 -translate-y-1/2 text-graphite-400" />
-                    <Input className="pl-8" placeholder="Search users..." value={search} onChange={(e) => setSearch(e.target.value)} />
-                </div>
-            </div>
-            <div className="divide-y divide-graphite-100 dark:divide-slate-800">
-                {filtered.length === 0 ? (
-                    <p className="px-4 pb-4 text-sm text-graphite-400">No users match your search.</p>
-                ) : (
-                    filtered.map((u) => {
-                        const deptLabel = DEPARTMENT_OPTIONS.find((d) => d.key === u.department_key)?.label;
-                        return (
-                            <div key={u.id} className="flex flex-wrap items-center justify-between gap-x-4 gap-y-1 px-4 py-2.5">
-                                <div className="min-w-0 flex-1">
-                                    <p className="truncate text-[13px] font-medium text-graphite-900 dark:text-slate-100">{u.name}</p>
-                                    <p className="truncate text-xs text-graphite-500 dark:text-slate-400">{deptLabel || 'Administrator (all)'}</p>
-                                </div>
-                                <div className="flex shrink-0 items-center gap-2">
-                                    <span className="text-xs text-graphite-500 dark:text-slate-400">PTW Access</span>
-                                    <Checkbox checked={!!u.ptw_access} onCheckedChange={(v) => toggle(u, Boolean(v))} />
-                                </div>
-                            </div>
-                        );
-                    })
+                <Badge variant={quotaReached ? 'warning' : 'outline'} className="w-fit shrink-0">
+                    PTW Access {used}{quota !== null ? ` / ${quota}` : ''} {quota !== null ? 'users' : ''}
+                </Badge>
+            </CardHeader>
+            <CardContent className="p-0">
+                {quotaReached && (
+                    <div className="mx-4 mb-3 rounded-md border border-amber-200 bg-amber-50 px-3 py-2 text-xs text-amber-800 dark:border-amber-900 dark:bg-amber-950/30 dark:text-amber-300">
+                        Kuota pengguna PTW paket Anda telah tercapai. Nonaktifkan salah satu pengguna, atau hubungi penyedia layanan untuk meningkatkan paket.
+                    </div>
                 )}
-            </div>
-        </div>
+                <div className="px-4 pb-3">
+                    <div className="relative max-w-sm">
+                        <Search className="pointer-events-none absolute left-2.5 top-1/2 h-3.5 w-3.5 -translate-y-1/2 text-graphite-400" />
+                        <Input className="pl-8" placeholder="Search users..." value={search} onChange={(e) => setSearch(e.target.value)} />
+                    </div>
+                </div>
+                <div className="divide-y divide-graphite-100 dark:divide-slate-800">
+                    {filtered.length === 0 ? (
+                        <p className="px-4 pb-4 text-sm text-graphite-400">No users match your search.</p>
+                    ) : (
+                        filtered.map((u) => {
+                            const deptLabel = DEPARTMENT_OPTIONS.find((d) => d.key === u.department_key)?.label;
+                            return (
+                                <div
+                                    key={u.id}
+                                    className="flex flex-wrap items-center justify-between gap-x-4 gap-y-1.5 px-4 py-3"
+                                >
+                                    <div className="flex min-w-0 flex-1 items-center gap-2.5">
+                                        <Checkbox checked={!!u.ptw_access} onCheckedChange={(v) => toggle(u, Boolean(v))} />
+                                        <div className="min-w-0">
+                                            <p className="truncate text-[13px] font-medium text-graphite-900 dark:text-slate-100">{u.name}</p>
+                                            <p className="truncate text-[11px] font-medium uppercase tracking-wide text-graphite-400 dark:text-slate-500">
+                                                {deptLabel || 'Administrator (all)'}
+                                            </p>
+                                        </div>
+                                    </div>
+                                    <span className="shrink-0 text-xs font-medium text-graphite-500 dark:text-slate-400">PTW Access</span>
+                                </div>
+                            );
+                        })
+                    )}
+                </div>
+            </CardContent>
+        </Card>
     );
 }
 

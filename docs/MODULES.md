@@ -641,6 +641,19 @@ it by raising Starter's `max_users` to 15 (matching the explicit "Starter = 15 P
 per the correction directive's own stated preference), and `PlatformController::validatePlan()` now
 server-enforces `max_ptw_users <= max_users` (whenever both are set) for any future Plan edit.
 
+**PTW Access management UX (v2.19.0 correction)** — canonical location: **Settings → Users → Field &
+PTW Access**, never the HSE operational modules or the HSE Dashboard. Fixed a real gap: `route:list`
+showed `settings.users.ptw-access` gated `role:super_admin` only, STRICTER than
+`SettingsController::updatePtwAccess()`'s own `canManageHse()` check — meaning an HSE user could never
+actually reach it despite the controller already allowing it (see `docs/CONVENTIONS.md`'s new pitfall
+entry). Moved to its own `role:super_admin,hse` route group. Frontend: `SettingsController::index()`
+now shares `can.manage_ptw_access` (= `canManageHse()`); the Users tab opens for `canManageUsers ||
+canPtwAccess`, but `UsersTab` renders two independent cards — `UserManagementCard` (create/edit/
+delete/role changes) stays Super-Admin-only, `FieldPtwAccessCard` (the toggle + "PTW Access X / Y
+users" quota banner) opens to HSE too. An HSE user reaches exactly PTW Access, never user CRUD or role
+changes; an ordinary Field/Foreman user (even with `ptw_access = true`) cannot reach Settings → Users
+at all.
+
 **PIC / Supervisor vs Requester vs Workforce** — three distinct people/concepts on one `PermitToWork`
 row, never conflated:
 - **Requester** (`requested_by` → `User`) — who submitted the PTW (existing, unchanged).

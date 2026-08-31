@@ -3,6 +3,25 @@
 House style, and a deliberately honest list of mistakes that have actually happened in this
 codebase's history — kept here so they don't get repeated in a slightly different shape.
 
+## Known Pitfall (v2.19.0): a route-level middleware group can be STRICTER than its own controller's
+## authorization check, silently making the controller's broader check unreachable
+
+`settings.users.ptw-access` was added in v2.17.0 with a controller-level `canManageHse()` check
+(Super Admin OR HSE) — correct, and documented as intentionally broader than the route group it was
+placed in "as defense-in-depth for if this route is ever also exposed to HSE." That framing was
+backwards: the route sat inside `role:super_admin`-only, which is STRICTER than the controller's own
+check, so the controller's HSE branch could never actually be reached — Laravel's `role:` middleware
+rejects the request before the controller runs at all. The bug wasn't caught for two passes because
+`php -l`/`route:list`/`config:cache` all pass regardless (this is an authorization-scope mistake, not
+a syntax one) — it only surfaces by comparing the route's own middleware list against what the
+controller assumes, or by an end-to-end test as an actual HSE user, neither of which happened until
+this pass. Fixed by moving the route into its own dedicated `role:super_admin,hse` group. **When a
+controller method's own authorization check names a set of roles, the route's own middleware group
+must never be narrower than that set** — grep for the controller's `abort_unless(...->can...())` /
+`FormRequest::authorize()` calls and cross-check them against the route's actual `middleware` array in
+`route:list --json` output, don't assume the surrounding group is already correct just because the
+code compiles and other routes in the same file work.
+
 ## Known Pitfall (v2.16.0): a tab/chip row with no `overflow-x-auto` and no `flex-wrap` drags the
 ## WHOLE PAGE sideways on mobile, not just itself -- `<main>` has no `overflow-x-hidden` anywhere
 

@@ -108,6 +108,17 @@ class SettingsController extends Controller
             'can' => [
                 'manage_operational' => request()->user()->canManageOperationalSettings(),
                 'manage_system' => request()->user()->canManageSystemSettings(),
+                // v2.19.0 (PTW Access Management Correction pass, Part
+                // 1/2): PTW Access is an account/access-management
+                // function HSE must be able to reach from Settings >
+                // Users -- distinct from `manage_system` (full User CRUD
+                // incl. role changes, Super Admin only) so HSE gets
+                // exactly this one capability, never the rest of User
+                // Management. Same `canManageHse()` gate the backend
+                // route/controller for this feature already enforce (see
+                // SettingsController::updatePtwAccess()) -- frontend
+                // visibility can never grant more than the server allows.
+                'manage_ptw_access' => request()->user()->canManageHse(),
             ],
             // Milestone 2 (RBAC UI, Task #45). Tenant-side roles only --
             // Role::where('tenant_id', ...) already excludes the

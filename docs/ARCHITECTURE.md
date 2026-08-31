@@ -311,6 +311,21 @@ existing method's contract changed.
   never show a different number than what's actually enforced. Enforcement runs inside a
   `DB::transaction` with `lockForUpdate()` on the tenant's currently-enabled users, closing the
   same race-condition class Part 6 of that phase's directive called out explicitly.
+- **Who can manage PTW Access, and where (v2.19.0 correction)**: PTW Access is an account/access-
+  management function, canonically reached at **Settings → Users → Field & PTW Access** — never
+  folded into the HSE operational modules or the HSE Dashboard. `settings.users.ptw-access` (the
+  route) sits in its own `role:super_admin,hse` group (was previously nested inside the stricter
+  `role:super_admin`-only group by mistake, meaning `SettingsController::updatePtwAccess()`'s own
+  already-correct `canManageHse()` check could never actually run for an HSE user — a route-level
+  gate stricter than its controller's own authorization, the same failure shape documented in
+  `docs/CONVENTIONS.md`'s "route accidentally nested inside a too-restrictive group" pitfall).
+  Frontend-side, the Settings → Users tab now opens for `canManageHse()` too (`can.manage_ptw_access`),
+  but `UsersTab` renders two INDEPENDENT cards: `UserManagementCard` (create/edit/delete/role changes)
+  stays `canManageUsers` (Super Admin) only; `FieldPtwAccessCard` (the toggle + quota banner) renders
+  for `canManageUsers || canPtwAccess`. HSE therefore reaches exactly PTW Access and nothing else —
+  it can never create/delete a user or change anyone's role through this surface. Ordinary Field/
+  Foreman users (even ones with `ptw_access = true`) cannot reach the Settings → Users tab at all —
+  `can.manage_ptw_access` is `false` for them, same as every other role.
 
 ## Navigation Architecture (Department → Item, v1.10.2)
 

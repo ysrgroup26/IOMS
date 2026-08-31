@@ -680,21 +680,30 @@ Route::middleware(['auth', 'restrict.platform-admin'])->group(function () {
         Route::post('/settings/users', [SettingsController::class, 'storeUser'])->name('settings.users.store');
         Route::put('/settings/users/{user}', [SettingsController::class, 'updateUser'])->name('settings.users.update');
         Route::delete('/settings/users/{user}', [SettingsController::class, 'destroyUser'])->name('settings.users.destroy');
-        // v2.17.0 (PTW Field Workflow Foundation + Controlled PTW
-        // Access). Placed alongside the rest of Users management, inside
-        // this same `role:super_admin` group -- the Users tab itself is
-        // already Super-Admin-only end to end (frontend `canSystem` gate
-        // + this route group), so that's the effective authorization
-        // today. `SettingsController::updatePtwAccess()`'s own inline
-        // `canManageHse()` check is intentionally broader (Super Admin OR
-        // HSE) as defense-in-depth for if this route is ever also
-        // exposed to HSE from a future Settings surface -- it does not
-        // widen who can reach it today, since this route-level
-        // `role:super_admin` gate is stricter and runs first.
-        Route::put('/settings/users/{user}/ptw-access', [SettingsController::class, 'updatePtwAccess'])->name('settings.users.ptw-access');
 
         Route::get('/settings/backup', [SettingsController::class, 'backupDatabase'])->name('settings.backup');
         Route::post('/settings/restore', [SettingsController::class, 'restoreDatabase'])->name('settings.restore');
+    });
+
+    // v2.19.0 (PTW Access Management Correction pass, Part 1/2). Was
+    // previously nested inside the `role:super_admin` group directly
+    // above -- STRICTER than `SettingsController::updatePtwAccess()`'s
+    // own inline `canManageHse()` check (Super Admin OR HSE), which
+    // meant HSE could never actually reach this route despite the
+    // controller already being written to allow it. PTW Access is an
+    // account/access-management function HSE is meant to manage for
+    // their own tenant (per this pass's own directive), so it gets its
+    // own `role:super_admin,hse` group here -- broader than
+    // `role:super_admin` above, still far narrower than plain `auth`
+    // (an ordinary Field/Foreman user, even one with PTW Access enabled,
+    // cannot reach this route). Deliberately placed OUTSIDE both role
+    // groups rather than moved into the `role:super_admin,hse` group
+    // further up this file, to avoid disturbing that group's own,
+    // unrelated route list -- this is the same "don't accidentally
+    // widen or narrow an existing group" discipline documented in
+    // docs/CONVENTIONS.md's Known Pitfalls.
+    Route::middleware('role:super_admin,hse')->group(function () {
+        Route::put('/settings/users/{user}/ptw-access', [SettingsController::class, 'updatePtwAccess'])->name('settings.users.ptw-access');
     });
 
     // v1.6.8 fix: these were previously (incorrectly) nested inside the

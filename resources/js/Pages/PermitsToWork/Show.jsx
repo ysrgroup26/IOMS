@@ -10,6 +10,7 @@ import { Table, TableHeader, TableBody, TableRow, TableHead, TableCell } from '@
 import ActivityTimeline from '@/Components/shared/ActivityTimeline';
 import StatusBadge from '@/Components/shared/StatusBadge';
 import EmptyState from '@/Components/shared/EmptyState';
+import PersonChip from '@/Components/shared/PersonChip';
 import { ArrowLeft, Send, CheckCircle2, XCircle, PlayCircle, FlaskConical, Wind, Download, Printer, FileText, RotateCcw } from 'lucide-react';
 
 export default function PermitToWorkShow({ permit: p, activities, canManage, rejectionReason }) {
@@ -51,10 +52,20 @@ export default function PermitToWorkShow({ permit: p, activities, canManage, rej
                 <ArrowLeft className="h-4 w-4" /> Back to Permit To Work
             </Link>
 
+            {/* v2.20.0 (PTW Experience & Visual Polish pass, Part 9): PTW
+                identity/status made more prominent -- permit type now
+                reads as an actual subtitle (capitalized, its own line)
+                rather than sharing a small caption line with the
+                date/location metadata, and the status badge sits next
+                to the eyebrow instead of crowding the PTW number. */}
             <div className="mb-4 flex flex-wrap items-start justify-between gap-3">
                 <div>
-                    <h1 className="flex items-center gap-2 text-[22px] font-semibold tracking-tight text-graphite-900">{p.ptw_number}<StatusBadge value={p.status} /></h1>
-                    <p className="text-xs capitalize text-graphite-500">{p.permit_type.replace('_', ' ')} · {new Date(p.start_datetime).toLocaleString('en-US', { day: 'numeric', month: 'short', hour: 'numeric', minute: '2-digit' })} - {new Date(p.end_datetime).toLocaleString('en-US', { hour: 'numeric', minute: '2-digit' })}{p.location && ` · ${p.location}`}</p>
+                    <div className="flex items-center gap-2">
+                        <p className="font-mono text-xs font-medium text-graphite-400">{p.ptw_number}</p>
+                        <StatusBadge value={p.status} />
+                    </div>
+                    <h1 className="mt-0.5 text-2xl font-bold capitalize tracking-tight text-graphite-900">{p.permit_type.replace('_', ' ')}</h1>
+                    <p className="mt-0.5 text-xs text-graphite-500">{new Date(p.start_datetime).toLocaleString('en-US', { day: 'numeric', month: 'short', hour: 'numeric', minute: '2-digit' })} - {new Date(p.end_datetime).toLocaleString('en-US', { hour: 'numeric', minute: '2-digit' })}{p.location && ` · ${p.location}`}</p>
                 </div>
                 <div className="flex flex-wrap items-center gap-2">
                     {/* v2.6.0 (PTW Document View pass): the new PRIMARY
@@ -146,13 +157,27 @@ export default function PermitToWorkShow({ permit: p, activities, canManage, rej
                                 empty Workforce section isn't shown at
                                 all rather than a blank "-"/"0" row for
                                 every permit created before this pass. */}
+                            {/* v2.20.0: PIC/Workforce now shown as
+                                PersonChip (initials avatar + name), the
+                                same reusable component the Document view
+                                uses -- consistent visual language for
+                                "this is a real person" across both
+                                pages, instead of plain text here vs. an
+                                avatar chip there. */}
                             {(p.pic || (p.personnel && p.personnel.length > 0)) && (
-                                <div className="grid grid-cols-1 gap-3 border-t border-graphite-100 pt-3 sm:grid-cols-3 dark:border-slate-800">
-                                    {p.pic && <div><span className="text-xs uppercase text-graphite-400">PIC / Supervisor</span><p>{p.pic.full_name}</p></div>}
+                                <div className="grid grid-cols-1 gap-3 border-t border-graphite-100 pt-3 sm:grid-cols-2 dark:border-slate-800">
+                                    {p.pic && (
+                                        <div>
+                                            <span className="text-xs uppercase text-graphite-400">PIC / Supervisor</span>
+                                            <div className="mt-1.5"><PersonChip name={p.pic.full_name} size="sm" /></div>
+                                        </div>
+                                    )}
                                     {p.personnel && p.personnel.length > 0 && (
-                                        <div className="sm:col-span-2">
+                                        <div>
                                             <span className="text-xs uppercase text-graphite-400">Workforce ({p.personnel.length} orang)</span>
-                                            <p className="truncate">{p.personnel.map((e) => e.full_name).join(', ')}</p>
+                                            <div className="mt-1.5 flex flex-wrap gap-x-4 gap-y-1.5">
+                                                {p.personnel.map((e) => <PersonChip key={e.id} name={e.full_name} size="sm" />)}
+                                            </div>
                                         </div>
                                     )}
                                 </div>

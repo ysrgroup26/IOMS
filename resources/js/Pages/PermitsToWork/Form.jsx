@@ -74,7 +74,16 @@ export default function PermitToWorkForm({ companies, projects, riskAssessments,
             <form onSubmit={submit} className="mx-auto max-w-xl space-y-4">
                 <Card>
                     <CardHeader>
-                        <CardTitle>New Permit To Work -- {ptwNumber}</CardTitle>
+                        {/* v2.20.0 (PTW Experience & Visual Polish pass,
+                            Part 8): small numbered step badge -- same
+                            "01/02/03" visual language as the Document
+                            view's own numbered sections, reinforcing that
+                            this is a guided sequence (Work -> Workforce ->
+                            Safety -> Optional -> Submit), not one long
+                            undifferentiated form. */}
+                        <CardTitle className="flex items-center gap-2">
+                            <StepBadge>01</StepBadge> New Permit To Work -- {ptwNumber}
+                        </CardTitle>
                         <CardDescription>Isi data pekerjaan yang akan dilakukan.</CardDescription>
                         {/* v2.17.0 (PTW Field Workflow Foundation, Part
                             2/12): Requester is informational only, never
@@ -146,7 +155,7 @@ export default function PermitToWorkForm({ companies, projects, riskAssessments,
                     pass). */}
                 <Card>
                     <CardHeader>
-                        <CardTitle className="flex items-center gap-2 text-sm"><Users className="h-4 w-4 text-graphite-400" /> Workforce -- Optional</CardTitle>
+                        <CardTitle className="flex items-center gap-2 text-sm"><StepBadge>02</StepBadge><Users className="h-4 w-4 text-graphite-400" /> Workforce -- Optional</CardTitle>
                         <CardDescription>Siapa yang terlibat dalam pekerjaan ini?</CardDescription>
                     </CardHeader>
                     <CardContent className="space-y-4">
@@ -190,7 +199,7 @@ export default function PermitToWorkForm({ companies, projects, riskAssessments,
 
                 <Card>
                     <CardHeader>
-                        <CardTitle className="flex items-center gap-2 text-sm"><ShieldCheck className="h-4 w-4 text-graphite-400" /> Safety Controls</CardTitle>
+                        <CardTitle className="flex items-center gap-2 text-sm"><StepBadge>03</StepBadge><ShieldCheck className="h-4 w-4 text-graphite-400" /> Safety Controls</CardTitle>
                         <CardDescription>Apa langkah pengamanan yang diperlukan untuk pekerjaan ini?</CardDescription>
                     </CardHeader>
                     <CardContent>
@@ -198,7 +207,7 @@ export default function PermitToWorkForm({ companies, projects, riskAssessments,
                     </CardContent>
                 </Card>
 
-                <CollapsibleSection title="Optional / Advanced" description="Isi jika diperlukan -- kualifikasi, HIRADC, atau JSA terkait.">
+                <CollapsibleSection title="04 · Optional / Advanced" description="Isi jika diperlukan -- kualifikasi, HIRADC, atau JSA terkait.">
                     <div className="space-y-1.5">
                         <Label>Required Qualification (optional)</Label>
                         <Input value={data.required_qualification} onChange={(e) => setData('required_qualification', e.target.value)} placeholder="Contoh: Sertifikat Confined Space Entry -- informasi saja, tidak diverifikasi otomatis" />
@@ -224,5 +233,14 @@ export default function PermitToWorkForm({ companies, projects, riskAssessments,
                 <Button type="submit" disabled={processing} className="w-full" size="lg">Submit PTW</Button>
             </form>
         </AuthenticatedLayout>
+    );
+}
+
+/** v2.20.0 (PTW Experience & Visual Polish pass). Small numbered step badge -- same visual language as `PermitsToWork/Document.jsx`'s own `DocSection` index, so the Create form reads as a continuation of one consistent PTW numbering convention, not a coincidence. */
+function StepBadge({ children }) {
+    return (
+        <span className="flex h-5 w-5 shrink-0 items-center justify-center rounded bg-graphite-100 text-[10px] font-bold tabular-nums text-graphite-500 dark:bg-slate-800 dark:text-slate-400">
+            {children}
+        </span>
     );
 }

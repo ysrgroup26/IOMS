@@ -3,6 +3,20 @@
 House style, and a deliberately honest list of mistakes that have actually happened in this
 codebase's history — kept here so they don't get repeated in a slightly different shape.
 
+## New reusable component (v2.20.0): `Components/shared/PersonChip.jsx` — the one place IOMS shows a
+## real Employee/User reference
+
+Built for PTW's PIC/Workforce display (`PermitsToWork/Document.jsx`, `Show.jsx`) — an initials-avatar
++ name (+ optional subtitle) chip, read-only, no interaction. Deliberately does NOT replace
+`PermitsToWork/Form.jsx`'s own removable workforce chips (`Badge` + an `X` remove button, built while
+composing a PTW) — that's a different, already-correct editing pattern. `PersonChip` is specifically
+for DISPLAYING an already-saved record's People data, where there's nothing to remove. No avatar image
+(IOMS has no employee-photo field wired into this flow) — initials-on-a-tinted-circle only, matching
+this codebase's "never fabricate data" rule (no placeholder/stock photo). **Any future module that
+displays a real Employee/User reference for reading (not editing) should reuse this component** rather
+than a fifth copy of the same initials-circle markup — PTW is the first consumer, not the only intended
+one.
+
 ## Known Pitfall (v2.19.0): a route-level middleware group can be STRICTER than its own controller's
 ## authorization check, silently making the controller's broader check unreachable
 

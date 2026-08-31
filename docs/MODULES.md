@@ -687,6 +687,21 @@ both `PermitsToWork/Document.jsx` and `pdf/permit-to-work.blade.php` identically
 wording, an unset PIC or empty Workforce list renders an honest "-"/"Belum ada personel", never
 fabricated.
 
+**PTW Experience & Visual Polish pass (v2.20.0)** — presentation only, no data/workflow/RBAC change.
+`PermitsToWork/Document.jsx` and `pdf/permit-to-work.blade.php` were both reworked around a numbered
+information architecture (01 Work Information → 02 Safety Controls → 03 Workforce → 04 Authorization →
+05 Supporting Documents, the last only rendered when a HIRADC/JSA is actually linked) with a dominant
+document-title block (permit type as the largest element, PTW number secondary) instead of the
+previous flat sequence of same-weight `Section`s. PIC/Workforce/Requester now render via the new
+`PersonChip` component (see `docs/CONVENTIONS.md`) instead of a plain "- Name" text list, on both
+Document and `Show.jsx`. The pre-existing, still-unwired "Area Authority" signature block is
+unchanged — still honestly blank, no Area Authority workflow was invented. `PermitsToWork/Form.jsx`
+gained small numbered step badges (01–04) on its existing section headers, same visual language as
+Document's own numbering, reinforcing the guided-workflow feel without changing any field or
+validation rule. No PTW Index change this pass (v2.17.1's Project/PIC/Workforce columns already
+covered Part 10's ask). No database, controller, or PDF-engine change — same `PdfGeneratorService`/
+`DocumentEngine` pipeline, same data shape both renderers already shared.
+
 **PTW Index visibility (v2.17.1)**: `PermitToWorkController::index()` now eager-loads
 `pic:id,full_name` and `withCount('personnel')` alongside the existing `project`/`requester` eager
 loads — still exactly one query per page of results, no N+1. `PermitsToWork/Index.jsx`'s desktop

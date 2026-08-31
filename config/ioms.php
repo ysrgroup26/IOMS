@@ -17,7 +17,7 @@ return [
     |
     */
 
-    'version' => '2.20.0',
+    'version' => '2.21.0',
 
     // Tester / Beta / Stable -- tracks the release stage explicitly.
     // Previously only implied in conversation, never actually stored.
@@ -25,7 +25,7 @@ return [
 
     'edition' => 'Enterprise Edition',
 
-    'build' => '2026.08.31.6',
+    'build' => '2026.08.31.7',
 
     'release_date' => '2026-08-31',
 
@@ -44,9 +44,7 @@ return [
     'documentation_url' => 'docs.iomsplatform.com',
 
     'whats_new' => [
-        'PTW Document and PDF redesigned to look like a real industrial permit -- dominant title, numbered sections (Work Information, Safety Controls, Workforce, Authorization, Supporting Documents), and PIC/Workforce now shown as avatar chips instead of a plain text list',
-        'PTW detail page gives more visual prominence to the permit type and status',
-        'PTW Create form now shows numbered steps to make the sequence clearer',
+        'PTW list is easier to scan -- permit number/type, project/location, and requester/PIC now read as grouped units instead of nine same-weight columns',
     ],
 
     /*
@@ -61,6 +59,7 @@ return [
     */
 
     'version_history' => [
+        ['version' => '2.21.0', 'date' => '2026-08-31', 'summary' => 'Final Visual Polish pass (P0 scope): PTW Index desktop table consolidated from 9 equal-weight columns to 6 identity-first cells (Permit = number+type, Project/Location, Requester/PIC, each a two-line grouped unit) -- no data dropped, real visual hierarchy instead. Filter bar unboxed from its Card. Presentation only. Broader multi-module polish (Dashboard/HSE/PPE/etc.) intentionally left for a follow-up pass given this pass\'s own P0-first priority and proportionate scope.'],
         ['version' => '2.20.0', 'date' => '2026-08-31', 'summary' => 'PTW Experience & Visual Polish pass: redesigned PTW Document/PDF around a numbered information architecture (01 Work Information -> 05 Supporting Documents) with a dominant document-title block and PIC/Workforce shown via a new reusable PersonChip avatar component instead of plain text; PTW Show page gained a more prominent identity/status header; PTW Create form gained numbered step badges. Presentation only -- no schema, workflow, RBAC, tenant isolation, SaaS entitlement, or quota changes. Same PdfGeneratorService/DocumentEngine pipeline, no new PDF engine.'],
         ['version' => '2.19.0', 'date' => '2026-08-31', 'summary' => 'PTW Access Management Correction pass: fixed settings.users.ptw-access being gated role:super_admin only at the route level -- STRICTER than SettingsController::updatePtwAccess()\'s own canManageHse() check, meaning HSE could never actually reach it despite the controller already allowing it. Moved to its own role:super_admin,hse route group. Settings > Users tab now opens for HSE too, but split into two independent cards -- User Management (create/edit/delete/role changes) stays Super-Admin-only; Field & PTW Access (toggle + quota) opens to HSE. Requester/PIC/Workforce/quota logic re-audited and confirmed already correct, no changes needed. No HSE Dashboard, Field Home, PTW workflow, or database changes.'],
         ['version' => '2.18.0', 'date' => '2026-08-31', 'summary' => 'Public Website / Landing Page Foundation: `/` is now a genuinely public route (previously redirected straight to /login for anyone not signed in) showing a real product website -- hero, platform capabilities, PTW-to-HSE workflow story, Field/HSE/People/Data sections, industries, FAQ, and a Pricing section driven live from Package data (never a hardcoded price). New PublicLayout (separate from AuthenticatedLayout, no sidebar). No customer names/logos/counts/testimonials invented anywhere. Authenticated users hitting `/` are still redirected into the app exactly as before. No RBAC, tenant isolation, PTW workflow, or database changes.'],

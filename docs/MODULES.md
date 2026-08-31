@@ -709,6 +709,15 @@ table gained Project/PIC/Workforce columns (the shared `Table` component already
 horizontal scroll via its own wrapper, so a wider table scrolls within itself, not the page); the
 mobile card list gained an optional PIC/Workforce line, shown only when actually set.
 
+**PTW Index row hierarchy (v2.21.0, Final Visual Polish pass)**: the 9-column table that resulted from
+the v2.17.1 addition above had drifted into nine equal-weight columns — no visual priority between
+"PTW-2026-00008" and "Requested By". Consolidated to 6 identity-first cells (Permit = number + type;
+Project/Location; Requester/PIC — each a two-line unit) without dropping any data. Same pattern
+(bold primary identity, muted secondary detail on the line beneath) is a reasonable template for any
+other list page that still shows N equal-weight columns — not applied elsewhere this pass, given its
+explicitly scoped "P0 = PTW" priority. Filter bar dropped its `Card` wrapper — a search box + two
+selects read fine as a plain toolbar; the results table kept its Card.
+
 ## Gas Test
 
 **Department:** HSE (Milestone 4, Workstream B7; location/stage added v1.10.9).

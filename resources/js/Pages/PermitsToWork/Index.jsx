@@ -26,6 +26,21 @@ import { Plus, Search, FileWarning, ChevronLeft, ChevronRight, ArrowRight } from
  * the product's own field-priority list: PTW number + status (most
  * important, together, no scrolling), permit type, work description,
  * location, start date, one obvious "View PTW" action.
+ *
+ * v2.21.0 (Final Visual Polish pass). The desktop table (v2.17.1 added
+ * Project/PIC/Workforce as their own columns) had drifted into exactly
+ * the "nine identical-weight columns" problem this pass's own directive
+ * calls out by name -- every cell the same font-weight/color, no visual
+ * priority between "PTW-2026-00008" and "Requested By". Fixed by
+ * consolidating related fields into two-line identity cells (PTW No. +
+ * Type; Project + Location; Requester + PIC) instead of one column per
+ * field -- same data, six columns instead of nine, and the thing that
+ * actually matters when scanning (PTW number, work type, status) now
+ * reads with real visual weight while supporting detail sits quietly
+ * underneath it. The filter bar dropped its `Card` wrapper -- a search
+ * box and two selects don't need to be boxed to read as a toolbar; the
+ * results table keeps its Card since a data table legitimately benefits
+ * from a defined container.
  */
 export default function PermitsToWorkIndex({ permits, filters, can }) {
     function applyFilters(overrides = {}) {
@@ -36,40 +51,38 @@ export default function PermitsToWorkIndex({ permits, filters, can }) {
         <AuthenticatedLayout>
             <Head title="Permit To Work" />
 
-            <div className="mb-4 flex flex-wrap items-center justify-between gap-3">
+            <div className="mb-5 flex flex-wrap items-center justify-between gap-3">
                 <div>
-                    <h1 className="text-[22px] font-semibold tracking-tight text-graphite-900 dark:text-slate-50">Permit To Work</h1>
-                    <p className="text-xs text-graphite-500 dark:text-slate-400">Hot work, confined space, working at height and other high-risk permits.</p>
+                    <h1 className="text-2xl font-bold tracking-tight text-graphite-900 dark:text-slate-50">Permit To Work</h1>
+                    <p className="mt-0.5 text-sm text-graphite-500 dark:text-slate-400">Hot work, confined space, working at height and other high-risk permits.</p>
                 </div>
                 {can.manage && (<Button asChild><Link href={route('permits-to-work.create')}><Plus className="h-4 w-4" /> New Permit</Link></Button>)}
             </div>
 
-            <Card className="mb-4">
-                <CardContent className="flex flex-wrap gap-2 p-3">
-                    <div className="relative min-w-[220px] flex-1">
-                        <Search className="pointer-events-none absolute left-2.5 top-1/2 h-3.5 w-3.5 -translate-y-1/2 text-graphite-400" />
-                        <Input className="pl-8" placeholder="Search PTW number or description..." defaultValue={filters.search || ''} onChange={(e) => applyFilters({ search: e.target.value || null })} />
-                    </div>
-                    <Select value={filters.type || 'all'} onValueChange={(v) => applyFilters({ type: v === 'all' ? null : v })}>
-                        <SelectTrigger className="w-44"><SelectValue placeholder="Type" /></SelectTrigger>
-                        <SelectContent>
-                            <SelectItem value="all">All Types</SelectItem>
-                            {['hot_work', 'cold_work', 'confined_space', 'working_at_height', 'excavation', 'electrical', 'general'].map((t) => (
-                                <SelectItem key={t} value={t} className="capitalize">{t.replace('_', ' ')}</SelectItem>
-                            ))}
-                        </SelectContent>
-                    </Select>
-                    <Select value={filters.status || 'all'} onValueChange={(v) => applyFilters({ status: v === 'all' ? null : v })}>
-                        <SelectTrigger className="w-44"><SelectValue placeholder="Status" /></SelectTrigger>
-                        <SelectContent>
-                            <SelectItem value="all">All Statuses</SelectItem>
-                            {['draft', 'submitted', 'rejected', 'approved', 'active', 'closed', 'cancelled'].map((s) => (
-                                <SelectItem key={s} value={s} className="capitalize">{s}</SelectItem>
-                            ))}
-                        </SelectContent>
-                    </Select>
-                </CardContent>
-            </Card>
+            <div className="mb-4 flex flex-wrap items-center gap-2">
+                <div className="relative min-w-[220px] flex-1">
+                    <Search className="pointer-events-none absolute left-2.5 top-1/2 h-3.5 w-3.5 -translate-y-1/2 text-graphite-400" />
+                    <Input className="border-graphite-200 bg-white pl-8 shadow-none" placeholder="Search PTW number or description..." defaultValue={filters.search || ''} onChange={(e) => applyFilters({ search: e.target.value || null })} />
+                </div>
+                <Select value={filters.type || 'all'} onValueChange={(v) => applyFilters({ type: v === 'all' ? null : v })}>
+                    <SelectTrigger className="w-44 bg-white"><SelectValue placeholder="Type" /></SelectTrigger>
+                    <SelectContent>
+                        <SelectItem value="all">All Types</SelectItem>
+                        {['hot_work', 'cold_work', 'confined_space', 'working_at_height', 'excavation', 'electrical', 'general'].map((t) => (
+                            <SelectItem key={t} value={t} className="capitalize">{t.replace('_', ' ')}</SelectItem>
+                        ))}
+                    </SelectContent>
+                </Select>
+                <Select value={filters.status || 'all'} onValueChange={(v) => applyFilters({ status: v === 'all' ? null : v })}>
+                    <SelectTrigger className="w-44 bg-white"><SelectValue placeholder="Status" /></SelectTrigger>
+                    <SelectContent>
+                        <SelectItem value="all">All Statuses</SelectItem>
+                        {['draft', 'submitted', 'rejected', 'approved', 'active', 'closed', 'cancelled'].map((s) => (
+                            <SelectItem key={s} value={s} className="capitalize">{s}</SelectItem>
+                        ))}
+                    </SelectContent>
+                </Select>
+            </div>
 
             <Card>
                 <CardContent className="p-0">
@@ -96,7 +109,7 @@ export default function PermitsToWorkIndex({ permits, filters, can }) {
                                         className="block px-4 py-3 active:bg-graphite-50 dark:active:bg-slate-800/50"
                                     >
                                         <div className="flex items-start justify-between gap-2">
-                                            <span className="font-medium text-graphite-900 dark:text-slate-100">{p.ptw_number}</span>
+                                            <span className="font-semibold text-graphite-900 dark:text-slate-100">{p.ptw_number}</span>
                                             <StatusBadge value={p.status} />
                                         </div>
                                         <p className="mt-1 text-sm capitalize text-graphite-700 dark:text-slate-300">{p.permit_type.replace('_', ' ')}</p>
@@ -123,29 +136,37 @@ export default function PermitsToWorkIndex({ permits, filters, can }) {
                                 ))}
                             </div>
 
-                            {/* v2.17.1 (PTW Field Workflow Verification &
-                                Correction pass, Part 2): added Project,
-                                PIC, and Workforce columns -- the shared
-                                Table component already self-contains
-                                horizontal scroll (`overflow-auto` on its
-                                own wrapper), so a wider table here scrolls
-                                within itself rather than the page, same as
-                                every other wide table in this codebase. */}
+                            {/* v2.21.0: consolidated from 9 equal-weight
+                                columns to 6 identity-first cells -- same
+                                data (nothing dropped), grouped so the
+                                permit's own identity (number + type) and
+                                the people on it (requester + PIC) each
+                                read as ONE scannable unit instead of
+                                competing on equal footing with Start/
+                                Workforce. The shared Table component
+                                still self-contains horizontal scroll via
+                                its own wrapper. */}
                             <Table className="hidden md:table">
                                 <TableHeader>
-                                    <TableRow><TableHead>PTW No.</TableHead><TableHead>Type</TableHead><TableHead>Project</TableHead><TableHead>Start</TableHead><TableHead>Location</TableHead><TableHead>Requested By</TableHead><TableHead>PIC</TableHead><TableHead>Workforce</TableHead><TableHead>Status</TableHead></TableRow>
+                                    <TableRow><TableHead>Permit</TableHead><TableHead>Project / Location</TableHead><TableHead>Requester / PIC</TableHead><TableHead>Workforce</TableHead><TableHead>Valid From</TableHead><TableHead>Status</TableHead></TableRow>
                                 </TableHeader>
                                 <TableBody>
                                     {permits.data.map((p) => (
                                         <TableRow key={p.id} className="cursor-pointer" onClick={() => router.visit(route('permits-to-work.show', p.id))}>
-                                            <TableCell className="font-medium text-graphite-800 dark:text-slate-100">{p.ptw_number}</TableCell>
-                                            <TableCell className="capitalize">{p.permit_type.replace('_', ' ')}</TableCell>
-                                            <TableCell className="max-w-[140px] truncate">{p.project?.name || '-'}</TableCell>
-                                            <TableCell>{new Date(p.start_datetime).toLocaleString('en-US', { day: 'numeric', month: 'short', hour: 'numeric', minute: '2-digit' })}</TableCell>
-                                            <TableCell className="max-w-[160px] truncate">{p.location || '-'}</TableCell>
-                                            <TableCell>{p.requester?.name}</TableCell>
-                                            <TableCell className="max-w-[140px] truncate">{p.pic?.full_name || '-'}</TableCell>
-                                            <TableCell>{p.personnel_count > 0 ? `${p.personnel_count} orang` : '-'}</TableCell>
+                                            <TableCell>
+                                                <p className="font-semibold text-graphite-900 dark:text-slate-100">{p.ptw_number}</p>
+                                                <p className="text-xs capitalize text-graphite-500 dark:text-slate-400">{p.permit_type.replace('_', ' ')}</p>
+                                            </TableCell>
+                                            <TableCell className="max-w-[180px]">
+                                                <p className="truncate text-graphite-800 dark:text-slate-200">{p.project?.name || '-'}</p>
+                                                <p className="truncate text-xs text-graphite-500 dark:text-slate-400">{p.location || '-'}</p>
+                                            </TableCell>
+                                            <TableCell className="max-w-[160px]">
+                                                <p className="truncate text-graphite-800 dark:text-slate-200">{p.requester?.name || '-'}</p>
+                                                <p className="truncate text-xs text-graphite-500 dark:text-slate-400">{p.pic ? `PIC: ${p.pic.full_name}` : 'PIC belum ditentukan'}</p>
+                                            </TableCell>
+                                            <TableCell className="text-graphite-500 dark:text-slate-400">{p.personnel_count > 0 ? `${p.personnel_count} orang` : '-'}</TableCell>
+                                            <TableCell className="text-graphite-500 dark:text-slate-400">{new Date(p.start_datetime).toLocaleString('en-US', { day: 'numeric', month: 'short', hour: 'numeric', minute: '2-digit' })}</TableCell>
                                             <TableCell><StatusBadge value={p.status} /></TableCell>
                                         </TableRow>
                                     ))}

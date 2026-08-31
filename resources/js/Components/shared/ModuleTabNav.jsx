@@ -16,12 +16,31 @@ import { cn } from '@/lib/utils';
  * list differs per module. `PpeTabNav` (kept for backward compatibility
  * with the four existing PPE pages that already import it) is now a
  * thin wrapper around this with the PPE tabs hardcoded.
+ *
+ * v2.16.0 (Global Mobile UX Hardening pass). Root cause of PPE
+ * Management's mobile screenshot regression (horizontal tab overflow
+ * dragging the whole PAGE sideways): this row was `flex gap-1` with no
+ * wrap and no scroll containment of its own -- with PPE's 6 tabs
+ * ("Replacement Requests" alone is a long label), the row simply grew
+ * past the viewport and `<main>` has no `overflow-x-hidden`, so the
+ * entire page scrolled sideways with it. Every module using this
+ * component (currently only PPE, but this fixes it for any future
+ * module too) inherited the same bug for free.
+ *
+ * Fixed the way `PermitsToWork/MyIndex.jsx`'s existing chip-row already
+ * does it correctly elsewhere in this codebase: the SCROLL belongs to
+ * this component's own wrapper (`overflow-x-auto`), never the page.
+ * Each tab gets `shrink-0 whitespace-nowrap` so a label wraps onto two
+ * lines instead of squashing -- the row scrolls before any single tab's
+ * text would compress. `-mx-1 px-1` widens the scrollable hit area
+ * slightly past the tabs' own padding without changing the visual
+ * alignment against the page's own left edge.
  */
 export default function ModuleTabNav({ tabs }) {
     const { url } = usePage();
 
     return (
-        <div className="mb-4 flex gap-1 border-b border-graphite-200 dark:border-slate-800">
+        <div className="mb-4 -mx-1 flex gap-1 overflow-x-auto border-b border-graphite-200 px-1 dark:border-slate-800">
             {tabs.map((tab) => {
                 let active = false;
                 try {
@@ -34,7 +53,7 @@ export default function ModuleTabNav({ tabs }) {
                         key={tab.href}
                         href={route(tab.href)}
                         className={cn(
-                            'flex items-center gap-1.5 border-b-2 px-3 py-1.5 text-xs font-medium transition-colors',
+                            'flex shrink-0 items-center gap-1.5 whitespace-nowrap border-b-2 px-3 py-1.5 text-xs font-medium transition-colors',
                             active
                                 ? 'border-brand-600 text-brand-700 dark:text-brand-400'
                                 : 'border-transparent text-graphite-500 hover:border-graphite-300 hover:text-graphite-800 dark:text-slate-400 dark:hover:text-slate-200'

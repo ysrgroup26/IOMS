@@ -116,11 +116,19 @@ export default function PpeEmployees({ employees, companies, departments, filter
                                 <Link
                                     key={emp.id}
                                     href={employeeHref(emp.id)}
-                                    className="flex items-center justify-between gap-4 px-4 py-2 transition-colors hover:bg-graphite-50 dark:hover:bg-slate-800/60"
+                                    className="flex flex-wrap items-center justify-between gap-x-4 gap-y-1 px-4 py-2 transition-colors hover:bg-graphite-50 dark:hover:bg-slate-800/60"
                                 >
+                                    {/* v2.16.0 (Global Mobile UX Hardening). Was three
+                                        shrink-0 fixed-width columns (160px+128px) with no
+                                        flex-wrap -- on a 320-375px viewport those alone
+                                        already exceeded the row's own width before the
+                                        name even got space. Department now hides below
+                                        `sm` (still available on the employee's own
+                                        profile) rather than fighting the name column for
+                                        room; the count stays visible at every width. */}
                                     <span className="min-w-0 flex-1 truncate text-[13px] font-medium text-graphite-900 dark:text-slate-100">{emp.full_name}</span>
-                                    <span className="w-40 shrink-0 truncate text-xs text-graphite-500 dark:text-slate-400">{emp.department?.name || '—'}</span>
-                                    <span className="w-32 shrink-0 text-right text-xs text-graphite-500 dark:text-slate-400">{emp.total_ppe_count} Assigned PPE</span>
+                                    <span className="hidden w-40 shrink-0 truncate text-xs text-graphite-500 sm:inline dark:text-slate-400">{emp.department?.name || '—'}</span>
+                                    <span className="shrink-0 text-right text-xs text-graphite-500 dark:text-slate-400">{emp.total_ppe_count} Assigned PPE</span>
                                 </Link>
                             ))}
                         </div>

@@ -17,7 +17,7 @@ return [
     |
     */
 
-    'version' => '2.15.0',
+    'version' => '2.16.0',
 
     // Tester / Beta / Stable -- tracks the release stage explicitly.
     // Previously only implied in conversation, never actually stored.
@@ -25,9 +25,9 @@ return [
 
     'edition' => 'Enterprise Edition',
 
-    'build' => '2026.08.30.1',
+    'build' => '2026.08.31.1',
 
-    'release_date' => '2026-08-30',
+    'release_date' => '2026-08-31',
 
     'developer' => 'Yofhanza Shultona Rizqi S.',
 
@@ -44,10 +44,9 @@ return [
     'documentation_url' => 'docs.iomsplatform.com',
 
     'whats_new' => [
-        'Every dialog/popup in the app is now mobile-safe -- tall forms scroll within the dialog instead of getting cut off at the bottom of the screen on smaller phones',
-        'Page headers now stack cleanly on mobile (title above, actions below) instead of squeezing onto one row',
-        'Incident list now shows as readable cards on mobile instead of a sideways-scrolling table',
-        'Status badges are more consistent -- "Overdue" and "High priority" now show as a distinct amber warning instead of the same red as "Rejected"/"Critical"',
+        'Fixed PPE Management\'s mobile tab bar dragging the whole page sideways -- tabs now scroll within their own row instead of overflowing the screen (the same fix applies to any future module using this tab bar)',
+        'PPE Employee List and Replacement Due no longer force the page wider than the screen on mobile -- secondary details reflow instead of pushing content off-screen',
+        'Tapping a menu item on mobile now reliably closes the sidebar drawer',
     ],
 
     /*
@@ -62,6 +61,7 @@ return [
     */
 
     'version_history' => [
+        ['version' => '2.16.0', 'date' => '2026-08-31', 'summary' => 'Global Mobile UX Hardening pass: fixed ModuleTabNav (PPE\'s tab bar) causing page-level horizontal scroll on mobile -- the root cause of a reported PPE screenshot regression -- by containing the scroll to the tab row itself; fixed two PPE list rows (Employees, Replacement Due) whose fixed-width columns exceeded narrow viewports; sidebar drawer now closes explicitly on mobile nav-item tap. Audited broadly (tabs, tables, dialogs, grids, fixed widths) -- most tables were already safely self-scrolling via the shared Table component\'s own wrapper, so no table changes were needed. No business logic, HSE Dashboard, Field Home, PTW workflow, RBAC, tenant isolation, subscription, or database changes.'],
         ['version' => '2.15.0', 'date' => '2026-08-30', 'summary' => 'Product UI/UX Finalization: fixed the dialog component app-wide so tall forms no longer clip off-screen on mobile (max-h + internal scroll + safe margin, previously only one page had opted in); PageHeader now stacks title-above-actions on mobile instead of squeezing both onto one row; added a warning Badge variant so "Overdue"/"High priority" read distinctly from "Rejected"/"Critical"; Incident list converted to the proven PTW mobile-card pattern. Audit-first, shared-components-first pass -- no business logic, dashboard widgets, sidebar structure, or Field Home scope changed.'],
         ['version' => '2.14.0', 'date' => '2026-08-30', 'summary' => 'SaaS Productization / Pricing Foundation: Package confirmed as the canonical Plan entity (currency/trial_days/is_public/is_custom added, no new plans table); new PricingService is the single source of formatted plan pricing (never hardcoded in a component); new tenant-facing Plans comparison page; trial-days-to-trial_ends_at wiring; upgrade/downgrade and billing-ready architecture documented for a later phase. No checkout, payment gateway, or final pricing decision -- explicitly out of scope.'],
         ['version' => '2.13.0', 'date' => '2026-08-30', 'summary' => 'SaaS Phase 1 -- Subscription Architecture & Entitlement Enforcement: server-side per-workspace entitlement enforcement enabled by default (previously built, never wired on); a tenant with no grant rows is now safely treated as fully allowed instead of fully denied, so this cannot lock out a pre-existing tenant; new `tenants:sync-grants` command additively tops up a partially-granted tenant to its Package baseline; entitlement-denied messages now in Bahasa Indonesia. No new table, no payment/billing/pricing/checkout work (explicitly out of scope for this phase).'],

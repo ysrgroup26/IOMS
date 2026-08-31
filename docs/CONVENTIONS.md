@@ -3,6 +3,33 @@
 House style, and a deliberately honest list of mistakes that have actually happened in this
 codebase's history — kept here so they don't get repeated in a slightly different shape.
 
+## Known Pitfall (v2.16.0): a tab/chip row with no `overflow-x-auto` and no `flex-wrap` drags the
+## WHOLE PAGE sideways on mobile, not just itself -- `<main>` has no `overflow-x-hidden` anywhere
+
+`ModuleTabNav.jsx` (the shared component behind PPE's tab bar, and any future module using it) was
+`flex gap-1` with neither wrap nor scroll containment. With enough tabs/long-enough labels (PPE's
+"Replacement Requests" was the trigger), the row's natural width exceeded the viewport -- and because
+`AuthenticatedLayout.jsx`'s `<main>` has no `overflow-x-hidden` (correctly, per this codebase's own
+"never solve overflow by blindly hiding it" convention), that width difference became page-level
+horizontal scroll, dragging every other element on the page sideways with it, not just the tab row.
+Fixed by making the SCROLL belong to the component (`overflow-x-auto` on the row itself, `shrink-0
+whitespace-nowrap` on each tab so a tab compresses/wraps its own text before the row would) rather
+than by hiding overflow anywhere upstream -- `PermitsToWork/MyIndex.jsx`'s status-chip row already did
+this correctly and was used as the reference. **When adding any horizontal row of items (tabs, chips,
+filter pills) whose count/label length isn't tightly bounded, default to `overflow-x-auto` +
+`shrink-0` on the row from the start** -- `flex-wrap` is an acceptable alternative ONLY when a second
+line is visually fine (e.g. `Hse/Master.jsx`'s own tab bar already wraps correctly), never assume a
+row "probably fits."
+
+Same root cause, smaller blast radius, found in two PPE list rows (`Ppe/Employees.jsx`,
+`Ppe/ReplacementDue.jsx`): several `shrink-0` fixed-pixel-width columns (`w-40`/`w-32`/`w-28`, no
+`flex-wrap`) summed to more than a 320-375px viewport before the flexible/truncating column even got
+space. `shrink-0` prevents a column from compressing, which is correct for short fixed content -- but
+without either `flex-wrap` or hiding a lower-priority column below `sm`, multiple `shrink-0` columns
+together can still force the row wider than the viewport. Fixed per-row (hide the least essential
+column below `sm`, or let secondary columns wrap to a second line) rather than in a shared component,
+since each row's actual priority ordering (which field matters most when scanning) is page-specific.
+
 ## Convention (v2.15.0): a shared-component fix reaches every caller for free, but only the callers
 ## that actually use the shared component -- 8+ pages hand-roll their own status/badge colors instead
 

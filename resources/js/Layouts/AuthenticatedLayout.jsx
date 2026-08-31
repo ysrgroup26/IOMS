@@ -292,6 +292,15 @@ export default function AuthenticatedLayout({ children }) {
                                                         <Link
                                                             key={child.name}
                                                             href={route(child.href)}
+                                                            // v2.16.0 (Global Mobile UX Hardening, Part 9):
+                                                            // previously relied entirely on this whole layout
+                                                            // remounting on navigation (each page wraps its own
+                                                            // <AuthenticatedLayout>, resetting sidebarOpen's
+                                                            // useState) to close the mobile drawer -- worked
+                                                            // today, but fragile (breaks silently if this ever
+                                                            // moves to Inertia's persistent-layout pattern).
+                                                            // Explicit now, defensively.
+                                                            onClick={() => setSidebarOpen(false)}
                                                             className={cn(
                                                                 'flex h-[34px] items-center gap-2 rounded-lg px-2.5 text-[13px] leading-tight transition-colors duration-150',
                                                                 childActive ? 'font-semibold text-brand-600 dark:text-brand-400' : 'font-normal text-graphite-500 hover:text-graphite-800 dark:text-slate-500 dark:hover:text-slate-200'
@@ -313,6 +322,7 @@ export default function AuthenticatedLayout({ children }) {
                             <Link
                                 key={item.name}
                                 href={route(item.href, item.queryParams)}
+                                onClick={() => setSidebarOpen(false)}
                                 className={cn(
                                     // v1.11.13: bumped text-xs(12px) -> text-[13px], matching
                                     // this pass's "Main menu text: 13px/500" exactly.

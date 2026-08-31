@@ -61,12 +61,20 @@ export default function PpeReplacementDue({ items, companies, filters }) {
                                 <span className="text-xs font-medium uppercase tracking-wide text-graphite-400">Select All ({items.length})</span>
                             </div>
                             {items.map((item) => (
-                                <label key={item.id} className="flex cursor-pointer items-center gap-3 px-4 py-2 text-[13px] hover:bg-graphite-50 dark:hover:bg-slate-800/60">
+                                // v2.16.0 (Global Mobile UX Hardening). Was 4 shrink-0
+                                // fixed-width columns (160+112+128px) with no wrap --
+                                // already exceeded a 320-375px viewport before the
+                                // checkbox/gaps were even counted. Now wraps: name +
+                                // overdue badge stay on the first line (the two facts
+                                // that matter most when scanning), department/PPE type
+                                // drop to a second line on narrow screens instead of
+                                // forcing the row wider than the viewport.
+                                <label key={item.id} className="flex cursor-pointer flex-wrap items-center gap-x-3 gap-y-1 px-4 py-2 text-[13px] hover:bg-graphite-50 dark:hover:bg-slate-800/60">
                                     <Checkbox checked={selected.includes(item.id)} onCheckedChange={() => toggle(item.id)} />
-                                    <span className="w-40 shrink-0 font-medium text-graphite-900 dark:text-slate-100">{item.employee_name}</span>
-                                    <span className="w-28 shrink-0 text-graphite-500 dark:text-slate-400">{item.department || '-'}</span>
-                                    <span className="w-32 shrink-0 text-graphite-700 dark:text-slate-300">{item.ppe_type}</span>
-                                    <span className="ml-auto shrink-0 text-red-600">{item.days_overdue}d overdue</span>
+                                    <span className="min-w-0 flex-1 truncate font-medium text-graphite-900 dark:text-slate-100">{item.employee_name}</span>
+                                    <span className="shrink-0 text-red-600">{item.days_overdue}d overdue</span>
+                                    <span className="ml-8 shrink-0 text-xs text-graphite-500 sm:ml-0 sm:w-28 dark:text-slate-400">{item.department || '-'}</span>
+                                    <span className="shrink-0 text-xs text-graphite-700 sm:w-32 sm:text-[13px] dark:text-slate-300">{item.ppe_type}</span>
                                 </label>
                             ))}
                         </div>

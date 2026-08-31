@@ -13,7 +13,7 @@ return new class extends Migration
      * available/in-use/damaged COUNT, deliberately NOT the same concept
      * as `waste_records` (actual waste material, e.g. "1,200 Liter used
      * oil") or `waste_storage_locations` (a TPS/storage PLACE register).
-     * Confirmed via a full audit of every existing Waste*/Asset/Item/
+     * Confirmed via a full audit of every existing Waste/Asset/Item/
      * Stock model before writing this migration -- none of them already
      * model "N physical containers of type X, with total/available/
      * in_use/damaged counts" (see this pass's own audit notes in

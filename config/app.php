@@ -33,7 +33,12 @@ use Maatwebsite\Excel\Facades\Excel;
 
 return [
 
-    'name' => env('APP_NAME', 'Integrated Operations Management System'),
+    // v2.22.0 (Complete Product UI/UX Transformation, Part 1): IOMS is
+    // the product name (same convention as SAP/Workday/ServiceNow), not
+    // its own full expansion -- this is the default browser-tab
+    // title/app name whenever APP_NAME isn't set in .env. The full
+    // expansion still lives in the About dialog and docs.
+    'name' => env('APP_NAME', 'IOMS'),
 
     'env' => env('APP_ENV', 'production'),
 

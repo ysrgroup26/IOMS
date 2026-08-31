@@ -281,6 +281,11 @@ at all — the same bug class already fixed in `DashboardStatsService`/`HseDashb
 in Workstream B14 while extending this same controller for Incident Investigation/CAPA — see the
 "Incident Investigation + CAPA" section below for the full fix description.
 
+**Index visual hierarchy (v2.22.0, Complete Product UI/UX Transformation)**: desktop table
+consolidated from 7 equal-weight columns to 4 identity-first cells (Incident = number + title;
+Category + date; Reported By; Severity/Status), same pattern `PermitsToWork/Index.jsx` established —
+no data dropped. Filter bar unboxed from its `Card`.
+
 ## HSE Master Data (Hazard Category)
 
 **Department:** HSE (Milestone 4, Workstream B0).

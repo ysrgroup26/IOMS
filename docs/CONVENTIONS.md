@@ -3,6 +3,21 @@
 House style, and a deliberately honest list of mistakes that have actually happened in this
 codebase's history — kept here so they don't get repeated in a slightly different shape.
 
+## Convention (v2.22.0): IOMS is the product name — treat it like SAP/Workday/ServiceNow, not its own
+## full expansion
+
+`config/app.php`'s `'name'` fallback and `resources/views/app.blade.php`'s `<title>` fallback both
+previously defaulted to the full "Integrated Operations Management System" — and this local
+environment's own `.env` (untracked by git, so this fix doesn't travel with the repo — the
+equivalent `APP_NAME` change has to be made by hand wherever else this app is deployed) had
+`APP_NAME="Shipyard Management System"`, a stale pre-rebrand name (see this file's own CLAUDE.md
+history) that had been silently showing in the browser tab this entire time. Fixed both the code-level
+fallback (now `'IOMS'`) and this environment's own `.env`. Going forward: **"IOMS" is the product
+name everywhere it appears as a headline/title/tab-title/primary brand mark** (sidebar wordmark
+subtitle, login page, public site hero/footer, browser tab); the full expansion stays appropriate
+only in genuinely explanatory contexts (About dialog, an FAQ literally answering "what does IOMS
+stand for", internal docs) — never as the thing competing with "IOMS" itself for primary billing.
+
 ## New reusable component (v2.20.0): `Components/shared/PersonChip.jsx` — the one place IOMS shows a
 ## real Employee/User reference
 

@@ -12,6 +12,7 @@ import { getSelectableDepartments, getGlobalNavItems, getWorkspaceKeyForRoute, i
 import AboutDialog from '@/Components/shared/AboutDialog';
 import BrandWordmark from '@/Components/shared/BrandWordmark';
 import GlobalSearch from '@/Components/shared/GlobalSearch';
+import MobileBottomNav from '@/Components/shared/MobileBottomNav';
 import {
     DropdownMenu, DropdownMenuTrigger, DropdownMenuContent,
     DropdownMenuItem, DropdownMenuLabel, DropdownMenuSeparator,
@@ -375,8 +376,15 @@ export default function AuthenticatedLayout({ children }) {
 
                 <FlashMessages />
 
-                <main className="p-5 lg:p-8">{children}</main>
+                {/* v2.22.0 (Complete Product UI/UX Transformation, Part
+                    9): bottom padding on mobile only, so the fixed
+                    MobileBottomNav below never covers the last bit of
+                    page content -- unchanged at lg: and up, where the
+                    bottom nav doesn't render at all. */}
+                <main className="p-5 pb-24 lg:p-8 lg:pb-8">{children}</main>
             </div>
+
+            <MobileBottomNav visibleNav={visibleNav} currentUrl={currentUrl} onOpenMore={() => setSidebarOpen(true)} />
         </div>
     );
 }

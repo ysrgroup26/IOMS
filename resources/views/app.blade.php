@@ -34,7 +34,14 @@
         })();
     </script>
 
-    <title inertia>{{ config('app.name', 'Integrated Operations Management System') }}</title>
+    {{-- v2.22.0 (Complete Product UI/UX Transformation, Part 1): IOMS is
+         the product name, the same way "SAP"/"Workday"/"ServiceNow" are
+         product names, not their own full expansions -- this is the
+         single most-visible instance of the app name in the entire
+         product (every browser tab), so it's the highest-value place to
+         fix first. The full expansion remains available (About dialog,
+         internal docs) but no longer dominates here. --}}
+    <title inertia>{{ config('app.name', 'IOMS') }}</title>
 
     <link rel="preconnect" href="https://fonts.googleapis.com">
     <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>

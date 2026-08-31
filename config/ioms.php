@@ -17,7 +17,7 @@ return [
     |
     */
 
-    'version' => '2.21.0',
+    'version' => '2.22.0',
 
     // Tester / Beta / Stable -- tracks the release stage explicitly.
     // Previously only implied in conversation, never actually stored.
@@ -25,7 +25,7 @@ return [
 
     'edition' => 'Enterprise Edition',
 
-    'build' => '2026.08.31.7',
+    'build' => '2026.08.31.8',
 
     'release_date' => '2026-08-31',
 
@@ -44,7 +44,9 @@ return [
     'documentation_url' => 'docs.iomsplatform.com',
 
     'whats_new' => [
-        'PTW list is easier to scan -- permit number/type, project/location, and requester/PIC now read as grouped units instead of nine same-weight columns',
+        'New mobile bottom navigation bar -- on phones, the app now has a fixed Home / (your top modules) / More bar instead of only a hamburger menu, with "More" opening the full menu you already know',
+        'Fixed the browser tab and app name showing a stale pre-rebrand name in some environments -- IOMS is now shown as the product name consistently',
+        'Incident list is easier to scan -- consolidated into fewer, grouped columns on desktop',
     ],
 
     /*
@@ -59,6 +61,7 @@ return [
     */
 
     'version_history' => [
+        ['version' => '2.22.0', 'date' => '2026-08-31', 'summary' => 'Complete Product UI/UX Transformation pass: new fixed mobile bottom navigation bar (Home + up to 3 authorized items + More, reusing the exact same RBAC/department-filtered nav array and drawer the sidebar already uses -- no second permission system); "IOMS" restored as the primary product name in the browser tab title, app config fallback, and public site footer (was drifting toward the full "Integrated Operations Management System" expansion, and this environment\'s own .env had a stale pre-rebrand "Shipyard Management System" title); Incidents list got the same identity-first table consolidation PTW Index introduced last pass. No business logic, RBAC, tenant isolation, SaaS entitlement, or database changes.'],
         ['version' => '2.21.0', 'date' => '2026-08-31', 'summary' => 'Final Visual Polish pass (P0 scope): PTW Index desktop table consolidated from 9 equal-weight columns to 6 identity-first cells (Permit = number+type, Project/Location, Requester/PIC, each a two-line grouped unit) -- no data dropped, real visual hierarchy instead. Filter bar unboxed from its Card. Presentation only. Broader multi-module polish (Dashboard/HSE/PPE/etc.) intentionally left for a follow-up pass given this pass\'s own P0-first priority and proportionate scope.'],
         ['version' => '2.20.0', 'date' => '2026-08-31', 'summary' => 'PTW Experience & Visual Polish pass: redesigned PTW Document/PDF around a numbered information architecture (01 Work Information -> 05 Supporting Documents) with a dominant document-title block and PIC/Workforce shown via a new reusable PersonChip avatar component instead of plain text; PTW Show page gained a more prominent identity/status header; PTW Create form gained numbered step badges. Presentation only -- no schema, workflow, RBAC, tenant isolation, SaaS entitlement, or quota changes. Same PdfGeneratorService/DocumentEngine pipeline, no new PDF engine.'],
         ['version' => '2.19.0', 'date' => '2026-08-31', 'summary' => 'PTW Access Management Correction pass: fixed settings.users.ptw-access being gated role:super_admin only at the route level -- STRICTER than SettingsController::updatePtwAccess()\'s own canManageHse() check, meaning HSE could never actually reach it despite the controller already allowing it. Moved to its own role:super_admin,hse route group. Settings > Users tab now opens for HSE too, but split into two independent cards -- User Management (create/edit/delete/role changes) stays Super-Admin-only; Field & PTW Access (toggle + quota) opens to HSE. Requester/PIC/Workforce/quota logic re-audited and confirmed already correct, no changes needed. No HSE Dashboard, Field Home, PTW workflow, or database changes.'],

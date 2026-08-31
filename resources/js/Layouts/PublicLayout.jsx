@@ -102,8 +102,13 @@ export default function PublicLayout({ children }) {
                     <div className="grid grid-cols-1 gap-8 sm:grid-cols-2 lg:grid-cols-4">
                         <div className="sm:col-span-2 lg:col-span-1">
                             <BrandWordmark className="h-6 w-auto" />
-                            <p className="mt-3 text-sm text-graphite-500">Integrated Operations Management System</p>
-                            <p className="text-sm text-graphite-500">Industrial Operations Management Platform</p>
+                            {/* v2.22.0 (Complete Product UI/UX Transformation,
+                                Part 1): IOMS is the product name -- the full
+                                expansion no longer gets equal visual billing
+                                next to it in the one spot (footer) that
+                                appears on every public page. */}
+                            <p className="mt-3 text-sm font-medium text-graphite-700">Industrial Operations Platform</p>
+                            <p className="text-xs text-graphite-400">Integrated Operations Management System</p>
                         </div>
                         <div>
                             <p className="text-xs font-semibold uppercase tracking-wide text-graphite-400">Platform</p>

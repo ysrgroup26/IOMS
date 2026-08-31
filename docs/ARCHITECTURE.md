@@ -376,6 +376,19 @@ reasoning across every refinement (v1.8.0 through v1.10.2). This section is the 
   `Field/Home`'s action tiles reuse the exact same `canManage*()` gates their destination routes
   already enforce, and its pending-approvals/tasks counts are read verbatim from
   `WorkCenterService` (no duplicated query).
+- **Mobile bottom navigation** (v2.22.0, Complete Product UI/UX Transformation, Part 9): below `lg`,
+  `Components/shared/MobileBottomNav.jsx` renders a fixed bottom tab bar alongside the sidebar (the
+  sidebar itself still exists as the same off-canvas drawer — this is an ADDITIONAL surface, not a
+  replacement). Deliberately reuses `AuthenticatedLayout`'s own `visibleNav` array as-is (the exact
+  same already-RBAC/department-filtered list the sidebar renders) rather than recomputing or
+  duplicating navigation/permission logic — this component receives it as a prop and only decides
+  *how many* of those already-authorized items to show (`Home` pinned + up to 3 leaf items, filtering
+  out `disabled`/`children`-grouped items since neither has one single tap destination), never *which*
+  items a role/department is allowed to see. Its "More" button calls the same `setSidebarOpen(true)`
+  the sidebar's own hamburger already uses — the full authorized navigation is one tap away in the
+  exact same drawer, not a second menu. `z-30`, intentionally below the drawer's own mobile overlay
+  (`z-40`) so opening the drawer visually covers the bottom bar too. `<main>` gets `pb-24` on mobile
+  only (`lg:pb-8` otherwise) so the fixed bar never covers page content.
 - **A department disappears from the switcher once it has zero visible items** for the current user
   — disabled items never get filtered this way (they carry no `moduleKey`), so a department made
   entirely of placeholders (Warehouse, Maintenance, Quality Control, Finance) still always appears.

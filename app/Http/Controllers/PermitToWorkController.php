@@ -5,6 +5,7 @@ namespace App\Http\Controllers;
 use App\Http\Requests\StorePermitToWorkRequest;
 use App\Models\ActivityLog;
 use App\Models\Company;
+use App\Models\Employee;
 use App\Models\JobSafetyAnalysis;
 use App\Models\PermitToWork;
 use App\Models\Project;
@@ -131,7 +132,10 @@ class PermitToWorkController extends Controller
 
     public function create(Request $request): Response
     {
-        abort_unless($request->user()->canManageHse(), 403);
+        // v2.17.0 (PTW Field Workflow Foundation + Controlled PTW
+        // Access): was canManageHse() only -- see User::canCreatePtw()'s
+        // own doc comment for why this is a union, not a replacement.
+        abort_unless($request->user()->canCreatePtw(), 403);
         $tenantCompanyIds = Company::query()->pluck('id');
 
         return Inertia::render('PermitsToWork/Form', [
@@ -141,6 +145,15 @@ class PermitToWorkController extends Controller
             'jsas' => JobSafetyAnalysis::whereIn('company_id', $tenantCompanyIds)->where('status', JobSafetyAnalysis::STATUS_APPROVED)->get(['id', 'jsa_number', 'job_title']),
             'ptwNumber' => PermitToWork::generateNumber(),
             'types' => PermitToWork::TYPES,
+            // v2.17.0 (Part 8/9/11): the PIC/Workforce selector's data
+            // source -- reuses the existing Employee Master directly
+            // (tenant-scoped via company_id, active only per Part 11's
+            // "inactive employees should generally not be selectable"),
+            // never a second employee directory.
+            'employees' => Employee::whereIn('company_id', $tenantCompanyIds)->active()
+                ->with('department:id,name')
+                ->orderBy('full_name')
+                ->get(['id', 'full_name', 'department_id']),
         ]);
     }
 
@@ -164,12 +177,29 @@ class PermitToWorkController extends Controller
      */
     public function store(StorePermitToWorkRequest $request): RedirectResponse
     {
+        $validated = $request->validated();
+        // v2.17.0 (PTW Field Workflow Foundation, Part 9): workforce is a
+        // pivot relationship, not a `permits_to_work` column -- pulled
+        // out here so it isn't passed to PermitToWork::create() (which
+        // would silently no-op, since it's not in $fillable) and synced
+        // separately below, after the permit itself exists.
+        $personnelIds = $validated['personnel_ids'] ?? [];
+        unset($validated['personnel_ids']);
+
         $permit = PermitToWork::create([
-            ...$request->validated(),
+            ...$validated,
             'ptw_number' => PermitToWork::generateNumber(),
             'status' => PermitToWork::STATUS_DRAFT,
+            // Requester is ALWAYS the authenticated user -- never a
+            // client-supplied value (there is no `requested_by` key in
+            // StorePermitToWorkRequest::rules() at all, so nothing in
+            // $validated could override this even if the frontend tried).
             'requested_by' => $request->user()->id,
         ]);
+
+        if (! empty($personnelIds)) {
+            $permit->personnel()->sync($personnelIds);
+        }
 
         ActivityLog::record('created', "Requested Permit To Work {$permit->ptw_number}.", $permit);
         $permit->transitionTo(PermitToWork::STATUS_SUBMITTED, $request->user());
@@ -184,7 +214,9 @@ class PermitToWorkController extends Controller
         $permitToWork->load(
             'company:id,name', 'project:id,name', 'riskAssessment:id,ra_number', 'jsa:id,jsa_number',
             'requester:id,name', 'areaAuthority:id,name', 'hseApprover:id,name', 'closer:id,name',
-            'gasTests.tester:id,name', 'lotoRecords'
+            'gasTests.tester:id,name', 'lotoRecords',
+            // v2.17.0 (PTW Field Workflow Foundation, Part 8/9/14/15).
+            'pic:id,full_name', 'personnel:id,full_name'
         );
 
         $activities = ActivityLog::where('subject_type', PermitToWork::class)
@@ -278,7 +310,7 @@ class PermitToWorkController extends Controller
     {
         $this->assertInCurrentTenant($permitToWork);
 
-        $permitToWork->load('company', 'project', 'riskAssessment', 'jsa', 'requester', 'areaAuthority', 'hseApprover', 'closer', 'gasTests.tester');
+        $permitToWork->load('company', 'project', 'riskAssessment', 'jsa', 'requester', 'areaAuthority', 'hseApprover', 'closer', 'gasTests.tester', 'pic', 'personnel');
 
         return $pdf->streamInline('pdf.permit-to-work', [
             'permit' => $permitToWork,
@@ -320,7 +352,7 @@ class PermitToWorkController extends Controller
     {
         $this->assertInCurrentTenant($permitToWork);
 
-        $permitToWork->load('company', 'project', 'riskAssessment', 'jsa', 'requester', 'areaAuthority', 'hseApprover', 'closer', 'gasTests.tester');
+        $permitToWork->load('company', 'project', 'riskAssessment', 'jsa', 'requester', 'areaAuthority', 'hseApprover', 'closer', 'gasTests.tester', 'pic', 'personnel');
 
         return Inertia::render('PermitsToWork/Document', [
             'permit' => $permitToWork,

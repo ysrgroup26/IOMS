@@ -65,6 +65,16 @@ class User extends Authenticatable
         'avatar_path',
         'is_active',
         'last_login_at',
+        // v2.17.0 (PTW Field Workflow Foundation + Controlled PTW
+        // Access). A per-USER grant -- deliberately not derived from
+        // `role`/`canManageHse()`: an HSE-role user can already create a
+        // PTW (unchanged), but this is the mechanism for a genuinely
+        // non-HSE Field/Operations user to be explicitly, individually
+        // authorized to do the same, capped by the tenant's package
+        // quota (see EntitlementService::canEnablePtwAccess()). Follows
+        // `is_active`'s exact existing shape -- see this column's own
+        // migration doc comment.
+        'ptw_access',
     ];
 
     protected $hidden = [
@@ -78,6 +88,7 @@ class User extends Authenticatable
             'email_verified_at' => 'datetime',
             'password' => 'hashed',
             'is_active' => 'boolean',
+            'ptw_access' => 'boolean',
             'last_login_at' => 'datetime',
         ];
     }
@@ -333,6 +344,22 @@ class User extends Authenticatable
     public function canManageHse(): bool
     {
         return $this->isSuperAdmin() || $this->isHse();
+    }
+
+    /**
+     * v2.17.0 (PTW Field Workflow Foundation). WHO may reach PTW
+     * `create()`/`store()` -- deliberately a UNION, not a replacement of
+     * `canManageHse()`: HSE staff retain the access they always had
+     * (they may need to raise a permit directly, e.g. for their own
+     * inspection work), and this ADDS individually-granted Field/
+     * Operations users on top, without touching the HSE authorization
+     * path at all. This is the single place both call sites (the PTW
+     * controller's own authorization and Field Home's tile visibility)
+     * read from, so they can never drift out of sync with each other.
+     */
+    public function canCreatePtw(): bool
+    {
+        return $this->canManageHse() || (bool) $this->ptw_access;
     }
 
     /** Milestones (v1.10.0) -- reuses the existing project-management permission rather than inventing a parallel one. */

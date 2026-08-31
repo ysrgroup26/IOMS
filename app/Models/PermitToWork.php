@@ -55,6 +55,10 @@ class PermitToWork extends Model
         'ptw_number', 'company_id', 'project_id', 'risk_assessment_id', 'jsa_id',
         'permit_type', 'work_description', 'location', 'start_datetime', 'end_datetime',
         'required_qualification', 'precautions', 'requested_by', 'area_authority_id',
+        // v2.17.0 (PTW Field Workflow Foundation, Part 8): PIC / Supervisor
+        // Lapangan -- a separate person from `requested_by` (see this
+        // column's own migration doc comment).
+        'pic_employee_id',
         'hse_approver_id', 'closed_by', 'closed_at', 'status',
     ];
 
@@ -95,6 +99,32 @@ class PermitToWork extends Model
     public function areaAuthority()
     {
         return $this->belongsTo(User::class, 'area_authority_id');
+    }
+
+    /**
+     * v2.17.0 (PTW Field Workflow Foundation, Part 8). References
+     * `Employee`, not `User` -- unlike `requester()`/`areaAuthority()`/
+     * `hseApprover()` above, a PIC is not necessarily an IOMS login at
+     * all (confirmed by audit: `Employee` has no `user_id`/`User`
+     * relation in this codebase, they're deliberately separate
+     * identities). Optional -- see this column's own migration comment.
+     */
+    public function pic()
+    {
+        return $this->belongsTo(Employee::class, 'pic_employee_id');
+    }
+
+    /**
+     * v2.17.0 (PTW Field Workflow Foundation, Part 9). The permit's
+     * overall planned workforce -- distinct from, and never duplicated
+     * into, any JSA-level manpower concept (JSA has none today, confirmed
+     * by audit; this pass does not add one, per "do NOT force manpower
+     * into JSA simply because PTW now has it"). Always drawn from real
+     * `Employee` records, never free text.
+     */
+    public function personnel()
+    {
+        return $this->belongsToMany(Employee::class, 'permit_to_work_personnel', 'permit_to_work_id', 'employee_id');
     }
 
     public function hseApprover()

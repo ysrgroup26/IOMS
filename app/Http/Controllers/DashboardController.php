@@ -300,7 +300,16 @@ class DashboardController extends Controller
         $user = $request->user();
 
         $tiles = [];
-        if ($user->canManageHse()) {
+        // v2.17.0 (PTW Field Workflow Foundation + Controlled PTW
+        // Access): was `canManageHse()` only -- meant the one tile Field
+        // Home most needs to offer (Create PTW) was invisible to exactly
+        // the audience Field Home exists for (non-HSE Field/Operations
+        // users), unless they happened to also hold the HSE role.
+        // `canCreatePtw()` is the single shared gate (see its own doc
+        // comment on User) also enforced server-side by
+        // PermitToWorkController -- this tile's visibility can never
+        // grant more than the backend already allows.
+        if ($user->canCreatePtw()) {
             $tiles[] = ['label' => 'Create PTW', 'description' => 'Ajukan izin kerja baru.', 'href' => route('permits-to-work.create'), 'icon' => 'Flame'];
         }
         // v2.9.0 (Field/Foreman Experience pass, Phase 3C): now points at

@@ -2,7 +2,7 @@ import { Head, Link } from '@inertiajs/react';
 import AuthenticatedLayout from '@/Layouts/AuthenticatedLayout';
 import { Button } from '@/Components/ui/button';
 import StatusBadge from '@/Components/shared/StatusBadge';
-import { ArrowLeft, Printer, Download, FlaskConical } from 'lucide-react';
+import { ArrowLeft, Printer, Download, FlaskConical, Users } from 'lucide-react';
 
 /**
  * v2.6.0 (PTW Document View pass). The actual product gap this pass
@@ -157,6 +157,27 @@ export default function PermitToWorkDocument({ permit: p, company, documentTempl
                     )}
                 </Section>
 
+                {/* v2.17.0 (PTW Field Workflow Foundation, Part 8/9/16).
+                    Real data only -- an unset PIC/empty Workforce list
+                    renders an honest "-"/"Belum ada personel", never a
+                    fabricated name or count. Distinct from "Area
+                    Authority" below (a separate, still-unwired workflow
+                    role -- see that field's own comment) so the two
+                    concepts don't read as the same thing. */}
+                <Section title="Workforce" icon={Users}>
+                    <FieldGrid>
+                        <Field label="PIC / Supervisor Lapangan" value={p.pic?.full_name || '-'} />
+                        <Field label="Total Personnel" value={`${p.personnel?.length || 0} orang`} />
+                    </FieldGrid>
+                    {p.personnel && p.personnel.length > 0 ? (
+                        <ul className="mt-3 grid grid-cols-1 gap-x-4 gap-y-1 text-sm text-graphite-800 sm:grid-cols-2 dark:text-slate-200">
+                            {p.personnel.map((person) => <li key={person.id} className="truncate">- {person.full_name}</li>)}
+                        </ul>
+                    ) : (
+                        <p className="mt-3 text-sm italic text-graphite-400">Belum ada personel yang dicatat.</p>
+                    )}
+                </Section>
+
                 {/* Gas Test */}
                 <Section title="Gas Test" icon={FlaskConical}>
                     {(!p.gas_tests || p.gas_tests.length === 0) ? (
@@ -209,7 +230,7 @@ export default function PermitToWorkDocument({ permit: p, company, documentTempl
                                     || (p.status === 'submitted' ? 'Menunggu Persetujuan' : (p.status === 'draft' ? '-' : '-'))
                             }
                         />
-                        {p.area_authority && <Field label="Area Authority / PIC" value={p.area_authority.name} />}
+                        {p.area_authority && <Field label="Area Authority" value={p.area_authority.name} />}
                         {p.closer && <Field label="Closed By" value={p.closer.name} />}
                     </FieldGrid>
                     {p.status === 'rejected' && (
@@ -222,16 +243,20 @@ export default function PermitToWorkDocument({ permit: p, company, documentTempl
                 {/* Signature area -- placeholders only where a real
                     person is actually associated with that role; never a
                     fake signature for a role no one has filled yet.
-                    "Area Authority / PIC" will currently ALWAYS render
-                    blank: `area_authority_id` has no writer anywhere in
-                    this codebase (confirmed again by this pass's own
-                    audit) -- an honest blank block for an unwired field,
-                    per the explicit "do not invent an Area Authority
-                    workflow" instruction, not a bug to fix here. */}
+                    "Area Authority" will currently ALWAYS render blank:
+                    `area_authority_id` has no writer anywhere in this
+                    codebase (confirmed again by this pass's own audit) --
+                    an honest blank block for an unwired field, per the
+                    explicit "do not invent an Area Authority workflow"
+                    instruction, not a bug to fix here. Relabeled from
+                    "Area Authority / PIC" to plain "Area Authority" this
+                    pass (v2.17.0) once PIC became a real, populated field
+                    of its own (see the Workforce section above) -- the
+                    two must not read as the same role. */}
                 <div data-print-section className="mt-8 grid grid-cols-1 gap-8 border-t border-graphite-200 pt-6 dark:border-slate-700 sm:grid-cols-3">
                     <SignatureBlock role="Applicant" name={p.requester?.name} />
                     <SignatureBlock role="HSE Approver" name={p.hse_approver?.name} />
-                    <SignatureBlock role="Area Authority / PIC" name={p.area_authority?.name} />
+                    <SignatureBlock role="Area Authority" name={p.area_authority?.name} />
                 </div>
 
                 {/* Document footer */}

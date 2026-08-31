@@ -42,7 +42,7 @@ export default function PlatformPlans({ plans }) {
                         <EmptyState icon={Tag} title="No plans defined yet" />
                     ) : (
                         <Table>
-                            <TableHeader><TableRow><TableHead>Name</TableHead><TableHead>Slug</TableHead><TableHead>Monthly</TableHead><TableHead>Yearly</TableHead><TableHead>Trial</TableHead><TableHead>Max Users</TableHead><TableHead>Max Companies</TableHead><TableHead>Status</TableHead><TableHead /></TableRow></TableHeader>
+                            <TableHeader><TableRow><TableHead>Name</TableHead><TableHead>Slug</TableHead><TableHead>Monthly</TableHead><TableHead>Yearly</TableHead><TableHead>Trial</TableHead><TableHead>Max Users</TableHead><TableHead>Max Companies</TableHead><TableHead>Max PTW Users</TableHead><TableHead>Status</TableHead><TableHead /></TableRow></TableHeader>
                             <TableBody>
                                 {plans.map((p) => (
                                     <TableRow key={p.id}>
@@ -53,6 +53,7 @@ export default function PlatformPlans({ plans }) {
                                         <TableCell>{p.trial_days ? `${p.trial_days}d` : '—'}</TableCell>
                                         <TableCell>{p.max_users ?? 'Unlimited'}</TableCell>
                                         <TableCell>{p.max_companies ?? 'Unlimited'}</TableCell>
+                                        <TableCell>{p.max_ptw_users ?? 'Unlimited'}</TableCell>
                                         <TableCell className="space-x-1">
                                             <Badge variant={p.is_active ? 'success' : 'secondary'}>{p.is_active ? 'Active' : 'Inactive'}</Badge>
                                             {!p.is_public && <Badge variant="outline">Internal</Badge>}
@@ -83,6 +84,7 @@ function PlanDialog({ plan, onClose }) {
         trial_days: plan?.trial_days ?? '',
         max_users: plan?.max_users ?? '',
         max_companies: plan?.max_companies ?? '',
+        max_ptw_users: plan?.max_ptw_users ?? '',
         is_active: plan?.is_active ?? true,
         is_public: plan?.is_public ?? true,
         is_custom: plan?.is_custom ?? false,
@@ -115,6 +117,7 @@ function PlanDialog({ plan, onClose }) {
                         <div className="space-y-1.5"><Label>Trial Days (blank = no trial)</Label><Input type="number" min="0" value={data.trial_days} onChange={(e) => setData('trial_days', e.target.value)} /></div>
                         <div className="space-y-1.5"><Label>Max Users (blank = unlimited)</Label><Input type="number" min="1" value={data.max_users} onChange={(e) => setData('max_users', e.target.value)} /></div>
                         <div className="space-y-1.5"><Label>Max Companies (blank = unlimited)</Label><Input type="number" min="1" value={data.max_companies} onChange={(e) => setData('max_companies', e.target.value)} /></div>
+                        <div className="space-y-1.5"><Label>Max PTW Users (blank = unlimited)</Label><Input type="number" min="0" value={data.max_ptw_users} onChange={(e) => setData('max_ptw_users', e.target.value)} /></div>
                     </div>
                     <div className="flex flex-wrap items-center gap-4">
                         <div className="flex items-center gap-2"><Checkbox checked={data.is_active} onCheckedChange={(v) => setData('is_active', Boolean(v))} /><Label className="!mt-0">Active</Label></div>

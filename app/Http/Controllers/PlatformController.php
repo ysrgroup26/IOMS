@@ -349,6 +349,12 @@ class PlatformController extends Controller
             'trial_days' => ['nullable', 'integer', 'min:0', 'max:365'],
             'max_users' => ['nullable', 'integer', 'min:1'],
             'max_companies' => ['nullable', 'integer', 'min:1'],
+            // v2.17.0 (PTW Field Workflow Foundation + Controlled PTW
+            // Access, Part 5/7): the PTW-user quota this Package grants
+            // -- see the owning migration's own doc comment. `null` =
+            // unlimited/custom, same convention as max_users/
+            // max_companies above.
+            'max_ptw_users' => ['nullable', 'integer', 'min:0'],
             'is_active' => ['boolean'],
             'is_public' => ['boolean'],
             'is_custom' => ['boolean'],

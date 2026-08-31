@@ -3,6 +3,7 @@
 namespace App\Services;
 
 use App\Models\Tenant;
+use App\Models\User;
 
 /**
  * v1.11.0 (SaaS Finalization Pass). The single, central authority for
@@ -119,6 +120,47 @@ class EntitlementService
         }
 
         return $tenant->workspaces()->where('key', $workspaceKey)->exists();
+    }
+
+    /**
+     * v2.17.0 (PTW Field Workflow Foundation + Controlled PTW Access,
+     * Part 5/22). The tenant's current package's PTW-enabled-user
+     * ceiling -- `null` means unlimited/custom (Enterprise), matching
+     * `max_users`/`max_companies`'s existing null-means-unlimited
+     * convention on the same `packages` table. A tenant with no
+     * subscription/package on record gets `null` (unlimited) rather than
+     * `0` -- the same "don't silently deny an unconfigured tenant"
+     * principle `EntitlementService`'s other methods already use (see
+     * `tenantCanUseModule()`'s own doc comment), not a special case
+     * invented for this method.
+     */
+    public function ptwUserQuota(?Tenant $tenant): ?int
+    {
+        return $tenant?->subscription?->package?->max_ptw_users;
+    }
+
+    /** How many of this tenant's OWN users currently have `ptw_access = true` right now. Tenant-scoped via `tenant_id` -- Tenant A can never consume Tenant B's quota. */
+    public function ptwUsersUsedCount(?Tenant $tenant): int
+    {
+        if (! $tenant) {
+            return 0;
+        }
+
+        return User::where('tenant_id', $tenant->id)->where('ptw_access', true)->count();
+    }
+
+    /**
+     * The actual server-side gate `SettingsController::updatePtwAccess()`
+     * enforces before flipping a user's `ptw_access` from false to true
+     * -- never trusts a client-supplied count or limit (Part 6's own
+     * "do not trust client-provided counts/limits" instruction). A null
+     * quota (unlimited/custom, or an unconfigured tenant) always allows.
+     */
+    public function canEnablePtwAccess(?Tenant $tenant): bool
+    {
+        $quota = $this->ptwUserQuota($tenant);
+
+        return $quota === null || $this->ptwUsersUsedCount($tenant) < $quota;
     }
 
     /**

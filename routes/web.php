@@ -658,6 +658,18 @@ Route::middleware(['auth', 'restrict.platform-admin'])->group(function () {
         Route::post('/settings/users', [SettingsController::class, 'storeUser'])->name('settings.users.store');
         Route::put('/settings/users/{user}', [SettingsController::class, 'updateUser'])->name('settings.users.update');
         Route::delete('/settings/users/{user}', [SettingsController::class, 'destroyUser'])->name('settings.users.destroy');
+        // v2.17.0 (PTW Field Workflow Foundation + Controlled PTW
+        // Access). Placed alongside the rest of Users management, inside
+        // this same `role:super_admin` group -- the Users tab itself is
+        // already Super-Admin-only end to end (frontend `canSystem` gate
+        // + this route group), so that's the effective authorization
+        // today. `SettingsController::updatePtwAccess()`'s own inline
+        // `canManageHse()` check is intentionally broader (Super Admin OR
+        // HSE) as defense-in-depth for if this route is ever also
+        // exposed to HSE from a future Settings surface -- it does not
+        // widen who can reach it today, since this route-level
+        // `role:super_admin` gate is stricter and runs first.
+        Route::put('/settings/users/{user}/ptw-access', [SettingsController::class, 'updatePtwAccess'])->name('settings.users.ptw-access');
 
         Route::get('/settings/backup', [SettingsController::class, 'backupDatabase'])->name('settings.backup');
         Route::post('/settings/restore', [SettingsController::class, 'restoreDatabase'])->name('settings.restore');

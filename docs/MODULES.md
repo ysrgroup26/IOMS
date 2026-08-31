@@ -602,6 +602,74 @@ document/table/route.
 - No database change. No new route. No RBAC/authorization change — `pdf()`/`document()` still use the
   identical `assertInCurrentTenant()` guard; only the data passed to the existing render calls changed.
 
+### PTW Field Workflow Foundation + Controlled PTW Access (v2.17.0)
+
+**Employee vs User Account vs PTW Access** — three separate concepts, confirmed distinct by this
+pass's own fresh audit (not assumed):
+- **`Employee`** — HR/HSE personnel record (name, department, position, active status). No login. No
+  `user_id`/relation to `User` anywhere in this codebase — an Employee can exist with no account at
+  all, and most do.
+- **`User`** — one login = one person (this codebase's existing, unchanged rule; this pass does not
+  introduce shared/generic accounts). Has a `role` (Super Admin/HSE/HRD/Manager/Warehouse).
+- **`ptw_access`** (new, `users.ptw_access`, boolean, default false) — a per-User grant, independent
+  of `role`. `User::canCreatePtw()` is `canManageHse() || ptw_access` — an HSE-role user keeps the PTW
+  access they always had; `ptw_access` is the mechanism for a specific, individually-authorized
+  non-HSE Field/Operations user to also create a PTW, exactly as many-employees /
+  selected-user-accounts / limited-PTW-access is meant to work.
+
+**Requester** — already correctly server-derived before this pass (confirmed by audit, not assumed):
+`PermitToWorkController::store()` sets `requested_by = $request->user()->id` unconditionally;
+`StorePermitToWorkRequest::rules()` has no `requested_by` key at all, so nothing in `$request->
+validated()` could ever override it even if the frontend tried. No change was needed here — this
+pass only widened WHO can reach `store()` (`canCreatePtw()` instead of `canManageHse()` alone), never
+loosened what it records as Requester.
+
+**PTW User Quota** — `packages.max_ptw_users` (nullable, `null` = unlimited/custom, same convention
+as the existing `max_users`/`max_companies` columns on that table). `EntitlementService::
+ptwUserQuota()`/`ptwUsersUsedCount()`/`canEnablePtwAccess()` are the enforcement surface;
+`SettingsController::updatePtwAccess()` is the only place `ptw_access` can flip false→true, inside a
+DB transaction with `lockForUpdate()` on the tenant's currently-enabled users, so two concurrent
+"enable" requests can't jointly exceed the quota. Baseline seeded: Starter = 15 (this phase's own
+explicit stated number), Professional = 50 (a proportionate, NOT final, working default — see
+`PackageSeeder`'s own comment), Enterprise = null. **Known tension, flagged not silently fixed**:
+Starter's seeded `max_ptw_users` (15) exceeds its seeded `max_users` (10) — a real tenant on Starter
+can never actually reach 15 PTW-enabled users while capped at 10 total users. Left as-is since this
+phase wasn't asked to change `max_users`, and guessing which number should move wasn't this phase's
+call to make.
+
+**PIC / Supervisor vs Requester vs Workforce** — three distinct people/concepts on one `PermitToWork`
+row, never conflated:
+- **Requester** (`requested_by` → `User`) — who submitted the PTW (existing, unchanged).
+- **PIC / Supervisor Lapangan** (`pic_employee_id` → `Employee`, new, optional) — who's responsible
+  for the work in the field. References `Employee`, not `User` — a PIC is not necessarily an IOMS
+  login. Distinct from the pre-existing, still-unwired `area_authority_id` (`User`-based, no writer
+  anywhere in this codebase, unchanged by this pass) — that field was relabeled from "Area Authority /
+  PIC" to plain "Area Authority" in the Document view/PDF once PIC became a real, populated field of
+  its own, so the two don't read as the same role.
+- **Workforce** (`permit_to_work_personnel` pivot → many `Employee`, new, optional) — the permit's
+  overall planned crew, always selected from real Employee records, never free text. Deliberately NOT
+  duplicated into JSA — `JobSafetyAnalysis` has no personnel/manpower concept in this codebase at all
+  (confirmed by audit), and this pass does not add one, per "don't force manpower into JSA simply
+  because PTW now has it."
+
+Both PIC and Workforce selectors are tenant-scoped and active-only
+(`Employee::whereIn('company_id', $tenantCompanyIds)->active()`), enforced server-side in
+`StorePermitToWorkRequest::rules()` via `Rule::in()` against that exact allow-list — a client-supplied
+Employee ID from another tenant is rejected regardless of what the frontend sends.
+
+**Field Home** — `DashboardController::fieldHome()`'s "Create PTW" tile was gated on `canManageHse()`
+only, meaning the tile Field Home most needs to offer was invisible to the exact audience Field Home
+exists for (non-HSE Field/Operations users) unless they also happened to hold the HSE role. Now gated
+on the shared `canCreatePtw()` — the same check the backend route itself enforces, so this can never
+grant tile visibility beyond what the server actually allows. No other Field Home change — it still
+offers exactly PTW / My PTW / Today's Jobs / My Tasks, per the standing "Field Home stays minimal"
+rule; no HSE Dashboard content was added.
+
+**Document/PDF parity**: a new "Workforce" section (PIC + personnel list + total count) was added to
+both `PermitsToWork/Document.jsx` and `pdf/permit-to-work.blade.php` identically — same data, same
+wording, an unset PIC or empty Workforce list renders an honest "-"/"Belum ada personel", never
+fabricated.
+
 ## Gas Test
 
 **Department:** HSE (Milestone 4, Workstream B7; location/stage added v1.10.9).

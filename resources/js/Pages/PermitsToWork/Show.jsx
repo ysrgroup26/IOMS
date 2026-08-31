@@ -141,6 +141,22 @@ export default function PermitToWorkShow({ permit: p, activities, canManage, rej
                                 <div><span className="text-xs uppercase text-graphite-400">HSE Approver</span><p>{p.hse_approver?.name || '-'}</p></div>
                                 <div><span className="text-xs uppercase text-graphite-400">Closed By</span><p>{p.closer?.name || '-'}</p></div>
                             </div>
+                            {/* v2.17.0 (PTW Field Workflow Foundation, Part 8/9/14):
+                                only rendered when actually set -- an
+                                empty Workforce section isn't shown at
+                                all rather than a blank "-"/"0" row for
+                                every permit created before this pass. */}
+                            {(p.pic || (p.personnel && p.personnel.length > 0)) && (
+                                <div className="grid grid-cols-1 gap-3 border-t border-graphite-100 pt-3 sm:grid-cols-3 dark:border-slate-800">
+                                    {p.pic && <div><span className="text-xs uppercase text-graphite-400">PIC / Supervisor</span><p>{p.pic.full_name}</p></div>}
+                                    {p.personnel && p.personnel.length > 0 && (
+                                        <div className="sm:col-span-2">
+                                            <span className="text-xs uppercase text-graphite-400">Workforce ({p.personnel.length} orang)</span>
+                                            <p className="truncate">{p.personnel.map((e) => e.full_name).join(', ')}</p>
+                                        </div>
+                                    )}
+                                </div>
+                            )}
                             {(p.risk_assessment || p.jsa) && (
                                 <div className="flex gap-4">
                                     {p.risk_assessment && <Link href={route('risk-assessments.show', p.risk_assessment.id)} className="text-brand-700 hover:underline">HIRADC: {p.risk_assessment.ra_number}</Link>}

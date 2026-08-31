@@ -15,9 +15,11 @@ use App\Models\NumberingFormat;
 use App\Models\Position;
 use App\Models\User;
 use App\Models\Workspace;
+use App\Services\EntitlementService;
 use App\Services\PricingService;
 use Illuminate\Http\RedirectResponse;
 use Illuminate\Http\Request;
+use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Facades\Hash;
 use Illuminate\Support\Facades\Storage;
 use Illuminate\Validation\Rule;
@@ -87,11 +89,21 @@ class SettingsController extends Controller
             // v1.10.7: `department_key` now selected too, so the Users tab
             // can actually display/edit it -- see storeUser()'s own doc
             // comment for why this was missing.
-            'users' => User::with('roles:id,name')->where('tenant_id', $request->user()->tenant_id)->orderBy('name')->get(['id', 'name', 'email', 'role', 'department_key', 'is_active', 'last_login_at'])
+            'users' => User::with('roles:id,name')->where('tenant_id', $request->user()->tenant_id)->orderBy('name')->get(['id', 'name', 'email', 'role', 'department_key', 'is_active', 'ptw_access', 'last_login_at'])
                 ->map(fn (User $u) => [
-                    ...$u->only(['id', 'name', 'email', 'role', 'department_key', 'is_active', 'last_login_at']),
+                    ...$u->only(['id', 'name', 'email', 'role', 'department_key', 'is_active', 'ptw_access', 'last_login_at']),
                     'role_ids' => $u->roles->pluck('id'),
                 ]),
+            // v2.17.0 (PTW Field Workflow Foundation + Controlled PTW
+            // Access, Part 7): the "PTW Users X / Y" quota banner data
+            // for the Users tab's Field & PTW Access section -- computed
+            // server-side via the same EntitlementService the enforcement
+            // itself uses, so the displayed number can never drift from
+            // what's actually enforced.
+            'ptwAccess' => [
+                'used' => app(EntitlementService::class)->ptwUsersUsedCount($request->user()->tenant),
+                'quota' => app(EntitlementService::class)->ptwUserQuota($request->user()->tenant),
+            ],
             'filters' => ['company_id' => $companyId],
             'can' => [
                 'manage_operational' => request()->user()->canManageOperationalSettings(),
@@ -902,6 +914,48 @@ class SettingsController extends Controller
         ActivityLog::record('updated', "User {$user->name} was updated.", $user);
 
         return back()->with('success', 'User updated.');
+    }
+
+    /**
+     * v2.17.0 (PTW Field Workflow Foundation + Controlled PTW Access,
+     * Part 4/6/7). Deliberately a SEPARATE endpoint from updateUser()
+     * above, not folded into that method's general validation array --
+     * enabling PTW Access is a quota-checked, tenant-scoped, business
+     * decision distinct from ordinary profile edits, and keeping it
+     * separate means a future change to one never accidentally touches
+     * the other's authorization path.
+     *
+     * Race-condition safety (Part 6's own "consider race conditions when
+     * practical"): the used-count is read with `lockForUpdate()` INSIDE
+     * the same transaction that performs the update, so two concurrent
+     * "enable" requests for the same tenant can't both pass the check
+     * against a stale count and jointly exceed the quota -- the second
+     * transaction's `lockForUpdate()` blocks until the first commits,
+     * then re-reads the now-updated count.
+     */
+    public function updatePtwAccess(Request $request, User $user): RedirectResponse
+    {
+        abort_unless($user->tenant_id === $request->user()->tenant_id, 404);
+        abort_unless($request->user()->canManageHse(), 403);
+
+        $validated = $request->validate(['ptw_access' => ['required', 'boolean']]);
+
+        DB::transaction(function () use ($user, $validated, $request) {
+            if ($validated['ptw_access'] && ! $user->ptw_access) {
+                $tenant = $request->user()->tenant;
+                // Row-lock every currently-enabled user of this tenant so a
+                // concurrent enable-request can't read the same stale count.
+                User::where('tenant_id', $tenant?->id)->where('ptw_access', true)->lockForUpdate()->get();
+                $usable = app(EntitlementService::class)->canEnablePtwAccess($tenant);
+                abort_unless($usable, 422, 'Kuota pengguna PTW paket Anda telah tercapai.');
+            }
+
+            $user->update(['ptw_access' => $validated['ptw_access']]);
+        });
+
+        ActivityLog::record('updated', 'PTW Access for user '.$user->name.' set to '.($validated['ptw_access'] ? 'enabled' : 'disabled').'.', $user);
+
+        return back()->with('success', 'PTW Access updated.');
     }
 
     public function destroyUser(Request $request, User $user): RedirectResponse

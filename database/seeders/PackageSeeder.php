@@ -41,6 +41,18 @@ class PackageSeeder extends Seeder
      * price entirely once `is_custom` is true, and leaving them intact
      * avoids a destructive-looking change to existing seed data for a
      * purely cosmetic/presentation flag.
+     *
+     * v2.17.0 (PTW Field Workflow Foundation + Controlled PTW Access,
+     * Part 5): added `max_ptw_users`. Starter = 15, the explicit baseline
+     * this phase's own directive states. Professional = 50 -- a
+     * proportionate step up (same ~5x ratio `max_users`/`max_companies`
+     * already use between these two tiers), NOT a final pricing/limit
+     * decision -- the directive is explicit that Professional's real
+     * number is still to-be-finalized; this is a working default a
+     * Platform Admin can change from the Plans admin UI at any time, in
+     * data, with no code change required. Enterprise = null
+     * (unlimited/custom), matching its existing `max_users`/
+     * `max_companies` null convention on this same row.
      */
     public function run(): void
     {
@@ -53,8 +65,20 @@ class PackageSeeder extends Seeder
                 'price_yearly' => 0,
                 'currency' => 'IDR',
                 'trial_days' => null,
+                // NOTE: max_ptw_users (15) exceeds max_users (10) on this
+                // seeded row -- 15 is this phase's own explicit stated
+                // baseline ("Starter package: 15 PTW-enabled users per
+                // tenant"), taken literally rather than silently
+                // reconciled against the pre-existing max_users value,
+                // which this phase was not asked to change. Flagging
+                // this honestly rather than guessing which number should
+                // move -- a real tenant can never actually hit 15
+                // PTW-enabled users while capped at 10 total users, so
+                // one of these two numbers likely needs a follow-up
+                // decision.
                 'max_users' => 10,
                 'max_companies' => 1,
+                'max_ptw_users' => 15,
                 'features' => ['employees', 'ppe', 'kpi_input', 'reports'],
                 'is_public' => true,
                 'is_custom' => false,
@@ -70,6 +94,7 @@ class PackageSeeder extends Seeder
                 'trial_days' => 14,
                 'max_users' => 50,
                 'max_companies' => 5,
+                'max_ptw_users' => 50,
                 'features' => ['employees', 'ppe', 'kpi_input', 'reports', 'projects', 'daily_reports', 'material_requests'],
                 'is_public' => true,
                 'is_custom' => false,
@@ -85,6 +110,7 @@ class PackageSeeder extends Seeder
                 'trial_days' => null,
                 'max_users' => null,
                 'max_companies' => null,
+                'max_ptw_users' => null,
                 'features' => ['employees', 'ppe', 'kpi_input', 'reports', 'projects', 'daily_reports', 'material_requests'],
                 'is_public' => true,
                 'is_custom' => true,

@@ -119,6 +119,21 @@
         </table>
     @endif
 
+    {{-- v2.17.0 (PTW Field Workflow Foundation, Part 8/9/16/18): same
+         Workforce data the browser Document view shows -- PIC/personnel
+         reference real Employee records, an empty list renders an
+         honest "-"/"Belum ada personel", never fabricated. --}}
+    <div class="section-title">Workforce</div>
+    <table class="meta-table">
+        <tr>
+            <td class="meta-label">PIC / Supervisor</td><td class="meta-colon">:</td><td>{{ $permit->pic->full_name ?? '-' }}</td>
+            <td class="meta-label">Total Personnel</td><td class="meta-colon">:</td><td>{{ $permit->personnel->count() }} orang</td>
+        </tr>
+    </table>
+    @if($permit->personnel->count() > 0)
+        <p class="body-text">{{ $permit->personnel->pluck('full_name')->join(', ') }}</p>
+    @endif
+
     @if($permit->gasTests->count() > 0)
         <div class="section-title">Gas Test Readings</div>
         <table class="gas-tests">
@@ -181,7 +196,11 @@
             </td>
             <td>
                 <div class="sig-line">&nbsp;</div>
-                <div class="sig-role">Area Authority / PIC</div>
+                {{-- v2.17.0: relabeled from "Area Authority / PIC" now
+                     that PIC is a real, separately-shown field above
+                     (Workforce section) -- see Document.jsx's own
+                     comment on this same rename. --}}
+                <div class="sig-role">Area Authority</div>
             </td>
         </tr>
     </table>

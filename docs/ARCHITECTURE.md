@@ -280,6 +280,27 @@ attempt) → `PaymentWebhookEvent` (gateway callbacks, verified+processed indepe
 transaction they relate to, so a replayed/out-of-order webhook can't double-apply a payment). This
 phase added no table to that chain — `packages`' four new columns are the only schema change.
 
+### PTW User Quota — a USER entitlement, not a Module/Workspace grant (v2.17.0)
+
+Extends this same `Package`-as-Plan architecture with a genuinely new *kind* of entitlement, deliberately
+kept separate from `tenantCanUseModule()`/`tenantCanUseWorkspace()` above (those answer "can this
+tenant reach this department at all"; this answers "how many of this tenant's OWN users may be
+individually authorized to create a PTW") — the two questions don't collapse into each other, so no
+existing method's contract changed.
+
+- `packages.max_ptw_users` (nullable int, `null` = unlimited/custom) — same shape as `max_users`/
+  `max_companies` on that table, editable from the existing Platform Admin Plans page, no code deploy
+  required to change a Plan's quota.
+- `users.ptw_access` (boolean, default false) — the per-user grant this quota counts. Independent of
+  `role`: an HSE-role user's access is untouched (`User::canCreatePtw()` is `canManageHse() ||
+  ptw_access`, a union); this is purely additive for non-HSE Field/Operations users.
+- `EntitlementService::ptwUserQuota()`/`ptwUsersUsedCount()`/`canEnablePtwAccess()` — the single
+  authoritative source both `SettingsController::updatePtwAccess()` (the only place `ptw_access` can
+  be enabled) and the Settings UI's own displayed "PTW Users X / Y" banner read from, so the two can
+  never show a different number than what's actually enforced. Enforcement runs inside a
+  `DB::transaction` with `lockForUpdate()` on the tenant's currently-enabled users, closing the
+  same race-condition class Part 6 of that phase's directive called out explicitly.
+
 ## Navigation Architecture (Department → Item, v1.10.2)
 
 The app nav is a two-level **Department → Item** structure, not a single flat sidebar. Internally

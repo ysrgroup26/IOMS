@@ -13,7 +13,7 @@ import { Select, SelectTrigger, SelectValue, SelectContent, SelectItem } from '@
 import { Table, TableHeader, TableBody, TableRow, TableHead, TableCell } from '@/Components/ui/table';
 import { Checkbox } from '@/Components/ui/checkbox';
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogFooter, DialogTrigger } from '@/Components/ui/dialog';
-import { Plus, Trash2, Pencil, Download, Upload, Loader2, Lock } from 'lucide-react';
+import { Plus, Trash2, Pencil, Download, Upload, Loader2, Lock, Search } from 'lucide-react';
 import { WORKSPACES } from '@/lib/workspaces';
 
 const TAB_CLASS = 'rounded-md px-4 py-1.5 text-sm font-medium text-graphite-500 data-[state=active]:bg-brand-50 data-[state=active]:text-brand-700';
@@ -31,7 +31,7 @@ const ROLE_LABELS = {
     warehouse: 'Warehouse',
 };
 
-export default function SettingsIndex({ company, companies, departments, positions, kpiCategories, users, can, filters, roles, permissionCatalog, numberingFormats, approvalFlows, numberingModuleKeys, notificationPreferences, documentTemplates, documentModuleKeys, fieldMappings, subscription, invoices }) {
+export default function SettingsIndex({ company, companies, departments, positions, kpiCategories, users, can, filters, roles, permissionCatalog, numberingFormats, approvalFlows, numberingModuleKeys, notificationPreferences, documentTemplates, documentModuleKeys, fieldMappings, subscription, invoices, ptwAccess }) {
     // System-level tabs (Companies, Users, Backup) are Super-Admin-only.
     // HSE sees only the operational tabs (Departments, Positions).
     const canSystem = can?.manage_system;
@@ -80,7 +80,7 @@ export default function SettingsIndex({ company, companies, departments, positio
                 <Tabs.Content value="positions"><PositionsTab positions={positions} departments={departments} companies={companies} filters={filters} /></Tabs.Content>
                 <Tabs.Content value="kpi-categories"><KpiCategoriesTab kpiCategories={kpiCategories} companies={companies} /></Tabs.Content>
                 <Tabs.Content value="authentication"><AuthenticationTab /></Tabs.Content>
-                {canSystem && <Tabs.Content value="users"><UsersTab users={users} roles={roles} /></Tabs.Content>}
+                {canSystem && <Tabs.Content value="users"><UsersTab users={users} roles={roles} ptwAccess={ptwAccess} /></Tabs.Content>}
                 {canSystem && <Tabs.Content value="roles"><RolesTab roles={roles} permissionCatalog={permissionCatalog} /></Tabs.Content>}
                 {canSystem && <Tabs.Content value="numbering"><NumberingTab numberingFormats={numberingFormats} /></Tabs.Content>}
                 {canSystem && <Tabs.Content value="approval-flows"><ApprovalFlowsTab approvalFlows={approvalFlows} moduleKeys={numberingModuleKeys} /></Tabs.Content>}
@@ -1732,7 +1732,7 @@ function DepartmentField({ value, onChange }) {
     );
 }
 
-function UsersTab({ users, roles }) {
+function UsersTab({ users, roles, ptwAccess }) {
     const [open, setOpen] = useState(false);
     const [editingRolesFor, setEditingRolesFor] = useState(null);
     const [editingUser, setEditingUser] = useState(null);
@@ -1835,7 +1835,88 @@ function UsersTab({ users, roles }) {
             {editingUser && (
                 <EditUserDialog user={editingUser} onClose={() => setEditingUser(null)} />
             )}
+            <FieldPtwAccessCard users={users} ptwAccess={ptwAccess} />
         </Card>
+    );
+}
+
+/**
+ * v2.17.0 (PTW Field Workflow Foundation + Controlled PTW Access, Part
+ * 3/4/7). "PTW Access" -- deliberately a SEPARATE card/concern from
+ * ordinary User Management above (different endpoint, different
+ * business rule: quota-checked, not just a profile edit). Reuses the
+ * exact same search-input pattern already established elsewhere in this
+ * codebase (e.g. Incidents/Index.jsx's filter bar) rather than inventing
+ * a new one. Client-side filtering only (this tenant's own user list is
+ * already small enough to have been sent whole by SettingsController::
+ * index() -- no new endpoint needed for search).
+ */
+function FieldPtwAccessCard({ users, ptwAccess }) {
+    const [search, setSearch] = useState('');
+    const used = ptwAccess?.used ?? 0;
+    const quota = ptwAccess?.quota ?? null;
+    const quotaReached = quota !== null && used >= quota;
+
+    const filtered = users.filter((u) => {
+        const q = search.trim().toLowerCase();
+        if (!q) return true;
+        return u.name.toLowerCase().includes(q) || u.email.toLowerCase().includes(q);
+    });
+
+    function toggle(user, next) {
+        if (next && quotaReached && !user.ptw_access) {
+            alert('Kuota pengguna PTW paket Anda telah tercapai.');
+            return;
+        }
+        router.put(route('settings.users.ptw-access', user.id), { ptw_access: next }, { preserveScroll: true });
+    }
+
+    return (
+        <div className="border-t border-graphite-100 dark:border-slate-800">
+            <div className="flex flex-col gap-3 p-4 sm:flex-row sm:items-center sm:justify-between">
+                <div>
+                    <h3 className="text-sm font-semibold text-graphite-900 dark:text-slate-100">Field &amp; PTW Access</h3>
+                    <p className="mt-0.5 text-xs text-graphite-500 dark:text-slate-400">
+                        Hanya pengguna dengan akses ini yang dapat membuat Permit To Work baru dari Field Home.
+                    </p>
+                </div>
+                <div className="flex items-center gap-3">
+                    <Badge variant={quotaReached ? 'warning' : 'outline'}>PTW Users {used}{quota !== null ? ` / ${quota}` : ''}</Badge>
+                </div>
+            </div>
+            {quotaReached && (
+                <div className="mx-4 mb-3 rounded-md border border-amber-200 bg-amber-50 px-3 py-2 text-xs text-amber-800 dark:border-amber-900 dark:bg-amber-950/30 dark:text-amber-300">
+                    Kuota pengguna PTW paket Anda telah tercapai. Nonaktifkan salah satu pengguna, atau hubungi penyedia layanan untuk meningkatkan paket.
+                </div>
+            )}
+            <div className="px-4 pb-3">
+                <div className="relative max-w-sm">
+                    <Search className="pointer-events-none absolute left-2.5 top-1/2 h-3.5 w-3.5 -translate-y-1/2 text-graphite-400" />
+                    <Input className="pl-8" placeholder="Search users..." value={search} onChange={(e) => setSearch(e.target.value)} />
+                </div>
+            </div>
+            <div className="divide-y divide-graphite-100 dark:divide-slate-800">
+                {filtered.length === 0 ? (
+                    <p className="px-4 pb-4 text-sm text-graphite-400">No users match your search.</p>
+                ) : (
+                    filtered.map((u) => {
+                        const deptLabel = DEPARTMENT_OPTIONS.find((d) => d.key === u.department_key)?.label;
+                        return (
+                            <div key={u.id} className="flex flex-wrap items-center justify-between gap-x-4 gap-y-1 px-4 py-2.5">
+                                <div className="min-w-0 flex-1">
+                                    <p className="truncate text-[13px] font-medium text-graphite-900 dark:text-slate-100">{u.name}</p>
+                                    <p className="truncate text-xs text-graphite-500 dark:text-slate-400">{deptLabel || 'Administrator (all)'}</p>
+                                </div>
+                                <div className="flex shrink-0 items-center gap-2">
+                                    <span className="text-xs text-graphite-500 dark:text-slate-400">PTW Access</span>
+                                    <Checkbox checked={!!u.ptw_access} onCheckedChange={(v) => toggle(u, Boolean(v))} />
+                                </div>
+                            </div>
+                        );
+                    })
+                )}
+            </div>
+        </div>
     );
 }
 

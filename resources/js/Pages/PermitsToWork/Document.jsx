@@ -42,6 +42,22 @@ import { ArrowLeft, Printer, Download, FlaskConical, Users, ShieldCheck, FileChe
  * for visual purposes would violate this codebase's own "never fabricate
  * data" rule that every other part of this document already follows.
  *
+ * v2.28.0 (Product Experience Transformation, Deliverable B). The gap
+ * this pass closes: v2.20.0 fixed the visual HIERARCHY (numbered
+ * sections, dominant title) but never actually sized anything for a
+ * physical A4 sheet -- 22-24px title text, 32px vertical gaps between
+ * sections, and 50px of blank signature space compounded into a
+ * "long web page," not a compact permit document, for any permit with
+ * real safety-control text. This pass is a pure DENSITY pass on top of
+ * v2.20.0's structure: every section/field/title/spacing value below is
+ * tightened (see each element's own comment), nothing reordered, no
+ * field removed or hidden, no data point changed. Permit Type and PTW
+ * Number now share one line instead of stacking -- the exact "side-by-
+ * side compact row, not a tall stack" pattern this pass's own directive
+ * asks for. Matched line-for-line in `pdf/permit-to-work.blade.php`'s
+ * own v2.28.0 pass so the browser document and the downloaded PDF stay
+ * representationally consistent.
+ *
  * Print uses the browser's own print, isolated to just the paper via the
  * `@media print` rule below (a well-established, dependency-free CSS
  * technique -- no second rendering pipeline). Download PDF is untouched,
@@ -105,17 +121,17 @@ export default function PermitToWorkDocument({ permit: p, company, documentTempl
 
             {/* The "paper" -- A4-proportioned on desktop, full-width and
                 naturally stacking on mobile. */}
-            <div id="ptw-print-area" className="mx-auto max-w-[820px] rounded-xl border border-graphite-200 bg-white shadow-card dark:border-slate-700 sm:shadow-card-hover">
-                <div className="p-5 sm:p-10">
+            <div id="ptw-print-area" className="mx-auto max-w-[794px] rounded-xl border border-graphite-200 bg-white shadow-card dark:border-slate-700 sm:shadow-card-hover">
+                <div className="p-5 sm:p-8">
                     {/* Company identity header */}
                     <div className="flex flex-wrap items-start justify-between gap-4">
                         <div className="flex min-w-0 items-center gap-3">
                             {documentTemplate?.show_logo && branding?.logo_url && (
-                                <img src={branding.logo_url} alt="Logo" className="h-12 w-auto max-w-[60px] shrink-0 object-contain" />
+                                <img src={branding.logo_url} alt="Logo" className="h-10 w-auto max-w-[52px] shrink-0 object-contain" />
                             )}
                             <div className="min-w-0">
-                                <p className="truncate text-lg font-bold text-graphite-900">{branding?.company_name || company?.name || 'IOMS'}</p>
-                                {branding?.address && <p className="truncate text-xs text-graphite-500">{branding.address}</p>}
+                                <p className="truncate text-base font-bold text-graphite-900">{branding?.company_name || company?.name || 'IOMS'}</p>
+                                {branding?.address && <p className="truncate text-[11px] text-graphite-500">{branding.address}</p>}
                             </div>
                         </div>
                         <div className="shrink-0 text-right">
@@ -123,22 +139,27 @@ export default function PermitToWorkDocument({ permit: p, company, documentTempl
                         </div>
                     </div>
                     {documentTemplate?.header_text && (
-                        <p className="mt-2 text-[10px] text-graphite-400">{documentTemplate.header_text}</p>
+                        <p className="mt-1.5 text-[10px] text-graphite-400">{documentTemplate.header_text}</p>
                     )}
 
-                    {/* v2.20.0: the dominant document-title block --
-                        previously the permit's own identity (what kind of
-                        permit, what number) was visually equal to every
-                        other field on the page. Now the single largest,
-                        boldest element on the document, matching this
-                        pass's own "make the document title visually
-                        dominant" direction. */}
-                    <div className="mt-6 border-b-2 border-graphite-900 pb-5 dark:border-slate-200">
-                        <p className="text-xs font-semibold uppercase tracking-[0.2em] text-graphite-400">Permit To Work</p>
-                        <h1 className="mt-1 text-2xl font-bold uppercase tracking-tight text-graphite-900 sm:text-3xl">
-                            {titleCase(p.permit_type)}
-                        </h1>
-                        <p className="mt-1.5 font-mono text-sm text-graphite-500">{p.ptw_number}</p>
+                    {/* v2.20.0 dominant document-title block, v2.28.0
+                        (Product Experience Transformation, Deliverable B)
+                        density pass: Permit Type and PTW Number now sit on
+                        one shared line instead of stacking -- the exact
+                        "side-by-side compact rows, not a tall stack with
+                        empty space" pattern this pass's own directive asks
+                        for -- and the block's own vertical footprint is
+                        roughly halved (mt-6/pb-5 -> mt-4/pb-3, text-3xl ->
+                        text-xl) to fit real A4 page-count targets. Still
+                        the single largest, boldest element on the page. */}
+                    <div className="mt-4 border-b-2 border-graphite-900 pb-3 dark:border-slate-200">
+                        <p className="text-[10px] font-semibold uppercase tracking-[0.2em] text-graphite-400">Permit To Work</p>
+                        <div className="mt-0.5 flex flex-wrap items-baseline justify-between gap-x-4 gap-y-0.5">
+                            <h1 className="text-xl font-bold uppercase tracking-tight text-graphite-900 sm:text-2xl">
+                                {titleCase(p.permit_type)}
+                            </h1>
+                            <p className="font-mono text-xs text-graphite-500">{p.ptw_number}</p>
+                        </div>
                     </div>
 
                     {/* 01 -- Work Information */}
@@ -170,7 +191,7 @@ export default function PermitToWorkDocument({ permit: p, company, documentTempl
                         )}
 
                         {(p.gas_tests && p.gas_tests.length > 0) && (
-                            <div className="mt-5 border-t border-graphite-100 pt-4 dark:border-slate-800">
+                            <div className="mt-3 border-t border-graphite-100 pt-2.5 dark:border-slate-800">
                                 <FieldLabel icon={FlaskConical}>Gas Test Readings</FieldLabel>
                                 <div className="mt-2 overflow-x-auto rounded-lg border border-graphite-200 dark:border-slate-700">
                                     <table className="w-full min-w-[560px] border-collapse text-xs">
@@ -215,7 +236,7 @@ export default function PermitToWorkDocument({ permit: p, company, documentTempl
                         component used anywhere else IOMS shows a real
                         Employee/User reference. */}
                     <DocSection index="03" title="Workforce" icon={Users}>
-                        <div className="grid grid-cols-1 gap-4 sm:grid-cols-2">
+                        <div className="grid grid-cols-1 gap-3 sm:grid-cols-2">
                             <div>
                                 <FieldLabel>PIC / Supervisor Lapangan</FieldLabel>
                                 <div className="mt-2">
@@ -234,7 +255,7 @@ export default function PermitToWorkDocument({ permit: p, company, documentTempl
                             </div>
                         </div>
 
-                        <div className="mt-5 border-t border-graphite-100 pt-4 dark:border-slate-800">
+                        <div className="mt-3 border-t border-graphite-100 pt-2.5 dark:border-slate-800">
                             <div className="flex items-center justify-between">
                                 <FieldLabel>Personnel Involved</FieldLabel>
                                 <span className="text-xs font-medium text-graphite-500 dark:text-slate-400">
@@ -242,7 +263,7 @@ export default function PermitToWorkDocument({ permit: p, company, documentTempl
                                 </span>
                             </div>
                             {p.personnel && p.personnel.length > 0 ? (
-                                <div className="mt-3 grid grid-cols-1 gap-3 sm:grid-cols-2">
+                                <div className="mt-2 grid grid-cols-1 gap-2 sm:grid-cols-2">
                                     {p.personnel.map((person) => <PersonChip key={person.id} name={person.full_name} size="sm" />)}
                                 </div>
                             ) : (
@@ -302,7 +323,7 @@ export default function PermitToWorkDocument({ permit: p, company, documentTempl
                         render blank: `area_authority_id` has no writer
                         anywhere in this codebase -- an honest blank block
                         for an unwired field, not a bug to fix here. */}
-                    <div data-print-section className="mt-8 grid grid-cols-1 gap-8 border-t border-graphite-200 pt-6 dark:border-slate-700 sm:grid-cols-3">
+                    <div data-print-section className="mt-5 grid grid-cols-1 gap-6 border-t border-graphite-200 pt-4 dark:border-slate-700 sm:grid-cols-3">
                         <SignatureBlock role="Applicant" name={p.requester?.name} />
                         <SignatureBlock role="HSE Approver" name={p.hse_approver?.name} />
                         <SignatureBlock role="Area Authority" name={p.area_authority?.name} />
@@ -329,13 +350,13 @@ export default function PermitToWorkDocument({ permit: p, company, documentTempl
  */
 function DocSection({ index, title, icon: Icon, children }) {
     return (
-        <div data-print-section className="mt-6 first:mt-0">
-            <div className="flex items-center gap-2 rounded-t-lg border border-graphite-200 bg-graphite-50 px-3 py-2 dark:border-slate-700 dark:bg-slate-800/60">
-                <span className="text-[11px] font-bold tabular-nums text-graphite-400">{index}</span>
-                {Icon && <Icon className="h-3.5 w-3.5 text-graphite-400" />}
-                <p className="text-[11px] font-bold uppercase tracking-wide text-graphite-800 dark:text-slate-200">{title}</p>
+        <div data-print-section className="mt-3 first:mt-0">
+            <div className="flex items-center gap-2 rounded-t-lg border border-graphite-200 bg-graphite-50 px-3 py-1.5 dark:border-slate-700 dark:bg-slate-800/60">
+                <span className="text-[10px] font-bold tabular-nums text-graphite-400">{index}</span>
+                {Icon && <Icon className="h-3 w-3 text-graphite-400" />}
+                <p className="text-[10px] font-bold uppercase tracking-wide text-graphite-800 dark:text-slate-200">{title}</p>
             </div>
-            <div className="rounded-b-lg border border-t-0 border-graphite-200 px-4 py-4 dark:border-slate-700">
+            <div className="rounded-b-lg border border-t-0 border-graphite-200 px-3.5 py-2.5 dark:border-slate-700">
                 {children}
             </div>
         </div>
@@ -343,12 +364,12 @@ function DocSection({ index, title, icon: Icon, children }) {
 }
 
 function FieldGrid({ children }) {
-    return <div className="grid grid-cols-1 gap-x-6 gap-y-3 sm:grid-cols-2">{children}</div>;
+    return <div className="grid grid-cols-1 gap-x-6 gap-y-2 sm:grid-cols-2">{children}</div>;
 }
 
 function FieldLabel({ icon: Icon, children }) {
     return (
-        <p className="flex items-center gap-1.5 text-[11px] font-semibold uppercase tracking-wide text-graphite-400 dark:text-slate-500">
+        <p className="flex items-center gap-1.5 text-[10px] font-semibold uppercase tracking-wide text-graphite-400 dark:text-slate-500">
             {Icon && <Icon className="h-3 w-3" />}
             {children}
         </p>
@@ -373,7 +394,7 @@ function Field({ label, value }) {
 function SignatureBlock({ role, name }) {
     return (
         <div className="text-center">
-            <div className="h-12" />
+            <div className="h-8" />
             <p className="border-t border-graphite-400 pt-1.5 text-sm font-medium text-graphite-900 dark:border-slate-600 dark:text-slate-100">{name || ' '}</p>
             <p className="text-[10px] uppercase tracking-wide text-graphite-400">{role}</p>
         </div>

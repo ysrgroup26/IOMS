@@ -17,50 +17,62 @@
             a plain ": value" table row. Same underlying data, same
             PdfGeneratorService/DocumentEngine pipeline, no new PDF engine.
         --}}
-        body { font-family: Helvetica, Arial, sans-serif; font-size: 11px; color: #111827; }
-        .header-table { width: 100%; border-collapse: collapse; margin-bottom: 4px; }
+        /* v2.28.0 (Product Experience Transformation, Deliverable B):
+           this file was already Dompdf-safe and reasonably organized
+           since v2.20.0, but was sized like a web page, not a physical
+           A4 sheet -- 22px titles, 50px signature gaps, and 10-12px
+           section padding compound fast across 5 sections and blow past
+           one page for any permit with real safety-control text or a
+           handful of gas tests. Every value below is tightened for real
+           A4 density (target: 1 page typical, 2 pages max for a
+           heavy permit) -- no section, field, or data point removed. */
+        body { font-family: Helvetica, Arial, sans-serif; font-size: 9.5px; color: #111827; }
+        .header-table { width: 100%; border-collapse: collapse; margin-bottom: 2px; }
         .header-table td { vertical-align: top; padding: 0; }
-        .company-name { font-size: 15px; font-weight: bold; color: #0f172a; }
-        .company-sub { font-size: 10px; color: #64748b; }
-        .status-badge { display: inline-block; padding: 3px 9px; border: 1px solid #0f172a; border-radius: 3px; font-size: 9px; text-transform: uppercase; letter-spacing: 0.5px; font-weight: bold; }
+        .company-name { font-size: 13px; font-weight: bold; color: #0f172a; }
+        .company-sub { font-size: 8.5px; color: #64748b; }
+        .status-badge { display: inline-block; padding: 2px 8px; border: 1px solid #0f172a; border-radius: 3px; font-size: 8px; text-transform: uppercase; letter-spacing: 0.5px; font-weight: bold; }
 
-        /* Dominant document-title block -- mirrors Document.jsx's own
-           "make the document title visually dominant" treatment. */
-        .doc-title-block { border-bottom: 2px solid #0f172a; padding-bottom: 10px; margin: 14px 0 16px 0; }
-        .doc-title-eyebrow { font-size: 9px; text-transform: uppercase; letter-spacing: 2px; color: #64748b; margin: 0 0 3px 0; }
-        .doc-title-main { font-size: 22px; font-weight: bold; text-transform: uppercase; color: #0f172a; margin: 0; }
-        .doc-title-number { font-size: 11px; color: #64748b; margin: 3px 0 0 0; }
+        /* Dominant document-title block -- still the single largest
+           element on the page, just no longer disproportionate to a
+           compact A4 sheet. Permit Type and PTW Number now share one
+           line instead of stacking, per this pass's own "side-by-side
+           compact rows, not a tall stack" direction. */
+        .doc-title-block { border-bottom: 2px solid #0f172a; padding-bottom: 6px; margin: 8px 0 10px 0; }
+        .doc-title-eyebrow { font-size: 7.5px; text-transform: uppercase; letter-spacing: 1.5px; color: #64748b; margin: 0 0 2px 0; }
+        table.doc-title-row { width: 100%; border-collapse: collapse; }
+        table.doc-title-row td { padding: 0; vertical-align: bottom; }
+        .doc-title-main { font-size: 16px; font-weight: bold; text-transform: uppercase; color: #0f172a; margin: 0; }
+        .doc-title-number { font-size: 9.5px; color: #64748b; margin: 0; text-align: right; }
 
-        .meta-table { width: 100%; border-collapse: collapse; margin-bottom: 4px; }
-        .meta-table td { padding: 4px 0; font-size: 11px; vertical-align: top; }
-        .meta-label { width: 130px; color: #64748b; font-size: 9px; text-transform: uppercase; letter-spacing: 0.5px; }
+        .meta-table { width: 100%; border-collapse: collapse; margin-bottom: 2px; }
+        .meta-table td { padding: 2px 0; font-size: 9.5px; vertical-align: top; }
+        .meta-label { width: 110px; color: #64748b; font-size: 7.5px; text-transform: uppercase; letter-spacing: 0.5px; }
         .meta-colon { width: 12px; display: none; }
 
-        /* Numbered section header -- a light tinted band (mirrors
-           Document.jsx's `bg-graphite-50` header strip) instead of the
-           previous bare bold-text-with-underline. */
-        .section { border: 1px solid #e2e8f0; border-radius: 4px; margin-top: 12px; }
-        .section-head { background-color: #f8fafc; border-bottom: 1px solid #e2e8f0; padding: 5px 10px; font-weight: bold; font-size: 10.5px; text-transform: uppercase; letter-spacing: 0.5px; color: #1e293b; }
-        .section-head .idx { color: #94a3b8; margin-right: 5px; }
-        .section-body { padding: 10px 12px; }
-        .field-label { font-size: 9px; text-transform: uppercase; letter-spacing: 0.5px; color: #94a3b8; margin: 0 0 2px 0; }
-        .field-value { font-size: 11px; color: #0f172a; margin: 0 0 8px 0; }
-        .body-text { font-size: 11px; white-space: pre-wrap; margin: 0; color: #1e293b; }
+        /* Numbered section header -- unchanged concept, tightened band. */
+        .section { border: 1px solid #e2e8f0; border-radius: 3px; margin-top: 6px; }
+        .section-head { background-color: #f8fafc; border-bottom: 1px solid #e2e8f0; padding: 3px 8px; font-weight: bold; font-size: 9px; text-transform: uppercase; letter-spacing: 0.5px; color: #1e293b; }
+        .section-head .idx { color: #94a3b8; margin-right: 4px; }
+        .section-body { padding: 6px 8px; }
+        .field-label { font-size: 7.5px; text-transform: uppercase; letter-spacing: 0.5px; color: #94a3b8; margin: 0 0 1px 0; }
+        .field-value { font-size: 9.5px; color: #0f172a; margin: 0 0 4px 0; }
+        .body-text { font-size: 9.5px; white-space: pre-wrap; margin: 0; color: #1e293b; line-height: 1.35; }
 
-        table.gas-tests { width: 100%; border-collapse: collapse; margin-top: 6px; }
-        table.gas-tests th, table.gas-tests td { border: 1px solid #e2e8f0; padding: 4px 5px; font-size: 9.5px; text-align: left; }
-        table.gas-tests th { background-color: #f8fafc; text-transform: uppercase; font-size: 9px; color: #64748b; }
+        table.gas-tests { width: 100%; border-collapse: collapse; margin-top: 3px; }
+        table.gas-tests th, table.gas-tests td { border: 1px solid #e2e8f0; padding: 2px 4px; font-size: 8px; text-align: left; }
+        table.gas-tests th { background-color: #f8fafc; text-transform: uppercase; font-size: 7.5px; color: #64748b; }
 
-        .doc-ref-box { border: 1px solid #e2e8f0; border-radius: 4px; padding: 6px 8px; margin-bottom: 6px; font-size: 10.5px; }
+        .doc-ref-box { border: 1px solid #e2e8f0; border-radius: 3px; padding: 3px 6px; margin-bottom: 3px; font-size: 9px; }
         .doc-ref-box .doc-ref-title { font-weight: bold; color: #0f172a; }
-        .doc-ref-box .doc-ref-sub { color: #64748b; font-size: 9.5px; }
+        .doc-ref-box .doc-ref-sub { color: #64748b; font-size: 8px; }
 
-        table.signatures { width: 100%; border-collapse: collapse; margin-top: 30px; }
-        table.signatures td { width: 33.3%; text-align: center; padding: 0 10px; font-size: 11px; vertical-align: top; }
-        .sig-line { border-top: 1px solid #0f172a; margin-top: 50px; padding-top: 4px; }
-        .sig-role { color: #64748b; font-size: 10px; }
+        table.signatures { width: 100%; border-collapse: collapse; margin-top: 16px; }
+        table.signatures td { width: 33.3%; text-align: center; padding: 0 8px; font-size: 9.5px; vertical-align: top; }
+        .sig-line { border-top: 1px solid #0f172a; margin-top: 26px; padding-top: 3px; }
+        .sig-role { color: #64748b; font-size: 8.5px; }
 
-        .footer-note { margin-top: 24px; font-size: 9px; color: #94a3b8; text-align: center; }
+        .footer-note { margin-top: 10px; font-size: 7.5px; color: #94a3b8; text-align: center; }
         .header-logo { max-height: 44px; max-width: 60px; margin-bottom: 4px; }
         .template-header-text { font-size: 9px; color: #64748b; margin: 4px 0 0 0; }
         .watermark { position: fixed; top: 40%; left: 18%; font-size: 56px; color: #f3f4f6; transform: rotate(-30deg); z-index: -1; }
@@ -97,8 +109,12 @@
          Document.jsx's own title treatment. --}}
     <div class="doc-title-block">
         <p class="doc-title-eyebrow">Permit To Work</p>
-        <p class="doc-title-main">{{ ucwords(str_replace('_', ' ', $permit->permit_type)) }}</p>
-        <p class="doc-title-number">{{ $permit->ptw_number }}</p>
+        <table class="doc-title-row">
+            <tr>
+                <td class="doc-title-main">{{ ucwords(str_replace('_', ' ', $permit->permit_type)) }}</td>
+                <td class="doc-title-number">{{ $permit->ptw_number }}</td>
+            </tr>
+        </table>
     </div>
 
     {{-- 01 -- Work Information --}}

@@ -566,10 +566,21 @@ function Industries() {
 // graceful empty-string fallback for any plan this map doesn't recognize
 // (e.g. a future Plan a Platform Admin adds later) -- never blocks
 // rendering, never invents copy for an unrecognized plan.
+//
+// v2.28.0 (Product Experience Transformation, Section 1): the Enterprise
+// line previously said "...dan penyesuaian khusus" ("...and custom
+// tailoring") -- the one place in the whole app where Enterprise was
+// framed as bespoke/custom-built work. IOMS is a standardized SaaS
+// product ("build once, improve for everyone"); Enterprise is the most
+// COMPLETE tier of the same product, not a custom development track.
+// Reworded to what Enterprise actually is under `Package`/`PricingService`
+// -- broader module/workspace access, higher max_users/max_ptw_users
+// capacity, and full reporting -- without touching is_custom, pricing, or
+// entitlement logic itself (out of scope for this pass).
 const PLAN_FRAMING = {
     starter: 'Untuk tim yang baru mulai memusatkan operasional mereka.',
     professional: 'Untuk operasional industri yang berkembang dan butuh departemen yang saling terhubung.',
-    enterprise: 'Untuk organisasi yang butuh akses lebih luas, skala, dan penyesuaian khusus.',
+    enterprise: 'Untuk organisasi yang butuh akses penuh, kapasitas lebih besar, dan pelaporan menyeluruh.',
 };
 
 function Pricing({ plans }) {

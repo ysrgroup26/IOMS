@@ -1051,7 +1051,7 @@ class SettingsController extends Controller
 
         ActivityLog::record('restored', 'Database restored from uploaded backup file.');
 
-        return back()->with('success', 'Database restored successfully.');
+        return back()->with('success', 'Database restored.');
     }
 
     // --- Authentication (self-service: change your OWN email/password) ---

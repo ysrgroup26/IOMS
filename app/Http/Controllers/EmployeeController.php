@@ -113,7 +113,7 @@ class EmployeeController extends Controller
 
         ActivityLog::record('created', "Employee {$employee->full_name} ({$employee->employee_id}) was created.", $employee);
 
-        return redirect()->route('employees.index')->with('success', 'Employee created successfully.');
+        return redirect()->route('employees.index')->with('success', 'Employee created.');
     }
 
     public function show(Employee $employee): Response
@@ -194,7 +194,7 @@ class EmployeeController extends Controller
 
         ActivityLog::record('updated', "Employee {$employee->full_name} ({$employee->employee_id}) was updated.", $employee);
 
-        return redirect()->route('employees.index')->with('success', 'Employee updated successfully.');
+        return redirect()->route('employees.index')->with('success', 'Employee updated.');
     }
 
     /**

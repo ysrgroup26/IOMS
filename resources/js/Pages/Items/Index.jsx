@@ -50,7 +50,7 @@ export default function ItemsIndex({ items, filters, types, companies, can }) {
     return (
         <AuthenticatedLayout>
             <Head title="Item Master" />
-            <PageHeader title="Item Master" subtitle="Centralized item catalog shared by Warehouse, Maintenance, Project, and Procurement." />
+            <PageHeader title="Item Master" subtitle="Katalog barang terpusat yang digunakan bersama oleh Warehouse, Maintenance, Project, dan Procurement." />
 
             <Card className="mb-4">
                 <CardContent className="flex flex-wrap items-center justify-between gap-2 p-3">

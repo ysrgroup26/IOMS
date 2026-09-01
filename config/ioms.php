@@ -17,7 +17,7 @@ return [
     |
     */
 
-    'version' => '2.25.0',
+    'version' => '2.26.0',
 
     // Tester / Beta / Stable -- tracks the release stage explicitly.
     // Previously only implied in conversation, never actually stored.
@@ -25,7 +25,7 @@ return [
 
     'edition' => 'Enterprise Edition',
 
-    'build' => '2026.08.31.11',
+    'build' => '2026.08.31.12',
 
     'release_date' => '2026-08-31',
 
@@ -44,9 +44,8 @@ return [
     'documentation_url' => 'docs.iomsplatform.com',
 
     'whats_new' => [
-        'Confirmation dialogs across the app now speak consistent, natural Indonesian ("Hapus data ini?") instead of a mix of English and Indonesian phrasing',
-        'Login and password pages now explain what to do in plain Indonesian',
-        'Public website headline corrected back to "IOMS -- Industrial Operations Platform"',
+        'Dashboard, Material Requests, and Warehouse pages now describe themselves in plain Indonesian',
+        'A handful of save confirmations no longer say "successfully" twice',
     ],
 
     /*
@@ -61,6 +60,7 @@ return [
     */
 
     'version_history' => [
+        ['version' => '2.26.0', 'date' => '2026-08-31', 'summary' => 'Final Copy Consistency Check: naturalized the Dashboard hero subtitle, Material Requests subtitle, and four Warehouse/Item Master page subtitles to Indonesian. Actually inspected (not blindly modified) the PHP flash-message layer -- confirmed the existing ~176 messages are already uniformly clear, professional English; fixed the one genuine inconsistency found (5 messages with a redundant "...successfully." suffix). Logistics Dashboard and navigation labels re-confirmed already correct, left unchanged. Pure copy pass -- no layout, business-logic, or database change. This closes the IOMS UI/UX + copy consistency work.'],
         ['version' => '2.25.0', 'date' => '2026-08-31', 'summary' => 'Global UX & Copywriting Polish: naturalized 18 confirm() dialogs from English "Remove this X?" to consistent Indonesian "Hapus X ini?" across Daily Reports/Employees/HSE Inspection/Leave/Man-Hour/Milestones/PPE/Report Center/RFQ/Settings; added Indonesian explanatory copy to Login/Forgot Password/Reset Password (labels/buttons stay English); Settings Subscription tab copy naturalized; public website hero tagline corrected from a drifted "Industrial Operations Management Platform" back to "Industrial Operations Platform", subheadline naturalized to Indonesian. Pure copy pass -- no layout, component, or business-logic change. PHP-side controller flash messages (176 call sites) not systematically reviewed -- flagged as a follow-up, not silently skipped.'],
         ['version' => '2.24.0', 'date' => '2026-08-31', 'summary' => 'Complete Product UI/UX Transformation, closing the remaining gaps: Purchase Requisition (Purchasing) and KPI Records (Management) got the same identity-first table + mobile card treatment as prior passes; Reports gained a client-side "key summary" strip (no fabricated data) read before the detailed matrices; Logistics Dashboard and Report Center reviewed and found already good (Logistics already has a genuine pipeline visualization, not just cards). Presentation only -- no business logic, RBAC, or database changes.'],
         ['version' => '2.23.0', 'date' => '2026-08-31', 'summary' => 'Complete Product UI/UX Transformation, continued: extended the identity-first list pattern (established on PTW/Incidents) to one representative page per remaining domain -- Safety Observation (HSE), Employees (People/HR), Man-Hour (Operations), Goods Receipt (Warehouse/Procurement) -- each gaining a mobile card list where none existed, consolidated desktop columns, and an unboxed filter bar. Public website hero/platform copy, Dashboard hierarchy, and Settings/Subscription were reviewed and found already adequate -- left unchanged. Presentation only -- no business logic, RBAC, or database changes.'],

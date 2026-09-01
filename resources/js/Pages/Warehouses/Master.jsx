@@ -38,7 +38,7 @@ export default function WarehousesMaster({ warehouses, companies, can }) {
     return (
         <AuthenticatedLayout>
             <Head title="Warehouse Master" />
-            <PageHeader title="Warehouse Master" subtitle="Warehouses and their storage locations." />
+            <PageHeader title="Warehouse Master" subtitle="Daftar gudang dan lokasi penyimpanannya." />
 
             <Card>
                 <CardHeader className="flex flex-row items-center justify-between">

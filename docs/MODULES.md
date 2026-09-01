@@ -2199,6 +2199,42 @@ controllers, too large a surface to touch responsibly within this pass without r
 inconsistent, half-finished sweep. Left for a dedicated follow-up rather than attempted and left
 incomplete.
 
+## Final Copy Consistency Check (v2.26.0)
+
+Closes the four areas the prior pass explicitly flagged as not-yet-inspected (Dashboard, Warehouse,
+Logistics, Navigation), plus an actual inspection (not a blind rewrite) of the PHP-side flash-message
+layer.
+
+- **Dashboard**: the hero subtitle ("Operational KPI Overview Across All Departments") was the one
+  fully-English explanatory line on the page — naturalized. Its ~10 `CardDescription` captions
+  (e.g. "Active headcount distribution") were reviewed and left as short English technical captions,
+  consistent with how similarly dense stat-card contexts were already treated in earlier passes
+  (e.g. PTW quota badges) — these read as compact data labels, not narrative explanation.
+- **Warehouse**: `Warehouses/Dashboard.jsx` already used natural Indonesian throughout (confirmed,
+  not touched). `Warehouses/Stock.jsx`, `Warehouses/Master.jsx`, `Warehouses/Movements.jsx`, and
+  `Items/Index.jsx` had fully-English `PageHeader` subtitles — naturalized; titles (Stock Summary,
+  Warehouse Master, etc.) kept as established module names.
+- **Logistics**: `Logistics/Dashboard.jsx` re-confirmed already natural Indonesian (no change, same
+  finding as v2.24.0). `MaterialRequests/Index.jsx` (the primary Logistics workflow entry point) had
+  a fully-English subtitle — naturalized.
+- **Navigation**: `resources/js/lib/workspaces.js` nav items carry no description/subtitle field at
+  all, only `name` (an established module label, correctly English) — nothing to translate there.
+  Sidebar subtitle ("Industrial Operations Platform") already correct from v2.22.0. `AboutDialog.jsx`
+  still shows "Integrated Operations Management System" as its `DialogTitle` — reviewed and
+  deliberately left as-is: an About screen is the one place this codebase's own convention
+  (`docs/CONVENTIONS.md`, v2.22.0 entry) already names as an appropriate exception for the full
+  expansion, distinct from the browser tab/public site/nav "primary visible product name" this whole
+  effort has been correcting.
+- **PHP flash messages**: actually inspected (not blindly modified) — sampled ~90 of the 176
+  `->with('success', ...)` call sites plus all 19 `->with('error', ...)` sites. Finding: the entire
+  layer is already uniformly short, clear, professional English ("Employee removed.", "Cannot delete
+  a warehouse that still holds stock.") — translating it to Indonesian now would be a much larger
+  scope decision (a whole-backend language shift) than "fix bad copy," which this pass's own
+  instruction explicitly did not ask for. The one genuine, narrow inconsistency found: 5 messages
+  (`EmployeeController`, `ProjectController`, `SettingsController`) used a redundant "...successfully."
+  suffix the other ~170 don't (a `success`-channel flash message doesn't need to also say "success" in
+  its own text) — fixed those 5, left the other ~171 unchanged.
+
 ## Reusable engines (Approval, Workflow, Timeline, Import, PDF, Report Export)
 
 These aren't a "module" with their own page — they're cross-cutting infrastructure consumed by the

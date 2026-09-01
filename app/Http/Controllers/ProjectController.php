@@ -75,7 +75,7 @@ class ProjectController extends Controller
 
         ActivityLog::record('created', "Project {$project->name} was created.", $project);
 
-        return redirect()->route('projects.show', $project)->with('success', 'Project created successfully.');
+        return redirect()->route('projects.show', $project)->with('success', 'Project created.');
     }
 
     public function show(Project $project): Response
@@ -148,7 +148,7 @@ class ProjectController extends Controller
 
         ActivityLog::record('updated', "Project {$project->name} was updated.", $project);
 
-        return redirect()->route('projects.show', $project)->with('success', 'Project updated successfully.');
+        return redirect()->route('projects.show', $project)->with('success', 'Project updated.');
     }
 
     public function destroy(Project $project): RedirectResponse

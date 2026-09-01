@@ -151,7 +151,11 @@ export default function Dashboard({
                             never needed the 24px "page title" treatment
                             PageHeader itself correctly uses elsewhere. */}
                         <h1 className="text-base font-bold tracking-tight text-graphite-900 dark:text-slate-50">Dashboard</h1>
-                        <p className="text-[11px] text-graphite-500 dark:text-slate-400">Operational KPI Overview Across All Departments</p>
+                        {/* v2.26.0 (Final Copy Consistency pass): was
+                            fully English -- naturalized to Indonesian,
+                            "Dashboard" and "KPI" kept as established
+                            terminology. */}
+                        <p className="text-[11px] text-graphite-500 dark:text-slate-400">Ringkasan KPI operasional di seluruh departemen.</p>
                     </div>
                     <div className="flex flex-wrap items-center gap-2">
                         <Select

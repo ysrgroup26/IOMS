@@ -18,7 +18,7 @@ export default function WarehouseStock({ stocks, filters, warehouses, can }) {
     return (
         <AuthenticatedLayout>
             <Head title="Stock Summary" />
-            <PageHeader title="Stock Summary" subtitle="Current balance per item per warehouse.">
+            <PageHeader title="Stock Summary" subtitle="Saldo stok terkini untuk setiap barang di tiap gudang.">
                 {can.manage && (
                     <Button variant="outline" asChild><Link href={route('stock.transactions.create')}><ArrowRightLeft className="h-4 w-4" /> Issue / Transfer / Adjust</Link></Button>
                 )}

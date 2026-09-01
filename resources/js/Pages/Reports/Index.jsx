@@ -1,11 +1,15 @@
 import { Head, router } from '@inertiajs/react';
 import AuthenticatedLayout from '@/Layouts/AuthenticatedLayout';
-import { Card, CardContent } from '@/Components/ui/card';
+import PageHeader from '@/Components/shared/PageHeader';
+import StatCard from '@/Components/shared/StatCard';
+import KpiSummaryCard from '@/Components/shared/KpiSummaryCard';
+import EmptyState from '@/Components/shared/EmptyState';
+import { Card } from '@/Components/ui/card';
 import { Button } from '@/Components/ui/button';
 import { Table, TableHeader, TableBody, TableRow, TableHead, TableCell } from '@/Components/ui/table';
 import { Select, SelectTrigger, SelectValue, SelectContent, SelectItem } from '@/Components/ui/select';
 import PeriodFilter from '@/Components/shared/PeriodFilter';
-import { FileSpreadsheet, FileText } from 'lucide-react';
+import { FileSpreadsheet, FileText, Users } from 'lucide-react';
 import { cn } from '@/lib/utils';
 
 export default function ReportsIndex({ report, filters, companies, departments, availableYears }) {
@@ -16,6 +20,15 @@ export default function ReportsIndex({ report, filters, companies, departments, 
     // SUMMARY before detailed data" reading order a decision-support
     // report should have, instead of jumping straight into per-employee
     // matrices with nothing to orient around first.
+    //
+    // v2.30.0 (Interior UI Transformation, Phase 2, Part 14 -- Reports
+    // was an explicitly named gap). `report.categories` is the exact
+    // same `KpiCategory` collection Dashboard's own "KPI Summary" row
+    // renders via `KpiSummaryCard` (same icon/color/short_label/
+    // is_negative fields, same model) -- reused here instead of hand-
+    // rolled flat chips, so "what can I learn from this data" reads
+    // consistently with the rest of the product before the per-employee
+    // matrices below it.
     const totalEmployees = report.departments.reduce((sum, g) => sum + g.rows.length, 0);
     const categoryTotals = report.categories.map((c) => ({
         ...c,
@@ -48,24 +61,18 @@ export default function ReportsIndex({ report, filters, companies, departments, 
         <AuthenticatedLayout>
             <Head title="Reports" />
 
-            <div className="mb-6 flex flex-wrap items-center justify-between gap-3">
-                <div>
-                    <h1 className="text-[22px] font-semibold tracking-tight text-graphite-900">Reports</h1>
-                    <p className="mt-1 text-sm text-graphite-500">KPI report grouped by department, mirroring the Excel format.</p>
-                </div>
-                <div className="flex gap-2">
-                    <Button variant="outline" asChild>
-                        <a href={route('reports.export.excel') + '?' + exportParams()}>
-                            <FileSpreadsheet className="h-4 w-4" /> Excel
-                        </a>
-                    </Button>
-                    <Button variant="outline" asChild>
-                        <a href={route('reports.export.pdf') + '?' + exportParams()}>
-                            <FileText className="h-4 w-4" /> PDF
-                        </a>
-                    </Button>
-                </div>
-            </div>
+            <PageHeader title="Reports" subtitle="Laporan KPI per departemen, mengikuti format Excel yang sudah dipakai perusahaan.">
+                <Button variant="outline" asChild>
+                    <a href={route('reports.export.excel') + '?' + exportParams()}>
+                        <FileSpreadsheet className="h-4 w-4" /> Excel
+                    </a>
+                </Button>
+                <Button variant="outline" asChild>
+                    <a href={route('reports.export.pdf') + '?' + exportParams()}>
+                        <FileText className="h-4 w-4" /> PDF
+                    </a>
+                </Button>
+            </PageHeader>
 
             <div className="mb-4 flex flex-wrap items-center gap-2">
                 <Select
@@ -90,31 +97,52 @@ export default function ReportsIndex({ report, filters, companies, departments, 
             </div>
 
             {report.departments.length === 0 ? (
-                <Card><CardContent className="py-16 text-center text-graphite-400">Belum ada data untuk periode ini.</CardContent></Card>
+                <Card><EmptyState title="Belum ada data" description="Belum ada data KPI untuk periode ini." /></Card>
             ) : (
                 <>
                     {/* KEY SUMMARY -- oriented before the detailed
                         per-department matrices below, matching this
                         pass's own "report title -> key summary -> detail"
-                        reading order for a decision-support page. */}
-                    <div className="mb-6 flex flex-wrap gap-3">
-                        <div className="rounded-lg border border-graphite-200 bg-white px-4 py-2.5 dark:border-slate-700 dark:bg-slate-900">
-                            <p className="text-lg font-semibold text-graphite-900 dark:text-slate-50">{totalEmployees}</p>
-                            <p className="text-[11px] font-medium uppercase tracking-wide text-graphite-400">Employees</p>
-                        </div>
+                        reading order for a decision-support page.
+                        v2.30.0: was a row of plain white chips with no
+                        icon/color -- now reuses the same `KpiSummaryCard`
+                        (data-driven icon/color, same component Dashboard's
+                        own KPI Summary row uses) so this page reads as
+                        "what can I learn from this data" at a glance,
+                        matching this pass's own explicit target for
+                        Reports. Employee count kept as a StatCard (the
+                        one metric with no KpiCategory of its own) so both
+                        card types share the same visual family. */}
+                    <p className="mb-2 text-[11px] font-semibold uppercase tracking-wide text-graphite-400 dark:text-slate-500">Key Summary</p>
+                    <div className="mb-6 grid grid-cols-2 gap-2 sm:grid-cols-4 lg:grid-cols-8">
+                        <StatCard icon={Users} value={totalEmployees} label="Employees" size="sm" />
                         {categoryTotals.map((c) => (
-                            <div key={c.code} className="rounded-lg border border-graphite-200 bg-white px-4 py-2.5 dark:border-slate-700 dark:bg-slate-900">
-                                <p className={cn('text-lg font-semibold', c.is_negative && c.total > 0 ? 'text-red-600' : 'text-graphite-900 dark:text-slate-50')}>{c.total}</p>
-                                <p className="text-[11px] font-medium uppercase tracking-wide text-graphite-400">{c.short_label}</p>
-                            </div>
+                            <KpiSummaryCard
+                                key={c.code}
+                                label={c.short_label}
+                                value={c.total}
+                                isNegative={c.is_negative}
+                                icon={c.icon}
+                                color={c.color}
+                                compact
+                            />
                         ))}
                     </div>
 
-                    <div className="space-y-6">
+                    <p className="mb-2 text-[11px] font-semibold uppercase tracking-wide text-graphite-400 dark:text-slate-500">Detail by Department</p>
+                    <div className="space-y-4">
                     {report.departments.map((group) => (
-                        <Card key={group.department_name}>
-                            <div className="rounded-t-xl bg-brand-600 px-5 py-2.5 text-sm font-semibold text-white">
-                                {group.department_name}
+                        <Card key={group.department_name} className="overflow-hidden">
+                            {/* v2.30.0: solid bg-brand-600 band replaced with
+                                the same light-tinted section-header
+                                treatment used elsewhere in this pass (e.g.
+                                PTW's DocSection) -- reads as premium
+                                structure, not a loud color block, and adds
+                                a real row-count so the header itself
+                                carries information. */}
+                            <div className="flex items-center justify-between border-b border-graphite-200 bg-brand-50/70 px-4 py-2 dark:border-slate-700 dark:bg-brand-950/30">
+                                <p className="text-[13px] font-semibold text-brand-800 dark:text-brand-300">{group.department_name}</p>
+                                <span className="text-[11px] font-medium text-brand-600/80 dark:text-brand-400/80">{group.rows.length} employee{group.rows.length !== 1 ? 's' : ''}</span>
                             </div>
                             <Table>
                                 <TableHeader>

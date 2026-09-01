@@ -7,7 +7,7 @@ import EmptyState from '@/Components/shared/EmptyState';
 import { Card, CardContent, CardHeader, CardTitle } from '@/Components/ui/card';
 import ModuleCard from '@/Components/shared/ModuleCard';
 import DepartmentCalendarWidget from '@/Components/shared/DepartmentCalendarWidget';
-import { FileStack, FileQuestion, ShoppingCart, AlertTriangle, Truck, CheckCircle2, Building2, Clock, ScaleIcon, PackageCheck } from 'lucide-react';
+import { FileStack, FileQuestion, ShoppingCart, AlertTriangle, Truck, CheckCircle2, Building2, Clock, ScaleIcon, PackageCheck, Wallet } from 'lucide-react';
 
 const MONTHS = ['Jan', 'Feb', 'Mar', 'Apr', 'May', 'Jun', 'Jul', 'Aug', 'Sep', 'Oct', 'Nov', 'Dec'];
 
@@ -41,25 +41,40 @@ export default function ProcurementDashboard({
             <Head title="Procurement Dashboard" />
             <PageHeader title="Procurement Dashboard" subtitle="Purchase Requisition, RFQ, and Purchase Order overview." />
 
-            <div className="grid grid-cols-2 gap-3 lg:grid-cols-4">
+            {/* v2.30.0 (Interior UI Transformation, Phase 2, Part 11):
+                these 8 cards previously read as one flat, equal-weight
+                grid -- no sense of WHERE a request sits in the actual
+                Requisition -> RFQ -> PO -> Delivery workflow. Split into
+                two eyebrow-labeled groups (mirrors the Global Dashboard's
+                own v2.29.0 "Snapshot / Attention" pattern): the pipeline
+                stages themselves, then completion/exception state. Same
+                data, same hrefs, same accents -- grouping only. */}
+            <p className="text-[11px] font-semibold uppercase tracking-wide text-graphite-400 dark:text-slate-500">Purchasing Pipeline</p>
+            <div className="mt-2 grid grid-cols-2 gap-3 lg:grid-cols-4">
                 <StatCard icon={FileStack} value={pendingPRCount} label="Pending PRs" accent={pendingPRCount > 0 ? 'amber' : null} href={route('purchase-requisitions.index', { status: 'submitted' })} />
                 <StatCard icon={FileQuestion} value={openRfqCount} label="Open RFQs" href={route('rfqs.index', { status: 'issued' })} />
                 <StatCard icon={ScaleIcon} value={quotationsAwaitingEvaluationCount} label="Awaiting Evaluation" accent={quotationsAwaitingEvaluationCount > 0 ? 'amber' : null} href={route('rfqs.index')} />
                 <StatCard icon={ShoppingCart} value={pendingPOApprovalCount} label="Pending PO Approval" accent={pendingPOApprovalCount > 0 ? 'amber' : null} href={route('purchase-orders.index', { status: 'submitted' })} />
-                <StatCard icon={ShoppingCart} value={openPOCount} label="Open POs" href={route('purchase-orders.index')} />
-                <StatCard icon={AlertTriangle} value={overdueDeliveryCount} label="Overdue Deliveries" accent={overdueDeliveryCount > 0 ? 'red' : null} href={route('purchase-orders.index')} />
-                <StatCard icon={Truck} value={partiallyDeliveredCount} label="Partially Delivered" href={route('purchase-orders.index', { status: 'partially_delivered' })} />
-                <StatCard icon={CheckCircle2} value={completedPOCount} label="Completed POs" href={route('purchase-orders.index', { status: 'closed' })} />
             </div>
 
-            <div className="mt-4 grid grid-cols-2 gap-3 lg:grid-cols-4">
+            <p className="mt-4 text-[11px] font-semibold uppercase tracking-wide text-graphite-400 dark:text-slate-500">Delivery &amp; Completion</p>
+            <div className="mt-2 grid grid-cols-2 gap-3 lg:grid-cols-4">
+                <StatCard icon={ShoppingCart} value={openPOCount} label="Open POs" href={route('purchase-orders.index')} />
+                <StatCard icon={AlertTriangle} value={overdueDeliveryCount} label="Overdue Deliveries" accent={overdueDeliveryCount > 0 ? 'red' : 'green'} href={route('purchase-orders.index')} />
+                <StatCard icon={Truck} value={partiallyDeliveredCount} label="Partially Delivered" href={route('purchase-orders.index', { status: 'partially_delivered' })} />
+                <StatCard icon={CheckCircle2} value={completedPOCount} label="Completed POs" accent="green" href={route('purchase-orders.index', { status: 'closed' })} />
+            </div>
+
+            <p className="mt-4 text-[11px] font-semibold uppercase tracking-wide text-graphite-400 dark:text-slate-500">Vendors &amp; Value</p>
+            <div className="mt-2 grid grid-cols-2 gap-3 lg:grid-cols-4">
                 <StatCard icon={Building2} value={activeVendorCount} label="Active Vendors" href={route('vendors.index')} />
                 <StatCard icon={Clock} value={purchaseCycleDaysAvg !== null ? `${purchaseCycleDaysAvg}d` : '-'} label="Avg. Purchase Cycle" />
-                <div className="col-span-2 flex items-center rounded-xl border border-graphite-200 bg-white px-4 py-3 dark:border-slate-700 dark:bg-slate-900">
-                    <div>
-                        <p className="text-xs text-graphite-500 dark:text-slate-400">Procurement Value (YTD)</p>
-                        <p className="text-xl font-bold text-graphite-900 dark:text-slate-50">{idr(procurementValueYtd)}</p>
-                    </div>
+                {/* v2.30.0: was a plain bordered box with no icon --
+                    reused StatCard itself so the one currency figure on
+                    this page reads as the same "informational card"
+                    family as everything around it, not a one-off. */}
+                <div className="col-span-2">
+                    <StatCard icon={Wallet} value={idr(procurementValueYtd)} label="Procurement Value (YTD)" accent="purple" />
                 </div>
             </div>
 

@@ -7,6 +7,7 @@ import { Card, CardContent, CardHeader, CardTitle, CardDescription } from '@/Com
 import ModuleCard from '@/Components/shared/ModuleCard';
 import DepartmentCalendarWidget from '@/Components/shared/DepartmentCalendarWidget';
 import { PackageSearch, ClipboardCheck, PackageCheck, Boxes, ArrowRightLeft, Warehouse, Package, ChevronRight, ShoppingCart, FileText } from 'lucide-react';
+import { cn } from '@/lib/utils';
 
 // v1.11.7 (Bahasa Indonesia Standardization, Part 4) -- hrefs unchanged.
 const LOGISTICS_MODULES = [
@@ -52,7 +53,20 @@ export default function LogisticsDashboard({
                     <StatCard icon={Boxes} value={lowStockCount} label="Barang Stok Menipis" accent={lowStockCount > 0 ? 'red' : 'green'} href={route('stock.index', { low_stock: 1 })} />
                 </div>
 
-                {/* LEVEL 2 -- Material Flow pipeline */}
+                {/* LEVEL 2 -- Material Flow pipeline. v2.30.0 (Interior UI
+                    Transformation, Phase 2, Part 12): the pipeline
+                    visualization itself was already good (real per-stage
+                    counts, already a genuine flow diagram) and is
+                    deliberately NOT rebuilt here, per this pass's own
+                    "don't rebuild what's already good" instruction --
+                    only the surrounding surface treatment changed: each
+                    stage now sits on a soft-blue tinted card instead of a
+                    bare neutral border, and the stage currently holding
+                    the most open items (real data, not fabricated -- just
+                    a MAX() over numbers already on screen) gets a
+                    stronger accent so "where is material piling up" reads
+                    at a glance, the exact question this widget exists to
+                    answer. */}
                 <Card>
                     <CardHeader className="pb-2">
                         <CardTitle>Alur Material</CardTitle>
@@ -60,16 +74,26 @@ export default function LogisticsDashboard({
                     </CardHeader>
                     <CardContent>
                         <div className="flex flex-wrap items-stretch gap-1">
-                            {FLOW_STAGES.map((stage, i) => (
-                                <div key={stage.key} className="flex items-center gap-1">
-                                    <div className="flex min-w-[110px] flex-col items-center gap-1 rounded-lg border border-graphite-100 px-3 py-2.5 dark:border-slate-800">
-                                        <stage.icon className="h-4 w-4 text-graphite-400" />
-                                        <span className="text-lg font-semibold text-graphite-900 dark:text-slate-50">{materialFlow?.[stage.key] ?? 0}</span>
-                                        <span className="text-center text-[11px] leading-tight text-graphite-500">{stage.label}</span>
+                            {(() => {
+                                const maxCount = Math.max(0, ...FLOW_STAGES.map((s) => materialFlow?.[s.key] ?? 0));
+                                return FLOW_STAGES.map((stage, i) => {
+                                    const count = materialFlow?.[stage.key] ?? 0;
+                                    const isBottleneck = maxCount > 0 && count === maxCount;
+                                    return (
+                                    <div key={stage.key} className="flex items-center gap-1">
+                                        <div className={cn(
+                                            'flex min-w-[110px] flex-col items-center gap-1 rounded-lg border px-3 py-2.5 transition-colors',
+                                            isBottleneck ? 'border-brand-200 bg-brand-50/70 dark:border-brand-800 dark:bg-brand-950/30' : 'border-graphite-100 bg-graphite-50/40 dark:border-slate-800 dark:bg-slate-900/30'
+                                        )}>
+                                            <stage.icon className={cn('h-4 w-4', isBottleneck ? 'text-brand-500' : 'text-graphite-400')} />
+                                            <span className={cn('text-lg font-semibold', isBottleneck ? 'text-brand-700 dark:text-brand-400' : 'text-graphite-900 dark:text-slate-50')}>{count}</span>
+                                            <span className="text-center text-[11px] leading-tight text-graphite-500">{stage.label}</span>
+                                        </div>
+                                        {i < FLOW_STAGES.length - 1 && <ChevronRight className="h-4 w-4 shrink-0 text-graphite-300" />}
                                     </div>
-                                    {i < FLOW_STAGES.length - 1 && <ChevronRight className="h-4 w-4 shrink-0 text-graphite-300" />}
-                                </div>
-                            ))}
+                                    );
+                                });
+                            })()}
                         </div>
                     </CardContent>
                 </Card>

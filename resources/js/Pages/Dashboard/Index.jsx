@@ -730,11 +730,26 @@ export default function Dashboard({
  * relevant alerts (LTI, PPE) that appear nowhere else on this page --
  * nothing informative was removed, only the literal duplicate.
  */
+// v2.30.0 (Interior UI Transformation, Phase 2, Part 5/7 -- "live"
+// operational context). Two real changes, both driven by data this
+// component already receives, nothing new fetched or fabricated:
+// 1. The card's own surface now genuinely shifts semantic tone with its
+//    content -- a soft blue "all clear" tint when there are no warnings,
+//    a soft amber tint the moment there actually is one -- instead of a
+//    fixed neutral card that only changed a small footer strip inside
+//    it. This is the "status should be visually meaningful" principle
+//    applied to the container itself, not just a badge inside it.
+// 2. The footer alert box now uses a real semantic surface (emerald/
+//    amber tinted background + border) instead of flat graphite-50 for
+//    BOTH states, so "good" reads as visibly good, not just "not bad."
 function HeroSummary({ name, now, ltiCount, ppeAlertCount }) {
     const hasWarnings = ppeAlertCount > 0 || ltiCount > 0;
 
     return (
-        <Card className="border-graphite-200 bg-white/70 shadow-card backdrop-blur-sm">
+        <Card className={cn(
+            'shadow-card backdrop-blur-sm transition-colors duration-300',
+            hasWarnings ? 'border-amber-200/70 bg-gradient-to-br from-amber-50/50 via-white to-white' : 'border-graphite-200 bg-gradient-to-br from-brand-50/40 via-white to-white'
+        )}>
             <CardContent className="p-3.5">
                 <h2 className="text-[13px] font-bold text-graphite-900">{greetingFor(now)}, {name} 👋</h2>
                 <p className="mt-1 text-[11px] font-semibold uppercase tracking-wide text-graphite-400">Today's Alerts</p>
@@ -745,14 +760,18 @@ function HeroSummary({ name, now, ltiCount, ppeAlertCount }) {
                 </div>
 
                 {/* Alert deliberately kept visually secondary (v1.6.7 Beta
-                    final polish) -- smaller icon and text, muted color,
-                    so it reads as a footnote to the statistics above it
-                    rather than competing with them. */}
-                <div className="mt-3 flex items-start gap-1.5 rounded-lg border border-graphite-100 bg-graphite-50/60 px-3 py-1.5 text-[11px]">
+                    final polish) -- smaller icon and text, so it reads as
+                    a footnote to the statistics above it rather than
+                    competing with them -- but the SURFACE color is no
+                    longer neutral either way (v2.30.0). */}
+                <div className={cn(
+                    'mt-3 flex items-start gap-1.5 rounded-lg border px-3 py-1.5 text-[11px]',
+                    hasWarnings ? 'border-amber-200 bg-amber-50' : 'border-emerald-200 bg-emerald-50'
+                )}>
                     {hasWarnings ? (
                         <>
                             <AlertTriangle className="mt-0.5 h-3.5 w-3.5 shrink-0 text-amber-500" />
-                            <span className="text-graphite-600">
+                            <span className="text-amber-800">
                                 {ppeAlertCount > 0 && <>⚠️ {ppeAlertCount} PPE item(s) require attention. </>}
                                 {ltiCount > 0 && <>⚠️ {ltiCount} Lost Time Incident(s) recorded this period.</>}
                             </span>
@@ -760,7 +779,7 @@ function HeroSummary({ name, now, ltiCount, ppeAlertCount }) {
                     ) : (
                         <>
                             <CheckCircle2 className="mt-0.5 h-3.5 w-3.5 shrink-0 text-emerald-500" />
-                            <span className="text-graphite-600">✅ Great job! No critical issues detected today.</span>
+                            <span className="text-emerald-800">✅ Great job! No critical issues detected today.</span>
                         </>
                     )}
                 </div>

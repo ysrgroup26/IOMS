@@ -102,8 +102,17 @@ export default function WarehouseDashboard({
                 </Card>
 
                 <div className="grid grid-cols-1 gap-3 lg:grid-cols-3">
-                    <Card>
-                        <CardHeader><CardTitle>Barang Stok Menipis</CardTitle></CardHeader>
+                    {/* v2.30.0 (Interior UI Transformation, Phase 2, Part
+                        10): a real exception -- items below their own
+                        min_stock -- should read as visually prominent,
+                        not sit in a neutral card identical to "Recent
+                        Receiving" next to it. Border/header tint only
+                        activates when `lowStockItems` actually has rows;
+                        an empty list keeps the plain neutral card. */}
+                    <Card className={lowStockItems?.length > 0 ? 'border-amber-200' : undefined}>
+                        <CardHeader className={lowStockItems?.length > 0 ? 'rounded-t-[10px] bg-amber-50/60' : undefined}>
+                            <CardTitle className={lowStockItems?.length > 0 ? 'text-amber-800' : undefined}>Barang Stok Menipis</CardTitle>
+                        </CardHeader>
                         <CardContent>
                             <ActivityList
                                 items={lowStockItems}

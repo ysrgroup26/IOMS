@@ -17,7 +17,7 @@ return [
     |
     */
 
-    'version' => '2.29.0',
+    'version' => '2.30.0',
 
     // Tester / Beta / Stable -- tracks the release stage explicitly.
     // Previously only implied in conversation, never actually stored.
@@ -25,7 +25,7 @@ return [
 
     'edition' => 'Enterprise Edition',
 
-    'build' => '2026.09.01.15',
+    'build' => '2026.09.01.16',
 
     'release_date' => '2026-09-01',
 
@@ -62,6 +62,7 @@ return [
     */
 
     'version_history' => [
+        ['version' => '2.30.0', 'date' => '2026-09-01', 'summary' => 'Interior UI Transformation Phase 2 (Domain Experience): actual domain-page redesigns, not another shared-component-only pass. Reports gained a real visual treatment -- PageHeader, KpiSummaryCard-based key summary (same icon/color-driven cards Dashboard already uses, same KpiCategory data, no fabrication), and department table headers switched from a solid color band to a tinted section-header style. Global Dashboard\'s HeroSummary now shifts its own surface tone (soft blue "all clear" vs soft amber "attention") instead of only a small footer strip. Procurement Dashboard\'s 8 stat cards regrouped into Pipeline / Delivery & Completion / Vendors & Value with eyebrow labels, communicating actual workflow position. Warehouse\'s "Barang Stok Menipis" card gets a real amber-tinted header when low-stock items exist. Logistics\' existing Material Flow pipeline visualization was deliberately preserved (already good, per this pass\'s own instruction) -- only its surrounding surface treatment changed, with the current bottleneck stage (computed from the same real per-stage counts already on screen) getting a stronger visual accent. No business logic, RBAC, tenant isolation, database, or PTW/A4 document changes.'],
         ['version' => '2.29.0', 'date' => '2026-09-01', 'summary' => 'Authenticated UI Visual Transformation: shared-component-first pass, not a page-by-page audit. StatCard gained a real accent color-bar, hover lift, and an opt-in `hint` line -- cascades automatically into every domain dashboard already using it (HR, HSE, Logistics, Maintenance, PPE, Procurement, Project Management, Quality Control, Warehouses, Assets, Corrective Actions, Work Orders, the Global Dashboard). ModuleTabNav\'s active tab now gets a tinted surface instead of a bare underline, plus an optional real-data `meta` count line -- wired live into PPE\'s Employee/Replacement Due/Replacement Requests tabs from each page\'s own already-loaded paginator/array data, never fabricated. AuthenticatedLayout gained a fixed, very-low-opacity blue-tinted background layer (white Cards/Sidebar/TopBar still read as the brighter surface on top). Dashboard gained explicit "Company Snapshot" / "Needs Attention" section labels separating primary state from operational-attention KPIs. MobileBottomNav\'s active tab gained a top indicator bar + tinted icon pill. EmptyState\'s icon chip switched from plain neutral gray to the app\'s own soft-blue surface. No business logic, RBAC, tenant isolation, database, or PTW/A4 document changes -- the A4 density work from 66addf6 is untouched.'],
         ['version' => '2.28.0', 'date' => '2026-09-01', 'summary' => 'Product Experience Transformation, Deliverable B (PTW A4 Document): PTW Document.jsx and pdf/permit-to-work.blade.php redensified for a real A4 print target -- title/section/field/signature spacing roughly halved, Permit Type and PTW Number now share one compact row instead of stacking, keeping every section, field, and data point unchanged (numbered 01-05 information architecture from v2.20.0 untouched). Deliverable A (philosophy correction): the one Enterprise-as-"custom" line on the public Pricing section reworded to reflect IOMS as a standardized SaaS product -- Enterprise as the most complete tier (broader access, capacity, reporting), not bespoke development; is_custom flag, PricingService, and entitlement logic untouched. Broader interior-UI domains (Dashboard/HSE/Warehouse/etc.) re-audited and confirmed already consistent with the shared-component visual language established across v2.15.0-v2.27.0 -- no further change made where none was warranted.'],
         ['version' => '2.27.0', 'date' => '2026-08-31', 'summary' => 'Public Website & Auth Visual Transformation: redesigned Hero with a platform visualization (central IOMS hub + 8 real domain nodes, lg:-only for safe mobile fallback), a distinct English "Built for Industrial Operations" industry statement, and a white -> light-blue -> soft-blue ambient system with subtle motion-safe animation (2 new Tailwind keyframes, no new dependency). Redesigned pricing cards with visual hierarchy (no invented "Most Popular" claim) and plan framing text. Login gained a show/hide password toggle (also added to Reset Password) and the same visual identity as the public site. Public/authenticated app boundary, RBAC, business logic, and pricing data untouched.'],

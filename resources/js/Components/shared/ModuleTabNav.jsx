@@ -36,6 +36,20 @@ import { cn } from '@/lib/utils';
  * slightly past the tabs' own padding without changing the visual
  * alignment against the page's own left edge.
  */
+/**
+ * v2.29.0 (Authenticated UI Visual Transformation, Part 8: "tabs must
+ * feel alive"). Two real changes on top of the v2.16.0 overflow fix:
+ *
+ * 1. The active tab now gets a tinted surface (`bg-brand-50` pill), not
+ *    just an underline -- reads as a genuine selected STATE, matching
+ *    the sidebar's own active-item treatment, not merely "which link am
+ *    I hovering."
+ * 2. An optional `tab.meta` string renders as a small line under the
+ *    tab's name (e.g. "147 total", "3 due") -- ONLY when a caller
+ *    actually passes it, sourced from real page data already in that
+ *    page's own props (see `PpeTabNav`'s wiring). No tab invents a
+ *    count it wasn't given.
+ */
 export default function ModuleTabNav({ tabs }) {
     const { url } = usePage();
 
@@ -53,21 +67,31 @@ export default function ModuleTabNav({ tabs }) {
                         key={tab.href}
                         href={route(tab.href)}
                         className={cn(
-                            'flex shrink-0 items-center gap-1.5 whitespace-nowrap border-b-2 px-3 py-1.5 text-xs font-medium transition-colors',
+                            'group flex shrink-0 flex-col items-start whitespace-nowrap rounded-t-lg border-b-2 px-3 py-1.5 transition-all duration-150',
                             active
-                                ? 'border-brand-600 text-brand-700 dark:text-brand-400'
-                                : 'border-transparent text-graphite-500 hover:border-graphite-300 hover:text-graphite-800 dark:text-slate-400 dark:hover:text-slate-200'
+                                ? 'border-brand-600 bg-brand-50/70 dark:bg-brand-950/30'
+                                : 'border-transparent hover:bg-graphite-50 dark:hover:bg-slate-900/60'
                         )}
                     >
-                        {tab.name}
-                        {/* v2.5.0 (Field HSE Experience pass, Part 11): optional
-                            small pill so a config/admin-only tab (e.g. PPE
-                            Master) reads visibly different in KIND from the
-                            daily-operations tabs next to it, not just by RBAC
-                            hiding its buttons once you're already there. */}
-                        {tab.badge && (
-                            <span className="rounded-full bg-graphite-100 px-1.5 py-0.5 text-[9px] font-semibold uppercase tracking-wide text-graphite-500 dark:bg-slate-800 dark:text-slate-400">
-                                {tab.badge}
+                        <span className={cn(
+                            'flex items-center gap-1.5 text-xs font-medium transition-colors',
+                            active ? 'text-brand-700 dark:text-brand-400' : 'text-graphite-500 group-hover:text-graphite-800 dark:text-slate-400 dark:group-hover:text-slate-200'
+                        )}>
+                            {tab.name}
+                            {/* v2.5.0 (Field HSE Experience pass, Part 11): optional
+                                small pill so a config/admin-only tab (e.g. PPE
+                                Master) reads visibly different in KIND from the
+                                daily-operations tabs next to it, not just by RBAC
+                                hiding its buttons once you're already there. */}
+                            {tab.badge && (
+                                <span className="rounded-full bg-graphite-100 px-1.5 py-0.5 text-[9px] font-semibold uppercase tracking-wide text-graphite-500 dark:bg-slate-800 dark:text-slate-400">
+                                    {tab.badge}
+                                </span>
+                            )}
+                        </span>
+                        {tab.meta && (
+                            <span className={cn('text-[10px] leading-tight', active ? 'text-brand-500 dark:text-brand-400/80' : 'text-graphite-400 dark:text-slate-500')}>
+                                {tab.meta}
                             </span>
                         )}
                     </Link>

@@ -152,7 +152,18 @@ export default function AuthenticatedLayout({ children }) {
         // explicit bg-white below (the spec's own "Sidebar/Top Navigation
         // background: #FFFFFF") so they read as distinct raised surfaces
         // against this canvas, not the other way around.
-        <div className="min-h-screen bg-graphite-50 dark:bg-slate-950">
+        //
+        // v2.29.0 (Authenticated UI Visual Transformation, Part 18:
+        // "background/surfaces"). Flat graphite-50 was one plain neutral
+        // everywhere -- no depth between "background," "workspace," and
+        // "primary information." A barely-there blue tint (brand-50 at
+        // very low opacity, fixed so it doesn't scroll with content) now
+        // sits behind the workspace, establishing the BACKGROUND layer
+        // the directive asks for without tinting the whole app blue --
+        // white Cards and the white Sidebar/TopBar still read as the
+        // brighter, primary surfaces on top of it.
+        <div className="relative min-h-screen bg-graphite-50 dark:bg-slate-950">
+            <div className="pointer-events-none fixed inset-0 -z-10 bg-gradient-to-br from-brand-50/50 via-transparent to-transparent dark:from-blue-950/20" aria-hidden="true" />
             {/* Mobile overlay */}
             {sidebarOpen && (
                 <div

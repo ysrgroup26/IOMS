@@ -38,7 +38,7 @@ export default function PpeReplacementDue({ items, companies, filters }) {
         <AuthenticatedLayout>
             <Head title="Replacement Due" />
 
-            <PpeTabNav />
+            <PpeTabNav counts={{ replacementDue: items.length }} />
 
             <div className="mb-4 flex flex-wrap items-center justify-between gap-3">
                 <div>

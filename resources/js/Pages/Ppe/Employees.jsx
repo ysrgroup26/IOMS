@@ -59,7 +59,7 @@ export default function PpeEmployees({ employees, companies, departments, filter
         <AuthenticatedLayout>
             <Head title="Employee PPE" />
 
-            <PpeTabNav />
+            <PpeTabNav counts={{ employees: employees.total }} />
 
             <div className="mb-6">
                 <h1 className="text-[22px] font-semibold tracking-tight text-graphite-900 dark:text-slate-50">Employee PPE</h1>

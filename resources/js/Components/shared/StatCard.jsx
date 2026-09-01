@@ -26,27 +26,46 @@ import { cn } from '@/lib/utils';
  *   <StatCard icon={Users} value="128" label="Employees" href={route('employees.index')} />
  *   <StatCard icon={AlertTriangle} value="3" label="PPE Alerts" accent="amber" />
  *   <StatCard icon={Skull} value="0" label="Fatalitas" accent="red" size="sm" />
+ *   <StatCard icon={CheckCircle2} value="12" label="Active" hint="3 pending" accent="green" />
+ *
+ * v2.29.0 (Authenticated UI Visual Transformation, Part 5/7: "make cards
+ * informational"). Three real, data-safe additions, all opt-in --
+ * a card given none of them renders exactly as before:
+ * 1. A left accent bar (`accent`'s own color, full card height) so a
+ *    card's semantic meaning reads at a glance, not just from its small
+ *    icon chip -- the "color hierarchy" the directive asks for, applied
+ *    where a metric already carries real semantic weight.
+ * 2. An optional `hint` line (e.g. "3 pending", "target 90%") under the
+ *    label -- only rendered when a caller passes real, already-available
+ *    context; never a fabricated trend or percentage.
+ * 3. Every card (not only ones with an href) now gets the same subtle
+ *    hover lift + shadow on non-touch pointers -- a static-feeling grid
+ *    of numbers was one of this pass's own named problems, and this is
+ *    a real, no-dependency CSS fix (`transition`, `hover:`), not just a
+ *    color change.
  */
-export default function StatCard({ icon: Icon, value, label, href, accent, size = 'default' }) {
+export default function StatCard({ icon: Icon, value, label, hint, href, accent, size = 'default' }) {
     const accentClasses = {
-        red: 'bg-danger-light text-danger dark:bg-red-950/40 dark:text-red-400',
-        amber: 'bg-warning-light text-warning dark:bg-amber-950/40 dark:text-amber-400',
-        green: 'bg-success-light text-success dark:bg-emerald-950/40 dark:text-emerald-400',
-        purple: 'bg-violet-50 text-violet-600 dark:bg-violet-950/40 dark:text-violet-400',
-        neutral: 'bg-graphite-100 text-graphite-500 dark:bg-slate-800 dark:text-slate-400',
+        red: { chip: 'bg-danger-light text-danger dark:bg-red-950/40 dark:text-red-400', bar: 'bg-danger' },
+        amber: { chip: 'bg-warning-light text-warning dark:bg-amber-950/40 dark:text-amber-400', bar: 'bg-warning' },
+        green: { chip: 'bg-success-light text-success dark:bg-emerald-950/40 dark:text-emerald-400', bar: 'bg-success' },
+        purple: { chip: 'bg-violet-50 text-violet-600 dark:bg-violet-950/40 dark:text-violet-400', bar: 'bg-violet-500' },
+        neutral: { chip: 'bg-graphite-100 text-graphite-500 dark:bg-slate-800 dark:text-slate-400', bar: 'bg-graphite-300' },
     };
-    const iconClass = accentClasses[accent] || 'bg-brand-50 text-brand-600 dark:bg-brand-950/40 dark:text-brand-400';
+    const resolved = accentClasses[accent] || { chip: 'bg-brand-50 text-brand-600 dark:bg-brand-950/40 dark:text-brand-400', bar: 'bg-brand-500' };
     const isSmall = size === 'sm';
 
     const content = (
-        <Card className={cn('h-full rounded-[10px] bg-white/85 backdrop-blur-sm transition-all duration-200 dark:bg-slate-900/85', href && 'hover:-translate-y-0.5 hover:shadow-card-hover')}>
-            <CardContent className={cn('flex items-center', isSmall ? 'gap-2 p-2.5' : 'gap-2.5 p-3')}>
-                <div className={cn('flex shrink-0 items-center justify-center', isSmall ? 'h-7 w-7 rounded-[9px]' : 'h-8 w-8 rounded-[9px]', iconClass)}>
+        <Card className={cn('group relative h-full overflow-hidden rounded-[10px] bg-white/85 backdrop-blur-sm transition-all duration-200 hover:shadow-card-hover motion-safe:hover:-translate-y-0.5 dark:bg-slate-900/85', href && 'cursor-pointer')}>
+            {accent && <span className={cn('absolute inset-y-0 left-0 w-[3px]', resolved.bar)} aria-hidden="true" />}
+            <CardContent className={cn('flex items-center', isSmall ? 'gap-2 p-2.5' : 'gap-2.5 p-3', accent && 'pl-3.5')}>
+                <div className={cn('flex shrink-0 items-center justify-center transition-transform duration-200 group-hover:scale-105', isSmall ? 'h-7 w-7 rounded-[9px]' : 'h-8 w-8 rounded-[9px]', resolved.chip)}>
                     <Icon className={isSmall ? 'h-[15px] w-[15px]' : 'h-4 w-4'} />
                 </div>
                 <div className="min-w-0">
                     <p className={cn('truncate font-semibold leading-tight text-graphite-900 dark:text-slate-50', isSmall ? 'text-base' : 'text-lg')}>{value}</p>
                     <p className={cn('truncate font-medium uppercase tracking-wide text-graphite-400 dark:text-slate-500', isSmall ? 'text-[10px]' : 'text-[11px]')}>{label}</p>
+                    {hint && <p className="mt-0.5 truncate text-[10px] font-medium text-graphite-500 dark:text-slate-400">{hint}</p>}
                 </div>
             </CardContent>
         </Card>

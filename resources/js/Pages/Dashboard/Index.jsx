@@ -227,7 +227,15 @@ export default function Dashboard({
                 by assigning `accent` per the semantic meaning of each
                 metric (green=healthy/active, amber=needs attention,
                 red=critical, purple=assets/planning), not decoratively. */}
-            <div className="mt-4 grid grid-cols-2 gap-3 lg:grid-cols-4">
+            {/* v2.29.0 (Authenticated UI Visual Transformation, Part 6/16):
+                an explicit eyebrow label separates this PRIMARY row from
+                the "needs attention" row below it -- previously both were
+                just two `StatCard` grids stacked with no signal that one
+                is "current state" and the other is "operational
+                attention," the exact hierarchy this pass's own directive
+                asks the Dashboard to lead with. */}
+            <p className="mt-4 text-[11px] font-semibold uppercase tracking-wide text-graphite-400 dark:text-slate-500">Company Snapshot</p>
+            <div className="mt-2 grid grid-cols-2 gap-3 lg:grid-cols-4">
                 <StatCard icon={Users} value={`${formatNumber(companyHeadcount.overall_total)} Employees`} label="Active Workforce" href={deptSafeHref('employees.index', deptPrefixes)} />
                 <StatCard icon={FolderKanban} value={`${formatNumber(activeProjectsCount)} Active Projects`} label="Running Projects" accent="green" href={deptSafeHref('projects.index', deptPrefixes)} />
                 <StatCard icon={Building2} value={formatNumber(companyHeadcount.by_company.length)} label="Companies" accent="neutral" href={deptSafeHref('settings.index', deptPrefixes) ? route('settings.index') + '?tab=companies' : undefined} />
@@ -244,7 +252,8 @@ export default function Dashboard({
                 DIFFERENT department renders without a link instead of a
                 click that would 403 (RestrictDepartmentAccess itself is
                 unchanged; this only avoids exposing a link it would reject). */}
-            <div className="mt-3 grid grid-cols-2 gap-3 sm:grid-cols-3 lg:grid-cols-6">
+            <p className="mt-4 text-[11px] font-semibold uppercase tracking-wide text-graphite-400 dark:text-slate-500">Needs Attention</p>
+            <div className="mt-2 grid grid-cols-2 gap-3 sm:grid-cols-3 lg:grid-cols-6">
                 <StatCard icon={AlertTriangle} value={formatNumber(openIncidentsCount)} label="Open Incidents" accent={openIncidentsCount > 0 ? 'red' : 'green'} href={deptSafeHref('incidents.index', deptPrefixes)} />
                 <StatCard icon={ClipboardCheck} value={formatNumber(openCapaCount)} label="Open CAPA" accent={openCapaCount > 0 ? 'amber' : 'green'} href={deptSafeHref('corrective-actions.index', deptPrefixes)} />
                 <StatCard icon={ShoppingCart} value={formatNumber(pendingProcurementCount)} label="Pending Procurement" accent="purple" href={deptSafeHref('procurement.dashboard', deptPrefixes)} />

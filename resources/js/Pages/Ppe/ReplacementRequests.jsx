@@ -14,7 +14,7 @@ export default function PpeReplacementRequests({ requests }) {
         <AuthenticatedLayout>
             <Head title="Replacement Requests" />
 
-            <PpeTabNav />
+            <PpeTabNav counts={{ replacementRequests: requests.total }} />
 
             <div className="mb-4">
                 <h1 className="text-[22px] font-semibold tracking-tight text-graphite-900 dark:text-slate-50">Replacement Requests</h1>

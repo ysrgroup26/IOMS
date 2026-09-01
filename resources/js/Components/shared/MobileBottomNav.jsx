@@ -75,16 +75,24 @@ function isActive(item, currentUrl) {
     }
 }
 
+// v2.29.0 (Authenticated UI Visual Transformation, Part 17/19): the
+// active tab previously only changed text color -- easy to miss at a
+// glance on a small screen. Added a top indicator bar (mirrors the
+// sidebar's own active left-bar convention) and a tinted pill behind the
+// icon, both animated with a plain CSS transition (no new dependency).
 function BottomNavLink({ href, label, icon: Icon, active }) {
     return (
         <Link
             href={href}
             className={cn(
-                'flex min-w-0 flex-1 flex-col items-center justify-center gap-0.5 py-2 transition-colors',
+                'relative flex min-w-0 flex-1 flex-col items-center justify-center gap-0.5 py-2 transition-colors',
                 active ? 'text-brand-600 dark:text-brand-400' : 'text-graphite-500 dark:text-slate-400'
             )}
         >
-            {Icon && <Icon className="h-5 w-5 shrink-0" />}
+            {active && <span className="absolute left-1/2 top-0 h-0.5 w-8 -translate-x-1/2 rounded-full bg-brand-600 transition-all duration-200" aria-hidden="true" />}
+            <span className={cn('flex h-6 w-9 items-center justify-center rounded-full transition-colors duration-200', active && 'bg-brand-50 dark:bg-brand-950/40')}>
+                {Icon && <Icon className="h-[18px] w-[18px] shrink-0" />}
+            </span>
             <span className="max-w-full truncate text-[10px] font-medium">{label}</span>
         </Link>
     );

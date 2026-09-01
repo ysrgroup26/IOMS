@@ -23,7 +23,27 @@ const PPE_TABS = [
  * the four existing PPE pages that already import `PpeTabNav` don't need
  * any changes. A future module should import `ModuleTabNav` directly
  * with its own tabs array instead of copying this file.
+ *
+ * v2.29.0 (Authenticated UI Visual Transformation, Part 8): optional
+ * `counts` prop ({ employees, replacementDue, replacementRequests }) --
+ * each value comes straight from that page's own already-loaded props
+ * (a paginator's real `.total`, or a plain array's real `.length`), no
+ * new query anywhere. A page that doesn't pass a given count (or doesn't
+ * pass `counts` at all) simply renders that tab without a meta line --
+ * never a fabricated "0" standing in for "unknown."
  */
-export default function PpeTabNav() {
-    return <ModuleTabNav tabs={PPE_TABS} />;
+export default function PpeTabNav({ counts = {} }) {
+    const tabs = PPE_TABS.map((tab) => {
+        if (tab.href === 'ppe.employees' && counts.employees != null) {
+            return { ...tab, meta: `${counts.employees} total` };
+        }
+        if (tab.href === 'ppe.replacement-due' && counts.replacementDue != null) {
+            return { ...tab, meta: `${counts.replacementDue} due` };
+        }
+        if (tab.href === 'ppe.replacement-requests.index' && counts.replacementRequests != null) {
+            return { ...tab, meta: `${counts.replacementRequests} total` };
+        }
+        return tab;
+    });
+    return <ModuleTabNav tabs={tabs} />;
 }

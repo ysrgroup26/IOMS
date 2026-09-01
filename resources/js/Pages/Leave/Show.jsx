@@ -9,7 +9,7 @@ import { ArrowLeft, XCircle } from 'lucide-react';
 
 export default function LeaveShow({ leaveRequest: lr, approval, activities, canDecide, canManage }) {
     function cancel() {
-        if (confirm('Cancel this leave request?')) {
+        if (confirm('Batalkan pengajuan cuti ini?')) {
             router.post(route('leave-requests.cancel', lr.id));
         }
     }

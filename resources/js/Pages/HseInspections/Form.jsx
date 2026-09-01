@@ -50,7 +50,7 @@ export default function HseInspectionForm({ companies, projects, inspectionNumbe
         const template = checklistTemplates.find((t) => String(t.id) === String(templateId));
         if (!template) return;
         const hasContent = data.checklist_items.some((i) => i.item || i.remarks);
-        if (hasContent && !confirm('Replace the current checklist with this template? Unsaved rows will be lost.')) return;
+        if (hasContent && !confirm('Ganti checklist saat ini dengan template ini? Baris yang belum disimpan akan hilang.')) return;
         setData('checklist_items', template.items.map((it) => ({ item: it.label, result: 'ok', remarks: '' })));
     }
 

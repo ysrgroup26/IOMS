@@ -47,7 +47,7 @@ export default function ReportCenterIndex({ available, schedules }) {
     // confirmation): fired instantly on click with no confirmation --
     // every other delete flow in this app confirms first.
     const deleteSchedule = (id) => {
-        if (confirm('Remove this scheduled report?')) {
+        if (confirm('Hapus jadwal laporan ini?')) {
             router.delete(route('report-center.schedules.destroy', id), { preserveScroll: true });
         }
     };

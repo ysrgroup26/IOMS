@@ -17,7 +17,7 @@ return [
     |
     */
 
-    'version' => '2.24.0',
+    'version' => '2.25.0',
 
     // Tester / Beta / Stable -- tracks the release stage explicitly.
     // Previously only implied in conversation, never actually stored.
@@ -25,7 +25,7 @@ return [
 
     'edition' => 'Enterprise Edition',
 
-    'build' => '2026.08.31.10',
+    'build' => '2026.08.31.11',
 
     'release_date' => '2026-08-31',
 
@@ -44,8 +44,9 @@ return [
     'documentation_url' => 'docs.iomsplatform.com',
 
     'whats_new' => [
-        'Purchase Requisition and KPI Records lists are easier to scan and now show proper cards on mobile',
-        'Reports now shows a quick summary (total employees, total per KPI category) before the detailed breakdown',
+        'Confirmation dialogs across the app now speak consistent, natural Indonesian ("Hapus data ini?") instead of a mix of English and Indonesian phrasing',
+        'Login and password pages now explain what to do in plain Indonesian',
+        'Public website headline corrected back to "IOMS -- Industrial Operations Platform"',
     ],
 
     /*
@@ -60,6 +61,7 @@ return [
     */
 
     'version_history' => [
+        ['version' => '2.25.0', 'date' => '2026-08-31', 'summary' => 'Global UX & Copywriting Polish: naturalized 18 confirm() dialogs from English "Remove this X?" to consistent Indonesian "Hapus X ini?" across Daily Reports/Employees/HSE Inspection/Leave/Man-Hour/Milestones/PPE/Report Center/RFQ/Settings; added Indonesian explanatory copy to Login/Forgot Password/Reset Password (labels/buttons stay English); Settings Subscription tab copy naturalized; public website hero tagline corrected from a drifted "Industrial Operations Management Platform" back to "Industrial Operations Platform", subheadline naturalized to Indonesian. Pure copy pass -- no layout, component, or business-logic change. PHP-side controller flash messages (176 call sites) not systematically reviewed -- flagged as a follow-up, not silently skipped.'],
         ['version' => '2.24.0', 'date' => '2026-08-31', 'summary' => 'Complete Product UI/UX Transformation, closing the remaining gaps: Purchase Requisition (Purchasing) and KPI Records (Management) got the same identity-first table + mobile card treatment as prior passes; Reports gained a client-side "key summary" strip (no fabricated data) read before the detailed matrices; Logistics Dashboard and Report Center reviewed and found already good (Logistics already has a genuine pipeline visualization, not just cards). Presentation only -- no business logic, RBAC, or database changes.'],
         ['version' => '2.23.0', 'date' => '2026-08-31', 'summary' => 'Complete Product UI/UX Transformation, continued: extended the identity-first list pattern (established on PTW/Incidents) to one representative page per remaining domain -- Safety Observation (HSE), Employees (People/HR), Man-Hour (Operations), Goods Receipt (Warehouse/Procurement) -- each gaining a mobile card list where none existed, consolidated desktop columns, and an unboxed filter bar. Public website hero/platform copy, Dashboard hierarchy, and Settings/Subscription were reviewed and found already adequate -- left unchanged. Presentation only -- no business logic, RBAC, or database changes.'],
         ['version' => '2.22.0', 'date' => '2026-08-31', 'summary' => 'Complete Product UI/UX Transformation pass: new fixed mobile bottom navigation bar (Home + up to 3 authorized items + More, reusing the exact same RBAC/department-filtered nav array and drawer the sidebar already uses -- no second permission system); "IOMS" restored as the primary product name in the browser tab title, app config fallback, and public site footer (was drifting toward the full "Integrated Operations Management System" expansion, and this environment\'s own .env had a stale pre-rebrand "Shipyard Management System" title); Incidents list got the same identity-first table consolidation PTW Index introduced last pass. No business logic, RBAC, tenant isolation, SaaS entitlement, or database changes.'],

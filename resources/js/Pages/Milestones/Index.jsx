@@ -22,7 +22,7 @@ export default function MilestonesIndex({ milestones, projects, filters, can }) 
     }
 
     function destroy(id) {
-        if (confirm('Remove this milestone?')) router.delete(route('milestones.destroy', id));
+        if (confirm('Hapus milestone ini?')) router.delete(route('milestones.destroy', id));
     }
 
     return (

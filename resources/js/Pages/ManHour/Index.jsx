@@ -27,7 +27,7 @@ export default function ManHourIndex({ logs, employees, projects, companies, fil
     }
 
     function destroy(id) {
-        if (confirm('Remove this man-hour record?')) {
+        if (confirm('Hapus catatan Man-Hour ini?')) {
             router.delete(route('man-hour.destroy', id));
         }
     }

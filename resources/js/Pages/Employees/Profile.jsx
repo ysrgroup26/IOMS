@@ -53,19 +53,19 @@ export default function EmployeeProfile({ employee, yearSummary, monthlyBreakdow
     }
 
     function removeCompetency(id) {
-        if (confirm('Remove this competency record?')) {
+        if (confirm('Hapus data kompetensi ini?')) {
             router.delete(route('employee-competencies.destroy', id));
         }
     }
 
     function removeShiftAssignment(id) {
-        if (confirm('Remove this shift assignment?')) {
+        if (confirm('Hapus penempatan shift ini?')) {
             router.delete(route('employee-shift-assignments.destroy', id));
         }
     }
 
     function removeRoster(id) {
-        if (confirm('Remove this roster entry?')) {
+        if (confirm('Hapus entri roster ini?')) {
             router.delete(route('employee-rosters.destroy', id));
         }
     }

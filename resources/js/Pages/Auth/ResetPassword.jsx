@@ -39,7 +39,8 @@ export default function ResetPassword({ token, email }) {
 
                 <div className="rounded-xl border border-graphite-200 bg-white/90 p-6 shadow-card backdrop-blur-sm">
                     <h1 className="text-base font-semibold text-graphite-900">Reset your password</h1>
-                    <p className="mt-1 text-sm text-graphite-500">Choose a new password for your account.</p>
+                    {/* v2.25.0 (Global UX & Copywriting Polish pass): naturalized to Indonesian. */}
+                    <p className="mt-1 text-sm text-graphite-500">Buat password baru untuk akun Anda.</p>
 
                     <form onSubmit={submit} className="mt-5 space-y-4">
                         <div className="space-y-1.5">

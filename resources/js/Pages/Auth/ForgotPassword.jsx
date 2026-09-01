@@ -34,8 +34,11 @@ export default function ForgotPassword() {
 
                 <div className="rounded-xl border border-graphite-200 bg-white/90 p-6 shadow-card backdrop-blur-sm">
                     <h1 className="text-base font-semibold text-graphite-900">Forgot your password?</h1>
+                    {/* v2.25.0 (Global UX & Copywriting Polish pass): was
+                        fully English explanatory text -- naturalized to
+                        Indonesian, label/button/heading unchanged. */}
                     <p className="mt-1 text-sm text-graphite-500">
-                        Enter your email and we'll send you a link to reset it.
+                        Masukkan email Anda, kami akan mengirimkan tautan untuk mengatur ulang password.
                     </p>
 
                     {flash?.success && (

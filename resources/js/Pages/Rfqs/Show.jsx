@@ -84,7 +84,7 @@ export default function RfqShow({ rfq, activities, canManage }) {
                         <Button onClick={() => setSelectOpen(true)}><CheckCircle2 className="h-4 w-4" /> {rfq.selected_vendor ? 'Change Selection' : 'Select Vendor'}</Button>
                     )}
                     {canManage && rfq.status === 'issued' && (
-                        <Button variant="outline" onClick={() => { if (confirm('Close this RFQ?')) router.post(route('rfqs.close', rfq.id)); }}>Close RFQ</Button>
+                        <Button variant="outline" onClick={() => { if (confirm('Tutup RFQ ini?')) router.post(route('rfqs.close', rfq.id)); }}>Close RFQ</Button>
                     )}
                     {canManage && rfq.selected_vendor && rfq.purchase_requisition.status !== 'converted_to_po' && (
                         <Button variant="outline" asChild><Link href={route('purchase-orders.create', { rfq: rfq.id })}><FilePlus className="h-4 w-4" /> Create PO</Link></Button>

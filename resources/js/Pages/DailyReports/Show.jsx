@@ -7,7 +7,7 @@ import { ArrowLeft, Pencil, Trash2, Calendar, FolderKanban, ListChecks } from 'l
 
 export default function DailyReportShow({ report, can }) {
     function destroy() {
-        if (confirm('Delete this daily report? This cannot be undone.')) {
+        if (confirm('Hapus Daily Report ini? Tindakan ini tidak dapat dibatalkan.')) {
             router.delete(route('daily-reports.destroy', report.id));
         }
     }

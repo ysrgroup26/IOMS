@@ -49,7 +49,7 @@ export default function PpeMaster({ ppeTypes, can }) {
     }
 
     function destroy(id) {
-        if (confirm('Remove this PPE type? This is only possible if it has never been issued.')) {
+        if (confirm('Hapus jenis PPE ini? Hanya bisa jika belum pernah diterbitkan.')) {
             router.delete(route('ppe-types.destroy', id));
         }
     }

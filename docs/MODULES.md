@@ -2163,6 +2163,42 @@ Reports/Analytics), one representative page per domain, same methodology as the 
 
 Every change in this round is presentation-only — no controller, model, or migration was touched.
 
+## Global UX & Copywriting Polish (v2.25.0)
+
+A pure copy pass -- no layout, component, or business-logic change. Systematic grep-driven review
+(`confirm(`/`alert(`/`prompt(` calls across `resources/js/Pages`, plus Authentication and Public
+Website) rather than a page-by-page reread, since destructive-confirmation copy is a small,
+enumerable set that a full-file audit would have missed pieces of.
+
+- **18 `confirm()` destructive-action dialogs naturalized** from `"Remove this X?"` to `"Hapus X
+  ini?"` (Daily Reports, Employees, HSE Inspection templates, Leave, Man-Hour, Milestones, PPE
+  Master, Report Center, RFQ, and 7 in Settings — companies/departments/positions/KPI categories/
+  users/document templates/database restore). Established technical terms (PPE, RFQ, KPI, Man-Hour,
+  Daily Report) kept untranslated inside the Indonesian sentence, per this codebase's own "keep
+  industry terminology, translate the explanation" rule — confirmed already followed correctly by
+  the small number of `confirm()` calls that were already Indonesian before this pass (CAPA, PTW).
+- **Authentication** (`Auth/Login.jsx`, `ForgotPassword.jsx`, `ResetPassword.jsx`): the only
+  explanatory sentences on these three pages were fully English with no Indonesian at all — added/
+  naturalized one line each ("Gunakan akun Anda untuk melanjutkan.", "Masukkan email Anda, kami akan
+  mengirimkan tautan untuk mengatur ulang password.", "Buat password baru untuk akun Anda."). Field
+  labels (Email/Password) and the Sign In button stay English, matching this pass's own
+  terminology-vs-explanation split.
+- **Settings > Subscription tab**: naturalized its empty state and card description
+  ("Kelola paket dan status langganan IOMS perusahaan Anda.") — the directive's own example
+  phrasing, applied rather than invented from scratch.
+- **Public website hero** (`Public/Welcome.jsx`): the eyebrow tagline had drifted to "Industrial
+  Operations Management Platform" — a hybrid that quietly reintroduced "Management" from the old
+  full-name expansion this whole transformation has been removing from primary billing. Locked back
+  to the established "Industrial Operations Platform" tagline exactly. The hero subheadline (pure
+  explanatory copy, not a product/technical term) was fully English — naturalized to Indonesian,
+  while every module name elsewhere on the page (HSE, PTW, JSA, etc.) stays untranslated.
+
+**Known, honest gap**: PHP-side controller `->with('success', '...')` flash messages were NOT
+systematically reviewed this pass — a whole-codebase grep found 176 call sites across dozens of
+controllers, too large a surface to touch responsibly within this pass without risking an
+inconsistent, half-finished sweep. Left for a dedicated follow-up rather than attempted and left
+incomplete.
+
 ## Reusable engines (Approval, Workflow, Timeline, Import, PDF, Report Export)
 
 These aren't a "module" with their own page — they're cross-cutting infrastructure consumed by the

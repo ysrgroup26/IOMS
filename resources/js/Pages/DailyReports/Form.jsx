@@ -38,7 +38,7 @@ export default function DailyReportForm({ report, projects, departmentSuggestion
     }
 
     function removeExistingPhoto(photoId) {
-        if (confirm('Remove this photo? This cannot be undone.')) {
+        if (confirm('Hapus foto ini? Tindakan ini tidak dapat dibatalkan.')) {
             router.delete(route('daily-reports.photos.destroy', [report.id, photoId]), { preserveScroll: true });
         }
     }

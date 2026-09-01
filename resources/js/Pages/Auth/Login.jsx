@@ -47,6 +47,11 @@ export default function Login() {
                 <div className="mb-12 flex flex-col items-center text-center">
                     <BrandWordmark className="h-auto w-[180px]" />
                     <p className="mt-2 text-sm text-graphite-500">{company?.subtitle || 'Industrial Operations Platform'}</p>
+                    {/* v2.25.0 (Global UX & Copywriting Polish pass, Part
+                        11): a login screen with zero explanatory text felt
+                        bureaucratic by omission -- one natural line,
+                        English labels/button below unchanged. */}
+                    <p className="mt-1 text-xs text-graphite-400">Gunakan akun Anda untuk melanjutkan.</p>
                 </div>
 
                 <div className="rounded-xl border border-graphite-200 bg-white/90 p-6 shadow-card backdrop-blur-sm">

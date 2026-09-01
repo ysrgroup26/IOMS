@@ -74,16 +74,29 @@ function Hero() {
             <div className="pointer-events-none absolute -right-32 -top-32 h-96 w-96 rounded-full bg-brand-400 opacity-[0.06] blur-3xl" aria-hidden="true" />
             <div className="mx-auto max-w-7xl px-4 py-20 sm:px-6 sm:py-28 lg:px-8">
                 <div className="mx-auto max-w-3xl text-center">
+                    {/* v2.25.0 (Global UX & Copywriting Polish pass, Part
+                        1/10): eyebrow was "Industrial Operations
+                        Management Platform" -- a hybrid that quietly
+                        reintroduced "Management" from the old full-name
+                        expansion this whole transformation has been
+                        removing from primary billing. Locked to the
+                        established tagline exactly. Subheadline
+                        naturalized to Indonesian (was fully English) --
+                        this is explanatory copy, not product/technical
+                        terminology, so it follows this pass's own
+                        "explanation = natural Bahasa Indonesia" rule;
+                        module names (HSE, PTW, etc.) stay untranslated
+                        throughout the rest of this page. */}
                     <p className="text-xs font-semibold uppercase tracking-[0.2em] text-brand-600">
-                        Industrial Operations Management Platform
+                        Industrial Operations Platform
                     </p>
                     <h1 className="mt-4 text-4xl font-semibold leading-tight tracking-tight text-graphite-900 sm:text-5xl lg:text-6xl">
                         Run Your Industrial Operations<br className="hidden sm:block" /> in One Platform.
                     </h1>
                     <p className="mx-auto mt-6 max-w-2xl text-base leading-relaxed text-graphite-600 sm:text-lg">
-                        IOMS brings field operations, HSE management, workforce data, workflows, and operational
-                        reporting together in one connected platform -- built for shipyards, construction,
-                        manufacturing, and heavy industry.
+                        IOMS membantu perusahaan industri mengelola pekerjaan lapangan, keselamatan (HSE), tenaga
+                        kerja, operasional, dan data perusahaan dalam satu platform -- dirancang untuk galangan
+                        kapal, konstruksi, manufaktur, dan industri berat.
                     </p>
                     <div className="mt-8 flex flex-col items-center justify-center gap-3 sm:flex-row">
                         <Button size="lg" className="w-full sm:w-auto" asChild><Link href={route('login')}>Get Started <ArrowRight className="h-4 w-4" /></Link></Button>

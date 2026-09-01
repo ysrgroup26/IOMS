@@ -506,7 +506,7 @@ function DocumentTemplatesTab({ documentTemplates, moduleKeys }) {
     // (companies/departments/positions/KPI categories/users) -- this one
     // was the sole exception, firing instantly on click.
     function destroy(id) {
-        if (confirm('Remove this document template?')) {
+        if (confirm('Hapus template dokumen ini?')) {
             router.delete(route('settings.documents.destroy', id), { preserveScroll: true });
         }
     }
@@ -1175,7 +1175,7 @@ function CompaniesTab({ companies }) {
     }
 
     function destroy(id) {
-        if (confirm('Remove this company?')) router.delete(route('settings.companies.destroy', id));
+        if (confirm('Hapus perusahaan ini?')) router.delete(route('settings.companies.destroy', id));
     }
 
     return (
@@ -1250,7 +1250,7 @@ function DepartmentsTab({ departments, companies, filters }) {
     }
 
     function destroy(id) {
-        if (confirm('Remove this department?')) router.delete(route('settings.departments.destroy', id));
+        if (confirm('Hapus departemen ini?')) router.delete(route('settings.departments.destroy', id));
     }
 
     return (
@@ -1357,7 +1357,7 @@ function PositionsTab({ positions, departments, companies, filters }) {
     }
 
     function destroy(id) {
-        if (confirm('Remove this position?')) router.delete(route('settings.positions.destroy', id));
+        if (confirm('Hapus posisi ini?')) router.delete(route('settings.positions.destroy', id));
     }
 
     return (
@@ -1493,7 +1493,7 @@ function KpiCategoriesTab({ kpiCategories, companies }) {
     }
 
     function destroy(id) {
-        if (confirm('Remove this KPI category? Only possible if no KPI data has been recorded against it.')) {
+        if (confirm('Hapus kategori KPI ini? Hanya bisa jika belum ada data KPI yang tercatat.')) {
             router.delete(route('settings.kpi-categories.destroy', id));
         }
     }
@@ -1779,7 +1779,7 @@ function UserManagementCard({ users, roles }) {
     }
 
     function destroy(id) {
-        if (confirm('Remove this user?')) router.delete(route('settings.users.destroy', id));
+        if (confirm('Hapus pengguna ini?')) router.delete(route('settings.users.destroy', id));
     }
 
     return (
@@ -2084,7 +2084,8 @@ function SubscriptionTab({ subscription, invoices }) {
         return (
             <Card>
                 <CardHeader><CardTitle>Subscription</CardTitle></CardHeader>
-                <CardContent><p className="text-sm text-graphite-400">No subscription record found for your organization. Contact your platform provider.</p></CardContent>
+                {/* v2.25.0 (Global UX & Copywriting Polish pass): naturalized to Indonesian. */}
+                <CardContent><p className="text-sm text-graphite-400">Belum ada data langganan untuk perusahaan Anda. Hubungi penyedia layanan.</p></CardContent>
             </Card>
         );
     }
@@ -2112,7 +2113,8 @@ function SubscriptionTab({ subscription, invoices }) {
                 <CardHeader className="flex flex-row items-start justify-between gap-3">
                     <div>
                         <CardTitle>Subscription / License</CardTitle>
-                        <CardDescription>Your organization's current plan and commercial status.</CardDescription>
+                        {/* v2.25.0 (Global UX & Copywriting Polish pass): naturalized to Indonesian, per this pass's own example phrasing. */}
+                        <CardDescription>Kelola paket dan status langganan IOMS perusahaan Anda.</CardDescription>
                     </div>
                     {/* v2.14.0 (SaaS Productization, Part 8): links to the new
                         data-driven Plans page rather than duplicating a plan
@@ -2171,7 +2173,7 @@ function BackupTab() {
 
     function restore(e) {
         e.preventDefault();
-        if (!confirm('This will overwrite the current database. Continue?')) return;
+        if (!confirm('Ini akan menimpa database saat ini. Lanjutkan?')) return;
         post(route('settings.restore'), { forceFormData: true });
     }
 

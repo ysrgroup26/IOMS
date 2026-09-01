@@ -9,6 +9,19 @@ import { FileSpreadsheet, FileText } from 'lucide-react';
 import { cn } from '@/lib/utils';
 
 export default function ReportsIndex({ report, filters, companies, departments, availableYears }) {
+    // v2.24.0 (Complete Product UI/UX Transformation, cont'd --
+    // Reports/Analytics). Pure client-side aggregation of the SAME
+    // report.departments/categories data already being rendered below --
+    // no new query, no fabricated number. Gives this page the "KEY
+    // SUMMARY before detailed data" reading order a decision-support
+    // report should have, instead of jumping straight into per-employee
+    // matrices with nothing to orient around first.
+    const totalEmployees = report.departments.reduce((sum, g) => sum + g.rows.length, 0);
+    const categoryTotals = report.categories.map((c) => ({
+        ...c,
+        total: report.departments.reduce((sum, g) => sum + g.rows.reduce((s, row) => s + (Number(row[c.code]) || 0), 0), 0),
+    }));
+
     function updateFilters(overrides = {}) {
         router.get(route('reports.index'), {
             year: filters.year,
@@ -77,9 +90,27 @@ export default function ReportsIndex({ report, filters, companies, departments, 
             </div>
 
             {report.departments.length === 0 ? (
-                <Card><CardContent className="py-16 text-center text-graphite-400">No data available for this period.</CardContent></Card>
+                <Card><CardContent className="py-16 text-center text-graphite-400">Belum ada data untuk periode ini.</CardContent></Card>
             ) : (
-                <div className="space-y-6">
+                <>
+                    {/* KEY SUMMARY -- oriented before the detailed
+                        per-department matrices below, matching this
+                        pass's own "report title -> key summary -> detail"
+                        reading order for a decision-support page. */}
+                    <div className="mb-6 flex flex-wrap gap-3">
+                        <div className="rounded-lg border border-graphite-200 bg-white px-4 py-2.5 dark:border-slate-700 dark:bg-slate-900">
+                            <p className="text-lg font-semibold text-graphite-900 dark:text-slate-50">{totalEmployees}</p>
+                            <p className="text-[11px] font-medium uppercase tracking-wide text-graphite-400">Employees</p>
+                        </div>
+                        {categoryTotals.map((c) => (
+                            <div key={c.code} className="rounded-lg border border-graphite-200 bg-white px-4 py-2.5 dark:border-slate-700 dark:bg-slate-900">
+                                <p className={cn('text-lg font-semibold', c.is_negative && c.total > 0 ? 'text-red-600' : 'text-graphite-900 dark:text-slate-50')}>{c.total}</p>
+                                <p className="text-[11px] font-medium uppercase tracking-wide text-graphite-400">{c.short_label}</p>
+                            </div>
+                        ))}
+                    </div>
+
+                    <div className="space-y-6">
                     {report.departments.map((group) => (
                         <Card key={group.department_name}>
                             <div className="rounded-t-xl bg-brand-600 px-5 py-2.5 text-sm font-semibold text-white">
@@ -114,7 +145,8 @@ export default function ReportsIndex({ report, filters, companies, departments, 
                             </Table>
                         </Card>
                     ))}
-                </div>
+                    </div>
+                </>
             )}
         </AuthenticatedLayout>
     );

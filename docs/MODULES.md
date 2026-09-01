@@ -2135,6 +2135,34 @@ one representative page per domain rather than attempting every list page in one
 Every change in this round is presentation-only (same data, same routes, same queries) — no
 controller, model, or migration was touched.
 
+## Complete Product UI/UX Transformation, closing the remaining gaps (v2.24.0)
+
+Closes the four domains v2.23.0 explicitly left unreviewed (Purchasing, Logistics, Management/KPI,
+Reports/Analytics), one representative page per domain, same methodology as the prior two passes:
+
+- **Purchasing/Procurement**: `PurchaseRequisitions/Index.jsx` — 7 columns → 5 grouped cells (PR
+  number+date as one identity unit), filter bar unboxed, gained a mobile card list, empty-state and
+  header copy naturalized to Indonesian.
+- **Logistics**: `Logistics/Dashboard.jsx` — reviewed, left unchanged. Already uses `DashboardShell` +
+  `StatCard` + a genuine pipeline visualization (`FLOW_STAGES`: Permintaan Material → Pengadaan →
+  Pesanan Pembelian → Penerimaan Barang → Gudang, real counts from `materialFlow`) + `ModuleCard`
+  shortcuts + `ActivityList` + calendar — exactly the "not just cards" hierarchy this whole
+  transformation has been building toward elsewhere, already in place here.
+- **Management/KPI**: `Kpi/Records.jsx` (the drill-down target from Dashboard's KPI cards — a raw
+  occurrence log, not itself a KPI-value/target/trend view; that lives on `Dashboard/Index.jsx`'s own
+  `KpiSummaryCard` row, already reviewed as adequate in v2.23.0) — 6 columns → 4, filter bar unboxed,
+  gained a mobile card list.
+- **Reports/Analytics**: `Reports/Index.jsx` gained a "KEY SUMMARY" strip (total employees + a total
+  per KPI category) computed client-side from the exact same `report.departments`/`categories` data
+  already being rendered below it — no new query, no fabricated number — read BEFORE the detailed
+  per-department matrices, matching this pass's own "title → key summary → detail" reading order for
+  a decision-support page. The per-department tables themselves were left as tables (a genuine
+  Employee × KPI-category matrix, correctly a table, not a case for identity-grouped cards).
+  `ReportCenter/Index.jsx` (the scheduled-report/dataset-preview page) reviewed and left unchanged —
+  already uses `PageHeader`/`EmptyState`, already reasonably structured.
+
+Every change in this round is presentation-only — no controller, model, or migration was touched.
+
 ## Reusable engines (Approval, Workflow, Timeline, Import, PDF, Report Export)
 
 These aren't a "module" with their own page — they're cross-cutting infrastructure consumed by the

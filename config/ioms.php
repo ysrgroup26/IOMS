@@ -17,7 +17,7 @@ return [
     |
     */
 
-    'version' => '2.23.0',
+    'version' => '2.24.0',
 
     // Tester / Beta / Stable -- tracks the release stage explicitly.
     // Previously only implied in conversation, never actually stored.
@@ -25,7 +25,7 @@ return [
 
     'edition' => 'Enterprise Edition',
 
-    'build' => '2026.08.31.9',
+    'build' => '2026.08.31.10',
 
     'release_date' => '2026-08-31',
 
@@ -44,8 +44,8 @@ return [
     'documentation_url' => 'docs.iomsplatform.com',
 
     'whats_new' => [
-        'Safety Observation, Employees, and Goods Receipt lists are easier to scan on desktop and now show proper cards on mobile (previously relied on sideways scrolling)',
-        'Man-Hour list groups employee and department together for a cleaner read',
+        'Purchase Requisition and KPI Records lists are easier to scan and now show proper cards on mobile',
+        'Reports now shows a quick summary (total employees, total per KPI category) before the detailed breakdown',
     ],
 
     /*
@@ -60,6 +60,7 @@ return [
     */
 
     'version_history' => [
+        ['version' => '2.24.0', 'date' => '2026-08-31', 'summary' => 'Complete Product UI/UX Transformation, closing the remaining gaps: Purchase Requisition (Purchasing) and KPI Records (Management) got the same identity-first table + mobile card treatment as prior passes; Reports gained a client-side "key summary" strip (no fabricated data) read before the detailed matrices; Logistics Dashboard and Report Center reviewed and found already good (Logistics already has a genuine pipeline visualization, not just cards). Presentation only -- no business logic, RBAC, or database changes.'],
         ['version' => '2.23.0', 'date' => '2026-08-31', 'summary' => 'Complete Product UI/UX Transformation, continued: extended the identity-first list pattern (established on PTW/Incidents) to one representative page per remaining domain -- Safety Observation (HSE), Employees (People/HR), Man-Hour (Operations), Goods Receipt (Warehouse/Procurement) -- each gaining a mobile card list where none existed, consolidated desktop columns, and an unboxed filter bar. Public website hero/platform copy, Dashboard hierarchy, and Settings/Subscription were reviewed and found already adequate -- left unchanged. Presentation only -- no business logic, RBAC, or database changes.'],
         ['version' => '2.22.0', 'date' => '2026-08-31', 'summary' => 'Complete Product UI/UX Transformation pass: new fixed mobile bottom navigation bar (Home + up to 3 authorized items + More, reusing the exact same RBAC/department-filtered nav array and drawer the sidebar already uses -- no second permission system); "IOMS" restored as the primary product name in the browser tab title, app config fallback, and public site footer (was drifting toward the full "Integrated Operations Management System" expansion, and this environment\'s own .env had a stale pre-rebrand "Shipyard Management System" title); Incidents list got the same identity-first table consolidation PTW Index introduced last pass. No business logic, RBAC, tenant isolation, SaaS entitlement, or database changes.'],
         ['version' => '2.21.0', 'date' => '2026-08-31', 'summary' => 'Final Visual Polish pass (P0 scope): PTW Index desktop table consolidated from 9 equal-weight columns to 6 identity-first cells (Permit = number+type, Project/Location, Requester/PIC, each a two-line grouped unit) -- no data dropped, real visual hierarchy instead. Filter bar unboxed from its Card. Presentation only. Broader multi-module polish (Dashboard/HSE/PPE/etc.) intentionally left for a follow-up pass given this pass\'s own P0-first priority and proportionate scope.'],

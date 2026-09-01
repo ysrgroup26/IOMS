@@ -5,7 +5,8 @@ import { Badge } from '@/Components/ui/badge';
 import { Button } from '@/Components/ui/button';
 import { Table, TableHeader, TableBody, TableRow, TableHead, TableCell } from '@/Components/ui/table';
 import { Select, SelectTrigger, SelectValue, SelectContent, SelectItem } from '@/Components/ui/select';
-import { ArrowLeft, ChevronLeft, ChevronRight } from 'lucide-react';
+import EmptyState from '@/Components/shared/EmptyState';
+import { ArrowLeft, ChevronLeft, ChevronRight, BarChart3 } from 'lucide-react';
 
 /**
  * The destination for Dashboard's clickable KPI cards (v1.5.2) -- one row
@@ -28,77 +29,102 @@ export default function KpiRecords({ records, categories, companies, filters, av
                 <ArrowLeft className="h-4 w-4" /> Back to Dashboard
             </Link>
 
-            <div className="mb-6">
+            <div className="mb-4">
                 <h1 className="text-[22px] font-semibold tracking-tight text-graphite-900">
                     KPI Records {activeCategory && <span className="text-graphite-400">&middot; {activeCategory.name}</span>}
                 </h1>
-                <p className="mt-1 text-sm text-graphite-500">{records.total} occurrence(s) matching the current filters</p>
+                <p className="mt-1 text-sm text-graphite-500">{records.total} kejadian sesuai filter saat ini.</p>
+            </div>
+
+            {/* v2.24.0 (Complete Product UI/UX Transformation, cont'd --
+                Management/KPI). Filter bar unboxed, same treatment as the
+                rest of this transformation pass. */}
+            <div className="mb-4 flex flex-wrap items-center gap-2">
+                <Select value={filters.company_id ? String(filters.company_id) : 'all'} onValueChange={(v) => applyFilters({ company_id: v === 'all' ? null : v })}>
+                    <SelectTrigger className="w-40 bg-white"><SelectValue placeholder="Company" /></SelectTrigger>
+                    <SelectContent>
+                        <SelectItem value="all">All Companies</SelectItem>
+                        {companies.map((c) => <SelectItem key={c.id} value={String(c.id)}>{c.name}</SelectItem>)}
+                    </SelectContent>
+                </Select>
+                <Select value={filters.category_id ? String(filters.category_id) : 'all'} onValueChange={(v) => applyFilters({ category_id: v === 'all' ? null : v })}>
+                    <SelectTrigger className="w-48 bg-white"><SelectValue placeholder="Category" /></SelectTrigger>
+                    <SelectContent>
+                        <SelectItem value="all">All Categories</SelectItem>
+                        {categories.map((c) => <SelectItem key={c.id} value={String(c.id)}>{c.name}</SelectItem>)}
+                    </SelectContent>
+                </Select>
+                <Select value={String(filters.year)} onValueChange={(v) => applyFilters({ year: Number(v) })}>
+                    <SelectTrigger className="w-28 bg-white"><SelectValue /></SelectTrigger>
+                    <SelectContent>
+                        {availableYears.map((y) => <SelectItem key={y} value={String(y)}>{y}</SelectItem>)}
+                    </SelectContent>
+                </Select>
+                <Select value={filters.month ? String(filters.month) : 'all'} onValueChange={(v) => applyFilters({ month: v === 'all' ? null : Number(v) })}>
+                    <SelectTrigger className="w-36 bg-white"><SelectValue placeholder="Month" /></SelectTrigger>
+                    <SelectContent>
+                        <SelectItem value="all">All Months</SelectItem>
+                        {Array.from({ length: 12 }, (_, i) => i + 1).map((m) => (
+                            <SelectItem key={m} value={String(m)}>{new Date(2000, m - 1).toLocaleString('en-US', { month: 'long' })}</SelectItem>
+                        ))}
+                    </SelectContent>
+                </Select>
             </div>
 
             <Card>
-                <CardContent className="flex flex-wrap gap-2 p-4">
-                    <Select value={filters.company_id ? String(filters.company_id) : 'all'} onValueChange={(v) => applyFilters({ company_id: v === 'all' ? null : v })}>
-                        <SelectTrigger className="w-40"><SelectValue placeholder="Company" /></SelectTrigger>
-                        <SelectContent>
-                            <SelectItem value="all">All Companies</SelectItem>
-                            {companies.map((c) => <SelectItem key={c.id} value={String(c.id)}>{c.name}</SelectItem>)}
-                        </SelectContent>
-                    </Select>
-                    <Select value={filters.category_id ? String(filters.category_id) : 'all'} onValueChange={(v) => applyFilters({ category_id: v === 'all' ? null : v })}>
-                        <SelectTrigger className="w-48"><SelectValue placeholder="Category" /></SelectTrigger>
-                        <SelectContent>
-                            <SelectItem value="all">All Categories</SelectItem>
-                            {categories.map((c) => <SelectItem key={c.id} value={String(c.id)}>{c.name}</SelectItem>)}
-                        </SelectContent>
-                    </Select>
-                    <Select value={String(filters.year)} onValueChange={(v) => applyFilters({ year: Number(v) })}>
-                        <SelectTrigger className="w-28"><SelectValue /></SelectTrigger>
-                        <SelectContent>
-                            {availableYears.map((y) => <SelectItem key={y} value={String(y)}>{y}</SelectItem>)}
-                        </SelectContent>
-                    </Select>
-                    <Select value={filters.month ? String(filters.month) : 'all'} onValueChange={(v) => applyFilters({ month: v === 'all' ? null : Number(v) })}>
-                        <SelectTrigger className="w-36"><SelectValue placeholder="Month" /></SelectTrigger>
-                        <SelectContent>
-                            <SelectItem value="all">All Months</SelectItem>
-                            {Array.from({ length: 12 }, (_, i) => i + 1).map((m) => (
-                                <SelectItem key={m} value={String(m)}>{new Date(2000, m - 1).toLocaleString('en-US', { month: 'long' })}</SelectItem>
-                            ))}
-                        </SelectContent>
-                    </Select>
-                </CardContent>
-            </Card>
-
-            <Card className="mt-4">
                 <CardContent className="p-0">
-                    <Table>
-                        <TableHeader>
-                            <TableRow>
-                                <TableHead>Date</TableHead>
-                                <TableHead>Employee</TableHead>
-                                <TableHead>Company</TableHead>
-                                <TableHead>Department</TableHead>
-                                <TableHead>Category</TableHead>
-                                <TableHead>Remarks</TableHead>
-                            </TableRow>
-                        </TableHeader>
-                        <TableBody>
-                            {records.data.length === 0 ? (
-                                <TableRow><TableCell colSpan={6} className="py-10 text-center text-graphite-400">No KPI records found.</TableCell></TableRow>
-                            ) : records.data.map((r) => (
-                                <TableRow key={r.id}>
-                                    <TableCell className="font-medium">{new Date(r.record_date).toLocaleDateString('en-US', { day: 'numeric', month: 'short', year: 'numeric' })}</TableCell>
-                                    <TableCell>{r.employee.full_name}</TableCell>
-                                    <TableCell>{r.employee.company?.name ?? '—'}</TableCell>
-                                    <TableCell>{r.department?.name ?? '—'}</TableCell>
-                                    <TableCell>
-                                        <Badge variant={r.kpi_category.is_negative ? 'destructive' : 'secondary'}>{r.kpi_category.short_label}</Badge>
-                                    </TableCell>
-                                    <TableCell className="max-w-xs truncate text-graphite-500">{r.remarks || '—'}</TableCell>
-                                </TableRow>
-                            ))}
-                        </TableBody>
-                    </Table>
+                    {records.data.length === 0 ? (
+                        <EmptyState icon={BarChart3} title="Belum ada data KPI." description="Belum ada kejadian yang cocok dengan filter ini." />
+                    ) : (
+                        <>
+                            {/* v2.24.0: mobile card list -- this page had
+                                none before. */}
+                            <div className="divide-y divide-graphite-100 md:hidden">
+                                {records.data.map((r) => (
+                                    <div key={r.id} className="px-4 py-3">
+                                        <div className="flex items-start justify-between gap-2">
+                                            <span className="min-w-0 flex-1 truncate font-medium text-graphite-900">{r.employee.full_name}</span>
+                                            <Badge variant={r.kpi_category.is_negative ? 'destructive' : 'secondary'}>{r.kpi_category.short_label}</Badge>
+                                        </div>
+                                        <p className="mt-1 truncate text-sm text-graphite-600">{r.department?.name ?? r.employee.company?.name ?? '—'}</p>
+                                        <div className="mt-1.5 flex items-center justify-between gap-2 text-xs text-graphite-400">
+                                            <span className="min-w-0 flex-1 truncate">{r.remarks || '—'}</span>
+                                            <span className="shrink-0">{new Date(r.record_date).toLocaleDateString('en-US', { day: 'numeric', month: 'short', year: 'numeric' })}</span>
+                                        </div>
+                                    </div>
+                                ))}
+                            </div>
+
+                            {/* v2.24.0: consolidated from 6 equal-weight
+                                columns to 4 grouped cells -- Employee +
+                                Company/Department as one identity unit. */}
+                            <Table className="hidden md:table">
+                                <TableHeader>
+                                    <TableRow>
+                                        <TableHead>Date</TableHead>
+                                        <TableHead>Employee</TableHead>
+                                        <TableHead>Category</TableHead>
+                                        <TableHead>Remarks</TableHead>
+                                    </TableRow>
+                                </TableHeader>
+                                <TableBody>
+                                    {records.data.map((r) => (
+                                        <TableRow key={r.id}>
+                                            <TableCell className="font-medium">{new Date(r.record_date).toLocaleDateString('en-US', { day: 'numeric', month: 'short', year: 'numeric' })}</TableCell>
+                                            <TableCell>
+                                                <p className="text-graphite-900">{r.employee.full_name}</p>
+                                                <p className="text-xs text-graphite-500">{r.employee.company?.name ?? '—'} &middot; {r.department?.name ?? '—'}</p>
+                                            </TableCell>
+                                            <TableCell>
+                                                <Badge variant={r.kpi_category.is_negative ? 'destructive' : 'secondary'}>{r.kpi_category.short_label}</Badge>
+                                            </TableCell>
+                                            <TableCell className="max-w-xs truncate text-graphite-500">{r.remarks || '—'}</TableCell>
+                                        </TableRow>
+                                    ))}
+                                </TableBody>
+                            </Table>
+                        </>
+                    )}
                 </CardContent>
             </Card>
 

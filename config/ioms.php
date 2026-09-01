@@ -17,7 +17,7 @@ return [
     |
     */
 
-    'version' => '2.26.0',
+    'version' => '2.27.0',
 
     // Tester / Beta / Stable -- tracks the release stage explicitly.
     // Previously only implied in conversation, never actually stored.
@@ -25,7 +25,7 @@ return [
 
     'edition' => 'Enterprise Edition',
 
-    'build' => '2026.08.31.12',
+    'build' => '2026.08.31.13',
 
     'release_date' => '2026-08-31',
 
@@ -44,8 +44,10 @@ return [
     'documentation_url' => 'docs.iomsplatform.com',
 
     'whats_new' => [
-        'Dashboard, Material Requests, and Warehouse pages now describe themselves in plain Indonesian',
-        'A handful of save confirmations no longer say "successfully" twice',
+        'Public website hero redesigned with a platform visualization showing IOMS connecting HSE, People, Operations, Warehouse, Procurement, Logistics, Projects, and Reports',
+        'Pricing plans on the public site now have clearer visual hierarchy and plan framing',
+        'Login now includes a show/hide password toggle',
+        'Login and password pages share the same premium visual identity as the public website',
     ],
 
     /*
@@ -60,6 +62,7 @@ return [
     */
 
     'version_history' => [
+        ['version' => '2.27.0', 'date' => '2026-08-31', 'summary' => 'Public Website & Auth Visual Transformation: redesigned Hero with a platform visualization (central IOMS hub + 8 real domain nodes, lg:-only for safe mobile fallback), a distinct English "Built for Industrial Operations" industry statement, and a white -> light-blue -> soft-blue ambient system with subtle motion-safe animation (2 new Tailwind keyframes, no new dependency). Redesigned pricing cards with visual hierarchy (no invented "Most Popular" claim) and plan framing text. Login gained a show/hide password toggle (also added to Reset Password) and the same visual identity as the public site. Public/authenticated app boundary, RBAC, business logic, and pricing data untouched.'],
         ['version' => '2.26.0', 'date' => '2026-08-31', 'summary' => 'Final Copy Consistency Check: naturalized the Dashboard hero subtitle, Material Requests subtitle, and four Warehouse/Item Master page subtitles to Indonesian. Actually inspected (not blindly modified) the PHP flash-message layer -- confirmed the existing ~176 messages are already uniformly clear, professional English; fixed the one genuine inconsistency found (5 messages with a redundant "...successfully." suffix). Logistics Dashboard and navigation labels re-confirmed already correct, left unchanged. Pure copy pass -- no layout, business-logic, or database change. This closes the IOMS UI/UX + copy consistency work.'],
         ['version' => '2.25.0', 'date' => '2026-08-31', 'summary' => 'Global UX & Copywriting Polish: naturalized 18 confirm() dialogs from English "Remove this X?" to consistent Indonesian "Hapus X ini?" across Daily Reports/Employees/HSE Inspection/Leave/Man-Hour/Milestones/PPE/Report Center/RFQ/Settings; added Indonesian explanatory copy to Login/Forgot Password/Reset Password (labels/buttons stay English); Settings Subscription tab copy naturalized; public website hero tagline corrected from a drifted "Industrial Operations Management Platform" back to "Industrial Operations Platform", subheadline naturalized to Indonesian. Pure copy pass -- no layout, component, or business-logic change. PHP-side controller flash messages (176 call sites) not systematically reviewed -- flagged as a follow-up, not silently skipped.'],
         ['version' => '2.24.0', 'date' => '2026-08-31', 'summary' => 'Complete Product UI/UX Transformation, closing the remaining gaps: Purchase Requisition (Purchasing) and KPI Records (Management) got the same identity-first table + mobile card treatment as prior passes; Reports gained a client-side "key summary" strip (no fabricated data) read before the detailed matrices; Logistics Dashboard and Report Center reviewed and found already good (Logistics already has a genuine pipeline visualization, not just cards). Presentation only -- no business logic, RBAC, or database changes.'],

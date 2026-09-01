@@ -7,6 +7,7 @@ import {
     ArrowRight, HardHat, ShieldCheck, Users, BarChart3, FileCheck2, ClipboardList,
     Flame, Wind, Lock, AlertTriangle, Eye, ClipboardCheck, Clock, ChevronDown,
     Ship, Building2, Factory, Wrench, Truck, Zap, Cog, Check, Smartphone, Building,
+    Warehouse, ShoppingCart, FolderKanban, LineChart, Sparkles,
 } from 'lucide-react';
 
 /**
@@ -60,39 +61,74 @@ export default function PublicWelcome({ plans }) {
 /* ------------------------------------------------------------------ */
 /* Section: Hero                                                       */
 /* ------------------------------------------------------------------ */
-function Hero() {
-    const steps = [
-        { label: 'Field', icon: HardHat },
-        { label: 'PTW', icon: Flame },
-        { label: 'HSE', icon: ShieldCheck },
-        { label: 'Data', icon: BarChart3 },
-        { label: 'Management', icon: Building2 },
-    ];
+const INDUSTRIES_STRIP = ['Shipyards', 'Construction', 'Manufacturing', 'Heavy Industry'];
 
+// v2.27.0 (Public Website & Auth Visual Transformation, Part 4/7). The
+// platform-visualization node set -- 8 real domains around a central
+// "IOMS" hub, each cross-checked against `PLATFORM_AREAS` /
+// `resources/js/lib/workspaces.js` below (same source of truth every
+// other section on this page already uses) so this visual never implies
+// a capability that doesn't exist. Positions are plain percentage
+// coordinates on a 100x100 circle (top, going clockwise) -- no JS
+// trig/animation library, just static numbers computed once.
+const ORBIT_NODES = [
+    { label: 'HSE & Safety', icon: ShieldCheck, x: 50, y: 10 },
+    { label: 'People', icon: Users, x: 84, y: 24 },
+    { label: 'Operations', icon: Cog, x: 90, y: 50 },
+    { label: 'Warehouse', icon: Warehouse, x: 84, y: 76 },
+    { label: 'Procurement', icon: ShoppingCart, x: 50, y: 90 },
+    { label: 'Logistics', icon: Truck, x: 16, y: 76 },
+    { label: 'Projects', icon: FolderKanban, x: 10, y: 50 },
+    { label: 'Reports', icon: LineChart, x: 16, y: 24 },
+];
+
+function Hero() {
     return (
-        <section className="relative overflow-hidden border-b border-graphite-100 bg-gradient-to-b from-graphite-50 via-white to-white">
-            <div className="pointer-events-none absolute -right-32 -top-32 h-96 w-96 rounded-full bg-brand-400 opacity-[0.06] blur-3xl" aria-hidden="true" />
-            <div className="mx-auto max-w-7xl px-4 py-20 sm:px-6 sm:py-28 lg:px-8">
+        <section className="relative overflow-hidden border-b border-graphite-100 bg-gradient-to-b from-white via-brand-50/40 to-white">
+            {/* v2.27.0: ambient background system -- "white -> very light
+                blue -> soft blue" per this pass's own color direction,
+                replacing the previous graphite-tinted blobs. Two slow
+                `motion-safe:animate-pulse-glow` blobs (disabled entirely
+                under prefers-reduced-motion, per Tailwind's built-in
+                variant) plus a faint static grid for technical texture --
+                all `pointer-events-none`/`aria-hidden`, purely decorative. */}
+            <div className="pointer-events-none absolute -right-32 -top-32 h-[28rem] w-[28rem] rounded-full bg-brand-400 opacity-[0.10] blur-3xl motion-safe:animate-pulse-glow" aria-hidden="true" />
+            <div className="pointer-events-none absolute -left-40 top-40 h-96 w-96 rounded-full bg-brand-300 opacity-[0.10] blur-3xl motion-safe:animate-pulse-glow" style={{ animationDelay: '2s' }} aria-hidden="true" />
+            <div
+                className="pointer-events-none absolute inset-0 opacity-[0.4]"
+                aria-hidden="true"
+                style={{
+                    backgroundImage: 'linear-gradient(to right, rgba(37,99,235,0.05) 1px, transparent 1px), linear-gradient(to bottom, rgba(37,99,235,0.05) 1px, transparent 1px)',
+                    backgroundSize: '48px 48px',
+                    maskImage: 'linear-gradient(to bottom, black, transparent 85%)',
+                }}
+            />
+
+            <div className="relative mx-auto max-w-7xl px-4 py-20 sm:px-6 sm:py-28 lg:px-8">
                 <div className="mx-auto max-w-3xl text-center">
-                    {/* v2.25.0 (Global UX & Copywriting Polish pass, Part
-                        1/10): eyebrow was "Industrial Operations
-                        Management Platform" -- a hybrid that quietly
-                        reintroduced "Management" from the old full-name
-                        expansion this whole transformation has been
-                        removing from primary billing. Locked to the
-                        established tagline exactly. Subheadline
-                        naturalized to Indonesian (was fully English) --
-                        this is explanatory copy, not product/technical
-                        terminology, so it follows this pass's own
-                        "explanation = natural Bahasa Indonesia" rule;
-                        module names (HSE, PTW, etc.) stay untranslated
-                        throughout the rest of this page. */}
                     <p className="text-xs font-semibold uppercase tracking-[0.2em] text-brand-600">
                         Industrial Operations Platform
                     </p>
                     <h1 className="mt-4 text-4xl font-semibold leading-tight tracking-tight text-graphite-900 sm:text-5xl lg:text-6xl">
                         Run Your Industrial Operations<br className="hidden sm:block" /> in One Platform.
                     </h1>
+
+                    {/* v2.27.0 (Part 5): the industry positioning statement
+                        -- deliberately visually distinct (English, bold,
+                        uppercase, its own bordered strip) from the
+                        Indonesian explanatory sentence beneath it, per
+                        this pass's own "should NOT be buried inside a
+                        paragraph" instruction. */}
+                    <div className="mx-auto mt-6 inline-flex flex-wrap items-center justify-center gap-x-2 gap-y-1 rounded-full border border-brand-200 bg-white/70 px-4 py-2 text-[11px] font-semibold uppercase tracking-wide text-brand-700 backdrop-blur-sm sm:text-xs">
+                        <span className="text-graphite-900">Built for Industrial Operations</span>
+                        <span className="hidden text-graphite-300 sm:inline">&middot;</span>
+                        <span className="flex flex-wrap items-center justify-center gap-x-1.5">
+                            {INDUSTRIES_STRIP.map((ind, i) => (
+                                <span key={ind}>{ind}{i < INDUSTRIES_STRIP.length - 1 ? ' •' : ''}</span>
+                            ))}
+                        </span>
+                    </div>
+
                     <p className="mx-auto mt-6 max-w-2xl text-base leading-relaxed text-graphite-600 sm:text-lg">
                         IOMS membantu perusahaan industri mengelola pekerjaan lapangan, keselamatan (HSE), tenaga
                         kerja, operasional, dan data perusahaan dalam satu platform -- dirancang untuk galangan
@@ -104,20 +140,51 @@ function Hero() {
                     </div>
                 </div>
 
-                {/* Field -> PTW -> HSE -> Data -> Management flow visual --
-                    a product concept diagram, not a screenshot or stock
-                    photo, per this phase's own "use UI/product
-                    visualization" direction. Wraps to 2 rows on mobile
-                    instead of forcing 5 cramped columns or horizontal
-                    scroll. */}
-                <div className="mx-auto mt-16 flex max-w-4xl flex-wrap items-center justify-center gap-2 sm:gap-3">
-                    {steps.map((s, i) => (
-                        <div key={s.label} className="flex items-center gap-2 sm:gap-3">
-                            <div className="flex flex-col items-center gap-2 rounded-xl border border-graphite-200 bg-white px-4 py-3 shadow-card sm:px-5 sm:py-4">
-                                <s.icon className="h-5 w-5 text-brand-600" />
-                                <span className="text-xs font-medium text-graphite-700 sm:text-sm">{s.label}</span>
-                            </div>
-                            {i < steps.length - 1 && <ArrowRight className="h-4 w-4 shrink-0 text-graphite-300" />}
+                {/* v2.27.0 (Part 4/7): the platform visualization -- a
+                    central IOMS hub with 8 real domains connected around
+                    it, replacing the previous flat 5-tile "Field -> PTW ->
+                    HSE -> Data -> Management" row. Desktop-only (`lg:`) --
+                    absolute-positioned nodes on a percentage-based circle
+                    don't reflow safely to a narrow viewport by shrinking
+                    alone (per this pass's own "must not overflow on
+                    mobile" rule), so mobile gets a separate, simple wrap-
+                    grid fallback immediately below instead of a shrunk
+                    copy of this same layout. */}
+                <div className="relative mx-auto mt-20 hidden aspect-square max-w-xl lg:block">
+                    <svg className="absolute inset-0 h-full w-full" viewBox="0 0 100 100" aria-hidden="true">
+                        {ORBIT_NODES.map((n) => (
+                            <line key={n.label} x1="50" y1="50" x2={n.x} y2={n.y} stroke="rgb(37 99 235 / 0.15)" strokeWidth="0.4" />
+                        ))}
+                    </svg>
+
+                    {/* Central IOMS hub */}
+                    <div className="absolute left-1/2 top-1/2 flex h-32 w-32 -translate-x-1/2 -translate-y-1/2 flex-col items-center justify-center rounded-full border border-brand-200 bg-white shadow-card-hover motion-safe:animate-pulse-glow">
+                        <div className="flex h-14 w-14 items-center justify-center rounded-full bg-gradient-to-br from-brand-500 to-brand-700 text-white shadow-card">
+                            <Sparkles className="h-6 w-6" />
+                        </div>
+                        <p className="mt-2 text-sm font-bold tracking-tight text-graphite-900">IOMS</p>
+                    </div>
+
+                    {ORBIT_NODES.map((n, i) => (
+                        <div
+                            key={n.label}
+                            className="absolute flex -translate-x-1/2 -translate-y-1/2 flex-col items-center gap-1.5 rounded-xl border border-graphite-200 bg-white/90 px-3 py-2.5 shadow-card backdrop-blur-sm motion-safe:animate-float"
+                            style={{ left: `${n.x}%`, top: `${n.y}%`, animationDelay: `${i * 0.4}s` }}
+                        >
+                            <n.icon className="h-4 w-4 text-brand-600" />
+                            <span className="whitespace-nowrap text-[11px] font-medium text-graphite-700">{n.label}</span>
+                        </div>
+                    ))}
+                </div>
+
+                {/* Mobile/tablet fallback -- same 8 domains, plain wrap
+                    grid, zero absolute positioning so there is nothing
+                    that can overflow a narrow viewport. */}
+                <div className="mx-auto mt-16 grid max-w-md grid-cols-2 gap-3 sm:grid-cols-4 lg:hidden">
+                    {ORBIT_NODES.map((n) => (
+                        <div key={n.label} className="flex flex-col items-center gap-1.5 rounded-xl border border-graphite-200 bg-white px-3 py-3 text-center shadow-card">
+                            <n.icon className="h-4 w-4 text-brand-600" />
+                            <span className="text-[11px] font-medium leading-tight text-graphite-700">{n.label}</span>
                         </div>
                     ))}
                 </div>
@@ -145,7 +212,7 @@ function ProblemSection() {
     const fragments = ['Excel Sheets', 'WhatsApp Groups', 'Paper Forms', 'Separate HSE Records', 'Manual Approvals', 'Scattered Data'];
 
     return (
-        <section className="border-b border-graphite-100 bg-graphite-50 py-20">
+        <section className="border-b border-graphite-100 bg-gradient-to-b from-brand-50/50 to-brand-50/20 py-20">
             <div className="mx-auto max-w-5xl px-4 sm:px-6 lg:px-8">
                 <div className="text-center">
                     <h2 className="text-2xl font-semibold tracking-tight text-graphite-900 sm:text-3xl">
@@ -303,7 +370,7 @@ function HseWorkspace() {
     ];
 
     return (
-        <section className="border-b border-graphite-100 bg-graphite-50 py-20">
+        <section className="border-b border-graphite-100 bg-gradient-to-b from-brand-50/50 to-brand-50/20 py-20">
             <div className="mx-auto max-w-7xl px-4 sm:px-6 lg:px-8">
                 <SectionHeading eyebrow="HSE Workspace" title="From field activity to HSE oversight" subtitle="HSE gets the full control and review environment -- every PTW, hazard, and safety record in one workspace." />
 
@@ -360,7 +427,7 @@ function OperationalData() {
     const sources = ['Man-Hour', 'PPE', 'Waste', 'PTW', 'Incident', 'Inspection', 'CAPA', 'Work Center'];
 
     return (
-        <section className="border-b border-graphite-100 bg-graphite-50 py-20">
+        <section className="border-b border-graphite-100 bg-gradient-to-b from-brand-50/50 to-brand-50/20 py-20">
             <div className="mx-auto max-w-5xl px-4 sm:px-6 lg:px-8">
                 <SectionHeading eyebrow="Data & Insight" title="Operational records become usable data" subtitle="Every module feeds the same reporting layer -- no separate spreadsheet exports to reconcile." />
 
@@ -474,7 +541,7 @@ function Industries() {
     ];
 
     return (
-        <section className="border-b border-graphite-100 bg-graphite-50 py-16">
+        <section className="border-b border-graphite-100 bg-gradient-to-b from-brand-50/50 to-brand-50/20 py-16">
             <div className="mx-auto max-w-7xl px-4 sm:px-6 lg:px-8">
                 <p className="text-center text-xs font-semibold uppercase tracking-[0.2em] text-graphite-400">Built For</p>
                 <div className="mt-8 flex flex-wrap items-center justify-center gap-3">
@@ -492,10 +559,28 @@ function Industries() {
 /* ------------------------------------------------------------------ */
 /* Section: Pricing (data-driven -- no hardcoded amount)                */
 /* ------------------------------------------------------------------ */
+// v2.27.0 (Public Website & Auth Visual Transformation, Part 9). Purely
+// PRESENTATIONAL framing text (not an entitlement, not sourced from the
+// Package row) -- matches this pass's own suggested "for smaller teams
+// beginning to centralize operations" philosophy. Keyed by `slug` with a
+// graceful empty-string fallback for any plan this map doesn't recognize
+// (e.g. a future Plan a Platform Admin adds later) -- never blocks
+// rendering, never invents copy for an unrecognized plan.
+const PLAN_FRAMING = {
+    starter: 'Untuk tim yang baru mulai memusatkan operasional mereka.',
+    professional: 'Untuk operasional industri yang berkembang dan butuh departemen yang saling terhubung.',
+    enterprise: 'Untuk organisasi yang butuh akses lebih luas, skala, dan penyesuaian khusus.',
+};
+
 function Pricing({ plans }) {
     const [interval, setInterval] = useState('monthly');
     const { version } = usePage().props;
     const supportEmail = version?.support_email;
+    // v2.27.0: visual emphasis for the middle plan only -- a pure LAYOUT
+    // decision (border/scale/shadow), never a "Most Popular"/"Recommended"
+    // text claim, since no such signal exists in the actual Package data
+    // (per this pass's own "if unsure, do not invent" instruction).
+    const emphasizedIndex = plans && plans.length === 3 ? 1 : -1;
 
     return (
         <section id="pricing" className="border-b border-graphite-100 bg-white py-20">
@@ -505,13 +590,13 @@ function Pricing({ plans }) {
                 {plans && plans.length > 0 ? (
                     <>
                         <div className="mt-8 flex justify-center">
-                            <div className="inline-flex items-center rounded-lg border border-graphite-200 bg-white p-0.5">
+                            <div className="inline-flex items-center rounded-lg border border-graphite-200 bg-white p-0.5 shadow-card">
                                 {['monthly', 'yearly'].map((v) => (
                                     <button
                                         key={v}
                                         type="button"
                                         onClick={() => setInterval(v)}
-                                        className={`rounded-md px-3 py-1.5 text-sm font-medium capitalize transition-colors ${interval === v ? 'bg-graphite-900 text-white' : 'text-graphite-500'}`}
+                                        className={`rounded-md px-4 py-1.5 text-sm font-medium capitalize transition-colors ${interval === v ? 'bg-brand-600 text-white' : 'text-graphite-500 hover:text-graphite-800'}`}
                                     >
                                         {v}
                                     </button>
@@ -519,29 +604,45 @@ function Pricing({ plans }) {
                             </div>
                         </div>
 
-                        <div className="mt-8 grid grid-cols-1 gap-5 md:grid-cols-2 lg:grid-cols-3">
-                            {plans.map((plan) => {
+                        <div className="mt-10 grid grid-cols-1 gap-6 md:grid-cols-2 lg:grid-cols-3 lg:items-start">
+                            {plans.map((plan, i) => {
                                 const price = interval === 'monthly' ? plan.monthly : plan.yearly;
+                                const emphasized = i === emphasizedIndex;
+                                const framing = PLAN_FRAMING[plan.slug] || '';
                                 return (
-                                    <div key={plan.id} className="rounded-xl border border-graphite-200 p-6 shadow-card">
+                                    <div
+                                        key={plan.id}
+                                        className={
+                                            emphasized
+                                                ? 'relative flex h-full flex-col rounded-2xl border-2 border-brand-500 bg-gradient-to-b from-brand-50/60 to-white p-7 shadow-card-hover lg:-translate-y-2'
+                                                : 'flex h-full flex-col rounded-2xl border border-graphite-200 bg-white p-7 shadow-card'
+                                        }
+                                    >
                                         <h3 className="text-lg font-semibold text-graphite-900">{plan.name}</h3>
-                                        <p className="mt-1 text-sm text-graphite-500">{plan.description}</p>
-                                        <p className="mt-4 text-2xl font-semibold text-graphite-900">{price.formatted}</p>
-                                        {!plan.is_custom && price.amount !== null && (
-                                            <p className="text-xs text-graphite-400">/ {interval === 'monthly' ? 'month' : 'year'}</p>
-                                        )}
-                                        <ul className="mt-5 space-y-2 border-t border-graphite-100 pt-4 text-sm text-graphite-600">
-                                            <li>{plan.max_users ?? 'Unlimited'} User Accounts</li>
+                                        {framing && <p className="mt-1.5 text-sm leading-relaxed text-graphite-500">{framing}</p>}
+
+                                        <div className="mt-5">
+                                            <p className={emphasized ? 'text-3xl font-bold text-brand-700' : 'text-3xl font-bold text-graphite-900'}>{price.formatted}</p>
+                                            {!plan.is_custom && price.amount !== null && (
+                                                <p className="text-xs text-graphite-400">per {interval === 'monthly' ? 'bulan' : 'tahun'}</p>
+                                            )}
+                                        </div>
+
+                                        <ul className="mt-6 flex-1 space-y-2.5 border-t border-graphite-100 pt-5 text-sm text-graphite-600">
+                                            <li className="flex items-center gap-2 font-medium text-graphite-800">
+                                                <Users className="h-3.5 w-3.5 shrink-0 text-brand-500" /> {plan.max_users ?? 'Unlimited'} User Accounts
+                                            </li>
                                             {plan.workspaces.length > 0 && plan.workspaces.map((w) => (
-                                                <li key={w} className="flex items-center gap-1.5"><Check className="h-3.5 w-3.5 shrink-0 text-brand-500" /> {w}</li>
+                                                <li key={w} className="flex items-center gap-2"><Check className="h-3.5 w-3.5 shrink-0 text-brand-500" /> {w}</li>
                                             ))}
                                         </ul>
+
                                         {supportEmail ? (
-                                            <Button className="mt-6 w-full" variant="outline" asChild>
+                                            <Button className="mt-7 w-full" variant={emphasized ? 'default' : 'outline'} asChild>
                                                 <a href={`mailto:${supportEmail}`}>Talk to Us</a>
                                             </Button>
                                         ) : (
-                                            <Button className="mt-6 w-full" variant="outline" asChild>
+                                            <Button className="mt-7 w-full" variant={emphasized ? 'default' : 'outline'} asChild>
                                                 <Link href={route('login')}>Talk to Us</Link>
                                             </Button>
                                         )}
@@ -573,7 +674,7 @@ function HowItWorks() {
     ];
 
     return (
-        <section id="how-it-works" className="border-b border-graphite-100 bg-graphite-50 py-20">
+        <section id="how-it-works" className="border-b border-graphite-100 bg-gradient-to-b from-brand-50/50 to-brand-50/20 py-20">
             <div className="mx-auto max-w-6xl px-4 sm:px-6 lg:px-8">
                 <SectionHeading eyebrow="How It Works" title="From setup to insight" />
                 <div className="mt-12 grid grid-cols-1 gap-6 sm:grid-cols-2 lg:grid-cols-4">

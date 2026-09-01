@@ -1,5 +1,6 @@
 import { useForm, Head, usePage } from '@inertiajs/react';
-import { Loader2 } from 'lucide-react';
+import { useState } from 'react';
+import { Loader2, Eye, EyeOff } from 'lucide-react';
 import { Button } from '@/Components/ui/button';
 import { Input } from '@/Components/ui/input';
 import { Label } from '@/Components/ui/label';
@@ -14,6 +15,11 @@ export default function ResetPassword({ token, email }) {
         password: '',
         password_confirmation: '',
     });
+    // v2.27.0 (Public Website & Auth Visual Transformation, Part 11):
+    // same show/hide pattern as Login.jsx, extended here for consistency
+    // across the whole Auth flow -- one visibility toggle covers both
+    // fields since they're always typed together.
+    const [showPassword, setShowPassword] = useState(false);
 
     function submit(e) {
         e.preventDefault();
@@ -21,8 +27,13 @@ export default function ResetPassword({ token, email }) {
     }
 
     return (
-        <div className="relative flex min-h-screen items-center justify-center overflow-hidden bg-gradient-to-br from-graphite-50 via-white to-brand-50/30 px-4">
+        <div className="relative flex min-h-screen items-center justify-center overflow-hidden bg-gradient-to-br from-white via-brand-50/20 to-brand-50/40 px-4">
             <Head title="Reset Password" />
+
+            {/* v2.27.0 (Public Website & Auth Visual Transformation, Part
+                12): same ambient blob treatment as Login.jsx. */}
+            <div className="pointer-events-none absolute -left-40 -top-40 -z-10 h-[28rem] w-[28rem] rounded-full bg-brand-400 opacity-[0.08] blur-3xl motion-safe:animate-pulse-glow" aria-hidden="true" />
+            <div className="pointer-events-none absolute -bottom-48 -right-32 -z-10 h-[32rem] w-[32rem] rounded-full bg-brand-300 opacity-[0.08] blur-3xl motion-safe:animate-pulse-glow" style={{ animationDelay: '2s' }} aria-hidden="true" />
 
             <BrandWatermark
                 context="login"
@@ -51,13 +62,25 @@ export default function ResetPassword({ token, email }) {
 
                         <div className="space-y-1.5">
                             <Label htmlFor="password">New Password</Label>
-                            <Input
-                                id="password"
-                                type="password"
-                                autoFocus
-                                value={data.password}
-                                onChange={(e) => setData('password', e.target.value)}
-                            />
+                            <div className="relative">
+                                <Input
+                                    id="password"
+                                    type={showPassword ? 'text' : 'password'}
+                                    autoFocus
+                                    value={data.password}
+                                    onChange={(e) => setData('password', e.target.value)}
+                                    className="pr-10"
+                                />
+                                <button
+                                    type="button"
+                                    onClick={() => setShowPassword((v) => !v)}
+                                    className="absolute right-0 top-0 flex h-9 w-9 items-center justify-center text-graphite-400 transition-colors hover:text-graphite-700"
+                                    aria-label={showPassword ? 'Hide password' : 'Show password'}
+                                    aria-pressed={showPassword}
+                                >
+                                    {showPassword ? <EyeOff className="h-4 w-4" /> : <Eye className="h-4 w-4" />}
+                                </button>
+                            </div>
                             {errors.password && <p className="text-xs text-red-600">{errors.password}</p>}
                         </div>
 
@@ -65,7 +88,7 @@ export default function ResetPassword({ token, email }) {
                             <Label htmlFor="password_confirmation">Confirm New Password</Label>
                             <Input
                                 id="password_confirmation"
-                                type="password"
+                                type={showPassword ? 'text' : 'password'}
                                 value={data.password_confirmation}
                                 onChange={(e) => setData('password_confirmation', e.target.value)}
                             />

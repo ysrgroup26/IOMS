@@ -116,9 +116,28 @@ export default {
                     '0%': { opacity: '0', transform: 'translateY(4px)' },
                     '100%': { opacity: '1', transform: 'translateY(0)' },
                 },
+                // v2.27.0 (Public Website & Auth Visual Transformation).
+                // Two new, deliberately subtle/slow keyframes for the
+                // public site's ambient motion (Part 6 of that pass's own
+                // directive: "subtle, slow, professional... not a gaming
+                // website") -- plain CSS, no new dependency. Both are
+                // wrapped in `motion-safe:` at every call site (Tailwind's
+                // built-in `prefers-reduced-motion` variant), never
+                // applied unconditionally.
+                float: {
+                    '0%, 100%': { transform: 'translateY(0px)' },
+                    '50%': { transform: 'translateY(-10px)' },
+                },
+                'pulse-glow': {
+                    '0%, 100%': { opacity: '0.5' },
+                    '50%': { opacity: '0.9' },
+                },
             },
             animation: {
                 'fade-in': 'fade-in 0.2s ease-out',
+                float: 'float 6s ease-in-out infinite',
+                'float-slow': 'float 9s ease-in-out infinite',
+                'pulse-glow': 'pulse-glow 4s ease-in-out infinite',
             },
         },
     },

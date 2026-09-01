@@ -525,3 +525,15 @@ seeing anything — the opposite of what a public-facing product website needs.
   against `resources/js/lib/workspaces.js`/`docs/MODULES.md` before being written, not invented from
   the marketing brief alone. Pricing is entirely data-driven (`PricingService`), never a hardcoded
   Rupiah amount — if no plan is public yet, the page shows an honest "being finalized" state instead.
+- **Visual system (v2.27.0, Public Website & Auth Visual Transformation)**: the public site's ambient
+  ombré (white → `brand-50/40` → soft blue) and `motion-safe:animate-pulse-glow`/`animate-float`
+  keyframes (added to `tailwind.config.js`, plain CSS, no new dependency) are shared visual language
+  now used identically across `Public/Welcome.jsx` and the three `Auth/*.jsx` pages (Login, Forgot
+  Password, Reset Password) — the public marketing experience and the sign-in flow read as one
+  continuous brand, not two different products. Both animation utilities are Tailwind's built-in
+  `motion-safe:` variant only — never applied unconditionally, so `prefers-reduced-motion` disables
+  them automatically with no extra code. The Hero's "platform visualization" (a central IOMS hub with
+  8 real domain nodes) is `lg:`-only by design: absolute-positioned percentage-coordinate nodes don't
+  reflow safely to a narrow viewport by shrinking alone, so mobile/tablet render a separate, ordinary
+  wrap-grid of the same 8 domains instead of a shrunk copy of the same layout — not a hidden feature,
+  a deliberately different, verified-safe presentation of the identical, real module list.

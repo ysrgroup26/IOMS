@@ -16,8 +16,14 @@ export default function ForgotPassword() {
     }
 
     return (
-        <div className="relative flex min-h-screen items-center justify-center overflow-hidden bg-gradient-to-br from-graphite-50 via-white to-brand-50/30 px-4">
+        <div className="relative flex min-h-screen items-center justify-center overflow-hidden bg-gradient-to-br from-white via-brand-50/20 to-brand-50/40 px-4">
             <Head title="Forgot Password" />
+
+            {/* v2.27.0 (Public Website & Auth Visual Transformation, Part
+                12): same ambient blob treatment as Login.jsx, for visual
+                consistency across the whole Auth flow. */}
+            <div className="pointer-events-none absolute -left-40 -top-40 -z-10 h-[28rem] w-[28rem] rounded-full bg-brand-400 opacity-[0.08] blur-3xl motion-safe:animate-pulse-glow" aria-hidden="true" />
+            <div className="pointer-events-none absolute -bottom-48 -right-32 -z-10 h-[32rem] w-[32rem] rounded-full bg-brand-300 opacity-[0.08] blur-3xl motion-safe:animate-pulse-glow" style={{ animationDelay: '2s' }} aria-hidden="true" />
 
             <BrandWatermark
                 context="login"

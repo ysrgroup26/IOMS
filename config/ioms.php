@@ -17,7 +17,7 @@ return [
     |
     */
 
-    'version' => '2.22.0',
+    'version' => '2.23.0',
 
     // Tester / Beta / Stable -- tracks the release stage explicitly.
     // Previously only implied in conversation, never actually stored.
@@ -25,7 +25,7 @@ return [
 
     'edition' => 'Enterprise Edition',
 
-    'build' => '2026.08.31.8',
+    'build' => '2026.08.31.9',
 
     'release_date' => '2026-08-31',
 
@@ -44,9 +44,8 @@ return [
     'documentation_url' => 'docs.iomsplatform.com',
 
     'whats_new' => [
-        'New mobile bottom navigation bar -- on phones, the app now has a fixed Home / (your top modules) / More bar instead of only a hamburger menu, with "More" opening the full menu you already know',
-        'Fixed the browser tab and app name showing a stale pre-rebrand name in some environments -- IOMS is now shown as the product name consistently',
-        'Incident list is easier to scan -- consolidated into fewer, grouped columns on desktop',
+        'Safety Observation, Employees, and Goods Receipt lists are easier to scan on desktop and now show proper cards on mobile (previously relied on sideways scrolling)',
+        'Man-Hour list groups employee and department together for a cleaner read',
     ],
 
     /*
@@ -61,6 +60,7 @@ return [
     */
 
     'version_history' => [
+        ['version' => '2.23.0', 'date' => '2026-08-31', 'summary' => 'Complete Product UI/UX Transformation, continued: extended the identity-first list pattern (established on PTW/Incidents) to one representative page per remaining domain -- Safety Observation (HSE), Employees (People/HR), Man-Hour (Operations), Goods Receipt (Warehouse/Procurement) -- each gaining a mobile card list where none existed, consolidated desktop columns, and an unboxed filter bar. Public website hero/platform copy, Dashboard hierarchy, and Settings/Subscription were reviewed and found already adequate -- left unchanged. Presentation only -- no business logic, RBAC, or database changes.'],
         ['version' => '2.22.0', 'date' => '2026-08-31', 'summary' => 'Complete Product UI/UX Transformation pass: new fixed mobile bottom navigation bar (Home + up to 3 authorized items + More, reusing the exact same RBAC/department-filtered nav array and drawer the sidebar already uses -- no second permission system); "IOMS" restored as the primary product name in the browser tab title, app config fallback, and public site footer (was drifting toward the full "Integrated Operations Management System" expansion, and this environment\'s own .env had a stale pre-rebrand "Shipyard Management System" title); Incidents list got the same identity-first table consolidation PTW Index introduced last pass. No business logic, RBAC, tenant isolation, SaaS entitlement, or database changes.'],
         ['version' => '2.21.0', 'date' => '2026-08-31', 'summary' => 'Final Visual Polish pass (P0 scope): PTW Index desktop table consolidated from 9 equal-weight columns to 6 identity-first cells (Permit = number+type, Project/Location, Requester/PIC, each a two-line grouped unit) -- no data dropped, real visual hierarchy instead. Filter bar unboxed from its Card. Presentation only. Broader multi-module polish (Dashboard/HSE/PPE/etc.) intentionally left for a follow-up pass given this pass\'s own P0-first priority and proportionate scope.'],
         ['version' => '2.20.0', 'date' => '2026-08-31', 'summary' => 'PTW Experience & Visual Polish pass: redesigned PTW Document/PDF around a numbered information architecture (01 Work Information -> 05 Supporting Documents) with a dominant document-title block and PIC/Workforce shown via a new reusable PersonChip avatar component instead of plain text; PTW Show page gained a more prominent identity/status header; PTW Create form gained numbered step badges. Presentation only -- no schema, workflow, RBAC, tenant isolation, SaaS entitlement, or quota changes. Same PdfGeneratorService/DocumentEngine pipeline, no new PDF engine.'],

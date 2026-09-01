@@ -52,7 +52,7 @@ export default function ManHourIndex({ logs, employees, projects, companies, fil
                 {can.manage && <Button onClick={() => setOpen(true)}><Plus className="h-4 w-4" /> Add Record</Button>}
             </div>
 
-            <div className="mb-4 grid grid-cols-2 gap-3 sm:grid-cols-2">
+            <div className="mb-4 grid grid-cols-2 gap-3">
                 <Card><CardContent className="p-3.5"><p className="text-xl font-bold text-graphite-900 dark:text-slate-50">{summary.total_hours.toFixed(1)}</p><p className="text-xs text-graphite-400">Total Hours (this page)</p></CardContent></Card>
                 <Card><CardContent className="p-3.5"><p className="text-xl font-bold text-graphite-900 dark:text-slate-50">{summary.record_count}</p><p className="text-xs text-graphite-400">Records in Range</p></CardContent></Card>
             </div>
@@ -67,7 +67,6 @@ export default function ManHourIndex({ logs, employees, projects, companies, fil
                                 <TableRow>
                                     <TableHead>Date</TableHead>
                                     <TableHead>Employee</TableHead>
-                                    <TableHead>Department</TableHead>
                                     <TableHead>Project</TableHead>
                                     <TableHead>Regular</TableHead>
                                     <TableHead>Overtime</TableHead>
@@ -79,8 +78,10 @@ export default function ManHourIndex({ logs, employees, projects, companies, fil
                                 {logs.data.map((l) => (
                                     <TableRow key={l.id}>
                                         <TableCell>{new Date(l.work_date).toLocaleDateString('en-US', { day: 'numeric', month: 'short', year: 'numeric' })}</TableCell>
-                                        <TableCell className="font-medium">{l.employee?.full_name}</TableCell>
-                                        <TableCell>{l.employee?.department?.name ?? '—'}</TableCell>
+                                        <TableCell>
+                                            <p className="font-medium text-graphite-900 dark:text-slate-100">{l.employee?.full_name}</p>
+                                            <p className="text-xs text-graphite-500 dark:text-slate-400">{l.employee?.department?.name ?? '—'}</p>
+                                        </TableCell>
                                         <TableCell>{l.project?.name ?? '—'}</TableCell>
                                         <TableCell>{Number(l.regular_hours).toFixed(1)}</TableCell>
                                         <TableCell>{Number(l.overtime_hours).toFixed(1)}</TableCell>

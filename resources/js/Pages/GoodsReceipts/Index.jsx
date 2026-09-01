@@ -1,11 +1,12 @@
 import { Head, Link, router } from '@inertiajs/react';
 import AuthenticatedLayout from '@/Layouts/AuthenticatedLayout';
+import PageHeader from '@/Components/shared/PageHeader';
 import { Card, CardContent } from '@/Components/ui/card';
 import { Button } from '@/Components/ui/button';
 import { Input } from '@/Components/ui/input';
 import { Table, TableHeader, TableBody, TableRow, TableHead, TableCell } from '@/Components/ui/table';
 import EmptyState from '@/Components/shared/EmptyState';
-import { Plus, Search, PackageCheck, ChevronLeft, ChevronRight } from 'lucide-react';
+import { Plus, Search, PackageCheck, ChevronLeft, ChevronRight, ArrowRight } from 'lucide-react';
 
 export default function GoodsReceiptsIndex({ goodsReceipts, filters, can }) {
     function applyFilters(overrides = {}) {
@@ -16,61 +17,72 @@ export default function GoodsReceiptsIndex({ goodsReceipts, filters, can }) {
         <AuthenticatedLayout>
             <Head title="Goods Receipt" />
 
-            <div className="mb-4 flex flex-wrap items-center justify-between gap-3">
-                <div>
-                    <h1 className="text-[22px] font-semibold tracking-tight text-graphite-900 dark:text-slate-50">Goods Receipt</h1>
-                    <p className="text-xs text-graphite-500 dark:text-slate-400">Record materials received against approved Material Requests.</p>
-                </div>
+            <PageHeader title="Goods Receipt" subtitle="Catat material yang diterima berdasarkan Material Request yang disetujui.">
                 {can.manage && (
                     <Button asChild>
                         <Link href={route('goods-receipts.create')}><Plus className="h-4 w-4" /> New Receipt</Link>
                     </Button>
                 )}
-            </div>
+            </PageHeader>
 
-            <Card className="mb-4">
-                <CardContent className="flex flex-wrap gap-2 p-3">
-                    <div className="relative min-w-[220px] flex-1">
-                        <Search className="pointer-events-none absolute left-2.5 top-1/2 h-3.5 w-3.5 -translate-y-1/2 text-graphite-400" />
-                        <Input
-                            className="pl-8"
-                            placeholder="Search receipt number..."
-                            defaultValue={filters.search || ''}
-                            onChange={(e) => applyFilters({ search: e.target.value || null })}
-                        />
-                    </div>
-                </CardContent>
-            </Card>
+            <div className="mb-4 relative min-w-[220px]">
+                <Search className="pointer-events-none absolute left-2.5 top-1/2 h-3.5 w-3.5 -translate-y-1/2 text-graphite-400" />
+                <Input
+                    className="max-w-sm border-graphite-200 bg-white pl-8 shadow-none"
+                    placeholder="Search receipt number..."
+                    defaultValue={filters.search || ''}
+                    onChange={(e) => applyFilters({ search: e.target.value || null })}
+                />
+            </div>
 
             <Card>
                 <CardContent className="p-0">
                     {goodsReceipts.data.length === 0 ? (
-                        <EmptyState icon={PackageCheck} title="No goods receipts yet" description="Record materials as they arrive." />
+                        <EmptyState icon={PackageCheck} title="Belum ada Goods Receipt." description="Catat material begitu tiba di lokasi." />
                     ) : (
-                        <Table>
-                            <TableHeader>
-                                <TableRow>
-                                    <TableHead>Receipt No.</TableHead>
-                                    <TableHead>Date</TableHead>
-                                    <TableHead>Material Request</TableHead>
-                                    <TableHead>Project</TableHead>
-                                    <TableHead>Received By</TableHead>
-                                    <TableHead>Items</TableHead>
-                                </TableRow>
-                            </TableHeader>
-                            <TableBody>
+                        <>
+                            <div className="divide-y divide-graphite-100 md:hidden dark:divide-slate-800">
                                 {goodsReceipts.data.map((r) => (
-                                    <TableRow key={r.id} className="cursor-pointer" onClick={() => router.visit(route('goods-receipts.show', r.id))}>
-                                        <TableCell className="font-medium text-graphite-800 dark:text-slate-100">{r.receipt_number}</TableCell>
-                                        <TableCell>{new Date(r.received_date).toLocaleDateString('en-US', { day: 'numeric', month: 'short', year: 'numeric' })}</TableCell>
-                                        <TableCell>{r.material_request?.request_number || '-'}</TableCell>
-                                        <TableCell>{r.project?.name || '-'}</TableCell>
-                                        <TableCell>{r.receiver?.name}</TableCell>
-                                        <TableCell>{r.items_count}</TableCell>
-                                    </TableRow>
+                                    <Link key={r.id} href={route('goods-receipts.show', r.id)} className="block px-4 py-3 active:bg-graphite-50 dark:active:bg-slate-800/50">
+                                        <div className="flex items-start justify-between gap-2">
+                                            <span className="min-w-0 flex-1 truncate font-medium text-graphite-900 dark:text-slate-100">{r.receipt_number}</span>
+                                            <span className="shrink-0 text-xs text-graphite-400">{r.items_count} item</span>
+                                        </div>
+                                        <p className="mt-1 truncate text-sm text-graphite-700 dark:text-slate-300">{r.material_request?.request_number || '-'} {r.project?.name ? `· ${r.project.name}` : ''}</p>
+                                        <div className="mt-2 flex items-center justify-between gap-2 text-xs text-graphite-400">
+                                            <span className="min-w-0 flex-1 truncate">{r.receiver?.name} &middot; {new Date(r.received_date).toLocaleDateString('en-US', { day: 'numeric', month: 'short', year: 'numeric' })}</span>
+                                            <span className="flex shrink-0 items-center gap-0.5 font-medium text-brand-700 dark:text-brand-400">View <ArrowRight className="h-3 w-3" /></span>
+                                        </div>
+                                    </Link>
                                 ))}
-                            </TableBody>
-                        </Table>
+                            </div>
+                            <Table className="hidden md:table">
+                                <TableHeader>
+                                    <TableRow>
+                                        <TableHead>Receipt</TableHead>
+                                        <TableHead>Material Request / Project</TableHead>
+                                        <TableHead>Received By</TableHead>
+                                        <TableHead>Items</TableHead>
+                                    </TableRow>
+                                </TableHeader>
+                                <TableBody>
+                                    {goodsReceipts.data.map((r) => (
+                                        <TableRow key={r.id} className="cursor-pointer" onClick={() => router.visit(route('goods-receipts.show', r.id))}>
+                                            <TableCell>
+                                                <p className="font-semibold text-graphite-900 dark:text-slate-100">{r.receipt_number}</p>
+                                                <p className="text-xs text-graphite-500 dark:text-slate-400">{new Date(r.received_date).toLocaleDateString('en-US', { day: 'numeric', month: 'short', year: 'numeric' })}</p>
+                                            </TableCell>
+                                            <TableCell>
+                                                <p className="text-graphite-800 dark:text-slate-200">{r.material_request?.request_number || '-'}</p>
+                                                <p className="text-xs text-graphite-500 dark:text-slate-400">{r.project?.name || '-'}</p>
+                                            </TableCell>
+                                            <TableCell className="text-graphite-500 dark:text-slate-400">{r.receiver?.name}</TableCell>
+                                            <TableCell>{r.items_count}</TableCell>
+                                        </TableRow>
+                                    ))}
+                                </TableBody>
+                            </Table>
+                        </>
                     )}
                 </CardContent>
             </Card>

@@ -2111,6 +2111,30 @@ by re-reading the relevant files, not re-implemented from scratch, since nothing
 in this directive's own text described new functional requirements beyond what those passes already
 built. See each of those passes' own `docs/MODULES.md` sections for the original implementation detail.
 
+## Complete Product UI/UX Transformation, continued (v2.23.0)
+
+Extends v2.22.0's identity-first list pattern (established on `PermitsToWork/Index.jsx`, extended to
+`Incidents/Index.jsx`) across four more modules spanning four different domains — deliberately picked
+one representative page per domain rather than attempting every list page in one pass:
+
+- **HSE**: `SafetyObservations/Index.jsx` — 8 equal-weight columns → 5 grouped cells, filter bar
+  unboxed, gained a mobile card list (previously had none at all, unlike PTW/Incident which already
+  had one from earlier passes).
+- **People/HR**: `Employees/Index.jsx` — 6 columns → 4 (Employee ID folded under the name, Company +
+  Department grouped since they're the same organizational fact at two levels), gained a mobile card
+  list.
+- **Operations**: `ManHour/Index.jsx` — already used `PageHeader` and an unboxed filter row (nothing to
+  fix there); merged Employee + Department into one cell, and removed a harmless but confusing
+  no-op responsive class (`grid-cols-2 sm:grid-cols-2` — identical at both sizes) on its summary row.
+  Its 7-column ledger table itself was intentionally left mostly as-is — Date/Regular/Overtime/Total
+  are genuinely tabular numeric data, exactly the case this pass's own directive says tables (not
+  identity-grouped cards) are the right tool for.
+- **Warehouse/Procurement**: `GoodsReceipts/Index.jsx` — 6 columns → 4, filter bar unboxed, gained a
+  mobile card list, empty state copy naturalized to Indonesian.
+
+Every change in this round is presentation-only (same data, same routes, same queries) — no
+controller, model, or migration was touched.
+
 ## Reusable engines (Approval, Workflow, Timeline, Import, PDF, Report Export)
 
 These aren't a "module" with their own page — they're cross-cutting infrastructure consumed by the

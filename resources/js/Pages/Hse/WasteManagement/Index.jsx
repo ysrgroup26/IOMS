@@ -36,7 +36,7 @@ export default function WasteRecordsIndex({ records, wasteTypes, companies, filt
                 <ArrowLeft className="h-4 w-4" /> Back to Waste Management
             </Link>
 
-            <PageHeader title="Waste Records" subtitle="Full waste generation-to-disposal record register.">
+            <PageHeader title="Waste Records" subtitle="Daftar lengkap limbah dari timbulan hingga pembuangan.">
                 {can.manage && <Link href={route('waste-records.create')}><Button><Plus className="h-4 w-4" /> New Waste Record</Button></Link>}
             </PageHeader>
 
@@ -64,7 +64,7 @@ export default function WasteRecordsIndex({ records, wasteTypes, companies, filt
             <Card>
                 <CardContent className="p-0">
                     {records.data.length === 0 ? (
-                        <EmptyState icon={Recycle} title="No waste records yet" description="Create the first waste record to start tracking." />
+                        <EmptyState icon={Recycle} title="Belum ada catatan limbah" description="Buat catatan limbah pertama untuk mulai memantau." />
                     ) : (
                         <Table>
                             <TableHeader>

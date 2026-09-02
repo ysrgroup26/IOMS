@@ -31,7 +31,7 @@ export default function WasteRecordForm({ wasteTypes, storageLocations, projects
                 <ArrowLeft className="h-4 w-4" /> Back to Waste Records
             </Link>
 
-            <PageHeader title="New Waste Record" subtitle="Record a new waste generation event." />
+            <PageHeader title="New Waste Record" subtitle="Catat kejadian timbulan limbah baru." />
 
             <Card>
                 <CardContent className="p-4">

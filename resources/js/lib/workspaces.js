@@ -166,7 +166,15 @@ export const WORKSPACES = [
                 children: [
                     { name: 'Incident Management', href: 'incidents.index', icon: AlertTriangle },
                     { name: 'Safety Observation', href: 'safety-observations.index', icon: Eye },
-                    { name: 'Inspection', href: 'hse-inspections.index', icon: ClipboardCheck },
+                    // v2.34.0 (Post-Deployment Product Gap pass, Part 6):
+                    // was "Inspection" -- the exact same feature/route as
+                    // Dashboard's own "Digital Checklist" quick action
+                    // (DashboardController::$tiles), but the two labels
+                    // never matched, so a user following the Dashboard
+                    // tile had no obvious sidebar item to find it again.
+                    // Relabeled to match; route/controller/model (still
+                    // `HseInspection`) completely unchanged.
+                    { name: 'Digital Checklist', href: 'hse-inspections.index', icon: ClipboardCheck },
                     { name: 'TBM', href: 'tbm-meetings.index', icon: UsersRound },
                     { name: 'CAPA', href: 'corrective-actions.index', icon: ClipboardCheck },
                 ],
@@ -180,6 +188,22 @@ export const WORKSPACES = [
                     { name: 'LOTO', href: 'loto-records.index', icon: Lock },
                     { name: 'JSA', href: 'job-safety-analyses.index', icon: FileWarning },
                     { name: 'HIRADC', href: 'risk-assessments.index', icon: ShieldAlert },
+                    // v2.34.0 (Post-Deployment Product Gap pass, Part 4):
+                    // PTW Access management (settings.users.ptw-access,
+                    // gated `role:super_admin,hse` since v2.19.0) already
+                    // existed but had NO sidebar entry point at all --
+                    // only reachable by knowing to open Settings > Users
+                    // and scroll to its own "Field & PTW Access" card.
+                    // Deliberately NOT `adminOnly` (that flag gates on
+                    // `isAdmin` alone, which would hide it from HSE --
+                    // the second role this capability is explicitly for)
+                    // -- visibility here matches its sibling PTW/LOTO/JSA
+                    // items; the destination route itself already
+                    // enforces the real `role:super_admin,hse` boundary,
+                    // unchanged by this pass. No new capability, no
+                    // authorization change -- a missing signpost to an
+                    // existing one.
+                    { name: 'PTW Access', href: 'settings.index', queryParams: { tab: 'users' }, icon: Users },
                 ],
             },
             {
@@ -211,7 +235,19 @@ export const WORKSPACES = [
                 name: 'HSE Control',
                 icon: ListChecks,
                 children: [
-                    { name: 'HSE Master Data', href: 'hse.master', icon: ListChecks },
+                    // v2.34.0 (Post-Deployment Product Gap pass, Part 5):
+                    // was "HSE Master Data" -- confirmed via audit that
+                    // this route (Hse/Master.jsx) already contains the
+                    // exact equipment/inventory registers the intended
+                    // "HSE Inventory" concept describes (Safety Equipment
+                    // Register -- APAR/HT/safety cones/etc. as
+                    // configurable Equipment Types, P3K/First Aid
+                    // Stations, HSE Materials & Consumables) alongside
+                    // Hazard Categories and Checklist Templates -- it was
+                    // never missing, only generically named. Relabeled to
+                    // surface "Equipment & Inventory" explicitly; same
+                    // route, same page, same data, nothing rebuilt.
+                    { name: 'Equipment & Master Data', href: 'hse.master', icon: ListChecks },
                     { name: 'Document Control', href: 'controlled-documents.index', icon: FileStack },
                     // v1.10.4 correction: moved from HR -- same route,
                     // controller, permissions, moduleKey, only the owning

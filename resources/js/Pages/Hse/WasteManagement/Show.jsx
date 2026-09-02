@@ -88,7 +88,7 @@ export default function WasteRecordShow({ record, wasteVendors, can }) {
                     <CardHeader className="flex flex-row items-center justify-between">
                         <div>
                             <CardTitle className="flex items-center gap-2"><Truck className="h-4 w-4 text-graphite-400" /> Movement / Disposal History</CardTitle>
-                            <CardDescription>Pickup, transport, and disposal events for this record</CardDescription>
+                            <CardDescription>Riwayat pickup, pengangkutan, dan pembuangan untuk catatan ini</CardDescription>
                         </div>
                         {can.manage && record.status !== 'closed' && <Button size="sm" onClick={() => setMovementOpen((v) => !v)}>{movementOpen ? 'Cancel' : 'Record Movement'}</Button>}
                     </CardHeader>

@@ -82,12 +82,21 @@ export default function HseMaster({ hazardCategories, safetyEquipment, equipment
                 Safety Equipment tab's inline inspection-recording stays --
                 it's a deliberate producer/consumer chain, not
                 accidental); this is a labeling/help-text-only clarification. */}
+            {/* v2.34.0 (Post-Deployment Product Gap pass, Part 5): title
+                matched to the sidebar's own new "Equipment & Master Data"
+                label (see workspaces.js) -- this page is where a user
+                looking for "HSE Inventory" (APAR, P3K/First Aid, HT,
+                safety cones, etc.) actually finds it, under "Safety
+                Equipment Register" below. Subtitle now says so explicitly
+                instead of only the generic "configuration & reference
+                data" framing. */}
             <div className="mb-4">
-                <h1 className="text-[22px] font-semibold tracking-tight text-graphite-900 dark:text-slate-50">HSE Master Data</h1>
+                <h1 className="text-[22px] font-semibold tracking-tight text-graphite-900 dark:text-slate-50">Equipment &amp; Master Data</h1>
                 <p className="mt-0.5 text-xs text-graphite-500 dark:text-slate-400">
-                    Configuration &amp; reference data only -- the types, categories, templates, and registers
-                    other HSE modules draw from. Nothing here is hard-coded. Day-to-day work (recording an
-                    incident, running an inspection, issuing PPE) happens in each module's own page, not here.
+                    Termasuk inventaris peralatan HSE (APAR, P3K, HT, safety cone, dll.) di Safety Equipment
+                    Register, dan data referensi lain (kategori, template, tipe) yang dipakai modul HSE lainnya.
+                    Aktivitas harian (mencatat insiden, menjalankan inspeksi, mengeluarkan APD) tetap dilakukan
+                    di halaman modulnya masing-masing, bukan di sini.
                 </p>
             </div>
 

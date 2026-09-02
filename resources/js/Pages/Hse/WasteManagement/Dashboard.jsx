@@ -35,7 +35,11 @@ export default function WasteDashboard({
                 <ArrowLeft className="h-4 w-4" /> Back to HSE Overview
             </Link>
 
-            <DashboardShell title="Waste Management" subtitle="Waste generation, storage, and disposal overview.">
+            {/* v2.34.0 (Post-Deployment Product Gap pass, Part 8): was
+                fully English -- naturalized to Indonesian per the
+                established hybrid language rule; "Waste Management"
+                itself (the module/title) stays English. */}
+            <DashboardShell title="Waste Management" subtitle="Pantau limbah yang dihasilkan, disimpan, dipindahkan, dan diserahkan kepada vendor.">
                 <div className="grid grid-cols-2 gap-3 lg:grid-cols-4">
                     <StatCard icon={Recycle} value={totalRecordsCount} label="Total Records" href={route('waste-records.index')} />
                     <StatCard icon={AlertTriangle} value={b3StoredCount} label="B3 Currently Stored" accent={b3StoredCount > 0 ? 'amber' : null} href={route('waste-records.index', { status: 'stored' })} />

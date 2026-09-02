@@ -7,6 +7,7 @@ import AuthenticatedLayout from '@/Layouts/AuthenticatedLayout';
 import { Card, CardContent, CardHeader, CardTitle, CardDescription } from '@/Components/ui/card';
 import { Button } from '@/Components/ui/button';
 import { Input } from '@/Components/ui/input';
+import { PasswordInput } from '@/Components/ui/password-input';
 import { Label } from '@/Components/ui/label';
 import { Badge } from '@/Components/ui/badge';
 import { Select, SelectTrigger, SelectValue, SelectContent, SelectItem } from '@/Components/ui/select';
@@ -1712,7 +1713,7 @@ function AuthenticationTab() {
                 <form onSubmit={submit} className="space-y-4">
                     <div className="space-y-1.5">
                         <Label>Current Password</Label>
-                        <Input type="password" value={data.current_password} onChange={(e) => setData('current_password', e.target.value)} />
+                        <PasswordInput value={data.current_password} onChange={(e) => setData('current_password', e.target.value)} />
                         {errors.current_password && <p className="text-xs text-red-600">{errors.current_password}</p>}
                     </div>
                     <div className="space-y-1.5">
@@ -1722,13 +1723,13 @@ function AuthenticationTab() {
                     </div>
                     <div className="space-y-1.5">
                         <Label>New Password (optional)</Label>
-                        <Input type="password" value={data.password} onChange={(e) => setData('password', e.target.value)} placeholder="Leave blank to keep your current password" />
+                        <PasswordInput value={data.password} onChange={(e) => setData('password', e.target.value)} placeholder="Leave blank to keep your current password" />
                         {errors.password && <p className="text-xs text-red-600">{errors.password}</p>}
                     </div>
                     {data.password && (
                         <div className="space-y-1.5">
                             <Label>Confirm New Password</Label>
-                            <Input type="password" value={data.password_confirmation} onChange={(e) => setData('password_confirmation', e.target.value)} />
+                            <PasswordInput value={data.password_confirmation} onChange={(e) => setData('password_confirmation', e.target.value)} />
                         </div>
                     )}
                     <Button type="submit" disabled={processing}>
@@ -1833,7 +1834,7 @@ function UserManagementCard({ users, roles }) {
                             <div className="space-y-1.5"><Label>Email</Label><Input type="email" value={data.email} onChange={(e) => setData('email', e.target.value)} />
                                 {errors.email && <p className="text-xs text-red-600">{errors.email}</p>}
                             </div>
-                            <div className="space-y-1.5"><Label>Password</Label><Input type="password" value={data.password} onChange={(e) => setData('password', e.target.value)} />
+                            <div className="space-y-1.5"><Label>Password</Label><PasswordInput value={data.password} onChange={(e) => setData('password', e.target.value)} />
                                 {errors.password && <p className="text-xs text-red-600">{errors.password}</p>}
                             </div>
                             <div className="space-y-1.5">
@@ -2025,7 +2026,7 @@ function EditUserDialog({ user, onClose }) {
                     <div className="space-y-1.5"><Label>Email</Label><Input type="email" value={data.email} onChange={(e) => setData('email', e.target.value)} />
                         {errors.email && <p className="text-xs text-red-600">{errors.email}</p>}
                     </div>
-                    <div className="space-y-1.5"><Label>New Password (leave blank to keep current)</Label><Input type="password" value={data.password} onChange={(e) => setData('password', e.target.value)} />
+                    <div className="space-y-1.5"><Label>New Password (leave blank to keep current)</Label><PasswordInput value={data.password} onChange={(e) => setData('password', e.target.value)} />
                         {errors.password && <p className="text-xs text-red-600">{errors.password}</p>}
                     </div>
                     <div className="space-y-1.5">

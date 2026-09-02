@@ -8,8 +8,11 @@ use App\Models\Vendor;
 use App\Models\WasteMovement;
 use App\Models\WasteMovementDocument;
 use App\Models\WasteRecord;
+use App\Services\DocumentEngine;
+use App\Services\PdfGeneratorService;
 use Illuminate\Http\RedirectResponse;
 use Illuminate\Http\Request;
+use Illuminate\Http\Response;
 use Illuminate\Validation\Rule;
 
 /**
@@ -37,7 +40,16 @@ class WasteMovementController extends Controller
             'disposal_date' => ['nullable', 'date', 'after_or_equal:pickup_date'],
             'notes' => ['nullable', 'string', 'max:1000'],
             'documents' => ['nullable', 'array'],
-            'documents.*.file' => ['nullable', 'file', 'max:10240'],
+            // v2.33.0 (Phase 4, Security Audit -- File Security): a real
+            // gap found by this pass's own audit -- every OTHER document-
+            // upload validator in this codebase (VendorController,
+            // ContractorController, ControlledDocumentController, etc.)
+            // whitelists `mimes:`, this one didn't, meaning any file type
+            // could be uploaded and stored under the public disk. Matched
+            // to the same manifest/certificate/photo document types
+            // `WasteMovementDocument::TYPES` actually represents (mirrors
+            // VendorController's own vendor-document mimes list exactly).
+            'documents.*.file' => ['nullable', 'file', 'mimes:pdf,jpg,jpeg,png', 'max:10240'],
             'documents.*.document_type' => ['nullable', Rule::in(WasteMovementDocument::TYPES)],
         ]);
 
@@ -85,5 +97,36 @@ class WasteMovementController extends Controller
         ActivityLog::record('created', "Movement recorded for waste record {$wasteRecord->record_number} ({$status}).", $movement);
 
         return back()->with('success', 'Movement recorded.');
+    }
+
+    /**
+     * v2.33.0 (Phase 4, Operational Document System, Part 14). Real gap
+     * closed by this pass's own audit: the Waste lifecycle (Generated ->
+     * Stored -> Scheduled Pickup -> In Transit -> Disposed -> Closed,
+     * WasteMovement as the vendor handover record) already existed in
+     * full -- this endpoint was the one missing piece an actual vendor
+     * handover needs: a formal, printable manifest that leaves the
+     * system (audit/compliance/vendor copy), the same real product need
+     * the PTW/Material Request PDFs already serve. Reuses the exact same
+     * DocumentEngine/PdfGeneratorService pipeline those two already use
+     * -- no new PDF engine, no new template-resolution mechanism, no
+     * migration (every field rendered already exists on WasteMovement/
+     * WasteRecord/Vendor/WasteType).
+     */
+    public function pdf(WasteRecord $wasteRecord, WasteMovement $wasteMovement, PdfGeneratorService $pdf, DocumentEngine $documents): Response
+    {
+        abort_unless(Company::query()->pluck('id')->contains($wasteRecord->company_id), 404);
+        abort_unless($wasteMovement->waste_record_id === $wasteRecord->id, 404);
+
+        $wasteMovement->load('vendor', 'creator', 'documents.uploader');
+        $wasteRecord->load('wasteType', 'storageLocation', 'project:id,name', 'company');
+
+        return $pdf->streamInline('pdf.waste-movement', [
+            'movement' => $wasteMovement,
+            'record' => $wasteRecord,
+            'company' => $wasteRecord->company,
+            'documentTemplate' => $documents->resolveTemplate('waste_movement', $wasteRecord->company_id),
+            'branding' => $documents->branding(),
+        ], "waste-movement-{$wasteMovement->id}.pdf");
     }
 }

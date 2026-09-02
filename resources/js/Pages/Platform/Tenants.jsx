@@ -6,6 +6,7 @@ import { Table, TableHeader, TableBody, TableRow, TableHead, TableCell } from '@
 import { Badge } from '@/Components/ui/badge';
 import { Button } from '@/Components/ui/button';
 import { Input } from '@/Components/ui/input';
+import { PasswordInput } from '@/Components/ui/password-input';
 import { Label } from '@/Components/ui/label';
 import { Select, SelectTrigger, SelectValue, SelectContent, SelectItem } from '@/Components/ui/select';
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogFooter } from '@/Components/ui/dialog';
@@ -260,8 +261,7 @@ export default function PlatformTenants({ tenants, packages }) {
                                 </div>
                                 <div className="space-y-1.5">
                                     <Label>Password</Label>
-                                    <Input
-                                        type="password"
+                                    <PasswordInput
                                         value={data.admin_password}
                                         onChange={(e) => setData('admin_password', e.target.value)}
                                         placeholder="At least 8 characters"
@@ -270,8 +270,7 @@ export default function PlatformTenants({ tenants, packages }) {
                                 </div>
                                 <div className="space-y-1.5">
                                     <Label>Confirm Password</Label>
-                                    <Input
-                                        type="password"
+                                    <PasswordInput
                                         value={data.admin_password_confirmation}
                                         onChange={(e) => setData('admin_password_confirmation', e.target.value)}
                                     />

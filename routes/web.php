@@ -117,12 +117,24 @@ Route::get('/terms', [PublicController::class, 'terms'])->name('legal.terms');
 */
 Route::middleware('guest')->group(function () {
     Route::get('/login', [AuthenticatedSessionController::class, 'create'])->name('login');
-    Route::post('/login', [AuthenticatedSessionController::class, 'store']);
+    // v2.33.0 (Phase 4, Security Audit): a genuine, previously-missing
+    // control found by this pass's own audit -- `AuthenticatedSessionController::
+    // store()` called `Auth::attempt()` directly with no rate limiting
+    // anywhere in front of it (no `RateLimiter::for('login', ...)`
+    // registered, no throttle middleware on this route). Laravel's
+    // built-in `throttle` middleware alias is always available
+    // (registered by the framework itself, not app-specific config) --
+    // 6 attempts/minute per IP+path is Laravel's own common default for
+    // a login form. Purely additive: does not change credentials logic,
+    // session handling, or any authorization boundary.
+    Route::post('/login', [AuthenticatedSessionController::class, 'store'])->middleware('throttle:6,1');
 
     Route::get('/forgot-password', [PasswordResetLinkController::class, 'create'])->name('password.request');
-    Route::post('/forgot-password', [PasswordResetLinkController::class, 'store'])->name('password.email');
+    // Same reasoning as /login above -- an unthrottled password-reset
+    // request endpoint is a real spam/enumeration-abuse vector.
+    Route::post('/forgot-password', [PasswordResetLinkController::class, 'store'])->middleware('throttle:6,1')->name('password.email');
     Route::get('/reset-password/{token}', [NewPasswordController::class, 'create'])->name('password.reset');
-    Route::post('/reset-password', [NewPasswordController::class, 'store'])->name('password.store');
+    Route::post('/reset-password', [NewPasswordController::class, 'store'])->middleware('throttle:6,1')->name('password.store');
 });
 
 Route::post('/logout', [AuthenticatedSessionController::class, 'destroy'])
@@ -243,6 +255,12 @@ Route::middleware(['auth', 'restrict.platform-admin'])->group(function () {
     Route::get('/waste-records/{wasteRecord}', [WasteRecordController::class, 'show'])->name('waste-records.show');
     Route::post('/waste-records/{wasteRecord}/transition', [WasteRecordController::class, 'transition'])->name('waste-records.transition');
     Route::post('/waste-records/{wasteRecord}/movements', [WasteMovementController::class, 'store'])->name('waste-movements.store');
+    // v2.33.0 (Phase 4, Operational Document System): a GET/view route,
+    // same open-to-every-role shape as `waste-records.show` right above
+    // it (not the mutation-only role:super_admin,hse group further
+    // down) -- viewing/printing an existing manifest is read access, not
+    // a write action.
+    Route::get('/waste-records/{wasteRecord}/movements/{wasteMovement}/pdf', [WasteMovementController::class, 'pdf'])->name('waste-movements.pdf');
 
     // Safety Observation (Milestone 4, Workstream B1): list/detail viewable
     // by all roles; create/store/transition are canManageSafetyObservations()

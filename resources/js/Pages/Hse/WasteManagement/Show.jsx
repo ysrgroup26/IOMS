@@ -101,9 +101,25 @@ export default function WasteRecordShow({ record, wasteVendors, can }) {
                             <ul className="mt-3 divide-y divide-graphite-100 dark:divide-slate-800">
                                 {record.movements.map((m) => (
                                     <li key={m.id} className="py-2.5 text-sm">
-                                        <div className="flex items-center justify-between">
+                                        <div className="flex items-center justify-between gap-2">
                                             <span className="font-medium capitalize">{m.status.replace('_', ' ')}{m.vendor ? ` -- ${m.vendor.name}` : ''}</span>
-                                            <span className="text-xs text-graphite-400">{m.disposal_date ? new Date(m.disposal_date).toLocaleDateString('en-US', { day: 'numeric', month: 'short' }) : m.pickup_date ? new Date(m.pickup_date).toLocaleDateString('en-US', { day: 'numeric', month: 'short' }) : '-'}</span>
+                                            <div className="flex shrink-0 items-center gap-2">
+                                                <span className="text-xs text-graphite-400">{m.disposal_date ? new Date(m.disposal_date).toLocaleDateString('en-US', { day: 'numeric', month: 'short' }) : m.pickup_date ? new Date(m.pickup_date).toLocaleDateString('en-US', { day: 'numeric', month: 'short' }) : '-'}</span>
+                                                {/* v2.33.0 (Phase 4, Operational Document System, Part
+                                                    14): a real, previously-missing capability -- a
+                                                    vendor handover had no formal document that could
+                                                    leave IOMS. Reuses the same PdfGeneratorService/
+                                                    DocumentEngine pipeline PTW/Material Request already
+                                                    use. */}
+                                                <a
+                                                    href={route('waste-movements.pdf', [record.id, m.id])}
+                                                    target="_blank"
+                                                    rel="noreferrer"
+                                                    className="flex items-center gap-1 text-xs font-medium text-brand-600 hover:underline"
+                                                >
+                                                    <FileText className="h-3 w-3" /> Manifest
+                                                </a>
+                                            </div>
                                         </div>
                                         {m.manifest_number && <p className="text-xs text-graphite-400">Manifest: {m.manifest_number}{m.destination ? ` -- ${m.destination}` : ''}</p>}
                                         {m.notes && <p className="text-xs text-graphite-500">{m.notes}</p>}

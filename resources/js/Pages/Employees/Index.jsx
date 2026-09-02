@@ -10,6 +10,7 @@ import { Select, SelectTrigger, SelectValue, SelectContent, SelectItem } from '@
 import GroupedDepartmentSelect from '@/Components/shared/GroupedDepartmentSelect';
 import { Table, TableHeader, TableBody, TableRow, TableHead, TableCell } from '@/Components/ui/table';
 import EmployeeImportDialog from '@/Components/shared/EmployeeImportDialog';
+import PersonChip from '@/Components/shared/PersonChip';
 import { Search, Plus, Download, Upload, ChevronLeft, ChevronRight } from 'lucide-react';
 
 export default function EmployeesIndex({ employees, companies, departments, filters, can }) {
@@ -106,25 +107,29 @@ export default function EmployeesIndex({ employees, companies, departments, filt
                         </div>
                     ) : (
                         <>
-                            {/* v2.23.0: mobile card list -- this page had no
-                                mobile fallback before (relied entirely on
-                                the shared Table's own overflow-auto), same
-                                pattern proven across this transformation
-                                pass. */}
+                            {/* v2.23.0: mobile card list, v2.32.0
+                                (Interior UI Completion Phase 3B, Part 3):
+                                avatar switched from a plain neutral-gray
+                                initial to the shared `PersonChip` -- same
+                                brand-tinted identity treatment Employee
+                                Profile already uses, and two-letter
+                                initials instead of just the first
+                                character. Reuses the shared component
+                                rather than a fourth hand-rolled copy, per
+                                this pass's own "reuse shared components"
+                                instruction. */}
                             <div className="divide-y divide-graphite-100 md:hidden">
                                 {employees.data.map((emp) => (
                                     <Link
                                         key={emp.id}
                                         href={route('employees.show', emp.id)}
-                                        className="flex items-center gap-3 px-4 py-3 active:bg-graphite-50"
+                                        className="flex items-center gap-3 px-4 py-3 transition-colors active:bg-graphite-50"
                                     >
-                                        <div className="flex h-9 w-9 shrink-0 items-center justify-center rounded-full bg-graphite-100 text-xs font-semibold text-graphite-600">
-                                            {emp.full_name.charAt(0)}
-                                        </div>
-                                        <div className="min-w-0 flex-1">
-                                            <p className="truncate font-medium text-graphite-900">{emp.full_name}</p>
-                                            <p className="truncate text-xs text-graphite-500">{emp.employee_id} &middot; {emp.department?.name || emp.company?.name || '-'}</p>
-                                        </div>
+                                        <PersonChip
+                                            className="min-w-0 flex-1"
+                                            name={emp.full_name}
+                                            subtitle={`${emp.employee_id} · ${emp.department?.name || emp.company?.name || '-'}`}
+                                        />
                                         <Badge variant={emp.status === 'active' ? 'success' : 'secondary'} className="shrink-0 capitalize">{emp.status}</Badge>
                                     </Link>
                                 ))}
@@ -150,15 +155,7 @@ export default function EmployeesIndex({ employees, companies, departments, filt
                                     {employees.data.map((emp) => (
                                         <TableRow key={emp.id} className="cursor-pointer" onClick={() => router.visit(route('employees.show', emp.id))}>
                                             <TableCell>
-                                                <div className="flex items-center gap-3">
-                                                    <div className="flex h-8 w-8 shrink-0 items-center justify-center rounded-full bg-graphite-100 text-xs font-semibold text-graphite-600">
-                                                        {emp.full_name.charAt(0)}
-                                                    </div>
-                                                    <div className="min-w-0">
-                                                        <p className="truncate font-medium text-graphite-900">{emp.full_name}</p>
-                                                        <p className="truncate text-xs text-graphite-500">{emp.employee_id}</p>
-                                                    </div>
-                                                </div>
+                                                <PersonChip name={emp.full_name} subtitle={emp.employee_id} />
                                             </TableCell>
                                             <TableCell>
                                                 <p className="text-graphite-800">{emp.company?.name ?? '—'}</p>

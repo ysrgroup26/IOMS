@@ -7,6 +7,7 @@ import { Table, TableHeader, TableBody, TableRow, TableHead, TableCell } from '@
 import { Select, SelectTrigger, SelectValue, SelectContent, SelectItem } from '@/Components/ui/select';
 import EmptyState from '@/Components/shared/EmptyState';
 import StatCard from '@/Components/shared/StatCard';
+import { cn } from '@/lib/utils';
 import { ArrowLeft, ChevronLeft, ChevronRight, BarChart3, TrendingDown, TrendingUp } from 'lucide-react';
 
 /**
@@ -59,6 +60,49 @@ export default function KpiRecords({ records, categories, companies, filters, av
                     accent={activeCategory ? (activeCategory.is_negative ? 'red' : 'green') : undefined}
                     hint={activeCategory ? 'kategori terpilih' : 'seluruh kategori'}
                 />
+            </div>
+
+            {/* v2.32.0 (Interior UI Completion Phase 3B, Part 8 -- "KPI
+                Dashboard" / category distinction): categories previously
+                only existed inside a plain text Select -- no visual
+                distinction between them anywhere on this page, even
+                though every category already carries a real, admin-
+                configured color (the same `color` field KpiSummaryCard
+                already renders on Dashboard/Reports). Quick-filter chips
+                here reuse that same real color per category -- genuine
+                "category distinction," not a fabricated per-category
+                count (a cross-page total isn't data this page has, see
+                the StatCard comment above). Clicking a chip is the same
+                `applyFilters` the Select already used. */}
+            <div className="mb-4 flex flex-wrap gap-1.5">
+                <button
+                    type="button"
+                    onClick={() => applyFilters({ category_id: null })}
+                    className={cn(
+                        'rounded-full border px-2.5 py-1 text-[11px] font-medium transition-colors',
+                        !filters.category_id ? 'border-brand-200 bg-brand-50 text-brand-700' : 'border-graphite-200 bg-white text-graphite-500 hover:bg-graphite-50'
+                    )}
+                >
+                    Semua Kategori
+                </button>
+                {categories.map((c) => {
+                    const active = filters.category_id === c.id;
+                    return (
+                        <button
+                            key={c.id}
+                            type="button"
+                            onClick={() => applyFilters({ category_id: active ? null : c.id })}
+                            className={cn(
+                                'flex items-center gap-1.5 rounded-full border px-2.5 py-1 text-[11px] font-medium transition-colors',
+                                active ? 'border-transparent text-white' : 'border-graphite-200 bg-white text-graphite-600 hover:bg-graphite-50'
+                            )}
+                            style={active ? { backgroundColor: c.color } : undefined}
+                        >
+                            <span className="h-1.5 w-1.5 shrink-0 rounded-full" style={{ backgroundColor: active ? '#fff' : c.color }} aria-hidden="true" />
+                            {c.short_label}
+                        </button>
+                    );
+                })}
             </div>
 
             {/* v2.24.0 (Complete Product UI/UX Transformation, cont'd --

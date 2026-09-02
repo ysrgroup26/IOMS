@@ -9,6 +9,7 @@ import { Table, TableHeader, TableBody, TableRow, TableHead, TableCell } from '@
 import StatCard from '@/Components/shared/StatCard';
 import StatusBadge from '@/Components/shared/StatusBadge';
 import EmptyState from '@/Components/shared/EmptyState';
+import PersonChip from '@/Components/shared/PersonChip';
 import { Plus, Search, ClipboardList, AlertTriangle, ChevronLeft, ChevronRight } from 'lucide-react';
 
 export default function WorkOrdersIndex({ workOrders, filters, openCount, overdueCount, can }) {
@@ -28,42 +29,75 @@ export default function WorkOrdersIndex({ workOrders, filters, openCount, overdu
                 <StatCard icon={AlertTriangle} value={overdueCount} label="Overdue Maintenance" accent={overdueCount > 0 ? 'red' : null} />
             </div>
 
-            <Card className="mb-4">
-                <CardContent className="flex flex-wrap gap-2 p-3">
-                    <div className="relative min-w-[220px]">
-                        <Search className="pointer-events-none absolute left-2.5 top-1/2 h-3.5 w-3.5 -translate-y-1/2 text-graphite-400" />
-                        <Input className="pl-8" placeholder="Search WO number..." defaultValue={filters.search || ''} onChange={(e) => applyFilters({ search: e.target.value || null })} />
-                    </div>
-                    <Select value={filters.status || 'all'} onValueChange={(v) => applyFilters({ status: v === 'all' ? null : v })}>
-                        <SelectTrigger className="w-44"><SelectValue placeholder="Status" /></SelectTrigger>
-                        <SelectContent>
-                            <SelectItem value="all">All Statuses</SelectItem>
-                            {['draft', 'scheduled', 'in_progress', 'completed', 'cancelled'].map((s) => <SelectItem key={s} value={s} className="capitalize">{s.replace('_', ' ')}</SelectItem>)}
-                        </SelectContent>
-                    </Select>
-                </CardContent>
-            </Card>
+            {/* v2.32.0 (Interior UI Completion Phase 3B, Part 7): unboxed,
+                matching the established filter-toolbar convention used
+                across every other list page this session (was the only
+                remaining boxed filter Card on this page). */}
+            <div className="mb-4 flex flex-wrap items-center gap-2">
+                <div className="relative min-w-[220px] flex-1">
+                    <Search className="pointer-events-none absolute left-2.5 top-1/2 h-3.5 w-3.5 -translate-y-1/2 text-graphite-400" />
+                    <Input className="border-graphite-200 bg-white pl-8 shadow-none" placeholder="Search WO number..." defaultValue={filters.search || ''} onChange={(e) => applyFilters({ search: e.target.value || null })} />
+                </div>
+                <Select value={filters.status || 'all'} onValueChange={(v) => applyFilters({ status: v === 'all' ? null : v })}>
+                    <SelectTrigger className="w-44 bg-white"><SelectValue placeholder="Status" /></SelectTrigger>
+                    <SelectContent>
+                        <SelectItem value="all">All Statuses</SelectItem>
+                        {['draft', 'scheduled', 'in_progress', 'completed', 'cancelled'].map((s) => <SelectItem key={s} value={s} className="capitalize">{s.replace('_', ' ')}</SelectItem>)}
+                    </SelectContent>
+                </Select>
+            </div>
 
             <Card>
                 <CardContent className="p-0">
                     {workOrders.data.length === 0 ? (
                         <EmptyState icon={ClipboardList} title="No work orders" />
                     ) : (
-                        <Table>
-                            <TableHeader><TableRow><TableHead>WO No.</TableHead><TableHead>Asset</TableHead><TableHead>Type</TableHead><TableHead>Technician</TableHead><TableHead>Planned Date</TableHead><TableHead>Status</TableHead></TableRow></TableHeader>
-                            <TableBody>
+                        <>
+                            {/* v2.32.0: this page had no mobile fallback --
+                                a 6-column table just scrolled horizontally
+                                on a narrow viewport. Compact identity-first
+                                cards, same pattern as every other list page
+                                this session. */}
+                            <div className="divide-y divide-graphite-100 md:hidden">
                                 {workOrders.data.map((wo) => (
-                                    <TableRow key={wo.id} className="cursor-pointer" onClick={() => router.visit(route('work-orders.show', wo.id))}>
-                                        <TableCell className="font-medium text-graphite-800 dark:text-slate-100">{wo.wo_number}</TableCell>
-                                        <TableCell>{wo.asset?.name}</TableCell>
-                                        <TableCell className="capitalize">{wo.maintenance_type}</TableCell>
-                                        <TableCell>{wo.technician?.full_name || '-'}</TableCell>
-                                        <TableCell>{new Date(wo.planned_date).toLocaleDateString('en-US', { day: 'numeric', month: 'short', year: 'numeric' })}</TableCell>
-                                        <TableCell><StatusBadge value={wo.status} /></TableCell>
-                                    </TableRow>
+                                    <Link
+                                        key={wo.id}
+                                        href={route('work-orders.show', wo.id)}
+                                        className="block px-4 py-3 transition-colors active:bg-graphite-50"
+                                    >
+                                        <div className="flex items-start justify-between gap-2">
+                                            <div className="min-w-0">
+                                                <p className="font-medium text-graphite-900">{wo.wo_number}</p>
+                                                <p className="truncate text-xs capitalize text-graphite-500">{wo.maintenance_type} · {wo.asset?.name}</p>
+                                            </div>
+                                            <StatusBadge value={wo.status} />
+                                        </div>
+                                        <div className="mt-1.5 flex items-center justify-between text-xs text-graphite-400">
+                                            <span>{wo.technician?.full_name || 'Belum ditugaskan'}</span>
+                                            <span>{new Date(wo.planned_date).toLocaleDateString('en-US', { day: 'numeric', month: 'short', year: 'numeric' })}</span>
+                                        </div>
+                                    </Link>
                                 ))}
-                            </TableBody>
-                        </Table>
+                            </div>
+
+                            <Table className="hidden md:table">
+                                <TableHeader><TableRow><TableHead>Work Order</TableHead><TableHead>Asset</TableHead><TableHead>Technician</TableHead><TableHead>Planned Date</TableHead><TableHead>Status</TableHead></TableRow></TableHeader>
+                                <TableBody>
+                                    {workOrders.data.map((wo) => (
+                                        <TableRow key={wo.id} className="cursor-pointer" onClick={() => router.visit(route('work-orders.show', wo.id))}>
+                                            <TableCell>
+                                                <p className="font-medium text-graphite-800 dark:text-slate-100">{wo.wo_number}</p>
+                                                <p className="text-xs capitalize text-graphite-500">{wo.maintenance_type}</p>
+                                            </TableCell>
+                                            <TableCell>{wo.asset?.name}</TableCell>
+                                            <TableCell>{wo.technician ? <PersonChip name={wo.technician.full_name} size="sm" /> : <span className="text-graphite-400">—</span>}</TableCell>
+                                            <TableCell>{new Date(wo.planned_date).toLocaleDateString('en-US', { day: 'numeric', month: 'short', year: 'numeric' })}</TableCell>
+                                            <TableCell><StatusBadge value={wo.status} /></TableCell>
+                                        </TableRow>
+                                    ))}
+                                </TableBody>
+                            </Table>
+                        </>
                     )}
                 </CardContent>
             </Card>

@@ -200,7 +200,16 @@ export default function AuthenticatedLayout({ children }) {
                     // class had drifted to 220px at some point without the
                     // comment being corrected. Fixed to match both the
                     // comment and the current spec.
-                    'fixed inset-y-0 left-0 z-50 flex w-[240px] flex-col transform border-r border-graphite-200 bg-white transition-transform duration-200 ease-in-out dark:border-slate-800 dark:bg-slate-950 lg:translate-x-0',
+                    // v2.36.0 (Visual System 2.0, Part 9): was flat
+                    // `bg-white` -- the exact "plain white list" this
+                    // pass's own directive names. A very subtle
+                    // top-to-bottom tint (white at the logo, easing to a
+                    // faint slate-blue toward the bottom) gives the rail
+                    // real depth without darkening it into a second
+                    // competing surface -- it's still clearly the
+                    // lightest, most "chrome" surface in the app, just no
+                    // longer indistinguishable from a plain <ul>.
+                    'fixed inset-y-0 left-0 z-50 flex w-[240px] flex-col transform border-r border-graphite-200 bg-gradient-to-b from-white via-white to-graphite-100/70 transition-transform duration-200 ease-in-out dark:border-slate-800 dark:from-slate-950 dark:via-slate-950 dark:to-slate-900 lg:translate-x-0',
                     sidebarOpen ? 'translate-x-0' : '-translate-x-full'
                 )}
             >
@@ -430,8 +439,13 @@ function TopBar({ onOpenSidebar, isDepartmentUser, departments, activeWorkspace,
     const now = useClock();
     const { theme, toggleTheme } = useTheme();
 
+    // v2.36.0 (Visual System 2.0, Part 8): a faint blue-tinted backdrop
+    // (was plain bg-white/80) so the header integrates with the rest of
+    // the new tinted-workspace system instead of being one more isolated
+    // white bar -- still translucent/backdrop-blur, still reads as
+    // chrome, not a data surface.
     return (
-        <header className="sticky top-0 z-30 flex h-14 items-center gap-3 border-b border-graphite-200 bg-white/80 px-5 shadow-sm backdrop-blur dark:border-slate-800 dark:bg-slate-950/80">
+        <header className="sticky top-0 z-30 flex h-14 items-center gap-3 border-b border-graphite-200 bg-white/80 bg-gradient-to-r from-brand-50/40 via-white/80 to-white/80 px-5 shadow-sm backdrop-blur dark:border-slate-800 dark:bg-slate-950/80">
             <button className="lg:hidden" onClick={onOpenSidebar}>
                 <Menu className="h-5 w-5 text-graphite-500" />
             </button>

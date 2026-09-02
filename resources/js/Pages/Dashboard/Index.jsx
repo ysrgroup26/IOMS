@@ -125,15 +125,30 @@ export default function Dashboard({
                 />
 
                 {/* Hero: introduces the Dashboard only -- title, company
-                    branding, and period filters. Capped at 220px (fixed
-                    height, never h-screen/min-h-screen) and kept compact
-                    so KPI cards are visible immediately without scrolling.
-                    Today's Summary (HeroSummary below) is separate,
-                    substantive operational content, not part of this
-                    height budget. Soft blue gradient in light mode,
-                    slate-900 + subtle blue gradient in dark mode --
-                    dedicated colors, not opacity tricks. */}
-                <div className="mb-4 flex max-h-[220px] flex-wrap items-center justify-between gap-3 rounded-xl border border-graphite-100 bg-gradient-to-br from-brand-50/60 via-white to-brand-50/30 px-4 py-3 dark:border-slate-800 dark:from-slate-900 dark:via-slate-900 dark:to-blue-950/40">
+                    branding, and period filters. Capped height, kept
+                    compact so KPI cards are visible immediately without
+                    scrolling. Today's Summary (HeroSummary below) is
+                    separate, substantive operational content, not part
+                    of this height budget.
+                    v2.36.0 (Visual System 2.0, Part 12: "Primary summary
+                    surfaces may use Deep Navy, IOMS Blue, Soft Blue").
+                    Root of the "IOMS looks like an HSE shortcut page, not
+                    a Command Center" complaint this pass names directly:
+                    this banner was a barely-tinted white box,
+                    indistinguishable in weight from every plain white
+                    Card below it -- the single most load-bearing surface
+                    on the page (it's the FIRST thing rendered) carried no
+                    more visual authority than a filter bar. Now a real
+                    deep-navy-to-IOMS-blue gradient surface, white text,
+                    an explicit "IOMS · Industrial Operations Platform"
+                    eyebrow -- the plain-language answer to "is this an
+                    HSE dashboard or an IOMS one." Select/PeriodFilter
+                    controls get an explicit light-on-dark treatment
+                    (bg-white/10, white text/icons) so they read correctly
+                    against the new dark surface; their dropdown panels
+                    remain the app's normal white Popover content
+                    (unaffected -- only the trigger's own chrome changed). */}
+                <div className="mb-4 flex max-h-[220px] flex-wrap items-center justify-between gap-3 rounded-xl bg-gradient-to-br from-navy-900 via-navy-800 to-brand-700 px-4 py-3 shadow-card-hover dark:from-slate-950 dark:via-navy-900 dark:to-blue-950">
                     <div>
                         {/* Final UI Stabilization: no logo/wordmark at all
                             here anymore -- per explicit instruction,
@@ -142,6 +157,7 @@ export default function Dashboard({
                             previous session did) was itself the "duplicate
                             branding" this issue is about. Just the page
                             title and subtitle. */}
+                        <p className="text-[10px] font-semibold uppercase tracking-[0.18em] text-brand-200">IOMS &middot; Industrial Operations Platform</p>
                         {/* v1.11.10 (Visual Correction, Part 0): reverted from
                             text-xl (20px, bumped in v1.11.9) back to
                             text-base (16px) -- direct user feedback that the
@@ -150,19 +166,19 @@ export default function Dashboard({
                             filter controls, not a full PageHeader -- it
                             never needed the 24px "page title" treatment
                             PageHeader itself correctly uses elsewhere. */}
-                        <h1 className="text-base font-bold tracking-tight text-graphite-900 dark:text-slate-50">Dashboard</h1>
+                        <h1 className="mt-0.5 text-base font-bold tracking-tight text-white">Dashboard</h1>
                         {/* v2.26.0 (Final Copy Consistency pass): was
                             fully English -- naturalized to Indonesian,
                             "Dashboard" and "KPI" kept as established
                             terminology. */}
-                        <p className="text-[11px] text-graphite-500 dark:text-slate-400">Ringkasan KPI operasional di seluruh departemen.</p>
+                        <p className="text-[11px] text-brand-100/80">Ringkasan KPI operasional di seluruh departemen.</p>
                     </div>
                     <div className="flex flex-wrap items-center gap-2">
                         <Select
                             value={filters.company_id ? String(filters.company_id) : 'all'}
                             onValueChange={(v) => updateFilters({ company_id: v === 'all' ? null : Number(v) })}
                         >
-                            <SelectTrigger className="w-40"><SelectValue placeholder="Company" /></SelectTrigger>
+                            <SelectTrigger className="w-40 border-white/20 bg-white/10 text-white [&_svg]:text-white/70"><SelectValue placeholder="Company" /></SelectTrigger>
                         <SelectContent>
                             <SelectItem value="all">All Companies</SelectItem>
                             {companies.map((c) => <SelectItem key={c.id} value={String(c.id)}>{c.name}</SelectItem>)}
@@ -175,6 +191,7 @@ export default function Dashboard({
                         departments={[]}
                         showDepartment={false}
                         onChange={handlePeriodChange}
+                        triggerClassName="border-white/20 bg-white/10 text-white [&_svg]:text-white/70"
                     />
                 </div>
                 </div>

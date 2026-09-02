@@ -93,6 +93,18 @@ export default {
                 success: { DEFAULT: '#16A34A', light: '#ECFDF5' },
                 warning: { DEFAULT: '#F59E0B', light: '#FFFBEB' },
                 danger: { DEFAULT: '#EF4444', light: '#FEF2F2' },
+                // v2.36.0 (Visual System 2.0). Two new tokens completing
+                // the directional palette this pass's own directive
+                // names explicitly -- `brand` (IOMS Blue, #2563EB is
+                // already brand-600 exactly) and `graphite` (Slate,
+                // #475569 is already graphite-600 exactly) already
+                // matched, so only Deep Navy and Steel Blue were
+                // genuinely missing from the token system. Added here
+                // rather than hardcoded per-component so every "strong
+                // primary summary surface" this pass builds (Dashboard
+                // hero, sidebar) draws from the same shared tokens.
+                navy: { DEFAULT: '#0F2747', 700: '#17335A', 800: '#122A4A', 900: '#0F2747' },
+                steel: { DEFAULT: '#3B82B6', 50: '#EAF3FB' },
             },
             borderRadius: {
                 lg: 'var(--radius)',

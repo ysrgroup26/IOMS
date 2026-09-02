@@ -20,18 +20,54 @@ import { cn } from '@/lib/utils';
  * anything that didn't fit in the bar) is always one tap away, in the
  * exact same drawer already built and already correct.
  *
- * Only up to 3 items from `visibleNav` are shown (plus the pinned Home
- * and More) -- items with `children` (a grouped section, e.g. HSE's own
- * sub-groups) or `disabled` (a not-yet-built module) are skipped for the
- * bar itself, since neither has one single destination to tap straight
- * to; both are still reachable via More exactly as they are today from
- * the sidebar. This keeps the bar honest -- every icon it shows goes
- * exactly where it says, in one tap, for every role, every department.
+ * v2.35.0 (Visual System + IA Refinement, Part 10 -- fixed a real
+ * reported bug). Root cause of the reported "Home, Dashboard, Overview,
+ * Waste Management, More" redundancy: `visibleNav` for every department
+ * workspace ALREADY starts with its own `{ name: 'Dashboard', href:
+ * 'dashboard', global: true }` entry (see workspaces.js) -- the
+ * `primaryItems` filter below used to happily include it as a normal
+ * item, so it rendered a SECOND "Dashboard" tab right next to the
+ * hardcoded "Home" one, both pointing at the exact same route. Fixed two
+ * ways: (1) the pinned first slot is now labeled "Dashboard" instead of
+ * "Home" -- there is no separate "Home" concept, Dashboard IS home; (2)
+ * `visibleNav`'s own `dashboard` entry is explicitly excluded from the
+ * candidate pool so it can never duplicate that pinned slot again.
+ *
+ * Second fix: a `children` group (e.g. HSE's "Permit & Work Safety")
+ * used to be skipped entirely, meaning a genuinely high-frequency leaf
+ * action nested one level down (PTW) could never reach the bar -- only
+ * whatever unrelated top-level items happened to come first (which is
+ * how "Waste Management" ended up occupying a slot). Each group now
+ * contributes its own first real child as a candidate, in the group's
+ * own position -- still zero new data, still the exact same
+ * RBAC-filtered `visibleNav`, just no longer flattening away everything
+ * one level deep. Waste Management specifically is deprioritized out of
+ * the primary slots per this pass's own explicit direction ("not a
+ * permanent bottom-nav shortcut") -- it remains fully reachable via
+ * Overview/sidebar/More, never removed as a feature, only demoted from
+ * this one high-frequency bar.
  */
+function buildPrimaryCandidates(visibleNav) {
+    const candidates = [];
+    for (const item of visibleNav || []) {
+        if (item.disabled || item.href === 'dashboard') continue;
+        if (item.children?.length) {
+            const firstChild = item.children.find((c) => c.href && !c.disabled);
+            if (firstChild) candidates.push(firstChild);
+            continue;
+        }
+        if (item.href) candidates.push(item);
+    }
+    // Waste Management: demoted (not removed) from the primary bar, per
+    // this pass's own explicit direction -- pushed after the first pass
+    // of real candidates instead of competing for one of the 3 slots.
+    const waste = candidates.filter((c) => c.href?.startsWith('waste'));
+    const rest = candidates.filter((c) => !c.href?.startsWith('waste'));
+    return [...rest, ...waste];
+}
+
 export default function MobileBottomNav({ visibleNav, currentUrl, onOpenMore }) {
-    const primaryItems = (visibleNav || [])
-        .filter((item) => item.href && !item.disabled && !item.children?.length)
-        .slice(0, 3);
+    const primaryItems = buildPrimaryCandidates(visibleNav).slice(0, 3);
 
     return (
         <nav
@@ -43,7 +79,7 @@ export default function MobileBottomNav({ visibleNav, currentUrl, onOpenMore }) 
             style={{ paddingBottom: 'env(safe-area-inset-bottom)' }}
             aria-label="Primary"
         >
-            <BottomNavLink href={route('dashboard')} label="Home" icon={LayoutDashboard} active={currentUrl === '/dashboard' || currentUrl === '/'} />
+            <BottomNavLink href={route('dashboard')} label="Dashboard" icon={LayoutDashboard} active={currentUrl === '/dashboard' || currentUrl === '/'} />
             {primaryItems.map((item) => (
                 <BottomNavLink
                     key={item.name}

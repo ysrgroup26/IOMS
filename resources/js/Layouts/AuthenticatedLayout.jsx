@@ -163,7 +163,21 @@ export default function AuthenticatedLayout({ children }) {
         // white Cards and the white Sidebar/TopBar still read as the
         // brighter, primary surfaces on top of it.
         <div className="relative min-h-screen bg-graphite-50 dark:bg-slate-950">
+            {/* v2.35.0 (Visual System + IA Refinement, Part 16 --
+                "too white" was the single most-repeated production
+                finding). The v2.29.0 tint only touched the top-left
+                corner (`from-brand-50/50 via-transparent to-transparent`)
+                -- most of a tall, scrolled page was still flat
+                graphite-50, one step from plain white. A second layer
+                now washes the BOTTOM of the viewport too (a soft
+                slate/blue, not a repeat of the same top-left blue), so
+                the workspace reads as a tinted canvas at any scroll
+                position, not just at the very top. Still fixed
+                (doesn't scroll, doesn't repaint), still low-opacity, still
+                sits entirely behind white Cards/Sidebar/TopBar -- this is
+                the BACKGROUND layer, not a new card treatment. */}
             <div className="pointer-events-none fixed inset-0 -z-10 bg-gradient-to-br from-brand-50/50 via-transparent to-transparent dark:from-blue-950/20" aria-hidden="true" />
+            <div className="pointer-events-none fixed inset-0 -z-10 bg-gradient-to-tl from-slate-100/70 via-transparent to-transparent dark:from-slate-900/40" aria-hidden="true" />
             {/* Mobile overlay */}
             {sidebarOpen && (
                 <div

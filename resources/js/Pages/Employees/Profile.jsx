@@ -94,10 +94,20 @@ export default function EmployeeProfile({ employee, yearSummary, monthlyBreakdow
             </Link>
 
             <div className="grid grid-cols-1 gap-4 lg:grid-cols-3">
-                {/* Profile card */}
-                <Card className="lg:col-span-1">
-                    <CardContent className="flex flex-col items-center p-4 text-center">
-                        <div className="mb-3 flex h-16 w-16 items-center justify-center rounded-full bg-graphite-100 text-xl font-bold text-graphite-500">
+                {/* Profile card. v2.31.0 (Interior UI Transformation
+                    Phase 3, Part 5 -- "PERSON IDENTITY" hierarchy): the
+                    identity block (photo/name/code/status) now sits on
+                    its own soft-blue tinted header band, separated from
+                    "WORK INFORMATION" below by a real surface change, not
+                    just a border line -- the same "identity first, detail
+                    grouped below" principle already established on
+                    Employees' own list table, applied here to the single-
+                    record view. Avatar switched from a neutral-gray
+                    circle to the app's brand-tinted treatment (matches
+                    EmptyState/StatCard's own icon-chip color). */}
+                <Card className="overflow-hidden lg:col-span-1">
+                    <div className="flex flex-col items-center bg-gradient-to-b from-brand-50/70 to-white px-4 pb-4 pt-5 text-center dark:from-brand-950/20 dark:to-slate-900">
+                        <div className="mb-3 flex h-16 w-16 items-center justify-center rounded-full bg-brand-100 text-xl font-bold text-brand-600 dark:bg-brand-950/50 dark:text-brand-400">
                             {employee.photo_path
                                 ? <img src={employee.photo_url} className="h-16 w-16 rounded-full object-cover" alt="" />
                                 : employee.full_name.charAt(0)
@@ -108,8 +118,9 @@ export default function EmployeeProfile({ employee, yearSummary, monthlyBreakdow
                         <Badge variant={employee.status === 'active' ? 'success' : 'secondary'} className="mt-2 capitalize">
                             {employee.status}
                         </Badge>
-
-                        <div className="mt-5 w-full space-y-2.5 border-t border-graphite-100 pt-5 text-left text-sm">
+                    </div>
+                    <CardContent className="flex flex-col items-center p-4 pt-0 text-center">
+                        <div className="w-full space-y-2.5 pt-1 text-left text-sm">
                             <InfoRow icon={Briefcase} label="Company" value={employee.company?.name ?? '—'} />
                             <InfoRow label="Department" value={employee.department?.name} />
                             <InfoRow label="Position" value={employee.position?.name ?? '—'} />

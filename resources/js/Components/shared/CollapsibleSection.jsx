@@ -23,6 +23,15 @@ import { cn } from '@/lib/utils';
  *   <CollapsibleSection title="Optional / Advanced" description="Isi jika diperlukan.">
  *     ...fields...
  *   </CollapsibleSection>
+ *
+ * v2.31.0 (Interior UI Transformation Phase 3, Part 11 -- "COLLAPSIBLE:
+ * smooth expand/collapse" was named explicitly). Content previously
+ * popped in/out instantly (`{open && <div>}`) while only the chevron
+ * animated -- the exact same CSS-grid technique already proven on
+ * AuthenticatedLayout's own sidebar sub-menus (`grid-template-rows`
+ * 0fr/1fr, no JS height measurement, respects `prefers-reduced-motion`
+ * automatically since it's a plain CSS transition) applied here so every
+ * consumer of this shared component gets a real smooth expand for free.
  */
 export default function CollapsibleSection({ title, description, defaultOpen = false, children }) {
     const [open, setOpen] = useState(defaultOpen);
@@ -39,9 +48,13 @@ export default function CollapsibleSection({ title, description, defaultOpen = f
                     <span className="block text-sm font-medium text-graphite-700 dark:text-slate-200">{title}</span>
                     {description && <span className="block text-xs text-graphite-400 dark:text-slate-500">{description}</span>}
                 </span>
-                <ChevronDown className={cn('h-4 w-4 shrink-0 text-graphite-400 transition-transform', open && 'rotate-180')} />
+                <ChevronDown className={cn('h-4 w-4 shrink-0 text-graphite-400 transition-transform duration-200', open && 'rotate-180')} />
             </button>
-            {open && <div className="space-y-4 border-t border-graphite-100 px-3 py-3 dark:border-slate-800">{children}</div>}
+            <div className={cn('grid transition-[grid-template-rows] duration-200 ease-in-out', open ? 'grid-rows-[1fr]' : 'grid-rows-[0fr]')}>
+                <div className="overflow-hidden">
+                    <div className="space-y-4 border-t border-graphite-100 px-3 py-3 dark:border-slate-800">{children}</div>
+                </div>
+            </div>
         </div>
     );
 }

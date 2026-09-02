@@ -7,12 +7,24 @@ import { Button } from '@/Components/ui/button';
 import { Badge } from '@/Components/ui/badge';
 import { Select, SelectTrigger, SelectValue, SelectContent, SelectItem } from '@/Components/ui/select';
 import { Search, Plus, ChevronLeft, ChevronRight, MapPin, Users } from 'lucide-react';
+import { cn } from '@/lib/utils';
 
 const STATUS_VARIANT = {
     planned: 'secondary',
     ongoing: 'success',
     completed: 'outline',
     cancelled: 'destructive',
+};
+
+// v2.31.0 (Interior UI Transformation Phase 3, Part 6): extends the same
+// accent-bar convention StatCard already established -- a project's
+// status now carries real color weight on its own card, not just inside
+// a small Badge in the corner.
+const STATUS_ACCENT_BAR = {
+    planned: 'bg-graphite-300',
+    ongoing: 'bg-success',
+    completed: 'bg-brand-500',
+    cancelled: 'bg-danger',
 };
 
 export default function ProjectsIndex({ projects, companies, filters, can }) {
@@ -86,8 +98,9 @@ export default function ProjectsIndex({ projects, companies, filters, can }) {
                     </Card>
                 ) : projects.data.map((project) => (
                     <Link key={project.id} href={route('projects.show', project.id)}>
-                        <Card className="h-full transition-shadow hover:shadow-card-hover">
-                            <CardContent className="p-3.5">
+                        <Card className="group relative h-full overflow-hidden transition-all duration-200 hover:shadow-card-hover motion-safe:hover:-translate-y-0.5">
+                            <span className={cn('absolute inset-y-0 left-0 w-[3px]', STATUS_ACCENT_BAR[project.status] || 'bg-graphite-300')} aria-hidden="true" />
+                            <CardContent className="p-3.5 pl-4">
                                 <div className="mb-2 flex items-start justify-between gap-2">
                                     <h3 className="text-[13px] font-semibold text-graphite-900">{project.name}</h3>
                                     <Badge variant={STATUS_VARIANT[project.status]} className="shrink-0 capitalize">{project.status}</Badge>

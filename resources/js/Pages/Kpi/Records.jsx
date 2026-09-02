@@ -6,7 +6,8 @@ import { Button } from '@/Components/ui/button';
 import { Table, TableHeader, TableBody, TableRow, TableHead, TableCell } from '@/Components/ui/table';
 import { Select, SelectTrigger, SelectValue, SelectContent, SelectItem } from '@/Components/ui/select';
 import EmptyState from '@/Components/shared/EmptyState';
-import { ArrowLeft, ChevronLeft, ChevronRight, BarChart3 } from 'lucide-react';
+import StatCard from '@/Components/shared/StatCard';
+import { ArrowLeft, ChevronLeft, ChevronRight, BarChart3, TrendingDown, TrendingUp } from 'lucide-react';
 
 /**
  * The destination for Dashboard's clickable KPI cards (v1.5.2) -- one row
@@ -33,7 +34,31 @@ export default function KpiRecords({ records, categories, companies, filters, av
                 <h1 className="text-[22px] font-semibold tracking-tight text-graphite-900">
                     KPI Records {activeCategory && <span className="text-graphite-400">&middot; {activeCategory.name}</span>}
                 </h1>
-                <p className="mt-1 text-sm text-graphite-500">{records.total} kejadian sesuai filter saat ini.</p>
+                <p className="mt-1 text-sm text-graphite-500">Setiap kejadian KPI yang tercatat, bisa difilter per kategori dan periode.</p>
+            </div>
+
+            {/* v2.31.0 (Interior UI Transformation Phase 3, Part 7/8):
+                this page is a real event log -- a table is genuinely the
+                right structure for it, per this pass's own "don't turn
+                tabular data into decorative cards" instruction -- but it
+                previously had NO summary at all before the raw table,
+                just a bare "N events matched" sentence. One real,
+                data-driven primary KPI card now leads instead: the exact
+                same `records.total` the old sentence stated, presented
+                as the same informational-card family as the rest of the
+                product, with a semantic accent (red/green) once a
+                specific category is filtered -- not a fabricated
+                breakdown, since a category's own cross-page total isn't
+                data this page has (`records.data` is only the current
+                page). */}
+            <div className="mb-4 grid grid-cols-2 gap-3 sm:grid-cols-4">
+                <StatCard
+                    icon={activeCategory ? (activeCategory.is_negative ? TrendingDown : TrendingUp) : BarChart3}
+                    value={records.total}
+                    label={activeCategory ? activeCategory.name : 'Total Records'}
+                    accent={activeCategory ? (activeCategory.is_negative ? 'red' : 'green') : undefined}
+                    hint={activeCategory ? 'kategori terpilih' : 'seluruh kategori'}
+                />
             </div>
 
             {/* v2.24.0 (Complete Product UI/UX Transformation, cont'd --

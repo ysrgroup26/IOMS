@@ -13,8 +13,13 @@ import { cn } from '@/lib/utils';
 // spec's "Button: 12px" exactly. `sm`/`icon` left as their own smaller,
 // deliberately-secondary scale -- the spec's number is for the everyday
 // primary/secondary button, not every size variant.
+// v2.31.0 (Interior UI Transformation Phase 3, Part 11 -- "BUTTON: press
+// feedback" named explicitly): a tiny `active:scale-[0.98]` on every
+// button in the app, motion-safe-guarded so a `prefers-reduced-motion`
+// user gets none of it -- the smallest possible real interaction fix,
+// deliberately not a new animation dependency.
 const buttonVariants = cva(
-    'inline-flex items-center justify-center gap-1.5 whitespace-nowrap rounded-lg text-xs font-medium transition-colors focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2 disabled:pointer-events-none disabled:opacity-50 [&_svg]:shrink-0',
+    'inline-flex items-center justify-center gap-1.5 whitespace-nowrap rounded-lg text-xs font-medium transition-colors motion-safe:active:scale-[0.98] focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2 disabled:pointer-events-none disabled:opacity-50 [&_svg]:shrink-0',
     {
         variants: {
             variant: {

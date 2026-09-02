@@ -16,7 +16,18 @@ import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogFooter, DialogT
 import { Plus, Trash2, Pencil, Download, Upload, Loader2, Lock, Search } from 'lucide-react';
 import { WORKSPACES } from '@/lib/workspaces';
 
-const TAB_CLASS = 'rounded-md px-4 py-1.5 text-sm font-medium text-graphite-500 data-[state=active]:bg-brand-50 data-[state=active]:text-brand-700';
+// v2.31.0: added transition-colors so the active-tab tinted surface
+// change reads as a smooth state change, not an instant snap -- the
+// same micro-interaction convention this pass introduces on ModuleTabNav
+// and Table row hover.
+const TAB_CLASS = 'rounded-md px-4 py-1.5 text-sm font-medium text-graphite-500 transition-colors duration-150 hover:text-graphite-800 data-[state=active]:bg-brand-50 data-[state=active]:text-brand-700';
+
+// v2.31.0 (Interior UI Transformation Phase 3, Part 9): a plain vertical
+// rule between Settings' tab clusters -- purely visual grouping, not a
+// Tabs.Trigger, so it carries no RBAC/routing behavior of its own.
+function TabDivider() {
+    return <span className="mx-1 hidden h-5 w-px shrink-0 bg-graphite-200 sm:block" aria-hidden="true" />;
+}
 
 // Milestone 3 (UAT #1/#3/#7 -- identity clarity): matches
 // User::roleLabel()'s own mapping exactly -- see that method's doc
@@ -57,21 +68,38 @@ export default function SettingsIndex({ company, companies, departments, positio
                 defaultValue={new URLSearchParams(window.location.search).get('tab') || (canSystem ? 'branding' : 'departments')}
                 className="space-y-4"
             >
-                <Tabs.List className="inline-flex flex-wrap rounded-lg border border-graphite-200 bg-white p-1 shadow-sm">
+                {/* v2.31.0 (Interior UI Transformation Phase 3, Part 9):
+                    16 tabs in one undifferentiated row read as a "giant
+                    CRUD wall" -- exactly the problem this pass names.
+                    Grouped into 5 logical clusters (Company, Master Data,
+                    People & Access, Workflow & Documents, System) with a
+                    visible divider between them -- same Tabs.Trigger
+                    elements, same values, same conditional RBAC gates,
+                    same tab bodies below; this changes only how the list
+                    reads, not which tab does what or who can see it. */}
+                <Tabs.List className="inline-flex flex-wrap items-center gap-x-1 gap-y-1 rounded-lg border border-graphite-200 bg-white p-1 shadow-sm">
                     {canSystem && <Tabs.Trigger value="branding" className={TAB_CLASS}>Branding</Tabs.Trigger>}
                     {canSystem && <Tabs.Trigger value="modules" className={TAB_CLASS}>Module Visibility</Tabs.Trigger>}
                     {canSystem && <Tabs.Trigger value="companies" className={TAB_CLASS}>Companies</Tabs.Trigger>}
+                    {canSystem && <TabDivider />}
+
                     <Tabs.Trigger value="departments" className={TAB_CLASS}>Departments</Tabs.Trigger>
                     <Tabs.Trigger value="positions" className={TAB_CLASS}>Positions</Tabs.Trigger>
                     <Tabs.Trigger value="kpi-categories" className={TAB_CLASS}>KPI Categories</Tabs.Trigger>
+                    <TabDivider />
+
                     <Tabs.Trigger value="authentication" className={TAB_CLASS}>Authentication</Tabs.Trigger>
                     {(canSystem || canPtwAccess) && <Tabs.Trigger value="users" className={TAB_CLASS}>Users</Tabs.Trigger>}
                     {canSystem && <Tabs.Trigger value="roles" className={TAB_CLASS}>Roles &amp; Permissions</Tabs.Trigger>}
+                    {canSystem && <TabDivider />}
+
                     {canSystem && <Tabs.Trigger value="numbering" className={TAB_CLASS}>Numbering</Tabs.Trigger>}
                     {canSystem && <Tabs.Trigger value="approval-flows" className={TAB_CLASS}>Approval Flow</Tabs.Trigger>}
                     {canSystem && <Tabs.Trigger value="notifications" className={TAB_CLASS}>Notifications</Tabs.Trigger>}
                     {canSystem && <Tabs.Trigger value="documents" className={TAB_CLASS}>Documents</Tabs.Trigger>}
                     {canSystem && <Tabs.Trigger value="field-mapping" className={TAB_CLASS}>Import/Export Mapping</Tabs.Trigger>}
+                    {canSystem && <TabDivider />}
+
                     {canSystem && <Tabs.Trigger value="subscription" className={TAB_CLASS}>Subscription</Tabs.Trigger>}
                     {canSystem && <Tabs.Trigger value="backup" className={TAB_CLASS}>Backup &amp; Restore</Tabs.Trigger>}
                 </Tabs.List>

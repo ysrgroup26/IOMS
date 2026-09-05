@@ -2,10 +2,12 @@
 
 namespace App\Models;
 
+use App\Concerns\HasSecureDocument;
 use Illuminate\Database\Eloquent\Model;
 
 class PpeReplacementRequestItem extends Model
 {
+    use HasSecureDocument;
     protected $fillable = [
         'ppe_replacement_request_id',
         'employee_ppe_id',
@@ -32,6 +34,18 @@ class PpeReplacementRequestItem extends Model
 
     public function getDocumentationPhotoUrlAttribute(): ?string
     {
-        return $this->documentation_photo_path ? asset('storage/'.$this->documentation_photo_path) : null;
+        return $this->documentation_photo_path ? $this->secureDocumentUrl() : null;
+    }
+
+    /** v2.38.0 (Master Audit): see App\Concerns\HasSecureDocument. */
+    public function secureDocumentPathColumn(): string
+    {
+        return 'documentation_photo_path';
+    }
+
+    /** v2.38.0 (Master Audit): no company_id of its own -- ownership resolves through its parent. */
+    public function secureDocumentOwnerCompanyId(): ?int
+    {
+        return $this->replacementRequest?->company_id;
     }
 }

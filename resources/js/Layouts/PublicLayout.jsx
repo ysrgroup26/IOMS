@@ -108,7 +108,7 @@ export default function PublicLayout({ children }) {
                                 next to it in the one spot (footer) that
                                 appears on every public page. */}
                             <p className="mt-3 text-sm font-medium text-graphite-700">Industrial Operations Platform</p>
-                            <p className="text-xs text-graphite-400">Integrated Operations Management System</p>
+                            <p className="text-xs text-graphite-400">Industrial Operations Platform</p>
                         </div>
                         <div>
                             <p className="text-xs font-semibold uppercase tracking-wide text-graphite-400">Platform</p>

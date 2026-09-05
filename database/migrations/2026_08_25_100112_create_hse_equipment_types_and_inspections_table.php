@@ -187,6 +187,14 @@ return new class extends Migration
     /** Converts a table to InnoDB in place if (and only if) it isn't already -- see class doc comment. Column defs/PK/data untouched. */
     private function ensureInnoDb(string $table): void
     {
+        // v2.37.0 (Master Audit, P1): storage engines and
+        // `information_schema` are MySQL concepts -- querying them threw
+        // on any other driver and blocked non-MySQL test databases from
+        // provisioning. The MySQL path below is unchanged.
+        if (DB::getDriverName() !== 'mysql') {
+            return;
+        }
+
         if (! Schema::hasTable($table)) {
             return;
         }
@@ -204,6 +212,18 @@ return new class extends Migration
     /** Adds a named foreign key only if it doesn't already exist -- makes this migration safe to re-run against a partially-created table. */
     private function addForeignKeyIfMissing(string $table, string $constraintName, \Closure $define): void
     {
+        // v2.37.0 (Master Audit, P1): `information_schema` is MySQL-only.
+        // The "does this FK already exist" guard exists to make this
+        // migration re-runnable against a partially-created MySQL table;
+        // a freshly-provisioned non-MySQL test database is never in that
+        // partial state, so defining the key directly is both correct and
+        // the only portable option. MySQL behaviour is unchanged.
+        if (DB::getDriverName() !== 'mysql') {
+            Schema::table($table, $define);
+
+            return;
+        }
+
         $row = DB::selectOne(
             "select 1 as found from information_schema.table_constraints
              where constraint_schema = database() and table_name = ? and constraint_name = ? and constraint_type = 'FOREIGN KEY'",

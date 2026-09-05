@@ -144,6 +144,19 @@ class ProjectController extends Controller
 
     public function update(UpdateProjectRequest $request, Project $project): RedirectResponse
     {
+        // v2.37.0 (Master Audit, P0-1). CONFIRMED cross-tenant WRITE.
+        // `edit()` directly above, `show()`, `destroy()` and
+        // `manageManpower()` all call `$this->authorize(...)`; only
+        // `update()` never did -- and `UpdateProjectRequest::authorize()`
+        // checks ONLY the role capability (`canManageProjects()`), never
+        // ownership. `ProjectPolicy::update()` has carried the correct
+        // `belongsToCurrentTenant()` check since v1.11.7 -- it was simply
+        // never invoked on this path, so any user with the Projects role
+        // in tenant A could PUT /projects/{id} against tenant B's project
+        // and overwrite it. This restores the policy call the rest of the
+        // controller already relies on; no policy/role/schema change.
+        $this->authorize('update', $project);
+
         $project->update($request->validated());
 
         ActivityLog::record('updated', "Project {$project->name} was updated.", $project);

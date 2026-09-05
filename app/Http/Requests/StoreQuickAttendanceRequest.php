@@ -3,6 +3,7 @@
 namespace App\Http\Requests;
 
 use Illuminate\Foundation\Http\FormRequest;
+use App\Rules\InCurrentTenant;
 
 class StoreQuickAttendanceRequest extends FormRequest
 {
@@ -18,7 +19,7 @@ class StoreQuickAttendanceRequest extends FormRequest
             'record_date' => ['required', 'date'],
             'remarks' => ['nullable', 'string', 'max:1000'],
             'employee_ids' => ['required', 'array', 'min:1'],
-            'employee_ids.*' => ['exists:employees,id'],
+            'employee_ids.*' => [new InCurrentTenant('employees')],
         ];
     }
 

@@ -5,6 +5,7 @@ namespace App\Http\Requests;
 use App\Models\Task;
 use Illuminate\Foundation\Http\FormRequest;
 use Illuminate\Validation\Rule;
+use App\Rules\InCurrentTenant;
 
 class StoreTaskRequest extends FormRequest
 {
@@ -27,7 +28,7 @@ class StoreTaskRequest extends FormRequest
             'task_type' => ['nullable', 'string', 'max:100'],
             'related_module' => ['nullable', 'string', 'max:100'],
             'related_record_id' => ['nullable', 'integer'],
-            'company_id' => ['nullable', 'exists:companies,id'],
+            'company_id' => ['nullable', new InCurrentTenant('companies')],
             'assigned_user_id' => ['nullable', 'exists:users,id'],
             'due_date' => ['nullable', 'date'],
             'start_date' => ['nullable', 'date'],

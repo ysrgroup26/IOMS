@@ -3,6 +3,7 @@
 namespace App\Http\Requests;
 
 use Illuminate\Foundation\Http\FormRequest;
+use App\Rules\InCurrentTenant;
 
 class StoreDailyReportRequest extends FormRequest
 {
@@ -14,7 +15,7 @@ class StoreDailyReportRequest extends FormRequest
     public function rules(): array
     {
         return [
-            'project_id' => ['required', 'exists:projects,id'],
+            'project_id' => ['required', new InCurrentTenant('projects')],
             'report_date' => ['required', 'date'],
             // A project may have multiple reports on the same date (different
             // departments, shifts, or activities), so no uniqueness rule here.

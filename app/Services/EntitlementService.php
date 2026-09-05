@@ -139,6 +139,67 @@ class EntitlementService
         return $tenant?->subscription?->package?->max_ptw_users;
     }
 
+    /**
+     * v2.38.0 (Master Audit, P1 -- CONFIRMED unenforced entitlement).
+     *
+     * The commercial rule is `max_ptw_users <= max_users`: a Starter
+     * tenant with 15 seats and 15 PTW seats may hold at most 15 accounts.
+     * The PTW half of that rule was carefully enforced (see
+     * `canEnablePtwAccess()` and its caller's row-locking transaction).
+     * The PARENT half was not enforced anywhere at all:
+     * `Subscription::seatLimit()` was only ever READ for display
+     * (PlatformController's tenant list, Settings' subscription panel)
+     * and validated as an input when a Platform Admin edits a plan --
+     * never checked when a tenant actually creates a user.
+     *
+     * Effect: any tenant could create unlimited accounts regardless of
+     * the plan they pay for -- direct revenue leakage in a seat-based
+     * SaaS, and it broke the subset invariant from the parent side (a
+     * tenant could hold 500 accounts while their plan sold 15).
+     *
+     * `seatLimit()` (not `package->max_users`) is deliberately the source
+     * of truth here, because a Platform Admin can override seats per
+     * tenant via `subscriptions.seat_limit`; reading the package
+     * directly would silently ignore that override. Null still means
+     * unlimited, matching every other quota in this service.
+     */
+    public function userSeatLimit(?Tenant $tenant): ?int
+    {
+        return $tenant?->subscription?->seatLimit();
+    }
+
+    /**
+     * Every account belonging to this tenant, active or not.
+     *
+     * NOTE (commercial semantics, deliberately conservative): a
+     * deactivated user still consumes a seat under this definition. That
+     * matches "50 total accounts maximum" as written, and mirrors
+     * `ptwUsersUsedCount()`, which likewise ignores `is_active`. If the
+     * business would rather free a seat on deactivation, this one method
+     * is the only place that has to change -- flagged in the report
+     * rather than decided unilaterally, since it is a pricing decision.
+     */
+    public function usersUsedCount(?Tenant $tenant): int
+    {
+        if (! $tenant) {
+            return 0;
+        }
+
+        return User::where('tenant_id', $tenant->id)->count();
+    }
+
+    /**
+     * Server-side gate for creating a new user account. Mirrors
+     * `canEnablePtwAccess()` exactly, including the null-means-unlimited
+     * convention, so both halves of the seat rule behave identically.
+     */
+    public function canCreateUser(?Tenant $tenant): bool
+    {
+        $limit = $this->userSeatLimit($tenant);
+
+        return $limit === null || $this->usersUsedCount($tenant) < $limit;
+    }
+
     /** How many of this tenant's OWN users currently have `ptw_access = true` right now. Tenant-scoped via `tenant_id` -- Tenant A can never consume Tenant B's quota. */
     public function ptwUsersUsedCount(?Tenant $tenant): int
     {

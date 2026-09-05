@@ -100,7 +100,7 @@ class ReportCenterController extends Controller
 
         $pdf = Pdf::loadView('exports.analytics-dataset-pdf', [
             'dataset' => $dataset,
-            'companyName' => CompanySetting::get('company_name', 'Integrated Operations Management System'),
+            'companyName' => CompanySetting::get('company_name', config('ioms.name')),
         ])->setPaper('a4', 'portrait');
 
         return $pdf->download($key.'.pdf');

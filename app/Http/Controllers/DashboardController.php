@@ -20,6 +20,7 @@ use App\Models\Task;
 use App\Models\WorkOrder;
 use App\Services\CalendarService;
 use App\Services\DashboardStatsService;
+use App\Services\TenantReadinessService;
 use App\Services\WorkCenterService;
 use Illuminate\Http\Request;
 use Illuminate\Support\Carbon;
@@ -30,6 +31,7 @@ class DashboardController extends Controller
 {
     public function __construct(
         private readonly DashboardStatsService $stats,
+        private readonly TenantReadinessService $readiness,
         private readonly CalendarService $calendar,
         private readonly WorkCenterService $workCenter,
     ) {}
@@ -137,6 +139,10 @@ class DashboardController extends Controller
             'availableYears' => $this->availableYears(),
             'currentMonth' => now()->format('F Y'),
             'companies' => Company::active()->orderBy('name')->get(['id', 'name']),
+            // v2.39.0: lets the dashboard tell "healthy zero" apart from
+            // "no data yet". See TenantReadinessService for why an empty
+            // system must never be rendered as a healthy one.
+            'readiness' => $this->readiness->snapshot(),
             'summary' => $this->stats->summaryCards($year, $month, $companyId),
             'companyHeadcount' => $this->stats->companyHeadcount(),
             'departmentDistribution' => $this->stats->departmentDistribution($companyId),

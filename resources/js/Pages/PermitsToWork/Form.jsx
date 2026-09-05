@@ -4,11 +4,11 @@ import { Card, CardContent, CardHeader, CardTitle, CardDescription } from '@/Com
 import { Button } from '@/Components/ui/button';
 import { Input } from '@/Components/ui/input';
 import { Label } from '@/Components/ui/label';
-import { Badge } from '@/Components/ui/badge';
 import { Textarea } from '@/Components/ui/textarea';
 import { Select, SelectTrigger, SelectValue, SelectContent, SelectItem } from '@/Components/ui/select';
 import CollapsibleSection from '@/Components/shared/CollapsibleSection';
-import { ArrowLeft, ShieldCheck, Users, X } from 'lucide-react';
+import EmployeeSelector from '@/Components/shared/EmployeeSelector';
+import { ArrowLeft, ShieldCheck, Users } from 'lucide-react';
 
 /**
  * v2.4.0 (PTW UX + Field Operations pass, Phase 1). Was previously one
@@ -24,7 +24,50 @@ import { ArrowLeft, ShieldCheck, Users, X } from 'lucide-react';
  * are untouched. Every grid now has an explicit `sm:` fallback so it
  * stacks on a phone instead of staying 2 columns squeezed.
  */
-export default function PermitToWorkForm({ companies, projects, riskAssessments, jsas, ptwNumber, types, employees }) {
+/**
+ * v2.38.0 -- PTW time defaults. CONFIRMED BUG being fixed here: the
+ * previous defaults were `new Date().toISOString().slice(0, 16)`.
+ * `toISOString()` always returns UTC, but a `datetime-local` input
+ * expects LOCAL wall-clock time. For a user in WIB (UTC+7) opening the
+ * form at 16:37, the field pre-filled 09:37 -- seven hours earlier -- and
+ * that wrong value was what got submitted unless the user noticed and
+ * corrected it. This is the most likely source of the reported
+ * "UI says 4:37 PM, PDF says 08:37" discrepancy: not a PDF formatting
+ * fault at all, but a wrong value written at creation time.
+ *
+ * `toLocalInput()` below formats local wall-clock time instead, which is
+ * what the control actually asks for.
+ *
+ * Business rule for the end default (per product direction): end at
+ * 17:00 the same day, but if the permit is opened at/after 17:00 the
+ * same-day default would already be in the past -- so it rolls to 17:00
+ * the NEXT day. Both fields remain fully editable; server-side
+ * `after:start_datetime` validation is unchanged and still authoritative.
+ */
+function toLocalInput(date) {
+    const pad = (n) => String(n).padStart(2, '0');
+
+    return `${date.getFullYear()}-${pad(date.getMonth() + 1)}-${pad(date.getDate())}T${pad(date.getHours())}:${pad(date.getMinutes())}`;
+}
+
+function defaultStart() {
+    return toLocalInput(new Date());
+}
+
+function defaultEnd() {
+    const now = new Date();
+    const end = new Date(now);
+
+    end.setHours(17, 0, 0, 0);
+
+    if (end <= now) {
+        end.setDate(end.getDate() + 1);
+    }
+
+    return toLocalInput(end);
+}
+
+export default function PermitToWorkForm({ companies, projects, riskAssessments, jsas, ptwNumber, types }) {
     const { auth } = usePage().props;
     const { data, setData, post, processing, errors } = useForm({
         company_id: companies[0]?.id ? String(companies[0].id) : '',
@@ -34,15 +77,16 @@ export default function PermitToWorkForm({ companies, projects, riskAssessments,
         permit_type: 'hot_work',
         work_description: '',
         location: '',
-        start_datetime: new Date().toISOString().slice(0, 16),
-        end_datetime: new Date(Date.now() + 8 * 3600 * 1000).toISOString().slice(0, 16),
+        start_datetime: defaultStart(),
+        end_datetime: defaultEnd(),
         required_qualification: '',
         precautions: '',
         // v2.17.0 (PTW Field Workflow Foundation, Part 8/9): both
         // optional. `pic_employee_id` is a single Employee; `personnel_ids`
-        // an arbitrary-length list of Employee ids, never free text --
-        // both selected from the same tenant-scoped, active-only
-        // `employees` prop the backend already validated against.
+        // an arbitrary-length list of Employee ids, never free text.
+        // v2.38.0: sourced via EmployeeSelector -> /employee-lookup
+        // (tenant-scoped, active-only) instead of a preloaded prop; the
+        // backend still validates every id with `InCurrentTenant`.
         pic_employee_id: '',
         personnel_ids: [],
     });
@@ -52,16 +96,10 @@ export default function PermitToWorkForm({ companies, projects, riskAssessments,
         post(route('permits-to-work.store'));
     }
 
-    function addPersonnel(id) {
-        if (!id || data.personnel_ids.includes(id)) return;
-        setData('personnel_ids', [...data.personnel_ids, id]);
-    }
-
-    function removePersonnel(id) {
-        setData('personnel_ids', data.personnel_ids.filter((p) => p !== id));
-    }
-
-    const selectedPersonnel = (employees || []).filter((e) => data.personnel_ids.includes(String(e.id)));
+    // v2.38.0: `addPersonnel`/`removePersonnel`/`selectedPersonnel` and
+    // the `employees` prop they depended on are gone -- EmployeeSelector
+    // owns selection state and resolves names itself, so this page no
+    // longer needs the whole directory in its payload.
 
     return (
         <AuthenticatedLayout>
@@ -159,40 +197,37 @@ export default function PermitToWorkForm({ companies, projects, riskAssessments,
                         <CardDescription>Siapa yang terlibat dalam pekerjaan ini?</CardDescription>
                     </CardHeader>
                     <CardContent className="space-y-4">
+                        {/* v2.38.0: both selectors were a plain `<Select>` fed
+                            by the entire preloaded employee directory --
+                            unusable past a few dozen workers, and the reason
+                            free-text was tempting for this field. Replaced
+                            with the shared `EmployeeSelector`, which searches
+                            server-side and groups by department. The stored
+                            value is still a real Employee FK, so "which
+                            permits was this person responsible for?" stays
+                            answerable. */}
                         <div className="space-y-1.5">
-                            <Label>PIC / Supervisor Lapangan (optional)</Label>
-                            <Select value={data.pic_employee_id || 'none'} onValueChange={(v) => setData('pic_employee_id', v === 'none' ? '' : v)}>
-                                <SelectTrigger><SelectValue placeholder="None" /></SelectTrigger>
-                                <SelectContent>
-                                    <SelectItem value="none">None</SelectItem>
-                                    {(employees || []).map((e) => <SelectItem key={e.id} value={String(e.id)}>{e.full_name}{e.department?.name ? ` -- ${e.department.name}` : ''}</SelectItem>)}
-                                </SelectContent>
-                            </Select>
+                            <Label>Penanggung Jawab Pekerjaan (opsional)</Label>
+                            <EmployeeSelector
+                                mode="single"
+                                value={data.pic_employee_id}
+                                onChange={(v) => setData('pic_employee_id', v)}
+                                placeholder="Cari penanggung jawab..."
+                            />
+                            <p className="text-xs text-graphite-400">
+                                Orang yang bertanggung jawab atas pelaksanaan pekerjaan di lapangan &mdash; berbeda dari pemohon izin.
+                            </p>
                             {errors.pic_employee_id && <p className="text-xs text-red-600">{errors.pic_employee_id}</p>}
                         </div>
                         <div className="space-y-1.5">
-                            <Label>Select Personnel (optional)</Label>
-                            <Select value="" onValueChange={addPersonnel}>
-                                <SelectTrigger><SelectValue placeholder="+ Add Personnel" /></SelectTrigger>
-                                <SelectContent>
-                                    {(employees || []).filter((e) => !data.personnel_ids.includes(String(e.id))).map((e) => (
-                                        <SelectItem key={e.id} value={String(e.id)}>{e.full_name}{e.department?.name ? ` -- ${e.department.name}` : ''}</SelectItem>
-                                    ))}
-                                </SelectContent>
-                            </Select>
-                            {selectedPersonnel.length > 0 && (
-                                <div className="flex flex-wrap gap-1.5 pt-1">
-                                    {selectedPersonnel.map((e) => (
-                                        <Badge key={e.id} variant="secondary" className="gap-1 pr-1">
-                                            {e.full_name}
-                                            <button type="button" onClick={() => removePersonnel(String(e.id))} className="rounded-full p-0.5 hover:bg-graphite-200 dark:hover:bg-slate-700">
-                                                <X className="h-2.5 w-2.5" />
-                                            </button>
-                                        </Badge>
-                                    ))}
-                                </div>
-                            )}
-                            <p className="text-xs text-graphite-400">Total: {selectedPersonnel.length} orang</p>
+                            <Label>Workforce / Personel (opsional)</Label>
+                            <EmployeeSelector
+                                mode="multiple"
+                                value={data.personnel_ids}
+                                onChange={(v) => setData('personnel_ids', v)}
+                                placeholder="Cari dan tambahkan personel..."
+                            />
+                            {errors.personnel_ids && <p className="text-xs text-red-600">{errors.personnel_ids}</p>}
                         </div>
                     </CardContent>
                 </Card>

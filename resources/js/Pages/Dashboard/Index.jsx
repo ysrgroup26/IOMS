@@ -22,7 +22,7 @@ import {
     Users, Building2, CalendarDays, HardHat, CheckCircle2, AlertTriangle, Plus, UserCog, ArrowRight,
     Sparkles, X, ClipboardCheck, ShoppingCart, Boxes, Box, Wrench, Flag, Clock,
     Eye, FileWarning, ShieldAlert, FlaskConical, GraduationCap, PackagePlus, PackageCheck,
-    ArrowRightLeft, FileStack, UserPlus, CheckSquare, Recycle, Lock,
+    ArrowRightLeft, FileStack, UserPlus, CheckSquare, Recycle, Lock, Circle,
 } from 'lucide-react';
 
 // v2.2.0 (IOMS OS Ecosystem pass, Part 5): matches every icon key
@@ -51,7 +51,7 @@ export default function Dashboard({
     activeProjectsCount, todaysActivities, upcomingReminders, pendingTasks, quickActions, employeesNeedCompletionCount,
     recentDailyReports, recentEmployeeChanges, showAnnouncement,
     openIncidentsCount, openCapaCount, pendingProcurementCount, stockAlertCount, assetCount, maintenanceDueCount,
-    upcomingEvents, manpower, manhours, projectSummary, upcomingMilestones,
+    upcomingEvents, manpower, manhours, projectSummary, upcomingMilestones, readiness,
 }) {
     const { auth, notifications, version } = usePage().props;
     const deptPrefixes = auth?.user?.department_prefixes ?? null;
@@ -201,6 +201,7 @@ export default function Dashboard({
                     now={now}
                     ltiCount={summary.categories.find((c) => c.code === 'lti')?.total ?? 0}
                     ppeAlertCount={notifications?.ppe_alert_count ?? 0}
+                    readiness={readiness}
                 />
             </div>
 
@@ -759,47 +760,106 @@ export default function Dashboard({
 // 2. The footer alert box now uses a real semantic surface (emerald/
 //    amber tinted background + border) instead of flat graphite-50 for
 //    BOTH states, so "good" reads as visibly good, not just "not bad."
-function HeroSummary({ name, now, ltiCount, ppeAlertCount }) {
+/**
+ * v2.39.0 -- THREE states, not two.
+ *
+ * This component previously had exactly two: `hasWarnings` (amber) or
+ * "✅ Great job! No critical issues detected today." (green). A brand-new
+ * tenant with an entirely empty database fell into the second one, so
+ * IOMS congratulated a customer on safety performance it had no data for
+ * -- verified in a browser on a genuinely empty tenant, where every KPI
+ * read 0 and the banner still said "Great job".
+ *
+ * A zero is only good news once something could have produced a non-zero.
+ * `readiness.is_operational` (see TenantReadinessService) carries that
+ * distinction, and the third state below says plainly what IOMS is
+ * waiting for instead of implying an all-clear.
+ *
+ * Deliberately NOT a wizard, tour or dismissible onboarding overlay: it
+ * is the same surface, telling the truth about the same numbers, and it
+ * disappears on its own the moment real workforce data exists.
+ */
+function HeroSummary({ name, now, ltiCount, ppeAlertCount, readiness }) {
+    const isOperational = readiness?.is_operational ?? true;
     const hasWarnings = ppeAlertCount > 0 || ltiCount > 0;
+    const pending = (readiness?.steps ?? []).filter((s) => !s.done);
+
+    const tone = !isOperational ? 'setup' : hasWarnings ? 'warning' : 'healthy';
 
     return (
         <Card className={cn(
             'shadow-card backdrop-blur-sm transition-colors duration-300',
-            hasWarnings ? 'border-amber-200/70 bg-gradient-to-br from-amber-50/50 via-white to-white' : 'border-graphite-200 bg-gradient-to-br from-brand-50/40 via-white to-white'
+            tone === 'warning' && 'border-amber-200/70 bg-gradient-to-br from-amber-50/50 via-white to-white',
+            tone === 'healthy' && 'border-graphite-200 bg-gradient-to-br from-brand-50/40 via-white to-white',
+            tone === 'setup' && 'border-brand-200/70 bg-gradient-to-br from-brand-50/60 via-white to-white'
         )}>
             <CardContent className="p-3.5">
                 <h2 className="text-[13px] font-bold text-graphite-900">{greetingFor(now)}, {name} 👋</h2>
-                <p className="mt-1 text-[11px] font-semibold uppercase tracking-wide text-graphite-400">Today's Alerts</p>
+                <p className="mt-1 text-[11px] font-semibold uppercase tracking-wide text-graphite-400">
+                    {tone === 'setup' ? 'Setup IOMS' : "Today's Alerts"}
+                </p>
 
-                <div className="mt-3 grid grid-cols-2 gap-3">
-                    <SummaryStat icon={AlertTriangle} value={formatNumber(ltiCount)} label="Lost Time Incidents" accent={ltiCount > 0 ? 'red' : null} />
-                    <SummaryStat icon={HardHat} value={formatNumber(ppeAlertCount)} label="PPE Alerts" accent={ppeAlertCount > 0 ? 'amber' : null} href={route('ppe.dashboard')} />
-                </div>
+                {tone === 'setup' ? (
+                    <>
+                        <p className="mt-2 text-[11px] leading-relaxed text-graphite-600">
+                            IOMS belum memantau data operasional apa pun. Angka nol di bawah berarti
+                            <span className="font-medium text-graphite-800"> belum ada data</span>, bukan kondisi aman.
+                        </p>
 
-                {/* Alert deliberately kept visually secondary (v1.6.7 Beta
-                    final polish) -- smaller icon and text, so it reads as
-                    a footnote to the statistics above it rather than
-                    competing with them -- but the SURFACE color is no
-                    longer neutral either way (v2.30.0). */}
-                <div className={cn(
-                    'mt-3 flex items-start gap-1.5 rounded-lg border px-3 py-1.5 text-[11px]',
-                    hasWarnings ? 'border-amber-200 bg-amber-50' : 'border-emerald-200 bg-emerald-50'
-                )}>
-                    {hasWarnings ? (
-                        <>
-                            <AlertTriangle className="mt-0.5 h-3.5 w-3.5 shrink-0 text-amber-500" />
-                            <span className="text-amber-800">
-                                {ppeAlertCount > 0 && <>⚠️ {ppeAlertCount} PPE item(s) require attention. </>}
-                                {ltiCount > 0 && <>⚠️ {ltiCount} Lost Time Incident(s) recorded this period.</>}
-                            </span>
-                        </>
-                    ) : (
-                        <>
-                            <CheckCircle2 className="mt-0.5 h-3.5 w-3.5 shrink-0 text-emerald-500" />
-                            <span className="text-emerald-800">✅ Great job! No critical issues detected today.</span>
-                        </>
-                    )}
-                </div>
+                        <div className="mt-3 space-y-1.5">
+                            {pending.slice(0, 3).map((step) => (
+                                <Link
+                                    key={step.key}
+                                    href={route(step.href)}
+                                    className="flex items-start gap-2 rounded-lg border border-graphite-200 bg-white/70 px-3 py-2 transition-colors hover:border-brand-300 hover:bg-brand-50/50"
+                                >
+                                    <Circle className="mt-0.5 h-3 w-3 shrink-0 text-brand-400" />
+                                    <span className="min-w-0">
+                                        <span className="block text-[11px] font-semibold text-graphite-800">{step.label}</span>
+                                        <span className="block text-[10px] leading-snug text-graphite-500">{step.description}</span>
+                                    </span>
+                                    <ArrowRight className="ml-auto mt-0.5 h-3 w-3 shrink-0 text-graphite-300" />
+                                </Link>
+                            ))}
+                        </div>
+
+                        <p className="mt-2 text-[10px] text-graphite-400">
+                            {readiness.completed} dari {readiness.total} langkah dasar selesai.
+                        </p>
+                    </>
+                ) : (
+                    <>
+                        <div className="mt-3 grid grid-cols-2 gap-3">
+                            <SummaryStat icon={AlertTriangle} value={formatNumber(ltiCount)} label="Lost Time Incidents" accent={ltiCount > 0 ? 'red' : null} />
+                            <SummaryStat icon={HardHat} value={formatNumber(ppeAlertCount)} label="PPE Alerts" accent={ppeAlertCount > 0 ? 'amber' : null} href={route('ppe.dashboard')} />
+                        </div>
+
+                        {/* Alert deliberately kept visually secondary (v1.6.7
+                            Beta final polish) -- smaller icon and text, so it
+                            reads as a footnote to the statistics above it
+                            rather than competing with them -- but the SURFACE
+                            color is no longer neutral either way (v2.30.0). */}
+                        <div className={cn(
+                            'mt-3 flex items-start gap-1.5 rounded-lg border px-3 py-1.5 text-[11px]',
+                            hasWarnings ? 'border-amber-200 bg-amber-50' : 'border-emerald-200 bg-emerald-50'
+                        )}>
+                            {hasWarnings ? (
+                                <>
+                                    <AlertTriangle className="mt-0.5 h-3.5 w-3.5 shrink-0 text-amber-500" />
+                                    <span className="text-amber-800">
+                                        {ppeAlertCount > 0 && <>⚠️ {ppeAlertCount} PPE item(s) require attention. </>}
+                                        {ltiCount > 0 && <>⚠️ {ltiCount} Lost Time Incident(s) recorded this period.</>}
+                                    </span>
+                                </>
+                            ) : (
+                                <>
+                                    <CheckCircle2 className="mt-0.5 h-3.5 w-3.5 shrink-0 text-emerald-500" />
+                                    <span className="text-emerald-800">✅ Great job! No critical issues detected today.</span>
+                                </>
+                            )}
+                        </div>
+                    </>
+                )}
             </CardContent>
         </Card>
     );

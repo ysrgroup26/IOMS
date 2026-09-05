@@ -20,7 +20,7 @@ return [
             'creator' => 'IOMS',
             'lastModifiedBy' => 'IOMS',
             'title' => 'HSE KPI Report',
-            'description' => 'Exported from Integrated Operations Management System (IOMS)',
+            'description' => 'Exported from '.config('ioms.name'),
             'subject' => 'HSE KPI Report',
             'keywords' => 'hse,kpi,operations,report',
             'category' => 'HSE',

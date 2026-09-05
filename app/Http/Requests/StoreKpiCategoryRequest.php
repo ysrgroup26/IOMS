@@ -5,6 +5,7 @@ namespace App\Http\Requests;
 use Illuminate\Foundation\Http\FormRequest;
 use Illuminate\Support\Str;
 use Illuminate\Validation\Rule;
+use App\Rules\InCurrentTenant;
 
 class StoreKpiCategoryRequest extends FormRequest
 {
@@ -40,7 +41,7 @@ class StoreKpiCategoryRequest extends FormRequest
             ],
             'short_label' => ['required', 'string', 'max:20'],
             'description' => ['nullable', 'string', 'max:1000'],
-            'company_id' => ['nullable', 'exists:companies,id'],
+            'company_id' => ['nullable', new InCurrentTenant('companies')],
             'is_negative' => ['boolean'],
             'show_on_dashboard' => ['boolean'],
             'count_in_dashboard_stats' => ['boolean'],

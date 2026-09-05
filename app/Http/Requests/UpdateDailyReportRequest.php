@@ -3,6 +3,7 @@
 namespace App\Http\Requests;
 
 use Illuminate\Foundation\Http\FormRequest;
+use App\Rules\InCurrentTenant;
 
 class UpdateDailyReportRequest extends FormRequest
 {
@@ -14,7 +15,7 @@ class UpdateDailyReportRequest extends FormRequest
     public function rules(): array
     {
         return [
-            'project_id' => ['required', 'exists:projects,id'],
+            'project_id' => ['required', new InCurrentTenant('projects')],
             'report_date' => ['required', 'date'],
             'department_name' => ['required', 'string', 'max:255'],
             'report_type' => ['required', 'in:normal,overtime'],

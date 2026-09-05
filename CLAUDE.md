@@ -6,13 +6,13 @@ using this document, which is kept current specifically so that isn't necessary.
 
 ## What this project is
 
-**IOMS (Integrated Operations Management System)** — formerly "Shipyard Management System,"
+**IOMS — Industrial Operations Platform** — formerly "Shipyard Management System,"
 formerly "SAFETY LOG." An enterprise operations platform for an industrial/HSE-heavy organization:
 employee records, PPE (personal protective equipment) lifecycle, KPI tracking and reporting,
 project manpower assignment, and an increasingly general-purpose workflow layer (Material Request
 today, more modules planned) built on shared, reusable engines rather than per-module one-offs.
 
-Current version: **1.6.10 Beta**. Check `config/ioms.php` (`version`, `stage`, `build`) for the
+Current version: **2.36.0 Beta**. Check `config/ioms.php` (`version`, `stage`, `build`) for the
 authoritative current number — this document doesn't restate it elsewhere to avoid it going stale
 in two places.
 

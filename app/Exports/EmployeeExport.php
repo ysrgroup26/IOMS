@@ -45,7 +45,7 @@ class EmployeeExport implements FromCollection, ShouldAutoSize, WithHeadings, Wi
      */
     public function properties(): array
     {
-        $companyName = CompanySetting::get('company_name', 'Integrated Operations Management System');
+        $companyName = CompanySetting::get('company_name', config('ioms.name'));
 
         return [
             'creator' => $companyName,

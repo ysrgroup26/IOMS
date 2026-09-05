@@ -82,6 +82,8 @@ use App\Http\Controllers\VendorQuotationController;
 use App\Http\Controllers\VisitorController;
 use App\Http\Controllers\WasteContainerController;
 use App\Http\Controllers\WasteDashboardController;
+use App\Http\Controllers\EmployeeLookupController;
+use App\Http\Controllers\SecureDocumentController;
 use App\Http\Controllers\WasteMasterController;
 use App\Http\Controllers\WasteMovementController;
 use App\Http\Controllers\WasteRecordController;
@@ -261,6 +263,24 @@ Route::middleware(['auth', 'restrict.platform-admin'])->group(function () {
     // down) -- viewing/printing an existing manifest is read access, not
     // a write action.
     Route::get('/waste-records/{wasteRecord}/movements/{wasteMovement}/pdf', [WasteMovementController::class, 'pdf'])->name('waste-movements.pdf');
+
+    // v2.38.0 (Master Audit, P1): authorized, tenant-checked delivery
+    // for tenant-sensitive uploaded documents. Sits inside the
+    // authenticated group, so an unauthenticated request is redirected
+    // to login rather than being served the file. The {type} segment is
+    // matched against an explicit whitelist in the controller and the
+    // storage path is read from the database row, never from the URL --
+    // see SecureDocumentController for the full reasoning.
+    // v2.38.0 (Master Audit): shared tenant-scoped employee lookup.
+    // Replaces preloading the whole employee directory into form
+    // payloads (7 controllers do this today). Read-only, capped, and
+    // available to any authenticated user who can already reach a form
+    // that needs to name an employee.
+    Route::get('/employee-lookup', [EmployeeLookupController::class, 'index'])->name('employee-lookup.index');
+
+    Route::get('/secure-documents/{type}/{id}', [SecureDocumentController::class, 'show'])
+        ->whereNumber('id')
+        ->name('secure-documents.show');
 
     // Safety Observation (Milestone 4, Workstream B1): list/detail viewable
     // by all roles; create/store/transition are canManageSafetyObservations()

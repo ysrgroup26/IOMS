@@ -13,7 +13,10 @@ import { resolvePageComponent } from 'laravel-vite-plugin/inertia-helpers';
 // fires on every Inertia visit, including the first, with that request's
 // page props available -- caching the company name from there keeps this
 // correct across the whole session without needing page-by-page changes.
-let liveCompanyName = 'Integrated Operations Management System';
+// v2.38.0: was the forbidden long-form name. This value seeds the
+// browser title before the first Inertia page resolves, so it was the
+// single most visible place the wrong product name appeared.
+let liveCompanyName = 'IOMS';
 router.on('navigate', (event) => {
     const name = event.detail?.page?.props?.company?.name;
     if (name) liveCompanyName = name;

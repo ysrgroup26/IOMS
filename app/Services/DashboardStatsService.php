@@ -130,7 +130,20 @@ class DashboardStatsService
         return Department::query()
             ->whereIn('company_id', $this->resolveCompanyIds($companyId))
             ->withCount(['employees' => fn ($q) => $q->active()])
-            ->having('employees_count', '>', 0)
+            // v2.38.0: was `->having('employees_count', '>', 0)`. `withCount`
+            // adds a correlated sub-select, and this query has no GROUP BY,
+            // so filtering on that alias via HAVING is non-standard SQL --
+            // MySQL tolerates it, SQLite rejects it outright ("HAVING clause
+            // on a non-aggregate query"), which meant this dashboard query
+            // 500'd on any non-MySQL database and could never be covered by
+            // the test suite. `whereHas` expresses exactly the same intent
+            // ("departments with at least one ACTIVE employee") in portable
+            // SQL and returns an identical result set.
+            //
+            // NOTE: the `having('total', ...)` further down this file is a
+            // DIFFERENT case -- it has a real GROUP BY, so it is valid
+            // standard SQL and was deliberately left alone.
+            ->whereHas('employees', fn ($q) => $q->active())
             ->get()
             ->map(fn ($d) => ['label' => $d->name, 'value' => $d->employees_count])
             ->values()

@@ -17,17 +17,71 @@ return [
     |
     */
 
-    'version' => '2.36.0',
+    'version' => '2.39.0',
 
     // Tester / Beta / Stable -- tracks the release stage explicitly.
     // Previously only implied in conversation, never actually stored.
     'stage' => 'Beta',
 
+    /*
+    |--------------------------------------------------------------------------
+    | Canonical Product Identity
+    |--------------------------------------------------------------------------
+    |
+    | v2.38.0. THE single source of truth for what this product is called.
+    | Added because a browser audit found the forbidden long-form name
+    | ("Integrated Operations Management System") hardcoded as a fallback in
+    | TWELVE separate places -- app.jsx, the Inertia shared props, four
+    | Excel/PDF export classes, the About dialog, layout tooltips and
+    | config/excel.php -- so it silently surfaced in browser titles AND in
+    | generated documents whenever a tenant had not set its own company
+    | name. IOMS is a standalone product brand, like SAP or Oracle; the
+    | expansion is not the product name and must not be used as branding.
+    |
+    | `descriptor` is the optional positioning line, never a substitute for
+    | the name itself.
+    |
+    */
+
+    'name' => 'IOMS',
+
+    'descriptor' => 'Industrial Operations Platform',
+
     'edition' => 'Enterprise Edition',
 
-    'build' => '2026.09.02.22',
+    'build' => '2026.09.05.01',
 
-    'release_date' => '2026-09-02',
+    'release_date' => '2026-09-05',
+
+    /*
+    |--------------------------------------------------------------------------
+    | Display timezone
+    |--------------------------------------------------------------------------
+    |
+    | v2.37.0 (Master Audit, P1 -- confirmed defect). `APP_TIMEZONE` is UTC,
+    | which is correct for STORAGE and must not change. The bug was in
+    | PRESENTATION: the PTW PDF formatted Carbon instances directly
+    | (`$permit->start_datetime->format('d M Y H:i')`), printing the raw
+    | UTC wall clock, while the React views ran `new Date(iso)
+    | .toLocaleString()`, printing the *viewer's browser* timezone. Same
+    | instant, two different clock faces -- an exact 8-hour disagreement
+    | for a WITA (UTC+8) user, which is precisely the PDF-vs-UI mismatch
+    | reported from production.
+    |
+    | Worse than the mismatch itself: because the web side followed each
+    | device, two users in different timezones saw DIFFERENT validity
+    | windows for the same Permit to Work. A permit reading
+    | "08:37 - 17:00" to one person and "16:37 - 01:00" to another is a
+    | materially different safety document.
+    |
+    | This is the single timezone every human-facing rendering of a stored
+    | instant resolves against, so a document reads identically for every
+    | viewer regardless of device. Storage stays UTC; only display is
+    | pinned. Env-overridable per deployment rather than hardcoded, since
+    | IOMS is a standardized multi-tenant product, not one customer's app.
+    |
+    */
+    'display_timezone' => env('IOMS_DISPLAY_TIMEZONE', 'Asia/Jakarta'),
 
     'developer' => 'Yofhanza Shultona Rizqi S.',
 
@@ -62,6 +116,9 @@ return [
     */
 
     'version_history' => [
+        ['version' => '2.39.0', 'date' => '2026-09-05', 'summary' => 'Truthful zero states + repository consolidation. Browser-verified on a genuinely empty tenant: the Dashboard congratulated a brand-new customer with "Great job! No critical issues detected today," and HSE Overview rendered six KPI cards reading 0 in the healthy GREEN accent plus "Tidak ada yang terlambat saat ini" -- an all-clear asserted on a database with no employees and no records of any kind. For an HSE platform that is a safety claim nothing supports. Added TenantReadinessService (ONE memoised EXISTS query, no new table, no persisted onboarding state, no wizard -- derived live so it self-corrects), shared as a `readiness` Inertia prop for signed-in tenant users only. DashboardShell gained a single-line qualifying notice, which cascades to all nine department Overviews with zero per-controller wiring. StatCard now encodes "green is a claim": a positive semantic accent downgrades to neutral when no data could have produced it, while amber/red pass through untouched so a real warning is never silently muted. Propagated the honest pattern HSE Man-Hour already used ("--" plus an explicit unavailable reason) rather than inventing a second language for it. Also documented -- with a passing characterisation test -- a confirmed cross-tenant defect in company_settings (see ROADMAP "BLOCKED"); no schema change made. Brand integrity: the forbidden long-form product name removed from CompanySettingSeeder (a fresh install seeded it, and it then reached PDFs, Excel exports and the app shell), README, CHANGELOG and CLAUDE.md.'],
+        ['version' => '2.38.0', 'date' => '2026-09-04', 'summary' => 'SaaS foundation (Master Audit P1). SecureDocumentController: authenticated, tenant-checked document delivery driven by a whitelist registry keyed by type + record id, with the path read from the database and never from the URL -- it streams from the new private disk OR the legacy public disk, so it ships with ZERO file migration. Subscription seat limits were previously only ever DISPLAYED, never enforced -- user creation now checks entitlement inside a locking transaction, reusing the exact shape already proven for the PTW quota. EmployeeSelector added as a shared platform primitive: seven controllers were preloading an entire employee directory into the page payload just to render a <select>, unusable at the 1,500-3,000 headcount IOMS targets; it is async, debounced, out-of-order-response guarded, department-grouped and id-hydrating, backed by a tenant-scoped EmployeeLookupController capped at 50 rows. Deliberately NOT built on Combobox (that one is free-text-over-preloaded-strings) and deliberately NOT solved by making pic_name free text, which would have destroyed the ability to answer "which permits was this person responsible for?" -- exactly what an HSE audit asks.'],
+        ['version' => '2.37.0', 'date' => '2026-09-03', 'summary' => 'Security + testability (Master Audit P0). Three CONFIRMED cross-tenant defects fixed after auditing all 172 route-model-bound controller methods (163 were already correctly guarded): ProjectController::update never invoked its policy, allowing a cross-tenant WRITE; PpeController and TaskController allowed cross-tenant READS of employee PII, the latter handling a nullable tasks.company_id. Added the reusable InCurrentTenant validation rule, replacing unscoped `exists:` across 17 FormRequests so a submitted foreign id can no longer reference another tenant record; it memoises the tenant company set per rule instance so wildcard rules do not issue one lookup per row. Automated testing was impossible before this release and is now unblocked: phpunit.xml simply did not exist, and six migrations used MySQL-only syntax (MODIFY COLUMN, multi-table UPDATE ... JOIN, information_schema) that no other driver could run -- each is now driver-aware with the MySQL path preserved byte-identical, so production behaviour is unchanged and all 148 migrations provision on SQLite. Also fixed a real PTW timezone defect: the form seeded datetime-local inputs from an ISO/UTC string, the likely root cause of the reported "UI 4:37 PM vs PDF 08:37" mismatch.'],
         ['version' => '2.36.0', 'date' => '2026-09-02', 'summary' => 'Visual System 2.0: a genuine, visible transformation rather than another token-only pass. Added two new design tokens completing the directional palette (navy, steel) to the existing brand/graphite/semantic system -- no parallel color system. Dashboard\'s hero banner rebuilt from a barely-tinted white box into a real deep-navy-to-IOMS-blue "Command Center" surface (white text, an explicit "IOMS · Industrial Operations Platform" eyebrow, filter controls restyled for the dark surface). DashboardShell -- the one shared component every department Overview (HSE, Warehouse, Logistics, Procurement, Project Management, Assets, Maintenance, Quality Control) already composes through -- rebuilt from plain PageHeader into a soft steel/blue "domain summary surface," deliberately lighter than the Dashboard hero so Dashboard-vs-Overview stays visually distinct while both read as part of the same system; every existing caller gets this automatically, no page-level changes needed. Sidebar gained a subtle top-to-bottom tint (was flat white); TopBar gained a faint blue-tinted backdrop. PeriodFilter gained an optional triggerClassName so its selects can be restyled for a dark surface without duplicating the component. No business logic, RBAC, tenant isolation, PTW workflow, or database changes.'],
         ['version' => '2.35.0', 'date' => '2026-09-02', 'summary' => 'Visual System + Information Architecture Refinement: fixed a real reported mobile bottom-nav bug -- visibleNav\'s own "Dashboard" entry was duplicating the hardcoded "Home" tab (both pointing at the same route), and grouped items (e.g. HSE\'s "Permit & Work Safety") were skipped entirely, so PTW could never reach the bar while unrelated top-level items like Waste Management filled the slots instead. Rebuilt the candidate logic to dedupe Dashboard, surface each group\'s first real child (generic, not HSE-specific), and deprioritize Waste Management out of the primary slots per this pass\'s explicit direction -- Waste remains fully reachable via Overview/sidebar/More, only demoted from this one high-frequency bar. Renamed the pinned first slot "Home" -> "Dashboard" (there is no separate Home concept). AuthenticatedLayout\'s background gained a second, bottom-of-viewport tint layer addressing the repeated "too white" production finding -- the v2.29.0 tint only reached the top-left corner of a tall scrolled page. Most of this phase\'s scope (Dashboard vs Overview distinction, HSE Inventory, Digital Checklist, PTW Access, Waste language/workflow, landing page positioning, password visibility) was audited and confirmed already correctly addressed in prior phases (ae83d48 and earlier) -- not re-touched without a confirmed gap. No migrations, no RBAC/tenant-isolation/PTW-workflow/entitlement changes.'],
         ['version' => '2.34.0', 'date' => '2026-09-02', 'summary' => 'Post-Deployment Product Gap pass: audit-first review of six named production concerns found each was either already fully built (just undiscoverable) or genuinely absent. HSE Inventory (APAR/P3K/HT/safety cones) already existed in full under "HSE Master Data" -- relabeled to "Equipment & Master Data" with an explicit subtitle instead of being rebuilt. "Digital Checklist" (a Dashboard/Field Home quick-action label) and the sidebar\'s "Inspection" item were the same hse-inspections feature under two different names -- sidebar relabeled to match. PTW Access management existed only inside Settings > Users with zero sidebar entry point -- added one (same queryParams.tab pattern Administration items already use, no new authorization gate). Legal & Compliance confirmed genuinely absent (broad codebase search for license/regulatory/statutory/compliance found nothing) -- reported as missing, not fabricated. Waste Management\'s remaining English explanatory text (Dashboard/Form/Index/Show subtitles, an EmptyState, a CardDescription) naturalized to Indonesian per the established hybrid-language rule; Waste module/field names stayed English. Confirmed the "HSE-heavy Dashboard" concern in production actually describes Field/Home.jsx (a distinct, intentionally task-first page for the narrow is_department_user account type), not the actual Dashboard/Index.jsx (already cross-domain and already restructured in v2.29.0) -- documented, not conflated. No migrations, no RBAC/tenant-isolation/PTW-workflow/entitlement changes.'],

@@ -2,6 +2,8 @@
 
 namespace App\Models;
 
+use App\Concerns\HasSecureDocument;
+
 use App\Concerns\HasWorkflow;
 use App\Services\NumberGeneratorService;
 use Illuminate\Database\Eloquent\Model;
@@ -10,6 +12,7 @@ use Illuminate\Database\Eloquent\SoftDeletes;
 /** Milestone 4, Acceleration Part 6 (Document Control Foundation). See the owning migration's own doc comment on how this differs from DocumentTemplate. */
 class ControlledDocument extends Model
 {
+    use HasSecureDocument;
     use HasWorkflow, SoftDeletes;
 
     public const STATUS_DRAFT = 'draft';
@@ -69,7 +72,7 @@ class ControlledDocument extends Model
 
     public function getFileUrlAttribute(): ?string
     {
-        return $this->file_path ? asset('storage/'.$this->file_path) : null;
+        return $this->file_path ? $this->secureDocumentUrl() : null;
     }
 
     public static function generateNumber(?int $companyId = null): string

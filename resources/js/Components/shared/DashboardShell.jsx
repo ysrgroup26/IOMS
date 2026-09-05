@@ -1,3 +1,5 @@
+import { usePage, Link } from '@inertiajs/react';
+import { Info } from 'lucide-react';
 /**
  * v1.11.3 (Global Dashboard/Overview UX Rework, Part 7). A thin layout
  * wrapper so every dashboard/overview page shares the exact same
@@ -35,7 +37,27 @@
  *       ...
  *   </DashboardShell>
  */
+/**
+ * v2.39.0 -- truthful zero states on every department Overview.
+ *
+ * Browser-verified on an empty tenant: HSE Overview rendered six KPI
+ * cards reading 0 with GREEN accents (the "healthy" colour), plus
+ * "Tidak ada yang terlambat saat ini" -- an all-clear asserted on a
+ * database with no employees, no incidents and no records of any kind.
+ * Same class of defect as the Dashboard's "Great job!" banner.
+ *
+ * The notice below is deliberately ONE compact line rather than a card
+ * or a wizard: the point is to qualify the numbers already on screen,
+ * not to bury them. It reads the shared `readiness` prop (a single
+ * memoised EXISTS query, see TenantReadinessService) so all nine
+ * Overviews that compose through this shell get it without any
+ * per-controller wiring, and it disappears on its own the moment real
+ * workforce data exists.
+ */
 export default function DashboardShell({ title, subtitle, actions, children }) {
+    const { readiness } = usePage().props;
+    const notOperational = readiness ? readiness.is_operational === false : false;
+
     return (
         <>
             <div className="mb-4 flex flex-col items-start gap-3 rounded-xl bg-gradient-to-br from-steel-50 via-brand-50/40 to-white px-4 py-3.5 sm:flex-row sm:items-center sm:justify-between dark:from-slate-900 dark:via-slate-900 dark:to-slate-900">
@@ -45,6 +67,20 @@ export default function DashboardShell({ title, subtitle, actions, children }) {
                 </div>
                 {actions && <div className="flex w-full flex-wrap items-center gap-2 sm:w-auto">{actions}</div>}
             </div>
+            {notOperational && (
+                <div className="mb-4 flex items-start gap-2 rounded-lg border border-brand-200 bg-brand-50/60 px-3 py-2 dark:border-brand-900 dark:bg-brand-950/20">
+                    <Info className="mt-0.5 h-3.5 w-3.5 shrink-0 text-brand-500" />
+                    <p className="text-[11px] leading-snug text-graphite-700 dark:text-slate-300">
+                        Belum ada data workforce, jadi angka di bawah{' '}
+                        <span className="font-medium">belum mengukur apa pun</span> &mdash; nol di sini berarti{' '}
+                        <span className="font-medium">belum ada data</span>, bukan kondisi aman.{' '}
+                        <Link href={route('employees.index')} className="font-medium text-brand-700 underline-offset-2 hover:underline dark:text-brand-400">
+                            Tambah data karyawan
+                        </Link>
+                    </p>
+                </div>
+            )}
+
             <div className="space-y-4">{children}</div>
         </>
     );

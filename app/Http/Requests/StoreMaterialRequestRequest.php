@@ -3,6 +3,7 @@
 namespace App\Http\Requests;
 
 use Illuminate\Foundation\Http\FormRequest;
+use App\Rules\InCurrentTenant;
 
 class StoreMaterialRequestRequest extends FormRequest
 {
@@ -15,9 +16,9 @@ class StoreMaterialRequestRequest extends FormRequest
     {
         return [
             'request_date' => ['required', 'date'],
-            'company_id' => ['required', 'exists:companies,id'],
-            'project_id' => ['nullable', 'exists:projects,id'],
-            'department_id' => ['nullable', 'exists:departments,id'],
+            'company_id' => ['required', new InCurrentTenant('companies')],
+            'project_id' => ['nullable', new InCurrentTenant('projects')],
+            'department_id' => ['nullable', new InCurrentTenant('departments')],
             'status' => ['required', 'in:draft,submitted'],
             'notes' => ['nullable', 'string', 'max:2000'],
 

@@ -18,11 +18,25 @@ return new class extends Migration
      */
     public function up(): void
     {
-        DB::statement("ALTER TABLE material_requests MODIFY COLUMN status ENUM('draft', 'submitted', 'approved', 'rejected', 'processing', 'completed', 'cancelled') NOT NULL DEFAULT 'draft'");
+        // v2.37.0 (Master Audit, P1): MySQL-only DDL. `MODIFY COLUMN` is not
+        // portable and blocked ANY non-MySQL test database from provisioning
+        // (the real root cause behind this project having no test harness).
+        // Guarded rather than rewritten so the MySQL path stays byte-identical;
+        // on SQLite the column is dynamically typed, so widening is a no-op.
+        if (DB::getDriverName() === 'mysql') {
+            DB::statement("ALTER TABLE material_requests MODIFY COLUMN status ENUM('draft', 'submitted', 'approved', 'rejected', 'processing', 'completed', 'cancelled') NOT NULL DEFAULT 'draft'");
+        }
     }
 
     public function down(): void
     {
-        DB::statement("ALTER TABLE material_requests MODIFY COLUMN status ENUM('draft', 'submitted', 'approved', 'rejected', 'completed') NOT NULL DEFAULT 'draft'");
+        // v2.37.0 (Master Audit, P1): MySQL-only DDL. `MODIFY COLUMN` is not
+        // portable and blocked ANY non-MySQL test database from provisioning
+        // (the real root cause behind this project having no test harness).
+        // Guarded rather than rewritten so the MySQL path stays byte-identical;
+        // on SQLite the column is dynamically typed, so widening is a no-op.
+        if (DB::getDriverName() === 'mysql') {
+            DB::statement("ALTER TABLE material_requests MODIFY COLUMN status ENUM('draft', 'submitted', 'approved', 'rejected', 'completed') NOT NULL DEFAULT 'draft'");
+        }
     }
 };

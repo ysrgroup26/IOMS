@@ -32,9 +32,17 @@ import {
 export default function PublicWelcome({ plans }) {
     return (
         <PublicLayout>
-            <Head title="IOMS — Industrial Operations Management Platform">
+            {/* v2.39.0: the page title was "IOMS — Industrial Operations
+                Management Platform", which app.jsx then suffixed with
+                " - IOMS", producing the duplicated browser tab title
+                "IOMS — Industrial Operations Management Platform - IOMS".
+                It also introduced a THIRD descriptor variant ("Operations
+                Management Platform") alongside the canonical "Industrial
+                Operations Platform". The title here is now just the
+                descriptor -- app.jsx supplies the product name. */}
+            <Head title="Industrial Operations Platform">
                 <meta name="description" content="Connect field operations, HSE, workforce, and operational data in one platform." />
-                <meta property="og:title" content="IOMS — Industrial Operations Management Platform" />
+                <meta property="og:title" content="IOMS — Industrial Operations Platform" />
                 <meta property="og:description" content="Connect field operations, HSE, workforce, and operational data in one platform." />
                 <meta property="og:type" content="website" />
             </Head>
@@ -706,7 +714,7 @@ function HowItWorks() {
 /* Section: FAQ                                                        */
 /* ------------------------------------------------------------------ */
 const FAQS = [
-    { q: 'What is IOMS?', a: 'IOMS (Integrated Operations Management System) is an industrial operations management platform connecting field operations, HSE, workforce data, and operational reporting.' },
+    { q: 'What is IOMS?', a: 'IOMS is an Industrial Operations Platform connecting field operations, HSE, workforce data, and operational reporting.' },
     { q: 'Who is IOMS for?', a: 'Industrial companies -- shipyards, construction, manufacturing, engineering, logistics, energy, and industrial services -- that need to manage field work, HSE compliance, and operational data together.' },
     { q: 'Is IOMS only for HSE?', a: 'No. HSE is one of the strongest parts of IOMS, but the platform also covers field operations, people/workforce, and broader operational data.' },
     { q: 'Can field users create PTWs?', a: 'Yes. A field/operations user can be granted individual PTW Access, letting them submit a Permit To Work directly from the Field experience -- HSE still reviews and approves it.' },

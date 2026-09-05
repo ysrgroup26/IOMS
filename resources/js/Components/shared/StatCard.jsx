@@ -1,4 +1,4 @@
-import { Link } from '@inertiajs/react';
+import { Link, usePage } from '@inertiajs/react';
 import { Card, CardContent } from '@/Components/ui/card';
 import { cn } from '@/lib/utils';
 
@@ -45,6 +45,24 @@ import { cn } from '@/lib/utils';
  *    color change.
  */
 export default function StatCard({ icon: Icon, value, label, hint, href, accent, size = 'default' }) {
+    // v2.39.0 -- GREEN IS A CLAIM.
+    //
+    // Callers across the app write `accent={x > 0 ? 'red' : 'green'}`,
+    // which is correct once data exists but actively misleading before
+    // it does: browser-verified on an empty tenant, HSE Overview showed
+    // six KPI cards reading 0 in the healthy colour, on a database with
+    // no employees and no records at all. Green there is not a
+    // measurement, it is an unsupported assertion about safety.
+    //
+    // Encoded here rather than in each caller because it is a property
+    // of the design system, not of any one page: a positive semantic
+    // colour requires data behind it. Only `green` is downgraded --
+    // amber/red stay untouched, since a warning that turns out to be
+    // unmeasurable should still be visible rather than silently muted.
+    const { readiness } = usePage().props;
+    const claimsUnsupported = readiness ? readiness.is_operational === false : false;
+    const effectiveAccent = claimsUnsupported && accent === 'green' ? 'neutral' : accent;
+
     const accentClasses = {
         red: { chip: 'bg-danger-light text-danger dark:bg-red-950/40 dark:text-red-400', bar: 'bg-danger' },
         amber: { chip: 'bg-warning-light text-warning dark:bg-amber-950/40 dark:text-amber-400', bar: 'bg-warning' },
@@ -52,13 +70,13 @@ export default function StatCard({ icon: Icon, value, label, hint, href, accent,
         purple: { chip: 'bg-violet-50 text-violet-600 dark:bg-violet-950/40 dark:text-violet-400', bar: 'bg-violet-500' },
         neutral: { chip: 'bg-graphite-100 text-graphite-500 dark:bg-slate-800 dark:text-slate-400', bar: 'bg-graphite-300' },
     };
-    const resolved = accentClasses[accent] || { chip: 'bg-brand-50 text-brand-600 dark:bg-brand-950/40 dark:text-brand-400', bar: 'bg-brand-500' };
+    const resolved = accentClasses[effectiveAccent] || { chip: 'bg-brand-50 text-brand-600 dark:bg-brand-950/40 dark:text-brand-400', bar: 'bg-brand-500' };
     const isSmall = size === 'sm';
 
     const content = (
         <Card className={cn('group relative h-full overflow-hidden rounded-[10px] bg-white/85 backdrop-blur-sm transition-all duration-200 hover:shadow-card-hover motion-safe:hover:-translate-y-0.5 dark:bg-slate-900/85', href && 'cursor-pointer')}>
-            {accent && <span className={cn('absolute inset-y-0 left-0 w-[3px]', resolved.bar)} aria-hidden="true" />}
-            <CardContent className={cn('flex items-center', isSmall ? 'gap-2 p-2.5' : 'gap-2.5 p-3', accent && 'pl-3.5')}>
+            {effectiveAccent && <span className={cn('absolute inset-y-0 left-0 w-[3px]', resolved.bar)} aria-hidden="true" />}
+            <CardContent className={cn('flex items-center', isSmall ? 'gap-2 p-2.5' : 'gap-2.5 p-3', effectiveAccent && 'pl-3.5')}>
                 <div className={cn('flex shrink-0 items-center justify-center transition-transform duration-200 group-hover:scale-105', isSmall ? 'h-7 w-7 rounded-[9px]' : 'h-8 w-8 rounded-[9px]', resolved.chip)}>
                     <Icon className={isSmall ? 'h-[15px] w-[15px]' : 'h-4 w-4'} />
                 </div>

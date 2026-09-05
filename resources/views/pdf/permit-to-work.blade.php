@@ -127,8 +127,15 @@
                     <td class="meta-label">Location</td><td class="meta-colon"></td><td>{{ $permit->location ?? '-' }}</td>
                 </tr>
                 <tr>
-                    <td class="meta-label">Valid From</td><td class="meta-colon"></td><td>{{ $permit->start_datetime->format('d M Y H:i') }}</td>
-                    <td class="meta-label">Valid Until</td><td class="meta-colon"></td><td>{{ $permit->end_datetime->format('d M Y H:i') }}</td>
+                    {{-- v2.37.0 (Master Audit): CONFIRMED defect. These
+                         printed the raw UTC wall clock while the web UI
+                         printed the viewer's browser timezone -- an exact
+                         8h disagreement for a UTC+8 user, i.e. the
+                         PDF-vs-UI mismatch reported from production. Both
+                         sides now resolve against the one configured
+                         display timezone. Stored values are untouched. --}}
+                    <td class="meta-label">Valid From</td><td class="meta-colon"></td><td>{{ $permit->start_datetime->timezone(config('ioms.display_timezone'))->format('d M Y H:i') }}</td>
+                    <td class="meta-label">Valid Until</td><td class="meta-colon"></td><td>{{ $permit->end_datetime->timezone(config('ioms.display_timezone'))->format('d M Y H:i') }}</td>
                 </tr>
             </table>
             <p class="field-label" style="margin-top: 8px;">Work Description</p>

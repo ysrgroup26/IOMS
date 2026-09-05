@@ -20,7 +20,14 @@ return new class extends Migration
      */
     public function up(): void
     {
-        DB::statement("ALTER TABLE users MODIFY COLUMN role VARCHAR(20) NOT NULL DEFAULT 'hrd'");
+        // v2.37.0 (Master Audit, P1): MySQL-only DDL. `MODIFY COLUMN` is not
+        // portable and blocked ANY non-MySQL test database from provisioning
+        // (the real root cause behind this project having no test harness).
+        // Guarded rather than rewritten so the MySQL path stays byte-identical;
+        // on SQLite the column is dynamically typed, so widening is a no-op.
+        if (DB::getDriverName() === 'mysql') {
+            DB::statement("ALTER TABLE users MODIFY COLUMN role VARCHAR(20) NOT NULL DEFAULT 'hrd'");
+        }
 
         DB::table('users')->where('role', 'admin')->update(['role' => 'super_admin']);
         // 'hrd' rows require no change.
@@ -31,6 +38,13 @@ return new class extends Migration
         DB::table('users')->where('role', 'super_admin')->update(['role' => 'admin']);
         DB::table('users')->whereIn('role', ['hse', 'manager'])->update(['role' => 'hrd']);
 
-        DB::statement("ALTER TABLE users MODIFY COLUMN role ENUM('admin','hrd') NOT NULL DEFAULT 'hrd'");
+        // v2.37.0 (Master Audit, P1): MySQL-only DDL. `MODIFY COLUMN` is not
+        // portable and blocked ANY non-MySQL test database from provisioning
+        // (the real root cause behind this project having no test harness).
+        // Guarded rather than rewritten so the MySQL path stays byte-identical;
+        // on SQLite the column is dynamically typed, so widening is a no-op.
+        if (DB::getDriverName() === 'mysql') {
+            DB::statement("ALTER TABLE users MODIFY COLUMN role ENUM('admin','hrd') NOT NULL DEFAULT 'hrd'");
+        }
     }
 };

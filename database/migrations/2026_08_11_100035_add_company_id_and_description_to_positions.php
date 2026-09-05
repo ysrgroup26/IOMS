@@ -32,12 +32,29 @@ return new class extends Migration
             $table->text('description')->nullable()->after('name');
         });
 
-        DB::statement('
-            UPDATE positions
-            INNER JOIN departments ON departments.id = positions.department_id
-            SET positions.company_id = departments.company_id
-            WHERE positions.company_id IS NULL
-        ');
+        // v2.37.0 (Master Audit, P1): multi-table `UPDATE ... INNER JOIN`
+        // is MySQL-specific syntax and blocked non-MySQL test databases
+        // from provisioning. The MySQL path is preserved byte-identical;
+        // other drivers get the portable correlated-subquery equivalent,
+        // which produces exactly the same result set.
+        if (DB::getDriverName() === 'mysql') {
+            DB::statement('
+                UPDATE positions
+                INNER JOIN departments ON departments.id = positions.department_id
+                SET positions.company_id = departments.company_id
+                WHERE positions.company_id IS NULL
+            ');
+        } else {
+            DB::statement('
+                UPDATE positions
+                SET company_id = (
+                    SELECT departments.company_id
+                    FROM departments
+                    WHERE departments.id = positions.department_id
+                )
+                WHERE positions.company_id IS NULL
+            ');
+        }
 
         $gajId = DB::table('companies')->where('name', 'GAJ')->value('id');
         if ($gajId) {

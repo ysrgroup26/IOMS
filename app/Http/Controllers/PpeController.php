@@ -102,6 +102,17 @@ class PpeController extends Controller
      */
     public function employeeProfile(Request $request, Employee $employee): Response
     {
+        // v2.37.0 (Master Audit, P0-2). CONFIRMED cross-tenant READ of
+        // personal data. {employee} route-model-binding carries no
+        // TenantScope of its own (that scope applies to Company only --
+        // see App\Models\Scopes\TenantScope) and this method had no
+        // ownership check at all, so any authenticated user could read
+        // ANY tenant's employee identity (name, company, department)
+        // plus their complete PPE issuance history by id. Same guard
+        // shape as `assertReplacementRequestInCurrentTenant()` further
+        // down this same controller.
+        abort_unless(Company::query()->pluck('id')->contains($employee->company_id), 404);
+
         $employee->load('company:id,name', 'department:id,name');
 
         $assignments = EmployeePpe::query()

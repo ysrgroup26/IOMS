@@ -2,11 +2,13 @@
 
 namespace App\Models;
 
+use App\Concerns\HasSecureDocument;
 use Illuminate\Database\Eloquent\Model;
 
 /** Milestone 4, Workstream C3 (Vendor Quotation). See the owning migration's own doc comment. */
 class VendorQuotation extends Model
 {
+    use HasSecureDocument;
     public const STATUSES = ['submitted', 'withdrawn'];
 
     protected $fillable = [
@@ -50,6 +52,12 @@ class VendorQuotation extends Model
 
     public function getAttachmentUrlAttribute(): ?string
     {
-        return $this->attachment_path ? asset('storage/'.$this->attachment_path) : null;
+        return $this->attachment_path ? $this->secureDocumentUrl() : null;
+    }
+
+    /** v2.38.0 (Master Audit): see App\Concerns\HasSecureDocument. */
+    public function secureDocumentPathColumn(): string
+    {
+        return 'attachment_path';
     }
 }

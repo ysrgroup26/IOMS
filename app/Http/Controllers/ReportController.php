@@ -70,7 +70,7 @@ class ReportController extends Controller
             'report' => $report,
             'year' => $year,
             'month' => $month,
-            'companyName' => CompanySetting::get('company_name', 'Integrated Operations Management System'),
+            'companyName' => CompanySetting::get('company_name', config('ioms.name')),
         ])->setPaper('a4', 'landscape');
 
         $filename = "hse-kpi-report-{$year}".($month ? "-{$month}" : '').'.pdf';

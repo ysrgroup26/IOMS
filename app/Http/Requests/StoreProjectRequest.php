@@ -3,6 +3,7 @@
 namespace App\Http\Requests;
 
 use Illuminate\Foundation\Http\FormRequest;
+use App\Rules\InCurrentTenant;
 
 class StoreProjectRequest extends FormRequest
 {
@@ -14,7 +15,7 @@ class StoreProjectRequest extends FormRequest
     public function rules(): array
     {
         return [
-            'company_id' => ['required', 'exists:companies,id'],
+            'company_id' => ['required', new InCurrentTenant('companies')],
             'name' => ['required', 'string', 'max:255'],
             'vessel_name' => ['nullable', 'string', 'max:255'],
             'start_date' => ['nullable', 'date'],

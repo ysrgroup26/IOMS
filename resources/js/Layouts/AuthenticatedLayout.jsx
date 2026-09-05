@@ -228,7 +228,7 @@ export default function AuthenticatedLayout({ children }) {
                 <button
                     onClick={() => setAboutOpen(true)}
                     className="flex shrink-0 items-start gap-2 border-b border-graphite-100 px-4 pb-1.5 pt-3 text-left transition-colors hover:bg-graphite-50/80 dark:border-slate-800 dark:hover:bg-slate-900/60"
-                    title="About Integrated Operations Management System"
+                    title="About IOMS"
                 >
                     <div className="min-w-0 flex-1 overflow-visible">
                         <BrandWordmark className="h-[72px] w-auto max-w-full -ml-[22px] object-contain" />
@@ -445,7 +445,7 @@ function TopBar({ onOpenSidebar, isDepartmentUser, departments, activeWorkspace,
     // white bar -- still translucent/backdrop-blur, still reads as
     // chrome, not a data surface.
     return (
-        <header className="sticky top-0 z-30 flex h-14 items-center gap-3 border-b border-graphite-200 bg-white/80 bg-gradient-to-r from-brand-50/40 via-white/80 to-white/80 px-5 shadow-sm backdrop-blur dark:border-slate-800 dark:bg-slate-950/80">
+        <header className="sticky top-0 z-30 flex h-14 items-center gap-2 border-b border-graphite-200 bg-white/80 bg-gradient-to-r from-brand-50/40 via-white/80 to-white/80 px-3 shadow-sm backdrop-blur sm:gap-3 sm:px-5 dark:border-slate-800 dark:bg-slate-950/80">
             <button className="lg:hidden" onClick={onOpenSidebar}>
                 <Menu className="h-5 w-5 text-graphite-500" />
             </button>
@@ -453,10 +453,19 @@ function TopBar({ onOpenSidebar, isDepartmentUser, departments, activeWorkspace,
             {/* Dashboard: the Global Dashboard, NOT a Department -- always
                 pinned and visible for both Administrator and Department
                 User experiences, reachable independent of whatever
-                department (if any) is currently active. */}
+                department (if any) is currently active.
+
+                v2.38.0: hidden below `sm`. Browser testing at 320px showed
+                the header overflowing horizontally (354px of controls in a
+                320px viewport). Dashboard is the one header control that is
+                genuinely DUPLICATED on mobile -- MobileBottomNav pins it as
+                its first tab -- so hiding it here removes redundancy rather
+                than function, and is what brings the header back inside the
+                viewport at 320px. It returns at sm: and up, where the bottom
+                nav is not rendered. */}
             <Link
                 href={route('dashboard')}
-                className="flex h-8 items-center gap-1.5 rounded-md px-2.5 text-xs font-medium text-graphite-600 transition-colors hover:bg-graphite-50 dark:text-slate-300 dark:hover:bg-slate-800"
+                className="hidden h-8 items-center gap-1.5 rounded-md px-2.5 text-xs font-medium text-graphite-600 transition-colors hover:bg-graphite-50 sm:flex dark:text-slate-300 dark:hover:bg-slate-800"
             >
                 <LayoutDashboard className="h-3.5 w-3.5 shrink-0" />
                 <span className="hidden sm:inline">Dashboard</span>

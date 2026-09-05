@@ -155,15 +155,15 @@ class PermitToWorkController extends Controller
             'jsas' => JobSafetyAnalysis::whereIn('company_id', $tenantCompanyIds)->where('status', JobSafetyAnalysis::STATUS_APPROVED)->get(['id', 'jsa_number', 'job_title']),
             'ptwNumber' => PermitToWork::generateNumber(),
             'types' => PermitToWork::TYPES,
-            // v2.17.0 (Part 8/9/11): the PIC/Workforce selector's data
-            // source -- reuses the existing Employee Master directly
-            // (tenant-scoped via company_id, active only per Part 11's
-            // "inactive employees should generally not be selectable"),
-            // never a second employee directory.
-            'employees' => Employee::whereIn('company_id', $tenantCompanyIds)->active()
-                ->with('department:id,name')
-                ->orderBy('full_name')
-                ->get(['id', 'full_name', 'department_id']),
+            // v2.38.0: the `employees` prop is GONE. It used to ship this
+            // tenant's entire active employee directory into the page
+            // payload just to populate two <select> elements -- fine for
+            // 40 staff, a multi-megabyte payload and an unusable dropdown
+            // for the 1,500-3,000-worker sites IOMS targets. The form now
+            // uses the shared `EmployeeSelector`, which queries
+            // `/employee-lookup` on demand (tenant-scoped, capped,
+            // department-grouped). Employee Master remains the single
+            // source of truth; only the delivery mechanism changed.
         ]);
     }
 

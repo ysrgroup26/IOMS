@@ -886,7 +886,28 @@ class SettingsController extends Controller
         // User::isPlatformAdmin()) and fail every Company-scoped query
         // closed for itself (TenantScope).
         $data['tenant_id'] = $request->user()->tenant_id;
-        $user = User::create($data);
+
+        // v2.38.0 (Master Audit, P1). Seat quota was never enforced on
+        // this path: `Subscription::seatLimit()` was only ever displayed,
+        // so a tenant could create unlimited accounts regardless of the
+        // plan they pay for. Enforced here with the SAME shape already
+        // proven on `updatePtwAccess()` below -- lock this tenant's user
+        // rows inside the transaction, re-count under the lock, then
+        // create -- so two concurrent "Add User" requests cannot both
+        // pass a stale count and jointly exceed the limit.
+        $tenant = $request->user()->tenant;
+
+        $user = DB::transaction(function () use ($data, $tenant) {
+            User::where('tenant_id', $tenant?->id)->lockForUpdate()->get();
+
+            abort_unless(
+                app(EntitlementService::class)->canCreateUser($tenant),
+                422,
+                'Kuota pengguna paket Anda telah tercapai. Hubungi administrator untuk menambah kapasitas.'
+            );
+
+            return User::create($data);
+        });
 
         ActivityLog::record('created', "User {$user->name} ({$user->role}) was created.", $user);
 

@@ -3,6 +3,7 @@
 namespace App\Http\Requests;
 
 use Illuminate\Foundation\Http\FormRequest;
+use App\Rules\InCurrentTenant;
 
 class AddManpowerRequest extends FormRequest
 {
@@ -17,7 +18,7 @@ class AddManpowerRequest extends FormRequest
             // Employees are always CHOSEN from Employee Master, never typed --
             // this validates against real employee IDs only.
             'employee_ids' => ['required', 'array', 'min:1'],
-            'employee_ids.*' => ['exists:employees,id'],
+            'employee_ids.*' => [new InCurrentTenant('employees')],
         ];
     }
 }

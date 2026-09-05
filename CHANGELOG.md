@@ -1,6 +1,6 @@
 # Changelog
 
-All notable changes to **Integrated Operations Management System (IOMS)** (formerly Shipyard
+All notable changes to **IOMS — Industrial Operations Platform** (formerly Shipyard
 Management System, formerly SAFETY LOG) are documented here. This project adheres to
 [Semantic Versioning](https://semver.org/).
 

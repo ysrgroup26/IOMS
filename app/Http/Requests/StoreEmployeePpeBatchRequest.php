@@ -3,6 +3,7 @@
 namespace App\Http\Requests;
 
 use Illuminate\Foundation\Http\FormRequest;
+use App\Rules\InCurrentTenant;
 
 class StoreEmployeePpeBatchRequest extends FormRequest
 {
@@ -21,7 +22,7 @@ class StoreEmployeePpeBatchRequest extends FormRequest
     public function rules(): array
     {
         return [
-            'employee_id' => ['required', 'exists:employees,id'],
+            'employee_id' => ['required', new InCurrentTenant('employees')],
             'items' => ['required', 'array', 'min:1'],
             'items.*.ppe_type_id' => ['required', 'exists:ppe_types,id'],
             'items.*.issued_date' => ['required', 'date'],

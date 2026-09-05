@@ -1,4 +1,4 @@
-# Integrated Operations Management System (IOMS)
+# IOMS — Industrial Operations Platform
 
 **Industrial Operations Platform** — a clean, fast operations management app built for daily HSE
 work across industrial sectors (Shipyard, Mining, Construction, Manufacturing, Oil & Gas, Energy).

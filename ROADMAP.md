@@ -324,13 +324,31 @@ tasks need their own notification trigger).
 
 ---
 
-## 🧭 Near-term — Settings > Branding UI (architecture already in place)
+## ⛔ BLOCKED — Settings > Branding UI (do NOT build until tenant scoping is fixed)
 
 `company_settings` keys for `brand_wordmark_path`, `brand_icon_path`, `watermark_enabled` (+
 per-context variants), and `watermark_opacity` are already read by `HandleInertiaRequests` with
 correct fallbacks (v1.5.3) — a future Settings > Branding page only needs to add upload fields
 that write to these keys (reusing the existing `ImageUploadField` component from v1.5.2) and the
 rest of the app picks up the change automatically, with no other code changes required.
+
+**v2.39.0 CORRECTION — the paragraph above is wrong and this work is blocked.** Empirically
+verified in `tests/Feature/CompanySettingTenantScopeTest.php`: `company_settings` has NO tenant
+discriminator. Its `key` column carries a PLATFORM-WIDE `unique()` constraint, so exactly one row
+can exist per key for every tenant combined, and `CompanySetting::get()` caches under a single
+global `company_setting:{key}` key. Consequences, all confirmed by test:
+
+- Tenant B READS Tenant A company name, logo path, address, phone, email and brand colour.
+- Tenant B SAVING its branding DESTROYS Tenant A branding — `updateOrCreate([key])` overwrites
+  the single shared row.
+- The leak reaches generated artifacts, not just the shell: `DocumentEngine` (every PDF),
+  `EmployeeExport` / `KpiReportExport` (Excel), `ReportController`, `ReportCenterController`,
+  `AnalyticsController` and `NotificationService` all read these keys.
+
+Adding the upload UI described above would therefore hand every tenant a button that silently
+rebrands every other tenant, including on documents already issued. Fix the storage model first
+(tenant discriminator + composite unique + tenant-scoped cache key + a backfill decision for
+existing ambiguous rows); the UI is straightforward afterwards.
 
 ---
 

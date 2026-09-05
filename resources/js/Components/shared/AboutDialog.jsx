@@ -35,7 +35,7 @@ export default function AboutDialog({ open, onOpenChange }) {
                     <BrandIcon className="h-14 w-14" />
                     <BrandWordmark className="mt-3 h-8 w-auto" />
                     <DialogTitle className="mt-3 text-sm font-medium text-graphite-600 dark:text-slate-300">
-                        Integrated Operations Management System
+                        IOMS &mdash; Industrial Operations Platform
                     </DialogTitle>
                     <span className="mt-1 rounded-full bg-graphite-100 px-2.5 py-0.5 text-[10px] font-semibold uppercase tracking-wide text-graphite-500 dark:bg-slate-800 dark:text-slate-400">
                         {version?.edition}

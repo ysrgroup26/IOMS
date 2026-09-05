@@ -2,6 +2,8 @@
 
 namespace App\Models;
 
+use App\Concerns\HasSecureDocument;
+
 use App\Services\NumberGeneratorService;
 use Illuminate\Database\Eloquent\Model;
 use Illuminate\Database\Eloquent\SoftDeletes;
@@ -9,6 +11,7 @@ use Illuminate\Database\Eloquent\SoftDeletes;
 /** Milestone 4, Acceleration Part 1A (Item Master). See the owning migration's own doc comment. */
 class Item extends Model
 {
+    use HasSecureDocument;
     use SoftDeletes;
 
     public const TYPES = ['consumable', 'spare_part', 'ppe', 'tool', 'asset'];
@@ -51,11 +54,17 @@ class Item extends Model
 
     public function getAttachmentUrlAttribute(): ?string
     {
-        return $this->attachment_path ? asset('storage/'.$this->attachment_path) : null;
+        return $this->attachment_path ? $this->secureDocumentUrl() : null;
     }
 
     public static function generateCode(?int $companyId = null): string
     {
         return app(NumberGeneratorService::class)->generate('item', $companyId);
+    }
+
+    /** v2.38.0 (Master Audit): see App\Concerns\HasSecureDocument. */
+    public function secureDocumentPathColumn(): string
+    {
+        return 'attachment_path';
     }
 }

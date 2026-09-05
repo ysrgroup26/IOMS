@@ -82,6 +82,8 @@ class TaskController extends Controller
 
     public function show(Task $task): Response
     {
+        $this->assertTaskInCurrentTenant($task);
+
         $task->load('assignedUser:id,name,email', 'creator:id,name', 'company:id,name');
 
         return Inertia::render('Tasks/Show', [
@@ -92,6 +94,7 @@ class TaskController extends Controller
 
     public function edit(Task $task): Response
     {
+        $this->assertTaskInCurrentTenant($task);
         abort_unless($this->canManage($task), 403);
 
         return Inertia::render('Tasks/Form', [
@@ -105,6 +108,7 @@ class TaskController extends Controller
 
     public function update(UpdateTaskRequest $request, Task $task): RedirectResponse
     {
+        $this->assertTaskInCurrentTenant($task);
         abort_unless($this->canManage($task), 403);
 
         $this->tasks->updateTask($task, $request->validated());
@@ -114,11 +118,36 @@ class TaskController extends Controller
 
     public function destroy(Task $task): RedirectResponse
     {
+        $this->assertTaskInCurrentTenant($task);
         abort_unless($this->canManage($task), 403);
 
         $this->tasks->deleteTask($task);
 
         return redirect()->route('tasks.index')->with('success', 'Task removed.');
+    }
+
+    /**
+     * v2.37.0 (Master Audit, P0-3). CONFIRMED cross-tenant read AND
+     * write. `canManage()` below is purely identity-based (`isAdmin() ||
+     * creator || assignee`) with no notion of tenancy, and `show()` had
+     * no check at all -- so any authenticated user could read ANY
+     * tenant's task by id, and any *admin* could edit or delete one.
+     * {task} route-model-binding carries no TenantScope of its own (that
+     * scope applies to Company only).
+     *
+     * `tasks.company_id` is deliberately NULLABLE (see the creating
+     * migration's own doc comment -- a task need not belong to a
+     * company), so this must NOT reject a null: only a company_id that
+     * resolves outside the current tenant is a violation. Returns 404
+     * rather than 403 so a foreign id doesn't confirm the record exists.
+     */
+    private function assertTaskInCurrentTenant(Task $task): void
+    {
+        if ($task->company_id === null) {
+            return;
+        }
+
+        abort_unless(Company::query()->pluck('id')->contains($task->company_id), 404);
     }
 
     private function canManage(Task $task): bool

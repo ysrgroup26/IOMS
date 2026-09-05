@@ -6,6 +6,7 @@ use App\Models\Company;
 use App\Models\CompanySetting;
 use App\Models\Module;
 use App\Models\Workspace;
+use App\Services\TenantReadinessService;
 use App\Services\WorkCenterService;
 use Illuminate\Http\Request;
 use Inertia\Middleware;
@@ -81,7 +82,7 @@ class HandleInertiaRequests extends Middleware
                 ] : null,
             ],
             'company' => [
-                'name' => CompanySetting::get('company_name', 'Integrated Operations Management System'),
+                'name' => CompanySetting::get('company_name', config('ioms.name')),
                 'subtitle' => CompanySetting::get('company_subtitle', 'Industrial Operations Platform'),
                 'short_name' => CompanySetting::get('company_short_name'),
                 'footer_copyright' => CompanySetting::get('footer_copyright'),
@@ -105,7 +106,24 @@ class HandleInertiaRequests extends Middleware
             // exists yet -- see ROADMAP.md) takes priority, falling back to
             // the shipped default asset otherwise. No page/component should
             // ever reference an image path directly; they all read this.
+            // v2.39.0 -- the global "is this system actually running yet"
+            // signal. ONE memoised EXISTS query (see
+            // TenantReadinessService::isOperational), shared so any surface
+            // can avoid presenting an empty system as a healthy one.
+            //
+            // Only computed for a signed-in tenant user: a guest has no
+            // tenant, and a Platform Super Admin (tenant_id null) has no
+            // workforce of their own, so neither should pay for the query
+            // nor be told their "operation" is unconfigured.
+            'readiness' => ($user && ! $user->isPlatformAdmin())
+                ? ['is_operational' => app(TenantReadinessService::class)->isOperational()]
+                : null,
             'branding' => [
+                // v2.38.0: whether the tenant uploaded its OWN wordmark.
+                // The shipped default asset is not a usable IOMS mark (it
+                // reads "icms"), so BrandWordmark falls back to a
+                // typographic wordmark instead of the wrong brand.
+                'has_custom_wordmark' => (bool) CompanySetting::get('brand_wordmark_path'),
                 'wordmark_url' => CompanySetting::get('brand_wordmark_path')
                     ? asset('storage/'.CompanySetting::get('brand_wordmark_path'))
                     : asset(config('branding.default_wordmark_path')),

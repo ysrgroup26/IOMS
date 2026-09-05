@@ -1,4 +1,4 @@
-import { Head, Link } from '@inertiajs/react';
+import { Head, Link, usePage } from '@inertiajs/react';
 import AuthenticatedLayout from '@/Layouts/AuthenticatedLayout';
 import { Button } from '@/Components/ui/button';
 import StatusBadge from '@/Components/shared/StatusBadge';
@@ -65,6 +65,9 @@ import { ArrowLeft, Printer, Download, FlaskConical, Users, ShieldCheck, FileChe
  * codebase already had before this pass.
  */
 export default function PermitToWorkDocument({ permit: p, company, documentTemplate, branding, rejectionReason }) {
+    // v2.37.0 (Master Audit): one shared display timezone for every
+    // rendered instant on this page, matching the PDF exactly.
+    const displayTimeZone = usePage().props.display_timezone;
     const hasSupportingDocs = p.risk_assessment || p.jsa;
 
     return (
@@ -167,8 +170,8 @@ export default function PermitToWorkDocument({ permit: p, company, documentTempl
                         <FieldGrid>
                             <Field label="Project / Site" value={p.project?.name} />
                             <Field label="Specific Location" value={p.location} />
-                            <Field label="Valid From" value={formatDateTime(p.start_datetime)} />
-                            <Field label="Valid Until" value={formatDateTime(p.end_datetime)} />
+                            <Field label="Valid From" value={formatDateTime(p.start_datetime, displayTimeZone)} />
+                            <Field label="Valid Until" value={formatDateTime(p.end_datetime, displayTimeZone)} />
                         </FieldGrid>
                         <div className="mt-4">
                             <FieldLabel>Work Description</FieldLabel>
@@ -211,7 +214,7 @@ export default function PermitToWorkDocument({ permit: p, company, documentTempl
                                         <tbody>
                                             {p.gas_tests.map((g) => (
                                                 <tr key={g.id} className="border-b border-graphite-100 last:border-0 dark:border-slate-800">
-                                                    <td className="py-2 pl-3 pr-3">{formatDateTime(g.tested_at)}</td>
+                                                    <td className="py-2 pl-3 pr-3">{formatDateTime(g.tested_at, displayTimeZone)}</td>
                                                     <td className="py-2 pr-3">{g.location || '-'}</td>
                                                     <td className="py-2 pr-3 capitalize">{(g.stage || 'initial').replace('_', ' ')}</td>
                                                     <td className="py-2 pr-3">{g.o2_level ?? '-'}</td>
@@ -405,7 +408,25 @@ function titleCase(s) {
     return (s || '').replace('_', ' ').replace(/\b\w/g, (c) => c.toUpperCase());
 }
 
-function formatDateTime(value) {
+/**
+ * v2.37.0 (Master Audit): CONFIRMED defect. This previously called
+ * `toLocaleString()` with no `timeZone`, so it rendered each stored UTC
+ * instant in whatever timezone the VIEWER'S DEVICE happened to be set to,
+ * while `pdf/permit-to-work.blade.php` rendered the same instant as raw
+ * UTC. That produced the reported PDF-vs-UI mismatch (an exact 8h offset
+ * for a UTC+8 user) and, more seriously, meant two people in different
+ * timezones read different validity windows off the same permit.
+ *
+ * Both renderers now resolve against the one configured display timezone
+ * (`config/ioms.php` -> `display_timezone`, shared to Inertia as
+ * `display_timezone`). Storage stays UTC and is untouched; `timeZone`
+ * only changes how the instant is displayed. Falls back to the device
+ * timezone if the prop is somehow absent, so this can never render "-".
+ */
+function formatDateTime(value, timeZone) {
     if (!value) return '-';
-    return new Date(value).toLocaleString('en-US', { day: 'numeric', month: 'short', year: 'numeric', hour: 'numeric', minute: '2-digit' });
+    return new Date(value).toLocaleString('en-US', {
+        day: 'numeric', month: 'short', year: 'numeric', hour: 'numeric', minute: '2-digit',
+        ...(timeZone ? { timeZone } : {}),
+    });
 }

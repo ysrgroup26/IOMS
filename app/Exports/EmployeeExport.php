@@ -2,14 +2,16 @@
 
 namespace App\Exports;
 
-use App\Models\CompanySetting;
+use App\Exports\Concerns\IomsSheetFormatting;
 use App\Models\Employee;
 use App\Services\FieldMappingService;
 use Maatwebsite\Excel\Concerns\FromCollection;
 use Maatwebsite\Excel\Concerns\ShouldAutoSize;
 use Maatwebsite\Excel\Concerns\WithHeadings;
 use Maatwebsite\Excel\Concerns\WithMapping;
+use Maatwebsite\Excel\Concerns\WithEvents;
 use Maatwebsite\Excel\Concerns\WithProperties;
+use Maatwebsite\Excel\Events\AfterSheet;
 
 /**
  * Milestone 3 (Export Mapping, Task #67): `$fields` -- an ordered
@@ -20,8 +22,10 @@ use Maatwebsite\Excel\Concerns\WithProperties;
  * Null (the default) falls back to the original fixed 8-column layout,
  * byte-for-byte, for every caller that hasn't been updated to pass one.
  */
-class EmployeeExport implements FromCollection, ShouldAutoSize, WithHeadings, WithMapping, WithProperties
+class EmployeeExport implements FromCollection, ShouldAutoSize, WithEvents, WithHeadings, WithMapping, WithProperties
 {
+    use IomsSheetFormatting;
+
     private const ALL_FIELDS = ['employee_id', 'full_name', 'company', 'department', 'position', 'status', 'join_date', 'phone'];
 
     /**
@@ -45,14 +49,18 @@ class EmployeeExport implements FromCollection, ShouldAutoSize, WithHeadings, Wi
      */
     public function properties(): array
     {
-        $companyName = CompanySetting::get('company_name', config('ioms.name'));
+        return $this->iomsProperties('Employee List');
+    }
 
+    /**
+     * v2.51.0: frozen, filterable header and print-ready page setup, from
+     * the shared export foundation -- so an IOMS employee export opens the
+     * same way every other IOMS export does.
+     */
+    public function registerEvents(): array
+    {
         return [
-            'creator' => $companyName,
-            'lastModifiedBy' => $companyName,
-            'title' => 'Employee List',
-            'description' => "Exported from {$companyName}",
-            'company' => $companyName,
+            AfterSheet::class => fn (AfterSheet $event) => $this->applyIomsSheetFormatting($event->sheet->getDelegate()),
         ];
     }
 

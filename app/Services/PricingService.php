@@ -87,13 +87,57 @@ class PricingService
         return [
             'amount' => $numeric,
             'currency' => $currency,
-            // v2.50.0: IDR renders as "Rp" -- "IDR 1.499.000" is how a ledger
-            // writes it, "Rp1.499.000" is how an Indonesian buyer reads it.
+            // v2.50.0: IDR renders as "Rp" -- "IDR 999.000" is how a ledger
+            // writes it, "Rp999.000" is how an Indonesian buyer reads it.
             // Every other currency keeps the ISO code prefix.
             'formatted' => $numeric == 0.0
                 ? 'Gratis'
                 : ($currency === 'IDR' ? 'Rp' : $currency.' ').number_format($numeric, 0, ',', '.'),
         ];
+    }
+
+    /**
+     * v2.51.0. The ONE server-side answer to "what does this plan cost on
+     * this cycle" -- read straight from the packages table.
+     *
+     * Every price a customer is charged goes through here. Nothing in the
+     * checkout path ever trusts an amount that arrived in a request: the
+     * browser sends a plan slug and a cycle, and the number comes from the
+     * database. That is what stops a crafted form from buying Enterprise
+     * for one rupiah.
+     */
+    public function amountFor(Package $package, string $cycle): float
+    {
+        $amount = $cycle === 'monthly' ? $package->price_monthly : $package->price_yearly;
+
+        return (float) ($amount ?? 0);
+    }
+
+    /** Formats an amount the same way every pricing surface does, so an invoice and a pricing card can never disagree. */
+    public function format(float $amount, string $currency = 'IDR'): string
+    {
+        return $this->money((string) $amount, $currency, false)['formatted'];
+    }
+
+    /**
+     * Resolves a plan slug submitted by a browser against the REAL public
+     * catalog. Returns null for anything that is not a currently public,
+     * active plan -- so an unknown, private, retired or hand-crafted slug
+     * can never enter checkout.
+     */
+    public function resolvePublicPackage(?string $slug): ?Package
+    {
+        if (! $slug) {
+            return null;
+        }
+
+        return Package::query()->active()->public()->where('slug', $slug)->first();
+    }
+
+    /** Normalizes a submitted billing cycle to one of the two IOMS supports. */
+    public function normalizeCycle(?string $cycle): string
+    {
+        return $cycle === 'monthly' ? 'monthly' : 'yearly';
     }
 
     /** @param class-string<Workspace>|class-string<Module> $model */

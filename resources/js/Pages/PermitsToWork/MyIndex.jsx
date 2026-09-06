@@ -5,6 +5,7 @@ import StatusBadge from '@/Components/shared/StatusBadge';
 import EmptyState from '@/Components/shared/EmptyState';
 import { cn } from '@/lib/utils';
 import { Plus, ArrowRight, RotateCcw, FileWarning, ChevronLeft, ChevronRight } from 'lucide-react';
+import PageHeader from '@/Components/shared/PageHeader';
 
 const FILTERS = [
     { key: 'all', label: 'All' },
@@ -64,13 +65,9 @@ export default function MyPermitsToWork({ permits, filters, counts }) {
         <AuthenticatedLayout>
             <Head title="My PTW" />
 
-            <div className="mb-4 flex flex-wrap items-center justify-between gap-3">
-                <div>
-                    <h1 className="text-xl font-semibold tracking-tight text-graphite-900 dark:text-slate-50">My PTW</h1>
-                    <p className="mt-0.5 text-sm text-graphite-500 dark:text-slate-400">Izin kerja yang Anda ajukan.</p>
-                </div>
+            <PageHeader title="My PTW" subtitle="Izin kerja yang Anda ajukan.">
                 <Button asChild><Link href={route('permits-to-work.create')}><Plus className="h-4 w-4" /> New PTW</Link></Button>
-            </div>
+            </PageHeader>
 
             {/* Filter tabs -- horizontally scrollable on a narrow phone
                 rather than wrapping into a cramped grid, so they stay on

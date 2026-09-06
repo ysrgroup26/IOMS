@@ -5,7 +5,8 @@ import { Button } from '@/Components/ui/button';
 import { Table, TableHeader, TableBody, TableRow, TableHead, TableCell } from '@/Components/ui/table';
 import ActivityTimeline from '@/Components/shared/ActivityTimeline';
 import StatusBadge from '@/Components/shared/StatusBadge';
-import { ArrowLeft, Pencil, Send, Eye, CheckCircle2, XCircle, FilePlus } from 'lucide-react';
+import { ArrowLeft, Pencil, Send, Eye, CheckCircle2, XCircle, FilePlus, Printer } from 'lucide-react';
+import PageHeader from '@/Components/shared/PageHeader';
 
 export default function PurchaseRequisitionShow({ purchaseRequisition: pr, activities, canManage, canDecide, canOverride }) {
     function act(routeName, confirmMessage, extra = {}) {
@@ -21,18 +22,12 @@ export default function PurchaseRequisitionShow({ purchaseRequisition: pr, activ
                 <ArrowLeft className="h-4 w-4" /> Back to Purchase Requisitions
             </Link>
 
-            <div className="mb-4 flex flex-wrap items-start justify-between gap-3">
-                <div>
-                    <h1 className="flex items-center gap-2 text-[22px] font-semibold tracking-tight text-graphite-900">
-                        {pr.pr_number}<StatusBadge value={pr.priority} /><StatusBadge value={pr.status} />
-                    </h1>
-                    <p className="text-xs text-graphite-500">
-                        {new Date(pr.request_date).toLocaleDateString('en-US', { day: 'numeric', month: 'long', year: 'numeric' })}
-                        {pr.department && ` · ${pr.department.name}`}{pr.project && ` · ${pr.project.name}`}
-                        {pr.source_material_request && ` · from ${pr.source_material_request.request_number}`}
-                    </p>
-                </div>
+            <PageHeader title={<>{pr.pr_number}<StatusBadge value={pr.priority} /><StatusBadge value={pr.status} /></>} subtitle={<>{new Date(pr.request_date).toLocaleDateString('en-US', { day: 'numeric', month: 'long', year: 'numeric' })} {pr.department && ` · ${pr.department.name}`}{pr.project && ` · ${pr.project.name}`} {pr.source_material_request && ` · from ${pr.source_material_request.request_number}`}</>}>
                 <div className="flex flex-wrap items-center gap-2">
+                    {/* v2.51.0: FPB on the tenant's own letterhead. */}
+                    <Button variant="outline" asChild>
+                        <a href={route('purchase-requisitions.pdf', pr.id)} target="_blank" rel="noreferrer"><Printer className="h-4 w-4" /> Print FPB</a>
+                    </Button>
                     {canManage && pr.status === 'draft' && (<>
                         <Button variant="outline" asChild><Link href={route('purchase-requisitions.edit', pr.id)}><Pencil className="h-4 w-4" /> Edit</Link></Button>
                         <Button variant="outline" onClick={() => act('purchase-requisitions.submit', 'Submit this PR?')}><Send className="h-4 w-4" /> Submit</Button>
@@ -51,7 +46,7 @@ export default function PurchaseRequisitionShow({ purchaseRequisition: pr, activ
                         <Button variant="ghost" className="text-red-600" onClick={() => act('purchase-requisitions.cancel', 'Cancel this PR?')}><XCircle className="h-4 w-4" /> Cancel</Button>
                     )}
                 </div>
-            </div>
+            </PageHeader>
 
             <div className="grid grid-cols-1 gap-4 lg:grid-cols-3">
                 <div className="space-y-4 lg:col-span-2">

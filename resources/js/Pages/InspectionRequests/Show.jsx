@@ -9,6 +9,7 @@ import { Select, SelectTrigger, SelectValue, SelectContent, SelectItem } from '@
 import StatusBadge from '@/Components/shared/StatusBadge';
 import EmptyState from '@/Components/shared/EmptyState';
 import { ArrowLeft, Image as ImageIcon, FileWarning } from 'lucide-react';
+import PageHeader from '@/Components/shared/PageHeader';
 
 export default function InspectionRequestShow({ inspection: i, canManage }) {
     const resultForm = useForm({ result: 'passed', notes: '', photos: [] });
@@ -26,18 +27,11 @@ export default function InspectionRequestShow({ inspection: i, canManage }) {
                 <ArrowLeft className="h-4 w-4" /> Back to Inspection Requests
             </Link>
 
-            <div className="mb-4 flex flex-wrap items-start justify-between gap-3">
-                <div>
-                    <h1 className="flex items-center gap-2 text-[22px] font-semibold tracking-tight text-graphite-900">
-                        {i.inspection_number}<StatusBadge value={i.status} />
-                        {i.result && <StatusBadge value={i.result === 'passed' ? 'approved' : 'rejected'} label={i.result} />}
-                    </h1>
-                    <p className="text-xs text-graphite-500">{i.project?.name}{i.activity && ` · ${i.activity.name}`} · {new Date(i.inspection_date).toLocaleDateString('en-US', { day: 'numeric', month: 'long', year: 'numeric' })}</p>
-                </div>
+            <PageHeader title={<>{i.inspection_number}<StatusBadge value={i.status} /> {i.result && <StatusBadge value={i.result === 'passed' ? 'approved' : 'rejected'} label={i.result} />}</>} subtitle={<>{i.project?.name}{i.activity && ` · ${i.activity.name}`} · {new Date(i.inspection_date).toLocaleDateString('en-US', { day: 'numeric', month: 'long', year: 'numeric' })}</>}>
                 {canManage && i.result === 'failed' && (
                     <Button variant="outline" asChild><Link href={route('ncrs.create', { inspection: i.id })}><FileWarning className="h-4 w-4" /> Raise NCR</Link></Button>
                 )}
-            </div>
+            </PageHeader>
 
             <div className="grid grid-cols-1 gap-4 lg:grid-cols-3">
                 <div className="space-y-4 lg:col-span-2">

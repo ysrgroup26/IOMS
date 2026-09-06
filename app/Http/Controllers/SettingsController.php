@@ -27,6 +27,9 @@ use Illuminate\Validation\Rule;
 use Inertia\Inertia;
 use Inertia\Response;
 use Spatie\Permission\Models\Role;
+use App\Models\Invoice;
+use App\Models\Subscription;
+use App\Support\CurrentTenant;
 
 /**
  * Settings module. Two permission tiers, enforced both by route middleware
@@ -75,6 +78,19 @@ class SettingsController extends Controller
                 'email' => CompanySetting::get('company_email'),
                 'website' => CompanySetting::get('company_website'),
                 'brand_color' => CompanySetting::get('brand_color', '#2563eb'),
+                // v2.51.0: the rest of a real company identity. These are
+                // what DocumentEngine::identity() assembles into the shared
+                // letterhead every generated PDF now uses, so a tenant that
+                // fills these in once gets a correct document header across
+                // every module rather than per-document hardcoding.
+                'legal_name' => CompanySetting::get('company_legal_name'),
+                'city' => CompanySetting::get('company_city'),
+                'province' => CompanySetting::get('company_province'),
+                'postal_code' => CompanySetting::get('company_postal_code'),
+                'country' => CompanySetting::get('company_country'),
+                'tax_id' => CompanySetting::get('company_tax_id'),
+                'business_id' => CompanySetting::get('company_business_id'),
+                'industry' => CompanySetting::get('company_industry'),
             ],
             'companies' => Company::withCount(['employees', 'departments'])->orderBy('name')->get(),
             'departments' => Department::with('company:id,name')->withCount('employees')->inCompany($companyId)->ordered()->get(),
@@ -246,6 +262,85 @@ class SettingsController extends Controller
      * Admin action via PlatformController::updateSubscription(), exactly
      * as it already was before this page existed.
      */
+    /**
+     * v2.51.0 -- the tenant's own Billing page.
+     *
+     * Everything a customer needs to answer "what am I on, until when, and
+     * what have I paid" WITHOUT going through support: current plan and
+     * cycle, subscription status and renewal date, the capacity their plan
+     * actually grants against what they are using, and their real invoice
+     * and payment history.
+     *
+     * Read-only by design. Upgrades, downgrades and cancellations stay a
+     * deliberate action rather than a self-serve button that would need a
+     * gateway operation IOMS cannot guarantee is configured -- the page
+     * says so plainly instead of showing a control that might fail. That
+     * is the whole difference between a coherent domain model and a
+     * half-built feature.
+     *
+     * Restricted to the Super Admin: seat usage, invoices and payment
+     * references are commercial data, unlike the plan CATALOG that
+     * plans() deliberately shows to everyone.
+     */
+    public function billing(Request $request): Response
+    {
+        abort_unless($request->user()->canManageSystemSettings(), 403);
+
+        $tenantId = app(CurrentTenant::class)->id();
+        abort_if($tenantId === null, 404);
+
+        $subscription = Subscription::with('package')
+            ->where('tenant_id', $tenantId)
+            ->latest()
+            ->first();
+
+        $package = $subscription?->package;
+        $pricing = app(PricingService::class);
+
+        // Real usage, counted now -- never a stored figure that could drift
+        // from the seat limit it is being compared against.
+        $userCount = User::where('tenant_id', $tenantId)->count();
+        $ptwUserCount = User::where('tenant_id', $tenantId)->where('ptw_access', true)->count();
+        $companyCount = Company::withoutGlobalScopes()->where('tenant_id', $tenantId)->count();
+
+        $invoices = Invoice::where('tenant_id', $tenantId)
+            ->latest()
+            ->limit(50)
+            ->get(['id', 'invoice_number', 'amount', 'currency', 'status', 'due_date', 'payment_date', 'payment_method', 'payment_reference', 'period_start', 'period_end', 'created_at'])
+            ->map(fn (Invoice $invoice) => [
+                ...$invoice->toArray(),
+                'amount_formatted' => $pricing->format((float) $invoice->amount, $invoice->currency),
+            ]);
+
+        return Inertia::render('Settings/Billing', [
+            'subscription' => $subscription ? [
+                'status' => $subscription->status,
+                'type' => $subscription->type,
+                'billing_cycle' => $subscription->billing_cycle,
+                'starts_at' => $subscription->starts_at,
+                'ends_at' => $subscription->ends_at,
+                'trial_ends_at' => $subscription->trial_ends_at,
+                'cancelled_at' => $subscription->cancelled_at,
+                'is_usable' => $subscription->isUsable(),
+                'is_expired' => $subscription->isExpired(),
+                'plan_name' => $package?->name,
+                'price' => $package
+                    ? $pricing->format($pricing->amountFor($package, $subscription->billing_cycle), $package->currency)
+                    : null,
+            ] : null,
+            'entitlements' => [
+                'users' => ['used' => $userCount, 'limit' => $subscription?->seatLimit()],
+                'ptw_users' => ['used' => $ptwUserCount, 'limit' => $package?->max_ptw_users],
+                'companies' => ['used' => $companyCount, 'limit' => $package?->max_companies],
+            ],
+            'invoices' => $invoices,
+            // Renewal behaviour is honest about which mode this deployment
+            // is actually in -- automatic recurring charging requires
+            // separate merchant activation and is never assumed.
+            'recurringEnabled' => (bool) config('payment.recurring_enabled'),
+            'supportEmail' => config('ioms.support_email'),
+        ]);
+    }
     public function plans(Request $request): Response
     {
         $pricing = app(PricingService::class);
@@ -273,6 +368,15 @@ class SettingsController extends Controller
             'company_phone' => ['nullable', 'string', 'max:50'],
             'company_email' => ['nullable', 'email', 'max:255'],
             'company_website' => ['nullable', 'string', 'max:255'],
+            // v2.51.0 document-identity fields.
+            'company_legal_name' => ['nullable', 'string', 'max:255'],
+            'company_city' => ['nullable', 'string', 'max:120'],
+            'company_province' => ['nullable', 'string', 'max:120'],
+            'company_postal_code' => ['nullable', 'string', 'max:20'],
+            'company_country' => ['nullable', 'string', 'max:100'],
+            'company_tax_id' => ['nullable', 'string', 'max:50'],
+            'company_business_id' => ['nullable', 'string', 'max:50'],
+            'company_industry' => ['nullable', 'string', 'max:100'],
             'brand_color' => ['nullable', 'string', 'max:7'],
             // Laravel's `image` rule does NOT include SVG by default --
             // explicit mimes list needed to actually support the SVG
@@ -304,6 +408,14 @@ class SettingsController extends Controller
         CompanySetting::set('company_email', $validated['company_email'] ?? '');
         CompanySetting::set('company_website', $validated['company_website'] ?? '');
         CompanySetting::set('brand_color', $validated['brand_color'] ?? '#2563eb');
+
+        // v2.51.0. Written through the same tenant-scoped CompanySetting
+        // store as everything above, so a tenant's document identity can
+        // never be read or overwritten by another tenant.
+        foreach (['company_legal_name', 'company_city', 'company_province', 'company_postal_code',
+            'company_country', 'company_tax_id', 'company_business_id', 'company_industry'] as $key) {
+            CompanySetting::set($key, $validated[$key] ?? '');
+        }
 
         // input field => company_settings key. Kept as one table so a future
         // brand asset is a single line here, not another copy-pasted block.

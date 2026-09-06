@@ -6,6 +6,7 @@ import ApprovalActions from '@/Components/shared/ApprovalActions';
 import ActivityTimeline from '@/Components/shared/ActivityTimeline';
 import StatusBadge from '@/Components/shared/StatusBadge';
 import { ArrowLeft, XCircle } from 'lucide-react';
+import PageHeader from '@/Components/shared/PageHeader';
 
 export default function LeaveShow({ leaveRequest: lr, approval, activities, canDecide, canManage }) {
     function cancel() {
@@ -22,27 +23,14 @@ export default function LeaveShow({ leaveRequest: lr, approval, activities, canD
                 <ArrowLeft className="h-4 w-4" /> Back to Leave
             </Link>
 
-            <div className="mb-4 flex flex-wrap items-start justify-between gap-3">
-                <div>
-                    <h1 className="flex items-center gap-2 text-[22px] font-semibold tracking-tight text-graphite-900">
-                        {lr.leave_number}
-                        <StatusBadge value={lr.status} label={lr.status === 'submitted' ? 'Waiting Approval' : undefined} />
-                    </h1>
-                    <p className="text-xs text-graphite-500">
-                        {lr.employee?.full_name} ({lr.employee?.employee_id}) · <span className="capitalize">{lr.leave_type}</span> leave ·{' '}
-                        {new Date(lr.start_date).toLocaleDateString('en-US', { day: 'numeric', month: 'short' })}
-                        {' - '}
-                        {new Date(lr.end_date).toLocaleDateString('en-US', { day: 'numeric', month: 'short', year: 'numeric' })}
-                        {' '}({lr.days} day{lr.days !== 1 ? 's' : ''})
-                    </p>
-                </div>
+            <PageHeader title={<>{lr.leave_number} <StatusBadge value={lr.status} label={lr.status === 'submitted' ? 'Waiting Approval' : undefined} /></>} subtitle={<>{lr.employee?.full_name} ({lr.employee?.employee_id}) · <span className="capitalize">{lr.leave_type}</span> leave ·{' '} {new Date(lr.start_date).toLocaleDateString('en-US', { day: 'numeric', month: 'short' })} {' - '} {new Date(lr.end_date).toLocaleDateString('en-US', { day: 'numeric', month: 'short', year: 'numeric' })} {' '}({lr.days} day{lr.days !== 1 ? 's' : ''})</>}>
                 <div className="flex items-center gap-2">
                     {lr.status === 'submitted' && <ApprovalActions approval={approval} canDecide={canDecide} />}
                     {['draft', 'submitted', 'approved'].includes(lr.status) && canManage && (
                         <Button variant="outline" onClick={cancel}><XCircle className="h-4 w-4" /> Cancel</Button>
                     )}
                 </div>
-            </div>
+            </PageHeader>
 
             <div className="grid grid-cols-1 gap-4 lg:grid-cols-3">
                 <Card className="lg:col-span-2">

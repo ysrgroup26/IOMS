@@ -45,6 +45,16 @@ return Application::configure(basePath: dirname(__DIR__))
         // via cookies, even though the whole app is server-rendered Inertia).
         $middleware->statefulApi();
 
+        // v2.51.0. A payment gateway posts server-to-server and has no
+        // session or CSRF token, so this one path is exempt. It is NOT
+        // unauthenticated: PaymentWebhookController verifies the
+        // provider's signature against the server key before reading a
+        // single field, and rejects anything unsigned with 403. The
+        // exemption is a single literal path -- never a wildcard.
+        $middleware->validateCsrfTokens(except: [
+            'webhooks/payment/midtrans',
+        ]);
+
         $middleware->alias([
             'role' => CheckRole::class,
             'restrict.platform-admin' => RestrictPlatformAdminFromTenantRoutes::class,

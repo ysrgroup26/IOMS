@@ -11,6 +11,7 @@ import { Select, SelectTrigger, SelectValue, SelectContent, SelectItem } from '@
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogFooter } from '@/Components/ui/dialog';
 import EmptyState from '@/Components/shared/EmptyState';
 import { RefreshCw, FileText } from 'lucide-react';
+import PageHeader from '@/Components/shared/PageHeader';
 
 /**
  * Replacement Due (v1.6.8 PPE Replacement Request MVP). Item-level list
@@ -40,15 +41,11 @@ export default function PpeReplacementDue({ items, companies, filters }) {
 
             <PpeTabNav counts={{ replacementDue: items.length }} />
 
-            <div className="mb-4 flex flex-wrap items-center justify-between gap-3">
-                <div>
-                    <h1 className="text-[22px] font-semibold tracking-tight text-navy-900 dark:text-slate-50">Replacement Due</h1>
-                    <p className="text-xs text-graphite-500 dark:text-slate-400">Select one or more items to create a Replacement Request.</p>
-                </div>
+            <PageHeader title="Replacement Due" subtitle="Select one or more items to create a Replacement Request.">
                 <Button disabled={selected.length === 0} onClick={() => setDialogOpen(true)}>
                     <RefreshCw className="h-4 w-4" /> Create Replacement Request {selected.length > 0 && `(${selected.length})`}
                 </Button>
-            </div>
+            </PageHeader>
 
             <Card>
                 <CardContent className="p-0">

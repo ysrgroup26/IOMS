@@ -8,6 +8,7 @@ import { Table, TableHeader, TableBody, TableRow, TableHead, TableCell } from '@
 import StatusBadge from '@/Components/shared/StatusBadge';
 import EmptyState from '@/Components/shared/EmptyState';
 import { Plus, Search, ClipboardCheck, ChevronLeft, ChevronRight } from 'lucide-react';
+import PageHeader from '@/Components/shared/PageHeader';
 
 export default function HseInspectionsIndex({ inspections, filters, can }) {
     function applyFilters(overrides = {}) {
@@ -18,13 +19,9 @@ export default function HseInspectionsIndex({ inspections, filters, can }) {
         <AuthenticatedLayout>
             <Head title="HSE Inspection" />
 
-            <div className="mb-4 flex flex-wrap items-center justify-between gap-3">
-                <div>
-                    <h1 className="text-[22px] font-semibold tracking-tight text-navy-900 dark:text-slate-50">HSE Inspection</h1>
-                    <p className="text-xs text-graphite-500 dark:text-slate-400">Scheduled and ad-hoc safety inspections.</p>
-                </div>
+            <PageHeader title="HSE Inspection" subtitle="Scheduled and ad-hoc safety inspections.">
                 {can.manage && (<Button asChild><Link href={route('hse-inspections.create')}><Plus className="h-4 w-4" /> Record Inspection</Link></Button>)}
-            </div>
+            </PageHeader>
 
             <Card className="mb-4">
                 <CardContent className="flex flex-wrap gap-2 p-3">

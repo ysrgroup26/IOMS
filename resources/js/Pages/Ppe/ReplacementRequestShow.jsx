@@ -5,6 +5,7 @@ import { Button } from '@/Components/ui/button';
 import { Badge } from '@/Components/ui/badge';
 import { Table, TableHeader, TableBody, TableRow, TableHead, TableCell } from '@/Components/ui/table';
 import { ArrowLeft, FileDown, Printer } from 'lucide-react';
+import PageHeader from '@/Components/shared/PageHeader';
 
 const STATUS_VARIANT = { draft: 'secondary', submitted: 'success' };
 
@@ -17,16 +18,7 @@ export default function PpeReplacementRequestShow({ replacementRequest: rr }) {
                 <ArrowLeft className="h-4 w-4" /> Back to Replacement Requests
             </Link>
 
-            <div className="mb-4 flex flex-wrap items-start justify-between gap-3">
-                <div>
-                    <h1 className="flex items-center gap-2 text-[22px] font-semibold tracking-tight text-graphite-900">
-                        {rr.request_number}
-                        <Badge variant={STATUS_VARIANT[rr.status]}>{rr.status}</Badge>
-                    </h1>
-                    <p className="text-xs text-graphite-500">
-                        {new Date(rr.request_date).toLocaleDateString('en-US', { day: 'numeric', month: 'long', year: 'numeric' })} &middot; Requested by {rr.requester?.name}
-                    </p>
-                </div>
+            <PageHeader title={<>{rr.request_number} <Badge variant={STATUS_VARIANT[rr.status]}>{rr.status}</Badge></>} subtitle={<>{new Date(rr.request_date).toLocaleDateString('en-US', { day: 'numeric', month: 'long', year: 'numeric' })} &middot; Requested by {rr.requester?.name}</>}>
                 <div className="flex gap-2">
                     <Button variant="outline" asChild>
                         <a href={route('ppe.replacement-requests.pdf', rr.id)} target="_blank" rel="noopener noreferrer"><Printer className="h-4 w-4" /> Print</a>
@@ -35,7 +27,7 @@ export default function PpeReplacementRequestShow({ replacementRequest: rr }) {
                         <a href={route('ppe.replacement-requests.pdf', rr.id)} target="_blank" rel="noopener noreferrer"><FileDown className="h-4 w-4" /> PDF</a>
                     </Button>
                 </div>
-            </div>
+            </PageHeader>
 
             <Card>
                 <CardHeader><CardTitle>Items</CardTitle></CardHeader>

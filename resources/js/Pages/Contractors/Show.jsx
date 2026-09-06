@@ -10,6 +10,7 @@ import { Table, TableHeader, TableBody, TableRow, TableHead, TableCell } from '@
 import StatusBadge from '@/Components/shared/StatusBadge';
 import EmptyState from '@/Components/shared/EmptyState';
 import { ArrowLeft, FileText, Trash2, Users, Plus, CheckCircle2, XCircle } from 'lucide-react';
+import PageHeader from '@/Components/shared/PageHeader';
 
 export default function ContractorShow({ contractor: c, canManage, documentTypes, hseStatuses }) {
     const docForm = useForm({ document_type: 'safety_document', expiry_date: '', file: null });
@@ -48,21 +49,14 @@ export default function ContractorShow({ contractor: c, canManage, documentTypes
                 <ArrowLeft className="h-4 w-4" /> Back to Contractors
             </Link>
 
-            <div className="mb-4 flex flex-wrap items-start justify-between gap-3">
-                <div>
-                    <h1 className="flex items-center gap-2 text-[22px] font-semibold tracking-tight text-graphite-900">
-                        {c.company_name}
-                        <StatusBadge value={c.approval_status === 'approved' ? 'approved' : c.approval_status === 'rejected' ? 'rejected' : c.approval_status} />
-                    </h1>
-                    <p className="text-xs text-graphite-500">{c.code} · {c.pic_name || 'No PIC'}</p>
-                </div>
+            <PageHeader title={<>{c.company_name} <StatusBadge value={c.approval_status === 'approved' ? 'approved' : c.approval_status === 'rejected' ? 'rejected' : c.approval_status} /></>} subtitle={<>{c.code} · {c.pic_name || 'No PIC'}</>}>
                 {canManage && c.approval_status === 'pending' && (
                     <div className="flex items-center gap-2">
                         <Button onClick={() => router.post(route('contractors.approval', c.id), { approval_status: 'approved' })}><CheckCircle2 className="h-4 w-4" /> Approve</Button>
                         <Button variant="outline" className="text-red-600" onClick={() => router.post(route('contractors.approval', c.id), { approval_status: 'rejected' })}><XCircle className="h-4 w-4" /> Reject</Button>
                     </div>
                 )}
-            </div>
+            </PageHeader>
 
             <div className="space-y-4">
                 <Card>

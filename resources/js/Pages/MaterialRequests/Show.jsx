@@ -7,6 +7,7 @@ import ApprovalActions from '@/Components/shared/ApprovalActions';
 import ActivityTimeline from '@/Components/shared/ActivityTimeline';
 import StatusBadge from '@/Components/shared/StatusBadge';
 import { ArrowLeft, Pencil, FileDown, Printer, PackageCheck, CheckCheck, RotateCcw, XCircle } from 'lucide-react';
+import PageHeader from '@/Components/shared/PageHeader';
 
 export default function MaterialRequestShow({ materialRequest: mr, approval, activities, canDecide, canProcess, canOverride }) {
     function act(action, confirmMessage) {
@@ -22,19 +23,7 @@ export default function MaterialRequestShow({ materialRequest: mr, approval, act
                 <ArrowLeft className="h-4 w-4" /> Back to Material Requests
             </Link>
 
-            <div className="mb-4 flex flex-wrap items-start justify-between gap-3">
-                <div>
-                    <h1 className="flex items-center gap-2 text-[22px] font-semibold tracking-tight text-graphite-900">
-                        {mr.request_number}
-                        <StatusBadge value={mr.status} label={mr.status === 'submitted' ? 'Waiting Approval' : undefined} />
-                    </h1>
-                    <p className="text-xs text-graphite-500">
-                        {new Date(mr.request_date).toLocaleDateString('en-US', { day: 'numeric', month: 'long', year: 'numeric' })}
-                        {mr.department && ` · ${mr.department.name}`}
-                        {mr.project && ` · ${mr.project.name}`}
-                        {mr.completed_at && ` · Completed ${new Date(mr.completed_at).toLocaleDateString('en-US', { day: 'numeric', month: 'short', year: 'numeric' })}`}
-                    </p>
-                </div>
+            <PageHeader title={<>{mr.request_number} <StatusBadge value={mr.status} label={mr.status === 'submitted' ? 'Waiting Approval' : undefined} /></>} subtitle={<>{new Date(mr.request_date).toLocaleDateString('en-US', { day: 'numeric', month: 'long', year: 'numeric' })} {mr.department && ` · ${mr.department.name}`} {mr.project && ` · ${mr.project.name}`} {mr.completed_at && ` · Completed ${new Date(mr.completed_at).toLocaleDateString('en-US', { day: 'numeric', month: 'short', year: 'numeric' })}`}</>}>
                 <div className="flex items-center gap-2">
                     {/* Draft: Edit only (Submit happens via the Form's own
                         Submit button, not a Show-page action) */}
@@ -92,7 +81,7 @@ export default function MaterialRequestShow({ materialRequest: mr, approval, act
                         <a href={route('material-requests.pdf', mr.id)} target="_blank" rel="noopener noreferrer"><FileDown className="h-4 w-4" /> PDF</a>
                     </Button>
                 </div>
-            </div>
+            </PageHeader>
 
             {mr.status === 'rejected' && approval?.comments && (
                 <Card className="mb-4 border-red-200 bg-red-50/50">

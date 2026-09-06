@@ -63,4 +63,59 @@ class DocumentEngine
             'brand_color' => CompanySetting::get('brand_color', '#2563eb'),
         ];
     }
+
+    /**
+     * v2.51.0 -- the full company identity a formal document letterhead
+     * needs, as opposed to the four fields `branding()` returns for
+     * on-screen chrome.
+     *
+     * This is what makes the shared letterhead partial possible. Before
+     * it, each PDF view reached into CompanySetting for whichever fields
+     * its own header happened to want, so the HSE permit grew a real
+     * letterhead while every other document had none -- and adding one
+     * anywhere meant copying that block again.
+     *
+     * Every value is tenant-scoped, because CompanySetting is (see
+     * CompanySettingScope). A document therefore always carries the
+     * identity of the tenant that generated it; there is no path here by
+     * which one customer's letterhead can appear on another's document.
+     *
+     * Falls back to the platform name only when a tenant has not set a
+     * company name at all -- an empty letterhead is worse than a generic
+     * one, but nothing is ever invented beyond that.
+     */
+    public function identity(): array
+    {
+        $logoPath = CompanySetting::get('company_logo_path');
+
+        $city = CompanySetting::get('company_city');
+        $province = CompanySetting::get('company_province');
+        $postcode = CompanySetting::get('company_postal_code');
+
+        // "Batam, Kepulauan Riau 29444" -- assembled here rather than in
+        // each Blade view so one document cannot format it differently
+        // from another, and so a missing piece never leaves a stray comma.
+        $locality = collect([
+            trim(implode(', ', array_filter([$city, $province]))),
+            $postcode,
+        ])->filter()->implode(' ');
+
+        return [
+            'name' => CompanySetting::get('company_name', config('ioms.name')),
+            'legal_name' => CompanySetting::get('company_legal_name'),
+            'logo_url' => $logoPath ? asset('storage/'.$logoPath) : null,
+            'address' => CompanySetting::get('company_address'),
+            'locality' => $locality ?: null,
+            'city' => $city,
+            'province' => $province,
+            'postal_code' => $postcode,
+            'country' => CompanySetting::get('company_country'),
+            'phone' => CompanySetting::get('company_phone'),
+            'email' => CompanySetting::get('company_email'),
+            'website' => CompanySetting::get('company_website'),
+            'tax_id' => CompanySetting::get('company_tax_id'),
+            'business_id' => CompanySetting::get('company_business_id'),
+            'brand_color' => CompanySetting::get('brand_color', '#2563eb'),
+        ];
+    }
 }

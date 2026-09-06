@@ -7,6 +7,7 @@ import ActivityTimeline from '@/Components/shared/ActivityTimeline';
 import StatusBadge from '@/Components/shared/StatusBadge';
 import { ArrowLeft, Pencil, Send, CheckCircle2, Archive, XCircle } from 'lucide-react';
 import { assessRisk } from '@/lib/riskMatrix';
+import PageHeader from '@/Components/shared/PageHeader';
 
 export default function JobSafetyAnalysisShow({ jsa: j, activities, canManage }) {
     function transition(status, confirmMessage) {
@@ -22,11 +23,7 @@ export default function JobSafetyAnalysisShow({ jsa: j, activities, canManage })
                 <ArrowLeft className="h-4 w-4" /> Back to JSA
             </Link>
 
-            <div className="mb-4 flex flex-wrap items-start justify-between gap-3">
-                <div>
-                    <h1 className="flex items-center gap-2 text-[22px] font-semibold tracking-tight text-graphite-900">{j.jsa_number}<StatusBadge value={j.status} /></h1>
-                    <p className="text-xs text-graphite-500">{j.job_title} · {new Date(j.jsa_date).toLocaleDateString('en-US', { day: 'numeric', month: 'long', year: 'numeric' })}{j.location && ` · ${j.location}`}{j.project && ` · ${j.project.name}`}</p>
-                </div>
+            <PageHeader title={<>{j.jsa_number}<StatusBadge value={j.status} /></>} subtitle={<>{j.job_title} · {new Date(j.jsa_date).toLocaleDateString('en-US', { day: 'numeric', month: 'long', year: 'numeric' })}{j.location && ` · ${j.location}`}{j.project && ` · ${j.project.name}`}</>}>
                 {canManage && (
                     <div className="flex flex-wrap items-center gap-2">
                         {j.status === 'draft' && (<>
@@ -40,7 +37,7 @@ export default function JobSafetyAnalysisShow({ jsa: j, activities, canManage })
                         )}
                     </div>
                 )}
-            </div>
+            </PageHeader>
 
             <div className="grid grid-cols-1 gap-4 lg:grid-cols-3">
                 <div className="space-y-4 lg:col-span-2">

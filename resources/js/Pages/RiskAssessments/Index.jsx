@@ -8,6 +8,7 @@ import { Table, TableHeader, TableBody, TableRow, TableHead, TableCell } from '@
 import StatusBadge from '@/Components/shared/StatusBadge';
 import EmptyState from '@/Components/shared/EmptyState';
 import { Plus, Search, ShieldAlert, ChevronLeft, ChevronRight } from 'lucide-react';
+import PageHeader from '@/Components/shared/PageHeader';
 
 export default function RiskAssessmentsIndex({ riskAssessments, filters, can }) {
     function applyFilters(overrides = {}) {
@@ -18,15 +19,11 @@ export default function RiskAssessmentsIndex({ riskAssessments, filters, can }) 
         <AuthenticatedLayout>
             <Head title="HIRADC / Risk Assessment" />
 
-            <div className="mb-4 flex flex-wrap items-center justify-between gap-3">
-                <div>
-                    <h1 className="text-[22px] font-semibold tracking-tight text-navy-900 dark:text-slate-50">HIRADC / Risk Assessment</h1>
-                    <p className="text-xs text-graphite-500 dark:text-slate-400">Hazard Identification, Risk Assessment and Determining Control.</p>
-                </div>
+            <PageHeader title="HIRADC / Risk Assessment" subtitle="Hazard Identification, Risk Assessment and Determining Control.">
                 {can.manage && (
                     <Button asChild><Link href={route('risk-assessments.create')}><Plus className="h-4 w-4" /> New HIRADC</Link></Button>
                 )}
-            </div>
+            </PageHeader>
 
             <Card className="mb-4">
                 <CardContent className="flex flex-wrap gap-2 p-3">

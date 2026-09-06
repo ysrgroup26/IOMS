@@ -13,6 +13,7 @@ import {
 import EmptyState from '@/Components/shared/EmptyState';
 import SectionHeader from '@/Components/shared/SectionHeader';
 import { ArrowLeft, Plus, Pencil, Trash2, RefreshCw, HardHat, AlertTriangle, History } from 'lucide-react';
+import PageHeader from '@/Components/shared/PageHeader';
 
 const STATUS_VARIANT = {
     issued: 'outline', in_use: 'success', replacement_requested: 'secondary',
@@ -60,14 +61,7 @@ export default function PpeEmployeeProfile({ employee, assignments, ppeTypes, ca
             </Link>
 
             {/* Overview */}
-            <div className="mb-4 flex flex-wrap items-start justify-between gap-3">
-                <div>
-                    <h1 className="text-[22px] font-semibold tracking-tight text-navy-900 dark:text-slate-50">{employee.full_name}</h1>
-                    <p className="mt-1 text-sm text-graphite-500 dark:text-slate-400">
-                        {employee.employee_id} &middot; {employee.department?.name || '—'} &middot; {employee.company?.name || '—'}
-                    </p>
-                </div>
-            </div>
+            <PageHeader title={employee.full_name} subtitle={<>{employee.employee_id} &middot; {employee.department?.name || '—'} &middot; {employee.company?.name || '—'}</>} />
 
             <div className="mb-4 grid grid-cols-3 gap-2 sm:gap-3">
                 <Card><CardContent className="p-3.5 text-center"><p className="text-xl font-bold text-emerald-600">{current.length}</p><p className="mt-0.5 text-[11px] text-graphite-400">Current</p></CardContent></Card>

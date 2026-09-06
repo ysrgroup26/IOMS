@@ -299,6 +299,11 @@ class HandleInertiaRequests extends Middleware
             'flash' => [
                 'success' => fn () => $request->session()->get('success'),
                 'error' => fn () => $request->session()->get('error'),
+                // v2.51.0: a neutral channel for "this happened, and it is
+                // neither a win nor a failure" -- e.g. an invoice was issued
+                // but online payment is not enabled on this deployment.
+                // Reporting that as `success` would overstate it.
+                'info' => fn () => $request->session()->get('info'),
             ],
         ];
     }

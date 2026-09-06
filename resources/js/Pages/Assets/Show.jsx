@@ -10,6 +10,7 @@ import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogFooter } from '
 import StatusBadge from '@/Components/shared/StatusBadge';
 import EmptyState from '@/Components/shared/EmptyState';
 import { ArrowLeft, UserPlus, MapPin, ClipboardCheck, RefreshCw, History } from 'lucide-react';
+import PageHeader from '@/Components/shared/PageHeader';
 
 export default function AssetShow({ asset: a, employees, canManage }) {
     const [dialog, setDialog] = useState(null); // 'assign' | 'transfer' | 'inspect' | 'status'
@@ -28,11 +29,7 @@ export default function AssetShow({ asset: a, employees, canManage }) {
                 <ArrowLeft className="h-4 w-4" /> Back to Assets
             </Link>
 
-            <div className="mb-4 flex flex-wrap items-start justify-between gap-3">
-                <div>
-                    <h1 className="flex items-center gap-2 text-[22px] font-semibold tracking-tight text-graphite-900">{a.name}<StatusBadge value={a.status === 'active' || a.status === 'assigned' ? 'active' : a.status} label={a.status.replace('_', ' ')} /></h1>
-                    <p className="text-xs text-graphite-500">{a.asset_code} · {a.category || 'Uncategorized'} {a.location && `· ${a.location}`}</p>
-                </div>
+            <PageHeader title={<>{a.name}<StatusBadge value={a.status === 'active' || a.status === 'assigned' ? 'active' : a.status} label={a.status.replace('_', ' ')} /></>} subtitle={<>{a.asset_code} · {a.category || 'Uncategorized'} {a.location && `· ${a.location}`}</>}>
                 {canManage && (
                     <div className="flex flex-wrap items-center gap-2">
                         <Button variant="outline" onClick={() => setDialog('assign')}><UserPlus className="h-4 w-4" /> Assign</Button>
@@ -41,7 +38,7 @@ export default function AssetShow({ asset: a, employees, canManage }) {
                         <Button variant="outline" onClick={() => setDialog('status')}><RefreshCw className="h-4 w-4" /> Change Status</Button>
                     </div>
                 )}
-            </div>
+            </PageHeader>
 
             <div className="grid grid-cols-1 gap-4 lg:grid-cols-3">
                 <div className="space-y-4 lg:col-span-2">

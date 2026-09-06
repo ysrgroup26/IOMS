@@ -3,7 +3,51 @@
 House style, and a deliberately honest list of mistakes that have actually happened in this
 codebase's history — kept here so they don't get repeated in a slightly different shape.
 
-## CRITICAL — Known Pitfall (v2.40.0): a `unique()` constraint written before multi-tenancy is not
+## CRITICAL — Known Pitfall (v2.51.0): a SEEDER is not the runtime source of truth. Changing seed
+## data does not change a deployment that has already been seeded — and the drift is invisible in
+## code review because the file you are reading is correct
+
+v2.50.0 standardized plan pricing by editing `database/seeders/PackageSeeder.php`, updated every
+pricing surface, wrote a test asserting the new figures against `PackageSeeder`, and shipped. The
+test passed (it seeds a fresh database). Production kept rendering "Gratis / Rp490 / Rp1.490" for a
+whole release, because `db:seed` had never been re-run there and the application reads the
+`packages` **table**, not the seeder.
+
+The failure mode is nasty specifically because everything *looks* right: the seeder is correct, the
+service is correct, the page is correct, the test is green. Only the row is stale.
+
+**Rule.** Seed data that the application reads at runtime and that must change on an EXISTING
+deployment belongs in a migration, not only in a seeder. A migration runs exactly once per
+environment on deploy, whether or not anyone remembers to seed. Keep the seeder in step so a fresh
+install and an upgraded install converge — but the migration is what actually fixes production.
+See `2026_09_17_100220_standardize_launch_plan_pricing.php`, and the test that re-runs that
+migration against deliberately-stale placeholder rows.
+
+**Corollary, and this is the part that bit hardest.** Once you find drift in one column, assume the
+whole row drifted. Verifying that same pricing fix in a browser showed `max_ptw_users` was NULL on
+every plan — and null means *unlimited* to the entitlement layer, so every tier had been silently
+granting unlimited PTW Access seats. That was an entitlement defect hiding behind a cosmetic one,
+and only a real page render against the real database surfaced it.
+
+---
+## Known Pitfall (v2.51.0): MySQL 8.4 returns `information_schema` column names in UPPER CASE, and
+## Laravel's auto-generated index names can exceed MySQL's 64-character identifier limit
+
+Two separate defects in one shipped migration, both of which aborted `php artisan migrate` outright
+on a fresh MySQL 8.4 server — so the app could not be installed at all, while every existing
+environment was fine because the migration had already run there.
+
+1. `DB::selectOne('select engine from information_schema.tables ...')->engine` is an "Undefined
+   property" fatal on 8.4: the property is `ENGINE`. **Alias the column** (`select engine as
+   table_engine`) so the property name is yours, not the server's.
+2. `$table->index(['safety_equipment_id', 'inspection_date'])` on `safety_equipment_inspections`
+   generated a 69-character index name. **Name long composite indexes explicitly** rather than
+   shortening a column to work around a naming problem.
+
+**Rule.** A migration is only proven by running it against an empty database on the target engine.
+"It ran once on my machine two versions ago" is not the same test.
+
+---## CRITICAL — Known Pitfall (v2.40.0): a `unique()` constraint written before multi-tenancy is not
 ## just a constraint, it is an architectural assertion that only ONE of the thing can exist — and it
 ## keeps enforcing that after tenancy makes it false
 

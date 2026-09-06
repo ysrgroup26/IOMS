@@ -139,6 +139,18 @@ function BrandingTab({ company }) {
         company_phone: company.phone || '',
         company_email: company.email || '',
         company_website: company.website || '',
+        // v2.51.0 -- document identity. These feed the shared letterhead
+        // every generated PDF now uses (DocumentEngine::identity()), which
+        // is why the section below is labelled as document identity rather
+        // than being mixed into app branding.
+        company_legal_name: company.legal_name || '',
+        company_city: company.city || '',
+        company_province: company.province || '',
+        company_postal_code: company.postal_code || '',
+        company_country: company.country || '',
+        company_tax_id: company.tax_id || '',
+        company_business_id: company.business_id || '',
+        company_industry: company.industry || '',
         brand_color: company.brand_color || '#2563eb',
         logo: null,
         favicon: null,
@@ -179,9 +191,53 @@ function BrandingTab({ company }) {
                         <Label>Footer Copyright Text (optional)</Label>
                         <Input value={data.footer_copyright} onChange={(e) => setData('footer_copyright', e.target.value)} placeholder="Leave blank to use the default" />
                     </div>
-                    <div className="space-y-1.5">
-                        <Label>Address (optional)</Label>
-                        <Input value={data.company_address} onChange={(e) => setData('company_address', e.target.value)} placeholder="Used on future document letterheads" />
+                    <div className="rounded-lg border border-steel-200/70 bg-steel-50/50 p-3.5">
+                        <p className="text-[11px] font-semibold uppercase tracking-wide text-brand-700">Document identity</p>
+                        <p className="mt-0.5 text-[11px] leading-relaxed text-graphite-500">
+                            Used as the letterhead on every document IOMS generates for your company &mdash; permits,
+                            purchase orders, receipts and work orders.
+                        </p>
+
+                        <div className="mt-3 space-y-3">
+                            <div className="space-y-1.5">
+                                <Label>Legal Company Name (optional)</Label>
+                                <Input value={data.company_legal_name} onChange={(e) => setData('company_legal_name', e.target.value)} placeholder="PT Contoh Industri Nusantara" />
+                            </div>
+                            <div className="space-y-1.5">
+                                <Label>Address (optional)</Label>
+                                <Input value={data.company_address} onChange={(e) => setData('company_address', e.target.value)} placeholder="Street address" />
+                            </div>
+                            <div className="grid grid-cols-2 gap-3">
+                                <div className="space-y-1.5">
+                                    <Label>City</Label>
+                                    <Input value={data.company_city} onChange={(e) => setData('company_city', e.target.value)} />
+                                </div>
+                                <div className="space-y-1.5">
+                                    <Label>Province</Label>
+                                    <Input value={data.company_province} onChange={(e) => setData('company_province', e.target.value)} />
+                                </div>
+                            </div>
+                            <div className="grid grid-cols-2 gap-3">
+                                <div className="space-y-1.5">
+                                    <Label>Postal Code</Label>
+                                    <Input value={data.company_postal_code} onChange={(e) => setData('company_postal_code', e.target.value)} />
+                                </div>
+                                <div className="space-y-1.5">
+                                    <Label>Country</Label>
+                                    <Input value={data.company_country} onChange={(e) => setData('company_country', e.target.value)} placeholder="Indonesia" />
+                                </div>
+                            </div>
+                            <div className="grid grid-cols-2 gap-3">
+                                <div className="space-y-1.5">
+                                    <Label>NPWP</Label>
+                                    <Input value={data.company_tax_id} onChange={(e) => setData('company_tax_id', e.target.value)} />
+                                </div>
+                                <div className="space-y-1.5">
+                                    <Label>NIB</Label>
+                                    <Input value={data.company_business_id} onChange={(e) => setData('company_business_id', e.target.value)} />
+                                </div>
+                            </div>
+                        </div>
                     </div>
                     <div className="grid grid-cols-2 gap-3">
                         <div className="space-y-1.5">

@@ -12,6 +12,7 @@ import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogFooter } from '
 import GroupedDepartmentSelect from '@/Components/shared/GroupedDepartmentSelect';
 import PpeTabNav from '@/Components/shared/PpeTabNav';
 import { ChevronLeft, ChevronRight, Search, X, RefreshCw } from 'lucide-react';
+import PageHeader from '@/Components/shared/PageHeader';
 
 // Effective status: expiring_soon/expired are fully computed from
 // expiry_date (see EmployeePpe::getEffectiveStatusAttribute()) and only
@@ -63,12 +64,7 @@ export default function PpeIndex({ assignments, ppeTypes, companies, departments
 
             <PpeTabNav />
 
-            <div className="mb-6 flex flex-wrap items-center justify-between gap-3">
-                <div>
-                    <h1 className="text-[22px] font-semibold tracking-tight text-navy-900">PPE Reports</h1>
-                    <p className="mt-1 text-sm text-graphite-500">History, analytics, and export -- issuing PPE happens from an employee's PPE profile.</p>
-                </div>
-            </div>
+            <PageHeader title="PPE Reports" subtitle="History, analytics, and export -- issuing PPE happens from an employee's PPE profile." />
 
             <Card>
                 <CardContent className="flex flex-wrap gap-2 p-4">

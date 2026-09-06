@@ -12,6 +12,7 @@ import { Select, SelectTrigger, SelectValue, SelectContent, SelectItem } from '@
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogFooter } from '@/Components/ui/dialog';
 import { Checkbox } from '@/Components/ui/checkbox';
 import { Plus, Pencil, Trash2, AlertTriangle } from 'lucide-react';
+import PageHeader from '@/Components/shared/PageHeader';
 
 /**
  * Milestone 4, Workstream A2. Training/Certification catalog -- same
@@ -82,13 +83,7 @@ export default function CompetencyMaster({ competencyTypes, companies, positions
         <AuthenticatedLayout>
             <Head title="Competency Master" />
 
-            <div className="mb-6 flex flex-wrap items-center justify-between gap-3">
-                <div>
-                    <h1 className="text-[22px] font-semibold tracking-tight text-navy-900">Training &amp; Competency Master</h1>
-                    <p className="mt-1 text-sm text-graphite-500">
-                        Configure the training and certification catalog. Nothing here is hard-coded -- everything is editable.
-                    </p>
-                </div>
+            <PageHeader title="Training &amp; Competency Master" subtitle="Configure the training and certification catalog. Nothing here is hard-coded -- everything is editable.">
                 <div className="flex gap-2">
                     <Button variant="outline" asChild>
                         <Link href={route('competency.expiring-soon')}><AlertTriangle className="h-4 w-4" /> Expiring Soon</Link>
@@ -97,7 +92,7 @@ export default function CompetencyMaster({ competencyTypes, companies, positions
                         <Button onClick={openCreate}><Plus className="h-4 w-4" /> Add Competency</Button>
                     )}
                 </div>
-            </div>
+            </PageHeader>
 
             <Card>
                 <CardHeader>

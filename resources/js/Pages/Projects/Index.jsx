@@ -9,6 +9,7 @@ import { Badge } from '@/Components/ui/badge';
 import { Select, SelectTrigger, SelectValue, SelectContent, SelectItem } from '@/Components/ui/select';
 import { Search, Plus, ChevronLeft, ChevronRight, MapPin, Users , FolderKanban} from 'lucide-react';
 import { cn } from '@/lib/utils';
+import PageHeader from '@/Components/shared/PageHeader';
 
 const STATUS_VARIANT = {
     planned: 'secondary',
@@ -41,17 +42,13 @@ export default function ProjectsIndex({ projects, companies, filters, can }) {
         <AuthenticatedLayout>
             <Head title="Projects" />
 
-            <div className="mb-6 flex flex-wrap items-center justify-between gap-3">
-                <div>
-                    <h1 className="text-[22px] font-semibold tracking-tight text-navy-900">Projects</h1>
-                    <p className="mt-1 text-sm text-graphite-500">{projects.total} projects total</p>
-                </div>
+            <PageHeader title="Projects" subtitle={<>{projects.total} projects total</>}>
                 {can.manage && (
                     <Button asChild>
                         <Link href={route('projects.create')}><Plus className="h-4 w-4" /> Add Project</Link>
                     </Button>
                 )}
-            </div>
+            </PageHeader>
 
             <Card>
                 <CardContent className="flex flex-wrap gap-2 p-4">

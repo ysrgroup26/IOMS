@@ -1,0 +1,243 @@
+import { Head, Link, useForm, usePage } from '@inertiajs/react';
+import { CheckCircle2, Clock, CreditCard, Mail, ShieldCheck, XCircle, ArrowRight } from 'lucide-react';
+import PublicLayout from '@/Layouts/PublicLayout';
+import PublicPageHero from '@/Components/shared/PublicPageHero';
+import { Button } from '@/Components/ui/button';
+import { cn } from '@/lib/utils';
+
+/**
+ * v2.51.0 -- where a registration stands.
+ *
+ * This is also the URL the payment provider redirects the customer back
+ * to after checkout, which is exactly why it is READ ONLY. It renders
+ * server state and nothing else: reaching it, refreshing it, or sharing
+ * the link cannot mark anything paid or activate a workspace. That only
+ * happens when the provider's signed notification reaches our webhook.
+ *
+ * So the page is honest about the in-between moment a customer will
+ * genuinely experience -- "we're waiting for your payment to be
+ * confirmed" -- rather than congratulating them on an activation that has
+ * not happened yet.
+ */
+const FLOW = [
+    { key: 'verify', label: 'Confirm email', icon: Mail },
+    { key: 'pay', label: 'Payment', icon: CreditCard },
+    { key: 'provision', label: 'Workspace ready', icon: ShieldCheck },
+];
+
+export default function RegistrationStatus({ registration, paymentConfigured, supportEmail }) {
+    const { flash = {}, errors = {} } = usePage().props;
+    const { post, processing } = useForm({});
+
+    const isProvisioned = registration.status === 'provisioned';
+    const isPaid = registration.status === 'paid' || isProvisioned;
+    const isVerified = registration.is_verified;
+
+    const stage = isProvisioned ? 3 : isPaid ? 2 : isVerified ? 1 : 0;
+
+    const pay = (e) => {
+        e.preventDefault();
+        post(route('register.checkout', registration.token));
+    };
+
+    const resend = (e) => {
+        e.preventDefault();
+        post(route('register.resend', registration.token), { preserveScroll: true });
+    };
+
+    return (
+        <PublicLayout>
+            <Head title={`Registration ${registration.reference}`} />
+
+            <PublicPageHero
+                eyebrow={registration.reference}
+                title={
+                    isProvisioned
+                        ? 'Your IOMS workspace is ready.'
+                        : isPaid
+                            ? 'Payment received — finishing setup.'
+                            : isVerified
+                                ? 'Complete your payment to activate IOMS.'
+                                : 'Confirm your email address to continue.'
+                }
+                subtitle={registration.company_name}
+                size="sm"
+            />
+
+            <section className="bg-graphite-100 py-12 sm:py-16">
+                <div className="mx-auto max-w-3xl space-y-6 px-4 sm:px-6">
+
+                    {flash.success && <Notice tone="success">{flash.success}</Notice>}
+                    {flash.info && <Notice tone="info">{flash.info}</Notice>}
+                    {errors.payment && <Notice tone="danger">{errors.payment}</Notice>}
+                    {registration.is_expired && !isProvisioned && (
+                        <Notice tone="danger">
+                            This registration has expired. Please start again from Get Started, or contact us if you
+                            have already paid.
+                        </Notice>
+                    )}
+
+                    {/* Progress. Deliberately three plain steps rather than a
+                        percentage bar -- a customer wants to know which gate
+                        they are behind, not a number. */}
+                    <div className="rounded-xl border border-steel-200/70 bg-white p-6 shadow-panel">
+                        <ol className="grid gap-3 sm:grid-cols-3">
+                            {FLOW.map((s, i) => {
+                                const done = stage > i;
+                                const current = stage === i;
+
+                                return (
+                                    <li
+                                        key={s.key}
+                                        className={cn(
+                                            'flex items-center gap-3 rounded-lg border p-3',
+                                            done
+                                                ? 'border-success/20 bg-success/[0.06]'
+                                                : current
+                                                    ? 'border-brand-300 bg-gradient-to-b from-steel-100/70 to-white'
+                                                    : 'border-steel-100 bg-white'
+                                        )}
+                                    >
+                                        <span
+                                            className={cn(
+                                                'flex h-8 w-8 shrink-0 items-center justify-center rounded-[9px] text-white',
+                                                done
+                                                    ? 'bg-gradient-to-br from-success to-emerald-700'
+                                                    : current
+                                                        ? 'bg-gradient-to-br from-navy-800 to-brand-600'
+                                                        : 'bg-steel-200 text-graphite-500'
+                                            )}
+                                        >
+                                            {done ? <CheckCircle2 className="h-4 w-4" /> : <s.icon className="h-4 w-4" />}
+                                        </span>
+                                        <span className="min-w-0">
+                                            <span className="block text-[13px] font-semibold text-navy-900">{s.label}</span>
+                                            <span className="block text-[11px] text-graphite-500">
+                                                {done ? 'Done' : current ? 'In progress' : 'Waiting'}
+                                            </span>
+                                        </span>
+                                    </li>
+                                );
+                            })}
+                        </ol>
+                    </div>
+
+                    {/* Summary */}
+                    <div className="rounded-xl border border-steel-200/70 bg-white p-6 shadow-panel">
+                        <h2 className="text-[15px] font-semibold tracking-tight text-navy-900">Your registration</h2>
+                        <dl className="mt-4 grid gap-x-6 gap-y-3 sm:grid-cols-2">
+                            <Row label="Reference" value={registration.reference} />
+                            <Row label="Company" value={registration.company_legal_name} />
+                            <Row label="Administrator" value={registration.contact_email} />
+                            <Row label="Plan" value={registration.plan_name} />
+                            <Row label="Billing" value={registration.billing_cycle === 'monthly' ? 'Monthly' : 'Annual'} />
+                            <Row label="Amount" value={registration.amount} strong />
+                            {registration.invoice_number && (
+                                <Row label="Invoice" value={`${registration.invoice_number} · ${registration.invoice_status}`} />
+                            )}
+                        </dl>
+                    </div>
+
+                    {/* The one action available at this stage. */}
+                    {isProvisioned ? (
+                        <div className="rounded-xl border border-success/20 bg-gradient-to-b from-success/[0.08] via-white to-white p-6 text-center shadow-panel">
+                            <CheckCircle2 className="mx-auto h-8 w-8 text-success" />
+                            <h2 className="mt-3 text-base font-semibold tracking-tight text-navy-900">
+                                Your workspace is active
+                            </h2>
+                            <p className="mx-auto mt-2 max-w-md text-sm leading-relaxed text-graphite-600">
+                                Sign in with {registration.contact_email} and the password you chose during
+                                registration. IOMS never sends passwords by email.
+                            </p>
+                            <Button className="mt-5" asChild>
+                                <Link href={route('login')}>Sign in to IOMS <ArrowRight className="h-4 w-4" /></Link>
+                            </Button>
+                        </div>
+                    ) : isPaid ? (
+                        <div className="rounded-xl border border-steel-200/70 bg-white p-6 text-center shadow-panel">
+                            <Clock className="mx-auto h-8 w-8 text-brand-600" />
+                            <h2 className="mt-3 text-base font-semibold tracking-tight text-navy-900">
+                                Payment confirmed — provisioning your workspace
+                            </h2>
+                            <p className="mx-auto mt-2 max-w-md text-sm leading-relaxed text-graphite-600">
+                                This usually completes within a moment. You will receive an email as soon as your
+                                administrator account is ready.
+                            </p>
+                        </div>
+                    ) : !isVerified ? (
+                        <div className="rounded-xl border border-steel-200/70 bg-white p-6 text-center shadow-panel">
+                            <Mail className="mx-auto h-8 w-8 text-brand-600" />
+                            <h2 className="mt-3 text-base font-semibold tracking-tight text-navy-900">
+                                Check your inbox
+                            </h2>
+                            <p className="mx-auto mt-2 max-w-md text-sm leading-relaxed text-graphite-600">
+                                We sent a confirmation link to <strong className="text-navy-800">{registration.contact_email}</strong>.
+                                Confirm it to continue to payment.
+                            </p>
+                            <form onSubmit={resend}>
+                                <Button type="submit" variant="outline" className="mt-5" disabled={processing}>
+                                    Resend confirmation email
+                                </Button>
+                            </form>
+                        </div>
+                    ) : (
+                        <div className="rounded-xl border border-steel-200/70 bg-gradient-to-b from-steel-100/70 via-white to-white p-6 shadow-panel">
+                            <h2 className="text-[15px] font-semibold tracking-tight text-navy-900">Complete your payment</h2>
+                            <p className="mt-2 text-sm leading-relaxed text-graphite-600">
+                                {paymentConfigured
+                                    ? 'You will be taken to our payment provider. IOMS never receives or stores your card details, and your workspace activates only once the provider confirms the payment to our server.'
+                                    : 'Online payment is not enabled on this deployment yet. Continuing will issue your invoice and our team will contact you with payment instructions — nothing is charged here.'}
+                            </p>
+
+                            <form onSubmit={pay}>
+                                <Button type="submit" className="mt-5 w-full sm:w-auto" disabled={processing || registration.is_expired}>
+                                    {processing
+                                        ? 'Preparing…'
+                                        : paymentConfigured
+                                            ? <>Pay {registration.amount} <ArrowRight className="h-4 w-4" /></>
+                                            : <>Issue my invoice <ArrowRight className="h-4 w-4" /></>}
+                                </Button>
+                            </form>
+                        </div>
+                    )}
+
+                    {supportEmail && (
+                        <p className="text-center text-xs text-graphite-500">
+                            Questions about this registration?{' '}
+                            <a href={`mailto:${supportEmail}?subject=${encodeURIComponent(registration.reference)}`} className="font-medium text-brand-700 hover:underline">
+                                Contact us
+                            </a>
+                        </p>
+                    )}
+                </div>
+            </section>
+        </PublicLayout>
+    );
+}
+
+function Row({ label, value, strong }) {
+    return (
+        <div>
+            <dt className="text-[11px] uppercase tracking-wide text-graphite-400">{label}</dt>
+            <dd className={cn('mt-0.5 text-sm', strong ? 'font-semibold text-navy-900' : 'text-graphite-700')}>
+                {value || '—'}
+            </dd>
+        </div>
+    );
+}
+
+function Notice({ tone, children }) {
+    const Icon = tone === 'danger' ? XCircle : tone === 'success' ? CheckCircle2 : Clock;
+    const tones = {
+        success: 'border-success/20 bg-success/[0.07] text-emerald-900',
+        info: 'border-brand-200 bg-brand-50 text-navy-800',
+        danger: 'border-danger/20 bg-danger/[0.06] text-red-900',
+    };
+
+    return (
+        <div className={cn('flex items-start gap-2.5 rounded-lg border p-4 text-sm leading-relaxed', tones[tone])}>
+            <Icon className="mt-0.5 h-4 w-4 shrink-0" />
+            <span>{children}</span>
+        </div>
+    );
+}

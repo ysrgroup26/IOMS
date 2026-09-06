@@ -35,7 +35,7 @@ class Invoice extends Model
     public const STATUSES = [self::STATUS_DRAFT, self::STATUS_ISSUED, self::STATUS_PAID, self::STATUS_OVERDUE, self::STATUS_VOID];
 
     protected $fillable = [
-        'invoice_number', 'tenant_id', 'subscription_id', 'period_start', 'period_end',
+        'invoice_number', 'tenant_id', 'registration_id', 'subscription_id', 'period_start', 'period_end',
         'amount', 'currency', 'status', 'due_date', 'payment_date', 'payment_reference',
         'payment_method', 'notes', 'created_by',
     ];
@@ -61,6 +61,16 @@ class Invoice extends Model
         return $this->belongsTo(Subscription::class);
     }
 
+    /**
+     * v2.51.0. An invoice raised during self-service onboarding belongs to
+     * a registration, not yet to a tenant -- the tenant does not exist
+     * until this invoice is paid. Provisioning back-fills `tenant_id`.
+     */
+    public function registration()
+    {
+        return $this->belongsTo(TenantRegistration::class, 'registration_id');
+    }
+
     public function creator()
     {
         return $this->belongsTo(User::class, 'created_by');
@@ -77,16 +87,27 @@ class Invoice extends Model
      * NumberGeneratorService::nextSequence() itself uses, applied
      * directly here against this table instead.
      */
-    public static function generateNumber(int $tenantId): string
+    public static function generateNumber(?int $tenantId): string
     {
         return DB::transaction(function () use ($tenantId) {
             $year = now()->format('Y');
-            $count = static::where('tenant_id', $tenantId)
-                ->whereYear('created_at', $year)
-                ->lockForUpdate()
-                ->count();
 
-            return sprintf('INV-%s-%d-%05d', $year, $tenantId, $count + 1);
+            // v2.51.0: an onboarding invoice has no tenant yet (see
+            // registration()). Those are counted in their own series so
+            // the per-tenant sequence stays contiguous once the tenant
+            // exists -- a customer's first invoice is INV-YYYY-<id>-00001
+            // either way, and pre-tenant invoices never consume a number
+            // from a tenant that has not been created.
+            $query = static::whereYear('created_at', $year);
+            $query = $tenantId === null
+                ? $query->whereNull('tenant_id')
+                : $query->where('tenant_id', $tenantId);
+
+            $count = $query->lockForUpdate()->count();
+
+            return $tenantId === null
+                ? sprintf('INV-%s-NEW-%05d', $year, $count + 1)
+                : sprintf('INV-%s-%d-%05d', $year, $tenantId, $count + 1);
         });
     }
 

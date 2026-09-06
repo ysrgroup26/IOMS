@@ -6,6 +6,7 @@ import { Badge } from '@/Components/ui/badge';
 import { Select, SelectTrigger, SelectValue, SelectContent, SelectItem } from '@/Components/ui/select';
 import EmptyState from '@/Components/shared/EmptyState';
 import { ShieldCheck } from 'lucide-react';
+import PageHeader from '@/Components/shared/PageHeader';
 
 const STATUS_VARIANT = {
     expired: 'destructive',
@@ -28,13 +29,7 @@ export default function CompetencyExpiringSoon({ items, companies, filters }) {
         <AuthenticatedLayout>
             <Head title="Competency Expiring Soon" />
 
-            <div className="mb-6 flex flex-wrap items-center justify-between gap-3">
-                <div>
-                    <h1 className="text-[22px] font-semibold tracking-tight text-navy-900">Competency Expiring Soon</h1>
-                    <p className="mt-1 text-sm text-graphite-500">
-                        Training and certifications expiring within 30 days, or already expired.
-                    </p>
-                </div>
+            <PageHeader title="Competency Expiring Soon" subtitle="Training and certifications expiring within 30 days, or already expired.">
                 <Select value={filters.company_id ? String(filters.company_id) : 'all'} onValueChange={changeCompany}>
                     <SelectTrigger className="w-48"><SelectValue /></SelectTrigger>
                     <SelectContent>
@@ -42,7 +37,7 @@ export default function CompetencyExpiringSoon({ items, companies, filters }) {
                         {companies.map((c) => <SelectItem key={c.id} value={String(c.id)}>{c.name}</SelectItem>)}
                     </SelectContent>
                 </Select>
-            </div>
+            </PageHeader>
 
             <Card>
                 <CardHeader>

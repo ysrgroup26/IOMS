@@ -28,6 +28,15 @@ class PackageSeeder extends Seeder
      * corrected here too so the stored catalog description matches what
      * the tenant actually gets, not a stale, narrower list.
      *
+     * v2.51.0 SUPERSEDES v2.50.0 prices with the approved LAUNCH figures
+     * (499.000 / 999.000 / 1.999.000 monthly, 4.990.000 / 9.990.000 /
+     * 19.990.000 annual). Note that a seeder alone could not fix the live
+     * deployment -- the runtime source of truth is the `packages` table and
+     * db:seed had never re-run, which is why v2.50.0 prices never appeared.
+     * See 2026_09_17_100220_standardize_launch_plan_pricing, which applies
+     * the same catalog on deploy; this seeder stays in step with it so a
+     * FRESH install and an UPGRADED install end up identical.
+     *
      * v2.50.0 SUPERSEDES the v2.14.0 note below on two points: the
      * standardized IOMS commercial model is now a recorded business
      * decision, so the placeholder 0/49/149 figures became real IDR prices
@@ -87,8 +96,8 @@ class PackageSeeder extends Seeder
                 'slug' => 'starter',
                 'description' => 'A fully operational HSE product for a single company -- incidents, observations, inspections, PPE, PTW, CAPA, and every other HSE module, without requiring HRD.',
                 // Starter -- HSE-focused access.
-                'price_monthly' => 1499000,
-                'price_yearly' => 14990000,
+                'price_monthly' => 499000,
+                'price_yearly' => 4990000,
                 'currency' => 'IDR',
                 'trial_days' => null,
                 // v2.17.1 fix: max_users raised 10 -> 15 so max_ptw_users
@@ -109,8 +118,8 @@ class PackageSeeder extends Seeder
                 'slug' => 'professional',
                 'description' => 'HSE plus HRD/workforce management and cross-department management visibility, for growing operations across multiple companies.',
                 // Professional -- HSE + Management + People/HR.
-                'price_monthly' => 3499000,
-                'price_yearly' => 34990000,
+                'price_monthly' => 999000,
+                'price_yearly' => 9990000,
                 'currency' => 'IDR',
                 'trial_days' => 14,
                 'max_users' => 50,
@@ -126,8 +135,8 @@ class PackageSeeder extends Seeder
                 'slug' => 'enterprise',
                 'description' => 'Full IOMS -- every department (HSE, HRD, Project Management, Logistics/PPIC, Warehouse, Procurement, Asset Management, Maintenance, Quality Control) and unlimited users/companies.',
                 // Enterprise -- the full standardized platform.
-                'price_monthly' => 7499000,
-                'price_yearly' => 74990000,
+                'price_monthly' => 1999000,
+                'price_yearly' => 19990000,
                 'currency' => 'IDR',
                 'trial_days' => null,
                 'max_users' => null,

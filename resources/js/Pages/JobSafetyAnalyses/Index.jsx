@@ -8,6 +8,7 @@ import { Table, TableHeader, TableBody, TableRow, TableHead, TableCell } from '@
 import StatusBadge from '@/Components/shared/StatusBadge';
 import EmptyState from '@/Components/shared/EmptyState';
 import { Plus, Search, ListChecks, ChevronLeft, ChevronRight } from 'lucide-react';
+import PageHeader from '@/Components/shared/PageHeader';
 
 export default function JobSafetyAnalysesIndex({ jsas, filters, can }) {
     function applyFilters(overrides = {}) {
@@ -18,13 +19,9 @@ export default function JobSafetyAnalysesIndex({ jsas, filters, can }) {
         <AuthenticatedLayout>
             <Head title="Job Safety Analysis" />
 
-            <div className="mb-4 flex flex-wrap items-center justify-between gap-3">
-                <div>
-                    <h1 className="text-[22px] font-semibold tracking-tight text-navy-900 dark:text-slate-50">Job Safety Analysis</h1>
-                    <p className="text-xs text-graphite-500 dark:text-slate-400">Step-by-step task hazard breakdown.</p>
-                </div>
+            <PageHeader title="Job Safety Analysis" subtitle="Step-by-step task hazard breakdown.">
                 {can.manage && (<Button asChild><Link href={route('job-safety-analyses.create')}><Plus className="h-4 w-4" /> New JSA</Link></Button>)}
-            </div>
+            </PageHeader>
 
             <Card className="mb-4">
                 <CardContent className="flex flex-wrap gap-2 p-3">

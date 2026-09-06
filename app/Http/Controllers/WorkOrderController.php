@@ -17,6 +17,8 @@ use Illuminate\Validation\Rule;
 use Illuminate\Validation\ValidationException;
 use Inertia\Inertia;
 use Inertia\Response;
+use App\Services\DocumentEngine;
+use App\Services\PdfGeneratorService;
 
 /**
  * Milestone 4, Acceleration Part 2 (Maintenance CMMS Foundation).
@@ -219,6 +221,22 @@ class WorkOrderController extends Controller
         return back()->with('success', 'Spare part usage recorded.');
     }
 
+    /**
+     * v2.51.0 -- Work Order / Surat Perintah Kerja as a printable
+     * document, carrying both the instruction and its completion record
+     * on one sheet.
+     */
+    public function pdf(WorkOrder $workOrder, PdfGeneratorService $pdf, DocumentEngine $documents): \Illuminate\Http\Response
+    {
+        $this->assertInCurrentTenant($workOrder);
+        $workOrder->load('company', 'asset', 'technician', 'creator', 'spareParts');
+
+        return $pdf->streamInline('pdf.work-order', [
+            'workOrder' => $workOrder,
+            'identity' => $documents->identity(),
+            'documentTemplate' => $documents->resolveTemplate('work_order', $workOrder->company_id),
+        ], "{$workOrder->wo_number}.pdf");
+    }
     private function assertInCurrentTenant(WorkOrder $wo): void
     {
         abort_unless(Company::query()->pluck('id')->contains($wo->company_id), 404);

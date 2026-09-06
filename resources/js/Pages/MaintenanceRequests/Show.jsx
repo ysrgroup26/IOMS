@@ -5,6 +5,7 @@ import { Button } from '@/Components/ui/button';
 import ActivityTimeline from '@/Components/shared/ActivityTimeline';
 import StatusBadge from '@/Components/shared/StatusBadge';
 import { ArrowLeft, CheckCircle2, XCircle, FilePlus } from 'lucide-react';
+import PageHeader from '@/Components/shared/PageHeader';
 
 export default function MaintenanceRequestShow({ maintenanceRequest: mr, activities, canManage }) {
     function act(status, confirmMessage) {
@@ -20,11 +21,7 @@ export default function MaintenanceRequestShow({ maintenanceRequest: mr, activit
                 <ArrowLeft className="h-4 w-4" /> Back to Maintenance Requests
             </Link>
 
-            <div className="mb-4 flex flex-wrap items-start justify-between gap-3">
-                <div>
-                    <h1 className="flex items-center gap-2 text-[22px] font-semibold tracking-tight text-graphite-900">{mr.request_number}<StatusBadge value={mr.priority} /><StatusBadge value={mr.status} /></h1>
-                    <p className="text-xs text-graphite-500">{mr.asset?.name} ({mr.asset?.asset_code}) · {new Date(mr.request_date).toLocaleDateString('en-US', { day: 'numeric', month: 'long', year: 'numeric' })}</p>
-                </div>
+            <PageHeader title={<>{mr.request_number}<StatusBadge value={mr.priority} /><StatusBadge value={mr.status} /></>} subtitle={<>{mr.asset?.name} ({mr.asset?.asset_code}) · {new Date(mr.request_date).toLocaleDateString('en-US', { day: 'numeric', month: 'long', year: 'numeric' })}</>}>
                 {canManage && (
                     <div className="flex flex-wrap items-center gap-2">
                         {mr.status === 'reported' && (<>
@@ -39,7 +36,7 @@ export default function MaintenanceRequestShow({ maintenanceRequest: mr, activit
                         )}
                     </div>
                 )}
-            </div>
+            </PageHeader>
 
             <div className="grid grid-cols-1 gap-4 lg:grid-cols-3">
                 <div className="space-y-4 lg:col-span-2">

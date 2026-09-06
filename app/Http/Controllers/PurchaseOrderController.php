@@ -18,6 +18,8 @@ use Illuminate\Validation\Rule;
 use Illuminate\Validation\ValidationException;
 use Inertia\Inertia;
 use Inertia\Response;
+use App\Services\DocumentEngine;
+use App\Services\PdfGeneratorService;
 
 /**
  * Milestone 4, Workstream C4 (Purchase Order). Same segregation-of-duties
@@ -237,6 +239,25 @@ class PurchaseOrderController extends Controller
         abort_unless($request->user()->isSuperAdmin() || in_array($request->user()->role, $allowed, true), 403);
     }
 
+    /**
+     * v2.51.0 -- Purchase Order / Surat Pesanan as a printable document.
+     *
+     * Uses the shared IOMS document system (pdf/partials/*) so this PO
+     * carries the tenant's own letterhead. Read access mirrors show()
+     * exactly -- same tenant guard, no additional capability -- because
+     * printing a PO you may already open is not a new permission.
+     */
+    public function pdf(PurchaseOrder $purchaseOrder, PdfGeneratorService $pdf, DocumentEngine $documents): \Illuminate\Http\Response
+    {
+        $this->assertInCurrentTenant($purchaseOrder);
+        $purchaseOrder->load('company', 'vendor', 'project', 'department', 'requester', 'approver', 'issuer', 'items');
+
+        return $pdf->streamInline('pdf.purchase-order', [
+            'purchaseOrder' => $purchaseOrder,
+            'identity' => $documents->identity(),
+            'documentTemplate' => $documents->resolveTemplate('purchase_order', $purchaseOrder->company_id),
+        ], "{$purchaseOrder->po_number}.pdf");
+    }
     private function assertInCurrentTenant(PurchaseOrder $po): void
     {
         abort_unless(Company::query()->pluck('id')->contains($po->company_id), 404);

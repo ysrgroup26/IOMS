@@ -1,5 +1,5 @@
 import { Link, usePage, router } from '@inertiajs/react';
-import { LayoutDashboard, Building2, LogOut, Tag } from 'lucide-react';
+import { LayoutDashboard, Building2, LogOut, Tag , UserPlus} from 'lucide-react';
 import BrandWordmark from '@/Components/shared/BrandWordmark';
 
 const NAV_CLASS = 'flex items-center gap-2 rounded-md px-3 py-2 text-sm font-medium transition-colors';
@@ -25,6 +25,9 @@ export default function PlatformLayout({ children }) {
     const navItems = [
         { name: 'Dashboard', href: route('platform.dashboard'), icon: LayoutDashboard, active: currentUrl === '/platform' },
         { name: 'Tenants', href: route('platform.tenants'), icon: Building2, active: currentUrl.startsWith('/platform/tenants') },
+        // v2.51.0: the onboarding pipeline sits beside Tenants because a
+        // registration is what becomes a tenant.
+        { name: 'Registrations', href: route('platform.registrations'), icon: UserPlus, active: currentUrl.startsWith('/platform/registrations') },
         { name: 'Plans', href: route('platform.plans'), icon: Tag, active: currentUrl.startsWith('/platform/plans') },
     ];
 

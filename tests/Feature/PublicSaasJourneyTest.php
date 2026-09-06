@@ -48,10 +48,13 @@ class PublicSaasJourneyTest extends TestCase
     {
         $this->seedPlans();
 
+        // v2.51.0 approved launch pricing. Asserted here so a future edit
+        // to the seeder OR the standardize-pricing migration that drifts
+        // from the recorded commercial model fails loudly.
         $expected = [
-            'starter' => [1499000, 14990000],
-            'professional' => [3499000, 34990000],
-            'enterprise' => [7499000, 74990000],
+            'starter' => [499000, 4990000],
+            'professional' => [999000, 9990000],
+            'enterprise' => [1999000, 19990000],
         ];
 
         foreach ($expected as $slug => [$monthly, $yearly]) {
@@ -68,6 +71,60 @@ class PublicSaasJourneyTest extends TestCase
         }
     }
 
+    /**
+     * THE v2.50.0 DEFECT, pinned.
+     *
+     * A seeder only runs when someone runs it; the `packages` table is
+     * what the application actually reads. v2.50.0 changed the seeder and
+     * production kept rendering the old placeholder prices for a whole
+     * release. The standardize-pricing migration now applies the same
+     * catalog on deploy -- this test proves the two agree, on a database
+     * built by migrations alone with NO seeding.
+     */
+    public function test_the_pricing_migration_alone_produces_the_launch_catalog(): void
+    {
+        // Seed the ORIGINAL placeholder rows the migration has to correct,
+        // exactly as an upgraded deployment would hold them.
+        foreach ([['starter', 0, 0], ['professional', 49, 490], ['enterprise', 149, 1490]] as [$slug, $m, $y]) {
+            Package::create([
+                'name' => ucfirst($slug), 'slug' => $slug,
+                'price_monthly' => $m, 'price_yearly' => $y, 'currency' => 'IDR',
+                'is_active' => true, 'is_public' => true, 'is_custom' => $slug === 'enterprise',
+            ]);
+        }
+
+        // Re-run just that migration against the placeholder rows.
+        (require database_path('migrations/2026_09_17_100220_standardize_launch_plan_pricing.php'))->up();
+
+        $starter = Package::where('slug', 'starter')->first();
+        $enterprise = Package::where('slug', 'enterprise')->first();
+
+        $this->assertEquals(499000, (float) $starter->price_monthly);
+        $this->assertEquals(4990000, (float) $starter->price_yearly);
+        $this->assertEquals(1999000, (float) $enterprise->price_monthly);
+
+        // Enterprise must stop being "Hubungi Kami" -- it is the highest
+        // standardized tier, not a negotiated custom build.
+        $this->assertFalse((bool) $enterprise->is_custom);
+        $this->assertNotSame('Hubungi Kami', app(\App\Services\PricingService::class)->summarize($enterprise)['monthly']['formatted']);
+    }
+
+    /** IDR renders the way an Indonesian buyer reads it, on every surface, from one formatter. */
+    public function test_idr_is_formatted_as_rupiah(): void
+    {
+        $this->assertSame('Rp999.000', app(\App\Services\PricingService::class)->format(999000.0, 'IDR'));
+        $this->assertSame('Rp19.990.000', app(\App\Services\PricingService::class)->format(19990000.0, 'IDR'));
+    }
+
+    /** Every marketing nav destination must be a real, guest-reachable page -- no dead anchors. */
+    public function test_every_public_navigation_destination_resolves(): void
+    {
+        $this->seedPlans();
+
+        foreach (['platform-overview', 'solutions', 'how-it-works', 'faq', 'pricing', 'get-started'] as $name) {
+            $this->get(route($name))->assertOk();
+        }
+    }
     /** Annual must be genuinely cheaper per month, or presenting it as better value is a lie. */
     public function test_annual_billing_is_actually_better_value(): void
     {

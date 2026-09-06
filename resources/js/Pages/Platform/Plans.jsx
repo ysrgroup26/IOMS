@@ -12,6 +12,7 @@ import { Table, TableHeader, TableBody, TableRow, TableHead, TableCell } from '@
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogFooter } from '@/Components/ui/dialog';
 import EmptyState from '@/Components/shared/EmptyState';
 import { Tag, Plus, Pencil } from 'lucide-react';
+import PageHeader from '@/Components/shared/PageHeader';
 
 /**
  * v1.11.0 (SaaS Finalization Pass, Part 9/18). `Package` (Milestone 2)
@@ -27,13 +28,9 @@ export default function PlatformPlans({ plans }) {
         <PlatformLayout>
             <Head title="Plans" />
 
-            <div className="mb-6 flex flex-wrap items-center justify-between gap-3">
-                <div>
-                    <h1 className="text-[22px] font-semibold tracking-tight text-navy-900">Plans / Editions</h1>
-                    <p className="mt-1 text-sm text-graphite-500">The pricing/feature tiers tenants can be subscribed to.</p>
-                </div>
+            <PageHeader title="Plans / Editions" subtitle="The pricing/feature tiers tenants can be subscribed to.">
                 <Button size="sm" onClick={() => setDialogPlan({})}><Plus className="h-4 w-4" /> New Plan</Button>
-            </div>
+            </PageHeader>
 
             <Card>
                 <CardHeader><CardTitle className="flex items-center gap-2"><Tag className="h-4 w-4" /> Plan Catalog</CardTitle><CardDescription>Module/feature entitlements per plan are managed via Tenant Grants (Platform → Tenants → Manage Grants) for the tenants subscribed to it.</CardDescription></CardHeader>

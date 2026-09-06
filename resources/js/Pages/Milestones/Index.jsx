@@ -12,6 +12,7 @@ import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogFooter, DialogT
 import StatusBadge from '@/Components/shared/StatusBadge';
 import EmptyState from '@/Components/shared/EmptyState';
 import { Plus, Flag, Pencil, Trash2 } from 'lucide-react';
+import PageHeader from '@/Components/shared/PageHeader';
 
 export default function MilestonesIndex({ milestones, projects, filters, can }) {
     const [addOpen, setAddOpen] = useState(false);
@@ -29,11 +30,7 @@ export default function MilestonesIndex({ milestones, projects, filters, can }) 
         <AuthenticatedLayout>
             <Head title="Milestones" />
 
-            <div className="mb-4 flex flex-wrap items-center justify-between gap-3">
-                <div>
-                    <h1 className="text-[22px] font-semibold tracking-tight text-navy-900 dark:text-slate-50">Milestones</h1>
-                    <p className="text-xs text-graphite-500 dark:text-slate-400">Key dates across every project.</p>
-                </div>
+            <PageHeader title="Milestones" subtitle="Key dates across every project.">
                 {can.manage && (
                     <Dialog open={addOpen} onOpenChange={setAddOpen}>
                         <DialogTrigger asChild><Button><Plus className="h-4 w-4" /> Add Milestone</Button></DialogTrigger>
@@ -43,7 +40,7 @@ export default function MilestonesIndex({ milestones, projects, filters, can }) 
                         </DialogContent>
                     </Dialog>
                 )}
-            </div>
+            </PageHeader>
 
             <Card className="mb-4">
                 <CardContent className="flex flex-wrap gap-2 p-3">

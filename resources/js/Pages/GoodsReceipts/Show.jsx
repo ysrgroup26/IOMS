@@ -3,7 +3,9 @@ import AuthenticatedLayout from '@/Layouts/AuthenticatedLayout';
 import { Card, CardContent, CardHeader, CardTitle } from '@/Components/ui/card';
 import { Table, TableHeader, TableBody, TableRow, TableHead, TableCell } from '@/Components/ui/table';
 import ActivityTimeline from '@/Components/shared/ActivityTimeline';
-import { ArrowLeft } from 'lucide-react';
+import { ArrowLeft, Printer } from 'lucide-react';
+import { Button } from '@/Components/ui/button';
+import PageHeader from '@/Components/shared/PageHeader';
 
 export default function GoodsReceiptShow({ goodsReceipt: gr, activities }) {
     return (
@@ -14,9 +16,9 @@ export default function GoodsReceiptShow({ goodsReceipt: gr, activities }) {
                 <ArrowLeft className="h-4 w-4" /> Back to Goods Receipt
             </Link>
 
-            <div className="mb-4">
-                <h1 className="text-[22px] font-semibold tracking-tight text-navy-900">{gr.receipt_number}</h1>
-                <p className="text-xs text-graphite-500">
+            <PageHeader
+                title={gr.receipt_number}
+                subtitle={<>
                     {new Date(gr.received_date).toLocaleDateString('en-US', { day: 'numeric', month: 'long', year: 'numeric' })}
                     {gr.material_request && ` · ${gr.material_request.request_number}`}
                     {gr.purchase_order && ` · `}
@@ -24,8 +26,13 @@ export default function GoodsReceiptShow({ goodsReceipt: gr, activities }) {
                     {gr.warehouse && ` · posted to ${gr.warehouse.name}`}
                     {gr.project && ` · ${gr.project.name}`}
                     {` · Received by ${gr.receiver?.name}`}
-                </p>
-            </div>
+                </>}
+            >
+                {/* v2.51.0: Goods Receipt / BAST on the tenant's own letterhead. */}
+                <Button variant="outline" asChild>
+                    <a href={route('goods-receipts.pdf', gr.id)} target="_blank" rel="noreferrer"><Printer className="h-4 w-4" /> Print BAST</a>
+                </Button>
+            </PageHeader>
 
             <div className="grid grid-cols-1 gap-4 lg:grid-cols-3">
                 <Card className="lg:col-span-2">

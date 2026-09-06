@@ -15,24 +15,20 @@ import { Menu, X } from 'lucide-react';
  * the same `company`/`version` shared Inertia props -- no second
  * branding source invented.
  *
- * `NAV_LINKS` are same-page anchor links (`#platform`, `#pricing`, etc.)
- * -- the public site is intentionally one long page (Part 19's
- * "Do NOT introduce unnecessary dependencies/second frontend framework"
- * favors this over a router-driven multi-page structure for a first
- * version), not a router. `Login`/`Get Started` both point at the real
- * `login` route -- there is no self-serve registration route anywhere in
- * this codebase (confirmed by audit), so "Get Started" honestly leads to
- * the same sign-in a Platform-Admin-provisioned account already uses,
- * never a fabricated signup flow.
+ * v2.51.0: `NAV_LINKS` are now real routes. They used to be same-page
+ * anchors (`#platform`, `#solutions`, ...), which worked only on the
+ * landing page -- from /pricing or /get-started the entire primary
+ * navigation silently did nothing, and a nav item that goes nowhere is a
+ * dead link with extra steps. `Get Started` points at the real onboarding
+ * flow rather than the login form: a returning customer and a prospect
+ * without an account need different destinations.
  */
 const NAV_LINKS = [
-    { label: 'Platform', href: '#platform' },
-    { label: 'Solutions', href: '#solutions' },
-    { label: 'How It Works', href: '#how-it-works' },
-    // v2.50.0: a real route, not an anchor -- an anchor silently does
-    // nothing from /pricing, /get-started or any legal page.
+    { label: 'Platform', route: 'platform-overview' },
+    { label: 'Solutions', route: 'solutions' },
+    { label: 'How It Works', route: 'how-it-works' },
     { label: 'Pricing', route: 'pricing' },
-    { label: 'FAQ', href: '#faq' },
+    { label: 'FAQ', route: 'faq' },
 ];
 
 export default function PublicLayout({ children }) {
@@ -52,15 +48,11 @@ export default function PublicLayout({ children }) {
                     </Link>
 
                     <nav className="hidden items-center gap-7 lg:flex" aria-label="Primary">
-                        {NAV_LINKS.map((l) => (l.route ? (
+                        {NAV_LINKS.map((l) => (
                             <Link key={l.label} href={route(l.route)} className="text-sm font-medium text-graphite-600 transition-colors hover:text-graphite-900">
                                 {l.label}
                             </Link>
-                        ) : (
-                            <a key={l.label} href={l.href} className="text-sm font-medium text-graphite-600 transition-colors hover:text-graphite-900">
-                                {l.label}
-                            </a>
-                        )))}
+                        ))}
                     </nav>
 
                     <div className="hidden items-center gap-2 lg:flex">
@@ -83,14 +75,14 @@ export default function PublicLayout({ children }) {
                     <div className="border-t border-graphite-100 bg-white px-4 py-4 lg:hidden">
                         <nav className="flex flex-col gap-1" aria-label="Primary mobile">
                             {NAV_LINKS.map((l) => (
-                                <a
-                                    key={l.href}
-                                    href={l.href}
+                                <Link
+                                    key={l.label}
+                                    href={route(l.route)}
                                     onClick={() => setMenuOpen(false)}
                                     className="rounded-lg px-3 py-2.5 text-sm font-medium text-graphite-700 hover:bg-graphite-50"
                                 >
                                     {l.label}
-                                </a>
+                                </Link>
                             ))}
                         </nav>
                         <div className="mt-3 flex flex-col gap-2 border-t border-graphite-100 pt-3">
@@ -114,21 +106,23 @@ export default function PublicLayout({ children }) {
                                 next to it in the one spot (footer) that
                                 appears on every public page. */}
                             <p className="mt-3 text-sm font-medium text-graphite-700">Industrial Operations Platform</p>
-                            <p className="text-xs text-graphite-400">Industrial Operations Platform</p>
+                            <p className="mt-2 max-w-xs text-xs leading-relaxed text-graphite-500">
+                                One standardized platform for HSE, people, operations and reporting. Built once, improved for everyone.
+                            </p>
                         </div>
                         <div>
                             <p className="text-xs font-semibold uppercase tracking-wide text-graphite-400">Platform</p>
                             <ul className="mt-3 space-y-2 text-sm text-graphite-600">
-                                <li><a href="#platform" className="hover:text-graphite-900">Platform</a></li>
-                                <li><a href="#solutions" className="hover:text-graphite-900">Solutions</a></li>
-                                <li><a href="#how-it-works" className="hover:text-graphite-900">How It Works</a></li>
+                                <li><Link href={route('platform-overview')} className="hover:text-graphite-900">Platform</Link></li>
+                                <li><Link href={route('solutions')} className="hover:text-graphite-900">Solutions</Link></li>
+                                <li><Link href={route('how-it-works')} className="hover:text-graphite-900">How It Works</Link></li>
                             </ul>
                         </div>
                         <div>
                             <p className="text-xs font-semibold uppercase tracking-wide text-graphite-400">Resources</p>
                             <ul className="mt-3 space-y-2 text-sm text-graphite-600">
                                 <li><Link href={route('pricing')} className="hover:text-graphite-900">Pricing</Link></li>
-                                <li><a href="#faq" className="hover:text-graphite-900">FAQ</a></li>
+                                <li><Link href={route('faq')} className="hover:text-graphite-900">FAQ</Link></li>
                                 {version?.support_email && (
                                     <li><a href={`mailto:${version.support_email}`} className="hover:text-graphite-900">Contact</a></li>
                                 )}

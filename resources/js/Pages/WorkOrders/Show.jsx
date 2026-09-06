@@ -11,7 +11,8 @@ import { Table, TableHeader, TableBody, TableRow, TableHead, TableCell } from '@
 import ActivityTimeline from '@/Components/shared/ActivityTimeline';
 import StatusBadge from '@/Components/shared/StatusBadge';
 import EmptyState from '@/Components/shared/EmptyState';
-import { ArrowLeft, PlayCircle, CheckCircle2, XCircle, Wrench, Plus } from 'lucide-react';
+import { ArrowLeft, PlayCircle, CheckCircle2, XCircle, Wrench, Plus, Printer } from 'lucide-react';
+import PageHeader from '@/Components/shared/PageHeader';
 
 export default function WorkOrderShow({ workOrder: wo, activities, canManage, warehouses, items }) {
     const [completeOpen, setCompleteOpen] = useState(false);
@@ -43,13 +44,13 @@ export default function WorkOrderShow({ workOrder: wo, activities, canManage, wa
                 <ArrowLeft className="h-4 w-4" /> Back to Work Orders
             </Link>
 
-            <div className="mb-4 flex flex-wrap items-start justify-between gap-3">
-                <div>
-                    <h1 className="flex items-center gap-2 text-[22px] font-semibold tracking-tight text-graphite-900">{wo.wo_number}<StatusBadge value={wo.status} /></h1>
-                    <p className="text-xs capitalize text-graphite-500">{wo.maintenance_type} · {wo.asset?.name} ({wo.asset?.asset_code}) · planned {new Date(wo.planned_date).toLocaleDateString('en-US', { day: 'numeric', month: 'short', year: 'numeric' })}</p>
-                </div>
+            <PageHeader title={<>{wo.wo_number}<StatusBadge value={wo.status} /></>} subtitle={<>{wo.maintenance_type} · {wo.asset?.name} ({wo.asset?.asset_code}) · planned {new Date(wo.planned_date).toLocaleDateString('en-US', { day: 'numeric', month: 'short', year: 'numeric' })}</>}>
                 {canManage && (
                     <div className="flex flex-wrap items-center gap-2">
+                    {/* v2.51.0: Work Order / SPK on the tenant's own letterhead. */}
+                    <Button variant="outline" asChild>
+                        <a href={route('work-orders.pdf', wo.id)} target="_blank" rel="noreferrer"><Printer className="h-4 w-4" /> Print SPK</a>
+                    </Button>
                         {wo.status === 'draft' && (<Button variant="outline" onClick={() => transition('scheduled', 'Schedule this work order?')}>Schedule</Button>)}
                         {wo.status === 'scheduled' && (<Button variant="outline" onClick={() => transition('in_progress', 'Start execution?')}><PlayCircle className="h-4 w-4" /> Start</Button>)}
                         {wo.status === 'in_progress' && (<Button onClick={() => setCompleteOpen((v) => !v)}><CheckCircle2 className="h-4 w-4" /> Complete</Button>)}
@@ -58,7 +59,7 @@ export default function WorkOrderShow({ workOrder: wo, activities, canManage, wa
                         )}
                     </div>
                 )}
-            </div>
+            </PageHeader>
 
             <div className="grid grid-cols-1 gap-4 lg:grid-cols-3">
                 <div className="space-y-4 lg:col-span-2">

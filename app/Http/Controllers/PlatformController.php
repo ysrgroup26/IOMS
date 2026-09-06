@@ -20,6 +20,9 @@ use Illuminate\Support\Facades\Hash;
 use Illuminate\Validation\Rule;
 use Inertia\Inertia;
 use Inertia\Response;
+use App\Models\TenantRegistration;
+use App\Services\PricingService;
+use App\Services\TenantProvisioningService;
 
 /**
  * Milestone 2 (Platform Super Admin UI, Task #44). The `/platform/*`
@@ -54,6 +57,16 @@ class PlatformController extends Controller
                 'tenants_suspended' => Tenant::where('status', Tenant::STATUS_SUSPENDED)->count(),
                 'packages_total' => Package::count(),
                 'subscriptions_active' => Subscription::where('status', Subscription::STATUS_ACTIVE)->count(),
+                // v2.51.0: self-service onboarding in flight. A registration
+                // is a prospect, NOT a tenant -- it holds no application
+                // access until a verified payment provisions it -- so it is
+                // counted separately rather than inflating the tenant count.
+                'registrations_open' => TenantRegistration::whereIn('status', [
+                    TenantRegistration::STATUS_PENDING_VERIFICATION,
+                    TenantRegistration::STATUS_VERIFIED,
+                    TenantRegistration::STATUS_AWAITING_PAYMENT,
+                ])->count(),
+                'registrations_paid_unprovisioned' => TenantRegistration::where('status', TenantRegistration::STATUS_PAID)->count(),
             ],
             'recent_tenants' => Tenant::withCount(['companies' => fn ($q) => $q->withoutGlobalScope(TenantScope::class), 'users'])
                 ->latest()
@@ -62,6 +75,77 @@ class PlatformController extends Controller
         ]);
     }
 
+    /**
+     * v2.51.0 -- Master Admin > Registrations.
+     *
+     * The onboarding pipeline: who has started a self-service signup, how
+     * far they got, and whether anything is stuck. This is genuinely a
+     * platform-operator concern -- a registration that is PAID but not yet
+     * PROVISIONED means a customer has paid and has nothing, which is the
+     * single most important thing for the operator to see quickly.
+     *
+     * Deliberately excludes the password hash and the URL token (both are
+     * `$hidden` on the model). Reading a prospect's own submitted company
+     * details is not a tenant-isolation breach -- a registration belongs
+     * to no tenant yet, and this is the surface responsible for turning it
+     * into one.
+     */
+    public function registrations(): Response
+    {
+        return Inertia::render('Platform/Registrations', [
+            'registrations' => TenantRegistration::with('package:id,name', 'tenant:id,name,slug', 'invoice:id,invoice_number,status')
+                ->latest()
+                ->limit(200)
+                ->get()
+                ->map(fn (TenantRegistration $r) => [
+                    'id' => $r->id,
+                    'reference' => $r->reference,
+                    'status' => $r->status,
+                    'company' => $r->displayName(),
+                    'legal_name' => $r->company_legal_name,
+                    'contact_name' => $r->contact_name,
+                    'contact_email' => $r->contact_email,
+                    'city' => $r->company_city,
+                    'plan' => $r->package?->name,
+                    'billing_cycle' => $r->billing_cycle,
+                    'amount' => app(PricingService::class)->format((float) $r->amount, $r->currency),
+                    'email_verified_at' => $r->email_verified_at,
+                    'paid_at' => $r->paid_at,
+                    'provisioned_at' => $r->provisioned_at,
+                    'is_expired' => $r->isExpired(),
+                    'invoice_number' => $r->invoice?->invoice_number,
+                    'tenant' => $r->tenant ? ['id' => $r->tenant->id, 'name' => $r->tenant->name] : null,
+                    'created_at' => $r->created_at,
+                ]),
+        ]);
+    }
+
+    /**
+     * v2.51.0 -- re-run provisioning for a registration whose payment IS
+     * already confirmed.
+     *
+     * The recovery path for the one failure that matters: a paid customer
+     * whose tenant creation did not complete (a transient database error,
+     * a webhook processed while the app was mid-deploy). It is NOT a way
+     * to activate an unpaid registration -- TenantProvisioningService
+     * refuses anything that is not in the PAID state, so this button
+     * cannot conjure a tenant out of an unpaid signup, and it is
+     * idempotent, so pressing it twice cannot create two tenants.
+     */
+    public function provisionRegistration(TenantRegistration $registration, TenantProvisioningService $provisioning): RedirectResponse
+    {
+        $tenant = $provisioning->activate($registration);
+
+        if (! $tenant) {
+            return back()->withErrors([
+                'registration' => 'This registration cannot be provisioned. Only a registration with a confirmed payment may be activated.',
+            ]);
+        }
+
+        ActivityLog::record('updated', "Registration {$registration->reference} was provisioned from Master Admin.");
+
+        return back()->with('success', "Tenant \"{$tenant->name}\" is provisioned.");
+    }
     public function tenants(): Response
     {
         return Inertia::render('Platform/Tenants', [

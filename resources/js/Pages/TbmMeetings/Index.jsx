@@ -6,6 +6,7 @@ import { Input } from '@/Components/ui/input';
 import { Table, TableHeader, TableBody, TableRow, TableHead, TableCell } from '@/Components/ui/table';
 import EmptyState from '@/Components/shared/EmptyState';
 import { Plus, Search, Users, ChevronLeft, ChevronRight } from 'lucide-react';
+import PageHeader from '@/Components/shared/PageHeader';
 
 export default function TbmMeetingsIndex({ meetings, filters, can }) {
     function applyFilters(overrides = {}) {
@@ -16,13 +17,9 @@ export default function TbmMeetingsIndex({ meetings, filters, can }) {
         <AuthenticatedLayout>
             <Head title="Toolbox Meeting (TBM)" />
 
-            <div className="mb-4 flex flex-wrap items-center justify-between gap-3">
-                <div>
-                    <h1 className="text-[22px] font-semibold tracking-tight text-navy-900 dark:text-slate-50">Toolbox Meeting (TBM)</h1>
-                    <p className="text-xs text-graphite-500 dark:text-slate-400">Pre-work safety briefings and attendance.</p>
-                </div>
+            <PageHeader title="Toolbox Meeting (TBM)" subtitle="Pre-work safety briefings and attendance.">
                 {can.manage && (<Button asChild><Link href={route('tbm-meetings.create')}><Plus className="h-4 w-4" /> Record TBM</Link></Button>)}
-            </div>
+            </PageHeader>
 
             <Card className="mb-4">
                 <CardContent className="flex flex-wrap gap-2 p-3">

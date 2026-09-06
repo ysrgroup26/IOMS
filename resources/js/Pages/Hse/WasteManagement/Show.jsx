@@ -10,6 +10,7 @@ import { Badge } from '@/Components/ui/badge';
 import { Select, SelectTrigger, SelectValue, SelectContent, SelectItem } from '@/Components/ui/select';
 import EmptyState from '@/Components/shared/EmptyState';
 import { ArrowLeft, Truck, FileText, AlertCircle } from 'lucide-react';
+import PageHeader from '@/Components/shared/PageHeader';
 
 const STATUS_LABELS = {
     generated: 'Generated', stored: 'Stored', scheduled_pickup: 'Scheduled Pickup',
@@ -41,16 +42,9 @@ export default function WasteRecordShow({ record, wasteVendors, can }) {
                 <ArrowLeft className="h-4 w-4" /> Back to Waste Records
             </Link>
 
-            <div className="mb-4 flex flex-wrap items-start justify-between gap-3">
-                <div>
-                    <h1 className="flex items-center gap-2 text-lg font-bold text-graphite-900 dark:text-slate-50">
-                        {record.record_number}
-                        <Badge variant={record.waste_type?.category === 'b3' ? 'destructive' : 'secondary'}>{record.waste_type?.category === 'b3' ? 'B3' : 'Non-B3'}</Badge>
-                    </h1>
-                    <p className="mt-0.5 text-xs text-graphite-500">{record.waste_type?.name} -- {record.quantity} {record.unit}</p>
-                </div>
+            <PageHeader title={<>{record.record_number} <Badge variant={record.waste_type?.category === 'b3' ? 'destructive' : 'secondary'}>{record.waste_type?.category === 'b3' ? 'B3' : 'Non-B3'}</Badge></>} subtitle={<>{record.waste_type?.name} -- {record.quantity} {record.unit}</>}>
                 <Badge variant="outline" className="text-sm">{STATUS_LABELS[record.status] || record.status}</Badge>
-            </div>
+            </PageHeader>
 
             {record.is_storage_overdue && (
                 <div className="mb-3 flex items-center gap-2 rounded-lg border border-red-200 bg-red-50 px-3 py-2 text-sm text-red-700 dark:border-red-900 dark:bg-red-950/30 dark:text-red-400">

@@ -12,6 +12,7 @@ import { Badge } from '@/Components/ui/badge';
 import StatusBadge from '@/Components/shared/StatusBadge';
 import EmptyState from '@/Components/shared/EmptyState';
 import { FlaskConical, Plus } from 'lucide-react';
+import PageHeader from '@/Components/shared/PageHeader';
 
 /**
  * Milestone 4, v1.10.7 - v1.10.9. Read-only cross-permit list, PLUS
@@ -64,11 +65,7 @@ export default function GasTestRecordsIndex({ gasTests, filters, results, stages
         <AuthenticatedLayout>
             <Head title="Gas Test Records" />
 
-            <div className="mb-4 flex flex-wrap items-center justify-between gap-3">
-                <div>
-                    <h1 className="text-[22px] font-semibold tracking-tight text-navy-900 dark:text-slate-50">Gas Test Records</h1>
-                    <p className="text-xs text-graphite-500 dark:text-slate-400">Every atmospheric reading recorded against a Permit To Work.</p>
-                </div>
+            <PageHeader title="Gas Test Records" subtitle="Every atmospheric reading recorded against a Permit To Work.">
                 <div className="flex flex-wrap items-center gap-2">
                     <Select value={filters.stage || 'all'} onValueChange={(v) => applyFilters({ stage: v === 'all' ? null : v })}>
                         <SelectTrigger className="w-32"><SelectValue placeholder="Stage" /></SelectTrigger>
@@ -88,7 +85,7 @@ export default function GasTestRecordsIndex({ gasTests, filters, results, stages
                         <Button onClick={() => setAddOpen(true)}><Plus className="h-4 w-4" /> Add Gas Test</Button>
                     )}
                 </div>
-            </div>
+            </PageHeader>
 
             <Card>
                 <CardContent className="p-0">

@@ -6,6 +6,7 @@ import { Table, TableHeader, TableBody, TableRow, TableHead, TableCell } from '@
 import StatusBadge from '@/Components/shared/StatusBadge';
 import EmptyState from '@/Components/shared/EmptyState';
 import { Plus, Lock, Unlock } from 'lucide-react';
+import PageHeader from '@/Components/shared/PageHeader';
 
 export default function LotoRecordsIndex({ lotoRecords, can }) {
     function release(l) {
@@ -18,13 +19,9 @@ export default function LotoRecordsIndex({ lotoRecords, can }) {
         <AuthenticatedLayout>
             <Head title="LOTO (Lockout/Tagout)" />
 
-            <div className="mb-4 flex flex-wrap items-center justify-between gap-3">
-                <div>
-                    <h1 className="text-[22px] font-semibold tracking-tight text-navy-900 dark:text-slate-50">LOTO (Lockout / Tagout)</h1>
-                    <p className="text-xs text-graphite-500 dark:text-slate-400">Energy isolation records, optionally linked to a Permit To Work.</p>
-                </div>
+            <PageHeader title="LOTO (Lockout / Tagout)" subtitle="Energy isolation records, optionally linked to a Permit To Work.">
                 {can.manage && (<Button asChild><Link href={route('loto-records.create')}><Plus className="h-4 w-4" /> Apply LOTO</Link></Button>)}
-            </div>
+            </PageHeader>
 
             <Card>
                 <CardContent className="p-0">

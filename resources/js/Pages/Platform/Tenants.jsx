@@ -11,6 +11,7 @@ import { Label } from '@/Components/ui/label';
 import { Select, SelectTrigger, SelectValue, SelectContent, SelectItem } from '@/Components/ui/select';
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogFooter } from '@/Components/ui/dialog';
 import { Settings2, Plus, Pencil } from 'lucide-react';
+import PageHeader from '@/Components/shared/PageHeader';
 
 const STATUS_VARIANT = {
     active: 'success',
@@ -99,16 +100,9 @@ export default function PlatformTenants({ tenants, packages }) {
         <PlatformLayout>
             <Head title="Tenants" />
 
-            <div className="mb-6 flex flex-wrap items-center justify-between gap-3">
-                <div>
-                    <h1 className="text-[22px] font-semibold tracking-tight text-navy-900">Tenants</h1>
-                    <p className="mt-1 text-sm text-graphite-500">
-                        Every paying customer organization on this platform. Suspending a tenant is the coarse
-                        platform-level kill switch -- it does not delete any of that tenant's data.
-                    </p>
-                </div>
+            <PageHeader title="Tenants" subtitle="Every paying customer organization on this platform. Suspending a tenant is the coarse platform-level kill switch -- it does not delete any of that tenant's data.">
                 <Button onClick={openCreate}><Plus className="h-4 w-4" /> Add Tenant</Button>
-            </div>
+            </PageHeader>
 
             <Card>
                 <CardHeader>

@@ -5,7 +5,8 @@ import { Button } from '@/Components/ui/button';
 import { Table, TableHeader, TableBody, TableRow, TableHead, TableCell } from '@/Components/ui/table';
 import ActivityTimeline from '@/Components/shared/ActivityTimeline';
 import StatusBadge from '@/Components/shared/StatusBadge';
-import { ArrowLeft, Send, CheckCircle2, XCircle, PackageCheck, Truck, PackagePlus } from 'lucide-react';
+import { ArrowLeft, Send, CheckCircle2, XCircle, PackageCheck, Truck, PackagePlus, Printer } from 'lucide-react';
+import PageHeader from '@/Components/shared/PageHeader';
 
 export default function PurchaseOrderShow({ purchaseOrder: po, activities, canManage, canDecide, canOverride }) {
     function act(routeName, confirmMessage) {
@@ -21,12 +22,12 @@ export default function PurchaseOrderShow({ purchaseOrder: po, activities, canMa
                 <ArrowLeft className="h-4 w-4" /> Back to Purchase Orders
             </Link>
 
-            <div className="mb-4 flex flex-wrap items-start justify-between gap-3">
-                <div>
-                    <h1 className="flex items-center gap-2 text-[22px] font-semibold tracking-tight text-graphite-900">{po.po_number}<StatusBadge value={po.status} /></h1>
-                    <p className="text-xs text-graphite-500">{po.vendor?.name} · {new Date(po.po_date).toLocaleDateString('en-US', { day: 'numeric', month: 'long', year: 'numeric' })}{po.delivery_date && ` · due ${new Date(po.delivery_date).toLocaleDateString('en-US', { day: 'numeric', month: 'short', year: 'numeric' })}`}</p>
-                </div>
+            <PageHeader title={<>{po.po_number}<StatusBadge value={po.status} /></>} subtitle={<>{po.vendor?.name} · {new Date(po.po_date).toLocaleDateString('en-US', { day: 'numeric', month: 'long', year: 'numeric' })}{po.delivery_date && ` · due ${new Date(po.delivery_date).toLocaleDateString('en-US', { day: 'numeric', month: 'short', year: 'numeric' })}`}</>}>
                 <div className="flex flex-wrap items-center gap-2">
+                    {/* v2.51.0: Purchase Order / Surat Pesanan on the tenant's own letterhead. */}
+                    <Button variant="outline" asChild>
+                        <a href={route('purchase-orders.pdf', po.id)} target="_blank" rel="noreferrer"><Printer className="h-4 w-4" /> Print PO</a>
+                    </Button>
                     {canManage && po.status === 'draft' && (
                         <Button variant="outline" onClick={() => act('purchase-orders.submit', 'Submit this PO for approval?')}><Send className="h-4 w-4" /> Submit</Button>
                     )}
@@ -47,7 +48,7 @@ export default function PurchaseOrderShow({ purchaseOrder: po, activities, canMa
                         <Button variant="ghost" className="text-red-600" onClick={() => act('purchase-orders.cancel', 'Cancel this PO?')}><XCircle className="h-4 w-4" /> Cancel</Button>
                     )}
                 </div>
-            </div>
+            </PageHeader>
 
             <div className="grid grid-cols-1 gap-4 lg:grid-cols-3">
                 <div className="space-y-4 lg:col-span-2">

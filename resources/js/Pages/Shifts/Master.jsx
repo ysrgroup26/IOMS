@@ -12,6 +12,7 @@ import { Select, SelectTrigger, SelectValue, SelectContent, SelectItem } from '@
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogFooter } from '@/Components/ui/dialog';
 import { Checkbox } from '@/Components/ui/checkbox';
 import { Plus, Pencil, Trash2, Moon, CalendarClock } from 'lucide-react';
+import PageHeader from '@/Components/shared/PageHeader';
 
 /**
  * Milestone 4, Workstream A3 (Shift & Roster Management). Shift + Roster
@@ -23,17 +24,11 @@ export default function ShiftsMaster({ shifts, rosterPatterns, companies, can })
         <AuthenticatedLayout>
             <Head title="Shift & Roster Setup" />
 
-            <div className="mb-6 flex flex-wrap items-center justify-between gap-3">
-                <div>
-                    <h1 className="text-[22px] font-semibold tracking-tight text-navy-900">Shift &amp; Roster Setup</h1>
-                    <p className="mt-1 text-sm text-graphite-500">
-                        Configure shifts and rotation patterns. Nothing here is hard-coded -- everything is editable.
-                    </p>
-                </div>
+            <PageHeader title="Shift &amp; Roster Setup" subtitle="Configure shifts and rotation patterns. Nothing here is hard-coded -- everything is editable.">
                 <Button variant="outline" asChild>
                     <Link href={route('rosters.overview')}><CalendarClock className="h-4 w-4" /> Roster Overview</Link>
                 </Button>
-            </div>
+            </PageHeader>
 
             <div className="space-y-6">
                 <ShiftSection shifts={shifts} companies={companies} can={can} />

@@ -15,6 +15,8 @@ use Illuminate\Validation\Rule;
 use Illuminate\Validation\ValidationException;
 use Inertia\Inertia;
 use Inertia\Response;
+use App\Services\DocumentEngine;
+use App\Services\PdfGeneratorService;
 
 /**
  * Milestone 4, Workstream C2 (Purchase Requisition). Structurally mirrors
@@ -202,5 +204,21 @@ class PurchaseRequisitionController extends Controller
     private function assertInCurrentTenant(PurchaseRequisition $pr): void
     {
         abort_unless(Company::query()->pluck('id')->contains($pr->company_id), 404);
+    }
+
+    /**
+     * v2.51.0 -- Purchase Requisition / FPB as a printable document, on
+     * the tenant's own letterhead via the shared document system.
+     */
+    public function pdf(PurchaseRequisition $purchaseRequisition, PdfGeneratorService $pdf, DocumentEngine $documents): \Illuminate\Http\Response
+    {
+        $this->assertInCurrentTenant($purchaseRequisition);
+        $purchaseRequisition->load('company', 'project', 'department', 'requester');
+
+        return $pdf->streamInline('pdf.purchase-requisition', [
+            'purchaseRequisition' => $purchaseRequisition,
+            'identity' => $documents->identity(),
+            'documentTemplate' => $documents->resolveTemplate('purchase_requisition', $purchaseRequisition->company_id),
+        ], "{$purchaseRequisition->pr_number}.pdf");
     }
 }

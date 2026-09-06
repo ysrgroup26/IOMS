@@ -18,6 +18,8 @@ use Illuminate\Validation\Rule;
 use Illuminate\Validation\ValidationException;
 use Inertia\Inertia;
 use Inertia\Response;
+use App\Services\DocumentEngine;
+use App\Services\PdfGeneratorService;
 
 /**
  * Milestone 4, Workstream C5 (Goods Receipt / GRN integration). Existing
@@ -254,6 +256,26 @@ class GoodsReceiptController extends Controller
      * (MaterialRequest, PurchaseOrder, or -- Acceleration Part 1B --
      * Warehouse) it's linked to.
      */
+    /**
+     * v2.51.0 -- Goods Receipt / Berita Acara Serah Terima Barang.
+     *
+     * The receiving document a delivering party actually signs, so it
+     * needs to leave the system as paper. Same tenant guard as show().
+     */
+    public function pdf(GoodsReceipt $goodsReceipt, PdfGeneratorService $pdf, DocumentEngine $documents): \Illuminate\Http\Response
+    {
+        $this->assertInCurrentTenant($goodsReceipt);
+        $goodsReceipt->load(
+            'receiver', 'warehouse', 'project', 'materialRequest',
+            'purchaseOrder.vendor', 'items.item', 'items.purchaseOrderItem'
+        );
+
+        return $pdf->streamInline('pdf.goods-receipt', [
+            'goodsReceipt' => $goodsReceipt,
+            'identity' => $documents->identity(),
+            'documentTemplate' => $documents->resolveTemplate('goods_receipt', $goodsReceipt->warehouse?->company_id),
+        ], "{$goodsReceipt->receipt_number}.pdf");
+    }
     private function assertInCurrentTenant(GoodsReceipt $goodsReceipt): void
     {
         $tenantCompanyIds = Company::query()->pluck('id');

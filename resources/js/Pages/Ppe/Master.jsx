@@ -11,6 +11,7 @@ import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogFooter, DialogT
 import { Checkbox } from '@/Components/ui/checkbox';
 import { Plus, Trash2, Pencil } from 'lucide-react';
 import PpeTabNav from '@/Components/shared/PpeTabNav';
+import PageHeader from '@/Components/shared/PageHeader';
 
 export default function PpeMaster({ ppeTypes, can }) {
     const [open, setOpen] = useState(false);
@@ -60,17 +61,11 @@ export default function PpeMaster({ ppeTypes, can }) {
 
             <PpeTabNav />
 
-            <div className="mb-6 flex flex-wrap items-center justify-between gap-3">
-                <div>
-                    <h1 className="text-[22px] font-semibold tracking-tight text-navy-900">PPE Master</h1>
-                    <p className="mt-1 text-sm text-graphite-500">
-                        Data konfigurasi, bukan operasional harian -- atur jenis APD dan interval penggantian di sini. Untuk mengeluarkan/mengganti APD karyawan, buka tab Employee PPE.
-                    </p>
-                </div>
+            <PageHeader title="PPE Master" subtitle="Data konfigurasi, bukan operasional harian -- atur jenis APD dan interval penggantian di sini. Untuk mengeluarkan/mengganti APD karyawan, buka tab Employee PPE.">
                 {can.manage && (
                     <Button onClick={openCreate}><Plus className="h-4 w-4" /> Add PPE Type</Button>
                 )}
-            </div>
+            </PageHeader>
 
             <Card>
                 <CardHeader><CardTitle>PPE Types</CardTitle><CardDescription>Request-based equipment (no interval) is still tracked in history.</CardDescription></CardHeader>

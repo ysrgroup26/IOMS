@@ -11,6 +11,7 @@ import ActivityTimeline from '@/Components/shared/ActivityTimeline';
 import StatusBadge from '@/Components/shared/StatusBadge';
 import EmptyState from '@/Components/shared/EmptyState';
 import { ArrowLeft, Pencil, FileText, Trash2, ShieldCheck } from 'lucide-react';
+import PageHeader from '@/Components/shared/PageHeader';
 
 export default function VendorShow({ vendor: v, activities, canManage, documentTypes }) {
     const [qualifyOpen, setQualifyOpen] = useState(false);
@@ -41,22 +42,14 @@ export default function VendorShow({ vendor: v, activities, canManage, documentT
                 <ArrowLeft className="h-4 w-4" /> Back to Vendors
             </Link>
 
-            <div className="mb-4 flex flex-wrap items-start justify-between gap-3">
-                <div>
-                    <h1 className="flex items-center gap-2 text-[22px] font-semibold tracking-tight text-graphite-900">
-                        {v.name}
-                        <StatusBadge value={v.qualification_status === 'qualified' ? 'approved' : v.qualification_status === 'rejected' ? 'rejected' : v.qualification_status} label={v.qualification_status.replace('_', ' ')} />
-                        {v.is_qualification_expired && <StatusBadge value="expired" />}
-                    </h1>
-                    <p className="text-xs text-graphite-500">{v.vendor_code} · {v.category || 'Uncategorized'} · {v.city}</p>
-                </div>
+            <PageHeader title={<>{v.name} <StatusBadge value={v.qualification_status === 'qualified' ? 'approved' : v.qualification_status === 'rejected' ? 'rejected' : v.qualification_status} label={v.qualification_status.replace('_', ' ')} /> {v.is_qualification_expired && <StatusBadge value="expired" />}</>} subtitle={<>{v.vendor_code} · {v.category || 'Uncategorized'} · {v.city}</>}>
                 {canManage && (
                     <div className="flex items-center gap-2">
                         <Button variant="outline" asChild><Link href={route('vendors.edit', v.id)}><Pencil className="h-4 w-4" /> Edit</Link></Button>
                         <Button onClick={() => setQualifyOpen(true)}><ShieldCheck className="h-4 w-4" /> Review Qualification</Button>
                     </div>
                 )}
-            </div>
+            </PageHeader>
 
             <div className="grid grid-cols-1 gap-4 lg:grid-cols-3">
                 <div className="space-y-4 lg:col-span-2">

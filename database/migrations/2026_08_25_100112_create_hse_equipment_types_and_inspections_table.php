@@ -127,7 +127,13 @@ return new class extends Migration
             $table->text('notes')->nullable();
             $table->timestamps();
 
-            $table->index(['safety_equipment_id', 'inspection_date']);
+            // v2.51.0 fix: the auto-generated name for this index was
+            //   safety_equipment_inspections_safety_equipment_id_inspection_date_index
+            // -- 69 characters, past MySQL 64-character identifier limit, so
+            // this migration could never complete on a fresh database. Named
+            // explicitly rather than shortening a column name, which would
+            // have changed the schema to work around a naming problem.
+            $table->index(['safety_equipment_id', 'inspection_date'], 'se_inspections_equipment_date_idx');
         });
 
         $this->addForeignKeyIfMissing(
@@ -200,11 +206,20 @@ return new class extends Migration
         }
 
         $row = DB::selectOne(
-            'select engine from information_schema.tables where table_schema = database() and table_name = ?',
+            'select engine as table_engine from information_schema.tables where table_schema = database() and table_name = ?',
             [$table]
         );
 
-        if ($row && $row->engine && strtolower($row->engine) !== 'innodb') {
+        // v2.51.0 fix: this read `$row->engine`, which is an "Undefined
+        // property" fatal on MySQL 8.4 -- that release returns
+        // information_schema column names in upper case, so the property is
+        // `ENGINE`, not `engine`, and this migration aborted the whole
+        // `migrate` run on any 8.4 server. Aliasing the column makes the
+        // property name ours rather than the server's, so it is stable
+        // across MySQL versions and casings.
+        $engine = $row->table_engine ?? null;
+
+        if ($engine && strtolower($engine) !== 'innodb') {
             DB::statement("ALTER TABLE `{$table}` ENGINE = InnoDB");
         }
     }

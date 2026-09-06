@@ -6,6 +6,7 @@ import { Badge } from '@/Components/ui/badge';
 import { Select, SelectTrigger, SelectValue, SelectContent, SelectItem } from '@/Components/ui/select';
 import EmptyState from '@/Components/shared/EmptyState';
 import { CalendarClock } from 'lucide-react';
+import PageHeader from '@/Components/shared/PageHeader';
 
 /**
  * Milestone 4, Workstream A3. Cross-employee Roster Overview -- who is
@@ -23,11 +24,7 @@ export default function RosterOverview({ rosters, companies, filters }) {
         <AuthenticatedLayout>
             <Head title="Roster Overview" />
 
-            <div className="mb-6 flex flex-wrap items-center justify-between gap-3">
-                <div>
-                    <h1 className="text-[22px] font-semibold tracking-tight text-navy-900">Roster Overview</h1>
-                    <p className="mt-1 text-sm text-graphite-500">Current employee rosters -- shift, site, and today's duty status.</p>
-                </div>
+            <PageHeader title="Roster Overview" subtitle="Current employee rosters -- shift, site, and today's duty status.">
                 <Select value={filters.company_id ? String(filters.company_id) : 'all'} onValueChange={changeCompany}>
                     <SelectTrigger className="w-48"><SelectValue /></SelectTrigger>
                     <SelectContent>
@@ -35,7 +32,7 @@ export default function RosterOverview({ rosters, companies, filters }) {
                         {companies.map((c) => <SelectItem key={c.id} value={String(c.id)}>{c.name}</SelectItem>)}
                     </SelectContent>
                 </Select>
-            </div>
+            </PageHeader>
 
             <Card>
                 <CardHeader>

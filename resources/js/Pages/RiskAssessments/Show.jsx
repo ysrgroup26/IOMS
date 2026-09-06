@@ -8,6 +8,7 @@ import ActivityTimeline from '@/Components/shared/ActivityTimeline';
 import StatusBadge from '@/Components/shared/StatusBadge';
 import { ArrowLeft, Pencil, Send, CheckCircle2, Archive, XCircle } from 'lucide-react';
 import { assessRisk } from '@/lib/riskMatrix';
+import PageHeader from '@/Components/shared/PageHeader';
 
 export default function RiskAssessmentShow({ riskAssessment: r, activities, canManage }) {
     function transition(status, confirmMessage) {
@@ -23,11 +24,7 @@ export default function RiskAssessmentShow({ riskAssessment: r, activities, canM
                 <ArrowLeft className="h-4 w-4" /> Back to HIRADC
             </Link>
 
-            <div className="mb-4 flex flex-wrap items-start justify-between gap-3">
-                <div>
-                    <h1 className="flex items-center gap-2 text-[22px] font-semibold tracking-tight text-graphite-900">{r.ra_number}<StatusBadge value={r.status} /></h1>
-                    <p className="text-xs text-graphite-500">{r.title} · {new Date(r.assessment_date).toLocaleDateString('en-US', { day: 'numeric', month: 'long', year: 'numeric' })}{r.location && ` · ${r.location}`}{r.project && ` · ${r.project.name}`}</p>
-                </div>
+            <PageHeader title={<>{r.ra_number}<StatusBadge value={r.status} /></>} subtitle={<>{r.title} · {new Date(r.assessment_date).toLocaleDateString('en-US', { day: 'numeric', month: 'long', year: 'numeric' })}{r.location && ` · ${r.location}`}{r.project && ` · ${r.project.name}`}</>}>
                 {canManage && (
                     <div className="flex flex-wrap items-center gap-2">
                         {r.status === 'draft' && (<>
@@ -45,7 +42,7 @@ export default function RiskAssessmentShow({ riskAssessment: r, activities, canM
                         )}
                     </div>
                 )}
-            </div>
+            </PageHeader>
 
             <div className="grid grid-cols-1 gap-4 lg:grid-cols-3">
                 <div className="space-y-4 lg:col-span-2">

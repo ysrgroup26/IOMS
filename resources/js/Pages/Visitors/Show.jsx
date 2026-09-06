@@ -5,6 +5,7 @@ import { Button } from '@/Components/ui/button';
 import { Checkbox } from '@/Components/ui/checkbox';
 import StatusBadge from '@/Components/shared/StatusBadge';
 import { ArrowLeft, CheckCircle2, XCircle, LogIn, LogOut } from 'lucide-react';
+import PageHeader from '@/Components/shared/PageHeader';
 
 export default function VisitorShow({ visitor: v, canManage }) {
     function act(routeName, confirmMessage) {
@@ -20,11 +21,7 @@ export default function VisitorShow({ visitor: v, canManage }) {
                 <ArrowLeft className="h-4 w-4" /> Back to Visitors
             </Link>
 
-            <div className="mb-4 flex flex-wrap items-start justify-between gap-3">
-                <div>
-                    <h1 className="flex items-center gap-2 text-[22px] font-semibold tracking-tight text-graphite-900">{v.name}<StatusBadge value={v.status === 'approved' || v.status === 'checked_in' ? 'approved' : v.status === 'rejected' ? 'rejected' : v.status} label={v.status.replace('_', ' ')} /></h1>
-                    <p className="text-xs text-graphite-500">{v.visitor_number} · {v.visitor_company || 'No company'} · Host: {v.host_employee?.full_name}</p>
-                </div>
+            <PageHeader title={<>{v.name}<StatusBadge value={v.status === 'approved' || v.status === 'checked_in' ? 'approved' : v.status === 'rejected' ? 'rejected' : v.status} label={v.status.replace('_', ' ')} /></>} subtitle={<>{v.visitor_number} · {v.visitor_company || 'No company'} · Host: {v.host_employee?.full_name}</>}>
                 {canManage && (
                     <div className="flex flex-wrap items-center gap-2">
                         {v.status === 'pending' && (<>
@@ -35,7 +32,7 @@ export default function VisitorShow({ visitor: v, canManage }) {
                         {v.status === 'checked_in' && (<Button variant="outline" onClick={() => act('visitors.check-out', 'Check out this visitor?')}><LogOut className="h-4 w-4" /> Check Out</Button>)}
                     </div>
                 )}
-            </div>
+            </PageHeader>
 
             <Card>
                 <CardHeader><CardTitle>Details</CardTitle></CardHeader>

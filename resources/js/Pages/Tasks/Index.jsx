@@ -7,6 +7,7 @@ import { Badge } from '@/Components/ui/badge';
 import { Table, TableHeader, TableBody, TableRow, TableHead, TableCell } from '@/Components/ui/table';
 import { Select, SelectTrigger, SelectValue, SelectContent, SelectItem } from '@/Components/ui/select';
 import { Plus, Search, ChevronLeft, ChevronRight, ArrowUpDown, AlertTriangle } from 'lucide-react';
+import PageHeader from '@/Components/shared/PageHeader';
 
 const PRIORITY_VARIANT = { low: 'secondary', medium: 'outline', high: 'destructive', critical: 'destructive' };
 const STATUS_VARIANT = {
@@ -42,13 +43,9 @@ export default function TasksIndex({ tasks, users, filters, statuses, priorities
         <AuthenticatedLayout>
             <Head title="Tasks" />
 
-            <div className="mb-6 flex flex-wrap items-center justify-between gap-3">
-                <div>
-                    <h1 className="text-[22px] font-semibold tracking-tight text-navy-900">Tasks</h1>
-                    <p className="mt-1 text-sm text-graphite-500">{tasks.total} task(s) total</p>
-                </div>
+            <PageHeader title="Tasks" subtitle={<>{tasks.total} task(s) total</>}>
                 <Button asChild><Link href={route('tasks.create')}><Plus className="h-4 w-4" /> New Task</Link></Button>
-            </div>
+            </PageHeader>
 
             <Card>
                 <CardContent className="flex flex-wrap gap-2 p-4">

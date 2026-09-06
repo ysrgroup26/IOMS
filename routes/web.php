@@ -61,6 +61,8 @@ use App\Http\Controllers\SafetyEquipmentController;
 use App\Http\Controllers\NotificationController;
 use App\Http\Controllers\PlatformController;
 use App\Http\Controllers\PpeController;
+use App\Http\Controllers\PaymentWebhookController;
+use App\Http\Controllers\Public\RegistrationController;
 use App\Http\Controllers\PublicController;
 use App\Http\Controllers\PpeTypeController;
 use App\Http\Controllers\ProjectActivityController;
@@ -114,7 +116,47 @@ Route::get('/', [PublicController::class, 'home'])->name('home');
 // authenticated user away from the public site, and these two pages carry
 // no tenant data at all (PricingService reads the platform plan catalog).
 Route::get('/pricing', [PublicController::class, 'pricing'])->name('pricing');
-Route::get('/get-started', [PublicController::class, 'getStarted'])->name('get-started');
+
+// v2.51.0: the marketing site's own pages. These were header anchors
+// (#platform, #solutions, ...) that silently did nothing from any page
+// other than the landing page -- a nav item that scrolls nowhere is a
+// dead link with extra steps. Each is now a real URL with real content.
+// NOT '/platform': that path is the Master Admin surface's own prefix
+// (see the Platform Super Admin group at the bottom of this file), and a
+// public route registered first would have shadowed the operator's
+// dashboard URL entirely.
+Route::get('/platform-overview', [PublicController::class, 'platform'])->name('platform-overview');
+Route::get('/solutions', [PublicController::class, 'solutions'])->name('solutions');
+Route::get('/how-it-works', [PublicController::class, 'howItWorks'])->name('how-it-works');
+Route::get('/faq', [PublicController::class, 'faq'])->name('faq');
+
+/*
+| Self-service onboarding (v2.51.0).
+|
+| Replaces the mailto handoff. Guest-reachable by design; every step is
+| addressed by the registration's own 64-character random token rather
+| than its id, so a registration cannot be enumerated. Nothing in this
+| group activates a tenant -- only a server-verified payment webhook does
+| that (see PaymentWebhookController).
+*/
+Route::get('/get-started', [RegistrationController::class, 'create'])->name('get-started');
+Route::post('/get-started', [RegistrationController::class, 'store'])
+    ->middleware('throttle:10,1')->name('register.store');
+Route::get('/get-started/verify/{token}', [RegistrationController::class, 'verify'])->name('register.verify');
+Route::post('/get-started/{token}/resend', [RegistrationController::class, 'resendVerification'])
+    ->middleware('throttle:5,1')->name('register.resend');
+Route::get('/get-started/{token}/status', [RegistrationController::class, 'status'])->name('register.status');
+Route::post('/get-started/{token}/checkout', [RegistrationController::class, 'checkout'])
+    ->middleware('throttle:10,1')->name('register.checkout');
+
+/*
+| Payment provider notification (v2.51.0). Server-to-server, no session,
+| CSRF-exempt in bootstrap/app.php -- authenticity comes from the
+| provider's signature, verified before anything is read. This is the ONLY
+| route in IOMS that may mark a payment settled or activate a tenant.
+*/
+Route::post('/webhooks/payment/midtrans', [PaymentWebhookController::class, 'midtrans'])
+    ->name('webhooks.payment.midtrans');
 
 Route::get('/privacy', [PublicController::class, 'privacy'])->name('legal.privacy');
 Route::get('/terms', [PublicController::class, 'terms'])->name('legal.terms');
@@ -399,6 +441,8 @@ Route::middleware(['auth', 'restrict.platform-admin'])->group(function () {
     Route::get('/purchase-requisitions/{purchaseRequisition}/edit', [PurchaseRequisitionController::class, 'edit'])->name('purchase-requisitions.edit');
     Route::put('/purchase-requisitions/{purchaseRequisition}', [PurchaseRequisitionController::class, 'update'])->name('purchase-requisitions.update');
     Route::get('/purchase-requisitions/{purchaseRequisition}', [PurchaseRequisitionController::class, 'show'])->name('purchase-requisitions.show');
+    // v2.51.0: FPB as a printable document, on the tenant's letterhead.
+    Route::get('/purchase-requisitions/{purchaseRequisition}/pdf', [PurchaseRequisitionController::class, 'pdf'])->name('purchase-requisitions.pdf');
     Route::post('/purchase-requisitions/{purchaseRequisition}/submit', [PurchaseRequisitionController::class, 'submit'])->name('purchase-requisitions.submit');
     Route::post('/purchase-requisitions/{purchaseRequisition}/start-review', [PurchaseRequisitionController::class, 'startReview'])->name('purchase-requisitions.start-review');
     Route::post('/purchase-requisitions/{purchaseRequisition}/approve', [PurchaseRequisitionController::class, 'approve'])->name('purchase-requisitions.approve');
@@ -421,6 +465,8 @@ Route::middleware(['auth', 'restrict.platform-admin'])->group(function () {
     Route::get('/purchase-orders/create', [PurchaseOrderController::class, 'create'])->name('purchase-orders.create');
     Route::post('/purchase-orders', [PurchaseOrderController::class, 'store'])->name('purchase-orders.store');
     Route::get('/purchase-orders/{purchaseOrder}', [PurchaseOrderController::class, 'show'])->name('purchase-orders.show');
+    // v2.51.0: Purchase Order / Surat Pesanan as a printable document.
+    Route::get('/purchase-orders/{purchaseOrder}/pdf', [PurchaseOrderController::class, 'pdf'])->name('purchase-orders.pdf');
     Route::post('/purchase-orders/{purchaseOrder}/submit', [PurchaseOrderController::class, 'submit'])->name('purchase-orders.submit');
     Route::post('/purchase-orders/{purchaseOrder}/approve', [PurchaseOrderController::class, 'approve'])->name('purchase-orders.approve');
     Route::post('/purchase-orders/{purchaseOrder}/reject', [PurchaseOrderController::class, 'reject'])->name('purchase-orders.reject');
@@ -488,6 +534,8 @@ Route::middleware(['auth', 'restrict.platform-admin'])->group(function () {
     Route::get('/work-orders/create', [WorkOrderController::class, 'create'])->name('work-orders.create');
     Route::post('/work-orders', [WorkOrderController::class, 'store'])->name('work-orders.store');
     Route::get('/work-orders/{workOrder}', [WorkOrderController::class, 'show'])->name('work-orders.show');
+    // v2.51.0: Work Order / SPK as a printable document.
+    Route::get('/work-orders/{workOrder}/pdf', [WorkOrderController::class, 'pdf'])->name('work-orders.pdf');
     Route::post('/work-orders/{workOrder}/transition', [WorkOrderController::class, 'transition'])->name('work-orders.transition');
     Route::post('/work-orders/{workOrder}/spare-parts', [WorkOrderController::class, 'addSparePart'])->name('work-orders.spare-parts.store');
 
@@ -686,6 +734,11 @@ Route::middleware(['auth', 'restrict.platform-admin'])->group(function () {
     // docs/CONVENTIONS.md's "Known Pitfalls" -- so this placement was
     // deliberate, not incidental.
     Route::get('/subscription/plans', [SettingsController::class, 'plans'])->name('subscription.plans');
+    // v2.51.0: the tenant own billing area -- plan, cycle, status,
+    // renewal, capacity in use, and real invoice/payment history.
+    // Super-Admin-only inside the controller (commercial data), unlike
+    // the plan catalog above which every tenant user may read.
+    Route::get('/subscription/billing', [SettingsController::class, 'billing'])->name('subscription.billing');
 
     /*
     |--------------------------------------------------------------------------
@@ -842,6 +895,8 @@ Route::middleware(['auth', 'restrict.platform-admin'])->group(function () {
     Route::get('/goods-receipts/create', [GoodsReceiptController::class, 'create'])->name('goods-receipts.create');
     Route::post('/goods-receipts', [GoodsReceiptController::class, 'store'])->name('goods-receipts.store');
     Route::get('/goods-receipts/{goodsReceipt}', [GoodsReceiptController::class, 'show'])->name('goods-receipts.show');
+    // v2.51.0: Goods Receipt / BAST as a printable document.
+    Route::get('/goods-receipts/{goodsReceipt}/pdf', [GoodsReceiptController::class, 'pdf'])->name('goods-receipts.pdf');
 
     // Future Departments (v1.9.0/v1.10.0): Warehouse, Procurement, Asset
     // Management, Maintenance, Quality Control, Finance -- kept visible in
@@ -876,6 +931,12 @@ Route::middleware(['auth', 'restrict.platform-admin'])->group(function () {
 */
 Route::middleware(['auth', 'role:platform_admin'])->prefix('platform')->name('platform.')->group(function () {
     Route::get('/', [PlatformController::class, 'dashboard'])->name('dashboard');
+    // v2.51.0: the self-service onboarding pipeline. A registration is a
+    // prospect, not a tenant -- see TenantRegistration. Provisioning can
+    // only be re-run for an ALREADY-PAID registration.
+    Route::get('/registrations', [PlatformController::class, 'registrations'])->name('registrations');
+    Route::post('/registrations/{registration}/provision', [PlatformController::class, 'provisionRegistration'])->name('registrations.provision');
+
     Route::get('/tenants', [PlatformController::class, 'tenants'])->name('tenants');
     Route::post('/tenants', [PlatformController::class, 'storeTenant'])->name('tenants.store');
     Route::get('/tenants/{tenant}', [PlatformController::class, 'show'])->name('tenants.show');

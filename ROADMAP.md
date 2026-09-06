@@ -324,6 +324,58 @@ tasks need their own notification trigger).
 
 ---
 
+## 💳 SaaS Finalization — v2.51.0 CLOSED the three items v2.50.0 deferred
+
+Everything the v2.50.0 section below listed as "deliberately NOT built" is now built. Kept here
+because the reasoning it records is still the reasoning behind how these were built.
+
+**Self-serve tenant onboarding — BUILT.** A prospect registers through a real web form
+(`/get-started`), confirms their email, reviews the plan, and pays. `TenantRegistration` holds the
+prospect OUTSIDE the tenant isolation boundary: no `Tenant`, no `Company`, no `User` row exists
+until a payment is confirmed server-side, so "a pending tenant must not have application access" is
+true by construction rather than by a middleware check that could be bypassed. The chosen password
+is hashed at registration time and the plaintext never reaches the database, so activation needs no
+credential email. `TenantProvisioningService::activate()` is the single activation path, is
+idempotent under a row lock, and refuses anything not in the PAID state.
+
+**Midtrans adapter — BUILT.** `App\Services\Payments\MidtransGateway` implements the existing
+`PaymentGatewayInterface` (Snap, so no card data ever touches IOMS), verifies the SHA512 signature
+over `order_id + status_code + gross_amount + serverKey` before reading a single field, and maps
+Midtrans transaction states onto the existing status model. `PaymentWebhookController` is the ONLY
+route that may mark a payment settled, and it re-checks the amount against the invoice before
+treating a notification as settlement.
+
+**Tenant billing + Master Admin — BUILT.** `/subscription/billing` shows plan, cycle, status,
+renewal, live capacity against real entitlements, and invoice/payment history.
+`/platform/registrations` gives the operator the onboarding pipeline and flags the case that matters
+most — a customer who has paid but has no workspace — with an idempotent re-provision action that
+cannot activate an unpaid registration.
+
+### ⚠️ STILL REQUIRES EXTERNAL CONFIGURATION — the only thing standing between this and live payments
+
+The code is complete. None of it can take a real payment until the following exist, and IOMS
+deliberately stays in its safe "no payments configured" state until they do:
+
+1. A **Midtrans merchant account** (Snap enabled).
+2. `MIDTRANS_SERVER_KEY` and `MIDTRANS_CLIENT_KEY` in the production `.env`, plus
+   `PAYMENT_GATEWAY=midtrans`. The adapter binds only when the gateway is named AND both keys are
+   present — a half-filled configuration keeps the safe behaviour rather than failing later.
+3. An explicit **sandbox vs production** decision (`MIDTRANS_IS_PRODUCTION`). The key pairs differ
+   and are not interchangeable.
+4. The **Payment Notification URL** registered in the Midtrans dashboard, pointing at
+   `https://<your-domain>/webhooks/payment/midtrans`. Without this, notifications never arrive and
+   **no subscription can ever activate** — activation is webhook-driven by design.
+5. **Subscription/Recurring activated separately** by Midtrans for the merchant, if automatic
+   renewal charging is wanted. It is not available by default. `PAYMENT_RECURRING_ENABLED=false`
+   (the default) means invoice-per-cycle renewal, which is fully implemented and needs nothing
+   beyond ordinary credentials. The tenant subscription model is identical in both modes, so
+   switching the flag later migrates no data.
+6. A real **SMTP/mail provider** (`MAIL_MAILER`, host, credentials, `MAIL_FROM_ADDRESS`).
+   `MAIL_MAILER=log` is the default and writes messages to the log instead of sending them —
+   verification, invoice and activation mail is generated correctly but not delivered. Nothing in
+   IOMS reports mail as sent when it was not; failures are logged and never block the flow.
+
+---
 ## 💳 SaaS Finalization — what v2.50.0 built, and what it deliberately did NOT
 
 **Built.** The public front door is now a real journey: `/pricing` and `/get-started` exist as

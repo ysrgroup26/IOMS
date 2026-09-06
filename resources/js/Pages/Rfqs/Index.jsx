@@ -8,6 +8,7 @@ import { Table, TableHeader, TableBody, TableRow, TableHead, TableCell } from '@
 import StatusBadge from '@/Components/shared/StatusBadge';
 import EmptyState from '@/Components/shared/EmptyState';
 import { Plus, Search, FileQuestion, ChevronLeft, ChevronRight } from 'lucide-react';
+import PageHeader from '@/Components/shared/PageHeader';
 
 export default function RfqsIndex({ rfqs, filters, can }) {
     function applyFilters(overrides = {}) {
@@ -18,13 +19,9 @@ export default function RfqsIndex({ rfqs, filters, can }) {
         <AuthenticatedLayout>
             <Head title="RFQ (Request for Quotation)" />
 
-            <div className="mb-4 flex flex-wrap items-center justify-between gap-3">
-                <div>
-                    <h1 className="text-[22px] font-semibold tracking-tight text-navy-900 dark:text-slate-50">RFQ (Request for Quotation)</h1>
-                    <p className="text-xs text-graphite-500 dark:text-slate-400">Invite vendors to quote against an approved Purchase Requisition.</p>
-                </div>
+            <PageHeader title="RFQ (Request for Quotation)" subtitle="Invite vendors to quote against an approved Purchase Requisition.">
                 {can.manage && (<Button asChild><Link href={route('rfqs.create')}><Plus className="h-4 w-4" /> New RFQ</Link></Button>)}
-            </div>
+            </PageHeader>
 
             <Card className="mb-4">
                 <CardContent className="flex flex-wrap gap-2 p-3">

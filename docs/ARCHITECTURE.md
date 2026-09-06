@@ -87,6 +87,53 @@ formats, not visual polish.
 Don't call the PDF library directly — every future document type (Daily Report, Incident Report,
 Permit To Work, Inspection Checklist) is expected to go through this same service.
 
+### Document Identity System (v2.51.0) — the shared letterhead every generated document uses
+
+**What it is**: `DocumentEngine::identity()` plus four Blade partials in
+`resources/views/pdf/partials/` — `styles`, `letterhead`, `signatures`, `footer`.
+
+**The problem it solves**: each PDF view used to reach into `CompanySetting` for whichever fields
+its own header wanted. The HSE permit grew a real letterhead and nothing else had one, and adding a
+header anywhere meant copying that block again. A purchase order and a permit looked like they came
+from two different companies.
+
+**How it works**: `identity()` returns the full company identity a formal Indonesian business
+document needs — name, legal name, logo, address, assembled locality line, phone/email/website,
+NPWP, NIB — read from tenant-scoped `company_settings` (see `CompanySettingScope`). A document can
+therefore only ever carry the identity of the tenant that generated it. `branding()` is unchanged
+and still serves on-screen chrome; `identity()` is the document-grade superset.
+
+**Convention for a new document type**:
+
+```blade
+@include('pdf.partials.styles')
+@include('pdf.partials.letterhead', ['identity' => $identity, 'docTitle' => '...', 'docRefs' => [...]])
+...your document's own body...
+@include('pdf.partials.signatures', ['signatures' => [['role' => 'Dibuat Oleh', 'name' => ...]]])
+@include('pdf.partials.footer', ['identity' => $identity, 'documentNumber' => ...])
+```
+
+and in the controller, pass `'identity' => $documents->identity()` alongside your data. The
+signature partial renders an EMPTY signing box when no name is known rather than hiding it or
+inventing an approver — an unsigned box is a real instruction on a printed controlled document.
+
+`styles.blade.php` is table-based with no flex/grid/CSS-variables because that is what dompdf
+actually renders; anything there that looks dated is dated on purpose.
+
+**Documents on this system**: Purchase Order (Surat Pesanan), Purchase Requisition (FPB), Goods
+Receipt (BAST), Work Order (SPK), plus the existing Permit To Work.
+
+### Excel Export foundation (v2.51.0)
+
+**What it is**: `app/Exports/Concerns/IomsSheetFormatting.php` — a trait, not a base class, because
+every export already implements a different mix of Maatwebsite concerns and forcing them under one
+parent would mean rewriting working export logic (and risking the data) to gain formatting.
+
+Provides `iomsProperties($title)` for `WithProperties` (document properties carrying the tenant's
+own identity) and `applyIomsSheetFormatting($sheet)` for an `AfterSheet` listener: navy header row,
+frozen pane below it, autofilter, A4 landscape fit-to-width print setup with the header repeated on
+every printed page. Deliberately does not decorate — a spreadsheet is a working document, and merged
+title art three rows deep makes it harder to sort, filter and pivot.
 ### Report Export architecture (prepared, not fully built)
 
 **What it is**: `app/Contracts/ReportExportInterface.php` + `app/Services/ReportTemplateResolver.php`.

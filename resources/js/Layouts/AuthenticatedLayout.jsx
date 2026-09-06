@@ -573,7 +573,7 @@ function TopBar({ onOpenSidebar, isDepartmentUser, departments, activeWorkspace,
                             inside this dropdown once opened -- "Administrator"
                             vs "HSE" vs "Manager" etc. should never require a
                             click to discover. */}
-                        <span className="text-[10px] font-medium leading-tight text-brand-600 dark:text-brand-400">{auth?.user?.role_label}</span>
+                        <span className="max-w-full truncate text-[10px] font-medium leading-tight text-brand-600 dark:text-brand-400">{auth?.user?.role_label}</span>
                     </span>
                     <ChevronDown className="hidden h-3.5 w-3.5 text-graphite-400 dark:text-slate-500 sm:block" />
                 </DropdownMenuTrigger>

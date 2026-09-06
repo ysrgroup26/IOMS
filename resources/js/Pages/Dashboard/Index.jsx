@@ -82,6 +82,14 @@ export default function Dashboard({
         }],
     };
 
+    // v2.44.0: the SAME real per-category 12-month series `trendData`
+    // charts below, keyed by the category's own short_label so each compact
+    // KPI card can carry its own history. No new query and nothing
+    // generated -- a category with no matching series simply gets no line.
+    const kpiTrendByLabel = Object.fromEntries(
+        (monthlyTrend?.series ?? []).map((serie) => [serie.label, Array.from(serie.data ?? [])])
+    );
+
     const trendData = {
         labels: monthlyTrend.labels,
         datasets: monthlyTrend.series.map((s, i) => ({
@@ -354,6 +362,7 @@ export default function Dashboard({
                             key={c.id}
                             label={c.short_label}
                             value={c.total}
+                            trend={kpiTrendByLabel[c.short_label]}
                             isNegative={c.is_negative}
                             icon={c.icon}
                             color={c.color}

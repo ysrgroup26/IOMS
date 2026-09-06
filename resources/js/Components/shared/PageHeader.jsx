@@ -37,7 +37,13 @@
  */
 export default function PageHeader({ title, subtitle, children }) {
     return (
-        <div className="mb-4 flex flex-col items-start gap-3 rounded-xl border border-steel-200/70 bg-white px-4 py-3.5 shadow-panel sm:flex-row sm:flex-wrap sm:items-center sm:justify-between dark:border-slate-800 dark:bg-slate-900">
+        // v2.44.0: the panel gained a soft steel wash and a hairline top
+        // highlight. Flat white with a border read as an outline drawn on the
+        // page; a wash plus a lit top edge reads as a physical surface catching
+        // light, which is what separates this from a generic admin header at a
+        // glance. Still overwhelmingly light -- this is tier three of the
+        // hierarchy, not a second hero.
+        <div className="relative mb-4 flex flex-col items-start gap-3 overflow-hidden rounded-xl border border-steel-200/70 bg-gradient-to-br from-white via-white to-steel-50 px-4 py-3.5 shadow-panel before:absolute before:inset-x-0 before:top-0 before:h-px before:bg-gradient-to-r before:from-transparent before:via-white/90 before:to-transparent sm:flex-row sm:flex-wrap sm:items-center sm:justify-between dark:border-slate-800 dark:from-slate-900 dark:via-slate-900 dark:to-slate-900">
             <div className="flex min-w-0 items-start gap-3">
                 {/* Vertical navy rule: the smallest possible mark that ties a
                     module page back to the same brand ink as the rail and the

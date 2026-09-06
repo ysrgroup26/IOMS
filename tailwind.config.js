@@ -43,17 +43,27 @@ export default {
                     foreground: 'hsl(var(--card-foreground))',
                 },
                 // IOMS brand palette
+                // v2.44.0: `brand` was Tailwind's stock blue -- a bright,
+                // slightly violet web blue (#2563eb) that never belonged to the
+                // same family as navy (#0F2747) and steel (#3B82B6). Side by
+                // side it read as a different product's accent bolted onto an
+                // industrial shell. The mid/dark stops are re-cut along the
+                // navy<->steel axis: still confident enough to carry a primary
+                // CTA, no longer a generic SaaS blue. The 50-200 tints are left
+                // alone -- they are used as near-white wash backgrounds where
+                // the hue barely reads and changing them would shift dozens of
+                // surfaces for no gain.
                 brand: {
                     50: '#eff6ff',
                     100: '#dbeafe',
                     200: '#bfdbfe',
-                    300: '#93c5fd',
-                    400: '#60a5fa',
-                    500: '#3b82f6',
-                    600: '#2563eb',
-                    700: '#1d4ed8',
-                    800: '#1e40af',
-                    900: '#1e3a8a',
+                    300: '#8FBEEC',
+                    400: '#5CA0EA',
+                    500: '#3B85DD',
+                    600: '#2166C4',
+                    700: '#1A5099',
+                    800: '#163F78',
+                    900: '#12305A',
                 },
                 graphite: {
                     50: '#f8fafc',
@@ -136,6 +146,12 @@ export default {
                 // Panel = a section container that owns a region of the page
                 // (module panels, page header). One step above a data card.
                 panel: '0 2px 6px -1px rgba(15, 39, 71, 0.07)',
+                // v2.44.0: elevation for surfaces that should feel lit rather
+                // than merely outlined -- KPI/stat surfaces and domain panels.
+                // A cool navy-tinted shadow, never a neutral grey drop shadow,
+                // so depth reads as part of the palette instead of dirt.
+                lift: '0 10px 24px -8px rgba(15, 39, 71, 0.18), 0 2px 6px -2px rgba(15, 39, 71, 0.08)',
+                glow: '0 0 0 1px rgba(33, 102, 196, 0.10), 0 8px 24px -10px rgba(33, 102, 196, 0.35)',
             },
             keyframes: {
                 'fade-in': {

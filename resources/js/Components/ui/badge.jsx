@@ -8,7 +8,12 @@ import { cn } from '@/lib/utils';
 // (px-2/py-1 = 8px/4px) already matched exactly; only the font size
 // moved, 11px -> 10px.
 const badgeVariants = cva(
-    'inline-flex items-center rounded-full border px-2 py-1 text-[10px] font-medium leading-none transition-colors',
+    // v2.43.0: status is one of the highest-value signals in an operations
+    // product and it was rendered at 10px/500 in a soft tint -- readable up
+    // close, invisible when scanning a list. Weight to 600 and a subtle
+    // ring so a badge reads as a deliberate STATE CHIP. Size, padding and
+    // radius unchanged, so no table column reflows.
+    'inline-flex items-center rounded-full border px-2 py-1 text-[10px] font-semibold leading-none ring-1 ring-inset ring-black/[0.04] transition-colors',
     {
         variants: {
             variant: {

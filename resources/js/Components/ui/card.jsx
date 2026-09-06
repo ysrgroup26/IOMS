@@ -4,7 +4,12 @@ import { cn } from '@/lib/utils';
 // v1.11.14: radius one step down, rounded-xl (12px) -> rounded-[10px] --
 // the directive's own repeated exact "radius: 10px" for cards/KPI boxes.
 const Card = React.forwardRef(({ className, ...props }, ref) => (
-    <div ref={ref} className={cn('rounded-[10px] border border-graphite-200 bg-white shadow-card dark:border-slate-800 dark:bg-slate-900', className)} {...props} />
+    // v2.43.0: border moved from neutral graphite to the cool steel family
+    // so cards belong to the same palette as the ground they now sit on,
+    // and the card shadow token was nudged (see tailwind.config.js) so the
+    // surface reads as raised rather than drawn. Radius, padding and every
+    // sub-component are untouched.
+    <div ref={ref} className={cn('rounded-[10px] border border-steel-100 bg-white shadow-card dark:border-slate-800 dark:bg-slate-900', className)} {...props} />
 ));
 Card.displayName = 'Card';
 
@@ -22,7 +27,7 @@ CardHeader.displayName = 'CardHeader';
 // 600" line exactly (distinct from "Section Title: 14px/600" -- this
 // component is the per-Card header, not a page-level section divider).
 const CardTitle = React.forwardRef(({ className, ...props }, ref) => (
-    <h3 ref={ref} className={cn('text-[13px] font-semibold text-graphite-800 dark:text-slate-100', className)} {...props} />
+    <h3 ref={ref} className={cn('text-[13px] font-semibold text-navy-800 dark:text-slate-100', className)} {...props} />
 ));
 CardTitle.displayName = 'CardTitle';
 

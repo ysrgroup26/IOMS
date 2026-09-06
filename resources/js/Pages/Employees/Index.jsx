@@ -98,7 +98,7 @@ export default function EmployeesIndex({ employees, companies, departments, filt
                 <CardContent className="p-0">
                     {employees.data.length === 0 ? (
                         <div className="py-10 text-center">
-                            <p className="text-sm font-medium text-graphite-500">Belum ada data karyawan.</p>
+                            <p className="text-sm font-semibold text-navy-800">Belum ada data karyawan.</p>
                             {can.manage && (
                                 <Button asChild size="sm" className="mt-3">
                                     <Link href={route('employees.create')}><Plus className="h-4 w-4" /> Add Employee</Link>

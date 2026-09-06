@@ -9,7 +9,11 @@ const Table = React.forwardRef(({ className, ...props }, ref) => (
 Table.displayName = 'Table';
 
 const TableHeader = React.forwardRef(({ className, ...props }, ref) => (
-    <thead ref={ref} className={cn('[&_tr]:border-b [&_tr]:border-graphite-200 dark:[&_tr]:border-slate-700', className)} {...props} />
+    // v2.43.0: a tinted header band. Data tables are the densest surface in
+    // IOMS and their header used to differ from the body by weight alone,
+    // which is the first thing to disappear when a table is scrolled or
+    // scanned quickly.
+    <thead ref={ref} className={cn('bg-steel-50/70 [&_tr]:border-b [&_tr]:border-steel-200 dark:bg-slate-800/50 dark:[&_tr]:border-slate-700', className)} {...props} />
 ));
 TableHeader.displayName = 'TableHeader';
 
@@ -19,7 +23,7 @@ const TableBody = React.forwardRef(({ className, ...props }, ref) => (
 TableBody.displayName = 'TableBody';
 
 const TableRow = React.forwardRef(({ className, ...props }, ref) => (
-    <tr ref={ref} className={cn('border-b border-graphite-100 transition-colors hover:bg-graphite-50/60 dark:border-slate-800 dark:hover:bg-slate-800/60', className)} {...props} />
+    <tr ref={ref} className={cn('border-b border-graphite-100 transition-colors hover:bg-steel-50/60 dark:border-slate-800 dark:hover:bg-slate-800/60', className)} {...props} />
 ));
 TableRow.displayName = 'TableRow';
 
@@ -34,7 +38,7 @@ TableRow.displayName = 'TableRow';
 // spec's own floor -- landing the row in the 40-48px band at both the
 // 13px (base) and 12px (desktop) text sizes.
 const TableHead = React.forwardRef(({ className, ...props }, ref) => (
-    <th ref={ref} className={cn('h-9 px-3 text-left align-middle text-xs font-semibold uppercase tracking-wide text-graphite-500 dark:text-slate-400 lg:h-8 lg:px-2.5 lg:text-[11px]', className)} {...props} />
+    <th ref={ref} className={cn('h-9 px-3 text-left align-middle text-xs font-semibold uppercase tracking-wide text-navy-600 dark:text-slate-400 lg:h-8 lg:px-2.5 lg:text-[11px]', className)} {...props} />
 ));
 TableHead.displayName = 'TableHead';
 

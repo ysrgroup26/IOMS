@@ -162,7 +162,16 @@ export default function AuthenticatedLayout({ children }) {
         // the directive asks for without tinting the whole app blue --
         // white Cards and the white Sidebar/TopBar still read as the
         // brighter, primary surfaces on top of it.
-        <div className="relative min-h-screen bg-graphite-50 dark:bg-slate-950">
+        //
+        // v2.43.0 -- THE structural fix behind "a collection of white boxes on
+        // a white page". The ground was graphite-50 (#f8fafc) with two washes
+        // so faint they were effectively invisible, so a white card had almost
+        // no tonal step to sit on and every page read as one flat sheet.
+        // Stepping the ground down to a genuinely cool graphite-100 is what
+        // lets every existing white surface in the app read as RAISED -- one
+        // change, no page edits, and it is the reason the rest of this pass
+        // could stay restrained rather than recolouring components one by one.
+        <div className="relative min-h-screen bg-graphite-100 dark:bg-slate-950">
             {/* v2.35.0 (Visual System + IA Refinement, Part 16 --
                 "too white" was the single most-repeated production
                 finding). The v2.29.0 tint only touched the top-left
@@ -176,8 +185,8 @@ export default function AuthenticatedLayout({ children }) {
                 (doesn't scroll, doesn't repaint), still low-opacity, still
                 sits entirely behind white Cards/Sidebar/TopBar -- this is
                 the BACKGROUND layer, not a new card treatment. */}
-            <div className="pointer-events-none fixed inset-0 -z-10 bg-gradient-to-br from-brand-50/50 via-transparent to-transparent dark:from-blue-950/20" aria-hidden="true" />
-            <div className="pointer-events-none fixed inset-0 -z-10 bg-gradient-to-tl from-slate-100/70 via-transparent to-transparent dark:from-slate-900/40" aria-hidden="true" />
+            <div className="pointer-events-none fixed inset-0 -z-10 bg-gradient-to-br from-steel-100/70 via-transparent to-transparent dark:from-blue-950/20" aria-hidden="true" />
+            <div className="pointer-events-none fixed inset-0 -z-10 bg-gradient-to-tl from-steel-200/50 via-transparent to-transparent dark:from-slate-900/40" aria-hidden="true" />
             {/* Mobile overlay */}
             {sidebarOpen && (
                 <div
@@ -465,7 +474,7 @@ function TopBar({ onOpenSidebar, isDepartmentUser, departments, activeWorkspace,
     // white bar -- still translucent/backdrop-blur, still reads as
     // chrome, not a data surface.
     return (
-        <header className="sticky top-0 z-30 flex h-14 items-center gap-2 border-b border-graphite-200 bg-white/80 bg-gradient-to-r from-brand-50/40 via-white/80 to-white/80 px-3 shadow-sm backdrop-blur sm:gap-3 sm:px-5 dark:border-slate-800 dark:bg-slate-950/80">
+        <header className="sticky top-0 z-30 flex h-14 items-center gap-2 border-b border-steel-200/70 bg-white/85 bg-gradient-to-r from-steel-50/80 via-white/85 to-white/85 px-3 shadow-sm backdrop-blur sm:gap-3 sm:px-5 dark:border-slate-800 dark:bg-slate-950/80">
             <button className="lg:hidden" onClick={onOpenSidebar}>
                 <Menu className="h-5 w-5 text-graphite-500" />
             </button>
@@ -553,12 +562,12 @@ function TopBar({ onOpenSidebar, isDepartmentUser, departments, activeWorkspace,
 
             {/* Profile menu: identity + About + Logout */}
             <DropdownMenu>
-                <DropdownMenuTrigger className="flex items-center gap-2 rounded-lg py-1 pl-1 pr-2 outline-none transition-colors hover:bg-graphite-100 dark:hover:bg-slate-800">
+                <DropdownMenuTrigger className="flex min-w-0 max-w-[180px] items-center gap-2 rounded-lg py-1 pl-1 pr-2 outline-none transition-colors hover:bg-graphite-100 dark:hover:bg-slate-800">
                     <div className="flex h-7 w-7 shrink-0 items-center justify-center rounded-full bg-graphite-100 text-xs font-semibold text-graphite-600 dark:bg-slate-800 dark:text-slate-300">
                         {auth?.user?.name?.charAt(0)}
                     </div>
-                    <span className="hidden flex-col items-start sm:flex">
-                        <span className="text-sm font-medium leading-tight text-graphite-700 dark:text-slate-300">{auth?.user?.name?.split(' ')[0]}</span>
+                    <span className="hidden min-w-0 flex-col items-start sm:flex">
+                        <span className="max-w-full truncate text-sm font-medium leading-tight text-graphite-700 dark:text-slate-300">{auth?.user?.name?.split(' ')[0]}</span>
                         {/* Milestone 3 (UAT #1/#3/#7 -- identity clarity): the
                             role is now visible in the header itself, not just
                             inside this dropdown once opened -- "Administrator"

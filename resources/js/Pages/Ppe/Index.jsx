@@ -127,7 +127,7 @@ export default function PpeIndex({ assignments, ppeTypes, companies, departments
                         </TableHeader>
                         <TableBody>
                             {assignments.data.length === 0 ? (
-                                <TableRow><TableCell colSpan={9} className="py-10 text-center text-graphite-400">No PPE records found.</TableCell></TableRow>
+                                <TableRow className="hover:bg-transparent"><TableCell colSpan={9} className="py-10 text-center"><span className="text-sm font-semibold text-navy-800">No PPE records found</span><span className="mt-0.5 block text-xs text-graphite-500">Issued PPE will appear here once recorded.</span></TableCell></TableRow>
                             ) : assignments.data.map((a) => (
                                 <TableRow key={a.id}>
                                     <TableCell className="font-medium">{a.employee.full_name}</TableCell>

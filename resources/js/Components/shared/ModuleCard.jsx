@@ -28,19 +28,22 @@ export default function ModuleCard({ icon: Icon, title, description, href, statu
     const body = (
         <>
             <div className="flex items-center justify-between gap-2">
-                <span className="flex h-8 w-8 shrink-0 items-center justify-center rounded-[9px] bg-brand-50 text-brand-600 dark:bg-brand-950/40 dark:text-brand-400">
+                <span className="flex h-8 w-8 shrink-0 items-center justify-center rounded-[9px] bg-gradient-to-br from-navy-800 to-brand-600 text-white shadow-card transition-transform duration-200 motion-safe:group-hover:scale-105 dark:from-brand-950/40 dark:to-brand-900/40 dark:text-brand-400">
                     {Icon && <Icon className="h-4 w-4" />}
                 </span>
                 {status === 'planned' && <Badge variant="secondary" className="shrink-0">Coming Soon</Badge>}
                 {status === 'locked' && <Badge variant="destructive" className="shrink-0">Not in plan</Badge>}
                 {isActive && <ArrowRight className="h-3.5 w-3.5 shrink-0 text-graphite-300 dark:text-slate-600" />}
             </div>
-            <p className="mt-2 truncate text-[13px] font-semibold text-graphite-800 dark:text-slate-100">{title}</p>
+            <p className="mt-2 truncate text-[13px] font-semibold text-navy-800 dark:text-slate-100">{title}</p>
             {description && <p className="mt-0.5 line-clamp-1 text-[11px] text-graphite-400 dark:text-slate-500">{description}</p>}
         </>
     );
 
-    const className = 'block h-full rounded-[10px] border border-graphite-200 bg-white/85 p-3 backdrop-blur-sm transition-all duration-200 dark:border-slate-800 dark:bg-slate-900/85 ' +
+    // v2.43.0: module cards are the entry points to each domain, so they
+    // get a slightly warmer-toward-steel surface and a real hover lift --
+    // they should feel like doors, not list rows. Grid/padding untouched.
+    const className = 'group block h-full rounded-[10px] border border-steel-100 bg-gradient-to-b from-white to-steel-50/40 p-3 shadow-card transition-all duration-200 dark:border-slate-800 dark:from-slate-900 dark:to-slate-900 ' +
         (isActive ? 'hover:-translate-y-0.5 hover:shadow-card-hover cursor-pointer' : 'opacity-70 cursor-not-allowed');
 
     if (isActive) {

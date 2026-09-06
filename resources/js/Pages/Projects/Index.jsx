@@ -1,4 +1,5 @@
 import { Head, router, Link } from '@inertiajs/react';
+import EmptyState from '@/Components/shared/EmptyState';
 import { useState } from 'react';
 import AuthenticatedLayout from '@/Layouts/AuthenticatedLayout';
 import { Card, CardContent } from '@/Components/ui/card';
@@ -6,7 +7,7 @@ import { Input } from '@/Components/ui/input';
 import { Button } from '@/Components/ui/button';
 import { Badge } from '@/Components/ui/badge';
 import { Select, SelectTrigger, SelectValue, SelectContent, SelectItem } from '@/Components/ui/select';
-import { Search, Plus, ChevronLeft, ChevronRight, MapPin, Users } from 'lucide-react';
+import { Search, Plus, ChevronLeft, ChevronRight, MapPin, Users , FolderKanban} from 'lucide-react';
 import { cn } from '@/lib/utils';
 
 const STATUS_VARIANT = {
@@ -94,7 +95,7 @@ export default function ProjectsIndex({ projects, companies, filters, can }) {
             <div className="mt-4 grid grid-cols-1 gap-4 sm:grid-cols-2 lg:grid-cols-3">
                 {projects.data.length === 0 ? (
                     <Card className="col-span-full">
-                        <CardContent className="py-10 text-center text-graphite-400">No projects found.</CardContent>
+                        <CardContent className="p-3"><EmptyState icon={FolderKanban} title="No projects yet" description="Projects you create will appear here." /></CardContent>
                     </Card>
                 ) : projects.data.map((project) => (
                     <Link key={project.id} href={route('projects.show', project.id)}>

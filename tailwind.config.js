@@ -125,8 +125,17 @@ export default {
                 // this pass's spec calls for ("Do NOT use strong
                 // shadows") -- was a two-layer shadow with a second,
                 // more visible 0.06-alpha layer stacked on top.
-                card: '0 1px 2px 0 rgba(15, 23, 42, 0.04)',
-                'card-hover': '0 4px 12px 0 rgba(15, 23, 42, 0.08)',
+                // v2.43.0: the workspace ground is no longer near-white, so a
+                // 0.04-alpha shadow that used to be the only thing separating a
+                // card from the page now has a real tonal step doing that job
+                // too. Nudged just enough for cards to read as RAISED on the
+                // tinted ground -- still a single soft layer, still not the
+                // "strong shadows" the v1.11.12 spec ruled out.
+                card: '0 1px 2px 0 rgba(15, 39, 71, 0.06)',
+                'card-hover': '0 6px 16px -2px rgba(15, 39, 71, 0.10)',
+                // Panel = a section container that owns a region of the page
+                // (module panels, page header). One step above a data card.
+                panel: '0 2px 6px -1px rgba(15, 39, 71, 0.07)',
             },
             keyframes: {
                 'fade-in': {

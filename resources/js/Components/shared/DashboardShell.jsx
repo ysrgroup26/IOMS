@@ -60,7 +60,7 @@ export default function DashboardShell({ title, subtitle, actions, children }) {
 
     return (
         <>
-            <div className="mb-4 flex flex-col items-start gap-3 rounded-xl bg-gradient-to-br from-steel-50 via-brand-50/40 to-white px-4 py-3.5 sm:flex-row sm:items-center sm:justify-between dark:from-slate-900 dark:via-slate-900 dark:to-slate-900">
+            <div className="mb-4 flex flex-col items-start gap-3 rounded-xl border border-steel-200/70 bg-gradient-to-br from-steel-100 via-steel-50 to-white px-4 py-3.5 shadow-panel sm:flex-row sm:items-center sm:justify-between dark:border-slate-800 dark:from-slate-900 dark:via-slate-900 dark:to-slate-900">
                 <div className="min-w-0">
                     <h1 className="text-[19px] font-semibold leading-tight tracking-tight text-navy-900 dark:text-slate-50">{title}</h1>
                     {subtitle && <p className="mt-0.5 text-[13px] leading-snug text-graphite-600 dark:text-slate-400">{subtitle}</p>}

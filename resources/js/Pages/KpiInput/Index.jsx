@@ -388,7 +388,7 @@ function QuickAttendanceForm({ departments, companies, categories }) {
 
                     <div className="max-h-80 overflow-y-auto rounded-lg border border-graphite-200">
                         {filtered.length === 0 ? (
-                            <p className="p-6 text-center text-sm text-graphite-400">No employees found.</p>
+                            <p className="p-6 text-center text-sm font-semibold text-navy-800">No employees found.</p>
                         ) : filtered.map((emp) => (
                             <label
                                 key={emp.id}

@@ -54,7 +54,7 @@ export default function ModuleTabNav({ tabs }) {
     const { url } = usePage();
 
     return (
-        <div className="mb-4 -mx-1 flex gap-1 overflow-x-auto border-b border-graphite-200 px-1 dark:border-slate-800">
+        <div className="mb-4 -mx-1 flex gap-1 overflow-x-auto border-b border-steel-200 px-1 dark:border-slate-800">
             {tabs.map((tab) => {
                 let active = false;
                 try {
@@ -84,7 +84,7 @@ export default function ModuleTabNav({ tabs }) {
                                 daily-operations tabs next to it, not just by RBAC
                                 hiding its buttons once you're already there. */}
                             {tab.badge && (
-                                <span className="rounded-full bg-graphite-100 px-1.5 py-0.5 text-[9px] font-semibold uppercase tracking-wide text-graphite-500 dark:bg-slate-800 dark:text-slate-400">
+                                <span className="rounded-full bg-steel-100 px-1.5 py-0.5 text-[9px] font-semibold uppercase tracking-wide text-navy-600 dark:bg-slate-800 dark:text-slate-400">
                                     {tab.badge}
                                 </span>
                             )}

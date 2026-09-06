@@ -119,7 +119,7 @@ export default function TasksIndex({ tasks, users, filters, statuses, priorities
                         </TableHeader>
                         <TableBody>
                             {tasks.data.length === 0 ? (
-                                <TableRow><TableCell colSpan={7} className="py-10 text-center text-graphite-400">No tasks found.</TableCell></TableRow>
+                                <TableRow className="hover:bg-transparent"><TableCell colSpan={7} className="py-10 text-center"><span className="text-sm font-semibold text-navy-800">No tasks found</span><span className="mt-0.5 block text-xs text-graphite-500">Tasks assigned here will appear in this list.</span></TableCell></TableRow>
                             ) : tasks.data.map((task) => (
                                 <TableRow key={task.id} className="cursor-pointer" onClick={() => router.visit(route('tasks.show', task.id))}>
                                     <TableCell className="font-medium text-graphite-700">{task.task_number}</TableCell>

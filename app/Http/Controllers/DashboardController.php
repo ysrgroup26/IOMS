@@ -78,9 +78,21 @@ class DashboardController extends Controller
      */
     public function index(Request $request): Response
     {
-        if ($request->user()->isDepartmentUser()) {
-            return $this->fieldHome($request);
-        }
+        // v2.42.0 -- INFORMATION ARCHITECTURE FIX. This used to silently
+        // return fieldHome() for any Department User, so an HSE-scoped
+        // account clicking the sidebar's "Dashboard" landed on a task-first
+        // page of HSE tiles (Create PTW / My PTW / Digital Checklist /
+        // Safety Observation). The nav still called it "Dashboard", so the
+        // one route that is supposed to mean "IOMS-wide, cross-domain
+        // company picture" meant something different per account -- and it
+        // made PTW look like the primary content of the company Dashboard,
+        // which it must never be (PTW is a standalone module).
+        //
+        // Dashboard now means Dashboard for everyone. Field Home was NOT
+        // deleted -- it is genuinely useful and stays reachable at its own
+        // honestly-named route (`my-work`, see myWork() below), surfaced in
+        // the sidebar for Department Users only. Nothing was removed; the
+        // page simply stopped impersonating the Dashboard.
 
         $year = (int) $request->input('year', now()->format('Y'));
         $month = $request->input('month') ? (int) $request->input('month') : null;
@@ -301,7 +313,14 @@ class DashboardController extends Controller
      * from `WorkCenterService` (the same queries the Work Center topbar
      * badge and page already use) rather than re-derived.
      */
-    private function fieldHome(Request $request): Response
+    /**
+     * v2.42.0: was `private fieldHome()`, reached only by hijacking the
+     * `dashboard` route for Department Users. Now its own route
+     * (`my-work`) with its own sidebar entry, so it no longer competes
+     * with the company-wide Dashboard for the same name. Content,
+     * tiles, gating and the rendered page are unchanged.
+     */
+    public function myWork(Request $request): Response
     {
         $user = $request->user();
 

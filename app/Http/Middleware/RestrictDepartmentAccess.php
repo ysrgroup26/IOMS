@@ -50,7 +50,27 @@ class RestrictDepartmentAccess
      */
     private const UNIVERSAL_PREFIXES = [
         'dashboard', 'home', 'work-center', 'approvals', 'notifications',
+        // v2.42.0: Field Home, now its own route rather than a hijack of
+        // `dashboard`. Cross-department by definition -- it is a personal
+        // task list, owned by no department.
+        'my-work',
         'search', 'logout', 'login', 'password',
+        // v2.42.0: PTW is a genuinely cross-department CAPABILITY, not an
+        // HSE-department-owned page -- User::canCreatePtw() is deliberately
+        // a UNION of canManageHse() and an individually-granted `ptw_access`
+        // flag (Settings > Users > PTW Access), precisely so a Field/
+        // Operations user in a NON-hse department can be granted permit
+        // authoring rights without joining HSE. Leaving 'permits-to-work'
+        // inside the 'hse' entry below meant this middleware 403'd exactly
+        // that user before the request ever reached the controller's own
+        // canCreatePtw() check -- department ownership and capability
+        // ownership had silently diverged. The controller's per-action gates
+        // (canCreatePtw() for create/store, canManageHse() for approval
+        // actions) remain the real, unweakened authorization boundary; this
+        // only stops the ROUTING layer from second-guessing them. Same
+        // reasoning as 'man-hour' below (shared HR+HSE data, owned by
+        // neither department exclusively).
+        'permits-to-work',
         // v1.11.0: the Global Calendar aggregates events FROM several
         // departments (Leave/HR, PTW+TBM/HSE, Milestone/Project,
         // Work Order/Maintenance) into one cross-department view by

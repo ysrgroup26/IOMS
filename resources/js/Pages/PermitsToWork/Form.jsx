@@ -156,10 +156,6 @@ export default function PermitToWorkForm({ companies, projects, riskAssessments,
                             <Textarea value={data.work_description} onChange={(e) => setData('work_description', e.target.value)} rows={3} placeholder="Apa pekerjaan yang akan dilakukan?" />
                             {errors.work_description && <p className="text-xs text-red-600">{errors.work_description}</p>}
                         </div>
-                        <div className="space-y-1.5">
-                            <Label>Location</Label>
-                            <Input value={data.location} onChange={(e) => setData('location', e.target.value)} placeholder="Contoh: Dock 1 atau Area Tanki" />
-                        </div>
                         <div className="grid grid-cols-1 gap-3 sm:grid-cols-2">
                             <div className="space-y-1.5">
                                 <Label>Start</Label>
@@ -178,6 +174,22 @@ export default function PermitToWorkForm({ companies, projects, riskAssessments,
                                 <SelectTrigger><SelectValue placeholder="No project" /></SelectTrigger>
                                 <SelectContent><SelectItem value="none">No project</SelectItem>{projects.map((p) => <SelectItem key={p.id} value={String(p.id)}>{p.name}</SelectItem>)}</SelectContent>
                             </Select>
+                        </div>
+                        {/* v2.42.0 -- Project/Asset and Work Location are a
+                            HIERARCHY, not alternatives: the Project FK stays owned by
+                            the Management/Project domain, and this free-text field
+                            narrows the permit to the actual area within it (e.g. an
+                            engine room, hull section or specific work area). Kept as
+                            text on purpose -- work areas are permit-specific and
+                            open-ended, so promoting them to a master would duplicate
+                            the project registry for no operational gain. Moved to sit
+                            directly under Project, where it reads as a refinement. */}
+                        <div className="space-y-1.5">
+                            <Label>Work Location / Area</Label>
+                            <Input value={data.location} onChange={(e) => setData('location', e.target.value)} placeholder="Area spesifik pekerjaan, mis. Engine Room / Hull / Port Side" />
+                            <p className="text-[11px] leading-snug text-graphite-500">
+                                Lokasi kerja spesifik di dalam proyek/aset di atas. Tidak mengubah data master proyek.
+                            </p>
                         </div>
                     </CardContent>
                 </Card>

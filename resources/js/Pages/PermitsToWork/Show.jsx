@@ -58,16 +58,36 @@ export default function PermitToWorkShow({ permit: p, activities, canManage, rej
                 rather than sharing a small caption line with the
                 date/location metadata, and the status badge sits next
                 to the eyebrow instead of crowding the PTW number. */}
-            <div className="mb-4 flex flex-wrap items-start justify-between gap-3">
-                <div>
-                    <div className="flex items-center gap-2">
-                        <p className="font-mono text-xs font-medium text-graphite-400">{p.ptw_number}</p>
-                        <StatusBadge value={p.status} />
+            {/* v2.42.0: the permit's identity now sits on a navy band, the same
+                treatment its issued PDF carries, so the screen and the printed
+                document read as one instrument rather than two unrelated
+                layouts. Project/Asset and Work Location are shown as an
+                explicit hierarchy -- the Project FK stays owned by the
+                Management domain and the location narrows the permit to an
+                area within it. */}
+            <div className="mb-4 overflow-hidden rounded-xl border border-navy-700 bg-gradient-to-br from-navy-900 to-navy-800">
+                <div className="flex flex-wrap items-start justify-between gap-3 px-4 py-3.5">
+                    <div className="min-w-0">
+                            <div className="flex flex-wrap items-center gap-2">
+                            <p className="font-mono text-xs font-medium tracking-wide text-steel-300">{p.ptw_number}</p>
+                            <StatusBadge value={p.status} />
+                        </div>
+                        <h1 className="mt-1 text-2xl font-bold capitalize tracking-tight text-white">{p.permit_type.replace('_', ' ')}</h1>
+                        <p className="mt-1 text-xs text-navy-300">
+                            {new Date(p.start_datetime).toLocaleString('en-US', { day: 'numeric', month: 'short', hour: 'numeric', minute: '2-digit' })} - {new Date(p.end_datetime).toLocaleString('en-US', { hour: 'numeric', minute: '2-digit' })}
+                        </p>
+                        <div className="mt-2 flex flex-wrap items-center gap-x-4 gap-y-1 text-xs">
+                            <span className="text-navy-300">
+                                <span className="uppercase tracking-wide text-navy-400">Project / Asset</span>{' '}
+                                <span className="font-medium text-steel-100">{p.project?.name || '—'}</span>
+                            </span>
+                            <span className="text-navy-300">
+                                <span className="uppercase tracking-wide text-navy-400">Work Location</span>{' '}
+                                <span className="font-medium text-steel-100">{p.location || '—'}</span>
+                            </span>
+                        </div>
                     </div>
-                    <h1 className="mt-0.5 text-2xl font-bold capitalize tracking-tight text-graphite-900">{p.permit_type.replace('_', ' ')}</h1>
-                    <p className="mt-0.5 text-xs text-graphite-500">{new Date(p.start_datetime).toLocaleString('en-US', { day: 'numeric', month: 'short', hour: 'numeric', minute: '2-digit' })} - {new Date(p.end_datetime).toLocaleString('en-US', { hour: 'numeric', minute: '2-digit' })}{p.location && ` · ${p.location}`}</p>
-                </div>
-                <div className="flex flex-wrap items-center gap-2">
+                    <div className="flex flex-wrap items-center gap-2">
                     {/* v2.6.0 (PTW Document View pass): the new PRIMARY
                         document action -- was previously just Download
                         PDF/Print with no in-browser document presentation
@@ -120,6 +140,7 @@ export default function PermitToWorkShow({ permit: p, activities, canManage, rej
                             <Button variant="ghost" className="text-red-600" onClick={() => transition('cancelled', 'Batalkan PTW ini? PTW yang sudah dibatalkan tidak bisa digunakan kembali.')}><XCircle className="h-4 w-4" /> Cancel</Button>
                         )}
                     </>)}
+                    </div>
                 </div>
             </div>
 

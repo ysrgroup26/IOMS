@@ -77,6 +77,49 @@
         .template-header-text { font-size: 9px; color: #64748b; margin: 4px 0 0 0; }
         .watermark { position: fixed; top: 40%; left: 18%; font-size: 56px; color: #f3f4f6; transform: rotate(-30deg); z-index: -1; }
         .rejection-box { margin-top: 8px; padding: 8px 10px; border: 1px solid #fca5a5; background-color: #fef2f2; color: #b91c1c; border-radius: 4px; font-size: 11px; }
+
+        /* v2.42.0 -- ISSUED-DOCUMENT TREATMENT. The sheet was structurally
+           correct but read as a form print-out: one hairline status chip on
+           an all-white page, and three bare underscore lines for signatures.
+           A permit is an ISSUED instrument -- an area authority glances at it
+           on a wall or a clipboard and must read its state instantly, and an
+           auditor must see who authorised it and when.
+
+           Ink is spent only where it carries meaning: one navy identity band
+           (this is an IOMS-issued permit), one semantic status band (what
+           state it is in), and real bordered signature boxes (who signed).
+           No full-page tint, no decorative rules -- a permit gets printed in
+           volume, often mono, and toner is a real operational cost. All
+           table/background-colour based: Dompdf has no flexbox or grid. */
+        .identity-band { background-color: #0F2747; color: #ffffff; padding: 7px 10px; }
+        .identity-band .ib-name { font-size: 12.5px; font-weight: bold; color: #ffffff; }
+        .identity-band .ib-sub { font-size: 8px; color: #AECFEA; }
+        .identity-band .ib-eyebrow { font-size: 7px; text-transform: uppercase; letter-spacing: 1.6px; color: #82B4DC; }
+        .identity-band .ib-number { font-size: 11px; font-weight: bold; color: #ffffff; }
+
+        /* Full-width status bar. The left rule is the semantic colour so the
+           state survives a monochrome print as a position/weight cue, not a
+           hue the printer will flatten to grey. */
+        table.status-bar { width: 100%; border-collapse: collapse; margin: 0 0 8px 0; }
+        table.status-bar td { padding: 5px 10px; font-size: 9px; vertical-align: middle; }
+        .status-bar .sb-state { font-size: 12px; font-weight: bold; text-transform: uppercase; letter-spacing: 1px; }
+        .status-bar .sb-meta { font-size: 8.5px; text-align: right; }
+
+        /* Bordered authorisation boxes -- an auditable signing area rather
+           than three floating rules. */
+        table.signatures td { border: 1px solid #cbd5e1; }
+        .sig-head { background-color: #f1f5f9; border-bottom: 1px solid #cbd5e1; padding: 2.5px 6px; font-size: 7px; text-transform: uppercase; letter-spacing: 0.8px; color: #475569; font-weight: bold; text-align: left; }
+        .sig-body { padding: 4px 6px 3px 6px; text-align: left; }
+        .sig-name { font-size: 9.5px; font-weight: bold; color: #0f172a; min-height: 11px; }
+        .sig-when { font-size: 7.5px; color: #64748b; }
+        .sig-space { height: 30px; }
+        .sig-rule { border-top: 1px solid #94a3b8; padding-top: 2px; font-size: 7px; color: #94a3b8; }
+
+        /* Document-control strip: the audit metadata that makes a printed
+           copy traceable back to the record it came from. */
+        table.doc-control { width: 100%; border-collapse: collapse; margin-top: 10px; border-top: 1px solid #e2e8f0; }
+        table.doc-control td { padding: 4px 0 0 0; font-size: 7px; color: #94a3b8; }
+        table.doc-control .dc-label { text-transform: uppercase; letter-spacing: 0.6px; color: #cbd5e1; }
     </style>
 </head>
 <body>
@@ -85,19 +128,65 @@
         <div class="watermark">{{ $documentTemplate->watermark_text }}</div>
     @endif
 
-    <table class="header-table">
+    {{-- v2.42.0: the tenant's identity and the permit's identity now sit in
+         one navy band, so a printed permit is immediately recognisable as an
+         issued instrument rather than a form dump. Tenant logo/name/address
+         still come from DocumentEngine branding (tenant-scoped since
+         v2.40.0), unchanged. --}}
+    <table class="identity-band" style="width: 100%; border-collapse: collapse;">
         <tr>
-            <td style="width: 65%;">
+            <td style="width: 62%; vertical-align: middle;">
                 @if(($documentTemplate ?? null)?->show_logo && ($branding['logo_url'] ?? null))
                     <img class="header-logo" src="{{ $branding['logo_url'] }}" alt="Logo">
                 @endif
-                <div class="company-name">{{ $branding['company_name'] ?? $company->name ?? config('ioms.company') }}</div>
+                <div class="ib-name">{{ $branding['company_name'] ?? $company->name ?? config('ioms.company') }}</div>
                 @if($branding['address'] ?? null)
-                    <div class="company-sub">{{ $branding['address'] }}</div>
+                    <div class="ib-sub">{{ $branding['address'] }}</div>
                 @endif
             </td>
-            <td style="width: 35%; text-align: right;">
-                <span class="status-badge">{{ ucfirst(str_replace('_', ' ', $permit->status)) }}</span>
+            <td style="width: 38%; text-align: right; vertical-align: middle;">
+                <div class="ib-eyebrow">Permit To Work</div>
+                <div class="ib-number">{{ $permit->ptw_number }}</div>
+            </td>
+        </tr>
+    </table>
+
+    @php
+        // Semantic state presentation, derived from the permit's own status
+        // only -- nothing here is decorative and nothing is invented.
+        $statePresets = [
+            'approved'  => ['label' => 'Approved', 'rule' => '#15803D', 'fill' => '#F0FDF4', 'ink' => '#166534'],
+            'active'    => ['label' => 'Active — Work In Progress', 'rule' => '#15803D', 'fill' => '#F0FDF4', 'ink' => '#166534'],
+            'submitted' => ['label' => 'Awaiting Approval', 'rule' => '#B45309', 'fill' => '#FFFBEB', 'ink' => '#92400E'],
+            'rejected'  => ['label' => 'Rejected', 'rule' => '#B91C1C', 'fill' => '#FEF2F2', 'ink' => '#991B1B'],
+            'cancelled' => ['label' => 'Cancelled', 'rule' => '#B91C1C', 'fill' => '#FEF2F2', 'ink' => '#991B1B'],
+            'closed'    => ['label' => 'Closed', 'rule' => '#475569', 'fill' => '#F8FAFC', 'ink' => '#334155'],
+            'draft'     => ['label' => 'Draft — Not Valid For Work', 'rule' => '#94A3B8', 'fill' => '#F8FAFC', 'ink' => '#475569'],
+        ];
+        $state = $statePresets[$permit->status] ?? [
+            'label' => ucfirst(str_replace('_', ' ', $permit->status)),
+            'rule' => '#475569', 'fill' => '#F8FAFC', 'ink' => '#334155',
+        ];
+        $authorisedBy = $permit->hseApprover->name ?? null;
+    @endphp
+
+    {{-- The left rule carries the semantic colour as POSITION and weight, so
+         the state still reads on the monochrome prints these are usually
+         issued as, where a hue alone would flatten to grey. --}}
+    <table class="status-bar">
+        <tr>
+            <td style="width: 5px; padding: 0; background-color: {{ $state['rule'] }};"></td>
+            <td style="background-color: {{ $state['fill'] }}; border-top: 1px solid {{ $state['rule'] }}; border-bottom: 1px solid {{ $state['rule'] }};">
+                <span class="sb-state" style="color: {{ $state['ink'] }};">{{ $state['label'] }}</span>
+            </td>
+            <td class="sb-meta" style="background-color: {{ $state['fill'] }}; border-top: 1px solid {{ $state['rule'] }}; border-bottom: 1px solid {{ $state['rule'] }}; color: {{ $state['ink'] }};">
+                @if(in_array($permit->status, ['approved', 'active', 'closed'], true) && $authorisedBy)
+                    Authorised by {{ $authorisedBy }}
+                @elseif($permit->status === 'submitted')
+                    Not valid for work until approved
+                @elseif($permit->status === 'rejected')
+                    Not authorised
+                @endif
             </td>
         </tr>
     </table>
@@ -123,8 +212,8 @@
         <div class="section-body">
             <table class="meta-table">
                 <tr>
-                    <td class="meta-label">Project / Site</td><td class="meta-colon"></td><td>{{ $permit->project->name ?? '-' }}</td>
-                    <td class="meta-label">Location</td><td class="meta-colon"></td><td>{{ $permit->location ?? '-' }}</td>
+                    <td class="meta-label">Project / Asset</td><td class="meta-colon"></td><td>{{ $permit->project->name ?? '-' }}</td>
+                    <td class="meta-label">Work Location</td><td class="meta-colon"></td><td>{{ $permit->location ?? '-' }}</td>
                 </tr>
                 <tr>
                     {{-- v2.37.0 (Master Audit): CONFIRMED defect. These
@@ -254,23 +343,67 @@
         </div>
     @endif
 
+    {{-- v2.42.0 -- AUTHORISATION BLOCK. Was three bare underscore rules with
+         a name floated above them, which told an auditor who was *expected*
+         to sign but never whether they actually had. Each role is now its
+         own bordered box carrying the recorded name and the recorded
+         timestamp where one exists, and an explicit ruled space for the wet
+         signature where it does not. Nothing is asserted that the record
+         does not hold: an unapproved permit shows an empty box, never a
+         pre-filled name. --}}
     <table class="signatures">
         <tr>
             <td>
-                <div class="sig-line">{{ $permit->requester->name ?? '' }}</div>
-                <div class="sig-role">Applicant</div>
+                <div class="sig-head">Applicant / Requester</div>
+                <div class="sig-body">
+                    <div class="sig-name">{{ $permit->requester->name ?? '' }}</div>
+                    <div class="sig-when">{{ $permit->created_at?->timezone(config('ioms.display_timezone'))->format('d M Y H:i') ?? '' }}</div>
+                    <div class="sig-space"></div>
+                    <div class="sig-rule">Signature</div>
+                </div>
             </td>
             <td>
-                <div class="sig-line">{{ $permit->hseApprover->name ?? '' }}</div>
-                <div class="sig-role">HSE Approver</div>
+                <div class="sig-head">HSE Approver</div>
+                <div class="sig-body">
+                    <div class="sig-name">{{ $permit->hseApprover->name ?? '' }}</div>
+                    <div class="sig-when">
+                        @if($permit->hseApprover)
+                            Authorised
+                        @elseif($permit->status === 'submitted')
+                            Pending
+                        @endif
+                    </div>
+                    <div class="sig-space"></div>
+                    <div class="sig-rule">Signature</div>
+                </div>
             </td>
             <td>
-                <div class="sig-line">&nbsp;</div>
-                {{-- v2.17.0: relabeled from "Area Authority / PIC" now
-                     that PIC is a real, separately-shown field above
-                     (Workforce section) -- see Document.jsx's own
-                     comment on this same rename. --}}
-                <div class="sig-role">Area Authority</div>
+                {{-- v2.17.0: relabeled from "Area Authority / PIC" now that
+                     Penanggung Jawab is a real, separately-shown field above. --}}
+                <div class="sig-head">Area Authority</div>
+                <div class="sig-body">
+                    <div class="sig-name">{{ $permit->areaAuthority->name ?? '' }}</div>
+                    <div class="sig-when">&nbsp;</div>
+                    <div class="sig-space"></div>
+                    <div class="sig-rule">Signature</div>
+                </div>
+            </td>
+        </tr>
+    </table>
+
+    {{-- Document control: what makes a PRINTED copy traceable back to the
+         record it came from, which is the first thing an auditor asks of a
+         permit found on a wall. --}}
+    <table class="doc-control">
+        <tr>
+            <td style="width: 34%;">
+                <span class="dc-label">Document ID</span><br>{{ $permit->ptw_number }}
+            </td>
+            <td style="width: 33%;">
+                <span class="dc-label">Status At Print</span><br>{{ $state['label'] }}
+            </td>
+            <td style="width: 33%; text-align: right;">
+                <span class="dc-label">Printed</span><br>{{ now()->timezone(config('ioms.display_timezone'))->format('d M Y H:i') }}
             </td>
         </tr>
     </table>

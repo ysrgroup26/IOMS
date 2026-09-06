@@ -103,8 +103,13 @@ export default {
                 // rather than hardcoded per-component so every "strong
                 // primary summary surface" this pass builds (Dashboard
                 // hero, sidebar) draws from the same shared tokens.
-                navy: { DEFAULT: '#0F2747', 700: '#17335A', 800: '#122A4A', 900: '#0F2747' },
-                steel: { DEFAULT: '#3B82B6', 50: '#EAF3FB' },
+                // v2.42.0: the navy/steel ramps were introduced in v2.36.0 with
+                // only the few stops that pass needed. Extended here (purely
+                // ADDITIVE -- every pre-existing stop keeps its exact hex) so
+                // navy can carry a real surface hierarchy (panel / raised /
+                // border / muted text) instead of one flat block.
+                navy: { DEFAULT: '#0F2747', 300: '#7C94B4', 400: '#54719A', 500: '#2F5484', 600: '#1F406B', 700: '#17335A', 800: '#122A4A', 900: '#0F2747', 950: '#0A1C33' },
+                steel: { DEFAULT: '#3B82B6', 50: '#EAF3FB', 100: '#D3E6F5', 200: '#AECFEA', 300: '#82B4DC', 400: '#5C9BCC', 500: '#3B82B6', 600: '#2E6894', 700: '#245273' },
             },
             borderRadius: {
                 lg: 'var(--radius)',

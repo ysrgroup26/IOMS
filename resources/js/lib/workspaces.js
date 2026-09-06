@@ -69,6 +69,7 @@ export const WORKSPACES = [
         tier: 'department',
         items: [
             { name: 'Dashboard', href: 'dashboard', icon: LayoutDashboard, global: true },
+            { name: 'My Work', href: 'my-work', icon: ClipboardList, global: true, departmentUserOnly: true },
             { name: 'Overview', href: 'hr.dashboard', icon: LayoutDashboard },
             { name: 'Employees', href: 'employees.index', icon: Users, moduleKey: 'employees' },
             // v1.11.6 (Production Readiness pass, Part 4): "Attendance"
@@ -159,6 +160,7 @@ export const WORKSPACES = [
         // forced into unnatural Indonesian, matching that file's own rules.
         items: [
             { name: 'Dashboard', href: 'dashboard', icon: LayoutDashboard, global: true },
+            { name: 'My Work', href: 'my-work', icon: ClipboardList, global: true, departmentUserOnly: true },
             { name: 'Overview', href: 'hse.dashboard', icon: LayoutDashboard },
             {
                 name: 'Safety Management',
@@ -247,7 +249,19 @@ export const WORKSPACES = [
                     // never missing, only generically named. Relabeled to
                     // surface "Equipment & Inventory" explicitly; same
                     // route, same page, same data, nothing rebuilt.
-                    { name: 'Equipment & Master Data', href: 'hse.master', icon: ListChecks },
+                    // v2.42.0: renamed from "Equipment & Master Data", which read
+                    // as the company's general equipment/inventory registry and so
+                    // looked like operational Asset/Warehouse data misfiled under
+                    // HSE. The content is genuinely HSE-owned -- safety-compliance
+                    // equipment (APAR, P3K, HT, safety cones) whose inspection
+                    // lifecycle is an HSE responsibility gated by canManageHse(),
+                    // plus hazard categories and checklist templates. Moving it to
+                    // Asset Management would have put it behind canManageAssets()
+                    // and cut HSE off from its own inspection records, so the fix
+                    // is the label, not the ownership. General operational
+                    // equipment/inventory continues to live in Asset Management
+                    // and Warehouse, untouched.
+                    { name: 'Safety Equipment & Compliance', href: 'hse.master', icon: ListChecks },
                     { name: 'Document Control', href: 'controlled-documents.index', icon: FileStack },
                     // v1.10.4 correction: moved from HR -- same route,
                     // controller, permissions, moduleKey, only the owning
@@ -269,6 +283,7 @@ export const WORKSPACES = [
         tier: 'department',
         items: [
             { name: 'Dashboard', href: 'dashboard', icon: LayoutDashboard, global: true },
+            { name: 'My Work', href: 'my-work', icon: ClipboardList, global: true, departmentUserOnly: true },
             { name: 'Overview', href: 'project-management.dashboard', icon: LayoutDashboard },
             { name: 'Projects', href: 'projects.index', icon: FolderKanban, moduleKey: 'projects' },
             // Daily Reports lives here, not HSE: it's a per-project
@@ -298,6 +313,7 @@ export const WORKSPACES = [
         tier: 'department',
         items: [
             { name: 'Dashboard', href: 'dashboard', icon: LayoutDashboard, global: true },
+            { name: 'My Work', href: 'my-work', icon: ClipboardList, global: true, departmentUserOnly: true },
             { name: 'Overview', href: 'logistics.dashboard', icon: LayoutDashboard },
             { name: 'Material Request', href: 'material-requests.index', icon: PackageSearch, moduleKey: 'material_requests' },
             // Warehouse stays inside Logistics for now, per explicit
@@ -358,6 +374,7 @@ export const WORKSPACES = [
         tier: 'department',
         items: [
             { name: 'Dashboard', href: 'dashboard', icon: LayoutDashboard, global: true },
+            { name: 'My Work', href: 'my-work', icon: ClipboardList, global: true, departmentUserOnly: true },
             { name: 'Overview', href: 'warehouses.dashboard', icon: Warehouse },
         ],
     },
@@ -368,6 +385,7 @@ export const WORKSPACES = [
         tier: 'department',
         items: [
             { name: 'Dashboard', href: 'dashboard', icon: LayoutDashboard, global: true },
+            { name: 'My Work', href: 'my-work', icon: ClipboardList, global: true, departmentUserOnly: true },
             // Milestone 4, Workstream C: real backend now (Vendor,
             // PurchaseRequisition, Rfq/VendorQuotation, PurchaseOrder) --
             // a genuine cross-department procurement engine, not owned by
@@ -389,6 +407,7 @@ export const WORKSPACES = [
         tier: 'department',
         items: [
             { name: 'Dashboard', href: 'dashboard', icon: LayoutDashboard, global: true },
+            { name: 'My Work', href: 'my-work', icon: ClipboardList, global: true, departmentUserOnly: true },
             // v1.11.3 (Global Dashboard/Overview UX Rework, Part 4) -- this
             // department had no Overview at all before this pass.
             { name: 'Overview', href: 'asset-management.dashboard', icon: LayoutDashboard },
@@ -407,6 +426,7 @@ export const WORKSPACES = [
         tier: 'department',
         items: [
             { name: 'Dashboard', href: 'dashboard', icon: LayoutDashboard, global: true },
+            { name: 'My Work', href: 'my-work', icon: ClipboardList, global: true, departmentUserOnly: true },
             // v1.11.3 (Global Dashboard/Overview UX Rework, Part 4) -- this
             // department had no Overview at all before this pass.
             { name: 'Overview', href: 'maintenance.dashboard', icon: LayoutDashboard },
@@ -427,6 +447,7 @@ export const WORKSPACES = [
         tier: 'department',
         items: [
             { name: 'Dashboard', href: 'dashboard', icon: LayoutDashboard, global: true },
+            { name: 'My Work', href: 'my-work', icon: ClipboardList, global: true, departmentUserOnly: true },
             // v1.11.3 (Global Dashboard/Overview UX Rework, Part 4) -- this
             // department had no Overview at all before this pass.
             { name: 'Overview', href: 'quality-control.dashboard', icon: LayoutDashboard },
@@ -447,6 +468,7 @@ export const WORKSPACES = [
         tier: 'department',
         items: [
             { name: 'Dashboard', href: 'dashboard', icon: LayoutDashboard, global: true },
+            { name: 'My Work', href: 'my-work', icon: ClipboardList, global: true, departmentUserOnly: true },
             { name: 'Overview', href: 'finance.coming-soon', icon: DollarSign },
         ],
     },
@@ -538,12 +560,18 @@ function isDepartmentTier(workspace) {
  * (adminOnly) was grouped -- fixed here instead of narrowly working
  * around it in one workspace.
  */
-function applyItemGates(items, isAdmin, modules) {
+function applyItemGates(items, isAdmin, modules, isDepartmentUser = false) {
     return items
         .filter((item) =>
-            (!item.adminOnly || isAdmin) && (!item.moduleKey || modules.includes(item.moduleKey))
+            (!item.adminOnly || isAdmin)
+            && (!item.moduleKey || modules.includes(item.moduleKey))
+            // v2.42.0 third gate. 'My Work' (Field Home) is the task-first
+            // page Department Users used to be silently given INSTEAD of the
+            // Dashboard; it is only meaningful for that audience, so an
+            // administrator browsing the same workspace does not see it.
+            && (!item.departmentUserOnly || isDepartmentUser)
         )
-        .map((item) => (item.children ? { ...item, children: applyItemGates(item.children, isAdmin, modules) } : item))
+        .map((item) => (item.children ? { ...item, children: applyItemGates(item.children, isAdmin, modules, isDepartmentUser) } : item))
         // A group whose every child got gated out (no combination does
         // this today -- every HSE group keeps at least one ungated child
         // -- but defensive against a future edit that adds one) renders
@@ -604,9 +632,10 @@ function applyCatalog(workspaces, catalog) {
 export function getVisibleWorkspaces(user, enabledModules, workspaceCatalog) {
     const isAdmin = user?.is_admin;
     const modules = enabledModules ?? [];
+    const isDepartmentUser = Boolean(user?.department_key);
 
     return applyCatalog(WORKSPACES, workspaceCatalog)
-        .map((workspace) => ({ ...workspace, items: applyItemGates(workspace.items, isAdmin, modules) }))
+        .map((workspace) => ({ ...workspace, items: applyItemGates(workspace.items, isAdmin, modules, isDepartmentUser) }))
         .filter((workspace) => workspace.items.length > 0);
 }
 

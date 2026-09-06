@@ -36,7 +36,15 @@ return [
     'hse' => [
         'ppe', 'ppe-types', 'incidents', 'kpi-input', 'kpi-records', 'hse',
         'safety-observations', 'hse-inspections', 'risk-assessments',
-        'job-safety-analyses', 'permits-to-work', 'gas-test-records', 'loto-records',
+        // v2.42.0: 'permits-to-work' moved to RestrictDepartmentAccess's
+        // UNIVERSAL_PREFIXES -- PTW authoring is a cross-department
+        // capability (User::canCreatePtw() unions canManageHse() with an
+        // individually-granted ptw_access flag), so gating the ROUTE on
+        // department membership 403'd granted non-HSE users before the
+        // controller's own capability check could run. 'gas-test-records'
+        // stays here: only its standalone register view uses that prefix --
+        // the nested PTW gas-test actions are named permits-to-work.*.
+        'job-safety-analyses', 'gas-test-records', 'loto-records',
         'tbm-meetings', 'corrective-actions', 'hazard-categories',
         'safety-equipment', 'hse-materials', 'p3k-boxes',
         'hse-equipment-types', 'hse-checklist-templates',

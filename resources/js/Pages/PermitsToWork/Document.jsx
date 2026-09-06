@@ -169,7 +169,7 @@ export default function PermitToWorkDocument({ permit: p, company, documentTempl
                     <DocSection index="01" title="Work Information">
                         <FieldGrid>
                             <Field label="Project / Site" value={p.project?.name} />
-                            <Field label="Specific Location" value={p.location} />
+                            <Field label="Work Location / Area" value={p.location} />
                             <Field label="Valid From" value={formatDateTime(p.start_datetime, displayTimeZone)} />
                             <Field label="Valid Until" value={formatDateTime(p.end_datetime, displayTimeZone)} />
                         </FieldGrid>

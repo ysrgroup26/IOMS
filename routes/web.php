@@ -161,6 +161,12 @@ Route::middleware(['auth', 'restrict.platform-admin'])->group(function () {
     // tenant user once they DO sign in (unchanged).
     Route::get('/dashboard', [DashboardController::class, 'index'])->name('dashboard');
 
+    // v2.42.0: Field Home used to be served by hijacking the `dashboard`
+    // route for Department Users, which made the company-wide Dashboard
+    // mean something different per account. It now has its own honest
+    // route and sidebar entry. Same controller logic, same tiles.
+    Route::get('/my-work', [DashboardController::class, 'myWork'])->name('my-work');
+
     // Work Center (v1.8.0): the global cross-department "what needs my
     // attention" surface -- see WorkCenterController's own doc comment.
     Route::get('/work-center', [WorkCenterController::class, 'index'])->name('work-center.index');

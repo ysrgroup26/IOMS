@@ -73,7 +73,7 @@ export default function HseMaster({ hazardCategories, safetyEquipment, equipment
 
     return (
         <AuthenticatedLayout>
-            <Head title="HSE Master Data" />
+            <Head title="Safety Equipment & Compliance" />
 
             {/* v1.11.7 (Production Readiness Follow-Up, Part 3 -- HSE
                 Master Data clarity). Per explicit user feedback this page
@@ -91,9 +91,9 @@ export default function HseMaster({ hazardCategories, safetyEquipment, equipment
                 instead of only the generic "configuration & reference
                 data" framing. */}
             <div className="mb-4">
-                <h1 className="text-[22px] font-semibold tracking-tight text-graphite-900 dark:text-slate-50">Equipment &amp; Master Data</h1>
+                <h1 className="text-[22px] font-semibold tracking-tight text-graphite-900 dark:text-slate-50">Safety Equipment &amp; Compliance</h1>
                 <p className="mt-0.5 text-xs text-graphite-500 dark:text-slate-400">
-                    Termasuk inventaris peralatan HSE (APAR, P3K, HT, safety cone, dll.) di Safety Equipment
+                    Peralatan keselamatan yang wajib diinspeksi (APAR, P3K, HT, safety cone, dll.) di Safety Equipment
                     Register, dan data referensi lain (kategori, template, tipe) yang dipakai modul HSE lainnya.
                     Aktivitas harian (mencatat insiden, menjalankan inspeksi, mengeluarkan APD) tetap dilakukan
                     di halaman modulnya masing-masing, bukan di sini.

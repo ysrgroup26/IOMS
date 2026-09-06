@@ -1,12 +1,42 @@
 import { useForm, Head, usePage, Link } from '@inertiajs/react';
 import { useState } from 'react';
-import { Loader2, Eye, EyeOff } from 'lucide-react';
+import { Loader2, Eye, EyeOff, ShieldCheck, ArrowRight } from 'lucide-react';
 import { Button } from '@/Components/ui/button';
 import { Input } from '@/Components/ui/input';
 import { Label } from '@/Components/ui/label';
 import BrandWordmark from '@/Components/shared/BrandWordmark';
-import BrandWatermark from '@/Components/shared/BrandWatermark';
 
+/**
+ * v2.42.0 -- "Premium Enterprise Gateway".
+ *
+ * WHAT WAS WRONG: the previous login was a single centred card floating on a
+ * near-white page dressed with decorative blobs, a pulsing glow, a rotated
+ * empty square and a masked grid. Five ambient decorations carrying no
+ * information, on a surface with no structure -- which is exactly the
+ * "too white, too flat, generic" reading. A sign-in screen is the first
+ * impression of an industrial operations platform; it should feel built,
+ * not floated.
+ *
+ * THE STRUCTURE: a two-panel gateway. The left panel is a deep navy brand
+ * surface that establishes what this product IS; the right is a clean white
+ * working surface where credentials are entered. That split is the whole
+ * design -- weight and hierarchy come from the two real surfaces meeting,
+ * not from decoration layered onto one.
+ *
+ * White is kept deliberately, on the half where it belongs: the form. Data
+ * entry wants maximum contrast and zero atmosphere.
+ *
+ * EVERY WORD ON THE NAVY PANEL IS REAL. The product name, descriptor,
+ * positioning line and target industries are the brand's own established
+ * copy; edition/version come from live props. There are no invented
+ * customer counts, uptime figures, testimonials or logos -- a login screen
+ * is the easiest place to fabricate credibility and the worst place to be
+ * caught doing it.
+ *
+ * On mobile the navy panel collapses to a compact identity band above the
+ * form rather than being hidden, so the brand still frames the page at
+ * 320px without pushing the form below the fold.
+ */
 export default function Login() {
     const { version, company } = usePage().props;
     const { data, setData, post, processing, errors } = useForm({
@@ -14,11 +44,8 @@ export default function Login() {
         password: '',
         remember: false,
     });
-    // v2.27.0 (Public Website & Auth Visual Transformation, Part 11).
-    // Reuses the existing lucide-react icon set already used everywhere
-    // else in this app (Eye/EyeOff) -- no new dependency. Purely a local
-    // UI toggle on the <input type> attribute; never touches
-    // authentication behavior/the submitted value itself.
+    // Local UI toggle on the input's `type` only -- never touches the
+    // submitted value or any authentication behaviour.
     const [showPassword, setShowPassword] = useState(false);
 
     function submit(e) {
@@ -26,53 +53,87 @@ export default function Login() {
         post(route('login'));
     }
 
+    const industries = ['Shipyards', 'Construction', 'Manufacturing', 'Heavy Industry'];
+
     return (
-        <div className="relative flex min-h-screen items-center justify-center overflow-hidden bg-gradient-to-br from-graphite-50 via-white to-brand-50/30 px-4">
+        <div className="min-h-screen bg-white lg:grid lg:grid-cols-[minmax(0,1fr)_minmax(0,1.1fr)] xl:grid-cols-[minmax(0,1fr)_minmax(0,1fr)]">
             <Head title="Sign in" />
 
-            {/* v2.27.0 (Public Website & Auth Visual Transformation, Part
-                12): brought the same "white -> very light blue -> soft
-                blue" ambient system from the public site's Hero into
-                Login -- a slow `motion-safe:animate-pulse-glow` blob (was
-                a static blob before) plus a faint technical grid texture,
-                same treatment, same restrained opacity. Root gradient
-                above also nudged toward the same brand-50 system. */}
-            <div className="pointer-events-none absolute -left-40 -top-40 -z-10 h-[28rem] w-[28rem] rounded-full bg-brand-400 opacity-[0.08] blur-3xl motion-safe:animate-pulse-glow" aria-hidden="true" />
-            <div className="pointer-events-none absolute -bottom-48 -right-32 -z-10 h-[32rem] w-[32rem] rounded-full bg-brand-300 opacity-[0.08] blur-3xl motion-safe:animate-pulse-glow" style={{ animationDelay: '2s' }} aria-hidden="true" />
-            <div className="pointer-events-none absolute right-[8%] top-[12%] -z-10 h-40 w-40 rotate-12 rounded-3xl border border-brand-200/50 opacity-60" aria-hidden="true" />
-            <div className="pointer-events-none absolute bottom-[15%] left-[10%] -z-10 h-24 w-24 -rotate-12 rounded-2xl border border-graphite-200/60 opacity-50" aria-hidden="true" />
-            <div
-                className="pointer-events-none absolute inset-0 -z-10 opacity-[0.35]"
-                aria-hidden="true"
-                style={{
-                    backgroundImage: 'linear-gradient(to right, rgba(37,99,235,0.05) 1px, transparent 1px), linear-gradient(to bottom, rgba(37,99,235,0.05) 1px, transparent 1px)',
-                    backgroundSize: '48px 48px',
-                    maskImage: 'radial-gradient(circle at center, black, transparent 70%)',
-                }}
-            />
+            {/* ---------------------------------------------------------------
+                BRAND PANEL. Deep navy, full height on desktop, a compact band
+                on mobile. The only texture is a fine technical grid at very
+                low opacity -- an industrial reference, not a gradient light
+                show, and it costs nothing at 320px.
+            --------------------------------------------------------------- */}
+            <aside className="relative isolate overflow-hidden bg-navy-900 px-6 py-8 text-white sm:px-10 lg:flex lg:flex-col lg:justify-between lg:py-14 xl:px-16">
+                <div
+                    className="pointer-events-none absolute inset-0 -z-10 opacity-[0.18]"
+                    aria-hidden="true"
+                    style={{
+                        backgroundImage:
+                            'linear-gradient(to right, rgba(255,255,255,0.10) 1px, transparent 1px), linear-gradient(to bottom, rgba(255,255,255,0.10) 1px, transparent 1px)',
+                        backgroundSize: '56px 56px',
+                    }}
+                />
+                {/* One soft steel wash so the navy reads as depth rather than
+                    a flat fill. Deliberately a single layer. */}
+                <div
+                    className="pointer-events-none absolute -right-32 -top-32 -z-10 h-[34rem] w-[34rem] rounded-full bg-steel-500 opacity-[0.16] blur-3xl"
+                    aria-hidden="true"
+                />
 
-            {/* Large, centered, ~3% opacity brand icon watermark behind
-                everything. Blur scaled appropriately for its size (v1.6.0
-                fix -- a fixed 2px blur was imperceptible at this scale). */}
-            <BrandWatermark
-                context="login"
-                size="h-[40rem] w-[40rem]"
-                blur="blur-3xl"
-                className="left-1/2 top-1/2 -translate-x-1/2 -translate-y-1/2"
-            />
-
-            <div className="relative w-full max-w-sm">
-                <div className="mb-12 flex flex-col items-center text-center">
-                    <BrandWordmark className="h-auto w-[180px]" />
-                    <p className="mt-2 text-sm text-graphite-500">{company?.subtitle || 'Industrial Operations Platform'}</p>
-                    {/* v2.25.0 (Global UX & Copywriting Polish pass, Part
-                        11): a login screen with zero explanatory text felt
-                        bureaucratic by omission -- one natural line,
-                        English labels/button below unchanged. */}
-                    <p className="mt-1 text-xs text-graphite-400">Gunakan akun Anda untuk melanjutkan.</p>
+                <div>
+                    {/* Explicit text-3xl: BrandWordmark suppresses its own default size
+                        whenever className carries any `text-` utility, and this passes
+                        text-white for the navy panel -- without a size the typographic
+                        fallback would inherit the body scale. h-auto is stripped by the
+                        text branch and used by the image branch. */}
+                    <BrandWordmark className="h-auto w-[168px] text-3xl text-white" alt={company?.name || 'IOMS'} />
+                    <p className="mt-2.5 text-[13px] font-medium uppercase tracking-[0.18em] text-steel-300">
+                        {company?.subtitle || 'Industrial Operations Platform'}
+                    </p>
                 </div>
 
-                <div className="rounded-2xl border border-graphite-200 bg-white/90 p-6 shadow-card-hover backdrop-blur-sm">
+                {/* Desktop-only positioning block. Hidden on mobile so the
+                    form stays above the fold on a phone. */}
+                <div className="hidden lg:block">
+                    <h1 className="max-w-md text-[28px] font-semibold leading-tight tracking-tight xl:text-[32px]">
+                        Built for industrial operations.
+                    </h1>
+                    <p className="mt-3 max-w-md text-sm leading-relaxed text-navy-300">
+                        One platform for HSE, workforce, projects, maintenance and the documents
+                        that have to stand up to an audit.
+                    </p>
+
+                    <ul className="mt-7 flex flex-wrap gap-x-2.5 gap-y-2" aria-label="Target industries">
+                        {industries.map((industry) => (
+                            <li
+                                key={industry}
+                                className="rounded-md border border-white/10 bg-white/[0.06] px-2.5 py-1 text-xs font-medium text-steel-100"
+                            >
+                                {industry}
+                            </li>
+                        ))}
+                    </ul>
+                </div>
+
+                <div className="hidden items-center gap-2 text-xs text-navy-300 lg:flex">
+                    <ShieldCheck className="h-3.5 w-3.5 shrink-0 text-steel-400" />
+                    <span>{version?.edition} &middot; v{version?.number}</span>
+                </div>
+            </aside>
+
+            {/* ---------------------------------------------------------------
+                WORKING SURFACE. White, high contrast, no ambient decoration --
+                everything here is either a control or a label.
+            --------------------------------------------------------------- */}
+            <main className="flex items-center justify-center px-5 py-10 sm:px-8 lg:py-14">
+                <div className="w-full max-w-[380px]">
+                    <div className="mb-7">
+                        <h2 className="text-[22px] font-semibold tracking-tight text-navy-900">Sign in</h2>
+                        <p className="mt-1 text-sm text-graphite-500">Gunakan akun Anda untuk melanjutkan.</p>
+                    </div>
+
                     <form onSubmit={submit} className="space-y-4">
                         <div className="space-y-1.5">
                             <Label htmlFor="email">Email</Label>
@@ -80,9 +141,11 @@ export default function Login() {
                                 id="email"
                                 type="email"
                                 autoFocus
+                                autoComplete="username"
                                 value={data.email}
                                 onChange={(e) => setData('email', e.target.value)}
-                                placeholder="admin@ioms.local"
+                                placeholder="nama@perusahaan.com"
+                                aria-invalid={Boolean(errors.email)}
                             />
                             {errors.email && <p className="text-xs text-red-600">{errors.email}</p>}
                         </div>
@@ -93,10 +156,12 @@ export default function Login() {
                                 <Input
                                     id="password"
                                     type={showPassword ? 'text' : 'password'}
+                                    autoComplete="current-password"
                                     value={data.password}
                                     onChange={(e) => setData('password', e.target.value)}
                                     placeholder="••••••••"
                                     className="pr-10"
+                                    aria-invalid={Boolean(errors.password)}
                                 />
                                 <button
                                     type="button"
@@ -111,13 +176,13 @@ export default function Login() {
                             {errors.password && <p className="text-xs text-red-600">{errors.password}</p>}
                         </div>
 
-                        <div className="flex items-center justify-between">
-                            <label className="flex items-center gap-2 text-sm text-graphite-600">
+                        <div className="flex items-center justify-between pt-0.5">
+                            <label className="flex cursor-pointer items-center gap-2 text-sm text-graphite-600">
                                 <input
                                     type="checkbox"
                                     checked={data.remember}
                                     onChange={(e) => setData('remember', e.target.checked)}
-                                    className="rounded border-graphite-300"
+                                    className="rounded border-graphite-300 text-brand-600 focus:ring-brand-500"
                                 />
                                 Remember me
                             </label>
@@ -126,21 +191,26 @@ export default function Login() {
                             </Link>
                         </div>
 
-                        <Button type="submit" className="w-full" disabled={processing}>
-                            {processing && <Loader2 className="h-4 w-4 animate-spin" />}
+                        <Button type="submit" className="group w-full" disabled={processing}>
+                            {processing
+                                ? <Loader2 className="h-4 w-4 animate-spin" />
+                                : <ArrowRight className="h-4 w-4 transition-transform duration-200 motion-safe:group-hover:translate-x-0.5" />}
                             Sign in
                         </Button>
                     </form>
-                </div>
 
-                <div className="mt-6 text-center text-xs text-graphite-400">
-                    <p>{version?.edition} &middot; v{version?.number}</p>
-                    <p>
-                        Designed &amp; Developed by <span className="font-medium text-graphite-500">{version?.company}</span>
-                    </p>
-                    <p>&copy; {version?.copyright_year} All Rights Reserved.</p>
+                    <div className="mt-8 border-t border-graphite-100 pt-5 text-xs leading-relaxed text-graphite-400">
+                        {/* Edition/version already sit on the navy panel at lg+;
+                            repeated here only where that panel is collapsed. */}
+                        <p className="lg:hidden">{version?.edition} &middot; v{version?.number}</p>
+                        <p>
+                            Designed &amp; Developed by{' '}
+                            <span className="font-medium text-graphite-500">{version?.company}</span>
+                        </p>
+                        <p>&copy; {version?.copyright_year} All Rights Reserved.</p>
+                    </div>
                 </div>
-            </div>
+            </main>
         </div>
     );
 }

@@ -209,7 +209,27 @@ export default function AuthenticatedLayout({ children }) {
                     // competing surface -- it's still clearly the
                     // lightest, most "chrome" surface in the app, just no
                     // longer indistinguishable from a plain <ul>.
-                    'fixed inset-y-0 left-0 z-50 flex w-[240px] flex-col transform border-r border-graphite-200 bg-gradient-to-b from-white via-white to-graphite-100/70 transition-transform duration-200 ease-in-out dark:border-slate-800 dark:from-slate-950 dark:via-slate-950 dark:to-slate-900 lg:translate-x-0',
+                    // v2.42.0 (Visual System 3.0): the rail is now a DEEP NAVY
+                    // surface. v2.36.0 tinted it and v2.35.0 tinted the page
+                    // behind it, but both stayed inside the same near-white
+                    // family, so the app still read as one flat sheet -- the
+                    // "too white, too flat" finding, reported again after real
+                    // use. A navy rail gives the shell one genuinely dark
+                    // anchor, which is what lets the white DATA surfaces beside
+                    // it read as raised and deliberate rather than as the
+                    // default background of everything.
+                    //
+                    // The earlier objection to a dark rail was real and is
+                    // answered here rather than ignored: a dark ground
+                    // compresses the contrast range available to separate
+                    // active / hover / DISABLED, and disabled carries meaning in
+                    // this sidebar ("module not enabled yet"). So every state
+                    // below was re-pitched as an explicit ladder --
+                    // disabled navy-500 < idle navy-300 < hover white/[0.06] <
+                    // active white/[0.10] + white text + steel indicator -- and
+                    // active additionally carries weight and a left bar, so it
+                    // never depends on hue alone.
+                    'fixed inset-y-0 left-0 z-50 flex w-[240px] flex-col transform border-r border-navy-700 bg-gradient-to-b from-navy-900 via-navy-900 to-navy-950 transition-transform duration-200 ease-in-out dark:border-slate-800 dark:from-slate-950 dark:via-slate-950 dark:to-slate-900 lg:translate-x-0',
                     sidebarOpen ? 'translate-x-0' : '-translate-x-full'
                 )}
             >
@@ -227,15 +247,15 @@ export default function AuthenticatedLayout({ children }) {
                     padding around an unnecessarily large box. */}
                 <button
                     onClick={() => setAboutOpen(true)}
-                    className="flex shrink-0 items-start gap-2 border-b border-graphite-100 px-4 pb-1.5 pt-3 text-left transition-colors hover:bg-graphite-50/80 dark:border-slate-800 dark:hover:bg-slate-900/60"
+                    className="flex shrink-0 items-start gap-2 border-b border-white/10 px-4 pb-1.5 pt-3 text-left transition-colors hover:bg-white/[0.05] dark:border-slate-800 dark:hover:bg-slate-900/60"
                     title="About IOMS"
                 >
                     <div className="min-w-0 flex-1 overflow-visible">
-                        <BrandWordmark className="h-[72px] w-auto max-w-full -ml-[22px] object-contain" />
-                        <p className="mt-0.5 text-[10px] font-medium uppercase leading-snug tracking-wide text-gray-500 dark:text-slate-500">{company?.subtitle || 'Industrial Operations Platform'}</p>
+                        <BrandWordmark className="h-[72px] w-auto max-w-full -ml-[22px] object-contain text-3xl text-white" />
+                        <p className="mt-0.5 text-[10px] font-medium uppercase leading-snug tracking-wide text-steel-300 dark:text-slate-500">{company?.subtitle || 'Industrial Operations Platform'}</p>
                     </div>
                     <span
-                        className="ml-auto rounded p-1 text-graphite-300 hover:text-graphite-500 lg:hidden"
+                        className="ml-auto rounded p-1 text-navy-300 hover:text-white lg:hidden"
                         onClick={(e) => { e.stopPropagation(); setSidebarOpen(false); }}
                     >
                         <X className="h-5 w-5" />
@@ -256,10 +276,10 @@ export default function AuthenticatedLayout({ children }) {
                             return (
                                 <div
                                     key={item.name}
-                                    className="flex h-9 cursor-not-allowed items-center gap-2.5 rounded-[10px] px-3 text-[13px] font-medium text-graphite-300 dark:text-slate-600"
+                                    className="flex h-9 cursor-not-allowed items-center gap-2.5 rounded-[10px] px-3 text-[13px] font-medium text-navy-500 dark:text-slate-600"
                                     title={`${item.name} -- coming soon`}
                                 >
-                                    <Icon className="h-4 w-4 shrink-0 text-graphite-200 dark:text-slate-700" />
+                                    <Icon className="h-4 w-4 shrink-0 text-navy-600 dark:text-slate-700" />
                                     <span className="flex-1 truncate">{item.name}</span>
                                     <Lock className="h-3 w-3 shrink-0" />
                                 </div>
@@ -302,11 +322,11 @@ export default function AuthenticatedLayout({ children }) {
                                     <button
                                         type="button"
                                         onClick={() => toggleMenu(item.name)}
-                                        className="flex h-9 w-full items-center gap-2.5 rounded-[10px] px-3 text-[11px] font-medium text-graphite-500 transition-all duration-150 hover:bg-graphite-50 hover:text-graphite-900 dark:text-slate-400 dark:hover:bg-slate-900 dark:hover:text-slate-100"
+                                        className="flex h-9 w-full items-center gap-2.5 rounded-[10px] px-3 text-[11px] font-medium text-navy-400 transition-all duration-150 hover:bg-white/[0.06] hover:text-white dark:text-slate-400 dark:hover:bg-slate-900 dark:hover:text-slate-100"
                                     >
-                                        <Icon className="h-4 w-4 shrink-0 text-graphite-400 dark:text-slate-500" />
+                                        <Icon className="h-4 w-4 shrink-0 text-navy-400 dark:text-slate-500" />
                                         <span className="flex-1 text-left uppercase tracking-wide">{item.name}</span>
-                                        <ChevronDown className={cn('h-3.5 w-3.5 shrink-0 text-graphite-400 transition-transform duration-200 dark:text-slate-500', isExpanded && 'rotate-180')} />
+                                        <ChevronDown className={cn('h-3.5 w-3.5 shrink-0 text-navy-400 transition-transform duration-200 dark:text-slate-500', isExpanded && 'rotate-180')} />
                                     </button>
                                     {/* CSS-grid expand/collapse -- same
                                         technique used for KPI Input's
@@ -319,7 +339,7 @@ export default function AuthenticatedLayout({ children }) {
                                         left edge). */}
                                     <div className={cn('grid transition-[grid-template-rows] duration-200 ease-in-out', isExpanded ? 'grid-rows-[1fr]' : 'grid-rows-[0fr]')}>
                                         <div className="overflow-hidden">
-                                            <div className="ml-4 mt-0.5 space-y-0.5 border-l border-graphite-100 pl-2.5 dark:border-slate-800">
+                                            <div className="ml-4 mt-0.5 space-y-0.5 border-l border-white/10 pl-2.5 dark:border-slate-800">
                                                 {item.children.map((child) => {
                                                     const childActive = isChildRouteActive(child, currentUrl);
                                                     const ChildIcon = child.icon;
@@ -338,7 +358,7 @@ export default function AuthenticatedLayout({ children }) {
                                                             onClick={() => setSidebarOpen(false)}
                                                             className={cn(
                                                                 'flex h-[34px] items-center gap-2 rounded-lg px-2.5 text-[13px] leading-tight transition-colors duration-150',
-                                                                childActive ? 'font-semibold text-brand-600 dark:text-brand-400' : 'font-normal text-graphite-500 hover:text-graphite-800 dark:text-slate-500 dark:hover:text-slate-200'
+                                                                childActive ? 'font-semibold text-white dark:text-brand-400' : 'font-normal text-navy-400 hover:text-white dark:text-slate-500 dark:hover:text-slate-200'
                                                             )}
                                                         >
                                                             {ChildIcon && <ChildIcon className="h-3.5 w-3.5 shrink-0" />}
@@ -368,14 +388,14 @@ export default function AuthenticatedLayout({ children }) {
                                     // and the active indicator bar (bg-brand-600, a few lines
                                     // below) already matched exactly.
                                     active
-                                        ? 'bg-brand-50 font-semibold text-brand-600 dark:bg-brand-950/40 dark:text-brand-400'
-                                        : 'text-graphite-600 hover:bg-graphite-50 hover:text-graphite-900 dark:text-slate-400 dark:hover:bg-slate-900 dark:hover:text-slate-100'
+                                        ? 'bg-white/[0.10] font-semibold text-white dark:bg-brand-950/40 dark:text-brand-400'
+                                        : 'text-navy-300 hover:bg-white/[0.06] hover:text-white dark:text-slate-400 dark:hover:bg-slate-900 dark:hover:text-slate-100'
                                 )}
                             >
                                 {active && (
-                                    <span className="absolute left-0 top-1/2 h-5 w-1 -translate-y-1/2 rounded-r-full bg-brand-600" />
+                                    <span className="absolute left-0 top-1/2 h-5 w-1 -translate-y-1/2 rounded-r-full bg-steel-400" />
                                 )}
-                                <Icon className={cn('h-4 w-4 shrink-0', active ? 'text-brand-600 dark:text-brand-400' : 'text-graphite-400 dark:text-slate-500')} />
+                                <Icon className={cn('h-4 w-4 shrink-0', active ? 'text-steel-300 dark:text-brand-400' : 'text-navy-400 dark:text-slate-500')} />
                                 {item.name}
                             </Link>
                         );

@@ -324,6 +324,52 @@ tasks need their own notification trigger).
 
 ---
 
+## 💳 SaaS Finalization — what v2.50.0 built, and what it deliberately did NOT
+
+**Built.** The public front door is now a real journey: `/pricing` and `/get-started` exist as
+routes (pricing was previously only an anchor inside the landing page), every public "Get Started"
+CTA was repointed away from the login form — which is the one door a prospect without an account
+cannot walk through — and the login page now signposts prospects to Get Started / View Plans. Plan
+pricing was standardized to the recorded commercial model (Starter Rp1.499.000/Rp14.990.000,
+Professional Rp3.499.000/Rp34.990.000, Enterprise Rp7.499.000/Rp74.990.000), Enterprise stopped
+being `is_custom` because it is the most complete STANDARDIZED tier and not a negotiated build, and
+IDR now renders as `Rp`. Covered by `PublicSaasJourneyTest`, including a Master Admin boundary
+assertion in both directions.
+
+**Deliberately NOT built, and why.**
+
+1. **Self-serve tenant provisioning.** There is no registration route anywhere in the app, and
+   standing one up means creating a tenant, company, administrator user, subscription and
+   entitlement from an *unauthenticated* request. That is a security surface that should be built
+   properly with its own threat model and tests, not bolted onto a marketing page. `/get-started`
+   therefore collects plan intent and hands off to the team, and says so plainly rather than
+   implying an account will appear.
+
+2. **Midtrans adapter.** The architecture for it already exists and is correct:
+   `App\Contracts\PaymentGatewayInterface`, a swappable binding in `PaymentServiceProvider`,
+   `config/payment.php`, `PaymentTransaction`, `Invoice`, and `PaymentWebhookEvent::recordIfNew()`
+   which is already idempotent on `(gateway, event_id)`. `NullPaymentGateway` throws on every
+   method rather than returning a fake success, which is the correct default. Writing the Midtrans
+   adapter is a contained job — implement that interface, verify the SHA512 signature over
+   `order_id + status_code + gross_amount + serverKey`, and map Midtrans transaction states onto
+   the existing `Subscription` status model.
+
+   **REQUIRES EXTERNAL CONFIGURATION before it can be finished or tested end to end:** a Midtrans
+   merchant account, `MIDTRANS_SERVER_KEY` / `MIDTRANS_CLIENT_KEY`, sandbox-vs-production mode, a
+   publicly reachable notification (webhook) URL registered in the Midtrans dashboard, and — for
+   renewals — explicit activation of Midtrans **Subscription/Recurring**, which is a separate
+   merchant agreement and must not be assumed available.
+
+   Until those exist, no payment code should be written that could let a browser reaching a success
+   URL activate a plan. Activation must come from a verified server-side notification only.
+
+3. **Tenant-side billing UI and expanded Master Admin.** `SettingsController::plans()` and the
+   `/platform/*` surface already exist and are correctly separated (`RestrictPlatformAdminFromTenantRoutes`
+   plus `role:platform_admin`). Extending them into full invoice history, upgrade/downgrade and
+   lifecycle management is worthwhile but is UI on top of infrastructure that already works, so it
+   was ranked below fixing the broken acquisition journey.
+
+---
 ## 🧭 Near-term — Settings > Branding UI (UNBLOCKED in v2.40.0)
 
 `company_settings` keys for `brand_wordmark_path`, `brand_icon_path`, `watermark_enabled` (+

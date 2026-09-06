@@ -199,7 +199,20 @@ export default function Login() {
                         </Button>
                     </form>
 
-                    <div className="mt-8 border-t border-graphite-100 pt-5 text-xs leading-relaxed text-graphite-400">
+                    {/* v2.50.0: the login page previously offered a visitor with no
+                        IOMS account no way forward at all -- it could only reject
+                        them. Sign-in and acquisition are different journeys and both
+                        need a visible door. */}
+                    <div className="mt-6 rounded-lg border border-steel-200/70 bg-steel-50/70 px-3.5 py-3 text-center">
+                        <p className="text-xs leading-relaxed text-graphite-600">
+                            Don&apos;t have an IOMS account?{' '}
+                            <Link href={route('get-started')} className="font-semibold text-brand-700 hover:underline">Get started</Link>
+                            {' '}or{' '}
+                            <Link href={route('pricing')} className="font-semibold text-brand-700 hover:underline">view plans</Link>.
+                        </p>
+                    </div>
+
+                    <div className="mt-6 border-t border-graphite-100 pt-5 text-xs leading-relaxed text-graphite-400">
                         {/* Edition/version already sit on the navy panel at lg+;
                             repeated here only where that panel is collapsed. */}
                         <p className="lg:hidden">{version?.edition} &middot; v{version?.number}</p>

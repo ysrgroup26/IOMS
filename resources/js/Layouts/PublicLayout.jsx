@@ -29,7 +29,9 @@ const NAV_LINKS = [
     { label: 'Platform', href: '#platform' },
     { label: 'Solutions', href: '#solutions' },
     { label: 'How It Works', href: '#how-it-works' },
-    { label: 'Pricing', href: '#pricing' },
+    // v2.50.0: a real route, not an anchor -- an anchor silently does
+    // nothing from /pricing, /get-started or any legal page.
+    { label: 'Pricing', route: 'pricing' },
     { label: 'FAQ', href: '#faq' },
 ];
 
@@ -50,16 +52,20 @@ export default function PublicLayout({ children }) {
                     </Link>
 
                     <nav className="hidden items-center gap-7 lg:flex" aria-label="Primary">
-                        {NAV_LINKS.map((l) => (
-                            <a key={l.href} href={l.href} className="text-sm font-medium text-graphite-600 transition-colors hover:text-graphite-900">
+                        {NAV_LINKS.map((l) => (l.route ? (
+                            <Link key={l.label} href={route(l.route)} className="text-sm font-medium text-graphite-600 transition-colors hover:text-graphite-900">
+                                {l.label}
+                            </Link>
+                        ) : (
+                            <a key={l.label} href={l.href} className="text-sm font-medium text-graphite-600 transition-colors hover:text-graphite-900">
                                 {l.label}
                             </a>
-                        ))}
+                        )))}
                     </nav>
 
                     <div className="hidden items-center gap-2 lg:flex">
                         <Button variant="ghost" asChild><Link href={route('login')}>Login</Link></Button>
-                        <Button asChild><Link href={route('login')}>Get Started</Link></Button>
+                        <Button asChild><Link href={route('get-started')}>Get Started</Link></Button>
                     </div>
 
                     <button
@@ -89,7 +95,7 @@ export default function PublicLayout({ children }) {
                         </nav>
                         <div className="mt-3 flex flex-col gap-2 border-t border-graphite-100 pt-3">
                             <Button variant="outline" className="w-full" asChild><Link href={route('login')}>Login</Link></Button>
-                            <Button className="w-full" asChild><Link href={route('login')}>Get Started</Link></Button>
+                            <Button className="w-full" asChild><Link href={route('get-started')}>Get Started</Link></Button>
                         </div>
                     </div>
                 )}
@@ -121,7 +127,7 @@ export default function PublicLayout({ children }) {
                         <div>
                             <p className="text-xs font-semibold uppercase tracking-wide text-graphite-400">Resources</p>
                             <ul className="mt-3 space-y-2 text-sm text-graphite-600">
-                                <li><a href="#pricing" className="hover:text-graphite-900">Pricing</a></li>
+                                <li><Link href={route('pricing')} className="hover:text-graphite-900">Pricing</Link></li>
                                 <li><a href="#faq" className="hover:text-graphite-900">FAQ</a></li>
                                 {version?.support_email && (
                                     <li><a href={`mailto:${version.support_email}`} className="hover:text-graphite-900">Contact</a></li>
@@ -132,7 +138,7 @@ export default function PublicLayout({ children }) {
                             <p className="text-xs font-semibold uppercase tracking-wide text-graphite-400">Account</p>
                             <ul className="mt-3 space-y-2 text-sm text-graphite-600">
                                 <li><Link href={route('login')} className="hover:text-graphite-900">Login</Link></li>
-                                <li><Link href={route('login')} className="hover:text-graphite-900">Get Started</Link></li>
+                                <li><Link href={route('get-started')} className="hover:text-graphite-900">Get Started</Link></li>
                             </ul>
                         </div>
                     </div>

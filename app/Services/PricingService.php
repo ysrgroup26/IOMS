@@ -87,9 +87,12 @@ class PricingService
         return [
             'amount' => $numeric,
             'currency' => $currency,
+            // v2.50.0: IDR renders as "Rp" -- "IDR 1.499.000" is how a ledger
+            // writes it, "Rp1.499.000" is how an Indonesian buyer reads it.
+            // Every other currency keeps the ISO code prefix.
             'formatted' => $numeric == 0.0
                 ? 'Gratis'
-                : $currency.' '.number_format($numeric, 0, ',', '.'),
+                : ($currency === 'IDR' ? 'Rp' : $currency.' ').number_format($numeric, 0, ',', '.'),
         ];
     }
 

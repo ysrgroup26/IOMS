@@ -49,6 +49,62 @@ class PublicController extends Controller
     }
 
     /**
+     * v2.50.0 -- the SaaS front door.
+     *
+     * Pricing was previously only a section inside the landing page, so
+     * "View Pricing" could only ever be an anchor scroll and there was no
+     * URL to link a prospect to. It is a real page now, sharing the exact
+     * same PricingService payload the landing section and the authenticated
+     * Plans page already use -- one price source, three surfaces.
+     */
+    public function pricing(): Response
+    {
+        return Inertia::render('Public/Pricing', [
+            'plans' => app(PricingService::class)->publicPlans(),
+            'supportEmail' => config('ioms.support_email'),
+        ]);
+    }
+
+    /**
+     * The acquisition entry point.
+     *
+     * WHY THIS EXISTS: "Get Started" previously pointed at `route('login')`,
+     * which is semantically wrong -- it sent a visitor who has no IOMS
+     * account to a form that can only reject them. A prospect and a
+     * returning customer need different doors.
+     *
+     * WHAT IT HONESTLY DOES: IOMS has no self-serve tenant provisioning yet
+     * (no registration route exists anywhere in the app), and standing one
+     * up means creating a tenant, company, admin user, subscription and
+     * entitlement from an unauthenticated request -- a security surface that
+     * should not be half-built. So this page presents the standardized plans,
+     * lets a prospect carry a plan + billing cycle into an enquiry, and says
+     * plainly what happens next. It does not pretend to provision an account
+     * or take a payment. See the report/ROADMAP for the remaining steps and
+     * the provider configuration they require.
+     */
+    public function getStarted(Request $request): Response
+    {
+        $plans = app(PricingService::class)->publicPlans();
+
+        // A plan may be pre-selected from a pricing CTA. Validated against
+        // the real catalog so the page can never echo an arbitrary slug.
+        $requested = (string) $request->query('plan', '');
+        $selected = $plans->firstWhere('slug', $requested)['slug'] ?? null;
+
+        $cycle = in_array($request->query('cycle'), ['monthly', 'yearly'], true)
+            ? $request->query('cycle')
+            : 'yearly';
+
+        return Inertia::render('Public/GetStarted', [
+            'plans' => $plans,
+            'selectedPlan' => $selected,
+            'billingCycle' => $cycle,
+            'supportEmail' => config('ioms.support_email'),
+        ]);
+    }
+
+    /**
      * v2.18.0 (Part "Footer"): honest placeholders, not fabricated legal
      * text -- this codebase has no actual Privacy Policy/Terms of
      * Service document to render, and this pass was explicitly told not

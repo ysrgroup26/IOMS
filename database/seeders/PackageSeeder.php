@@ -28,6 +28,13 @@ class PackageSeeder extends Seeder
      * corrected here too so the stored catalog description matches what
      * the tenant actually gets, not a stale, narrower list.
      *
+     * v2.50.0 SUPERSEDES the v2.14.0 note below on two points: the
+     * standardized IOMS commercial model is now a recorded business
+     * decision, so the placeholder 0/49/149 figures became real IDR prices
+     * (1.499.000 / 3.499.000 / 7.499.000 monthly), and Enterprise is no
+     * longer `is_custom` -- it is the most complete STANDARDIZED tier with a
+     * published price, not a negotiated custom build.
+     *
      * v2.14.0 (SaaS Productization / Pricing Foundation): added
      * `currency`/`trial_days`/`is_public`/`is_custom`. Deliberately did
      * NOT touch any `price_monthly`/`price_yearly` value already seeded
@@ -79,8 +86,9 @@ class PackageSeeder extends Seeder
                 'name' => 'Starter',
                 'slug' => 'starter',
                 'description' => 'A fully operational HSE product for a single company -- incidents, observations, inspections, PPE, PTW, CAPA, and every other HSE module, without requiring HRD.',
-                'price_monthly' => 0,
-                'price_yearly' => 0,
+                // Starter -- HSE-focused access.
+                'price_monthly' => 1499000,
+                'price_yearly' => 14990000,
                 'currency' => 'IDR',
                 'trial_days' => null,
                 // v2.17.1 fix: max_users raised 10 -> 15 so max_ptw_users
@@ -100,8 +108,9 @@ class PackageSeeder extends Seeder
                 'name' => 'Professional',
                 'slug' => 'professional',
                 'description' => 'HSE plus HRD/workforce management and cross-department management visibility, for growing operations across multiple companies.',
-                'price_monthly' => 49,
-                'price_yearly' => 490,
+                // Professional -- HSE + Management + People/HR.
+                'price_monthly' => 3499000,
+                'price_yearly' => 34990000,
                 'currency' => 'IDR',
                 'trial_days' => 14,
                 'max_users' => 50,
@@ -116,8 +125,9 @@ class PackageSeeder extends Seeder
                 'name' => 'Enterprise',
                 'slug' => 'enterprise',
                 'description' => 'Full IOMS -- every department (HSE, HRD, Project Management, Logistics/PPIC, Warehouse, Procurement, Asset Management, Maintenance, Quality Control) and unlimited users/companies.',
-                'price_monthly' => 149,
-                'price_yearly' => 1490,
+                // Enterprise -- the full standardized platform.
+                'price_monthly' => 7499000,
+                'price_yearly' => 74990000,
                 'currency' => 'IDR',
                 'trial_days' => null,
                 'max_users' => null,
@@ -125,7 +135,12 @@ class PackageSeeder extends Seeder
                 'max_ptw_users' => null,
                 'features' => ['employees', 'ppe', 'kpi_input', 'reports', 'projects', 'daily_reports', 'material_requests'],
                 'is_public' => true,
-                'is_custom' => true,
+                // v2.50.0: was `is_custom => true`, which rendered Enterprise as
+                // "Hubungi Kami" with no price. Enterprise is the most complete
+                // STANDARDIZED tier, not a negotiated custom build -- it has a
+                // published price like every other plan. "Build once, improve for
+                // everyone": no per-customer development is being sold here.
+                'is_custom' => false,
                 'sort_order' => 3,
             ],
         ];

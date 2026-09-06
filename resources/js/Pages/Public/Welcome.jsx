@@ -578,7 +578,7 @@ function Pricing({ plans }) {
                                             </Button>
                                         ) : (
                                             <Button className="mt-7 w-full" variant={emphasized ? 'default' : 'outline'} asChild>
-                                                <Link href={route('login')}>Talk to Us</Link>
+                                                <Link href={route('get-started')}>Get Started</Link>
                                             </Button>
                                         )}
                                     </div>
@@ -671,7 +671,7 @@ function FinalCta() {
             <div className="mx-auto max-w-3xl px-4 text-center sm:px-6 lg:px-8">
                 <h2 className="text-2xl font-semibold tracking-tight sm:text-3xl">Ready to connect your operations?</h2>
                 <div className="mt-8 flex flex-col items-center justify-center gap-3 sm:flex-row">
-                    <Button size="lg" className="w-full sm:w-auto" asChild><Link href={route('login')}>Get Started <ArrowRight className="h-4 w-4" /></Link></Button>
+                    <Button size="lg" className="w-full sm:w-auto" asChild><Link href={route('get-started')}>Get Started <ArrowRight className="h-4 w-4" /></Link></Button>
                     <Button size="lg" variant="outline" className="w-full border-white/20 bg-transparent text-white hover:bg-white/10 sm:w-auto" asChild>
                         <Link href={route('login')}>Login</Link>
                     </Button>

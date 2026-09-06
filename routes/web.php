@@ -109,6 +109,13 @@ use Illuminate\Support\Facades\Route;
 | backward-compatibility reason the old redirect route comment gave).
 */
 Route::get('/', [PublicController::class, 'home'])->name('home');
+// v2.50.0: the public SaaS journey -- landing -> pricing -> get started.
+// Both are guest-reachable by design; `home()` already redirects an
+// authenticated user away from the public site, and these two pages carry
+// no tenant data at all (PricingService reads the platform plan catalog).
+Route::get('/pricing', [PublicController::class, 'pricing'])->name('pricing');
+Route::get('/get-started', [PublicController::class, 'getStarted'])->name('get-started');
+
 Route::get('/privacy', [PublicController::class, 'privacy'])->name('legal.privacy');
 Route::get('/terms', [PublicController::class, 'terms'])->name('legal.terms');
 

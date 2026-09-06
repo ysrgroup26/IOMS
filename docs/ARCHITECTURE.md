@@ -127,7 +127,41 @@ actually common.
 
 ## Multi-tenant / company-scoping model
 
-**Current state**: partial foundation, not a finished multi-tenant system.
+> **Read this first (v2.40.0).** There are TWO layers here and they are easy to confuse. The section
+> below the line describes the ORIGINAL per-company filtering convention (Epic 3:
+> `TenantContext` / `IdentifyTenant` / `?company_id=X`), which still exists and is still used for
+> *which company am I looking at* inside one customer. It is **not** the security boundary.
+>
+> The actual **tenant isolation boundary** arrived with Milestone 2 and is:
+>
+> - `App\Support\CurrentTenant` — request-scoped singleton holding the resolved Tenant.
+> - `App\Http\Middleware\ResolveTenant` — the ONE place that resolves it (from `$user->tenant`).
+> - `App\Models\Scopes\TenantScope` — applied to `Company` **only**. Everything beneath a Company
+>   (departments, positions, employees, ...) is safe *transitively*, because it can only reference a
+>   Company this scope already filtered. It **fails closed** (`tenant_id = -1`) when no tenant is
+>   resolved, so an unresolved request returns zero rows rather than every tenant's.
+>
+> Two consequences that have each already caused a real defect:
+>
+> 1. *Transitively safe* only holds if the code actually routes through `Company::query()`. A
+>    route-model-bound record must still be guarded by hand —
+>    `abort_unless(Company::query()->pluck('id')->contains($x->company_id), 404)` — and submitted
+>    foreign keys must use the `App\Rules\InCurrentTenant` validation rule. These are two different
+>    layers (record *access* vs request *input*); both are required.
+> 2. Fail-closed is correct for security but means **any code running without an HTTP request has no
+>    tenant**. Scheduled commands must restore context explicitly, or they silently produce empty
+>    output — see `DispatchScheduledReports`, which did exactly that until v2.40.0.
+>
+> **Tenant-owned settings** (`company_settings`) use a distinct two-tier model, because guests and
+> the platform genuinely need values too: `tenant_id IS NULL` is the platform default,
+> `tenant_id = X` is a tenant override, and `CompanySetting::get()` resolves tenant → platform →
+> caller default. `CompanySettingScope` fail-closes each request to its own bucket, covering the raw
+> Eloquent paths as well as the accessor, and the cache is keyed per tier. See
+> `docs/CONVENTIONS.md`'s v2.40.0 pitfall for why the accessor alone was not enough.
+
+---
+
+**Original per-company filtering convention (Epic 3) — still current, but not the isolation boundary:**
 
 - `users.company_id` — nullable FK. Existing internal-staff users are `NULL` on purpose (they're
   not scoped to one company); a real multi-tenant customer's users would have it set.

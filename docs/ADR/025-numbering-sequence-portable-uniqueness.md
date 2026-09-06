@@ -104,3 +104,34 @@ on both engines -- not on running the migration against a live MariaDB instance.
   alongside `company_id => null`.
 
 No other file was touched -- this was scoped entirely to the Numbering Engine.
+
+---
+
+## v2.40.0 follow-up — sequence scope predates multi-tenancy (OPEN, deliberately not changed)
+
+This ADR settled a uniqueness/race problem and, in passing, restated the existing business rule as
+"one counter per `module_key`+`period_key`, global scope only, unchanged", reserving `company_id`
+for a future per-company feature. That decision was made in a SINGLE-INSTANCE world. Milestone 2
+then introduced tenancy, and this scope was never revisited.
+
+**Consequence today.** All tenants share one counter per module+period. Numbering FORMATS are
+correctly per-tenant (`NumberGeneratorService` matches on `tenant_id`), but the sequence is not,
+so each tenant sees GAPS in its own document numbers wherever another tenant consumed the counter.
+
+- Not a confidentiality breach: no tenant can read another's records through this.
+- It IS a weak information leak by inference: the size of a gap reveals other tenants' document volume.
+- The bigger issue is audit quality. In an HSE context a permit register with gaps reads to an
+  auditor like missing or destroyed records, which is exactly the wrong signal for the artifact
+  IOMS exists to make trustworthy.
+
+**Why it was NOT fixed in v2.40.0.** Naively adding `tenant_id` to the sequence scope starts every
+tenant's counter at 0, which would re-issue numbers that already exist on live documents. Duplicate
+permit numbers are materially WORSE than gapped ones. A correct fix needs a per-module backfill that
+seeds each tenant's new counter from its current maximum issued number, which means enumerating
+every module's number column and its format. That is a focused pass of its own, not a safe
+by-the-way change during a security release.
+
+**Recommended next step.** One migration that (a) adds `tenant_id` to `numbering_sequences` and to
+the unique index, and (b) for each tenant and module, seeds `last_number` from MAX(existing issued
+number) parsed via that tenant's own `NumberingFormat`. Verify against a production copy before
+shipping: the failure mode is duplicate document identity, so it warrants a dry-run report first.

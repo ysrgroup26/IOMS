@@ -47,6 +47,16 @@ class ReportSchedule extends Model
         return $this->belongsTo(Company::class);
     }
 
+    /**
+     * v2.40.0. `tenant_id` was already stored and fillable but had no
+     * relation, so the scheduler had no way to restore tenant context
+     * for a due schedule -- see DispatchScheduledReports.
+     */
+    public function tenant()
+    {
+        return $this->belongsTo(Tenant::class);
+    }
+
     public function computeNextRunAt(): \Illuminate\Support\Carbon
     {
         return match ($this->frequency) {

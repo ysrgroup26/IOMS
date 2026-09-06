@@ -324,7 +324,7 @@ tasks need their own notification trigger).
 
 ---
 
-## ⛔ BLOCKED — Settings > Branding UI (do NOT build until tenant scoping is fixed)
+## 🧭 Near-term — Settings > Branding UI (UNBLOCKED in v2.40.0)
 
 `company_settings` keys for `brand_wordmark_path`, `brand_icon_path`, `watermark_enabled` (+
 per-context variants), and `watermark_opacity` are already read by `HandleInertiaRequests` with
@@ -349,6 +349,24 @@ Adding the upload UI described above would therefore hand every tenant a button 
 rebrands every other tenant, including on documents already issued. Fix the storage model first
 (tenant discriminator + composite unique + tenant-scoped cache key + a backfill decision for
 existing ambiguous rows); the UI is straightforward afterwards.
+
+**v2.40.0 UPDATE — the blocker above is FIXED; this work is unblocked.**
+`company_settings` now has a `tenant_id` owner and a composite `unique(tenant_id, key)`, with a
+two-tier resolution model: `tenant_id IS NULL` is the platform default (what a guest on the
+login/landing page and any tenant without an override resolves to), and `tenant_id = X` is that
+tenant's own override. `CompanySetting::get()` resolves tenant -> platform -> caller default, the
+cache is keyed per tier, and `CompanySettingScope` fail-closes every raw Eloquent path as well as
+the accessor. Proven end to end by `CompanySettingTenantScopeTest` and
+`TenantBrandingPropagationTest` (the latter pins that PDFs and Excel exports carry the right
+tenant's identity, which was the reason the defect mattered).
+
+What remains for the UI itself is genuinely small, because an upload flow ALREADY EXISTS
+(`SettingsController::updateCompany`, gated behind `role:super_admin`): it handles company name,
+subtitle, address, contact details, brand colour, logo and favicon with `mimes:` + `max:`
+validation. The only keys still lacking any writer are `brand_wordmark_path` and
+`brand_icon_path` — `HandleInertiaRequests` reads them and `BrandWordmark` already falls back to a
+typographic mark when absent. Adding those two fields to the existing form is the whole job; do
+NOT build a second branding surface.
 
 ---
 

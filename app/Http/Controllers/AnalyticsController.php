@@ -46,7 +46,7 @@ class AnalyticsController extends Controller
 
         $grantedKeys = $user->tenant->modules()->pluck('key')->all();
         $stored = json_decode(
-            \App\Models\CompanySetting::where('key', 'enabled_modules')->value('value') ?? json_encode($grantedKeys),
+            \App\Models\CompanySetting::getUncached('enabled_modules') ?? json_encode($grantedKeys),
             true
         ) ?? $grantedKeys;
 

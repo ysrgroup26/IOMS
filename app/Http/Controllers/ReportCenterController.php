@@ -159,7 +159,7 @@ class ReportCenterController extends Controller
 
         $grantedKeys = $user->tenant->modules()->pluck('key')->all();
         $stored = json_decode(
-            CompanySetting::where('key', 'enabled_modules')->value('value') ?? json_encode($grantedKeys),
+            CompanySetting::getUncached('enabled_modules') ?? json_encode($grantedKeys),
             true
         ) ?? $grantedKeys;
 

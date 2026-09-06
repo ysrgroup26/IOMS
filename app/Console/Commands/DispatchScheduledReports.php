@@ -3,9 +3,11 @@
 namespace App\Console\Commands;
 
 use App\Exports\AnalyticsDatasetExport;
+use App\Models\CompanySetting;
 use App\Models\ReportSchedule;
 use App\Services\AnalyticsService;
 use App\Services\NotificationService;
+use App\Support\CurrentTenant;
 use Barryvdh\DomPDF\Facade\Pdf;
 use Illuminate\Console\Command;
 use Illuminate\Support\Facades\Storage;
@@ -35,15 +37,45 @@ class DispatchScheduledReports extends Command
             ->where(function ($q) {
                 $q->whereNull('next_run_at')->orWhere('next_run_at', '<=', now());
             })
-            ->with('user')
+            ->with(['user', 'tenant'])
             ->get();
 
         $count = 0;
+
+        $currentTenant = app(CurrentTenant::class);
 
         foreach ($due as $schedule) {
             if (! $schedule->user) {
                 continue;
             }
+
+            // v2.40.0 -- CONFIRMED DEFECT FIXED. This command runs from
+            // the scheduler (hourly, see routes/console.php), so there is
+            // no HTTP request and therefore no resolved tenant. Every
+            // tenant-owned query underneath AnalyticsService goes through
+            // `Company::query()`, whose TenantScope fails CLOSED on an
+            // unresolved tenant (`tenant_id = -1`). The result was not a
+            // leak -- failing closed is the right posture -- but it meant
+            // $companyIds came back EMPTY and every scheduled report was
+            // generated with zero rows, while the owner was still notified
+            // that their report was "ready". An empty report is
+            // indistinguishable from "you genuinely had no data", which is
+            // the same class of untruth as a green zero on an empty
+            // dashboard. It also made `$schedule->company` resolve to null,
+            // so every PDF was titled "IOMS" instead of the tenant's own
+            // company name.
+            //
+            // The schedule already knows its owner, so the context is
+            // recoverable exactly rather than guessed. Set per iteration
+            // (not once outside the loop) because consecutive schedules
+            // routinely belong to different tenants.
+            if (! $schedule->tenant) {
+                $this->warn("Skipping schedule {$schedule->id}: owning tenant is missing.");
+
+                continue;
+            }
+
+            $currentTenant->set($schedule->tenant);
 
             $dataset = $analytics->dataset($schedule->dataset_key);
             $path = $this->generate($schedule, $dataset);
@@ -65,6 +97,9 @@ class DispatchScheduledReports extends Command
             $count++;
         }
 
+        // Leave no tenant bound once the run is over.
+        $currentTenant->set(null);
+
         $this->info("Dispatched {$count} scheduled report(s).");
 
         return self::SUCCESS;
@@ -82,7 +117,7 @@ class DispatchScheduledReports extends Command
             'excel' => Excel::store(new AnalyticsDatasetExport($dataset), $filename),
             'pdf' => Storage::put($filename, Pdf::loadView('exports.analytics-dataset-pdf', [
                 'dataset' => $dataset,
-                'companyName' => $schedule->company?->name ?? 'IOMS',
+                'companyName' => $schedule->company?->name ?? CompanySetting::get('company_name', config('ioms.name')),
             ])->output()),
             default => Storage::put($filename, $this->toCsv($dataset)),
         };

@@ -3,6 +3,41 @@
 House style, and a deliberately honest list of mistakes that have actually happened in this
 codebase's history — kept here so they don't get repeated in a slightly different shape.
 
+## CRITICAL — Known Pitfall (v2.40.0): a `unique()` constraint written before multi-tenancy is not
+## just a constraint, it is an architectural assertion that only ONE of the thing can exist — and it
+## keeps enforcing that after tenancy makes it false
+
+`company_settings` was created in 2024 as a "single-row key/value settings table" with
+`$table->string('key')->unique()`. Correct for a single-instance app. Milestone 2 added tenancy and
+nobody revisited it, so for two years the table physically COULD NOT hold more than one row per key
+for the whole platform. The result, proven empirically before it was fixed:
+
+- Tenant B read Tenant A's company name, logo path, address, phone, email and brand colour.
+- Tenant B saving branding DESTROYED Tenant A's, because `updateOrCreate(['key' => ...])` matched
+  the single shared row. Not a leak — data loss.
+- It reached artifacts that LEAVE the system: `DocumentEngine` (every PDF letterhead),
+  `EmployeeExport` / `KpiReportExport` metadata, Report Center, Analytics.
+
+Three lessons, in order of how easily each is missed:
+
+1. **Grep for `unique(` in old migrations whenever you add a new scoping dimension.** A unique index
+   is the single most durable way a pre-tenancy assumption survives into a tenant world, because it
+   is invisible from the model and silently *works* — it just works globally.
+2. **Fixing the accessor is not enough.** Settings were read through TWO paths: `CompanySetting::get()`
+   and five raw `CompanySetting::where('key', ...)->value('value')` bypasses (added deliberately, for
+   a documented caching reason). Patching only the accessor would have left every bypass reading
+   across tenants. The fix is a **global scope**, which covers paths you did not write and paths added
+   later; `CompanySettingScope` fail-closes to "your own bucket only".
+3. **A cache key is part of the isolation boundary.** `Cache::rememberForever("company_setting:{$key}")`
+   would have served Tenant A's value to Tenant B even after the query was correctly scoped. Any cache
+   over tenant-owned data must include the tenant in its key. (v1.6.8 already taught that the cache key
+   must be reconstructible by `set()`'s `forget()`; v2.40.0 adds that it must also be tenant-qualified.)
+
+The same shape is still OPEN elsewhere and is documented rather than half-fixed: `numbering_sequences`
+is still global-scope, so tenants share one counter and each sees gaps in its own document numbers.
+See docs/ADR/025 for why a naive fix (which would re-issue existing numbers) is worse than the gap.
+
+---
 ## Convention (v2.22.0): IOMS is the product name — treat it like SAP/Workday/ServiceNow, not its own
 ## full expansion
 

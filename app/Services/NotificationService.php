@@ -35,7 +35,7 @@ class NotificationService
 
     public static function preferences(): array
     {
-        $stored = json_decode(CompanySetting::where('key', 'notification_preferences')->value('value') ?? '', true);
+        $stored = json_decode(CompanySetting::getUncached('notification_preferences') ?? '', true);
 
         return array_merge(self::DEFAULT_PREFERENCES, is_array($stored) ? $stored : []);
     }

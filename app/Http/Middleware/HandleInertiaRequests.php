@@ -177,7 +177,7 @@ class HandleInertiaRequests extends Middleware
                     // isn't taking effect" bug permanently, rather than
                     // trying to get the caching correct a third time.
                     $stored = json_decode(
-                        CompanySetting::where('key', 'enabled_modules')->value('value') ?? json_encode($allKeys),
+                        CompanySetting::getUncached('enabled_modules') ?? json_encode($allKeys),
                         true
                     ) ?? $allKeys;
 

@@ -16,7 +16,7 @@ class StoreKpiRecordRequest extends FormRequest
     {
         return [
             'employee_id' => ['required', new InCurrentTenant('employees')],
-            'kpi_category_id' => ['required', 'exists:kpi_categories,id'],
+            'kpi_category_id' => ['required', new InCurrentTenant('kpi_categories')],
             'record_date' => ['required', 'date'],
             'remarks' => ['nullable', 'string', 'max:1000'],
         ];

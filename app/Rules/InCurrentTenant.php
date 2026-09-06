@@ -58,6 +58,18 @@ class InCurrentTenant implements ValidationRule
     public function __construct(
         private readonly string $table,
         private readonly string $ownerColumn = 'company_id',
+        /**
+         * For rows that carry no owner column of their own and are owned
+         * ONE HOP away, as [foreign key on $table, table it points at].
+         * `employee_ppe` is the motivating case: it has no company_id, and
+         * is owned through `employee_id` -> `employees.company_id`. Without
+         * this, such a table could only be guarded by hand-written
+         * controller checks -- which is exactly how a cross-tenant write
+         * reached PPE replacement requests.
+         *
+         * @var array{0: string, 1: string}|null
+         */
+        private readonly ?array $ownerVia = null,
     ) {}
 
     public function validate(string $attribute, mixed $value, Closure $fail): void
@@ -79,13 +91,23 @@ class InCurrentTenant implements ValidationRule
             return;
         }
 
-        if (! Schema::hasColumn($this->table, $this->ownerColumn)) {
-            $fail('The selected :attribute is invalid.');
+        if ($this->ownerVia !== null) {
+            [$foreignKey, $parentTable] = $this->ownerVia;
 
-            return;
+            $parentId = DB::table($this->table)->where('id', $value)->value($foreignKey);
+
+            $ownerId = $parentId === null
+                ? null
+                : DB::table($parentTable)->where('id', $parentId)->value($this->ownerColumn);
+        } else {
+            if (! Schema::hasColumn($this->table, $this->ownerColumn)) {
+                $fail('The selected :attribute is invalid.');
+
+                return;
+            }
+
+            $ownerId = DB::table($this->table)->where('id', $value)->value($this->ownerColumn);
         }
-
-        $ownerId = DB::table($this->table)->where('id', $value)->value($this->ownerColumn);
 
         // A null owner column means the row is not company-owned at all
         // (some tables allow a global/shared row). Those are only

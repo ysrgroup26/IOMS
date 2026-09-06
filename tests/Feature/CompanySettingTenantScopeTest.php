@@ -10,68 +10,164 @@ use Illuminate\Support\Facades\Schema;
 use Tests\TestCase;
 
 /**
- * CHARACTERISATION TEST -- documents CURRENT behaviour, which is a
- * confirmed cross-tenant defect. These assertions deliberately assert the
- * BROKEN behaviour so the defect is proven empirically rather than
- * inferred from reading the schema. They are expected to be inverted by
- * whoever fixes it.
+ * v2.40.0. These assertions were INVERTED in this release.
+ *
+ * They previously passed as characterisation tests documenting a proven
+ * P0 defect: `company_settings` had no tenant discriminator and a
+ * platform-wide unique(key), so one tenant read and destroyed every
+ * other tenant's company identity -- reaching PDFs, Excel exports,
+ * reports and notifications. They now assert the fixed behaviour.
  */
 class CompanySettingTenantScopeTest extends TestCase
 {
     use RefreshDatabase;
 
-    public function test_known_defect_company_settings_table_has_no_tenant_discriminator(): void
+    private function tenant(string $slug): Tenant
     {
-        $columns = Schema::getColumnListing('company_settings');
-
-        $this->assertNotContains('tenant_id', $columns);
-        $this->assertNotContains('company_id', $columns);
-        $this->assertEqualsCanonicalizing(
-            ['id', 'key', 'value', 'created_at', 'updated_at'],
-            $columns,
-            'company_settings has no tenant discriminator of any kind.'
-        );
+        return Tenant::create(['name' => ucfirst($slug), 'slug' => $slug]);
     }
 
-    public function test_known_defect_a_setting_written_under_one_tenant_leaks_to_another(): void
+    private function actingAsTenant(?Tenant $tenant): void
     {
-        $a = Tenant::create(['name' => 'Tenant A', 'slug' => 'tenant-a']);
-        $b = Tenant::create(['name' => 'Tenant B', 'slug' => 'tenant-b']);
-
-        app(CurrentTenant::class)->set($a);
-        CompanySetting::set('company_name', 'ACME Shipyard');
-        CompanySetting::set('company_logo_path', 'uploads/company/acme-secret.png');
-
-        app(CurrentTenant::class)->set($b);
-
-        $this->assertSame(
-            'ACME Shipyard',
-            CompanySetting::get('company_name'),
-            'DEFECT: Tenant B reads Tenant A company name.'
-        );
-        $this->assertSame(
-            'uploads/company/acme-secret.png',
-            CompanySetting::get('company_logo_path'),
-            'DEFECT: Tenant B reads Tenant A logo path.'
-        );
+        app(CurrentTenant::class)->set($tenant);
     }
 
-    public function test_known_defect_a_second_tenant_destroys_the_first_tenants_branding(): void
+    public function test_company_settings_is_owned_by_a_tenant(): void
     {
-        $a = Tenant::create(['name' => 'Tenant A', 'slug' => 'tenant-a']);
-        $b = Tenant::create(['name' => 'Tenant B', 'slug' => 'tenant-b']);
+        $this->assertContains('tenant_id', Schema::getColumnListing('company_settings'));
+    }
 
-        app(CurrentTenant::class)->set($a);
+    /** The core fix: one tenant's identity must never be visible to another. */
+    public function test_a_setting_written_by_one_tenant_is_not_readable_by_another(): void
+    {
+        $a = $this->tenant('tenant-a');
+        $b = $this->tenant('tenant-b');
+
+        $this->actingAsTenant($a);
+        CompanySetting::set('company_name', 'ACME Shipyard');
+        CompanySetting::set('company_logo_path', 'uploads/company/acme.png');
+
+        $this->actingAsTenant($b);
+
+        $this->assertNull(CompanySetting::get('company_name'));
+        $this->assertNull(CompanySetting::get('company_logo_path'));
+        $this->assertSame('Fallback', CompanySetting::get('company_name', 'Fallback'));
+    }
+
+    /** The second half of the defect: a save must not destroy another tenant's row. */
+    public function test_one_tenant_save_does_not_destroy_another_tenants_branding(): void
+    {
+        $a = $this->tenant('tenant-a');
+        $b = $this->tenant('tenant-b');
+
+        $this->actingAsTenant($a);
         CompanySetting::set('company_name', 'ACME Shipyard');
 
-        app(CurrentTenant::class)->set($b);
+        $this->actingAsTenant($b);
         CompanySetting::set('company_name', 'Borneo Fabrication');
 
-        $this->assertSame(1, CompanySetting::where('key', 'company_name')->count(),
-            'DEFECT: only ONE row can exist per key platform-wide.');
+        $this->actingAsTenant($a);
+        $this->assertSame('ACME Shipyard', CompanySetting::get('company_name'));
 
-        app(CurrentTenant::class)->set($a);
-        $this->assertSame('Borneo Fabrication', CompanySetting::get('company_name'),
-            'DEFECT: Tenant B destroyed Tenant A branding.');
+        $this->actingAsTenant($b);
+        $this->assertSame('Borneo Fabrication', CompanySetting::get('company_name'));
+
+        $this->assertSame(2, CompanySetting::withoutGlobalScopes()->where('key', 'company_name')->count());
+    }
+
+    /** A tenant with no override of its own resolves to the shipped platform default. */
+    public function test_platform_default_is_used_when_a_tenant_has_no_override(): void
+    {
+        $this->actingAsTenant(null);
+        CompanySetting::set('company_subtitle', 'Industrial Operations Platform');
+
+        $this->actingAsTenant($this->tenant('tenant-a'));
+
+        $this->assertSame('Industrial Operations Platform', CompanySetting::get('company_subtitle'));
+    }
+
+    public function test_a_tenant_override_takes_precedence_over_the_platform_default(): void
+    {
+        $this->actingAsTenant(null);
+        CompanySetting::set('company_name', 'IOMS');
+
+        $a = $this->tenant('tenant-a');
+        $this->actingAsTenant($a);
+        CompanySetting::set('company_name', 'ACME Shipyard');
+
+        $this->assertSame('ACME Shipyard', CompanySetting::get('company_name'));
+
+        // ...and the platform default itself is untouched, so other
+        // tenants and the login/landing pages still see IOMS.
+        $this->actingAsTenant(null);
+        $this->assertSame('IOMS', CompanySetting::get('company_name'));
+    }
+
+    /** A guest (login/landing) and a Platform Super Admin have no tenant: they get platform values, never a tenant's. */
+    public function test_an_unresolved_request_never_sees_tenant_data(): void
+    {
+        $this->actingAsTenant(null);
+        CompanySetting::set('company_name', 'IOMS');
+
+        $this->actingAsTenant($this->tenant('tenant-a'));
+        CompanySetting::set('company_name', 'ACME Shipyard');
+
+        $this->actingAsTenant(null);
+
+        $this->assertSame('IOMS', CompanySetting::get('company_name'));
+    }
+
+    /**
+     * The cache is the second half of the isolation story: v1.6.8 keyed it
+     * on the bare setting key, so even a correctly-scoped query would have
+     * been served another tenant's cached value within the same process.
+     */
+    public function test_the_cache_does_not_leak_between_tenants(): void
+    {
+        $a = $this->tenant('tenant-a');
+        $b = $this->tenant('tenant-b');
+
+        $this->actingAsTenant($a);
+        CompanySetting::set('company_name', 'ACME Shipyard');
+        $this->assertSame('ACME Shipyard', CompanySetting::get('company_name'));  // warms the cache
+
+        $this->actingAsTenant($b);
+        $this->assertNull(CompanySetting::get('company_name'), 'Tenant B was served Tenant A cached value.');
+
+        CompanySetting::set('company_name', 'Borneo Fabrication');
+        $this->assertSame('Borneo Fabrication', CompanySetting::get('company_name'));
+
+        $this->actingAsTenant($a);
+        $this->assertSame('ACME Shipyard', CompanySetting::get('company_name'), 'Tenant A cache was clobbered by Tenant B write.');
+    }
+
+    /** The raw-Eloquent path (enabled_modules, notification_preferences) must be scoped too. */
+    public function test_raw_queries_are_tenant_scoped_by_the_global_scope(): void
+    {
+        $a = $this->tenant('tenant-a');
+        $b = $this->tenant('tenant-b');
+
+        $this->actingAsTenant($a);
+        CompanySetting::set('enabled_modules', '["hse","ppe"]');
+
+        $this->actingAsTenant($b);
+
+        $this->assertNull(CompanySetting::where('key', 'enabled_modules')->value('value'));
+        $this->assertNull(CompanySetting::getUncached('enabled_modules'));
+    }
+
+    public function test_all_settings_merges_platform_defaults_under_tenant_overrides(): void
+    {
+        $this->actingAsTenant(null);
+        CompanySetting::set('company_name', 'IOMS');
+        CompanySetting::set('company_subtitle', 'Industrial Operations Platform');
+
+        $this->actingAsTenant($this->tenant('tenant-a'));
+        CompanySetting::set('company_name', 'ACME Shipyard');
+
+        $all = CompanySetting::all_settings();
+
+        $this->assertSame('ACME Shipyard', $all['company_name']);
+        $this->assertSame('Industrial Operations Platform', $all['company_subtitle']);
     }
 }

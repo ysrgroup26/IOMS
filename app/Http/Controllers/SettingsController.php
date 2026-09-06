@@ -8,6 +8,7 @@ use App\Http\Requests\UpdateKpiCategoryRequest;
 use App\Models\ActivityLog;
 use App\Models\Company;
 use App\Models\CompanySetting;
+use App\Rules\InCurrentTenant;
 use App\Models\Department;
 use App\Models\KpiCategory;
 use App\Models\Module;
@@ -745,7 +746,7 @@ class SettingsController extends Controller
             'name' => ['required', 'string', 'max:255'],
             'description' => ['nullable', 'string', 'max:2000'],
             'company_id' => ['required', 'exists:companies,id'],
-            'department_id' => ['nullable', 'exists:departments,id'],
+            'department_id' => ['nullable', new InCurrentTenant('departments')],
             'sort_order' => ['nullable', 'integer', 'min:0', 'max:9999'],
         ]);
 
@@ -764,7 +765,7 @@ class SettingsController extends Controller
             'name' => ['required', 'string', 'max:255'],
             'description' => ['nullable', 'string', 'max:2000'],
             'company_id' => ['required', 'exists:companies,id'],
-            'department_id' => ['nullable', 'exists:departments,id'],
+            'department_id' => ['nullable', new InCurrentTenant('departments')],
             'sort_order' => ['nullable', 'integer', 'min:0', 'max:9999'],
             'is_active' => ['boolean'],
         ]);

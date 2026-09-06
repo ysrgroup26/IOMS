@@ -107,7 +107,7 @@ No other file was touched -- this was scoped entirely to the Numbering Engine.
 
 ---
 
-## v2.40.0 follow-up — sequence scope predates multi-tenancy (OPEN, deliberately not changed)
+## v2.40.0 follow-up — sequence scope predates multi-tenancy (RESOLVED in v2.41.0)
 
 This ADR settled a uniqueness/race problem and, in passing, restated the existing business rule as
 "one counter per `module_key`+`period_key`, global scope only, unchanged", reserving `company_id`
@@ -135,3 +135,35 @@ by-the-way change during a security release.
 the unique index, and (b) for each tenant and module, seeds `last_number` from MAX(existing issued
 number) parsed via that tenant's own `NumberingFormat`. Verify against a production copy before
 shipping: the failure mode is duplicate document identity, so it warrants a dry-run report first.
+
+### Resolution (v2.41.0)
+
+Implemented in `2026_09_07_100210_add_tenant_scope_to_numbering_sequences`. The counter is now
+per tenant, using the same `*_scope` device this ADR established for companies: a plain,
+always-NOT-NULL `tenant_scope` column (0 = platform) is what the unique index actually carries,
+because a nullable `tenant_id` inside a unique key would not prevent duplicate platform rows.
+The key is now `(module_key, period_key, company_scope, tenant_scope)`.
+
+**The backfill deliberately does NOT parse document numbers.** The recommendation recorded above
+was to seed each tenant from MAX(existing issued number) per module, which would have meant
+reverse-engineering 29 modules' editable prefix/pattern/padding formats -- fragile, and it fails
+outright once an admin customises a pattern. It is also unnecessary, because of this invariant:
+
+> Every tenant drew from the SHARED counter, so the shared counter is already >= every tenant's
+> own maximum issued sequence for that (module_key, period_key).
+
+Seeding each tenant's row from the shared `last_number` is therefore deterministic and provably
+collision-free: `tenant_next = shared + 1` exceeds anything that tenant already holds, nothing is
+parsed, no counter is reset, and the number issued immediately after the migration is exactly the
+one that tenant would have received anyway -- no discontinuity at cutover. Verified against a real
+database: a shared counter at 42 with two tenants produced 43 for each, with the platform row
+preserved at 42.
+
+`down()` is equally careful: it carries the MAXIMUM per-tenant value back onto the platform row
+before deleting the tenant rows, so a rollback cannot lower the high-water mark and re-issue live
+numbers. Verified: after one tenant advanced to 49, rollback left the shared row at 49, not 42.
+
+Two tenants legitimately holding the same number string is correct and intended -- a document
+number is unique within a customer, like an invoice number. Confirmed before implementing that no
+module's number column carries a global unique constraint. `company_id` remains reserved for a
+future per-company series, unchanged by this work.

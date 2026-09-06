@@ -297,7 +297,7 @@ function PtwHseStory() {
     const flow = [
         'Field user creates PTW',
         'Requester automatically recorded',
-        'Optional PIC / Supervisor',
+        'Optional Penanggung Jawab Pekerjaan',
         'Optional Workforce',
         'Submit',
         'HSE reviews',

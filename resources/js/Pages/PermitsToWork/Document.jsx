@@ -241,7 +241,7 @@ export default function PermitToWorkDocument({ permit: p, company, documentTempl
                     <DocSection index="03" title="Workforce" icon={Users}>
                         <div className="grid grid-cols-1 gap-3 sm:grid-cols-2">
                             <div>
-                                <FieldLabel>PIC / Supervisor Lapangan</FieldLabel>
+                                <FieldLabel>Penanggung Jawab Pekerjaan</FieldLabel>
                                 <div className="mt-2">
                                     {p.pic ? (
                                         <PersonChip name={p.pic.full_name} />

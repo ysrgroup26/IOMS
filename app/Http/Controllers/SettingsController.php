@@ -68,6 +68,8 @@ class SettingsController extends Controller
                 'logo_path' => CompanySetting::get('company_logo_path'),
                 'logo_url' => CompanySetting::get('company_logo_path') ? asset('storage/'.CompanySetting::get('company_logo_path')) : null,
                 'favicon_url' => CompanySetting::get('company_favicon_path') ? asset('storage/'.CompanySetting::get('company_favicon_path')) : null,
+                'wordmark_url' => CompanySetting::get('brand_wordmark_path') ? asset('storage/'.CompanySetting::get('brand_wordmark_path')) : null,
+                'brand_icon_url' => CompanySetting::get('brand_icon_path') ? asset('storage/'.CompanySetting::get('brand_icon_path')) : null,
                 'address' => CompanySetting::get('company_address'),
                 'phone' => CompanySetting::get('company_phone'),
                 'email' => CompanySetting::get('company_email'),
@@ -277,6 +279,20 @@ class SettingsController extends Controller
             // upload requested (v1.6.3).
             'logo' => ['nullable', 'mimes:jpg,jpeg,png,svg,webp', 'max:2048'],
             'favicon' => ['nullable', 'mimes:jpg,jpeg,png,svg,webp,ico', 'max:512'],
+            // v2.41.0: the two branding keys HandleInertiaRequests has read
+            // since v1.5.3 but nothing could ever write. BrandWordmark already
+            // falls back to a typographic mark when absent, so these are true
+            // optional overrides, not new required branding.
+            'wordmark' => ['nullable', 'mimes:jpg,jpeg,png,svg,webp', 'max:2048'],
+            'brand_icon' => ['nullable', 'mimes:jpg,jpeg,png,svg,webp', 'max:1024'],
+            // Explicit removal. Needed because a file field is simply absent
+            // when nothing new is chosen, so "no upload" and "delete the saved
+            // one" are otherwise indistinguishable -- which is why the UI's
+            // Remove button silently did nothing to a SAVED asset before now.
+            'remove_logo' => ['nullable', 'boolean'],
+            'remove_favicon' => ['nullable', 'boolean'],
+            'remove_wordmark' => ['nullable', 'boolean'],
+            'remove_brand_icon' => ['nullable', 'boolean'],
         ]);
 
         CompanySetting::set('company_name', $validated['company_name']);
@@ -289,14 +305,30 @@ class SettingsController extends Controller
         CompanySetting::set('company_website', $validated['company_website'] ?? '');
         CompanySetting::set('brand_color', $validated['brand_color'] ?? '#2563eb');
 
-        if ($request->hasFile('logo')) {
-            $path = $request->file('logo')->store('uploads/company', 'public');
-            CompanySetting::set('company_logo_path', $path);
-        }
+        // input field => company_settings key. Kept as one table so a future
+        // brand asset is a single line here, not another copy-pasted block.
+        $assets = [
+            'logo' => 'company_logo_path',
+            'favicon' => 'company_favicon_path',
+            'wordmark' => 'brand_wordmark_path',
+            'brand_icon' => 'brand_icon_path',
+        ];
 
-        if ($request->hasFile('favicon')) {
-            $path = $request->file('favicon')->store('uploads/company', 'public');
-            CompanySetting::set('company_favicon_path', $path);
+        foreach ($assets as $field => $settingKey) {
+            $existing = CompanySetting::get($settingKey);
+
+            if ($request->hasFile($field)) {
+                $path = $request->file($field)->store('uploads/company', 'public');
+                CompanySetting::set($settingKey, $path);
+                $this->discardBrandAsset($existing, $path);
+
+                continue;
+            }
+
+            if ($request->boolean("remove_{$field}")) {
+                CompanySetting::set($settingKey, null);
+                $this->discardBrandAsset($existing);
+            }
         }
 
         ActivityLog::record('updated', 'Application branding settings updated.');
@@ -677,6 +709,26 @@ class SettingsController extends Controller
      * both gaps: `Company::find()` (Eloquent, TenantScope applied) 404s
      * for any company id outside the current tenant.
      */
+    /**
+     * Deletes a branding file that is no longer referenced.
+     *
+     * Replaced/removed assets used to be left on disk forever, so every
+     * re-upload leaked a file. Safe to delete unconditionally now that
+     * company_settings is tenant-scoped (v2.40.0): each tenant's path is
+     * its own row pointing at its own randomly-named file, so one tenant
+     * can never delete an asset another tenant is still showing. The
+     * $keep guard covers the edge case of a store() that returned the
+     * same path.
+     */
+    private function discardBrandAsset(?string $path, ?string $keep = null): void
+    {
+        if (! $path || $path === $keep) {
+            return;
+        }
+
+        Storage::disk('public')->delete($path);
+    }
+
     private function assertCompanyInTenant(?int $companyId): void
     {
         if ($companyId === null) {

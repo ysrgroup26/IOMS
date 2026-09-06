@@ -168,7 +168,7 @@ export default function PermitToWorkShow({ permit: p, activities, canManage, rej
                                 <div className="grid grid-cols-1 gap-3 border-t border-graphite-100 pt-3 sm:grid-cols-2 dark:border-slate-800">
                                     {p.pic && (
                                         <div>
-                                            <span className="text-xs uppercase text-graphite-400">PIC / Supervisor</span>
+                                            <span className="text-xs uppercase text-graphite-400">Penanggung Jawab</span>
                                             <div className="mt-1.5"><PersonChip name={p.pic.full_name} size="sm" /></div>
                                         </div>
                                     )}

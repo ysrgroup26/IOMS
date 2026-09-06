@@ -144,6 +144,15 @@ function BrandingTab({ company }) {
         brand_color: company.brand_color || '#2563eb',
         logo: null,
         favicon: null,
+        wordmark: null,
+        brand_icon: null,
+        // Explicit removal flags -- a file input is simply absent when
+        // nothing is chosen, so the server cannot otherwise tell "no upload"
+        // from "delete the saved one".
+        remove_logo: false,
+        remove_favicon: false,
+        remove_wordmark: false,
+        remove_brand_icon: false,
     });
 
     function submit(e) {
@@ -153,7 +162,7 @@ function BrandingTab({ company }) {
 
     return (
         <Card className="max-w-lg">
-            <CardHeader><CardTitle>Application Branding</CardTitle><CardDescription>Name, subtitle, logo, and favicon shown across the app.</CardDescription></CardHeader>
+            <CardHeader><CardTitle>Application Branding</CardTitle><CardDescription>Name, subtitle, and the brand assets shown across the app and on generated documents.</CardDescription></CardHeader>
             <CardContent>
                 <form onSubmit={submit} className="space-y-4">
                     <div className="space-y-1.5">
@@ -201,20 +210,53 @@ function BrandingTab({ company }) {
                     </div>
                     <ImageUploadField
                         label="Logo (SVG or PNG)"
-                        existingUrl={company.logo_url}
+                        existingUrl={data.remove_logo ? null : company.logo_url}
                         file={data.logo}
-                        onChange={(file) => setData('logo', file)}
+                        onChange={(file) => setData({ ...data, logo: file, remove_logo: false })}
+                        onRemoveExisting={() => setData('remove_logo', true)}
                         accept="image/png,image/jpeg,image/jpg,image/webp,image/svg+xml"
                         shape="square"
                     />
                     <ImageUploadField
                         label="Favicon (optional)"
-                        existingUrl={company.favicon_url}
+                        existingUrl={data.remove_favicon ? null : company.favicon_url}
                         file={data.favicon}
-                        onChange={(file) => setData('favicon', file)}
+                        onChange={(file) => setData({ ...data, favicon: file, remove_favicon: false })}
+                        onRemoveExisting={() => setData('remove_favicon', true)}
                         accept="image/png,image/x-icon,image/svg+xml"
                         shape="square"
                     />
+
+                    {/* v2.41.0 -- the wordmark/icon keys HandleInertiaRequests has
+                        read since v1.5.3 but nothing could write. Both are genuine
+                        optional overrides: with no wordmark, BrandWordmark renders a
+                        typographic IOMS mark rather than a wrong image. */}
+                    <div className="rounded-lg border border-graphite-200 bg-graphite-50/50 p-3">
+                        <p className="mb-1 text-[11px] font-semibold uppercase tracking-wide text-graphite-500">Brand Identity (optional)</p>
+                        <p className="mb-3 text-[11px] leading-snug text-graphite-500">
+                            Used in the sidebar and on generated documents. Leave empty to keep the standard IOMS mark.
+                        </p>
+                        <div className="space-y-4">
+                            <ImageUploadField
+                                label="Wordmark (horizontal logotype)"
+                                existingUrl={data.remove_wordmark ? null : company.wordmark_url}
+                                file={data.wordmark}
+                                onChange={(file) => setData({ ...data, wordmark: file, remove_wordmark: false })}
+                                onRemoveExisting={() => setData('remove_wordmark', true)}
+                                accept="image/png,image/jpeg,image/jpg,image/webp,image/svg+xml"
+                                shape="square"
+                            />
+                            <ImageUploadField
+                                label="Brand Icon (square mark)"
+                                existingUrl={data.remove_brand_icon ? null : company.brand_icon_url}
+                                file={data.brand_icon}
+                                onChange={(file) => setData({ ...data, brand_icon: file, remove_brand_icon: false })}
+                                onRemoveExisting={() => setData('remove_brand_icon', true)}
+                                accept="image/png,image/jpeg,image/jpg,image/webp,image/svg+xml"
+                                shape="square"
+                            />
+                        </div>
+                    </div>
                     <Button type="submit" disabled={processing}>
                         {processing && <Loader2 className="h-4 w-4 animate-spin" />} Save Changes
                     </Button>

@@ -83,10 +83,12 @@ class NumberGeneratorService
      *                             genuinely new one, as long as a
      *                             NumberingFormat row exists for it)
      * @param  int|null  $companyId  used to look up a company-specific
-     *                               format override; sequence SCOPE stays
-     *                               global (shared across companies) for
-     *                               now regardless -- see the migration's
-     *                               doc comment for why.
+     *                               format override. Sequence scope is per
+     *                               TENANT as of v2.41.0; it remains shared
+     *                               across the companies within one tenant,
+     *                               which is deliberate -- `company_id` is
+     *                               still reserved for a future
+     *                               per-company series (docs/ADR/025).
      */
     public function generate(string $moduleKey, ?int $companyId = null): string
     {
@@ -156,28 +158,51 @@ class NumberGeneratorService
     }
 
     /**
-     * Locks (or creates, then locks) the one counter row for this
-     * module+period and atomically increments it. Sequence scope is
-     * intentionally global (company_id always NULL here) -- see the
-     * migration's doc comment.
+     * Locks (or creates, then locks) this TENANT's counter row for the
+     * module+period and atomically increments it.
      *
-     * `company_scope` (see docs/ADR/025) is always set to 0 alongside
-     * `company_id` NULL here -- both mean "global scope"; `company_scope`
-     * is the real, NOT-NULL column the uniqueness constraint actually
-     * indexes, portable across MySQL and MariaDB. `firstOrCreate`'s
-     * match array MUST include it (matching only on `company_id` would
-     * let two concurrent requests both pass the "no matching row yet"
-     * check and race to insert, exactly the bug this exists to close).
+     * v2.41.0 -- the counter is now per tenant. It was shared across every
+     * tenant on the platform until this release: `numbering_formats` got a
+     * `tenant_id` back in Milestone 3, but the sequence never did, so each
+     * customer saw gaps in its own document numbers wherever another
+     * customer consumed the shared counter. See the migration
+     * 2026_09_07_100210 for the defect, why the backfill seeds from the
+     * shared high-water mark rather than parsing 29 modules' number
+     * formats, and why a per-tenant counter cannot re-issue an existing
+     * number.
+     *
+     * `tenant_scope` / `company_scope` (see docs/ADR/025) are the real,
+     * always-NOT-NULL columns the uniqueness constraint indexes, because
+     * every SQL engine treats each NULL in a unique index as distinct --
+     * a nullable id inside the key would not prevent duplicate rows.
+     * `firstOrCreate`'s match array MUST include both, or two concurrent
+     * requests can each pass the "no matching row yet" check and race to
+     * insert: precisely the bug this method exists to close.
+     *
+     * An unresolved tenant (console, scheduler) falls to scope 0, the
+     * platform counter -- it never silently borrows a tenant's series.
      */
     private function nextSequence(string $moduleKey, string $periodKey): int
     {
-        return DB::transaction(function () use ($moduleKey, $periodKey) {
-            NumberingSequence::firstOrCreate(
-                ['company_id' => null, 'company_scope' => 0, 'module_key' => $moduleKey, 'period_key' => $periodKey],
-                ['last_number' => 0]
-            );
+        $tenantId = $this->currentTenant->id();
+        $tenantScope = $tenantId ?? 0;
 
-            $row = NumberingSequence::where('company_id', null)
+        return DB::transaction(function () use ($moduleKey, $periodKey, $tenantId, $tenantScope) {
+            $match = [
+                'tenant_scope' => $tenantScope,
+                'company_id' => null,
+                'company_scope' => 0,
+                'module_key' => $moduleKey,
+                'period_key' => $periodKey,
+            ];
+
+            // A brand-new tenant starts at 0 legitimately: it has issued no
+            // documents, so there is nothing its first number could collide
+            // with. Existing tenants were seeded by the migration instead.
+            NumberingSequence::firstOrCreate($match, ['tenant_id' => $tenantId, 'last_number' => 0]);
+
+            $row = NumberingSequence::where('tenant_scope', $tenantScope)
+                ->where('company_id', null)
                 ->where('company_scope', 0)
                 ->where('module_key', $moduleKey)
                 ->where('period_key', $periodKey)

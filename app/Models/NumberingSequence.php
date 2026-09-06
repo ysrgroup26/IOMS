@@ -16,6 +16,8 @@ use Illuminate\Database\Eloquent\Model;
 class NumberingSequence extends Model
 {
     protected $fillable = [
+        'tenant_id',
+        'tenant_scope',
         'company_id',
         'company_scope',
         'module_key',
@@ -27,6 +29,7 @@ class NumberingSequence extends Model
     {
         return [
             'last_number' => 'integer',
+            'tenant_scope' => 'integer',
         ];
     }
 }

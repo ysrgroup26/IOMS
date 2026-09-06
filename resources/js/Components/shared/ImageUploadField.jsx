@@ -18,12 +18,21 @@ import { ImagePlus, X } from 'lucide-react';
  *                  model's real Eloquent accessor, e.g. photo_url)
  *   file         - the currently-selected File object (or null)
  *   onChange(file)      - called with the new File, or null when removed
+ *   onRemoveExisting()  - OPTIONAL. Called when the user removes an
+ *                  ALREADY-SAVED image (i.e. there is an existingUrl and no
+ *                  pending file). v2.41.0: without this, Remove only cleared
+ *                  the pending selection, so clicking it on a saved logo
+ *                  looked like it worked and then silently changed nothing on
+ *                  save -- a file field is simply absent when nothing is
+ *                  chosen, so the server could not tell "no upload" from
+ *                  "delete this". Callers that pass this must send the
+ *                  corresponding remove_* flag.
  *   accept       - file input accept attribute (default: common image types)
  *   shape        - 'square' | 'circle' (preview container shape)
  *   error        - validation error message, if any
  */
 export default function ImageUploadField({
-    label, existingUrl, file, onChange,
+    label, existingUrl, file, onChange, onRemoveExisting,
     accept = 'image/png,image/jpeg,image/jpg,image/webp,image/svg+xml',
     shape = 'square', error,
 }) {
@@ -45,7 +54,14 @@ export default function ImageUploadField({
     }
 
     function handleRemove() {
-        onChange(null);
+        // A pending selection is discarded locally; only an already-saved
+        // image needs the server told about it.
+        if (file) {
+            onChange(null);
+            return;
+        }
+
+        if (existingUrl && onRemoveExisting) onRemoveExisting();
     }
 
     return (

@@ -1,6 +1,6 @@
 import { Head, Link, usePage } from '@inertiajs/react';
 import AuthenticatedLayout from '@/Layouts/AuthenticatedLayout';
-import { Card, CardContent } from '@/Components/ui/card';
+import ModuleCard from '@/Components/shared/ModuleCard';
 import {
     Flame, ClipboardList, ClipboardCheck, Eye, AlertTriangle, CheckSquare, ArrowRight, Lock,
 } from 'lucide-react';
@@ -8,6 +8,21 @@ import { useClock, greetingFor } from '@/lib/useClock';
 
 // v2.11.0 (Field/Foreman Experience pass, Phase 3H): added Lock for the new LOTO tile.
 const ICONS = { Flame, ClipboardList, ClipboardCheck, Eye, AlertTriangle, CheckSquare, Lock };
+
+// Surface tint per action, keyed by the icon the server already sends --
+// presentational only, so no controller, route or permission changes.
+// Semantics, not decoration: reporting an incident is red, a completed
+// checklist green, an observation purple, an isolation amber, and the
+// permit/task actions carry the IOMS blue.
+const TILE_ACCENTS = {
+    AlertTriangle: 'red',
+    ClipboardCheck: 'green',
+    Eye: 'purple',
+    Lock: 'amber',
+    Flame: 'brand',
+    ClipboardList: 'brand',
+    CheckSquare: 'brand',
+};
 
 /**
  * v2.7.0 (Field/Foreman Experience pass, Phase 3A). A task-first landing
@@ -58,34 +73,27 @@ export default function FieldHome({ tiles, pendingApprovalsCount, myTasksCount }
                 </Link>
             )}
 
+            {/* v2.49.0: was a hand-rolled Card + inline `bg-brand-50` chip.
+                That fork is exactly why this page never inherited the shared
+                chip/tint work and still looked flat white with pale icons.
+                Now the shared ModuleCard at its `lg` size -- same 48px touch
+                target the fork existed to protect, same tiles, same order,
+                same links, same gating. The accent is derived from the tile's
+                own icon so the surface tint matches the chip: incident red,
+                checklist green, observation purple, isolation amber, permits
+                and tasks the IOMS blue. */}
             <div className="grid grid-cols-1 gap-3 sm:grid-cols-2 lg:grid-cols-3">
-                {tiles.map((tile) => {
-                    const Icon = ICONS[tile.icon] || ClipboardList;
-                    return (
-                        <Link key={tile.label} href={tile.href}>
-                            <Card className="h-full transition-all duration-200 hover:-translate-y-0.5 hover:shadow-card-hover">
-                                {/* p-5 + 48x48 icon -- deliberately larger
-                                    than the enterprise ModuleCard's dense
-                                    32x32/12px-padding scale used
-                                    elsewhere; a field user's primary
-                                    action tile needs to be a genuinely
-                                    easy touch target on a phone, not
-                                    compact information density. */}
-                                <CardContent className="flex items-center gap-3 p-5">
-                                    <span className="flex h-12 w-12 shrink-0 items-center justify-center rounded-xl bg-brand-50 text-brand-600 dark:bg-brand-950/40 dark:text-brand-400">
-                                        <Icon className="h-6 w-6" />
-                                    </span>
-                                    <div className="min-w-0 flex-1">
-                                        <p className="truncate text-base font-semibold text-graphite-900 dark:text-slate-50">{tile.label}</p>
-                                        <p className="truncate text-xs text-graphite-500 dark:text-slate-400">{tile.description}</p>
-                                    </div>
-                                    <ArrowRight className="h-4 w-4 shrink-0 text-graphite-300 dark:text-slate-600" />
-                                </CardContent>
-                            </Card>
-                        </Link>
-                    );
-                })}
-            </div>
+                {tiles.map((tile) => (
+                    <ModuleCard
+                        key={tile.label}
+                        icon={ICONS[tile.icon] || ClipboardList}
+                        title={tile.label}
+                        description={tile.description}
+                        href={tile.href}
+                        size="lg"
+                        accent={TILE_ACCENTS[tile.icon] || 'brand'}
+                    />
+                ))}            </div>
         </AuthenticatedLayout>
     );
 }

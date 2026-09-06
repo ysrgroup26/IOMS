@@ -875,10 +875,17 @@ function HeroSummary({ name, now, ltiCount, ppeAlertCount, readiness }) {
 }
 
 function SummaryStat({ icon: Icon, value, label, accent, href }) {
-    const color = accent === 'red' ? 'text-red-600' : accent === 'amber' ? 'text-amber-600' : 'text-graphite-900';
+    const color = accent === 'red' ? 'text-red-600' : accent === 'amber' ? 'text-amber-600' : 'text-navy-900';
+    // v2.49.0: was a flat graphite chip regardless of accent, so an alert
+    // that mattered looked identical to one that did not.
+    const chip = accent === 'red'
+        ? 'bg-gradient-to-br from-danger to-red-600 text-white shadow-[0_3px_8px_-3px_rgba(220,38,38,0.38)]'
+        : accent === 'amber'
+            ? 'bg-gradient-to-br from-warning to-amber-600 text-white shadow-[0_3px_8px_-3px_rgba(217,119,6,0.38)]'
+            : 'bg-gradient-to-br from-navy-800 to-brand-600 text-white shadow-[0_3px_8px_-3px_rgba(33,102,196,0.38)]';
     const content = (
-        <div className={cn('flex items-center gap-2 rounded-lg p-1 -m-1 transition-colors duration-200', href && 'hover:bg-graphite-50 cursor-pointer')}>
-            <div className="flex h-7 w-7 shrink-0 items-center justify-center rounded-lg bg-graphite-100 text-graphite-500">
+        <div className={cn('flex items-center gap-2 rounded-lg p-1 -m-1 transition-colors duration-200', href && 'cursor-pointer hover:bg-steel-50')}>
+            <div className={cn('flex h-7 w-7 shrink-0 items-center justify-center rounded-lg', chip)}>
                 <Icon className="h-3.5 w-3.5" />
             </div>
             <div className="min-w-0 space-y-0.5">
@@ -892,13 +899,13 @@ function SummaryStat({ icon: Icon, value, label, accent, href }) {
 
 function LeaderboardCard({ icon: Icon, label, value, sub }) {
     return (
-        <Card>
+        <Card className="bg-gradient-to-b from-steel-100/70 via-steel-50/40 to-white dark:from-slate-900 dark:to-slate-900">
             <CardContent className="p-4">
-                <div className="mb-2 flex h-8 w-8 items-center justify-center rounded-lg bg-brand-50 text-brand-600">
+                <div className="mb-2 flex h-8 w-8 items-center justify-center rounded-lg bg-gradient-to-br from-navy-800 to-brand-600 text-white shadow-[0_3px_8px_-3px_rgba(33,102,196,0.38)] dark:from-brand-950 dark:to-brand-900 dark:text-brand-300">
                     <Icon className="h-4 w-4" />
                 </div>
                 <p className="text-[11px] font-medium uppercase tracking-wide text-graphite-400">{label}</p>
-                <p className="truncate text-sm font-semibold text-graphite-800">{value}</p>
+                <p className="truncate text-sm font-semibold text-navy-800">{value}</p>
                 <p className="text-xs text-graphite-400">{sub}</p>
             </CardContent>
         </Card>

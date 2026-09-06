@@ -29,6 +29,11 @@ const NAV_LINKS = [
     { label: 'How It Works', route: 'how-it-works' },
     { label: 'Pricing', route: 'pricing' },
     { label: 'FAQ', route: 'faq' },
+    // v2.53.0: the Sandbox is an acquisition surface -- a prospect who can
+    // see the product before buying converts better than one reading about
+    // it, and it is NOT a free trial, so it belongs beside the other
+    // pre-purchase pages rather than next to Login.
+    { label: 'Sandbox', route: 'sandbox' },
 ];
 
 export default function PublicLayout({ children }) {
@@ -123,6 +128,7 @@ export default function PublicLayout({ children }) {
                             <ul className="mt-3 space-y-2 text-sm text-graphite-600">
                                 <li><Link href={route('pricing')} className="hover:text-graphite-900">Pricing</Link></li>
                                 <li><Link href={route('faq')} className="hover:text-graphite-900">FAQ</Link></li>
+                                <li><Link href={route('sandbox')} className="hover:text-graphite-900">Sandbox</Link></li>
                                 {version?.support_email && (
                                     <li><a href={`mailto:${version.support_email}`} className="hover:text-graphite-900">Contact</a></li>
                                 )}

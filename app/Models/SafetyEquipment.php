@@ -14,6 +14,13 @@ class SafetyEquipment extends Model
     protected $fillable = [
         'company_id', 'asset_id', 'name', 'type', 'location', 'serial_number',
         'last_inspection_date', 'next_inspection_due', 'status', 'notes',
+        // v2.53.0 -- the REGISTER describes an actual unit, and points at
+        // the MASTER that defines its type. See the
+        // separate_equipment_master_from_register migration for why
+        // lifecycle dates belong here while which lifecycles APPLY is a
+        // property of the type.
+        'equipment_type_id', 'equipment_code', 'brand', 'model', 'commissioned_at',
+        'expiry_date', 'next_service_due', 'next_calibration_due',
     ];
 
     protected $appends = ['is_overdue'];
@@ -23,7 +30,17 @@ class SafetyEquipment extends Model
         return [
             'last_inspection_date' => 'date',
             'next_inspection_due' => 'date',
+            'commissioned_at' => 'date',
+            'expiry_date' => 'date',
+            'next_service_due' => 'date',
+            'next_calibration_due' => 'date',
         ];
+    }
+
+    /** The Equipment Master entry that defines this unit's type. */
+    public function equipmentType()
+    {
+        return $this->belongsTo(HseEquipmentType::class, 'equipment_type_id');
     }
 
     public function company()

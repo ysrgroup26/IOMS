@@ -72,7 +72,7 @@ export default function PermitToWorkForm({ companies, projects, riskAssessments,
     const { data, setData, post, processing, errors } = useForm({
         company_id: companies[0]?.id ? String(companies[0].id) : '',
         project_id: '',
-        project_name: '',
+        work_reference: '',
         risk_assessment_id: '',
         jsa_id: '',
         permit_type: 'hot_work',
@@ -110,7 +110,10 @@ export default function PermitToWorkForm({ companies, projects, riskAssessments,
                 <Button variant="ghost" size="sm" asChild><Link href={route('permits-to-work.index')}><ArrowLeft className="h-4 w-4" /> Back</Link></Button>
             </div>
 
-            <form onSubmit={submit} className="mx-auto max-w-xl space-y-4">
+            {/* v2.53.0: was max-w-xl -- one control per row down a narrow
+                column, which is what made this form read as mostly empty
+                space. The paired fields below need the width. */}
+            <form onSubmit={submit} className="mx-auto max-w-3xl space-y-4">
                 <Card>
                     <CardHeader>
                         {/* v2.20.0 (PTW Experience & Visual Polish pass,
@@ -145,18 +148,72 @@ export default function PermitToWorkForm({ companies, projects, riskAssessments,
                                 {errors.company_id && <p className="text-xs text-red-600">{errors.company_id}</p>}
                             </div>
                         )}
-                        <div className="space-y-1.5">
-                            <Label>Permit Type</Label>
-                            <Select value={data.permit_type} onValueChange={(v) => setData('permit_type', v)}>
-                                <SelectTrigger><SelectValue /></SelectTrigger>
-                                <SelectContent>{types.map((t) => <SelectItem key={t} value={t} className="capitalize">{t.replace('_', ' ')}</SelectItem>)}</SelectContent>
-                            </Select>
+                        {/* v2.53.0 -- FOUR DISTINCT CONCEPTS, in the order a
+                            permit is actually thought through.
+
+                            Project           optional Project Master reference
+                            Work Reference    the operational identity of THIS work
+                            Work Location     where it physically happens
+                            Work Description  what is actually being done
+
+                            They had overlapped badly: a "Project / Job"
+                            selector sat directly above a "Nama Pekerjaan /
+                            Job" text field, so users could not tell which one
+                            they were meant to fill in and wrote compound
+                            answers covering both. Naming each for what it
+                            holds, and pairing them two-up, makes the
+                            distinction visible instead of explained.
+
+                            Work Description now comes AFTER the dates: the
+                            first half of the form establishes what and where,
+                            the dates bound it in time, and the description is
+                            the paragraph you write once the rest is settled. */}
+                        <div className="grid grid-cols-1 gap-3 sm:grid-cols-2">
+                            <div className="space-y-1.5">
+                                <Label>Permit Type</Label>
+                                <Select value={data.permit_type} onValueChange={(v) => setData('permit_type', v)}>
+                                    <SelectTrigger><SelectValue /></SelectTrigger>
+                                    <SelectContent>{types.map((t) => <SelectItem key={t} value={t} className="capitalize">{t.replace('_', ' ')}</SelectItem>)}</SelectContent>
+                                </Select>
+                            </div>
+                            <div className="space-y-1.5">
+                                <Label>Project <span className="font-normal text-graphite-400">(optional)</span></Label>
+                                <Select value={data.project_id || 'none'} onValueChange={(v) => setData('project_id', v === 'none' ? '' : v)}>
+                                    <SelectTrigger><SelectValue placeholder="Not linked to a project" /></SelectTrigger>
+                                    <SelectContent>
+                                        <SelectItem value="none">Not linked to a project</SelectItem>
+                                        {projects.map((p) => <SelectItem key={p.id} value={String(p.id)}>{p.name}</SelectItem>)}
+                                    </SelectContent>
+                                </Select>
+                            </div>
                         </div>
-                        <div className="space-y-1.5">
-                            <Label>Work Description</Label>
-                            <Textarea value={data.work_description} onChange={(e) => setData('work_description', e.target.value)} rows={3} placeholder="Apa pekerjaan yang akan dilakukan?" />
-                            {errors.work_description && <p className="text-xs text-red-600">{errors.work_description}</p>}
+
+                        <div className="grid grid-cols-1 gap-3 sm:grid-cols-2">
+                            <div className="space-y-1.5">
+                                <Label>Work / Job Reference</Label>
+                                <Input
+                                    value={data.work_reference}
+                                    onChange={(e) => setData('work_reference', e.target.value)}
+                                    placeholder="e.g. Twin Sister 307, Line 1, Docking Area 2"
+                                />
+                                <p className="text-[11px] leading-snug text-graphite-500">
+                                    Identitas pekerjaan di lapangan. Isi meskipun belum ada Project terdaftar.
+                                </p>
+                                {errors.work_reference && <p className="text-xs text-red-600">{errors.work_reference}</p>}
+                            </div>
+                            <div className="space-y-1.5">
+                                <Label>Work Location / Area</Label>
+                                <Input
+                                    value={data.location}
+                                    onChange={(e) => setData('location', e.target.value)}
+                                    placeholder="e.g. Engine Room, Main Deck / Port Side"
+                                />
+                                <p className="text-[11px] leading-snug text-graphite-500">
+                                    Lokasi fisik tempat pekerjaan dilakukan.
+                                </p>
+                            </div>
                         </div>
+
                         <div className="grid grid-cols-1 gap-3 sm:grid-cols-2">
                             <div className="space-y-1.5">
                                 <Label>Start</Label>
@@ -169,53 +226,19 @@ export default function PermitToWorkForm({ companies, projects, riskAssessments,
                                 {errors.end_datetime && <p className="text-xs text-red-600">{errors.end_datetime}</p>}
                             </div>
                         </div>
-                        {/* v2.52.0 -- PROJECT IDENTITY AND WORK LOCATION ARE
-                            DIFFERENT THINGS, and the permit needs both.
 
-                            The formal Project Master is authoritative WHEN ONE
-                            EXISTS. When it does not -- because Management has not
-                            created the row yet, or because the work genuinely is
-                            not a project -- the free-text job name below carries
-                            the identity instead. HSE must never be blocked on
-                            Management's backlog, and the printed permit must never
-                            read "No Project" for work that plainly has a name. */}
                         <div className="space-y-1.5">
-                            <Label>Project / Job (opsional)</Label>
-                            <Select value={data.project_id || 'none'} onValueChange={(v) => setData('project_id', v === 'none' ? '' : v)}>
-                                <SelectTrigger><SelectValue placeholder="Pilih proyek terdaftar" /></SelectTrigger>
-                                <SelectContent><SelectItem value="none">Tidak terkait proyek terdaftar</SelectItem>{projects.map((p) => <SelectItem key={p.id} value={String(p.id)}>{p.name}</SelectItem>)}</SelectContent>
-                            </Select>
-                        </div>
-                        {! data.project_id && (
-                            <div className="space-y-1.5">
-                                <Label>Nama Pekerjaan / Job</Label>
-                                <Input
-                                    value={data.project_name}
-                                    onChange={(e) => setData('project_name', e.target.value)}
-                                    placeholder="mis. Docking MV Sinar Mas / Overhaul Crane #4"
-                                />
-                                <p className="text-[11px] leading-snug text-graphite-500">
-                                    Isi bila pekerjaan ini belum terdaftar sebagai proyek. Identitas pekerjaan tetap tercatat
-                                    dan tercetak pada izin kerja.
-                                </p>
-                                {errors.project_name && <p className="text-xs text-red-600">{errors.project_name}</p>}
-                            </div>
-                        )}
-                        {/* v2.42.0 -- Project/Asset and Work Location are a
-                            HIERARCHY, not alternatives: the Project FK stays owned by
-                            the Management/Project domain, and this free-text field
-                            narrows the permit to the actual area within it (e.g. an
-                            engine room, hull section or specific work area). Kept as
-                            text on purpose -- work areas are permit-specific and
-                            open-ended, so promoting them to a master would duplicate
-                            the project registry for no operational gain. Moved to sit
-                            directly under Project, where it reads as a refinement. */}
-                        <div className="space-y-1.5">
-                            <Label>Work Location / Area</Label>
-                            <Input value={data.location} onChange={(e) => setData('location', e.target.value)} placeholder="Area spesifik pekerjaan, mis. Engine Room / Hull / Port Side" />
+                            <Label>Work Description</Label>
+                            <Textarea
+                                value={data.work_description}
+                                onChange={(e) => setData('work_description', e.target.value)}
+                                rows={3}
+                                placeholder="e.g. Hot work for pipe repair at the engine room."
+                            />
                             <p className="text-[11px] leading-snug text-graphite-500">
-                                Lokasi kerja spesifik di dalam proyek/aset di atas. Tidak mengubah data master proyek.
+                                Uraikan pekerjaan yang akan dilakukan, bukan lokasi atau nama proyeknya.
                             </p>
+                            {errors.work_description && <p className="text-xs text-red-600">{errors.work_description}</p>}
                         </div>
                     </CardContent>
                 </Card>

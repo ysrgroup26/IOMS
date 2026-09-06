@@ -5,6 +5,7 @@ use App\Http\Middleware\EnforceTenantEntitlement;
 use App\Http\Middleware\HandleInertiaRequests;
 use App\Http\Middleware\IdentifyTenant;
 use App\Http\Middleware\ResolveTenant;
+use App\Http\Middleware\RestrictDemoTenant;
 use App\Http\Middleware\RestrictDepartmentAccess;
 use App\Http\Middleware\RestrictPlatformAdminFromTenantRoutes;
 use Illuminate\Foundation\Application;
@@ -37,6 +38,12 @@ return Application::configure(basePath: dirname(__DIR__))
             // happens to belong to. Default no-op -- see its own doc
             // comment for the config('saas.enforce_entitlement') gate.
             EnforceTenantEntitlement::class,
+            // v2.53.0: the IOMS Sandbox is a REAL tenant, so it is already
+            // bounded by TenantScope and RBAC exactly like a customer.
+            // This adds the one property a shared demo needs on top --
+            // read-mostly, so one visitor cannot break the demonstration
+            // for the next. It grants nothing; see its own doc comment.
+            RestrictDemoTenant::class,
             RestrictDepartmentAccess::class,
             AddLinkHeadersForPreloadedAssets::class,
         ]);

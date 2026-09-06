@@ -136,7 +136,21 @@ class EntitlementService
      */
     public function ptwUserQuota(?Tenant $tenant): ?int
     {
-        return $tenant?->subscription?->package?->max_ptw_users;
+        // v2.53.0 -- RETIRED AS A SOLD CAPACITY.
+        //
+        // PTW Access used to be a second seat pool alongside `max_users`,
+        // which made every plan card read as two numbers a buyer had to
+        // reconcile. Capacity is now expressed as TOTAL USERS, and PTW
+        // Access went back to being what it always was operationally: an
+        // internal permission an administrator grants to an account that
+        // already exists.
+        //
+        // This deliberately still returns null (= no ceiling) rather than
+        // being deleted, so any caller that has not been updated fails
+        // OPEN on a limit that is no longer sold rather than fatally. The
+        // AUTHORIZATION is untouched -- see User::canCreatePtw() and
+        // PermitToWorkController's own gate.
+        return null;
     }
 
     /**
@@ -219,9 +233,12 @@ class EntitlementService
      */
     public function canEnablePtwAccess(?Tenant $tenant): bool
     {
-        $quota = $this->ptwUserQuota($tenant);
-
-        return $quota === null || $this->ptwUsersUsedCount($tenant) < $quota;
+        // v2.53.0: always true. There is no PTW seat allowance to exhaust
+        // any more (see ptwUserQuota()). Whether a given user MAY create a
+        // permit is still decided by User::canCreatePtw() and enforced
+        // server-side by PermitToWorkController -- that is authorization,
+        // and it is unchanged.
+        return true;
     }
 
     /**

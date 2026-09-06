@@ -24,12 +24,13 @@ class Tenant extends Model
     public const STATUS_SUSPENDED = 'suspended';
     public const STATUS_EXPIRED = 'expired';
 
-    protected $fillable = ['name', 'slug', 'status', 'trial_ends_at'];
+    protected $fillable = ['name', 'slug', 'status', 'trial_ends_at', 'is_demo'];
 
     protected function casts(): array
     {
         return [
             'trial_ends_at' => 'datetime',
+            'is_demo' => 'boolean',
         ];
     }
 
@@ -63,6 +64,19 @@ class Tenant extends Model
     public function workspaces()
     {
         return $this->belongsToMany(Workspace::class, 'tenant_workspaces');
+    }
+
+    /**
+     * v2.53.0 -- the IOMS Sandbox tenant.
+     *
+     * A REAL tenant with real isolation, not a special code path, so it
+     * inherits every boundary the product already enforces. The flag
+     * exists so the application can refuse writes and refuse to treat
+     * demo data as a customer's -- it never grants anything.
+     */
+    public function isDemo(): bool
+    {
+        return (bool) $this->is_demo;
     }
 
     public function isActive(): bool

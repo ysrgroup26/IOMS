@@ -64,6 +64,7 @@ use App\Http\Controllers\PpeController;
 use App\Http\Controllers\PaymentWebhookController;
 use App\Http\Controllers\Public\RegistrationController;
 use App\Http\Controllers\PublicController;
+use App\Http\Controllers\SandboxController;
 use App\Http\Controllers\HandoverRecordController;
 use App\Http\Controllers\RegulationRegisterController;
 use App\Http\Controllers\PpeTypeController;
@@ -131,6 +132,16 @@ Route::get('/platform-overview', [PublicController::class, 'platform'])->name('p
 Route::get('/solutions', [PublicController::class, 'solutions'])->name('solutions');
 Route::get('/how-it-works', [PublicController::class, 'howItWorks'])->name('how-it-works');
 Route::get('/faq', [PublicController::class, 'faq'])->name('faq');
+
+/*
+| IOMS Sandbox (v2.53.0) -- a product DEMONSTRATION, deliberately not a
+| free trial. `enter` is a POST because signing someone in is a state
+| change: a GET would let any page on the internet log a reader into the
+| Sandbox by embedding an image. Throttled, because it creates a session.
+*/
+Route::get('/sandbox', [SandboxController::class, 'show'])->name('sandbox');
+Route::post('/sandbox', [SandboxController::class, 'enter'])
+    ->middleware('throttle:10,1')->name('sandbox.enter');
 
 /*
 | Self-service onboarding (v2.51.0).

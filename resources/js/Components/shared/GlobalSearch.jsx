@@ -92,16 +92,16 @@ export default function GlobalSearch() {
     return (
         <div ref={containerRef} className="relative hidden sm:block">
             <div className="relative">
-                <Search className="pointer-events-none absolute left-2.5 top-1/2 h-3.5 w-3.5 -translate-y-1/2 text-graphite-400" />
+                <Search className="pointer-events-none absolute left-2.5 top-1/2 h-3.5 w-3.5 -translate-y-1/2 text-steel-300" />
                 <input
                     ref={inputRef}
                     value={query}
                     onChange={(e) => { setQuery(e.target.value); setOpen(true); }}
                     onFocus={() => setOpen(true)}
                     placeholder="Search employees, projects..."
-                    className="h-[34px] w-[380px] rounded-md border border-graphite-200 bg-graphite-50/60 pl-8 pr-10 text-xs text-graphite-700 outline-none transition-colors focus:border-brand-300 focus:bg-white dark:border-slate-700 dark:bg-slate-800/60 dark:text-slate-200 dark:focus:bg-slate-800"
+                    className="h-[34px] w-[380px] rounded-md border border-white/15 bg-white/[0.07] pl-8 pr-10 text-xs text-white outline-none transition-colors placeholder:text-navy-300 focus:border-brand-400/60 focus:bg-white/[0.12] dark:border-slate-700 dark:bg-slate-800/60 dark:text-slate-200 dark:focus:bg-slate-800"
                 />
-                <kbd className="pointer-events-none absolute right-2 top-1/2 -translate-y-1/2 rounded border border-graphite-200 bg-white px-1 text-[10px] text-graphite-400 dark:border-slate-600 dark:bg-slate-900">
+                <kbd className="pointer-events-none absolute right-2 top-1/2 -translate-y-1/2 rounded border border-white/15 bg-white/[0.08] px-1 text-[10px] text-navy-300 dark:border-slate-600 dark:bg-slate-900">
                     Ctrl K
                 </kbd>
             </div>

@@ -66,7 +66,7 @@ export default function PublicWelcome({ plans, steps = [], faqs = [], contactEma
 /* ------------------------------------------------------------------ */
 /* Section: Hero                                                       */
 /* ------------------------------------------------------------------ */
-const INDUSTRIES_STRIP = ['Galangan Kapal', 'Konstruksi', 'Manufaktur', 'Industri Berat'];
+const INDUSTRIES_STRIP = ['Shipyard', 'Construction', 'Manufacturing', 'Mining & Energy'];
 
 // v2.27.0 (Public Website & Auth Visual Transformation, Part 4/7). The
 // platform-visualization node set -- 8 real domains around a central
@@ -124,11 +124,11 @@ function Hero() {
                         Industrial Operations Platform
                     </p>
                     <h1 className="mt-4 text-4xl font-semibold leading-[1.08] tracking-tight text-white sm:text-5xl lg:text-6xl">
-                        Satukan seluruh operasi industri Anda<br className="hidden sm:block" /> dalam satu platform.
+                        One platform for how your<br className="hidden sm:block" /> whole operation actually runs.
                     </h1>
 
                     <div className="mx-auto mt-6 inline-flex flex-wrap items-center justify-center gap-x-2 gap-y-1 rounded-full border border-white/10 bg-white/[0.06] px-4 py-2 text-[11px] font-semibold uppercase tracking-wide text-steel-200 sm:text-xs">
-                        <span className="text-white">Dibangun untuk Operasi Industri</span>
+                        <span className="text-white">Built for Industrial Operations</span>
                         <span className="hidden text-white/25 sm:inline">&middot;</span>
                         <span className="flex flex-wrap items-center justify-center gap-x-1.5">
                             {INDUSTRIES_STRIP.map((ind, i) => (
@@ -138,9 +138,9 @@ function Hero() {
                     </div>
 
                     <p className="mx-auto mt-6 max-w-2xl text-base leading-relaxed text-navy-300 sm:text-lg">
-                        IOMS membantu perusahaan industri mengelola pekerjaan lapangan, keselamatan (HSE), tenaga
-                        kerja, operasional, dan data perusahaan dalam satu platform -- dirancang untuk galangan
-                        kapal, konstruksi, manufaktur, dan industri berat.
+                        Projects, people, work, materials and approvals all run in one connected platform — so what
+                        happens on site reaches management as data, not as a stack of spreadsheets that no longer agree
+                        with each other.
                     </p>
 
                     {/* One unmistakable primary, one quiet secondary. The
@@ -149,7 +149,7 @@ function Hero() {
                         of two buttons competing for the same weight. */}
                     <div className="mt-8 flex flex-col items-center justify-center gap-3 sm:flex-row">
                         <Button size="lg" className="w-full sm:w-auto" asChild>
-                            <Link href={route('get-started')}>Mulai Berlangganan <ArrowRight className="h-4 w-4" /></Link>
+                            <Link href={route('get-started')}>Get Started <ArrowRight className="h-4 w-4" /></Link>
                         </Button>
                         <Button
                             size="lg"
@@ -157,7 +157,7 @@ function Hero() {
                             className="w-full border border-white/15 bg-white/[0.06] text-white hover:bg-white/[0.12] hover:text-white sm:w-auto"
                             asChild
                         >
-                            <Link href={route('login')}>Masuk ke IOMS</Link>
+                            <Link href={route('sandbox')}>Try the Sandbox</Link>
                         </Button>
                     </div>
                 </div>
@@ -212,7 +212,7 @@ function TrustStatement() {
         <section className="border-b border-graphite-100 bg-white py-10">
             <div className="mx-auto max-w-4xl px-4 text-center sm:px-6 lg:px-8">
                 <p className="text-lg font-medium text-graphite-700 sm:text-xl">
-                    Satu sistem terhubung untuk kompleksitas operasi industri.
+                    Departments stop working in separate systems. The operation starts working as one.
                 </p>
             </div>
         </section>
@@ -223,16 +223,19 @@ function TrustStatement() {
 /* Section: The Problem                                                */
 /* ------------------------------------------------------------------ */
 function ProblemSection() {
-    const fragments = ['File Excel', 'Grup WhatsApp', 'Formulir Kertas', 'Catatan HSE Terpisah', 'Persetujuan Manual', 'Data Tersebar'];
+    const fragments = ['Excel per department', 'WhatsApp approvals', 'Paper permits', 'Separate HSE records', 'Manual stock notes', 'Reports rebuilt by hand'];
 
     return (
         <section className="border-b border-graphite-100 bg-gradient-to-b from-brand-50/50 to-brand-50/20 py-20">
             <div className="mx-auto max-w-5xl px-4 sm:px-6 lg:px-8">
                 <div className="text-center">
                     <h2 className="text-2xl font-semibold tracking-tight text-graphite-900 sm:text-3xl">
-                        Operasi industri menghasilkan sangat banyak data.
+                        Your departments already have the data. They just don't share it.
                     </h2>
-                    <p className="mt-3 text-base text-graphite-600">Masalahnya, data itu biasanya tercerai-berai.</p>
+                    <p className="mt-3 text-base text-graphite-600">
+                        Procurement cannot see what the yard actually consumed. HSE cannot see which job the permit
+                        belongs to. Management rebuilds the same report every month.
+                    </p>
                 </div>
 
                 <div className="mt-10 grid grid-cols-2 gap-3 sm:grid-cols-3">
@@ -249,7 +252,7 @@ function ProblemSection() {
 
                 <div className="mt-6 rounded-xl border-2 border-graphite-900 bg-white p-6 text-center shadow-card-hover sm:p-8">
                     <p className="text-xs font-semibold uppercase tracking-[0.2em] text-brand-600">IOMS</p>
-                    <p className="mt-2 text-xl font-semibold text-graphite-900 sm:text-2xl">Satu Sistem Terhubung</p>
+                    <p className="mt-2 text-xl font-semibold text-graphite-900 sm:text-2xl">One connected operation</p>
                 </div>
             </div>
         </section>
@@ -260,18 +263,23 @@ function ProblemSection() {
 /* Section: Platform Overview                                          */
 /* ------------------------------------------------------------------ */
 const PLATFORM_AREAS = [
-    { title: 'Pekerjaan Lapangan', icon: HardHat, items: ['Permit To Work (PTW)', 'My Work', 'Laporan Harian / Pekerjaan', 'Penugasan'] },
-    { title: 'Health, Safety & Environment', icon: ShieldCheck, items: ['Dashboard HSE', 'Insiden', 'Safety Observation', 'Inspeksi', 'CAPA', 'JSA', 'HIRADC', 'Gas Test', 'LOTO'] },
-    { title: 'Human Resources', icon: Users, items: ['Data Karyawan', 'Kontraktor', 'Tamu / Visitor', 'APD / PPE'] },
-    { title: 'Operations', icon: Cog, items: ['Man-Hour', 'Pengelolaan Limbah', 'Work Center', 'Warehouse & Procurement'] },
-    { title: 'Management & Reporting', icon: BarChart3, items: ['Laporan', 'Pencarian Global', 'KPI', 'Rekaman Operasional'] },
+    { title: 'Project Management', icon: FolderKanban, items: ['Projects & milestones', 'Manpower assignment', 'Daily reports', 'Progress records'] },
+    { title: 'Operations', icon: Cog, items: ['Work Center', 'Tasks & follow-up', 'Man-Hour', 'Activity timeline on every record'] },
+    { title: 'Human Resources', icon: Users, items: ['Employee master data', 'Competency & certificate expiry', 'Shifts & rosters', 'Contractors & visitors'] },
+    { title: 'Procurement & Warehouse', icon: ShoppingCart, items: ['Purchase Requisition (FPB)', 'RFQ & vendor comparison', 'Purchase Order', 'Goods receipt & stock movement'] },
+    { title: 'Health, Safety & Environment', icon: ShieldCheck, items: ['Permit To Work', 'Incidents & observations', 'Inspections, JSA, HIRADC', 'LOTO, gas test, PPE, CAPA'] },
+    { title: 'Management & Reporting', icon: BarChart3, items: ['KPI records', 'Report Center', 'Scheduled reports', 'PDF & Excel on your letterhead'] },
 ];
 
 function PlatformOverview() {
     return (
         <section id="platform" className="border-b border-graphite-100 bg-white py-20">
             <div className="mx-auto max-w-7xl px-4 sm:px-6 lg:px-8">
-                <SectionHeading eyebrow="Platform" title="Seluruh operasi Anda, dalam satu tempat" subtitle="Setiap domain di bawah ini sudah berjalan di IOMS hari ini -- bukan rencana, bukan roadmap." />
+                <SectionHeading
+                    eyebrow="Platform"
+                    title="One platform, every operational domain"
+                    subtitle="Every domain below runs in IOMS today — not a roadmap. They share one set of master data, one approval layer and one reporting layer."
+                />
 
                 <div className="mt-12 grid grid-cols-1 gap-5 sm:grid-cols-2 lg:grid-cols-3">
                     {PLATFORM_AREAS.map((area) => (
@@ -317,12 +325,12 @@ function PtwHseStory() {
             <div className="pointer-events-none absolute -right-32 -top-32 -z-10 h-[30rem] w-[30rem] rounded-full bg-steel-500 opacity-[0.13] blur-3xl" aria-hidden="true" />
             <div className="mx-auto max-w-5xl px-4 sm:px-6 lg:px-8">
                 <div className="text-center">
-                    <p className="text-xs font-semibold uppercase tracking-[0.2em] text-brand-400">Pembeda Nyata</p>
-                    <h2 className="mt-3 text-2xl font-semibold tracking-tight sm:text-3xl">Dari permintaan lapangan sampai persetujuan HSE — dalam satu alur</h2>
+                    <p className="text-xs font-semibold uppercase tracking-[0.2em] text-brand-400">How the chain works</p>
+                    <h2 className="mt-3 text-2xl font-semibold tracking-tight sm:text-3xl">One record, from the field to the approval that releases it</h2>
                     <p className="mx-auto mt-3 max-w-2xl text-sm text-graphite-300 sm:text-base">
-                        Di IOMS, Permit To Work bukan formulir kertas. Ia satu catatan utuh sejak diajukan pengguna
-                        lapangan sampai ditutup oleh Health, Safety &amp; Environment — lengkap dengan siapa yang
-                        mengajukan, siapa penanggung jawabnya, dan siapa yang menyetujui.
+                        Permit To Work is one worked example of how IOMS connects departments. The same shape applies to
+                        a purchase requisition, a material issue or a work order: one record, the people accountable for
+                        it, and the approvals that release it — all visible to management without anyone rekeying it.
                     </p>
                 </div>
 
@@ -352,15 +360,14 @@ function FieldExperience() {
                     <div>
                         <p className="text-xs font-semibold uppercase tracking-[0.2em] text-brand-600">My Work</p>
                         <h2 className="mt-3 text-2xl font-semibold tracking-tight text-graphite-900 sm:text-3xl">
-                            Dibuat untuk yang mengerjakan, bukan hanya yang mengawasi.
+                            Built for the people doing the work, not only those reporting on it.
                         </h2>
                         <p className="mt-4 text-base text-graphite-600">
-                            Foreman, supervisor, teknisi, dan operator masuk langsung ke My Work — ruang kerja
-                            lapangan yang ringkas dan nyaman dipakai dari ponsel di lokasi, bukan dashboard kantor
-                            yang tidak mereka butuhkan.
+                            Foremen, supervisors, technicians and operators land straight in My Work — a compact field
+                            workspace built for a phone on site, not an office dashboard they have no use for.
                         </p>
                         <ul className="mt-6 space-y-2.5">
-                            {['Buat dan ajukan PTW bila akun diberi PTW Access', 'Izin kerja Anda sendiri beserta statusnya', 'Nama pekerjaan dan lokasi kerja terlihat jelas', 'Tugas yang ditugaskan kepada Anda'].map((f) => (
+                            {['Raise a Permit To Work when the account is granted PTW Access', 'Your own permits and their live status', 'Work reference and work location shown separately', 'Tasks assigned to you'].map((f) => (
                                 <li key={f} className="flex items-center gap-2 text-sm text-graphite-700">
                                     <Smartphone className="h-4 w-4 shrink-0 text-brand-500" /> {f}
                                 </li>
@@ -383,7 +390,7 @@ function ProductPreview() {
     return (
         <section className="border-b border-graphite-100 bg-white py-20">
             <div className="mx-auto max-w-7xl px-4 sm:px-6 lg:px-8">
-                <SectionHeading eyebrow="Produk" title="Seperti apa bekerja di dalam IOMS" subtitle="Ilustrasi tampilan yang dibangun dari design system IOMS yang sebenarnya, bukan foto stok." />
+                <SectionHeading eyebrow="Product" title="What working in IOMS looks like" subtitle="Illustrative screens built from the real IOMS design system, with sample operational data — not stock photography." />
 
                 <div className="mt-12 grid grid-cols-1 gap-6 lg:grid-cols-2">
                     <div className="rounded-xl border border-graphite-200 bg-graphite-50 p-4 shadow-card sm:p-6">
@@ -460,16 +467,16 @@ function MockupFieldHome() {
 /* ------------------------------------------------------------------ */
 function Industries() {
     const industries = [
-        { label: 'Galangan Kapal', icon: Ship }, { label: 'Konstruksi', icon: Building },
-        { label: 'Manufaktur', icon: Factory }, { label: 'Fabrikasi & Engineering', icon: Wrench },
-        { label: 'Logistik', icon: Truck }, { label: 'Energi & Pertambangan', icon: Zap },
-        { label: 'Jasa Industri', icon: Building2 },
+        { label: 'Shipyard & Marine', icon: Ship }, { label: 'Construction', icon: Building },
+        { label: 'Manufacturing', icon: Factory }, { label: 'Engineering & Fabrication', icon: Wrench },
+        { label: 'Logistics', icon: Truck }, { label: 'Mining & Energy', icon: Zap },
+        { label: 'Industrial Services', icon: Building2 },
     ];
 
     return (
         <section className="border-b border-graphite-100 bg-gradient-to-b from-brand-50/50 to-brand-50/20 py-16">
             <div className="mx-auto max-w-7xl px-4 sm:px-6 lg:px-8">
-                <p className="text-center text-xs font-semibold uppercase tracking-[0.2em] text-graphite-400">Dipakai Untuk Industri</p>
+                <p className="text-center text-xs font-semibold uppercase tracking-[0.2em] text-graphite-400">Built For</p>
                 <div className="mt-8 flex flex-wrap items-center justify-center gap-3">
                     {industries.map((ind) => (
                         <div key={ind.label} className="flex items-center gap-2 rounded-full border border-graphite-200 bg-white px-4 py-2 text-sm text-graphite-600 shadow-card">
@@ -521,7 +528,7 @@ function Pricing({ plans }) {
     return (
         <section id="pricing" className="border-b border-graphite-100 bg-white py-20">
             <div className="mx-auto max-w-7xl px-4 sm:px-6 lg:px-8">
-                <SectionHeading eyebrow="Harga" title="Paket yang tumbuh bersama operasi Anda" subtitle="Satu produk standar dengan tiga tingkat akses dan kapasitas. Tanpa biaya implementasi tersembunyi, tanpa pengembangan khusus per perusahaan." />
+                <SectionHeading eyebrow="Pricing" title="Plans that grow with your operation" subtitle="One standardized product at three levels of access and capacity. No hidden implementation fee, and no per-company custom development." />
 
                 {plans && plans.length > 0 ? (
                     <>
@@ -566,12 +573,12 @@ function Pricing({ plans }) {
 
                                         <ul className="mt-6 flex-1 space-y-2.5 border-t border-graphite-100 pt-5 text-sm text-graphite-600">
                                             <li className="flex items-center gap-2 font-medium text-graphite-800">
-                                                <Users className="h-3.5 w-3.5 shrink-0 text-brand-500" /> {plan.max_users ? `${plan.max_users} akun pengguna` : 'Kapasitas pengguna tertinggi'}
+                                                <Users className="h-3.5 w-3.5 shrink-0 text-brand-500" /> {plan.max_users ? `${plan.max_users} user accounts` : 'Highest user capacity'}
                                             </li>
-                                            {/* PTW Access is a permission on an account that already
-                                                exists, not an extra pool of accounts. */}
+                                            {/* v2.53.0: capacity is ONE number. PTW Access is a
+                                                permission granted inside IOMS, not a sold seat. */}
                                             <li className="flex items-center gap-2">
-                                                <ShieldCheck className="h-3.5 w-3.5 shrink-0 text-brand-500" /> {plan.max_ptw_users ? `${plan.max_ptw_users} di antaranya boleh PTW Access` : 'PTW Access untuk seluruh akun'}
+                                                <ShieldCheck className="h-3.5 w-3.5 shrink-0 text-brand-500" /> {plan.max_companies ? `${plan.max_companies} company` : 'Multi-company access'}
                                             </li>
                                             {plan.workspaces.length > 0 && plan.workspaces.map((w) => (
                                                 <li key={w} className="flex items-center gap-2"><Check className="h-3.5 w-3.5 shrink-0 text-brand-500" /> {w}</li>
@@ -584,7 +591,7 @@ function Pricing({ plans }) {
                                             The plan CTA now goes to the real onboarding flow,
                                             carrying the chosen plan and cycle. */}
                                         <Button className="mt-7 w-full" variant={emphasized ? 'default' : 'outline'} asChild>
-                                            <Link href={`${route('get-started')}?plan=${plan.slug}&cycle=yearly`}>Pilih paket ini</Link>
+                                            <Link href={`${route('get-started')}?plan=${plan.slug}&cycle=yearly`}>Choose this plan</Link>
                                         </Button>
                                     </div>
                                 );
@@ -614,7 +621,7 @@ function HowItWorks({ steps: serverSteps = [] }) {
     return (
         <section id="how-it-works" className="border-b border-graphite-100 bg-gradient-to-b from-brand-50/50 to-brand-50/20 py-20">
             <div className="mx-auto max-w-6xl px-4 sm:px-6 lg:px-8">
-                <SectionHeading eyebrow="Cara Kerja" title="Dari data induk sampai laporan manajemen" />
+                <SectionHeading eyebrow="How It Works" title="From master data to management reporting" />
                 <div className="mt-12 grid grid-cols-1 gap-6 sm:grid-cols-2 lg:grid-cols-4">
                     {steps.map((s) => (
                         <div key={s.n} className="rounded-xl border border-graphite-200 bg-white p-5 shadow-card">
@@ -641,7 +648,7 @@ function Faq({ faqs = [] }) {
     return (
         <section id="faq" className="border-b border-graphite-100 bg-white py-20">
             <div className="mx-auto max-w-3xl px-4 sm:px-6 lg:px-8">
-                <SectionHeading eyebrow="FAQ" title="Pertanyaan yang sering diajukan" />
+                <SectionHeading eyebrow="FAQ" title="Frequently asked questions" />
                 <div className="mt-10 divide-y divide-graphite-100 rounded-xl border border-graphite-200">
                     {faqs.map((item) => (
                         <details key={item.q} className="group p-5">
@@ -666,14 +673,15 @@ function FinalCta() {
         <section className="relative isolate overflow-hidden bg-navy-900 py-20 text-white">
             <div className="pointer-events-none absolute -left-32 -bottom-40 -z-10 h-[28rem] w-[28rem] rounded-full bg-brand-600 opacity-[0.14] blur-3xl" aria-hidden="true" />
             <div className="mx-auto max-w-3xl px-4 text-center sm:px-6 lg:px-8">
-                <h2 className="text-2xl font-semibold tracking-tight sm:text-3xl">Siap menyatukan operasi Anda?</h2>
+                <h2 className="text-2xl font-semibold tracking-tight sm:text-3xl">Ready to connect your operation?</h2>
                 <p className="mx-auto mt-3 max-w-xl text-sm text-graphite-300 sm:text-base">
-                    Pilih paket, daftarkan perusahaan Anda, dan workspace IOMS aktif setelah pembayaran dikonfirmasi.
+                    Try the Sandbox first, or choose a plan and register your company — your workspace is provisioned
+                    once payment is confirmed.
                 </p>
                 <div className="mt-8 flex flex-col items-center justify-center gap-3 sm:flex-row">
-                    <Button size="lg" className="w-full sm:w-auto" asChild><Link href={route('get-started')}>Mulai Berlangganan <ArrowRight className="h-4 w-4" /></Link></Button>
+                    <Button size="lg" className="w-full sm:w-auto" asChild><Link href={route('get-started')}>Get Started <ArrowRight className="h-4 w-4" /></Link></Button>
                     <Button size="lg" variant="outline" className="w-full border-white/20 bg-transparent text-white hover:bg-white/10 sm:w-auto" asChild>
-                        <Link href={route('login')}>Masuk</Link>
+                        <Link href={route('sandbox')}>Try the Sandbox</Link>
                     </Button>
                 </div>
             </div>

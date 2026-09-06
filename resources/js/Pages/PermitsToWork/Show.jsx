@@ -83,7 +83,7 @@ export default function PermitToWorkShow({ permit: p, activities, canManage, rej
                                     job name when none exists. Never "No Project" for work
                                     that has a name. */}
                                 <span className="uppercase tracking-wide text-navy-400">Project / Job</span>{' '}
-                                <span className="font-medium text-steel-100">{p.project?.name || p.project_name || '—'}</span>
+                                <span className="font-medium text-steel-100">{p.project?.name || p.work_reference || '—'}</span>
                             </span>
                             <span className="text-navy-300">
                                 <span className="uppercase tracking-wide text-navy-400">Work Location</span>{' '}

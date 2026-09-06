@@ -49,7 +49,7 @@ export default function HandoverRecordsIndex({
                 title="Berita Acara Serah Terima"
                 subtitle="Dokumen serah terima formal antara dua pihak atas pekerjaan, barang, atau jasa."
             >
-                {canManage && <Button onClick={() => setOpen(true)}><Plus className="h-4 w-4" /> Buat BAST</Button>}
+                {canManage && <Button onClick={() => setOpen(true)}><Plus className="h-4 w-4" /> New BAST</Button>}
             </PageHeader>
 
             {flash.success && (
@@ -72,14 +72,14 @@ export default function HandoverRecordsIndex({
                 <FilterBar.Search
                     value={search}
                     onChange={(e) => { setSearch(e.target.value); apply({ search: e.target.value }); }}
-                    placeholder="Cari nomor, perihal, atau pihak kedua..."
+                    placeholder="Search number, subject, or second party..."
                 />
                 <select
                     value={filters.handover_type || ''}
                     onChange={(e) => apply({ handover_type: e.target.value || null })}
                     className="h-9 rounded-md border border-steel-200 bg-white px-3 text-sm text-navy-900"
                 >
-                    <option value="">Semua jenis</option>
+                    <option value="">All types</option>
                     {types.map((t) => <option key={t.value} value={t.value}>{t.label}</option>)}
                 </select>
                 <select
@@ -87,7 +87,7 @@ export default function HandoverRecordsIndex({
                     onChange={(e) => apply({ status: e.target.value || null })}
                     className="h-9 rounded-md border border-steel-200 bg-white px-3 text-sm text-navy-900"
                 >
-                    <option value="">Semua status</option>
+                    <option value="">All statuses</option>
                     {statuses.map((s) => <option key={s} value={s}>{s}</option>)}
                 </select>
             </FilterBar>
@@ -98,7 +98,7 @@ export default function HandoverRecordsIndex({
                         <div className="p-6">
                             <EmptyState
                                 icon={FileSignature}
-                                title="Belum ada BAST"
+                                title="No BAST records yet"
                                 description="Buat Berita Acara Serah Terima ketika pekerjaan, barang, atau jasa diserahkan secara formal kepada pihak lain."
                             />
                         </div>
@@ -107,11 +107,11 @@ export default function HandoverRecordsIndex({
                             <Table>
                                 <TableHeader>
                                     <TableRow>
-                                        <TableHead>Nomor</TableHead>
-                                        <TableHead>Perihal</TableHead>
-                                        <TableHead>Jenis</TableHead>
-                                        <TableHead>Pihak Kedua</TableHead>
-                                        <TableHead>Tanggal</TableHead>
+                                        <TableHead>Number</TableHead>
+                                        <TableHead>Subject</TableHead>
+                                        <TableHead>Type</TableHead>
+                                        <TableHead>Second Party</TableHead>
+                                        <TableHead>Date</TableHead>
                                         <TableHead>Status</TableHead>
                                     </TableRow>
                                 </TableHeader>

@@ -2014,7 +2014,6 @@ function FieldPtwAccessCard({ users, ptwAccess, canFieldAccess }) {
     const [search, setSearch] = useState('');
     const used = ptwAccess?.used ?? 0;
     const quota = ptwAccess?.quota ?? null;
-    const quotaReached = quota !== null && used >= quota;
 
     const filtered = users.filter((u) => {
         const q = search.trim().toLowerCase();
@@ -2023,10 +2022,7 @@ function FieldPtwAccessCard({ users, ptwAccess, canFieldAccess }) {
     });
 
     function toggle(user, next) {
-        if (next && quotaReached && !user.ptw_access) {
-            alert('Kuota pengguna PTW paket Anda telah tercapai.');
-            return;
-        }
+        // v2.53.0: no quota gate. PTW Access is a permission, not a seat.
         router.put(route('settings.users.ptw-access', user.id), { ptw_access: next }, { preserveScroll: true });
     };
 
@@ -2045,16 +2041,14 @@ function FieldPtwAccessCard({ users, ptwAccess, canFieldAccess }) {
                         deliberately verbatim, not paraphrased. */}
                     <CardDescription>User yang diizinkan membuat pengajuan PTW.</CardDescription>
                 </div>
-                <Badge variant={quotaReached ? 'warning' : 'outline'} className="w-fit shrink-0">
-                    PTW Access {used}{quota !== null ? ` / ${quota}` : ''} {quota !== null ? 'users' : ''}
+                {/* v2.53.0: a count, not a quota. PTW Access is a permission
+                    granted to existing accounts, not a purchased allowance. */}
+                <Badge variant="outline" className="w-fit shrink-0">
+                    PTW Access · {used} {used === 1 ? 'account' : 'accounts'}
                 </Badge>
             </CardHeader>
             <CardContent className="p-0">
-                {quotaReached && (
-                    <div className="mx-4 mb-3 rounded-md border border-amber-200 bg-amber-50 px-3 py-2 text-xs text-amber-800 dark:border-amber-900 dark:bg-amber-950/30 dark:text-amber-300">
-                        Kuota pengguna PTW paket Anda telah tercapai. Nonaktifkan salah satu pengguna, atau hubungi penyedia layanan untuk meningkatkan paket.
-                    </div>
-                )}
+
                 <div className="px-4 pb-3">
                     <div className="relative max-w-sm">
                         <Search className="pointer-events-none absolute left-2.5 top-1/2 h-3.5 w-3.5 -translate-y-1/2 text-graphite-400" />

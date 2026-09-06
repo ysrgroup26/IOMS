@@ -3,7 +3,42 @@
 House style, and a deliberately honest list of mistakes that have actually happened in this
 codebase's history — kept here so they don't get repeated in a slightly different shape.
 
-## CRITICAL — Known Pitfall (v2.52.0): giving two different business concepts ONE name is a data
+## CRITICAL — Known Pitfall (v2.53.0): a UNIQUE index and a per-tenant counter are a contradiction,
+## and it stays invisible until the second tenant exists
+
+Counters became per-tenant in v2.41.0. Fourteen document-number columns kept a **global** `unique()`
+from before multi-tenancy. Both cannot be true: every tenant's counter starts at 1, so every tenant's
+first permit is `PTW-YYYY-00001`, and a global index means only the first tenant in the database can
+ever have it.
+
+The consequence was not cosmetic. **The second customer to sign up could not create their first
+Permit To Work, Material Request, Purchase Order or Task at all** — the insert failed on a duplicate
+key. IOMS now sells self-service signup, so customer number two would have hit it on day one.
+
+It survived because every environment had exactly one tenant with real data. It surfaced the instant
+a second tenant seeded a permit. v2.41.0's own release note asserted the opposite ("confirmed no
+module number column carries a global unique constraint") — an assertion nobody could falsify with a
+single-tenant database.
+
+**Rule.** When a value is generated per tenant or per company, its uniqueness constraint must be
+scoped the same way — `unique(['company_id', 'number'])`, never `unique('number')`. And when a
+release note claims "confirmed no X exists", confirm it with a query against the schema, not by
+reading migrations: this is exactly the class of fact that is cheap to check and expensive to assume.
+
+```sql
+-- the check that would have caught it
+SELECT table_name, index_name, GROUP_CONCAT(column_name)
+FROM information_schema.statistics
+WHERE table_schema = DATABASE() AND non_unique = 0 AND index_name <> 'PRIMARY'
+GROUP BY table_name, index_name;
+```
+
+**Related trap, same release.** A global scope guarded on `app()->runningInConsole()` to skip queue
+and scheduler context. PHPUnit also runs in console, so the scope silently did nothing under test and
+the feature would have shipped unverified. Guard on the actual condition (here, the absence of an
+authenticated user), never on "am I in console".
+
+---## CRITICAL — Known Pitfall (v2.52.0): giving two different business concepts ONE name is a data
 ## model bug, and it hides because the code keeps working
 
 v2.51.0 shipped a document titled "Goods Receipt / Berita Acara Serah Terima Barang". Nothing broke.

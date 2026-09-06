@@ -104,7 +104,7 @@ class PackageSeeder extends Seeder
             [
                 'name' => 'Starter',
                 'slug' => 'starter',
-                'description' => 'A fully operational HSE product for a single company -- incidents, observations, inspections, PPE, PTW, CAPA, and every other HSE module, without requiring HRD.',
+                'description' => 'Complete Health, Safety & Environment for a single company -- incidents, observations, inspections, PPE, Permit To Work, CAPA and every other HSE module.',
                 // Starter -- HSE-focused access.
                 'price_monthly' => 299000,
                 'price_yearly' => 2990000,
@@ -117,7 +117,11 @@ class PackageSeeder extends Seeder
                 // comment for the full correction reasoning.
                 'max_users' => 10,
                 'max_companies' => 1,
-                'max_ptw_users' => 5,
+                // v2.53.0: PTW Access is no longer a sold capacity -- see the
+                // retire_ptw_seat_entitlement migration. Null means the
+                // entitlement layer applies no ceiling; the PERMISSION
+                // (users.ptw_access) and its server-side gate are untouched.
+                'max_ptw_users' => null,
                 'features' => ['employees', 'ppe', 'kpi_input', 'reports'],
                 'is_public' => true,
                 'is_custom' => false,
@@ -126,15 +130,18 @@ class PackageSeeder extends Seeder
             [
                 'name' => 'Professional',
                 'slug' => 'professional',
-                'description' => 'HSE plus HRD/workforce management and cross-department management visibility, for growing operations across multiple companies.',
+                'description' => 'Health, Safety & Environment plus Human Resources and cross-department Management visibility, for a single company with a growing operation.',
                 // Professional -- HSE + Management + People/HR.
                 'price_monthly' => 999000,
                 'price_yearly' => 9990000,
                 'currency' => 'IDR',
                 'trial_days' => 14,
                 'max_users' => 50,
-                'max_companies' => 5,
-                'max_ptw_users' => 20,
+                // Professional is a ONE-company plan. It had advertised five,
+                // which is neither the commercial decision nor what the tier
+                // is for -- multi-company is what Enterprise sells.
+                'max_companies' => 1,
+                'max_ptw_users' => null,
                 'features' => ['employees', 'ppe', 'kpi_input', 'reports', 'projects', 'daily_reports', 'material_requests'],
                 'is_public' => true,
                 'is_custom' => false,
@@ -143,7 +150,7 @@ class PackageSeeder extends Seeder
             [
                 'name' => 'Enterprise',
                 'slug' => 'enterprise',
-                'description' => 'Full IOMS -- every department (HSE, HRD, Project Management, Logistics/PPIC, Warehouse, Procurement, Asset Management, Maintenance, Quality Control) and unlimited users/companies.',
+                'description' => 'The full IOMS platform -- every department (Health, Safety & Environment, Human Resources, Project Management, Logistics / PPIC, Warehouse, Procurement, Assets, Maintenance, Quality Control) with multi-company access and the highest standardized capacity.',
                 // Enterprise -- the full standardized platform.
                 'price_monthly' => 1999000,
                 'price_yearly' => 19990000,

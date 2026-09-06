@@ -120,8 +120,11 @@ class SettingsController extends Controller
             // itself uses, so the displayed number can never drift from
             // what's actually enforced.
             'ptwAccess' => [
+                // v2.53.0: `used` is still shown -- an administrator wants to
+                // know how many accounts hold PTW Access. `quota` is null
+                // because there is no purchased allowance to compare it to.
                 'used' => app(EntitlementService::class)->ptwUsersUsedCount($request->user()->tenant),
-                'quota' => app(EntitlementService::class)->ptwUserQuota($request->user()->tenant),
+                'quota' => null,
             ],
             'filters' => ['company_id' => $companyId],
             'can' => [
@@ -333,7 +336,9 @@ class SettingsController extends Controller
             ] : null,
             'entitlements' => [
                 'users' => ['used' => $userCount, 'limit' => $subscription?->seatLimit()],
-                'ptw_users' => ['used' => $ptwUserCount, 'limit' => $package?->max_ptw_users],
+                // Shown for information -- how many accounts hold PTW Access
+                // -- with no limit, because it is not a purchased capacity.
+                'ptw_users' => ['used' => $ptwUserCount, 'limit' => null],
                 'companies' => ['used' => $companyCount, 'limit' => $package?->max_companies],
             ],
             'invoices' => $invoices,
@@ -1140,18 +1145,11 @@ class SettingsController extends Controller
 
         $validated = $request->validate(['ptw_access' => ['required', 'boolean']]);
 
-        DB::transaction(function () use ($user, $validated, $request) {
-            if ($validated['ptw_access'] && ! $user->ptw_access) {
-                $tenant = $request->user()->tenant;
-                // Row-lock every currently-enabled user of this tenant so a
-                // concurrent enable-request can't read the same stale count.
-                User::where('tenant_id', $tenant?->id)->where('ptw_access', true)->lockForUpdate()->get();
-                $usable = app(EntitlementService::class)->canEnablePtwAccess($tenant);
-                abort_unless($usable, 422, 'Kuota pengguna PTW paket Anda telah tercapai.');
-            }
-
-            $user->update(['ptw_access' => $validated['ptw_access']]);
-        });
+        // v2.53.0: the row-locking quota check that used to wrap this is
+        // gone with the seat allowance it enforced. The AUTHORIZATION gate
+        // above (`canManageHse()` plus the same-tenant check) is untouched,
+        // and so is every server-side check on creating a permit.
+        $user->update(['ptw_access' => $validated['ptw_access']]);
 
         ActivityLog::record('updated', 'PTW Access for user '.$user->name.' set to '.($validated['ptw_access'] ? 'enabled' : 'disabled').'.', $user);
 

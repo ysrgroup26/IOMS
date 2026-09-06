@@ -2,6 +2,7 @@
 
 namespace App\Models;
 
+use App\Models\Scopes\CompanyAuthorizationScope;
 use App\Models\Scopes\TenantScope;
 use Illuminate\Database\Eloquent\Model;
 
@@ -27,11 +28,21 @@ class Company extends Model
     protected static function booted(): void
     {
         static::addGlobalScope(new TenantScope);
+        // v2.53.0: narrows further to the companies THIS user is
+        // authorized for, when any grants exist. Only ever removes rows --
+        // see CompanyAuthorizationScope for why "no grants" means "all".
+        static::addGlobalScope(new CompanyAuthorizationScope);
     }
 
     public function tenant()
     {
         return $this->belongsTo(Tenant::class);
+    }
+
+    /** v2.53.0: users explicitly authorized for this company (multi-company Enterprise). */
+    public function authorizedUsers()
+    {
+        return $this->belongsToMany(User::class);
     }
 
     public function departments()

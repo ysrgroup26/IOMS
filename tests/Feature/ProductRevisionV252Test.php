@@ -47,7 +47,7 @@ class ProductRevisionV252Test extends TestCase
     }
 
     /* ================================================================
-     * 1. CAPACITY MODEL: PTW Access is a subset of Users, not an add-on
+     * 1. CAPACITY MODEL: TOTAL USERS. PTW Access is not a sold seat.
      * ================================================================ */
 
     public function test_the_launch_catalog_has_the_approved_prices_and_capacity(): void
@@ -55,9 +55,10 @@ class ProductRevisionV252Test extends TestCase
         $this->seed(\Database\Seeders\PackageSeeder::class);
 
         $expected = [
-            'starter' => ['monthly' => 299000, 'yearly' => 2990000, 'users' => 10, 'ptw' => 5],
-            'professional' => ['monthly' => 999000, 'yearly' => 9990000, 'users' => 50, 'ptw' => 20],
-            'enterprise' => ['monthly' => 1999000, 'yearly' => 19990000, 'users' => null, 'ptw' => null],
+            'starter' => ['monthly' => 299000, 'yearly' => 2990000, 'users' => 10, 'companies' => 1],
+            'professional' => ['monthly' => 999000, 'yearly' => 9990000, 'users' => 50, 'companies' => 1],
+            // Enterprise is the multi-company tier: null = no ceiling.
+            'enterprise' => ['monthly' => 1999000, 'yearly' => 19990000, 'users' => null, 'companies' => null],
         ];
 
         foreach ($expected as $slug => $e) {
@@ -66,27 +67,44 @@ class ProductRevisionV252Test extends TestCase
             $this->assertEquals($e['monthly'], (float) $package->price_monthly, "{$slug} monthly");
             $this->assertEquals($e['yearly'], (float) $package->price_yearly, "{$slug} yearly");
             $this->assertSame($e['users'], $package->max_users, "{$slug} max_users");
-            $this->assertSame($e['ptw'], $package->max_ptw_users, "{$slug} max_ptw_users");
+            $this->assertSame($e['companies'], $package->max_companies, "{$slug} max_companies");
             $this->assertFalse((bool) $package->is_custom, "{$slug} is a standardized plan");
         }
     }
 
     /**
-     * THE INVARIANT. PTW Access is a permission on an account that already
-     * exists, so a plan can never allow more PTW seats than login accounts
-     * -- it would be selling a quota the tenant could not physically reach.
+     * v2.53.0 -- PTW Access is NOT a purchasable capacity.
+     *
+     * It had been a second seat pool alongside `max_users`, so every plan
+     * card read as two numbers a buyer then had to reconcile. Capacity is
+     * one number now, and no plan may carry a PTW ceiling.
      */
-    public function test_no_plan_allows_more_ptw_seats_than_user_accounts(): void
+    public function test_no_plan_sells_ptw_access_as_a_capacity(): void
     {
         $this->seed(\Database\Seeders\PackageSeeder::class);
 
-        foreach (Package::whereNotNull('max_users')->whereNotNull('max_ptw_users')->get() as $package) {
-            $this->assertLessThanOrEqual(
-                $package->max_users,
+        foreach (Package::all() as $package) {
+            $this->assertNull(
                 $package->max_ptw_users,
-                "{$package->slug}: PTW Access seats are a SUBSET of user accounts, never an additional pool."
+                "{$package->slug}: PTW Access is an internal permission, not a sold seat allowance."
             );
         }
+
+        // The entitlement layer agrees: granting PTW Access is never refused
+        // for want of an allowance.
+        $entitlements = app(\App\Services\EntitlementService::class);
+        $this->assertNull($entitlements->ptwUserQuota(null));
+        $this->assertTrue($entitlements->canEnablePtwAccess(null));
+    }
+
+    /** Professional is a ONE-company plan; multi-company is what Enterprise sells. */
+    public function test_only_enterprise_is_multi_company(): void
+    {
+        $this->seed(\Database\Seeders\PackageSeeder::class);
+
+        $this->assertSame(1, Package::where('slug', 'starter')->value('max_companies'));
+        $this->assertSame(1, Package::where('slug', 'professional')->value('max_companies'));
+        $this->assertNull(Package::where('slug', 'enterprise')->value('max_companies'));
     }
 
     /** The capacity migration alone must produce the catalog on an already-seeded deployment. */
@@ -106,15 +124,18 @@ class ProductRevisionV252Test extends TestCase
             'is_active' => true, 'is_public' => false, 'is_custom' => false,
         ]);
 
+        // Both pricing migrations, in deploy order: v2.52.0 set the
+        // catalog, v2.53.0 retired the PTW seat allowance on top of it.
         (require database_path('migrations/2026_09_18_100230_standardize_plan_capacity_and_launch_pricing.php'))->up();
+        (require database_path('migrations/2026_09_19_100240_retire_ptw_seat_entitlement.php'))->up();
 
         $starter = Package::where('slug', 'starter')->firstOrFail();
         $this->assertEquals(299000, (float) $starter->price_monthly);
         $this->assertSame(10, $starter->max_users);
-        $this->assertSame(5, $starter->max_ptw_users, 'A null PTW allowance means UNLIMITED to the entitlement layer.');
+        $this->assertNull($starter->max_ptw_users, 'PTW Access is no longer a sold capacity.');
 
         $custom = Package::where('slug', 'legacy-custom')->firstOrFail();
-        $this->assertSame(5, $custom->max_ptw_users, 'A custom plan violating the subset rule is clamped to its user cap.');
+        $this->assertNull($custom->max_ptw_users, 'A custom plan loses its PTW ceiling too -- it is not sold any more.');
         $this->assertEquals(100, (float) $custom->price_monthly, 'A custom plan keeps its own price.');
     }
 
@@ -201,7 +222,7 @@ class ProductRevisionV252Test extends TestCase
         $permit = new PermitToWork([
             'company_id' => $company->id,
             'project_id' => null,
-            'project_name' => 'Docking MV Sinar Mas',
+            'work_reference' => 'Docking MV Sinar Mas',
             'location' => 'Graving Dock 2',
         ]);
 
@@ -218,7 +239,7 @@ class ProductRevisionV252Test extends TestCase
 
         $project = Project::create(['company_id' => $company->id, 'name' => 'Newbuild Hull 118']);
 
-        $permit = new PermitToWork(['company_id' => $company->id, 'project_id' => $project->id, 'project_name' => 'ignored']);
+        $permit = new PermitToWork(['company_id' => $company->id, 'project_id' => $project->id, 'work_reference' => 'ignored']);
         $permit->setRelation('project', $project);
 
         $this->assertSame('Newbuild Hull 118', $permit->workIdentity());

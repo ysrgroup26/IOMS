@@ -299,6 +299,13 @@ class HandleInertiaRequests extends Middleware
                 'whats_new' => config('ioms.whats_new'),
                 'history' => config('ioms.version_history'),
             ],
+            // v2.53.0: the IOMS Sandbox. A visitor must always know they
+            // are in a demonstration company and not their own workspace --
+            // an unlabelled demo is how someone ends up entering real data
+            // into it, or quoting demo numbers in a meeting.
+            'sandbox' => [
+                'active' => app(\App\Support\CurrentTenant::class)->get()?->isDemo() ?? false,
+            ],
             'flash' => [
                 'success' => fn () => $request->session()->get('success'),
                 'error' => fn () => $request->session()->get('error'),

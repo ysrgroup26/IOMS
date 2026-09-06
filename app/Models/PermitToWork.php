@@ -52,7 +52,7 @@ class PermitToWork extends Model
     ];
 
     protected $fillable = [
-        'ptw_number', 'company_id', 'project_id', 'project_name', 'risk_assessment_id', 'jsa_id',
+        'ptw_number', 'company_id', 'project_id', 'work_reference', 'risk_assessment_id', 'jsa_id',
         'permit_type', 'work_description', 'location', 'start_datetime', 'end_datetime',
         'required_qualification', 'precautions', 'requested_by', 'area_authority_id',
         // v2.17.0 (PTW Field Workflow Foundation, Part 8): PIC / Supervisor
@@ -161,14 +161,18 @@ class PermitToWork extends Model
      *
      * A formal Project Master is authoritative when one exists. When it
      * does not -- because Management has not created the row yet, or
-     * because the work genuinely is not a project -- the free-text
-     * `project_name` carries the identity instead. What must NOT happen is
-     * the permit reading "No Project" for work that plainly has a name;
-     * that is the system telling an auditor it does not know what the work
-     * was, which is untrue and unhelpful.
+     * because the work genuinely is not a project -- `work_reference`
+     * carries the identity instead. What must NOT happen is the permit
+     * reading "No Project" for work that plainly has a name; that is the
+     * system telling an auditor it does not know what the work was, which
+     * is untrue and unhelpful.
+     *
+     * v2.53.0: renamed from `project_name`, which read as "the name of the
+     * project" and left users unable to tell it apart from the Project
+     * selector directly above it.
      */
     public function workIdentity(): ?string
     {
-        return $this->project?->name ?: ($this->project_name ?: null);
+        return $this->project?->name ?: ($this->work_reference ?: null);
     }
 }

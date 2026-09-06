@@ -31,7 +31,7 @@ export default function GoodsReceiptShow({ goodsReceipt: gr, activities }) {
                 {/* v2.52.0: this is a RECEIVING document, not a Berita Acara -- see
                     pdf/goods-receipt.blade.php. Formal handover is a separate BAST. */}
                 <Button variant="outline" asChild>
-                    <a href={route('goods-receipts.pdf', gr.id)} target="_blank" rel="noreferrer"><Printer className="h-4 w-4" /> Cetak Penerimaan</a>
+                    <a href={route('goods-receipts.pdf', gr.id)} target="_blank" rel="noreferrer"><Printer className="h-4 w-4" /> Print Goods Receipt</a>
                 </Button>
             </PageHeader>
 

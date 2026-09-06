@@ -4,6 +4,7 @@ import {
     LogOut, Menu, X,
     Bell, User as UserIcon, ChevronDown, Sun, Moon, ChevronRight,
     ClipboardCheck, CheckSquare, HardHat, Inbox, Lock, LayoutDashboard, CalendarDays,
+    FlaskConical,
 } from 'lucide-react';
 import { cn } from '@/lib/utils';
 import { useClock } from '@/lib/useClock';
@@ -444,6 +445,12 @@ export default function AuthenticatedLayout({ children }) {
                     MobileBottomNav below never covers the last bit of
                     page content -- unchanged at lg: and up, where the
                     bottom nav doesn't render at all. */}
+                {/* v2.53.0 -- the Sandbox must never be mistaken for a real
+                    workspace. An unlabelled demo is how someone ends up
+                    entering real data into it, or quoting demo numbers in a
+                    meeting. Persistent, above the content, on every page. */}
+                <SandboxBanner />
+
                 <main className="p-5 pb-24 lg:p-8 lg:pb-8">{children}</main>
             </div>
 
@@ -468,15 +475,23 @@ function TopBar({ onOpenSidebar, isDepartmentUser, departments, activeWorkspace,
     const now = useClock();
     const { theme, toggleTheme } = useTheme();
 
-    // v2.36.0 (Visual System 2.0, Part 8): a faint blue-tinted backdrop
-    // (was plain bg-white/80) so the header integrates with the rest of
-    // the new tinted-workspace system instead of being one more isolated
-    // white bar -- still translucent/backdrop-blur, still reads as
-    // chrome, not a data surface.
+    // v2.53.0 -- ONE APPLICATION SHELL.
+    //
+    // The rail is navy, the Dashboard hero is navy, and the header
+    // between them was a near-white bar, so the top of every page read as
+    // a different product from the side of it. It now carries the same
+    // navy identity, which also means the shell no longer changes
+    // character from page to page -- the header belongs to IOMS, not to
+    // whichever screen happens to be open.
+    //
+    // Deliberately the DEEPEST navy in the ladder rather than a second
+    // hero: it is chrome, so it stays flat, quiet and translucent, and
+    // page content keeps its light surfaces. Controls inside flip to
+    // light-on-dark below for the same reason.
     return (
-        <header className="sticky top-0 z-30 flex h-14 items-center gap-2 border-b border-steel-200/70 bg-white/85 bg-gradient-to-r from-steel-50/80 via-white/85 to-white/85 px-3 shadow-sm backdrop-blur sm:gap-3 sm:px-5 dark:border-slate-800 dark:bg-slate-950/80">
+        <header className="sticky top-0 z-30 flex h-14 items-center gap-2 border-b border-navy-800 bg-navy-900/95 px-3 shadow-sm backdrop-blur sm:gap-3 sm:px-5 dark:border-slate-800 dark:bg-slate-950/90">
             <button className="lg:hidden" onClick={onOpenSidebar}>
-                <Menu className="h-5 w-5 text-graphite-500" />
+                <Menu className="h-5 w-5 text-navy-300" />
             </button>
 
             {/* Dashboard: the Global Dashboard, NOT a Department -- always
@@ -494,7 +509,7 @@ function TopBar({ onOpenSidebar, isDepartmentUser, departments, activeWorkspace,
                 nav is not rendered. */}
             <Link
                 href={route('dashboard')}
-                className="hidden h-8 items-center gap-1.5 rounded-md px-2.5 text-xs font-medium text-graphite-600 transition-colors hover:bg-graphite-50 sm:flex dark:text-slate-300 dark:hover:bg-slate-800"
+                className="hidden h-8 items-center gap-1.5 rounded-md px-2.5 text-xs font-medium text-navy-200 transition-colors hover:bg-white/[0.08] hover:text-white sm:flex dark:text-slate-300 dark:hover:bg-slate-800"
             >
                 <LayoutDashboard className="h-3.5 w-3.5 shrink-0" />
                 <span className="hidden sm:inline">Dashboard</span>
@@ -506,7 +521,7 @@ function TopBar({ onOpenSidebar, isDepartmentUser, departments, activeWorkspace,
                 comment), so it isn't owned by any single one of them. */}
             <Link
                 href={route('calendar.index')}
-                className="flex h-8 items-center gap-1.5 rounded-md px-2.5 text-xs font-medium text-graphite-600 transition-colors hover:bg-graphite-50 dark:text-slate-300 dark:hover:bg-slate-800"
+                className="flex h-8 items-center gap-1.5 rounded-md px-2.5 text-xs font-medium text-navy-200 transition-colors hover:bg-white/[0.08] hover:text-white dark:text-slate-300 dark:hover:bg-slate-800"
             >
                 <CalendarDays className="h-3.5 w-3.5 shrink-0" />
                 <span className="hidden sm:inline">Calendar</span>
@@ -518,10 +533,10 @@ function TopBar({ onOpenSidebar, isDepartmentUser, departments, activeWorkspace,
                 Administrators only. */}
             {!isDepartmentUser && (
                 <DropdownMenu>
-                    <DropdownMenuTrigger className="flex h-8 items-center gap-1.5 rounded-md border border-graphite-200 px-3 text-xs font-medium text-graphite-700 outline-none transition-colors hover:bg-graphite-50 dark:border-slate-700 dark:text-slate-300 dark:hover:bg-slate-800">
-                        {activeWorkspace && <activeWorkspace.icon className="h-3.5 w-3.5 shrink-0 text-graphite-400" />}
+                    <DropdownMenuTrigger className="flex h-8 items-center gap-1.5 rounded-md border border-white/15 bg-white/[0.06] px-3 text-xs font-medium text-white outline-none transition-colors hover:bg-white/[0.12] dark:border-slate-700 dark:text-slate-300 dark:hover:bg-slate-800">
+                        {activeWorkspace && <activeWorkspace.icon className="h-3.5 w-3.5 shrink-0 text-steel-300" />}
                         {activeWorkspace?.label ?? 'Department'}
-                        <ChevronDown className="h-3.5 w-3.5 text-graphite-400" />
+                        <ChevronDown className="h-3.5 w-3.5 text-steel-300" />
                     </DropdownMenuTrigger>
                     <DropdownMenuContent className="max-h-[70vh] overflow-y-auto">
                         <DropdownMenuLabel className="text-[10px] uppercase tracking-wide text-graphite-400">Departments</DropdownMenuLabel>
@@ -538,11 +553,11 @@ function TopBar({ onOpenSidebar, isDepartmentUser, departments, activeWorkspace,
 
             {/* Current Date/Time -- collapsed to a single compact line
                 (v1.9.0) to reduce topbar clutter; still live via useClock(). */}
-            <div className="hidden text-xs text-graphite-400 dark:text-slate-500 xl:block">
+            <div className="hidden text-xs text-navy-300 dark:text-slate-500 xl:block">
                 {now.toLocaleDateString('en-US', { weekday: 'short', month: 'short', day: 'numeric' })} · {now.toLocaleTimeString('en-US', { hour: 'numeric', minute: '2-digit', hour12: true })}
             </div>
 
-            <div className="hidden h-5 w-px bg-graphite-200 xl:block" />
+            <div className="hidden h-5 w-px bg-white/15 xl:block" />
 
             {/* Global Search (v1.6.3) -- real search across Employees and Projects. */}
             <GlobalSearch />
@@ -550,7 +565,7 @@ function TopBar({ onOpenSidebar, isDepartmentUser, departments, activeWorkspace,
             {DARK_MODE_ENABLED && (
                 <button
                     onClick={toggleTheme}
-                    className="rounded-md p-2 text-graphite-400 transition-colors hover:bg-graphite-100 hover:text-graphite-600"
+                    className="rounded-md p-2 text-navy-300 transition-colors hover:bg-white/[0.08] hover:text-white"
                     title={theme === 'dark' ? 'Switch to light mode' : 'Switch to dark mode'}
                 >
                     {theme === 'dark' ? <Sun className="h-[18px] w-[18px]" /> : <Moon className="h-[18px] w-[18px]" />}
@@ -562,20 +577,20 @@ function TopBar({ onOpenSidebar, isDepartmentUser, departments, activeWorkspace,
 
             {/* Profile menu: identity + About + Logout */}
             <DropdownMenu>
-                <DropdownMenuTrigger className="flex min-w-0 max-w-[180px] items-center gap-2 rounded-lg py-1 pl-1 pr-2 outline-none transition-colors hover:bg-graphite-100 dark:hover:bg-slate-800">
-                    <div className="flex h-7 w-7 shrink-0 items-center justify-center rounded-full bg-graphite-100 text-xs font-semibold text-graphite-600 dark:bg-slate-800 dark:text-slate-300">
+                <DropdownMenuTrigger className="flex min-w-0 max-w-[180px] items-center gap-2 rounded-lg py-1 pl-1 pr-2 outline-none transition-colors hover:bg-white/[0.08] dark:hover:bg-slate-800">
+                    <div className="flex h-7 w-7 shrink-0 items-center justify-center rounded-full bg-white/[0.12] text-xs font-semibold text-white dark:bg-slate-800 dark:text-slate-300">
                         {auth?.user?.name?.charAt(0)}
                     </div>
                     <span className="hidden min-w-0 flex-col items-start sm:flex">
-                        <span className="max-w-full truncate text-sm font-medium leading-tight text-graphite-700 dark:text-slate-300">{auth?.user?.name?.split(' ')[0]}</span>
+                        <span className="max-w-full truncate text-sm font-medium leading-tight text-white dark:text-slate-300">{auth?.user?.name?.split(' ')[0]}</span>
                         {/* Milestone 3 (UAT #1/#3/#7 -- identity clarity): the
                             role is now visible in the header itself, not just
                             inside this dropdown once opened -- "Administrator"
                             vs "HSE" vs "Manager" etc. should never require a
                             click to discover. */}
-                        <span className="max-w-full truncate text-[10px] font-medium leading-tight text-brand-600 dark:text-brand-400">{auth?.user?.role_label}</span>
+                        <span className="max-w-full truncate text-[10px] font-medium leading-tight text-steel-300 dark:text-brand-400">{auth?.user?.role_label}</span>
                     </span>
-                    <ChevronDown className="hidden h-3.5 w-3.5 text-graphite-400 dark:text-slate-500 sm:block" />
+                    <ChevronDown className="hidden h-3.5 w-3.5 text-steel-300 dark:text-slate-500 sm:block" />
                 </DropdownMenuTrigger>
                 <DropdownMenuContent>
                     <DropdownMenuLabel>{auth?.user?.name}</DropdownMenuLabel>
@@ -606,6 +621,40 @@ function TopBar({ onOpenSidebar, isDepartmentUser, departments, activeWorkspace,
  * system-detected conditions, not work assigned to a person, and the
  * split reads more honestly once both exist side by side.
  */
+
+/**
+ * v2.53.0 -- the IOMS Sandbox banner.
+ *
+ * Renders only inside the demo tenant. It states three things a visitor
+ * needs to know and would otherwise have to infer: this is a
+ * demonstration company, most actions are read-only, and here is how to
+ * get a real workspace.
+ */
+function SandboxBanner() {
+    const { sandbox } = usePage().props;
+
+    if (! sandbox?.active) {
+        return null;
+    }
+
+    return (
+        <div className="flex flex-wrap items-center justify-between gap-2 border-b border-brand-800 bg-gradient-to-r from-navy-900 to-brand-800 px-5 py-2 text-xs text-white lg:px-8">
+            <span className="flex items-center gap-2">
+                <FlaskConical className="h-3.5 w-3.5 shrink-0 text-steel-300" />
+                <span>
+                    <strong className="font-semibold">IOMS Sandbox</strong>
+                    <span className="text-navy-200"> — demonstration company with sample data. Most actions are read-only.</span>
+                </span>
+            </span>
+            <a
+                href="/pricing"
+                className="rounded-md bg-white/[0.12] px-2.5 py-1 font-medium text-white transition-colors hover:bg-white/[0.2]"
+            >
+                Get your own workspace
+            </a>
+        </div>
+    );
+}
 function WorkCenterMenu() {
     const { work_center: workCenter } = usePage().props;
     const approvalsCount = workCenter?.approvals_count ?? 0;
@@ -707,7 +756,7 @@ function NotificationsMenu() {
     return (
         <DropdownMenu>
             <DropdownMenuTrigger
-                className="relative rounded-md p-2 text-graphite-400 outline-none transition-colors hover:bg-graphite-100 hover:text-graphite-600 dark:hover:bg-slate-800"
+                className="relative rounded-md p-2 text-navy-300 outline-none transition-colors hover:bg-white/[0.08] hover:text-white dark:hover:bg-slate-800"
                 title={badgeCount > 0 ? `${badgeCount} notification(s)` : 'No notifications'}
             >
                 <Bell className="h-[18px] w-[18px]" />

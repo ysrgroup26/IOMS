@@ -123,6 +123,49 @@ actually renders; anything there that looks dated is dated on purpose.
 **Documents on this system**: Purchase Order (Surat Pesanan), Purchase Requisition (FPB), Goods
 Receipt (BAST), Work Order (SPK), plus the existing Permit To Work.
 
+### Per-company authorization inside a tenant (v2.53.0)
+
+Enterprise sells multi-company: one customer running GAJ and MTC in one workspace. `TenantScope`
+narrows Company to the tenant; `CompanyAuthorizationScope` narrows it further to the companies the
+**authenticated user** is authorized for, via the `company_user` pivot.
+
+Because practically every downstream query resolves its own scope through
+`Company::query()->pluck('id')`, narrowing Company propagates to employees, permits, purchase orders
+and the rest — the same transitive-isolation property TenantScope already relies on.
+
+**The default is "no grants = all companies in the tenant."** Every existing user has no grants, so
+upgrading changes nothing; authorization becomes real the moment an administrator grants a user their
+first company. It only ever removes access.
+
+### IOMS Sandbox (v2.53.0)
+
+A product **demonstration**, deliberately not a free trial — there is no free production tenant, and
+the purchase path is unchanged.
+
+The Sandbox is a **real tenant** flagged `tenants.is_demo`, seeded by `DemoTenantSeeder`, so it
+inherits every boundary the product already enforces (TenantScope, RBAC, PTW authorization,
+entitlements). `SandboxController::enter` signs a visitor in as an ordinary tenant user that already
+exists; it grants nothing and refuses if the tenant has not been seeded.
+
+`RestrictDemoTenant` adds the one property a *shared* demo needs: read-mostly. Writes are refused
+outside a short **allow-list** (not a deny-list — a destructive route added later is refused by
+default), and Settings, billing and the platform surface are refused entirely.
+
+Entitlements are deliberately partial, so locked modules in the demo are locked by the real
+entitlement mechanism rather than a mock-up.
+
+### Equipment Master vs Equipment Register (v2.53.0)
+
+| | Equipment Master (`hse_equipment_types`) | Equipment Register (`safety_equipment`) |
+|---|---|---|
+| Holds | Types: Gas Detector, Fire Extinguisher | Units: GD-001, FE-002 |
+| Answers | "What kinds do we define?" | "Which do we own?" |
+| Carries | Which lifecycles apply, default interval, code prefix | The dates for the lifecycles that apply |
+
+**Which lifecycles apply is a property of the TYPE, not the unit** — a gas detector is calibrated, a
+fire extinguisher expires, a blower is serviced. `tracks_inspection` / `tracks_calibration` /
+`tracks_service` / `tracks_expiry` on the master drive which date fields the register asks for, so
+equipment never carries a date it has no business having.
 ### BAST vs Goods Receipt — two documents, not two names for one (v2.52.0)
 
 These were briefly collapsed into one document and separating them again is

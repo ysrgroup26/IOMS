@@ -130,10 +130,20 @@ export default function Billing({ subscription, entitlements, invoices = [], rec
                     <CardHeader><CardTitle>Capacity in use</CardTitle></CardHeader>
                     <CardContent className="space-y-4">
                         <Meter icon={Users} label="User accounts" {...entitlements.users} />
-                        <Meter icon={ShieldCheck} label="PTW access" {...entitlements.ptw_users} />
                         <Meter icon={Building2} label="Companies" {...entitlements.companies} />
+                        {/* v2.53.0: PTW Access is shown as a COUNT, not a meter.
+                            It is a permission granted inside IOMS, not a
+                            purchased allowance, so there is no limit to fill. */}
+                        <div className="flex items-center justify-between gap-2 border-t border-steel-100 pt-3">
+                            <span className="flex items-center gap-1.5 text-xs font-medium text-graphite-600">
+                                <ShieldCheck className="h-3.5 w-3.5 text-graphite-400" />
+                                PTW Access granted
+                            </span>
+                            <span className="text-xs font-semibold text-navy-900">{entitlements.ptw_users?.used ?? 0}</span>
+                        </div>
                         <p className="text-[11px] leading-relaxed text-graphite-400">
                             Counted live from this workspace. A blank limit means the plan does not cap it.
+                            PTW Access is a permission you grant to existing accounts — it is not a purchased seat.
                         </p>
                     </CardContent>
                 </Card>

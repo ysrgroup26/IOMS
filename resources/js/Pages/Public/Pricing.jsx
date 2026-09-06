@@ -43,19 +43,19 @@ export default function Pricing({ plans = [], contactEmail }) {
                 <div className="pointer-events-none absolute -right-40 -top-40 -z-10 h-[32rem] w-[32rem] rounded-full bg-steel-500 opacity-[0.14] blur-3xl" aria-hidden="true" />
 
                 <div className="mx-auto max-w-3xl px-4 text-center sm:px-6">
-                    <p className="text-xs font-semibold uppercase tracking-[0.2em] text-steel-300">Paket</p>
+                    <p className="text-xs font-semibold uppercase tracking-[0.2em] text-steel-300">Pricing</p>
                     <h1 className="mt-3 text-3xl font-semibold leading-tight tracking-tight sm:text-4xl">
-                        Paket standar untuk operasi industri.
+                        Standardized plans for industrial operations.
                     </h1>
                     <p className="mx-auto mt-4 max-w-xl text-sm leading-relaxed text-navy-300 sm:text-base">
-                        Satu produk yang terus disempurnakan untuk semua pelanggan. Ketiga paket adalah platform
-                        IOMS yang sama — yang berbeda hanya luas akses dan kapasitasnya, bukan versinya.
+                        One product, improved for every customer. All three plans are the same IOMS platform — what
+                        differs is breadth of access and capacity, not the build.
                     </p>
 
                     <div className="mt-8 inline-flex items-center gap-1 rounded-full border border-white/10 bg-white/[0.06] p-1" role="group" aria-label="Billing cycle">
                         {[
-                            { key: false, label: 'Bulanan' },
-                            { key: true, label: 'Tahunan' },
+                            { key: false, label: 'Monthly' },
+                            { key: true, label: 'Annual' },
                         ].map((opt) => (
                             <button
                                 key={opt.label}
@@ -77,7 +77,7 @@ export default function Pricing({ plans = [], contactEmail }) {
             <section className="bg-graphite-100 py-14 sm:py-20">
                 <div className="mx-auto max-w-6xl px-4 sm:px-6">
                     {plans.length === 0 ? (
-                        <p className="text-center text-sm text-graphite-500">Informasi paket belum tersedia saat ini.</p>
+                        <p className="text-center text-sm text-graphite-500">Plan information is not available right now.</p>
                     ) : (
                         <div className="grid grid-cols-1 gap-5 md:grid-cols-3">
                             {plans.map((plan) => {
@@ -103,8 +103,8 @@ export default function Pricing({ plans = [], contactEmail }) {
                                                 {price?.formatted ?? '—'}
                                             </p>
                                             <p className="mt-1.5 text-[11px] uppercase tracking-wide text-graphite-400">
-                                                per {yearly ? 'tahun' : 'bulan'}
-                                                {saving > 0 && <span className="ml-1 font-semibold text-success">· hemat {saving}% dibanding bulanan</span>}
+                                                per {yearly ? 'year' : 'month'}
+                                                {saving > 0 && <span className="ml-1 font-semibold text-success">· {saving}% less than monthly</span>}
                                             </p>
                                         </div>
 
@@ -113,25 +113,18 @@ export default function Pricing({ plans = [], contactEmail }) {
                                             so the page can never advertise capacity the
                                             entitlement layer would not actually grant. */}
                                         <ul className="mt-5 space-y-2 border-t border-steel-100 pt-5">
+                                            {/* v2.53.0: capacity is ONE number. PTW Access used to
+                                                appear here as a second allowance, which a buyer then
+                                                had to reconcile against the first ("10 users and 5
+                                                PTW Access -- is that fifteen?"). It is not sold any
+                                                more; it is an internal permission. */}
                                             <li className="flex items-start gap-2 text-xs text-graphite-600">
                                                 <Check className="mt-0.5 h-3.5 w-3.5 shrink-0 text-success" />
-                                                <span>{plan.max_users ? `${plan.max_users} akun pengguna (Users)` : 'Kapasitas pengguna standar tertinggi'}</span>
-                                            </li>
-                                            {/* PTW Access is a PERMISSION on an account that already
-                                                exists, never an extra pool of accounts. Spelled out
-                                                here because "10 Users / 5 PTW Access" is otherwise
-                                                read by some buyers as fifteen accounts. */}
-                                            <li className="flex items-start gap-2 text-xs text-graphite-600">
-                                                <Check className="mt-0.5 h-3.5 w-3.5 shrink-0 text-success" />
-                                                <span>
-                                                    {plan.max_ptw_users
-                                                        ? `${plan.max_ptw_users} di antaranya dapat diberi PTW Access`
-                                                        : 'PTW Access untuk seluruh akun'}
-                                                </span>
+                                                <span>{plan.max_users ? `${plan.max_users} user accounts` : 'Highest standardized user capacity'}</span>
                                             </li>
                                             <li className="flex items-start gap-2 text-xs text-graphite-600">
                                                 <Check className="mt-0.5 h-3.5 w-3.5 shrink-0 text-success" />
-                                                <span>{plan.max_companies ? `${plan.max_companies} perusahaan` : 'Multi-perusahaan'}</span>
+                                                <span>{plan.max_companies ? `${plan.max_companies} company` : 'Multi-company access'}</span>
                                             </li>
                                             {(plan.workspaces ?? []).slice(0, 6).map((w) => (
                                                 <li key={w} className="flex items-start gap-2 text-xs text-graphite-600">
@@ -144,7 +137,7 @@ export default function Pricing({ plans = [], contactEmail }) {
                                         <div className="mt-6 pt-1">
                                             <Button className="w-full" asChild>
                                                 <Link href={`${route('get-started')}?plan=${plan.slug}&cycle=${yearly ? 'yearly' : 'monthly'}`}>
-                                                    Pilih paket ini <ArrowRight className="h-4 w-4" />
+                                                    Choose this plan <ArrowRight className="h-4 w-4" />
                                                 </Link>
                                             </Button>
                                         </div>
@@ -159,21 +152,25 @@ export default function Pricing({ plans = [], contactEmail }) {
                             <ShieldCheck className="h-4 w-4" />
                         </span>
                         <p className="text-xs leading-relaxed text-graphite-600">
-                            Setiap paket adalah platform IOMS standar yang sama. Kami membangun satu kali dan
-                            menyempurnakannya untuk semua pelanggan — tidak ada pengembangan khusus per
-                            perusahaan, dan tidak ada paket seumur hidup. <strong className="text-navy-800">Users</strong>{' '}
-                            adalah jumlah akun login, dan <strong className="text-navy-800">PTW Access</strong> adalah
-                            berapa akun di antaranya yang boleh membuat Permit To Work — bukan tambahan akun.
+                            Every plan is the same standardized IOMS platform. We build once and improve it for
+                            everyone — no per-company custom development, and no lifetime plan.
+                            <strong className="text-navy-800"> Users</strong> is the number of login accounts included.
+                            Permissions such as PTW Access are granted to those accounts inside IOMS at no extra cost.
                         </p>
                     </div>
 
                     <p className="mt-6 text-center text-xs text-graphite-500">
-                        Sudah punya akun IOMS?{' '}
-                        <Link href={route('login')} className="font-medium text-brand-700 hover:underline">Masuk</Link>
+                        Not sure yet?{' '}
+                        <Link href={route('sandbox')} className="font-medium text-brand-700 hover:underline">Try the Sandbox</Link>
+                        {' '}first &middot;{' '}
+                    </p>
+                    <p className="mt-2 text-center text-xs text-graphite-500">
+                        Already have an IOMS account?{' '}
+                        <Link href={route('login')} className="font-medium text-brand-700 hover:underline">Sign in</Link>
                         {contactEmail && (
                             <>
                                 {' · '}
-                                <a href={`mailto:${contactEmail}`} className="font-medium text-brand-700 hover:underline">Hubungi kami</a>
+                                <a href={`mailto:${contactEmail}`} className="font-medium text-brand-700 hover:underline">Talk to us</a>
                             </>
                         )}
                     </p>

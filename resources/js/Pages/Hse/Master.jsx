@@ -11,7 +11,7 @@ import { Table, TableHeader, TableBody, TableRow, TableHead, TableCell } from '@
 import { Select, SelectTrigger, SelectValue, SelectContent, SelectItem } from '@/Components/ui/select';
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogFooter } from '@/Components/ui/dialog';
 import { Checkbox } from '@/Components/ui/checkbox';
-import { Plus, Pencil, Trash2, AlertCircle, HardHat, ClipboardList, ShieldAlert, Package } from 'lucide-react';
+import { Plus, Pencil, Trash2, AlertCircle, HardHat, ClipboardList, ShieldAlert, Package , ListChecks } from 'lucide-react';
 import { cn } from '@/lib/utils';
 
 /**
@@ -47,7 +47,14 @@ import { cn } from '@/lib/utils';
  * moves and groups them.
  */
 const TABS = [
-    { key: 'equipment', label: 'Safety Equipment', icon: HardHat },
+    // v2.53.0 -- MASTER and REGISTER are different questions and get
+    // different tabs. The master defines TYPES (Gas Detector, Fire
+    // Extinguisher) and which lifecycles each one has; the register holds
+    // the actual units the company owns (GD-001, FE-002) with the dates
+    // that apply to them. Stacked on one tab, the type definitions were
+    // something you scrolled past to reach the equipment.
+    { key: 'register', label: 'Equipment Register', icon: HardHat },
+    { key: 'equipment-master', label: 'Equipment Master', icon: ListChecks },
     { key: 'templates', label: 'Inspection Templates', icon: ClipboardList },
     { key: 'hazards', label: 'Hazard Categories', icon: ShieldAlert },
     { key: 'supplies', label: 'HSE Supplies & Facilities', icon: Package },
@@ -93,10 +100,11 @@ export default function HseMaster({ hazardCategories, safetyEquipment, equipment
             <div className="mb-4">
                 <h1 className="text-[22px] font-semibold tracking-tight text-navy-900 dark:text-slate-50">Safety Equipment &amp; Compliance</h1>
                 <p className="mt-0.5 text-xs text-graphite-500 dark:text-slate-400">
-                    Peralatan keselamatan yang wajib diinspeksi (APAR, P3K, HT, safety cone, dll.) di Safety Equipment
-                    Register, dan data referensi lain (kategori, template, tipe) yang dipakai modul HSE lainnya.
-                    Aktivitas harian (mencatat insiden, menjalankan inspeksi, mengeluarkan APD) tetap dilakukan
-                    di halaman modulnya masing-masing, bukan di sini.
+                    Equipment Master mendefinisikan JENIS peralatan beserta siklus yang berlaku baginya;
+                    Equipment Register berisi unit yang benar-benar dimiliki perusahaan (GD-001, FE-002)
+                    beserta tanggal inspeksi, kalibrasi, servis, atau kedaluwarsanya. Aktivitas harian
+                    (mencatat insiden, menjalankan inspeksi, mengeluarkan APD) tetap dilakukan di halaman
+                    modulnya masing-masing, bukan di sini.
                 </p>
             </div>
 
@@ -119,11 +127,11 @@ export default function HseMaster({ hazardCategories, safetyEquipment, equipment
             </div>
 
             <div className="space-y-4">
-                {activeTab === 'equipment' && (
-                    <>
-                        <EquipmentTypesSection equipmentTypes={equipmentTypes} companies={companies} can={can} />
-                        <SafetyEquipmentSection safetyEquipment={safetyEquipment} equipmentTypes={equipmentTypes} assets={assets} companies={companies} can={can} />
-                    </>
+                {activeTab === 'register' && (
+                    <SafetyEquipmentSection safetyEquipment={safetyEquipment} equipmentTypes={equipmentTypes} assets={assets} companies={companies} can={can} />
+                )}
+                {activeTab === 'equipment-master' && (
+                    <EquipmentTypesSection equipmentTypes={equipmentTypes} companies={companies} can={can} />
                 )}
                 {activeTab === 'templates' && (
                     <ChecklistTemplatesSection checklistTemplates={checklistTemplates} inspectionTypes={inspectionTypes} companies={companies} can={can} />

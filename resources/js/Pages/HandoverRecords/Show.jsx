@@ -29,7 +29,7 @@ export default function HandoverRecordShow({ record, canManage }) {
             <Head title={record.bast_number} />
 
             <Link href={route('handover-records.index')} className="mb-4 inline-flex items-center gap-1 text-sm text-graphite-500 hover:text-graphite-800">
-                <ArrowLeft className="h-4 w-4" /> Kembali ke BAST
+                <ArrowLeft className="h-4 w-4" /> Back to BAST
             </Link>
 
             <PageHeader
@@ -39,11 +39,11 @@ export default function HandoverRecordShow({ record, canManage }) {
             >
                 <Button variant="outline" asChild>
                     <a href={route('handover-records.pdf', record.id)} target="_blank" rel="noreferrer">
-                        <Printer className="h-4 w-4" /> Cetak BAST
+                        <Printer className="h-4 w-4" /> Print BAST
                     </a>
                 </Button>
                 {canManage && record.status !== 'accepted' && (
-                    <Button onClick={accept}><CheckCircle2 className="h-4 w-4" /> Tandai Diterima</Button>
+                    <Button onClick={accept}><CheckCircle2 className="h-4 w-4" /> Mark Accepted</Button>
                 )}
             </PageHeader>
 
@@ -88,16 +88,16 @@ export default function HandoverRecordShow({ record, canManage }) {
                 </Card>
 
                 <Card>
-                    <CardHeader><CardTitle>Rincian</CardTitle></CardHeader>
+                    <CardHeader><CardTitle>Details</CardTitle></CardHeader>
                     <CardContent>
                         <dl className="space-y-3">
-                            <Row label="Nomor" value={record.bast_number} />
-                            <Row label="Jenis" value={record.type_label} />
-                            <Row label="Tanggal" value={fmt(record.handover_date)} />
-                            <Row label="Referensi" value={record.reference_number} />
-                            <Row label="Perusahaan" value={record.company_name} />
-                            <Row label="Dibuat oleh" value={record.creator_name} />
-                            <Row label="Diterima" value={record.accepted_at ? fmt(record.accepted_at) : null} />
+                            <Row label="Number" value={record.bast_number} />
+                            <Row label="Type" value={record.type_label} />
+                            <Row label="Date" value={fmt(record.handover_date)} />
+                            <Row label="Reference" value={record.reference_number} />
+                            <Row label="Company" value={record.company_name} />
+                            <Row label="Created by" value={record.creator_name} />
+                            <Row label="Accepted" value={record.accepted_at ? fmt(record.accepted_at) : null} />
                         </dl>
                     </CardContent>
                 </Card>

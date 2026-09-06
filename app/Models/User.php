@@ -489,4 +489,51 @@ class User extends Authenticatable
     {
         return $this->isFieldUser() ? 'my-work' : 'dashboard';
     }
+
+    /**
+     * v2.53.0 -- companies this account is explicitly authorized for.
+     *
+     * Enterprise multi-company: one customer running GAJ and MTC in the
+     * same workspace, where not every user belongs in both.
+     */
+    public function companies()
+    {
+        return $this->belongsToMany(Company::class);
+    }
+
+    /**
+     * The company ids this user may reach, or NULL when they are not
+     * restricted at all.
+     *
+     * Null rather than "every id" on purpose: it lets
+     * CompanyAuthorizationScope skip adding a WHERE clause entirely for
+     * the overwhelmingly common single-company case, instead of building
+     * and injecting a list that would change nothing.
+     *
+     * Resolved once per request — this is consulted on effectively every
+     * Company query, and re-running the pivot lookup each time would put a
+     * query in front of every page load.
+     */
+    public function authorizedCompanyIds(): ?array
+    {
+        if ($this->authorizedCompanyIdsCache !== false) {
+            return $this->authorizedCompanyIdsCache;
+        }
+
+        $ids = $this->companies()
+            ->withoutGlobalScopes()
+            ->pluck('companies.id')
+            ->all();
+
+        return $this->authorizedCompanyIdsCache = ($ids === [] ? null : $ids);
+    }
+
+    /** `false` is the "not resolved yet" marker, because `null` is a real answer. */
+    private array|null|bool $authorizedCompanyIdsCache = false;
+
+    /** True when an administrator has restricted this account to specific companies. */
+    public function hasCompanyRestrictions(): bool
+    {
+        return $this->authorizedCompanyIds() !== null;
+    }
 }

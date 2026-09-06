@@ -66,7 +66,7 @@ export default function RegulationsIndex({
                 subtitle="Register peraturan dan standar yang berlaku bagi operasi perusahaan Anda."
             >
                 {canManage && (
-                    <Button onClick={startCreate}><Plus className="h-4 w-4" /> Tambah Entri</Button>
+                    <Button onClick={startCreate}><Plus className="h-4 w-4" /> Add Entry</Button>
                 )}
             </PageHeader>
 
@@ -75,24 +75,24 @@ export default function RegulationsIndex({
             )}
 
             <div className="mb-4 grid grid-cols-2 gap-3 lg:grid-cols-4">
-                <StatCard icon={Scale} label="Total Entri" value={stats.total} accent="brand" />
-                <StatCard icon={Scale} label="Berlaku" value={stats.active} accent="green" />
-                <StatCard icon={AlertTriangle} label="Perlu Ditinjau" value={stats.due_for_review} accent="amber" />
-                <StatCard icon={Scale} label="Digantikan" value={stats.superseded} accent="purple" />
+                <StatCard icon={Scale} label="Total Entries" value={stats.total} accent="brand" />
+                <StatCard icon={Scale} label="Active" value={stats.active} accent="green" />
+                <StatCard icon={AlertTriangle} label="Due for Review" value={stats.due_for_review} accent="amber" />
+                <StatCard icon={Scale} label="Superseded" value={stats.superseded} accent="purple" />
             </div>
 
             <FilterBar>
                 <FilterBar.Search
                     value={search}
                     onChange={(e) => { setSearch(e.target.value); apply({ search: e.target.value }); }}
-                    placeholder="Cari judul, nomor, atau instansi..."
+                    placeholder="Search title, number, or authority..."
                 />
                 <select
                     value={filters.category || ''}
                     onChange={(e) => apply({ category: e.target.value || null })}
                     className="h-9 rounded-md border border-steel-200 bg-white px-3 text-sm text-navy-900"
                 >
-                    <option value="">Semua kategori</option>
+                    <option value="">All categories</option>
                     {categories.map((c) => <option key={c} value={c}>{c}</option>)}
                 </select>
                 <select
@@ -100,14 +100,14 @@ export default function RegulationsIndex({
                     onChange={(e) => apply({ status: e.target.value || null })}
                     className="h-9 rounded-md border border-steel-200 bg-white px-3 text-sm text-navy-900"
                 >
-                    <option value="">Semua status</option>
+                    <option value="">All statuses</option>
                     {statuses.map((s) => <option key={s} value={s}>{s}</option>)}
                 </select>
                 <Button
                     variant={filters.due_for_review ? 'default' : 'outline'}
                     onClick={() => apply({ due_for_review: filters.due_for_review ? null : 1 })}
                 >
-                    <AlertTriangle className="h-4 w-4" /> Perlu ditinjau
+                    <AlertTriangle className="h-4 w-4" /> Due for review
                 </Button>
             </FilterBar>
 
@@ -117,7 +117,7 @@ export default function RegulationsIndex({
                         <div className="p-6">
                             <EmptyState
                                 icon={Scale}
-                                title="Register masih kosong"
+                                title="No entries yet"
                                 description="Tambahkan peraturan, standar, atau persyaratan pelanggan yang berlaku bagi operasi Anda."
                             />
                         </div>
@@ -126,13 +126,13 @@ export default function RegulationsIndex({
                             <Table>
                                 <TableHeader>
                                     <TableRow>
-                                        <TableHead>Regulasi / Standar</TableHead>
-                                        <TableHead>Kategori</TableHead>
-                                        <TableHead>Instansi</TableHead>
-                                        <TableHead>Berlaku</TableHead>
-                                        <TableHead>Tinjau</TableHead>
+                                        <TableHead>Regulation / Standard</TableHead>
+                                        <TableHead>Category</TableHead>
+                                        <TableHead>Issuing Authority</TableHead>
+                                        <TableHead>Effective</TableHead>
+                                        <TableHead>Review</TableHead>
                                         <TableHead>Status</TableHead>
-                                        <TableHead className="text-right">Aksi</TableHead>
+                                        <TableHead className="text-right">Actions</TableHead>
                                     </TableRow>
                                 </TableHeader>
                                 <TableBody>

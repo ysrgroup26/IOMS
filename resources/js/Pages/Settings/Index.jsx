@@ -1,4 +1,5 @@
 import { Head, Link, useForm, router, usePage } from '@inertiajs/react';
+import PageHeader from '@/Components/shared/PageHeader';
 import { useState, useEffect } from 'react';
 import * as Tabs from '@radix-ui/react-tabs';
 import ImageUploadField from '@/Components/shared/ImageUploadField';
@@ -60,10 +61,7 @@ export default function SettingsIndex({ company, companies, departments, positio
         <AuthenticatedLayout>
             <Head title="Settings" />
 
-            <div className="mb-6">
-                <h1 className="text-[22px] font-semibold tracking-tight text-navy-900">Settings</h1>
-                <p className="mt-1 text-sm text-graphite-500">Company info, master data, users, and backups.</p>
-            </div>
+            <PageHeader title="Settings" subtitle="Company info, master data, users, and backups." />
 
             <Tabs.Root
                 defaultValue={new URLSearchParams(window.location.search).get('tab') || (canSystem ? 'branding' : 'departments')}

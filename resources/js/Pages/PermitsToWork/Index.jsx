@@ -1,4 +1,5 @@
 import { Head, Link, router } from '@inertiajs/react';
+import FilterBar from '@/Components/shared/FilterBar';
 import PageHeader from '@/Components/shared/PageHeader';
 import AuthenticatedLayout from '@/Layouts/AuthenticatedLayout';
 import { Card, CardContent } from '@/Components/ui/card';
@@ -65,13 +66,19 @@ export default function PermitsToWorkIndex({ permits, filters, can }) {
                 {can.manage && (<Button asChild><Link href={route('permits-to-work.create')}><Plus className="h-4 w-4" /> New Permit</Link></Button>)}
             </PageHeader>
 
-            <div className="mb-4 flex flex-wrap items-center gap-2">
-                <div className="relative min-w-[220px] flex-1">
-                    <Search className="pointer-events-none absolute left-2.5 top-1/2 h-3.5 w-3.5 -translate-y-1/2 text-graphite-400" />
-                    <Input className="border-graphite-200 bg-white pl-8 shadow-none" placeholder="Search PTW number or description..." defaultValue={filters.search || ''} onChange={(e) => applyFilters({ search: e.target.value || null })} />
-                </div>
+            {/* v2.47.0: was a bare row of controls floating on the page
+                background -- the clearest remaining marker of the older
+                language, since the header above and the results below are both
+                real surfaces. Same controls, same filter logic, now held in the
+                shared FilterBar panel. */}
+            <FilterBar>
+                <FilterBar.Search
+                    placeholder="Search PTW number or description..."
+                    defaultValue={filters.search || ''}
+                    onChange={(e) => applyFilters({ search: e.target.value || null })}
+                />
                 <Select value={filters.type || 'all'} onValueChange={(v) => applyFilters({ type: v === 'all' ? null : v })}>
-                    <SelectTrigger className="w-44 bg-white"><SelectValue placeholder="Type" /></SelectTrigger>
+                    <SelectTrigger className="w-40 border-steel-200 bg-white"><SelectValue placeholder="Type" /></SelectTrigger>
                     <SelectContent>
                         <SelectItem value="all">All Types</SelectItem>
                         {['hot_work', 'cold_work', 'confined_space', 'working_at_height', 'excavation', 'electrical', 'general'].map((t) => (
@@ -80,7 +87,7 @@ export default function PermitsToWorkIndex({ permits, filters, can }) {
                     </SelectContent>
                 </Select>
                 <Select value={filters.status || 'all'} onValueChange={(v) => applyFilters({ status: v === 'all' ? null : v })}>
-                    <SelectTrigger className="w-44 bg-white"><SelectValue placeholder="Status" /></SelectTrigger>
+                    <SelectTrigger className="w-40 border-steel-200 bg-white"><SelectValue placeholder="Status" /></SelectTrigger>
                     <SelectContent>
                         <SelectItem value="all">All Statuses</SelectItem>
                         {['draft', 'submitted', 'rejected', 'approved', 'active', 'closed', 'cancelled'].map((s) => (
@@ -88,7 +95,7 @@ export default function PermitsToWorkIndex({ permits, filters, can }) {
                         ))}
                     </SelectContent>
                 </Select>
-            </div>
+            </FilterBar>
 
             <Card>
                 <CardContent className="p-0">
@@ -112,10 +119,10 @@ export default function PermitsToWorkIndex({ permits, filters, can }) {
                                     <Link
                                         key={p.id}
                                         href={route('permits-to-work.show', p.id)}
-                                        className="block px-4 py-3 active:bg-graphite-50 dark:active:bg-slate-800/50"
+                                        className="block px-4 py-3 transition-colors hover:bg-steel-50/70 active:bg-steel-100/70 dark:hover:bg-slate-800/40 dark:active:bg-slate-800/60"
                                     >
                                         <div className="flex items-start justify-between gap-2">
-                                            <span className="font-semibold text-graphite-900 dark:text-slate-100">{p.ptw_number}</span>
+                                            <span className="font-mono text-[12px] font-semibold tracking-tight text-navy-900 dark:text-slate-100">{p.ptw_number}</span>
                                             <StatusBadge value={p.status} />
                                         </div>
                                         <p className="mt-1 text-sm capitalize text-graphite-700 dark:text-slate-300">{p.permit_type.replace('_', ' ')}</p>
@@ -160,8 +167,8 @@ export default function PermitsToWorkIndex({ permits, filters, can }) {
                                     {permits.data.map((p) => (
                                         <TableRow key={p.id} className="cursor-pointer" onClick={() => router.visit(route('permits-to-work.show', p.id))}>
                                             <TableCell>
-                                                <p className="font-semibold text-graphite-900 dark:text-slate-100">{p.ptw_number}</p>
-                                                <p className="text-xs capitalize text-graphite-500 dark:text-slate-400">{p.permit_type.replace('_', ' ')}</p>
+                                                <p className="font-mono text-[12px] font-semibold tracking-tight text-navy-900 dark:text-slate-100">{p.ptw_number}</p>
+                                                <p className="mt-0.5 text-xs capitalize text-graphite-500 dark:text-slate-400">{p.permit_type.replace('_', ' ')}</p>
                                             </TableCell>
                                             <TableCell className="max-w-[180px]">
                                                 <p className="truncate text-graphite-800 dark:text-slate-200">{p.project?.name || '-'}</p>
@@ -187,8 +194,8 @@ export default function PermitsToWorkIndex({ permits, filters, can }) {
                 <div className="mt-3 flex items-center justify-between text-xs text-graphite-500 dark:text-slate-400">
                     <span>Page {permits.current_page} of {permits.last_page}</span>
                     <div className="flex gap-2">
-                        <button disabled={!permits.prev_page_url} onClick={() => router.get(permits.prev_page_url, {}, { preserveState: true })} className="rounded-md border border-graphite-200 p-1.5 disabled:opacity-40 dark:border-slate-700"><ChevronLeft className="h-4 w-4" /></button>
-                        <button disabled={!permits.next_page_url} onClick={() => router.get(permits.next_page_url, {}, { preserveState: true })} className="rounded-md border border-graphite-200 p-1.5 disabled:opacity-40 dark:border-slate-700"><ChevronRight className="h-4 w-4" /></button>
+                        <button disabled={!permits.prev_page_url} onClick={() => router.get(permits.prev_page_url, {}, { preserveState: true })} className="rounded-md border border-steel-200 bg-white p-1.5 text-navy-700 shadow-card transition-colors hover:bg-steel-50 disabled:opacity-40 disabled:hover:bg-white dark:border-slate-700 dark:bg-transparent dark:text-slate-300"><ChevronLeft className="h-4 w-4" /></button>
+                        <button disabled={!permits.next_page_url} onClick={() => router.get(permits.next_page_url, {}, { preserveState: true })} className="rounded-md border border-steel-200 bg-white p-1.5 text-navy-700 shadow-card transition-colors hover:bg-steel-50 disabled:opacity-40 disabled:hover:bg-white dark:border-slate-700 dark:bg-transparent dark:text-slate-300"><ChevronRight className="h-4 w-4" /></button>
                     </div>
                 </div>
             )}

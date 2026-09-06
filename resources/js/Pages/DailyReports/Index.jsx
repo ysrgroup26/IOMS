@@ -35,7 +35,7 @@ export default function DailyReportsIndex({ reports, projects, companies, filter
                 )}
             </PageHeader>
 
-            <div className="mb-4 flex flex-wrap items-center gap-2">
+            <div className="mb-4 flex flex-wrap items-center gap-2 rounded-xl border border-steel-200/70 bg-gradient-to-br from-steel-50/80 via-white to-white p-2.5 shadow-card dark:border-slate-800 dark:from-slate-900 dark:via-slate-900 dark:to-slate-900">
                 <Select value={filters.company_id ? String(filters.company_id) : 'all'} onValueChange={(v) => applyFilters({ company_id: v === 'all' ? null : v, project_id: null })}>
                     <SelectTrigger className="w-40 bg-white"><SelectValue placeholder="Company" /></SelectTrigger>
                     <SelectContent>

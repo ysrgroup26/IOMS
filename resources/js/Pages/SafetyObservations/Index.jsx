@@ -30,7 +30,7 @@ export default function SafetyObservationsIndex({ observations, filters, can }) 
             {/* v2.23.0 (Complete Product UI/UX Transformation, cont'd):
                 filter bar unboxed, same treatment as PermitsToWork/Index.jsx
                 and Incidents/Index.jsx. */}
-            <div className="mb-4 flex flex-wrap items-center gap-2">
+            <div className="mb-4 flex flex-wrap items-center gap-2 rounded-xl border border-steel-200/70 bg-gradient-to-br from-steel-50/80 via-white to-white p-2.5 shadow-card dark:border-slate-800 dark:from-slate-900 dark:via-slate-900 dark:to-slate-900">
                 <div className="relative min-w-[220px] flex-1">
                     <Search className="pointer-events-none absolute left-2.5 top-1/2 h-3.5 w-3.5 -translate-y-1/2 text-graphite-400" />
                     <Input

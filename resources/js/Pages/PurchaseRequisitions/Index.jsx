@@ -31,7 +31,7 @@ export default function PurchaseRequisitionsIndex({ requisitions, filters, can }
                 {can.manage && (<Button asChild><Link href={route('purchase-requisitions.create')}><Plus className="h-4 w-4" /> New PR</Link></Button>)}
             </PageHeader>
 
-            <div className="mb-4 flex flex-wrap items-center gap-2">
+            <div className="mb-4 flex flex-wrap items-center gap-2 rounded-xl border border-steel-200/70 bg-gradient-to-br from-steel-50/80 via-white to-white p-2.5 shadow-card dark:border-slate-800 dark:from-slate-900 dark:via-slate-900 dark:to-slate-900">
                 <div className="relative min-w-[220px] flex-1">
                     <Search className="pointer-events-none absolute left-2.5 top-1/2 h-3.5 w-3.5 -translate-y-1/2 text-graphite-400" />
                     <Input className="border-graphite-200 bg-white pl-8 shadow-none" placeholder="Search PR number..." defaultValue={filters.search || ''} onChange={(e) => applyFilters({ search: e.target.value || null })} />

@@ -12,7 +12,7 @@ employee records, PPE (personal protective equipment) lifecycle, KPI tracking an
 project manpower assignment, and an increasingly general-purpose workflow layer (Material Request
 today, more modules planned) built on shared, reusable engines rather than per-module one-offs.
 
-Current version: **2.46.0 Beta**. Check `config/ioms.php` (`version`, `stage`, `build`) for the
+Current version: **2.47.0 Beta**. Check `config/ioms.php` (`version`, `stage`, `build`) for the
 authoritative current number — this document doesn't restate it elsewhere to avoid it going stale
 in two places.
 

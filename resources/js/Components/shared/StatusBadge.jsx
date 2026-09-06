@@ -51,8 +51,13 @@ const STATUS_MAP = {
     // "submitted" is *labeled* while an Approval is pending, not a
     // distinct database value), but included here so any future module
     // that DOES store it literally still gets a sensible color for free.
-    submitted: 'outline',
-    pending_approval: 'outline',
+    // v2.47.0: `submitted` and `pending_approval` mean WAITING ON SOMEONE,
+    // which is a real operational state -- rendering them as a neutral
+    // outline made a permit awaiting HSE approval look the same as an
+    // informational chip. Amber matches the same state's treatment on the
+    // issued PTW document ("Awaiting Approval"), so screen and paper agree.
+    submitted: 'warning',
+    pending_approval: 'warning',
     approved: 'success',
     rejected: 'destructive',
     processing: 'outline',

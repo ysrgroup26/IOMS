@@ -22,12 +22,18 @@ import { resolveIcon } from '@/lib/iconMap';
  */
 export default function KpiSummaryCard({ label, value, isNegative, icon, color, href, compact = false, trend }) {
     const Icon = resolveIcon(icon);
-    const iconStyle = { backgroundColor: `${color}1a`, color };
+    // v2.48.0: was `${color}1a` (10% tint) behind a glyph of the SAME
+    // colour -- pale, and invisible once the card behind it was also
+    // tinted. Solid fill + white glyph, matching StatCard's restored chip.
+    // `1f` / `12` are hex alpha suffixes for the surrounding surface wash,
+    // so each KPI card is tinted by its own category colour.
+    const iconStyle = { backgroundColor: color, color: '#ffffff', boxShadow: `0 3px 8px -3px ${color}66` };
+    const surfaceStyle = { backgroundImage: `linear-gradient(to bottom right, ${color}1f, ${color}0a 45%, #ffffff)` };
     const valueColor = isNegative && value > 0 ? { color } : undefined;
 
     if (compact) {
         const content = (
-            <div className="flex items-center gap-2 rounded-xl border border-steel-100 bg-gradient-to-br from-white to-steel-50/70 px-2.5 py-2 transition-all duration-200 hover:border-steel-200 hover:shadow-card-hover motion-safe:hover:-translate-y-0.5 dark:border-slate-800 dark:from-slate-900 dark:to-slate-900">
+            <div style={surfaceStyle} className="flex items-center gap-2 rounded-xl border border-steel-100 px-2.5 py-2 transition-all duration-200 hover:border-steel-200 hover:shadow-card-hover motion-safe:hover:-translate-y-0.5 dark:border-slate-800">
                 <div className="flex h-6 w-6 shrink-0 items-center justify-center rounded-md" style={iconStyle}>
                     <Icon className="h-3 w-3" />
                 </div>

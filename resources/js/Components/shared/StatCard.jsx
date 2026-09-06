@@ -28,10 +28,13 @@ import { cn } from '@/lib/utils';
  *    room. The wash is deliberately weak (a ~4-6% tint) -- enough to give
  *    the surface material, nowhere near enough to fight the number.
  *
- * 2. THE CHIP CARRIES THE SEMANTIC QUIETLY. (v2.44.0 made this a saturated
- *    gradient chip with a coloured glow; v2.45.0 pulled that back -- across
- *    a six-card row it read as a strip of glowing lozenges. It is now a soft
- *    tint with a coloured glyph and a hairline ring.)
+ * 2. THE CHIP IS THE CONTRAST ANCHOR. A solid accent-filled container with
+ *    a white glyph and soft depth. v2.45.0 had softened this to a pale tint
+ *    with a coloured glyph at the same time as softening the surface, which
+ *    left tint-on-tint -- a light chip on a light tinted card, with nothing
+ *    carrying contrast. The chip supplies the dark anchor; the surface wash
+ *    (point 1) supplies the soft colour around it. Chip shadows are ~0.38
+ *    alpha: present as depth, short of a glow.
  *
  * 3. IT CAN CARRY REAL HISTORY. An optional `trend` array renders an inline
  *    Sparkline. Nothing is generated: the sparkline refuses to draw with
@@ -69,35 +72,35 @@ export default function StatCard({ icon: Icon, value, label, hint, href, accent,
     // saturation. Colour is left doing one job: marking semantics.
     const accentClasses = {
         red: {
-            chip: 'bg-danger/15 text-red-700 ring-1 ring-inset ring-danger/25 dark:bg-red-950/40 dark:text-red-400 dark:ring-red-900/40',
+            chip: 'bg-gradient-to-br from-danger to-red-600 text-white shadow-[0_3px_8px_-3px_rgba(220,38,38,0.38)] dark:from-red-900 dark:to-red-800',
             bar: 'bg-danger',
             wash: 'from-danger/[0.14] via-danger/[0.05] to-white dark:from-red-950/20 dark:via-slate-900 dark:to-slate-900',
             edge: 'border-danger/15 dark:border-red-900/40',
             spark: 'danger',
         },
         amber: {
-            chip: 'bg-warning/18 text-amber-700 ring-1 ring-inset ring-warning/30 dark:bg-amber-950/40 dark:text-amber-400 dark:ring-amber-900/40',
+            chip: 'bg-gradient-to-br from-warning to-amber-600 text-white shadow-[0_3px_8px_-3px_rgba(217,119,6,0.38)] dark:from-amber-900 dark:to-amber-800',
             bar: 'bg-warning',
             wash: 'from-warning/[0.16] via-warning/[0.055] to-white dark:from-amber-950/20 dark:via-slate-900 dark:to-slate-900',
             edge: 'border-warning/15 dark:border-amber-900/40',
             spark: 'warning',
         },
         green: {
-            chip: 'bg-success/15 text-emerald-700 ring-1 ring-inset ring-success/25 dark:bg-emerald-950/40 dark:text-emerald-400 dark:ring-emerald-900/40',
+            chip: 'bg-gradient-to-br from-success to-emerald-700 text-white shadow-[0_3px_8px_-3px_rgba(22,163,74,0.38)] dark:from-emerald-900 dark:to-emerald-800',
             bar: 'bg-success',
             wash: 'from-success/[0.14] via-success/[0.05] to-white dark:from-emerald-950/20 dark:via-slate-900 dark:to-slate-900',
             edge: 'border-success/15 dark:border-emerald-900/40',
             spark: 'success',
         },
         purple: {
-            chip: 'bg-violet-500/15 text-violet-700 ring-1 ring-inset ring-violet-500/25 dark:bg-violet-950/40 dark:text-violet-400 dark:ring-violet-900/40',
+            chip: 'bg-gradient-to-br from-violet-500 to-violet-700 text-white shadow-[0_3px_8px_-3px_rgba(139,92,246,0.38)] dark:from-violet-900 dark:to-violet-800',
             bar: 'bg-violet-400/70',
             wash: 'from-violet-500/[0.13] via-violet-500/[0.045] to-white dark:from-violet-950/20 dark:via-slate-900 dark:to-slate-900',
             edge: 'border-violet-300/30 dark:border-violet-900/40',
             spark: 'brand',
         },
         neutral: {
-            chip: 'bg-graphite-200/70 text-graphite-600 ring-1 ring-inset ring-graphite-300/60 dark:bg-slate-800 dark:text-slate-400 dark:ring-slate-700',
+            chip: 'bg-gradient-to-br from-graphite-400 to-graphite-500 text-white shadow-[0_3px_8px_-3px_rgba(100,116,139,0.35)] dark:from-slate-700 dark:to-slate-800',
             bar: 'bg-graphite-300',
             wash: 'from-graphite-200 via-graphite-100/50 to-white dark:from-slate-800/30 dark:via-slate-900 dark:to-slate-900',
             edge: 'border-graphite-200 dark:border-slate-700',
@@ -109,9 +112,9 @@ export default function StatCard({ icon: Icon, value, label, hint, href, accent,
     // glyph. Recognisably the product, without asserting a semantic the
     // caller never claimed.
     const resolved = accentClasses[effectiveAccent] || {
-        chip: 'bg-steel-200/70 text-navy-800 ring-1 ring-inset ring-steel-300/60 dark:bg-slate-800 dark:text-slate-300 dark:ring-slate-700',
+        chip: 'bg-gradient-to-br from-navy-800 to-brand-600 text-white shadow-[0_3px_8px_-3px_rgba(33,102,196,0.38)] dark:from-brand-950 dark:to-brand-900',
         bar: 'bg-steel-300',
-        wash: 'from-steel-200/80 via-steel-50 to-white dark:from-slate-900 dark:via-slate-900 dark:to-slate-900',
+        wash: 'from-steel-300/60 via-steel-100/60 to-white dark:from-slate-900 dark:via-slate-900 dark:to-slate-900',
         edge: 'border-steel-100 dark:border-slate-800',
         spark: 'brand',
     };

@@ -24,7 +24,7 @@ export default function EmptyState({ icon: Icon = Inbox, title, description, act
         // as HSE's "-- / not available" blocks. Dashed, not solid, so it is
         // never mistaken for a data card.
         <div className="flex flex-col items-center justify-center gap-2 rounded-xl border border-dashed border-steel-200 bg-gradient-to-b from-steel-50/60 to-white/40 px-6 py-10 text-center dark:border-slate-700 dark:from-slate-900/40 dark:to-transparent">
-            <div className="flex h-11 w-11 items-center justify-center rounded-full bg-white text-brand-500 shadow-card ring-1 ring-steel-100 dark:bg-brand-950/40 dark:text-brand-400 dark:ring-slate-700">
+            <div className="flex h-11 w-11 items-center justify-center rounded-full bg-gradient-to-br from-navy-800 to-brand-600 text-white shadow-[0_3px_8px_-3px_rgba(33,102,196,0.38)] dark:from-brand-950 dark:to-brand-900 dark:text-brand-300">
                 <Icon className="h-5 w-5" />
             </div>
             <p className="text-sm font-semibold text-navy-800 dark:text-slate-300">{title}</p>

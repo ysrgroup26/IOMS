@@ -28,7 +28,7 @@ export default function ModuleCard({ icon: Icon, title, description, href, statu
     const body = (
         <>
             <div className="flex items-center justify-between gap-2">
-                <span className="flex h-8 w-8 shrink-0 items-center justify-center rounded-[9px] bg-steel-100/70 text-navy-700 ring-1 ring-inset ring-steel-200/70 transition-colors duration-200 group-hover:bg-steel-200/70 group-hover:text-navy-800 dark:bg-slate-800 dark:text-slate-300 dark:ring-slate-700">
+                <span className="flex h-8 w-8 shrink-0 items-center justify-center rounded-[9px] bg-gradient-to-br from-navy-800 to-brand-600 text-white shadow-[0_3px_8px_-3px_rgba(33,102,196,0.38)] dark:from-brand-950 dark:to-brand-900 dark:text-brand-300">
                     {Icon && <Icon className="h-4 w-4" />}
                 </span>
                 {status === 'planned' && <Badge variant="secondary" className="shrink-0">Coming Soon</Badge>}
@@ -43,7 +43,7 @@ export default function ModuleCard({ icon: Icon, title, description, href, statu
     // v2.43.0: module cards are the entry points to each domain, so they
     // get a slightly warmer-toward-steel surface and a real hover lift --
     // they should feel like doors, not list rows. Grid/padding untouched.
-    const className = 'group block h-full rounded-[10px] border border-steel-100 bg-gradient-to-b from-white to-steel-50/40 p-3 shadow-card transition-all duration-200 dark:border-slate-800 dark:from-slate-900 dark:to-slate-900 ' +
+    const className = 'group block h-full rounded-[10px] border border-steel-100 bg-gradient-to-b from-steel-100/70 via-steel-50/40 to-white p-3 shadow-card transition-all duration-200 dark:border-slate-800 dark:from-slate-900 dark:to-slate-900 ' +
         (isActive ? 'hover:-translate-y-0.5 hover:shadow-card-hover cursor-pointer' : 'opacity-70 cursor-not-allowed');
 
     if (isActive) {

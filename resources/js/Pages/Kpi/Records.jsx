@@ -32,7 +32,7 @@ export default function KpiRecords({ records, categories, companies, filters, av
             </Link>
 
             <div className="mb-4">
-                <h1 className="text-[22px] font-semibold tracking-tight text-graphite-900">
+                <h1 className="text-[22px] font-semibold tracking-tight text-navy-900">
                     KPI Records {activeCategory && <span className="text-graphite-400">&middot; {activeCategory.name}</span>}
                 </h1>
                 <p className="mt-1 text-sm text-graphite-500">Setiap kejadian KPI yang tercatat, bisa difilter per kategori dan periode.</p>

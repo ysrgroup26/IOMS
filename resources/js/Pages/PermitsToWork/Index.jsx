@@ -1,4 +1,5 @@
 import { Head, Link, router } from '@inertiajs/react';
+import PageHeader from '@/Components/shared/PageHeader';
 import AuthenticatedLayout from '@/Layouts/AuthenticatedLayout';
 import { Card, CardContent } from '@/Components/ui/card';
 import { Button } from '@/Components/ui/button';
@@ -51,13 +52,18 @@ export default function PermitsToWorkIndex({ permits, filters, can }) {
         <AuthenticatedLayout>
             <Head title="Permit To Work" />
 
-            <div className="mb-5 flex flex-wrap items-center justify-between gap-3">
-                <div>
-                    <h1 className="text-2xl font-bold tracking-tight text-graphite-900 dark:text-slate-50">Permit To Work</h1>
-                    <p className="mt-0.5 text-sm text-graphite-500 dark:text-slate-400">Hot work, confined space, working at height and other high-risk permits.</p>
-                </div>
+            {/* v2.46.0: was a hand-rolled 2xl/bold heading on the bare page
+                background -- the older language, and visibly behind every other
+                module page. Uses the shared PageHeader panel now, so PTW picks
+                up the same surface, spacing and title treatment as the rest of
+                the product, and "New Permit" sits where every other primary
+                action does. Authorization is unchanged: still `can.manage`. */}
+            <PageHeader
+                title="Permit To Work"
+                subtitle="Hot work, confined space, working at height and other high-risk permits."
+            >
                 {can.manage && (<Button asChild><Link href={route('permits-to-work.create')}><Plus className="h-4 w-4" /> New Permit</Link></Button>)}
-            </div>
+            </PageHeader>
 
             <div className="mb-4 flex flex-wrap items-center gap-2">
                 <div className="relative min-w-[220px] flex-1">

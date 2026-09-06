@@ -91,7 +91,7 @@ export default function HseMaster({ hazardCategories, safetyEquipment, equipment
                 instead of only the generic "configuration & reference
                 data" framing. */}
             <div className="mb-4">
-                <h1 className="text-[22px] font-semibold tracking-tight text-graphite-900 dark:text-slate-50">Safety Equipment &amp; Compliance</h1>
+                <h1 className="text-[22px] font-semibold tracking-tight text-navy-900 dark:text-slate-50">Safety Equipment &amp; Compliance</h1>
                 <p className="mt-0.5 text-xs text-graphite-500 dark:text-slate-400">
                     Peralatan keselamatan yang wajib diinspeksi (APAR, P3K, HT, safety cone, dll.) di Safety Equipment
                     Register, dan data referensi lain (kategori, template, tipe) yang dipakai modul HSE lainnya.

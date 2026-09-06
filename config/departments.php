@@ -59,6 +59,20 @@ return [
         // Waste Container Inventory, same 'hse' ownership as every other
         // waste-* prefix above.
         'waste-containers',
+        // v2.46.0: PTW Access is granted from Settings > Users, and BOTH that
+        // page (`settings.index`) and the write itself
+        // (`settings.users.ptw-access`) are already gated `role:super_admin,hse`
+        // in routes/web.php. Listing `settings` here too lets the HSE sidebar's
+        // own "PTW Access" entry actually resolve for a department-scoped HSE
+        // user, instead of being 403'd by the routing layer before the route's
+        // role gate could allow them.
+        //
+        // This grants NO new capability: every mutating settings sub-route
+        // (company/branding, modules, roles, companies, backup) sits in the
+        // separate `role:super_admin` group and is unaffected, and a user with
+        // department_key='hse' but a non-HSE ROLE is still stopped by that same
+        // role gate. `settings` remains owned by administration as well.
+        'settings',
     ],
     'project-management' => [
         'projects', 'daily-reports', 'milestones', 'project-management',

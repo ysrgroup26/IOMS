@@ -17,7 +17,7 @@ export default function PpeReplacementRequests({ requests }) {
             <PpeTabNav counts={{ replacementRequests: requests.total }} />
 
             <div className="mb-4">
-                <h1 className="text-[22px] font-semibold tracking-tight text-graphite-900 dark:text-slate-50">Replacement Requests</h1>
+                <h1 className="text-[22px] font-semibold tracking-tight text-navy-900 dark:text-slate-50">Replacement Requests</h1>
                 <p className="text-xs text-graphite-500 dark:text-slate-400">Created from the Replacement Due list.</p>
             </div>
 

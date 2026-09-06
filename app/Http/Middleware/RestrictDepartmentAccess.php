@@ -104,7 +104,23 @@ class RestrictDepartmentAccess
         }
 
         $map = config('departments', []);
-        $owningDepartment = collect($map)->search(fn (array $prefixes) => in_array($prefix, $prefixes, true));
+
+        // v2.46.0: a prefix may now be listed under MORE THAN ONE department.
+        // This used to take the FIRST match only, which silently made the map
+        // single-owner and produced the reported PTW Access 403: Settings >
+        // Users is where PTW Access is granted, its route is explicitly gated
+        // `role:super_admin,hse`, yet the `settings` prefix was owned by
+        // `administration` alone -- so a department-scoped HSE user was denied
+        // here, BEFORE the route's own role gate could allow them. The routing
+        // layer was contradicting the authorization layer.
+        //
+        // Still fail-closed, and this widens nothing on its own: a prefix is
+        // only reachable by a department that is explicitly listed for it, and
+        // every route keeps whatever `role:` gate it already had. Settings'
+        // mutating sub-routes remain `role:super_admin`.
+        $owningDepartments = collect($map)
+            ->filter(fn (array $prefixes) => in_array($prefix, $prefixes, true))
+            ->keys();
 
         // v1.10.5: fail CLOSED. A prefix that isn't in the map at all --
         // whether because it genuinely belongs to no department (in which
@@ -115,7 +131,7 @@ class RestrictDepartmentAccess
         // reported, fixed by adding one line to config/departments.php),
         // instead of the previous failure mode (a route silently reachable
         // by every department, discovered only by audit).
-        abort_unless($owningDepartment !== false && $owningDepartment === $user->department_key, 403, 'This page belongs to a different department.');
+        abort_unless($owningDepartments->contains($user->department_key), 403, 'This page belongs to a different department.');
 
         return $next($request);
     }

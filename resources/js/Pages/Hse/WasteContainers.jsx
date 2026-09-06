@@ -70,7 +70,7 @@ export default function WasteContainers({ containers, summary, storageLocations,
             </Link>
 
             <div className="mb-4">
-                <h1 className="text-[22px] font-semibold tracking-tight text-graphite-900 dark:text-slate-50">Waste Inventory</h1>
+                <h1 className="text-[22px] font-semibold tracking-tight text-navy-900 dark:text-slate-50">Waste Inventory</h1>
                 <p className="mt-0.5 text-xs text-graphite-500 dark:text-slate-400">
                     Kelola stok drum, IBC, jumbo bag, dan wadah lain yang dipakai untuk limbah -- ini stok WADAH, bukan stok limbah itu sendiri (lihat Waste Records untuk data limbah).
                 </p>

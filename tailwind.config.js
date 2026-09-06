@@ -148,10 +148,12 @@ export default {
                 panel: '0 2px 6px -1px rgba(15, 39, 71, 0.07)',
                 // v2.44.0: elevation for surfaces that should feel lit rather
                 // than merely outlined -- KPI/stat surfaces and domain panels.
-                // A cool navy-tinted shadow, never a neutral grey drop shadow,
-                // so depth reads as part of the palette instead of dirt.
+                // A cool navy-tinted shadow -- deliberately a NEUTRAL depth cue
+                // that happens to sit in the palette, not a coloured glow. The
+                // brand-coloured `glow` token that lived here was removed in
+                // v2.46.0: nothing used it, and a glowing interface is the
+                // opposite of the intended restraint.
                 lift: '0 10px 24px -8px rgba(15, 39, 71, 0.18), 0 2px 6px -2px rgba(15, 39, 71, 0.08)',
-                glow: '0 0 0 1px rgba(33, 102, 196, 0.10), 0 8px 24px -10px rgba(33, 102, 196, 0.35)',
             },
             keyframes: {
                 'fade-in': {

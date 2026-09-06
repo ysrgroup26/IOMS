@@ -50,7 +50,7 @@ export default function CorrectiveActionsIndex({ actions, filters, summary, can 
             <Head title="Corrective Actions (CAPA)" />
 
             <div className="mb-4">
-                <h1 className="text-[22px] font-semibold tracking-tight text-graphite-900 dark:text-slate-50">Corrective Actions (CAPA)</h1>
+                <h1 className="text-[22px] font-semibold tracking-tight text-navy-900 dark:text-slate-50">Corrective Actions (CAPA)</h1>
                 <p className="text-xs text-graphite-500 dark:text-slate-400">Satu tampilan gabungan dari temuan Safety Observation, HSE Inspection, dan Incident.</p>
             </div>
 

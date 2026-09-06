@@ -27,7 +27,7 @@ export default function KpiSummaryCard({ label, value, isNegative, icon, color, 
 
     if (compact) {
         const content = (
-            <div className="flex items-center gap-2 rounded-xl border border-steel-100 bg-gradient-to-br from-white to-steel-50/70 px-2.5 py-2 transition-all duration-200 hover:border-steel-200 hover:shadow-lift motion-safe:hover:-translate-y-0.5 dark:border-slate-800 dark:from-slate-900 dark:to-slate-900">
+            <div className="flex items-center gap-2 rounded-xl border border-steel-100 bg-gradient-to-br from-white to-steel-50/70 px-2.5 py-2 transition-all duration-200 hover:border-steel-200 hover:shadow-card-hover motion-safe:hover:-translate-y-0.5 dark:border-slate-800 dark:from-slate-900 dark:to-slate-900">
                 <div className="flex h-6 w-6 shrink-0 items-center justify-center rounded-md" style={iconStyle}>
                     <Icon className="h-3 w-3" />
                 </div>
@@ -51,7 +51,7 @@ export default function KpiSummaryCard({ label, value, isNegative, icon, color, 
     }
 
     const content = (
-        <Card tone="steel" className="h-full rounded-2xl transition-all duration-200 hover:-translate-y-0.5 hover:shadow-lift">
+        <Card tone="steel" className="h-full rounded-2xl transition-all duration-200 hover:-translate-y-0.5 hover:shadow-card-hover">
             <CardContent className="flex items-center gap-3 p-4">
                 <div className="flex h-9 w-9 shrink-0 items-center justify-center rounded-lg" style={iconStyle}>
                     <Icon className="h-4.5 w-4.5" />

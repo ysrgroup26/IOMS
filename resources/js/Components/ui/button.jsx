@@ -23,11 +23,22 @@ const buttonVariants = cva(
     {
         variants: {
             variant: {
-                default: 'bg-primary text-primary-foreground shadow-sm hover:bg-brand-700',
+                // v2.45.0: a primary action should read as the most SOLID thing
+                // on the page, not the brightest. The fill is the re-cut IOMS
+                // blue, and the weight now comes from a navy-tinted shadow and a
+                // hairline inner highlight along the top edge -- the same "lit
+                // surface" logic used on panels -- rather than from saturation.
+                // Deliberately NOT navy: a navy button on a navy-anchored shell
+                // loses its affordance, and the action hierarchy matters more
+                // than tonal uniformity.
+                default: 'bg-primary text-primary-foreground shadow-[0_1px_2px_0_rgba(15,39,71,0.20),inset_0_1px_0_0_rgba(255,255,255,0.14)] hover:bg-brand-700 hover:shadow-[0_2px_6px_-1px_rgba(15,39,71,0.28),inset_0_1px_0_0_rgba(255,255,255,0.14)]',
                 destructive: 'bg-destructive text-destructive-foreground shadow-sm hover:bg-red-700',
-                outline: 'border border-input bg-background shadow-sm hover:bg-graphite-50 hover:text-graphite-900 dark:hover:bg-slate-800 dark:hover:text-slate-100',
-                secondary: 'bg-secondary text-secondary-foreground hover:bg-graphite-200 dark:hover:bg-slate-700',
-                ghost: 'hover:bg-graphite-100 hover:text-graphite-900 dark:hover:bg-slate-800 dark:hover:text-slate-100',
+                // Secondary actions live in the same cool family as the
+                // surfaces, so an outline button beside a primary reads as a
+                // quieter sibling rather than a different design system.
+                outline: 'border border-steel-200 bg-white text-navy-700 shadow-[0_1px_2px_0_rgba(15,39,71,0.05)] hover:border-steel-300 hover:bg-steel-50 hover:text-navy-900 dark:border-slate-700 dark:bg-transparent dark:text-slate-200 dark:hover:bg-slate-800 dark:hover:text-slate-100',
+                secondary: 'bg-steel-100 text-navy-800 hover:bg-steel-200 dark:bg-slate-800 dark:text-slate-200 dark:hover:bg-slate-700',
+                ghost: 'text-navy-600 hover:bg-steel-50 hover:text-navy-900 dark:text-slate-300 dark:hover:bg-slate-800 dark:hover:text-slate-100',
                 link: 'text-primary underline-offset-4 hover:underline',
             },
             size: {

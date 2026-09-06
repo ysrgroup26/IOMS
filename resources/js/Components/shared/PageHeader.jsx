@@ -48,7 +48,7 @@ export default function PageHeader({ title, subtitle, children }) {
                 {/* Vertical navy rule: the smallest possible mark that ties a
                     module page back to the same brand ink as the rail and the
                     Dashboard, without tinting the whole panel. */}
-                <span className="mt-0.5 hidden h-8 w-1 shrink-0 rounded-full bg-gradient-to-b from-navy-800 to-brand-600 sm:block" aria-hidden="true" />
+                <span className="mt-1 hidden h-7 w-[3px] shrink-0 rounded-full bg-gradient-to-b from-steel-400/80 to-brand-500/50 sm:block" aria-hidden="true" />
                 <div className="min-w-0">
                     <h1 className="text-[22px] font-semibold leading-tight tracking-tight text-navy-900 dark:text-slate-50">{title}</h1>
                     {subtitle && <p className="mt-0.5 text-[13px] leading-snug text-graphite-500 dark:text-slate-400">{subtitle}</p>}

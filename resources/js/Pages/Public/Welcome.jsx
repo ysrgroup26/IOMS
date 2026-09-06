@@ -53,9 +53,6 @@ export default function PublicWelcome({ plans }) {
             <PlatformOverview />
             <PtwHseStory />
             <FieldExperience />
-            <HseWorkspace />
-            <PeopleWorkforce />
-            <OperationalData />
             <ProductPreview />
             <Industries />
             <Pricing plans={plans} />
@@ -90,46 +87,49 @@ const ORBIT_NODES = [
     { label: 'Reports', icon: LineChart, x: 16, y: 24 },
 ];
 
+/**
+ * v2.45.0 -- the hero moves onto a deep navy atmospheric surface, the same
+ * brand DNA as the sign-in gateway, so the first thing a visitor sees is an
+ * industrial operations platform rather than a white marketing page with
+ * blue blobs on it. The previous hero leaned on two animated glow blobs and
+ * a grid over white -- decoration doing the work a real surface should.
+ *
+ * The orbit is KEPT and re-lit rather than replaced: eight real product
+ * domains around a central hub is the single clearest statement that IOMS
+ * is multi-domain and not an HSE tool, which is exactly the positioning
+ * that needed strengthening. On navy the connecting lines finally read.
+ *
+ * Soft, not loud: one steel wash, one brand wash, one low-opacity technical
+ * grid, and no pulsing animation. Depth comes from the surface itself.
+ */
 function Hero() {
     return (
-        <section className="relative overflow-hidden border-b border-graphite-100 bg-gradient-to-b from-white via-brand-50/40 to-white">
-            {/* v2.27.0: ambient background system -- "white -> very light
-                blue -> soft blue" per this pass's own color direction,
-                replacing the previous graphite-tinted blobs. Two slow
-                `motion-safe:animate-pulse-glow` blobs (disabled entirely
-                under prefers-reduced-motion, per Tailwind's built-in
-                variant) plus a faint static grid for technical texture --
-                all `pointer-events-none`/`aria-hidden`, purely decorative. */}
-            <div className="pointer-events-none absolute -right-32 -top-32 h-[28rem] w-[28rem] rounded-full bg-brand-400 opacity-[0.10] blur-3xl motion-safe:animate-pulse-glow" aria-hidden="true" />
-            <div className="pointer-events-none absolute -left-40 top-40 h-96 w-96 rounded-full bg-brand-300 opacity-[0.10] blur-3xl motion-safe:animate-pulse-glow" style={{ animationDelay: '2s' }} aria-hidden="true" />
+        <section className="relative isolate overflow-hidden border-b border-navy-800 bg-navy-900 text-white">
             <div
-                className="pointer-events-none absolute inset-0 opacity-[0.4]"
+                className="pointer-events-none absolute inset-0 -z-10 opacity-[0.16]"
                 aria-hidden="true"
                 style={{
-                    backgroundImage: 'linear-gradient(to right, rgba(37,99,235,0.05) 1px, transparent 1px), linear-gradient(to bottom, rgba(37,99,235,0.05) 1px, transparent 1px)',
-                    backgroundSize: '48px 48px',
-                    maskImage: 'linear-gradient(to bottom, black, transparent 85%)',
+                    backgroundImage:
+                        'linear-gradient(to right, rgba(255,255,255,0.10) 1px, transparent 1px), linear-gradient(to bottom, rgba(255,255,255,0.10) 1px, transparent 1px)',
+                    backgroundSize: '56px 56px',
+                    maskImage: 'linear-gradient(to bottom, black, transparent 90%)',
                 }}
             />
+            <div className="pointer-events-none absolute -right-40 -top-40 -z-10 h-[38rem] w-[38rem] rounded-full bg-steel-500 opacity-[0.15] blur-3xl" aria-hidden="true" />
+            <div className="pointer-events-none absolute -bottom-56 -left-40 -z-10 h-[34rem] w-[34rem] rounded-full bg-brand-600 opacity-[0.12] blur-3xl" aria-hidden="true" />
 
             <div className="relative mx-auto max-w-7xl px-4 py-20 sm:px-6 sm:py-28 lg:px-8">
                 <div className="mx-auto max-w-3xl text-center">
-                    <p className="text-xs font-semibold uppercase tracking-[0.2em] text-brand-600">
+                    <p className="text-xs font-semibold uppercase tracking-[0.2em] text-steel-300">
                         Industrial Operations Platform
                     </p>
-                    <h1 className="mt-4 text-4xl font-semibold leading-tight tracking-tight text-graphite-900 sm:text-5xl lg:text-6xl">
-                        Run Your Industrial Operations<br className="hidden sm:block" /> in One Platform.
+                    <h1 className="mt-4 text-4xl font-semibold leading-[1.08] tracking-tight text-white sm:text-5xl lg:text-6xl">
+                        Run your industrial operations<br className="hidden sm:block" /> in one platform.
                     </h1>
 
-                    {/* v2.27.0 (Part 5): the industry positioning statement
-                        -- deliberately visually distinct (English, bold,
-                        uppercase, its own bordered strip) from the
-                        Indonesian explanatory sentence beneath it, per
-                        this pass's own "should NOT be buried inside a
-                        paragraph" instruction. */}
-                    <div className="mx-auto mt-6 inline-flex flex-wrap items-center justify-center gap-x-2 gap-y-1 rounded-full border border-brand-200 bg-white/70 px-4 py-2 text-[11px] font-semibold uppercase tracking-wide text-brand-700 backdrop-blur-sm sm:text-xs">
-                        <span className="text-graphite-900">Built for Industrial Operations</span>
-                        <span className="hidden text-graphite-300 sm:inline">&middot;</span>
+                    <div className="mx-auto mt-6 inline-flex flex-wrap items-center justify-center gap-x-2 gap-y-1 rounded-full border border-white/10 bg-white/[0.06] px-4 py-2 text-[11px] font-semibold uppercase tracking-wide text-steel-200 sm:text-xs">
+                        <span className="text-white">Built for Industrial Operations</span>
+                        <span className="hidden text-white/25 sm:inline">&middot;</span>
                         <span className="flex flex-wrap items-center justify-center gap-x-1.5">
                             {INDUSTRIES_STRIP.map((ind, i) => (
                                 <span key={ind}>{ind}{i < INDUSTRIES_STRIP.length - 1 ? ' •' : ''}</span>
@@ -137,62 +137,67 @@ function Hero() {
                         </span>
                     </div>
 
-                    <p className="mx-auto mt-6 max-w-2xl text-base leading-relaxed text-graphite-600 sm:text-lg">
+                    <p className="mx-auto mt-6 max-w-2xl text-base leading-relaxed text-navy-300 sm:text-lg">
                         IOMS membantu perusahaan industri mengelola pekerjaan lapangan, keselamatan (HSE), tenaga
                         kerja, operasional, dan data perusahaan dalam satu platform -- dirancang untuk galangan
                         kapal, konstruksi, manufaktur, dan industri berat.
                     </p>
+
+                    {/* One unmistakable primary, one quiet secondary. The
+                        secondary is a surface-on-navy rather than a bordered
+                        white button, so the pair reads as a hierarchy instead
+                        of two buttons competing for the same weight. */}
                     <div className="mt-8 flex flex-col items-center justify-center gap-3 sm:flex-row">
-                        <Button size="lg" className="w-full sm:w-auto" asChild><Link href={route('login')}>Get Started <ArrowRight className="h-4 w-4" /></Link></Button>
-                        <Button size="lg" variant="outline" className="w-full sm:w-auto" asChild><a href="#platform">Explore IOMS</a></Button>
+                        <Button size="lg" className="w-full sm:w-auto" asChild>
+                            <Link href={route('login')}>Sign in to IOMS <ArrowRight className="h-4 w-4" /></Link>
+                        </Button>
+                        <Button
+                            size="lg"
+                            variant="ghost"
+                            className="w-full border border-white/15 bg-white/[0.06] text-white hover:bg-white/[0.12] hover:text-white sm:w-auto"
+                            asChild
+                        >
+                            <a href="#platform">Explore the platform</a>
+                        </Button>
                     </div>
                 </div>
 
-                {/* v2.27.0 (Part 4/7): the platform visualization -- a
-                    central IOMS hub with 8 real domains connected around
-                    it, replacing the previous flat 5-tile "Field -> PTW ->
-                    HSE -> Data -> Management" row. Desktop-only (`lg:`) --
-                    absolute-positioned nodes on a percentage-based circle
-                    don't reflow safely to a narrow viewport by shrinking
-                    alone (per this pass's own "must not overflow on
-                    mobile" rule), so mobile gets a separate, simple wrap-
-                    grid fallback immediately below instead of a shrunk
-                    copy of this same layout. */}
+                {/* The platform visualization: a central IOMS hub with eight
+                    real product domains around it. Desktop-only -- absolute
+                    nodes on a percentage circle cannot reflow safely to a
+                    narrow viewport, so mobile gets the plain wrap-grid below
+                    rather than a shrunken copy of this same layout. */}
                 <div className="relative mx-auto mt-20 hidden aspect-square max-w-xl lg:block">
                     <svg className="absolute inset-0 h-full w-full" viewBox="0 0 100 100" aria-hidden="true">
                         {ORBIT_NODES.map((n) => (
-                            <line key={n.label} x1="50" y1="50" x2={n.x} y2={n.y} stroke="rgb(37 99 235 / 0.15)" strokeWidth="0.4" />
+                            <line key={n.label} x1="50" y1="50" x2={n.x} y2={n.y} stroke="rgb(255 255 255 / 0.16)" strokeWidth="0.35" />
                         ))}
                     </svg>
 
-                    {/* Central IOMS hub */}
-                    <div className="absolute left-1/2 top-1/2 flex h-32 w-32 -translate-x-1/2 -translate-y-1/2 flex-col items-center justify-center rounded-full border border-brand-200 bg-white shadow-card-hover motion-safe:animate-pulse-glow">
-                        <div className="flex h-14 w-14 items-center justify-center rounded-full bg-gradient-to-br from-brand-500 to-brand-700 text-white shadow-card">
+                    <div className="absolute left-1/2 top-1/2 flex h-32 w-32 -translate-x-1/2 -translate-y-1/2 flex-col items-center justify-center rounded-full border border-white/15 bg-navy-800/80 shadow-panel backdrop-blur-sm">
+                        <div className="flex h-14 w-14 items-center justify-center rounded-full bg-white/10 text-steel-200 ring-1 ring-inset ring-white/15">
                             <Sparkles className="h-6 w-6" />
                         </div>
-                        <p className="mt-2 text-sm font-bold tracking-tight text-graphite-900">IOMS</p>
+                        <p className="mt-2 text-sm font-bold tracking-tight text-white">IOMS</p>
                     </div>
 
-                    {ORBIT_NODES.map((n, i) => (
+                    {ORBIT_NODES.map((n) => (
                         <div
                             key={n.label}
-                            className="absolute flex -translate-x-1/2 -translate-y-1/2 flex-col items-center gap-1.5 rounded-xl border border-graphite-200 bg-white/90 px-3 py-2.5 shadow-card backdrop-blur-sm motion-safe:animate-float"
-                            style={{ left: `${n.x}%`, top: `${n.y}%`, animationDelay: `${i * 0.4}s` }}
+                            className="absolute flex -translate-x-1/2 -translate-y-1/2 flex-col items-center gap-1.5 rounded-xl border border-white/10 bg-white/[0.07] px-3 py-2.5 backdrop-blur-sm"
+                            style={{ left: `${n.x}%`, top: `${n.y}%` }}
                         >
-                            <n.icon className="h-4 w-4 text-brand-600" />
-                            <span className="whitespace-nowrap text-[11px] font-medium text-graphite-700">{n.label}</span>
+                            <n.icon className="h-4 w-4 text-steel-300" />
+                            <span className="whitespace-nowrap text-[11px] font-medium text-steel-100">{n.label}</span>
                         </div>
                     ))}
                 </div>
 
-                {/* Mobile/tablet fallback -- same 8 domains, plain wrap
-                    grid, zero absolute positioning so there is nothing
-                    that can overflow a narrow viewport. */}
                 <div className="mx-auto mt-16 grid max-w-md grid-cols-2 gap-3 sm:grid-cols-4 lg:hidden">
                     {ORBIT_NODES.map((n) => (
-                        <div key={n.label} className="flex flex-col items-center gap-1.5 rounded-xl border border-graphite-200 bg-white px-3 py-3 text-center shadow-card">
-                            <n.icon className="h-4 w-4 text-brand-600" />
-                            <span className="text-[11px] font-medium leading-tight text-graphite-700">{n.label}</span>
+                        <div key={n.label} className="flex flex-col items-center gap-1.5 rounded-xl border border-white/10 bg-white/[0.06] px-3 py-3 text-center">
+                            <n.icon className="h-4 w-4 text-steel-300" />
+                            <span className="text-[11px] font-medium leading-tight text-steel-100">{n.label}</span>
                         </div>
                     ))}
                 </div>
@@ -200,6 +205,7 @@ function Hero() {
         </section>
     );
 }
+
 
 function TrustStatement() {
     return (
@@ -307,7 +313,8 @@ function PtwHseStory() {
     ];
 
     return (
-        <section id="solutions" className="border-b border-graphite-100 bg-graphite-900 py-20 text-white">
+        <section id="solutions" className="relative isolate overflow-hidden border-b border-navy-800 bg-navy-900 py-20 text-white">
+            <div className="pointer-events-none absolute -right-32 -top-32 -z-10 h-[30rem] w-[30rem] rounded-full bg-steel-500 opacity-[0.13] blur-3xl" aria-hidden="true" />
             <div className="mx-auto max-w-5xl px-4 sm:px-6 lg:px-8">
                 <div className="text-center">
                     <p className="text-xs font-semibold uppercase tracking-[0.2em] text-brand-400">A Real Differentiator</p>
@@ -361,97 +368,6 @@ function FieldExperience() {
                     <div className="rounded-xl border border-graphite-200 bg-graphite-50 p-4 shadow-card sm:p-6">
                         <MockupFieldHome />
                     </div>
-                </div>
-            </div>
-        </section>
-    );
-}
-
-/* ------------------------------------------------------------------ */
-/* Section: HSE Workspace                                              */
-/* ------------------------------------------------------------------ */
-function HseWorkspace() {
-    const modules = [
-        { label: 'PTW', icon: Flame }, { label: 'HIRADC', icon: FileCheck2 }, { label: 'JSA', icon: ClipboardList },
-        { label: 'Gas Test', icon: Wind }, { label: 'Incident', icon: AlertTriangle }, { label: 'Safety Observation', icon: Eye },
-        { label: 'Inspection', icon: ClipboardCheck }, { label: 'CAPA', icon: ShieldCheck }, { label: 'LOTO', icon: Lock },
-    ];
-
-    return (
-        <section className="border-b border-graphite-100 bg-gradient-to-b from-brand-50/50 to-brand-50/20 py-20">
-            <div className="mx-auto max-w-7xl px-4 sm:px-6 lg:px-8">
-                <SectionHeading eyebrow="HSE Workspace" title="From field activity to HSE oversight" subtitle="HSE gets the full control and review environment -- every PTW, hazard, and safety record in one workspace." />
-
-                <div className="mt-12 grid grid-cols-2 gap-3 sm:grid-cols-3 lg:grid-cols-9">
-                    {modules.map((m) => (
-                        <div key={m.label} className="flex flex-col items-center gap-2 rounded-lg border border-graphite-200 bg-white px-2 py-4 text-center shadow-card">
-                            <m.icon className="h-5 w-5 text-brand-600" />
-                            <span className="text-xs font-medium text-graphite-700">{m.label}</span>
-                        </div>
-                    ))}
-                </div>
-            </div>
-        </section>
-    );
-}
-
-/* ------------------------------------------------------------------ */
-/* Section: People / Workforce                                         */
-/* ------------------------------------------------------------------ */
-function PeopleWorkforce() {
-    const chain = ['Employee', 'User Account', 'PTW Access', 'Requester', 'PIC', 'Workforce'];
-
-    return (
-        <section className="border-b border-graphite-100 bg-white py-20">
-            <div className="mx-auto max-w-5xl px-4 sm:px-6 lg:px-8">
-                <div className="text-center">
-                    <p className="text-xs font-semibold uppercase tracking-[0.2em] text-brand-600">People</p>
-                    <h2 className="mt-3 text-2xl font-semibold tracking-tight text-graphite-900 sm:text-3xl">Know who is involved in the work.</h2>
-                    <p className="mx-auto mt-3 max-w-2xl text-sm text-graphite-600 sm:text-base">
-                        IOMS connects your real employee data to every permit and every job -- not typed names, real
-                        people. Access to create a PTW is individually controlled, never a shared login.
-                    </p>
-                </div>
-
-                <div className="mx-auto mt-12 flex max-w-4xl flex-wrap items-center justify-center gap-2 sm:gap-3">
-                    {chain.map((c, i) => (
-                        <div key={c} className="flex items-center gap-2 sm:gap-3">
-                            <div className="rounded-lg border border-graphite-200 bg-white px-3 py-2.5 text-sm font-medium text-graphite-700 shadow-card sm:px-4">
-                                {c}
-                            </div>
-                            {i < chain.length - 1 && <ArrowRight className="h-3.5 w-3.5 shrink-0 text-graphite-300" />}
-                        </div>
-                    ))}
-                </div>
-            </div>
-        </section>
-    );
-}
-
-/* ------------------------------------------------------------------ */
-/* Section: Operational Data                                           */
-/* ------------------------------------------------------------------ */
-function OperationalData() {
-    const sources = ['Man-Hour', 'PPE', 'Waste', 'PTW', 'Incident', 'Inspection', 'CAPA', 'Work Center'];
-
-    return (
-        <section className="border-b border-graphite-100 bg-gradient-to-b from-brand-50/50 to-brand-50/20 py-20">
-            <div className="mx-auto max-w-5xl px-4 sm:px-6 lg:px-8">
-                <SectionHeading eyebrow="Data & Insight" title="Operational records become usable data" subtitle="Every module feeds the same reporting layer -- no separate spreadsheet exports to reconcile." />
-
-                <div className="mt-10 grid grid-cols-2 gap-3 sm:grid-cols-4">
-                    {sources.map((s) => (
-                        <div key={s} className="rounded-lg border border-graphite-200 bg-white px-3 py-3 text-center text-sm text-graphite-600 shadow-card">
-                            {s}
-                        </div>
-                    ))}
-                </div>
-
-                <div className="mt-6 flex justify-center"><ArrowRight className="h-6 w-6 rotate-90 text-graphite-300" /></div>
-
-                <div className="mt-6 grid grid-cols-1 gap-3 sm:grid-cols-2">
-                    <div className="rounded-lg border border-graphite-200 bg-white px-4 py-4 text-center text-sm font-medium text-graphite-700 shadow-card">Reports</div>
-                    <div className="rounded-lg border-2 border-graphite-900 bg-white px-4 py-4 text-center text-sm font-semibold text-graphite-900 shadow-card">Management Insight</div>
                 </div>
             </div>
         </section>
@@ -750,7 +666,8 @@ function Faq() {
 /* ------------------------------------------------------------------ */
 function FinalCta() {
     return (
-        <section className="bg-graphite-900 py-20 text-white">
+        <section className="relative isolate overflow-hidden bg-navy-900 py-20 text-white">
+            <div className="pointer-events-none absolute -left-32 -bottom-40 -z-10 h-[28rem] w-[28rem] rounded-full bg-brand-600 opacity-[0.14] blur-3xl" aria-hidden="true" />
             <div className="mx-auto max-w-3xl px-4 text-center sm:px-6 lg:px-8">
                 <h2 className="text-2xl font-semibold tracking-tight sm:text-3xl">Ready to connect your operations?</h2>
                 <div className="mt-8 flex flex-col items-center justify-center gap-3 sm:flex-row">

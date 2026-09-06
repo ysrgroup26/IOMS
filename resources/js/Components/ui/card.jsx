@@ -11,7 +11,7 @@ import { cn } from '@/lib/utils';
 const CARD_TONES = {
     brand: 'border-brand-200/60 bg-gradient-to-br from-brand-50/70 via-white to-white dark:border-brand-900/40 dark:from-brand-950/20 dark:via-slate-900 dark:to-slate-900',
     steel: 'border-steel-200/70 bg-gradient-to-br from-steel-50 via-white to-white dark:border-slate-800 dark:from-slate-900 dark:via-slate-900 dark:to-slate-900',
-    navy: 'border-navy-700 bg-gradient-to-br from-navy-900 via-navy-800 to-brand-700 text-white shadow-lift dark:border-slate-800',
+    navy: 'border-navy-800 bg-gradient-to-br from-navy-900 via-navy-900 to-navy-800 text-white shadow-panel dark:border-slate-800',
     success: 'border-success/25 bg-gradient-to-br from-success/[0.07] via-white to-white dark:border-emerald-900/40 dark:from-emerald-950/20 dark:via-slate-900 dark:to-slate-900',
     warning: 'border-warning/25 bg-gradient-to-br from-warning/[0.08] via-white to-white dark:border-amber-900/40 dark:from-amber-950/20 dark:via-slate-900 dark:to-slate-900',
     danger: 'border-danger/25 bg-gradient-to-br from-danger/[0.07] via-white to-white dark:border-red-900/40 dark:from-red-950/20 dark:via-slate-900 dark:to-slate-900',

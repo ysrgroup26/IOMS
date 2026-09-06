@@ -10,7 +10,12 @@
         --card: 0 0% 100%;
         --card-foreground: 222 47% 11%;
 
-        --primary: 221 83% 53%;          /* brand blue */
+        /* v2.45.0: v2.44.0 re-cut the `brand` SCALE toward the navy/steel
+           axis but left this variable behind, so every primary control in
+           the app still resolved to the old bright web blue -- which is
+           exactly why buttons started reading louder than the surfaces
+           around them. Now matched to brand-600 (#2166C4). */
+        --primary: 212 71% 45%;          /* IOMS blue, navy/steel axis */
         --primary-foreground: 0 0% 100%;
 
         --secondary: 210 40% 96%;
@@ -27,7 +32,7 @@
 
         --border: 214 32% 91%;
         --input: 214 32% 91%;
-        --ring: 221 83% 53%;
+        --ring: 212 71% 45%;
 
         --radius: 0.75rem;
     }
@@ -39,7 +44,7 @@
         --card: 222 40% 9.5%;
         --card-foreground: 210 40% 96%;
 
-        --primary: 217 91% 60%;
+        --primary: 211 66% 58%;
         --primary-foreground: 222 47% 7%;
 
         --secondary: 217 33% 15%;
@@ -56,7 +61,7 @@
 
         --border: 217 33% 18%;
         --input: 217 33% 18%;
-        --ring: 217 91% 60%;
+        --ring: 211 66% 58%;
     }
 
     * {

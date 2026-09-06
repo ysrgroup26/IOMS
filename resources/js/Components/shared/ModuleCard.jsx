@@ -28,7 +28,7 @@ export default function ModuleCard({ icon: Icon, title, description, href, statu
     const body = (
         <>
             <div className="flex items-center justify-between gap-2">
-                <span className="flex h-8 w-8 shrink-0 items-center justify-center rounded-[9px] bg-gradient-to-br from-navy-800 to-brand-600 text-white shadow-card transition-transform duration-200 motion-safe:group-hover:scale-105 dark:from-brand-950/40 dark:to-brand-900/40 dark:text-brand-400">
+                <span className="flex h-8 w-8 shrink-0 items-center justify-center rounded-[9px] bg-steel-100/70 text-navy-700 ring-1 ring-inset ring-steel-200/70 transition-colors duration-200 group-hover:bg-steel-200/70 group-hover:text-navy-800 dark:bg-slate-800 dark:text-slate-300 dark:ring-slate-700">
                     {Icon && <Icon className="h-4 w-4" />}
                 </span>
                 {status === 'planned' && <Badge variant="secondary" className="shrink-0">Coming Soon</Badge>}

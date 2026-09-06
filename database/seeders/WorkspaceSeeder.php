@@ -19,7 +19,7 @@ class WorkspaceSeeder extends Seeder
     {
         $workspaces = [
             ['key' => 'hr', 'label' => 'Human Resources', 'icon' => 'Users', 'tier' => 'department'],
-            ['key' => 'hse', 'label' => 'HSE', 'icon' => 'HardHat', 'tier' => 'department'],
+            ['key' => 'hse', 'label' => 'Health, Safety & Environment', 'icon' => 'HardHat', 'tier' => 'department'],
             ['key' => 'project-management', 'label' => 'Project Management', 'icon' => 'FolderKanban', 'tier' => 'department'],
             ['key' => 'logistics', 'label' => 'Logistics / PPIC', 'icon' => 'PackageSearch', 'tier' => 'department'],
             ['key' => 'warehouse', 'label' => 'Warehouse', 'icon' => 'Warehouse', 'tier' => 'department'],

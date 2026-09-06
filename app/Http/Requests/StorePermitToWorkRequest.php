@@ -42,6 +42,14 @@ class StorePermitToWorkRequest extends FormRequest
         return [
             'company_id' => ['required', Rule::in($tenantCompanyIds)],
             'project_id' => ['nullable', Rule::in($tenantProjectIds)],
+            // v2.52.0. PROJECT IDENTITY AND WORK LOCATION ARE DIFFERENT
+            // THINGS, and a permit needs both. `project_id` is the formal
+            // Project Master when one exists; `project_name` carries the
+            // work identity when it does not, so HSE is never blocked on
+            // Management creating a project row first and the printed
+            // permit never reads "No Project" for work that has a name.
+            // `location` below remains the physical Work Location / Area.
+            'project_name' => ['nullable', 'string', 'max:255'],
             'risk_assessment_id' => ['nullable', Rule::in($tenantRaIds)],
             'jsa_id' => ['nullable', Rule::in($tenantJsaIds)],
             'permit_type' => ['required', Rule::in(PermitToWork::TYPES)],

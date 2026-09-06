@@ -18,23 +18,23 @@ import { Button } from '@/Components/ui/button';
 const PILLARS = [
     {
         icon: Layers,
-        title: 'One platform, not a suite of tools',
-        body: 'Employees, assets, permits, stock and purchase orders reference the same master data. A record raised in the field is the same record management reports on.',
+        title: 'Satu platform, bukan kumpulan aplikasi',
+        body: 'Karyawan, aset, izin kerja, stok, dan purchase order mengacu pada data induk yang sama. Catatan yang dibuat di lapangan adalah catatan yang sama yang dilaporkan ke manajemen.',
     },
     {
         icon: ShieldCheck,
-        title: 'Isolated per customer',
-        body: 'Each customer is its own tenant. Isolation is enforced at the data-access layer rather than left to individual queries to remember.',
+        title: 'Terpisah untuk setiap pelanggan',
+        body: 'Setiap pelanggan adalah tenant tersendiri. Pemisahan data diterapkan pada lapisan akses data, bukan diserahkan pada setiap query untuk mengingatnya sendiri.',
     },
     {
         icon: Workflow,
-        title: 'Approvals built in',
-        body: 'Approval routing, role and department permissions, and an activity timeline on every record — not a spreadsheet with a signature column.',
+        title: 'Persetujuan sudah menyatu',
+        body: 'Alur persetujuan, hak akses per peran dan departemen, serta riwayat aktivitas pada setiap catatan — bukan spreadsheet dengan kolom tanda tangan.',
     },
     {
         icon: FileText,
-        title: 'Documents on your letterhead',
-        body: 'Operational documents generate as print-ready A4 PDFs carrying your own company identity, and report data exports to formatted Excel.',
+        title: 'Dokumen dengan kop perusahaan Anda',
+        body: 'Dokumen operasional dihasilkan sebagai PDF A4 siap cetak dengan identitas perusahaan Anda sendiri, dan data laporan diekspor ke Excel yang sudah tertata.',
     },
 ];
 
@@ -45,8 +45,8 @@ export default function Platform({ domains = [] }) {
 
             <PublicPageHero
                 eyebrow="Platform"
-                title="Everything your operation runs on, in one system."
-                subtitle="IOMS is an Industrial Operations Platform: the field work, the approvals behind it, and the records it produces, held together instead of scattered across forms, folders and spreadsheets."
+                title="Seluruh operasi Anda dalam satu sistem."
+                subtitle="IOMS adalah Industrial Operations Platform: pekerjaan lapangan, persetujuan di baliknya, dan catatan yang dihasilkannya — disatukan, bukan tersebar di formulir, folder, dan spreadsheet."
             />
 
             <section className="bg-white py-14 sm:py-20">
@@ -71,12 +71,12 @@ export default function Platform({ domains = [] }) {
             <section className="border-t border-graphite-100 bg-graphite-100 py-14 sm:py-20">
                 <div className="mx-auto max-w-6xl px-4 sm:px-6">
                     <div className="mx-auto max-w-2xl text-center">
-                        <p className="text-xs font-semibold uppercase tracking-[0.2em] text-brand-600">Coverage</p>
+                        <p className="text-xs font-semibold uppercase tracking-[0.2em] text-brand-600">Cakupan</p>
                         <h2 className="mt-3 text-2xl font-semibold tracking-tight text-navy-900 sm:text-3xl">
-                            The operational domains IOMS covers
+                            Domain operasional yang dicakup IOMS
                         </h2>
                         <p className="mt-3 text-sm leading-relaxed text-graphite-600">
-                            Which of these a customer can open is set by their plan — the platform underneath is the same one.
+                            Domain mana yang dapat dibuka ditentukan oleh paket Anda — platform di baliknya tetap sama.
                         </p>
                     </div>
 
@@ -99,10 +99,10 @@ export default function Platform({ domains = [] }) {
 
                     <div className="mt-12 flex flex-col items-center justify-center gap-3 sm:flex-row">
                         <Button asChild>
-                            <Link href={route('pricing')}>View plans <ArrowRight className="h-4 w-4" /></Link>
+                            <Link href={route('pricing')}>Lihat paket <ArrowRight className="h-4 w-4" /></Link>
                         </Button>
                         <Button variant="outline" asChild>
-                            <Link href={route('how-it-works')}>See how it works</Link>
+                            <Link href={route('how-it-works')}>Lihat cara kerjanya</Link>
                         </Button>
                     </div>
                 </div>

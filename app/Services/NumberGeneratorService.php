@@ -76,6 +76,13 @@ class NumberGeneratorService
         'contractor' => ['prefix' => 'CTR', 'pattern' => '{PREFIX}-{SEQ}', 'seq_padding' => 4, 'reset_period' => 'never'],
         'visitor' => ['prefix' => 'VIS', 'pattern' => '{PREFIX}-{YEAR}-{SEQ}', 'seq_padding' => 5, 'reset_period' => 'yearly'],
         'controlled_document' => ['prefix' => 'DOC', 'pattern' => '{PREFIX}-{YEAR}-{SEQ}', 'seq_padding' => 5, 'reset_period' => 'yearly'],
+        // v2.52.0. BAST is a FORMAL HANDOVER instrument and gets its own
+        // series -- deliberately not shared with goods_receipt, which is a
+        // warehouse transaction (see the handover_records migration for why
+        // the two are different documents, not two names for one thing).
+        'handover_record' => ['prefix' => 'BAST', 'pattern' => '{PREFIX}-{YEAR}-{SEQ}', 'seq_padding' => 5, 'reset_period' => 'yearly'],
+        // Regulations & Standards Register entries.
+        'regulation_register' => ['prefix' => 'REG', 'pattern' => '{PREFIX}-{YEAR}-{SEQ}', 'seq_padding' => 4, 'reset_period' => 'yearly'],
     ];
 
     /**

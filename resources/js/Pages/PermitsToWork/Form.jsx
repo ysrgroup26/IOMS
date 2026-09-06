@@ -72,6 +72,7 @@ export default function PermitToWorkForm({ companies, projects, riskAssessments,
     const { data, setData, post, processing, errors } = useForm({
         company_id: companies[0]?.id ? String(companies[0].id) : '',
         project_id: '',
+        project_name: '',
         risk_assessment_id: '',
         jsa_id: '',
         permit_type: 'hot_work',
@@ -168,13 +169,38 @@ export default function PermitToWorkForm({ companies, projects, riskAssessments,
                                 {errors.end_datetime && <p className="text-xs text-red-600">{errors.end_datetime}</p>}
                             </div>
                         </div>
+                        {/* v2.52.0 -- PROJECT IDENTITY AND WORK LOCATION ARE
+                            DIFFERENT THINGS, and the permit needs both.
+
+                            The formal Project Master is authoritative WHEN ONE
+                            EXISTS. When it does not -- because Management has not
+                            created the row yet, or because the work genuinely is
+                            not a project -- the free-text job name below carries
+                            the identity instead. HSE must never be blocked on
+                            Management's backlog, and the printed permit must never
+                            read "No Project" for work that plainly has a name. */}
                         <div className="space-y-1.5">
-                            <Label>Project (optional)</Label>
+                            <Label>Project / Job (opsional)</Label>
                             <Select value={data.project_id || 'none'} onValueChange={(v) => setData('project_id', v === 'none' ? '' : v)}>
-                                <SelectTrigger><SelectValue placeholder="No project" /></SelectTrigger>
-                                <SelectContent><SelectItem value="none">No project</SelectItem>{projects.map((p) => <SelectItem key={p.id} value={String(p.id)}>{p.name}</SelectItem>)}</SelectContent>
+                                <SelectTrigger><SelectValue placeholder="Pilih proyek terdaftar" /></SelectTrigger>
+                                <SelectContent><SelectItem value="none">Tidak terkait proyek terdaftar</SelectItem>{projects.map((p) => <SelectItem key={p.id} value={String(p.id)}>{p.name}</SelectItem>)}</SelectContent>
                             </Select>
                         </div>
+                        {! data.project_id && (
+                            <div className="space-y-1.5">
+                                <Label>Nama Pekerjaan / Job</Label>
+                                <Input
+                                    value={data.project_name}
+                                    onChange={(e) => setData('project_name', e.target.value)}
+                                    placeholder="mis. Docking MV Sinar Mas / Overhaul Crane #4"
+                                />
+                                <p className="text-[11px] leading-snug text-graphite-500">
+                                    Isi bila pekerjaan ini belum terdaftar sebagai proyek. Identitas pekerjaan tetap tercatat
+                                    dan tercetak pada izin kerja.
+                                </p>
+                                {errors.project_name && <p className="text-xs text-red-600">{errors.project_name}</p>}
+                            </div>
+                        )}
                         {/* v2.42.0 -- Project/Asset and Work Location are a
                             HIERARCHY, not alternatives: the Project FK stays owned by
                             the Management/Project domain, and this free-text field

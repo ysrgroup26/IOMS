@@ -2,10 +2,14 @@
 
 namespace App\Exports;
 
+use App\Exports\Concerns\IomsSheetFormatting;
 use Maatwebsite\Excel\Concerns\FromArray;
 use Maatwebsite\Excel\Concerns\ShouldAutoSize;
 use Maatwebsite\Excel\Concerns\WithHeadings;
+use Maatwebsite\Excel\Concerns\WithEvents;
+use Maatwebsite\Excel\Concerns\WithProperties;
 use Maatwebsite\Excel\Concerns\WithStyles;
+use Maatwebsite\Excel\Events\AfterSheet;
 use PhpOffice\PhpSpreadsheet\Worksheet\Worksheet;
 
 /**
@@ -15,8 +19,33 @@ use PhpOffice\PhpSpreadsheet\Worksheet\Worksheet;
  * Maatwebsite\Excel's WithHeadingRow), so a change to one requires the
  * same change to the other.
  */
-class EmployeeImportTemplateExport implements FromArray, ShouldAutoSize, WithHeadings, WithStyles
+class EmployeeImportTemplateExport implements FromArray, ShouldAutoSize, WithEvents, WithHeadings, WithProperties, WithStyles
 {
+    use IomsSheetFormatting;
+
+    /**
+     * v2.52.0: the template now opens like every other IOMS export --
+     * frozen, filterable header carrying the tenant's own document
+     * properties. It matters more here than elsewhere: this is the file a
+     * customer fills in and sends back, so the clearer the column
+     * structure is, the fewer rows come back malformed.
+     *
+     * `styles()` below is UNCHANGED. It marks which columns are required,
+     * which is template-specific meaning the shared foundation has no
+     * business overwriting.
+     */
+    public function properties(): array
+    {
+        return $this->iomsProperties('Employee Import Template', 'Fill this template and upload it in IOMS > Employees > Import.');
+    }
+
+    public function registerEvents(): array
+    {
+        return [
+            AfterSheet::class => fn (AfterSheet $event) => $this->applyIomsSheetFormatting($event->sheet->getDelegate()),
+        ];
+    }
+
     public function headings(): array
     {
         return [

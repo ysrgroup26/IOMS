@@ -6,6 +6,7 @@ use App\Models\Invoice;
 use Illuminate\Bus\Queueable;
 use Illuminate\Mail\Mailable;
 use Illuminate\Mail\Mailables\Content;
+use Illuminate\Mail\Mailables\Address;
 use Illuminate\Mail\Mailables\Envelope;
 use Illuminate\Queue\SerializesModels;
 
@@ -28,7 +29,12 @@ class InvoiceIssued extends Mailable
 
     public function envelope(): Envelope
     {
-        return new Envelope(subject: 'IOMS invoice '.$this->invoice->invoice_number);
+        // Billing owns invoice conversations.
+        return new Envelope(
+            from: new Address(config('ioms.emails.noreply'), 'IOMS'),
+            replyTo: [new Address(config('ioms.emails.billing'), 'IOMS Billing')],
+            subject: 'Invoice IOMS '.$this->invoice->invoice_number,
+        );
     }
 
     public function content(): Content

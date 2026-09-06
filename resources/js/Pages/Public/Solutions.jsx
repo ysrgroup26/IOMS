@@ -15,14 +15,14 @@ import { Button } from '@/Components/ui/button';
  * apart, and so every claim stays reviewable in one list.
  */
 const INDUSTRIES = [
-    'Shipyard & Marine',
-    'Construction & Civil',
-    'Oil, Gas & Energy',
-    'Manufacturing',
-    'Mining & Minerals',
-    'Engineering & Fabrication',
-    'Logistics & Transportation',
-    'Industrial Services',
+    'Galangan Kapal & Marine',
+    'Konstruksi & Sipil',
+    'Minyak, Gas & Energi',
+    'Manufaktur',
+    'Pertambangan & Mineral',
+    'Engineering & Fabrikasi',
+    'Logistik & Transportasi',
+    'Jasa Industri',
 ];
 
 export default function Solutions({ domains = [] }) {
@@ -32,8 +32,8 @@ export default function Solutions({ domains = [] }) {
 
             <PublicPageHero
                 eyebrow="Solutions"
-                title="Built for how industrial operations actually run."
-                subtitle="Each domain below is a part of the operation IOMS covers today. They share one master data set, one approval layer and one reporting layer — so work that crosses departments does not have to cross systems."
+                title="Dibangun mengikuti cara operasi industri berjalan."
+                subtitle="Setiap domain di bawah ini sudah dicakup IOMS hari ini. Semuanya berbagi satu data induk, satu lapisan persetujuan, dan satu lapisan pelaporan — sehingga pekerjaan yang melintasi departemen tidak perlu melintasi sistem."
             />
 
             <section className="bg-white py-14 sm:py-20">
@@ -69,13 +69,13 @@ export default function Solutions({ domains = [] }) {
 
             <section className="border-t border-graphite-100 bg-graphite-100 py-14 sm:py-16">
                 <div className="mx-auto max-w-4xl px-4 text-center sm:px-6">
-                    <p className="text-xs font-semibold uppercase tracking-[0.2em] text-brand-600">Industries</p>
+                    <p className="text-xs font-semibold uppercase tracking-[0.2em] text-brand-600">Industri</p>
                     <h2 className="mt-3 text-2xl font-semibold tracking-tight text-navy-900">
-                        Where IOMS is used
+                        Industri yang menggunakan IOMS
                     </h2>
                     <p className="mx-auto mt-3 max-w-xl text-sm leading-relaxed text-graphite-600">
-                        IOMS is built around industrial operations generally rather than one sector. The modules are the
-                        same everywhere; what differs is which domains a company enables.
+                        IOMS dibangun untuk operasi industri secara umum, bukan satu sektor tertentu. Modulnya sama di
+                        semua industri; yang berbeda adalah domain mana yang diaktifkan perusahaan Anda.
                     </p>
 
                     <div className="mt-8 flex flex-wrap justify-center gap-2">
@@ -91,10 +91,10 @@ export default function Solutions({ domains = [] }) {
 
                     <div className="mt-10 flex flex-col items-center justify-center gap-3 sm:flex-row">
                         <Button asChild>
-                            <Link href={route('get-started')}>Get started <ArrowRight className="h-4 w-4" /></Link>
+                            <Link href={route('get-started')}>Mulai berlangganan <ArrowRight className="h-4 w-4" /></Link>
                         </Button>
                         <Button variant="outline" asChild>
-                            <Link href={route('pricing')}>Compare plans</Link>
+                            <Link href={route('pricing')}>Bandingkan paket</Link>
                         </Button>
                     </div>
                 </div>

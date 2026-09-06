@@ -123,6 +123,48 @@ actually renders; anything there that looks dated is dated on purpose.
 **Documents on this system**: Purchase Order (Surat Pesanan), Purchase Requisition (FPB), Goods
 Receipt (BAST), Work Order (SPK), plus the existing Permit To Work.
 
+### BAST vs Goods Receipt — two documents, not two names for one (v2.52.0)
+
+These were briefly collapsed into one document and separating them again is
+load-bearing, so it is written down here rather than left in a commit message.
+
+| | Goods Receipt | BAST (`HandoverRecord`) |
+|---|---|---|
+| What it is | A warehouse transaction | A formal handover instrument |
+| Consequence | A stock level moves | A contractual acceptance exists |
+| Frequency | Many times a week | Once per handover |
+| Signed by | Receiving officer | Two named parties |
+| Model | `GoodsReceipt` | `HandoverRecord` |
+| Numbering | `GR-` | `BAST-` |
+
+A completed Work Order handed to the asset owner needs a BAST and moves no stock at all. A pallet of
+electrodes booked into the warehouse needs a Goods Receipt and no BAST. A BAST may *reference* a
+Goods Receipt through its polymorphic `source` — that morph is restricted to a closed allow-list
+(`HandoverRecord::SOURCE_TYPES`) so a crafted request cannot point it at an arbitrary model.
+
+### My Work vs PTW Access — a workspace and a permission (v2.52.0)
+
+The second distinction this codebase had collapsed. They are independent in both directions:
+
+- `users.is_field_user` → which **workspace** an account lands in (`User::landingRouteName()`).
+- `users.ptw_access` → whether the account may **create** a Permit To Work (`User::canCreatePtw()`).
+
+A field worker normally has the first and not the second; a foreman may have both; an HSE officer may
+hold PTW authority without being a field account. Granting the field workspace consumes no PTW seat
+and grants no capability — they even have separate endpoints
+(`settings.users.field-access` vs `settings.users.ptw-access`) so the difference is visible in the
+code, not just in a comment.
+
+**Capacity model.** `max_users` is how many login accounts a tenant may create; `max_ptw_users` is
+how many *of those* may hold PTW Access. A subset, never an extra pool — `max_ptw_users <= max_users`
+always holds, and the standardize-capacity migration enforces it rather than assuming it.
+
+### Project identity vs work location (v2.52.0)
+
+`permits_to_work` carries `project_id` (the formal Project Master, authoritative when set),
+`project_name` (free-text work identity when no project row exists), and `location` (the physical
+area). `PermitToWork::workIdentity()` resolves the first two. The point: HSE must never be blocked on
+Management creating a project row, and a permit for real work must never print "No Project".
 ### Excel Export foundation (v2.51.0)
 
 **What it is**: `app/Exports/Concerns/IomsSheetFormatting.php` — a trait, not a base class, because

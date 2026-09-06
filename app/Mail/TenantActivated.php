@@ -6,6 +6,7 @@ use App\Models\TenantRegistration;
 use Illuminate\Bus\Queueable;
 use Illuminate\Mail\Mailable;
 use Illuminate\Mail\Mailables\Content;
+use Illuminate\Mail\Mailables\Address;
 use Illuminate\Mail\Mailables\Envelope;
 use Illuminate\Queue\SerializesModels;
 
@@ -25,8 +26,11 @@ class TenantActivated extends Mailable
 
     public function envelope(): Envelope
     {
+        // A new customer's first questions are support questions.
         return new Envelope(
-            subject: 'Your IOMS workspace for '.$this->registration->displayName().' is ready',
+            from: new Address(config('ioms.emails.noreply'), 'IOMS'),
+            replyTo: [new Address(config('ioms.emails.support'), 'IOMS Support')],
+            subject: 'Workspace IOMS untuk '.$this->registration->displayName().' sudah aktif',
         );
     }
 

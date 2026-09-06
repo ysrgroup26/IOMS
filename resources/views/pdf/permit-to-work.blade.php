@@ -212,7 +212,10 @@
         <div class="section-body">
             <table class="meta-table">
                 <tr>
-                    <td class="meta-label">Project / Asset</td><td class="meta-colon"></td><td>{{ $permit->project->name ?? '-' }}</td>
+                    {{-- v2.52.0: work identity, then work location -- two
+                         different facts. Falls back to the free-text job name so a
+                         permit for real work never prints as having no project. --}}
+                    <td class="meta-label">Project / Job</td><td class="meta-colon"></td><td>{{ $permit->workIdentity() ?? '-' }}</td>
                     <td class="meta-label">Work Location</td><td class="meta-colon"></td><td>{{ $permit->location ?? '-' }}</td>
                 </tr>
                 <tr>

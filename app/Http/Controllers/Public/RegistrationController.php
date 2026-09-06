@@ -66,7 +66,7 @@ class RegistrationController extends Controller
             'selectedPlan' => $plans->firstWhere('slug', $requested)['slug'] ?? null,
             'billingCycle' => $this->pricing->normalizeCycle($request->query('cycle')),
             'industries' => self::INDUSTRIES,
-            'supportEmail' => config('ioms.support_email'),
+            'contactEmail' => config('ioms.emails.hello'),
         ]);
     }
 
@@ -249,7 +249,8 @@ class RegistrationController extends Controller
                 'invoice_status' => $registration->invoice?->status,
             ],
             'paymentConfigured' => $this->paymentConfigured(),
-            'supportEmail' => config('ioms.support_email'),
+            // Billing, not sales -- this page is about an invoice.
+            'contactEmail' => config('ioms.emails.billing'),
         ]);
     }
 

@@ -292,6 +292,9 @@ class HandleInertiaRequests extends Middleware
                 'license' => config('ioms.license'),
                 'website' => config('ioms.website'),
                 'support_email' => config('ioms.support_email'),
+                // v2.52.0: the four IOMS mailboxes, so a page links to the
+                // right one instead of sending a sales enquiry to support.
+                'emails' => config('ioms.emails'),
                 'documentation_url' => config('ioms.documentation_url'),
                 'whats_new' => config('ioms.whats_new'),
                 'history' => config('ioms.version_history'),

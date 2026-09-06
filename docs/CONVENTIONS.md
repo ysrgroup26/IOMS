@@ -3,7 +3,35 @@
 House style, and a deliberately honest list of mistakes that have actually happened in this
 codebase's history — kept here so they don't get repeated in a slightly different shape.
 
-## CRITICAL — Known Pitfall (v2.51.0): a SEEDER is not the runtime source of truth. Changing seed
+## CRITICAL — Known Pitfall (v2.52.0): giving two different business concepts ONE name is a data
+## model bug, and it hides because the code keeps working
+
+v2.51.0 shipped a document titled "Goods Receipt / Berita Acara Serah Terima Barang". Nothing broke.
+The PDF rendered, the tests passed, the data was correct. But a Goods Receipt is a warehouse
+transaction whose consequence is a stock level, and a BAST is a formal handover between two named
+parties whose consequence is contractual. Collapsing them meant a customer either could not produce a
+real BAST when a client asked for one, or started treating routine receiving as contractual
+acceptance.
+
+The same mistake had already been made twice more in this codebase, in the same shape:
+
+- **My Work** (a workspace) inferred from **department_key**, and treated as interchangeable with
+  **PTW Access** (a permission).
+- **Project identity** and **work location** sharing one field, so a permit for real work printed
+  "No Project".
+
+**Rule.** Before reusing a name, ask what each concept's *consequence* is. If two things have
+different consequences — stock moves vs a contract is accepted; where you land vs what you may do;
+what the job is vs where it happens — they are different concepts and need different fields, even
+when one is "obviously" a special case of the other. A shared name costs nothing on the day it is
+introduced and is expensive to unpick later, because by then users have learned the wrong model.
+
+**Corollary for enums and quotas.** `null` is not a neutral default. `max_ptw_users = null` meant
+UNLIMITED to the entitlement layer, so every plan was silently granting unlimited PTW seats. When a
+column expresses a limit, decide explicitly what null means and enforce the relationship between
+related limits (`max_ptw_users <= max_users`) in a migration, not in a comment.
+
+---## CRITICAL — Known Pitfall (v2.51.0): a SEEDER is not the runtime source of truth. Changing seed
 ## data does not change a deployment that has already been seeded — and the drift is invisible in
 ## code review because the file you are reading is correct
 

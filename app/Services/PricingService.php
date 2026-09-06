@@ -57,6 +57,11 @@ class PricingService
             'trial_days' => $package->trial_days,
             'max_users' => $package->max_users,
             'max_companies' => $package->max_companies,
+            // v2.52.0. Without this the pricing page could not tell a capped
+            // plan from an uncapped one and printed "PTW Access untuk
+            // seluruh akun" for every tier -- advertising a quota the
+            // entitlement layer would refuse.
+            'max_ptw_users' => $package->max_ptw_users,
             'monthly' => $this->money($package->price_monthly, $package->currency, $package->is_custom),
             'yearly' => $this->money($package->price_yearly, $package->currency, $package->is_custom),
             'workspaces' => $this->labelsFor(Workspace::class, $package->defaultWorkspaceKeys()),

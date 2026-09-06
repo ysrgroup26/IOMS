@@ -257,10 +257,13 @@ class GoodsReceiptController extends Controller
      * Warehouse) it's linked to.
      */
     /**
-     * v2.51.0 -- Goods Receipt / Berita Acara Serah Terima Barang.
+     * v2.52.0 -- Goods Receipt / Bukti Penerimaan Barang.
      *
-     * The receiving document a delivering party actually signs, so it
-     * needs to leave the system as paper. Same tenant guard as show().
+     * The RECEIVING document: what physically arrived and what stock
+     * moved. It is not a Berita Acara -- v2.51.0 titled it as one, which
+     * conflated a warehouse transaction with a contractual handover.
+     * Formal handover is HandoverRecord (BAST), which may reference this
+     * receipt. Same tenant guard as show().
      */
     public function pdf(GoodsReceipt $goodsReceipt, PdfGeneratorService $pdf, DocumentEngine $documents): \Illuminate\Http\Response
     {

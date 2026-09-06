@@ -56,6 +56,7 @@ export default function SettingsIndex({ company, companies, departments, positio
     // Access toggling. Same server-side canManageHse() gate the route/
     // controller already enforce (see routes/web.php's own comment).
     const canPtwAccess = can?.manage_ptw_access;
+    const canFieldAccess = can?.manage_field_access;
 
     return (
         <AuthenticatedLayout>
@@ -1886,7 +1887,7 @@ function UsersTab({ users, roles, ptwAccess, canManageUsers, canPtwAccess }) {
     return (
         <div className="space-y-4">
             {canManageUsers && <UserManagementCard users={users} roles={roles} />}
-            {(canManageUsers || canPtwAccess) && <FieldPtwAccessCard users={users} ptwAccess={ptwAccess} />}
+            {(canManageUsers || canPtwAccess) && <FieldPtwAccessCard users={users} ptwAccess={ptwAccess} canFieldAccess={canFieldAccess} />}
         </div>
     );
 }
@@ -2009,7 +2010,7 @@ function UserManagementCard({ users, roles }) {
  * already small enough to have been sent whole by SettingsController::
  * index() -- no new endpoint needed for search).
  */
-function FieldPtwAccessCard({ users, ptwAccess }) {
+function FieldPtwAccessCard({ users, ptwAccess, canFieldAccess }) {
     const [search, setSearch] = useState('');
     const used = ptwAccess?.used ?? 0;
     const quota = ptwAccess?.quota ?? null;
@@ -2027,7 +2028,13 @@ function FieldPtwAccessCard({ users, ptwAccess }) {
             return;
         }
         router.put(route('settings.users.ptw-access', user.id), { ptw_access: next }, { preserveScroll: true });
-    }
+    };
+
+    // Separate endpoint, separate concept: this consumes no PTW quota and
+    // grants no capability -- it only changes where the account lands.
+    const toggleField = (user, next) => {
+        router.put(route('settings.users.field-access', user.id), { is_field_user: next }, { preserveScroll: true });
+    };
 
     return (
         <Card>
@@ -2065,16 +2072,33 @@ function FieldPtwAccessCard({ users, ptwAccess }) {
                                     key={u.id}
                                     className="flex flex-wrap items-center justify-between gap-x-4 gap-y-1.5 px-4 py-3"
                                 >
-                                    <div className="flex min-w-0 flex-1 items-center gap-2.5">
-                                        <Checkbox checked={!!u.ptw_access} onCheckedChange={(v) => toggle(u, Boolean(v))} />
-                                        <div className="min-w-0">
-                                            <p className="truncate text-[13px] font-medium text-graphite-900 dark:text-slate-100">{u.name}</p>
-                                            <p className="truncate text-[11px] font-medium uppercase tracking-wide text-graphite-400 dark:text-slate-500">
-                                                {deptLabel || 'Administrator (all)'}
-                                            </p>
-                                        </div>
+                                    <div className="min-w-0 flex-1">
+                                        <p className="truncate text-[13px] font-medium text-graphite-900 dark:text-slate-100">{u.name}</p>
+                                        <p className="truncate text-[11px] font-medium uppercase tracking-wide text-graphite-400 dark:text-slate-500">
+                                            {deptLabel || 'Administrator (all)'}
+                                        </p>
                                     </div>
-                                    <span className="shrink-0 text-xs font-medium text-graphite-500 dark:text-slate-400">PTW Access</span>
+                                    {/* v2.52.0 -- TWO DIFFERENT THINGS, side by side so the
+                                        difference is visible rather than assumed.
+                                        My Work decides which WORKSPACE the account lands
+                                        in; PTW Access decides whether it may CREATE a
+                                        Permit To Work. A field worker normally has the
+                                        first and not the second; a foreman may have both. */}
+                                    <div className="flex shrink-0 items-center gap-5">
+                                        {canFieldAccess && (
+                                            <label className="flex items-center gap-2">
+                                                <Checkbox
+                                                    checked={!!u.is_field_user}
+                                                    onCheckedChange={(v) => toggleField(u, Boolean(v))}
+                                                />
+                                                <span className="text-xs font-medium text-graphite-500 dark:text-slate-400">My Work</span>
+                                            </label>
+                                        )}
+                                        <label className="flex items-center gap-2">
+                                            <Checkbox checked={!!u.ptw_access} onCheckedChange={(v) => toggle(u, Boolean(v))} />
+                                            <span className="text-xs font-medium text-graphite-500 dark:text-slate-400">PTW Access</span>
+                                        </label>
+                                    </div>
                                 </div>
                             );
                         })

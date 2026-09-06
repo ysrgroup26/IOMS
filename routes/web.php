@@ -64,6 +64,8 @@ use App\Http\Controllers\PpeController;
 use App\Http\Controllers\PaymentWebhookController;
 use App\Http\Controllers\Public\RegistrationController;
 use App\Http\Controllers\PublicController;
+use App\Http\Controllers\HandoverRecordController;
+use App\Http\Controllers\RegulationRegisterController;
 use App\Http\Controllers\PpeTypeController;
 use App\Http\Controllers\ProjectActivityController;
 use App\Http\Controllers\ProjectController;
@@ -381,6 +383,16 @@ Route::middleware(['auth', 'restrict.platform-admin'])->group(function () {
     // v2.4.0 (PTW UX + Field Operations pass, Part 13) -- PTW PDF
     // document, see PermitToWorkController::pdf()'s own doc comment.
     Route::get('/permits-to-work/{permitToWork}/pdf', [PermitToWorkController::class, 'pdf'])->name('permits-to-work.pdf');
+
+    /*
+    | Regulations & Standards Register (v2.52.0). Inside the HSE prefix
+    | group, so the existing department gate governs reachability; write
+    | actions additionally assert canManageHse() in the controller.
+    */
+    Route::get('/hse-regulations', [RegulationRegisterController::class, 'index'])->name('hse-regulations.index');
+    Route::post('/hse-regulations', [RegulationRegisterController::class, 'store'])->name('hse-regulations.store');
+    Route::post('/hse-regulations/{regulation}', [RegulationRegisterController::class, 'update'])->name('hse-regulations.update');
+    Route::delete('/hse-regulations/{regulation}', [RegulationRegisterController::class, 'destroy'])->name('hse-regulations.destroy');
     // v2.6.0 (PTW Document View pass) -- in-browser document
     // presentation, see PermitToWorkController::document()'s own doc
     // comment for why this is separate from both `show` and `pdf`.
@@ -536,6 +548,20 @@ Route::middleware(['auth', 'restrict.platform-admin'])->group(function () {
     Route::get('/work-orders/{workOrder}', [WorkOrderController::class, 'show'])->name('work-orders.show');
     // v2.51.0: Work Order / SPK as a printable document.
     Route::get('/work-orders/{workOrder}/pdf', [WorkOrderController::class, 'pdf'])->name('work-orders.pdf');
+
+    /*
+    | BAST / Berita Acara Serah Terima (v2.52.0). A FORMAL HANDOVER
+    | instrument -- deliberately separate from Goods Receipt, which is a
+    | warehouse transaction. Writes are gated to Management/Super Admin
+    | inside the controller because a BAST commits the company.
+    */
+    Route::get('/handover-records', [HandoverRecordController::class, 'index'])->name('handover-records.index');
+    Route::post('/handover-records', [HandoverRecordController::class, 'store'])->name('handover-records.store');
+    Route::get('/handover-records/{handoverRecord}', [HandoverRecordController::class, 'show'])->name('handover-records.show');
+    Route::put('/handover-records/{handoverRecord}', [HandoverRecordController::class, 'update'])->name('handover-records.update');
+    Route::post('/handover-records/{handoverRecord}/accept', [HandoverRecordController::class, 'accept'])->name('handover-records.accept');
+    Route::delete('/handover-records/{handoverRecord}', [HandoverRecordController::class, 'destroy'])->name('handover-records.destroy');
+    Route::get('/handover-records/{handoverRecord}/pdf', [HandoverRecordController::class, 'pdf'])->name('handover-records.pdf');
     Route::post('/work-orders/{workOrder}/transition', [WorkOrderController::class, 'transition'])->name('work-orders.transition');
     Route::post('/work-orders/{workOrder}/spare-parts', [WorkOrderController::class, 'addSparePart'])->name('work-orders.spare-parts.store');
 
@@ -808,6 +834,9 @@ Route::middleware(['auth', 'restrict.platform-admin'])->group(function () {
     // docs/CONVENTIONS.md's Known Pitfalls.
     Route::middleware('role:super_admin,hse')->group(function () {
         Route::put('/settings/users/{user}/ptw-access', [SettingsController::class, 'updatePtwAccess'])->name('settings.users.ptw-access');
+    // v2.52.0: My Work (field workspace) -- a workspace preference,
+    // separate from PTW Access, which is a permission.
+    Route::put('/settings/users/{user}/field-access', [SettingsController::class, 'updateFieldAccess'])->name('settings.users.field-access');
     });
 
     // v1.6.8 fix: these were previously (incorrectly) nested inside the

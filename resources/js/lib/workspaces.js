@@ -6,6 +6,8 @@ import {
     ShieldAlert, FileWarning, Flame, Lock, UsersRound, Stethoscope, Siren, ClipboardCheck,
     FileStack, FileQuestion, Building2, TrendingUp, Boxes, ArrowRightLeft, UserCheck, FileCheck,
     FlaskConical, Recycle,
+    Scale,
+    FileSignature,
 } from 'lucide-react';
 
 /**
@@ -64,7 +66,12 @@ import {
 export const WORKSPACES = [
     {
         key: 'hr',
-        label: 'HR',
+        // v2.52.0: the FULL English name. "HR" is shorthand a new user has
+        // to decode, and companies disagree about it anyway (HR vs HC).
+        // The key stays `hr` -- every grant row, route prefix and
+        // department map is keyed on it, so renaming the key would be a
+        // migration of the authorization model dressed up as a copy edit.
+        label: 'Human Resources',
         icon: Users,
         tier: 'department',
         items: [
@@ -111,7 +118,14 @@ export const WORKSPACES = [
     },
     {
         key: 'hse',
-        label: 'HSE',
+        // v2.52.0: the FULL English name. HSE / HSSE / QHSE / EHS all name
+        // roughly this function and companies disagree about which is
+        // correct; the full name is unambiguous in every one of them. The
+        // abbreviation stays perfectly usable in context ("HSE approval",
+        // "PTW"), and a tenant that wants its own wording still has the
+        // per-tenant label override -- a DISPLAY layer, not a second
+        // technical module.
+        label: 'Health, Safety & Environment',
         icon: HardHat,
         tier: 'department',
         /**
@@ -262,6 +276,10 @@ export const WORKSPACES = [
                     // equipment/inventory continues to live in Asset Management
                     // and Warehouse, untouched.
                     { name: 'Safety Equipment & Compliance', href: 'hse.master', icon: ListChecks },
+                    // v2.52.0: the legal/normative requirements register every
+                    // HSE management system asks for, which previously lived in
+                    // someone's spreadsheet.
+                    { name: 'Regulations & Standards', href: 'hse-regulations.index', icon: Scale },
                     { name: 'Document Control', href: 'controlled-documents.index', icon: FileStack },
                     // v1.10.4 correction: moved from HR -- same route,
                     // controller, permissions, moduleKey, only the owning
@@ -398,6 +416,9 @@ export const WORKSPACES = [
             { name: 'Purchase Order', href: 'purchase-orders.index', icon: ShoppingCart },
             { name: 'Vendor / Supplier', href: 'vendors.index', icon: Building2 },
             { name: 'Vendor Performance', href: 'procurement.vendor-performance', icon: TrendingUp },
+            // v2.52.0: BAST. A formal handover instrument -- distinct from
+            // Goods Receipt, which is a warehouse transaction.
+            { name: 'BAST / Serah Terima', href: 'handover-records.index', icon: FileSignature },
         ],
     },
     {

@@ -28,6 +28,16 @@ class PackageSeeder extends Seeder
      * corrected here too so the stored catalog description matches what
      * the tenant actually gets, not a stale, narrower list.
      *
+     * v2.52.0 SUPERSEDES v2.51.0 on prices AND capacity. Launch pricing is
+     * now Starter 299.000/2.990.000, Professional 999.000/9.990.000,
+     * Enterprise 1.999.000/19.990.000. The capacity model is stated once,
+     * here and in 2026_09_18_100230: `max_users` is how many LOGIN ACCOUNTS
+     * the tenant may create, and `max_ptw_users` is how many OF THOSE
+     * ACCOUNTS may be granted PTW Access. PTW Access is a permission on an
+     * existing account, never an extra pool of accounts, so Starter's
+     * "10 Users / 5 PTW Access" means ten people can sign in and five of
+     * them may raise a permit -- not fifteen accounts.
+     *
      * v2.51.0 SUPERSEDES v2.50.0 prices with the approved LAUNCH figures
      * (499.000 / 999.000 / 1.999.000 monthly, 4.990.000 / 9.990.000 /
      * 19.990.000 annual). Note that a seeder alone could not fix the live
@@ -96,8 +106,8 @@ class PackageSeeder extends Seeder
                 'slug' => 'starter',
                 'description' => 'A fully operational HSE product for a single company -- incidents, observations, inspections, PPE, PTW, CAPA, and every other HSE module, without requiring HRD.',
                 // Starter -- HSE-focused access.
-                'price_monthly' => 499000,
-                'price_yearly' => 4990000,
+                'price_monthly' => 299000,
+                'price_yearly' => 2990000,
                 'currency' => 'IDR',
                 'trial_days' => null,
                 // v2.17.1 fix: max_users raised 10 -> 15 so max_ptw_users
@@ -105,9 +115,9 @@ class PackageSeeder extends Seeder
                 // never larger than the pool of User Accounts it's a
                 // subset of. See this seeder's own class-level doc
                 // comment for the full correction reasoning.
-                'max_users' => 15,
+                'max_users' => 10,
                 'max_companies' => 1,
-                'max_ptw_users' => 15,
+                'max_ptw_users' => 5,
                 'features' => ['employees', 'ppe', 'kpi_input', 'reports'],
                 'is_public' => true,
                 'is_custom' => false,
@@ -124,7 +134,7 @@ class PackageSeeder extends Seeder
                 'trial_days' => 14,
                 'max_users' => 50,
                 'max_companies' => 5,
-                'max_ptw_users' => 50,
+                'max_ptw_users' => 20,
                 'features' => ['employees', 'ppe', 'kpi_input', 'reports', 'projects', 'daily_reports', 'material_requests'],
                 'is_public' => true,
                 'is_custom' => false,

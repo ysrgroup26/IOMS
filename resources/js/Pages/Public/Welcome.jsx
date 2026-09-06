@@ -29,7 +29,7 @@ import {
  * the exact same source the authenticated Plans page already uses), not
  * a single hardcoded amount.
  */
-export default function PublicWelcome({ plans }) {
+export default function PublicWelcome({ plans, steps = [], faqs = [], contactEmail }) {
     return (
         <PublicLayout>
             {/* v2.39.0: the page title was "IOMS — Industrial Operations
@@ -56,8 +56,8 @@ export default function PublicWelcome({ plans }) {
             <ProductPreview />
             <Industries />
             <Pricing plans={plans} />
-            <HowItWorks />
-            <Faq />
+            <HowItWorks steps={steps} />
+            <Faq faqs={faqs} />
             <FinalCta />
         </PublicLayout>
     );
@@ -66,7 +66,7 @@ export default function PublicWelcome({ plans }) {
 /* ------------------------------------------------------------------ */
 /* Section: Hero                                                       */
 /* ------------------------------------------------------------------ */
-const INDUSTRIES_STRIP = ['Shipyards', 'Construction', 'Manufacturing', 'Heavy Industry'];
+const INDUSTRIES_STRIP = ['Galangan Kapal', 'Konstruksi', 'Manufaktur', 'Industri Berat'];
 
 // v2.27.0 (Public Website & Auth Visual Transformation, Part 4/7). The
 // platform-visualization node set -- 8 real domains around a central
@@ -77,13 +77,13 @@ const INDUSTRIES_STRIP = ['Shipyards', 'Construction', 'Manufacturing', 'Heavy I
 // coordinates on a 100x100 circle (top, going clockwise) -- no JS
 // trig/animation library, just static numbers computed once.
 const ORBIT_NODES = [
-    { label: 'HSE & Safety', icon: ShieldCheck, x: 50, y: 10 },
-    { label: 'People', icon: Users, x: 84, y: 24 },
+    { label: 'Health, Safety & Environment', icon: ShieldCheck, x: 50, y: 10 },
+    { label: 'Human Resources', icon: Users, x: 84, y: 24 },
     { label: 'Operations', icon: Cog, x: 90, y: 50 },
     { label: 'Warehouse', icon: Warehouse, x: 84, y: 76 },
     { label: 'Procurement', icon: ShoppingCart, x: 50, y: 90 },
     { label: 'Logistics', icon: Truck, x: 16, y: 76 },
-    { label: 'Projects', icon: FolderKanban, x: 10, y: 50 },
+    { label: 'Project Management', icon: FolderKanban, x: 10, y: 50 },
     { label: 'Reports', icon: LineChart, x: 16, y: 24 },
 ];
 
@@ -124,11 +124,11 @@ function Hero() {
                         Industrial Operations Platform
                     </p>
                     <h1 className="mt-4 text-4xl font-semibold leading-[1.08] tracking-tight text-white sm:text-5xl lg:text-6xl">
-                        Run your industrial operations<br className="hidden sm:block" /> in one platform.
+                        Satukan seluruh operasi industri Anda<br className="hidden sm:block" /> dalam satu platform.
                     </h1>
 
                     <div className="mx-auto mt-6 inline-flex flex-wrap items-center justify-center gap-x-2 gap-y-1 rounded-full border border-white/10 bg-white/[0.06] px-4 py-2 text-[11px] font-semibold uppercase tracking-wide text-steel-200 sm:text-xs">
-                        <span className="text-white">Built for Industrial Operations</span>
+                        <span className="text-white">Dibangun untuk Operasi Industri</span>
                         <span className="hidden text-white/25 sm:inline">&middot;</span>
                         <span className="flex flex-wrap items-center justify-center gap-x-1.5">
                             {INDUSTRIES_STRIP.map((ind, i) => (
@@ -149,7 +149,7 @@ function Hero() {
                         of two buttons competing for the same weight. */}
                     <div className="mt-8 flex flex-col items-center justify-center gap-3 sm:flex-row">
                         <Button size="lg" className="w-full sm:w-auto" asChild>
-                            <Link href={route('login')}>Sign in to IOMS <ArrowRight className="h-4 w-4" /></Link>
+                            <Link href={route('get-started')}>Mulai Berlangganan <ArrowRight className="h-4 w-4" /></Link>
                         </Button>
                         <Button
                             size="lg"
@@ -157,7 +157,7 @@ function Hero() {
                             className="w-full border border-white/15 bg-white/[0.06] text-white hover:bg-white/[0.12] hover:text-white sm:w-auto"
                             asChild
                         >
-                            <a href="#platform">Explore the platform</a>
+                            <Link href={route('login')}>Masuk ke IOMS</Link>
                         </Button>
                     </div>
                 </div>
@@ -212,7 +212,7 @@ function TrustStatement() {
         <section className="border-b border-graphite-100 bg-white py-10">
             <div className="mx-auto max-w-4xl px-4 text-center sm:px-6 lg:px-8">
                 <p className="text-lg font-medium text-graphite-700 sm:text-xl">
-                    One connected system for industrial operational complexity.
+                    Satu sistem terhubung untuk kompleksitas operasi industri.
                 </p>
             </div>
         </section>
@@ -223,16 +223,16 @@ function TrustStatement() {
 /* Section: The Problem                                                */
 /* ------------------------------------------------------------------ */
 function ProblemSection() {
-    const fragments = ['Excel Sheets', 'WhatsApp Groups', 'Paper Forms', 'Separate HSE Records', 'Manual Approvals', 'Scattered Data'];
+    const fragments = ['File Excel', 'Grup WhatsApp', 'Formulir Kertas', 'Catatan HSE Terpisah', 'Persetujuan Manual', 'Data Tersebar'];
 
     return (
         <section className="border-b border-graphite-100 bg-gradient-to-b from-brand-50/50 to-brand-50/20 py-20">
             <div className="mx-auto max-w-5xl px-4 sm:px-6 lg:px-8">
                 <div className="text-center">
                     <h2 className="text-2xl font-semibold tracking-tight text-graphite-900 sm:text-3xl">
-                        Industrial operations generate a lot of data.
+                        Operasi industri menghasilkan sangat banyak data.
                     </h2>
-                    <p className="mt-3 text-base text-graphite-600">The problem is that it's usually fragmented.</p>
+                    <p className="mt-3 text-base text-graphite-600">Masalahnya, data itu biasanya tercerai-berai.</p>
                 </div>
 
                 <div className="mt-10 grid grid-cols-2 gap-3 sm:grid-cols-3">
@@ -249,7 +249,7 @@ function ProblemSection() {
 
                 <div className="mt-6 rounded-xl border-2 border-graphite-900 bg-white p-6 text-center shadow-card-hover sm:p-8">
                     <p className="text-xs font-semibold uppercase tracking-[0.2em] text-brand-600">IOMS</p>
-                    <p className="mt-2 text-xl font-semibold text-graphite-900 sm:text-2xl">One Connected System</p>
+                    <p className="mt-2 text-xl font-semibold text-graphite-900 sm:text-2xl">Satu Sistem Terhubung</p>
                 </div>
             </div>
         </section>
@@ -260,18 +260,18 @@ function ProblemSection() {
 /* Section: Platform Overview                                          */
 /* ------------------------------------------------------------------ */
 const PLATFORM_AREAS = [
-    { title: 'Field Operations', icon: HardHat, items: ['Permit To Work (PTW)', 'My PTW', 'Daily / Job Reports', 'Task Management'] },
-    { title: 'HSE Management', icon: ShieldCheck, items: ['HSE Dashboard', 'Incident Management', 'Safety Observation', 'HSE Inspection', 'CAPA', 'JSA', 'HIRADC', 'Gas Test', 'LOTO'] },
-    { title: 'People', icon: Users, items: ['Employee Management', 'Contractor Management', 'Visitor Management', 'PPE Management'] },
-    { title: 'Operations', icon: Cog, items: ['Man-Hour Tracking', 'Waste Management', 'Work Center', 'Warehouse & Procurement'] },
-    { title: 'Data & Insight', icon: BarChart3, items: ['Reports', 'Global Search', 'KPI Tracking', 'Operational Records'] },
+    { title: 'Pekerjaan Lapangan', icon: HardHat, items: ['Permit To Work (PTW)', 'My Work', 'Laporan Harian / Pekerjaan', 'Penugasan'] },
+    { title: 'Health, Safety & Environment', icon: ShieldCheck, items: ['Dashboard HSE', 'Insiden', 'Safety Observation', 'Inspeksi', 'CAPA', 'JSA', 'HIRADC', 'Gas Test', 'LOTO'] },
+    { title: 'Human Resources', icon: Users, items: ['Data Karyawan', 'Kontraktor', 'Tamu / Visitor', 'APD / PPE'] },
+    { title: 'Operations', icon: Cog, items: ['Man-Hour', 'Pengelolaan Limbah', 'Work Center', 'Warehouse & Procurement'] },
+    { title: 'Management & Reporting', icon: BarChart3, items: ['Laporan', 'Pencarian Global', 'KPI', 'Rekaman Operasional'] },
 ];
 
 function PlatformOverview() {
     return (
         <section id="platform" className="border-b border-graphite-100 bg-white py-20">
             <div className="mx-auto max-w-7xl px-4 sm:px-6 lg:px-8">
-                <SectionHeading eyebrow="Platform" title="Everything your operation runs on, in one place" />
+                <SectionHeading eyebrow="Platform" title="Seluruh operasi Anda, dalam satu tempat" subtitle="Setiap domain di bawah ini sudah berjalan di IOMS hari ini -- bukan rencana, bukan roadmap." />
 
                 <div className="mt-12 grid grid-cols-1 gap-5 sm:grid-cols-2 lg:grid-cols-3">
                     {PLATFORM_AREAS.map((area) => (
@@ -301,15 +301,15 @@ function PlatformOverview() {
 /* ------------------------------------------------------------------ */
 function PtwHseStory() {
     const flow = [
-        'Field user creates PTW',
-        'Requester automatically recorded',
-        'Optional Penanggung Jawab Pekerjaan',
-        'Optional Workforce',
-        'Submit',
-        'HSE reviews',
-        'HIRADC / JSA / Gas Test as applicable',
-        'Approval',
-        'Field sees PTW status',
+        'Pengguna lapangan membuat PTW',
+        'Requester tercatat otomatis dari akun yang login',
+        'Penanggung Jawab Pekerjaan (opsional)',
+        'Workforce dari direktori karyawan (opsional)',
+        'Diajukan',
+        'Ditinjau oleh Health, Safety & Environment',
+        'HIRADC / JSA / Gas Test bila diperlukan',
+        'Disetujui',
+        'Status izin terlihat kembali di lapangan',
     ];
 
     return (
@@ -317,11 +317,12 @@ function PtwHseStory() {
             <div className="pointer-events-none absolute -right-32 -top-32 -z-10 h-[30rem] w-[30rem] rounded-full bg-steel-500 opacity-[0.13] blur-3xl" aria-hidden="true" />
             <div className="mx-auto max-w-5xl px-4 sm:px-6 lg:px-8">
                 <div className="text-center">
-                    <p className="text-xs font-semibold uppercase tracking-[0.2em] text-brand-400">A Real Differentiator</p>
-                    <h2 className="mt-3 text-2xl font-semibold tracking-tight sm:text-3xl">From Field Request to HSE Approval -- Connected</h2>
+                    <p className="text-xs font-semibold uppercase tracking-[0.2em] text-brand-400">Pembeda Nyata</p>
+                    <h2 className="mt-3 text-2xl font-semibold tracking-tight sm:text-3xl">Dari permintaan lapangan sampai persetujuan HSE — dalam satu alur</h2>
                     <p className="mx-auto mt-3 max-w-2xl text-sm text-graphite-300 sm:text-base">
-                        A Permit To Work isn't a paper form in IOMS. It's one connected record from the moment a
-                        field user requests it to the moment HSE closes it out.
+                        Di IOMS, Permit To Work bukan formulir kertas. Ia satu catatan utuh sejak diajukan pengguna
+                        lapangan sampai ditutup oleh Health, Safety &amp; Environment — lengkap dengan siapa yang
+                        mengajukan, siapa penanggung jawabnya, dan siapa yang menyetujui.
                     </p>
                 </div>
 
@@ -349,16 +350,17 @@ function FieldExperience() {
             <div className="mx-auto max-w-7xl px-4 sm:px-6 lg:px-8">
                 <div className="grid grid-cols-1 items-center gap-10 lg:grid-cols-2">
                     <div>
-                        <p className="text-xs font-semibold uppercase tracking-[0.2em] text-brand-600">Field Experience</p>
+                        <p className="text-xs font-semibold uppercase tracking-[0.2em] text-brand-600">My Work</p>
                         <h2 className="mt-3 text-2xl font-semibold tracking-tight text-graphite-900 sm:text-3xl">
-                            Built for people doing the work, not just managing it.
+                            Dibuat untuk yang mengerjakan, bukan hanya yang mengawasi.
                         </h2>
                         <p className="mt-4 text-base text-graphite-600">
-                            Field users get a dedicated, mobile-friendly experience -- fast, simple, and directly
-                            connected to HSE. No enterprise clutter, no dense tables to scroll through.
+                            Foreman, supervisor, teknisi, dan operator masuk langsung ke My Work — ruang kerja
+                            lapangan yang ringkas dan nyaman dipakai dari ponsel di lokasi, bukan dashboard kantor
+                            yang tidak mereka butuhkan.
                         </p>
                         <ul className="mt-6 space-y-2.5">
-                            {['Create & submit PTW', 'My PTW -- track your own permits', 'Today\'s Jobs / Work Report', 'My Tasks'].map((f) => (
+                            {['Buat dan ajukan PTW bila akun diberi PTW Access', 'Izin kerja Anda sendiri beserta statusnya', 'Nama pekerjaan dan lokasi kerja terlihat jelas', 'Tugas yang ditugaskan kepada Anda'].map((f) => (
                                 <li key={f} className="flex items-center gap-2 text-sm text-graphite-700">
                                     <Smartphone className="h-4 w-4 shrink-0 text-brand-500" /> {f}
                                 </li>
@@ -381,7 +383,7 @@ function ProductPreview() {
     return (
         <section className="border-b border-graphite-100 bg-white py-20">
             <div className="mx-auto max-w-7xl px-4 sm:px-6 lg:px-8">
-                <SectionHeading eyebrow="Product" title="What working in IOMS looks like" subtitle="Illustrative previews built from the real IOMS design system -- not stock photography." />
+                <SectionHeading eyebrow="Produk" title="Seperti apa bekerja di dalam IOMS" subtitle="Ilustrasi tampilan yang dibangun dari design system IOMS yang sebenarnya, bukan foto stok." />
 
                 <div className="mt-12 grid grid-cols-1 gap-6 lg:grid-cols-2">
                     <div className="rounded-xl border border-graphite-200 bg-graphite-50 p-4 shadow-card sm:p-6">
@@ -458,16 +460,16 @@ function MockupFieldHome() {
 /* ------------------------------------------------------------------ */
 function Industries() {
     const industries = [
-        { label: 'Shipyard', icon: Ship }, { label: 'Construction', icon: Building },
-        { label: 'Manufacturing', icon: Factory }, { label: 'Engineering', icon: Wrench },
-        { label: 'Logistics', icon: Truck }, { label: 'Energy', icon: Zap },
-        { label: 'Industrial Services', icon: Building2 },
+        { label: 'Galangan Kapal', icon: Ship }, { label: 'Konstruksi', icon: Building },
+        { label: 'Manufaktur', icon: Factory }, { label: 'Fabrikasi & Engineering', icon: Wrench },
+        { label: 'Logistik', icon: Truck }, { label: 'Energi & Pertambangan', icon: Zap },
+        { label: 'Jasa Industri', icon: Building2 },
     ];
 
     return (
         <section className="border-b border-graphite-100 bg-gradient-to-b from-brand-50/50 to-brand-50/20 py-16">
             <div className="mx-auto max-w-7xl px-4 sm:px-6 lg:px-8">
-                <p className="text-center text-xs font-semibold uppercase tracking-[0.2em] text-graphite-400">Built For</p>
+                <p className="text-center text-xs font-semibold uppercase tracking-[0.2em] text-graphite-400">Dipakai Untuk Industri</p>
                 <div className="mt-8 flex flex-wrap items-center justify-center gap-3">
                     {industries.map((ind) => (
                         <div key={ind.label} className="flex items-center gap-2 rounded-full border border-graphite-200 bg-white px-4 py-2 text-sm text-graphite-600 shadow-card">
@@ -510,7 +512,6 @@ const PLAN_FRAMING = {
 function Pricing({ plans }) {
     const [interval, setInterval] = useState('monthly');
     const { version } = usePage().props;
-    const supportEmail = version?.support_email;
     // v2.27.0: visual emphasis for the middle plan only -- a pure LAYOUT
     // decision (border/scale/shadow), never a "Most Popular"/"Recommended"
     // text claim, since no such signal exists in the actual Package data
@@ -520,7 +521,7 @@ function Pricing({ plans }) {
     return (
         <section id="pricing" className="border-b border-graphite-100 bg-white py-20">
             <div className="mx-auto max-w-7xl px-4 sm:px-6 lg:px-8">
-                <SectionHeading eyebrow="Pricing" title="Plans that grow with your operation" subtitle="Pricing is being finalized. The plan structure below reflects our current package architecture." />
+                <SectionHeading eyebrow="Harga" title="Paket yang tumbuh bersama operasi Anda" subtitle="Satu produk standar dengan tiga tingkat akses dan kapasitas. Tanpa biaya implementasi tersembunyi, tanpa pengembangan khusus per perusahaan." />
 
                 {plans && plans.length > 0 ? (
                     <>
@@ -565,22 +566,26 @@ function Pricing({ plans }) {
 
                                         <ul className="mt-6 flex-1 space-y-2.5 border-t border-graphite-100 pt-5 text-sm text-graphite-600">
                                             <li className="flex items-center gap-2 font-medium text-graphite-800">
-                                                <Users className="h-3.5 w-3.5 shrink-0 text-brand-500" /> {plan.max_users ?? 'Unlimited'} User Accounts
+                                                <Users className="h-3.5 w-3.5 shrink-0 text-brand-500" /> {plan.max_users ? `${plan.max_users} akun pengguna` : 'Kapasitas pengguna tertinggi'}
+                                            </li>
+                                            {/* PTW Access is a permission on an account that already
+                                                exists, not an extra pool of accounts. */}
+                                            <li className="flex items-center gap-2">
+                                                <ShieldCheck className="h-3.5 w-3.5 shrink-0 text-brand-500" /> {plan.max_ptw_users ? `${plan.max_ptw_users} di antaranya boleh PTW Access` : 'PTW Access untuk seluruh akun'}
                                             </li>
                                             {plan.workspaces.length > 0 && plan.workspaces.map((w) => (
                                                 <li key={w} className="flex items-center gap-2"><Check className="h-3.5 w-3.5 shrink-0 text-brand-500" /> {w}</li>
                                             ))}
                                         </ul>
 
-                                        {supportEmail ? (
-                                            <Button className="mt-7 w-full" variant={emphasized ? 'default' : 'outline'} asChild>
-                                                <a href={`mailto:${supportEmail}`}>Talk to Us</a>
-                                            </Button>
-                                        ) : (
-                                            <Button className="mt-7 w-full" variant={emphasized ? 'default' : 'outline'} asChild>
-                                                <Link href={route('get-started')}>Get Started</Link>
-                                            </Button>
-                                        )}
+                                        {/* v2.52.0: this was a mailto: "Talk to Us" whenever a
+                                            support address existed -- the same acquisition dead
+                                            end v2.51.0 removed everywhere else and missed here.
+                                            The plan CTA now goes to the real onboarding flow,
+                                            carrying the chosen plan and cycle. */}
+                                        <Button className="mt-7 w-full" variant={emphasized ? 'default' : 'outline'} asChild>
+                                            <Link href={`${route('get-started')}?plan=${plan.slug}&cycle=yearly`}>Pilih paket ini</Link>
+                                        </Button>
                                     </div>
                                 );
                             })}
@@ -600,18 +605,16 @@ function Pricing({ plans }) {
 /* ------------------------------------------------------------------ */
 /* Section: How It Works                                               */
 /* ------------------------------------------------------------------ */
-function HowItWorks() {
-    const steps = [
-        { n: '01', title: 'Set Up Your Workspace', body: 'Your organization, departments, and users are configured.' },
-        { n: '02', title: 'Connect Your People & Operations', body: 'Employees, PTW access, and operational modules are set up.' },
-        { n: '03', title: 'Run Work Through IOMS', body: 'Field creates PTWs and jobs; HSE reviews and approves.' },
-        { n: '04', title: 'Monitor & Improve', body: 'Operational data becomes reports and management insight.' },
-    ];
+function HowItWorks({ steps: serverSteps = [] }) {
+    // v2.52.0: the server's own list (PublicController::HOW_IT_WORKS), so
+    // the landing page and /how-it-works can never describe two different
+    // products -- they had already drifted while each kept its own copy.
+    const steps = serverSteps.map((s) => ({ n: s.step, title: s.title, body: s.body }));
 
     return (
         <section id="how-it-works" className="border-b border-graphite-100 bg-gradient-to-b from-brand-50/50 to-brand-50/20 py-20">
             <div className="mx-auto max-w-6xl px-4 sm:px-6 lg:px-8">
-                <SectionHeading eyebrow="How It Works" title="From setup to insight" />
+                <SectionHeading eyebrow="Cara Kerja" title="Dari data induk sampai laporan manajemen" />
                 <div className="mt-12 grid grid-cols-1 gap-6 sm:grid-cols-2 lg:grid-cols-4">
                     {steps.map((s) => (
                         <div key={s.n} className="rounded-xl border border-graphite-200 bg-white p-5 shadow-card">
@@ -629,24 +632,18 @@ function HowItWorks() {
 /* ------------------------------------------------------------------ */
 /* Section: FAQ                                                        */
 /* ------------------------------------------------------------------ */
-const FAQS = [
-    { q: 'What is IOMS?', a: 'IOMS is an Industrial Operations Platform connecting field operations, HSE, workforce data, and operational reporting.' },
-    { q: 'Who is IOMS for?', a: 'Industrial companies -- shipyards, construction, manufacturing, engineering, logistics, energy, and industrial services -- that need to manage field work, HSE compliance, and operational data together.' },
-    { q: 'Is IOMS only for HSE?', a: 'No. HSE is one of the strongest parts of IOMS, but the platform also covers field operations, people/workforce, and broader operational data.' },
-    { q: 'Can field users create PTWs?', a: 'Yes. A field/operations user can be granted individual PTW Access, letting them submit a Permit To Work directly from the Field experience -- HSE still reviews and approves it.' },
-    { q: 'How does PTW access work?', a: 'PTW Access is granted per user account, not shared. Each subscription plan includes a limit on how many user accounts can hold PTW Access.' },
-    { q: 'Can IOMS be used on mobile?', a: 'Yes. The Field experience is designed mobile-first for use on-site.' },
-    { q: 'Is IOMS cloud-based?', a: 'Yes, IOMS is a cloud-hosted, multi-tenant platform.' },
-    { q: 'Can different companies use IOMS separately?', a: 'Yes. Each organization\'s data is isolated as its own tenant.' },
-];
+// v2.52.0: the FAQ now comes from PublicController, the same source
+// /faq renders, so the two can never drift apart. The landing shows the
+// first few; the full list is one click away.
 
-function Faq() {
+
+function Faq({ faqs = [] }) {
     return (
         <section id="faq" className="border-b border-graphite-100 bg-white py-20">
             <div className="mx-auto max-w-3xl px-4 sm:px-6 lg:px-8">
-                <SectionHeading eyebrow="FAQ" title="Common questions" />
+                <SectionHeading eyebrow="FAQ" title="Pertanyaan yang sering diajukan" />
                 <div className="mt-10 divide-y divide-graphite-100 rounded-xl border border-graphite-200">
-                    {FAQS.map((item) => (
+                    {faqs.map((item) => (
                         <details key={item.q} className="group p-5">
                             <summary className="flex cursor-pointer list-none items-center justify-between gap-3 text-sm font-medium text-graphite-800 [&::-webkit-details-marker]:hidden">
                                 {item.q}
@@ -669,11 +666,14 @@ function FinalCta() {
         <section className="relative isolate overflow-hidden bg-navy-900 py-20 text-white">
             <div className="pointer-events-none absolute -left-32 -bottom-40 -z-10 h-[28rem] w-[28rem] rounded-full bg-brand-600 opacity-[0.14] blur-3xl" aria-hidden="true" />
             <div className="mx-auto max-w-3xl px-4 text-center sm:px-6 lg:px-8">
-                <h2 className="text-2xl font-semibold tracking-tight sm:text-3xl">Ready to connect your operations?</h2>
+                <h2 className="text-2xl font-semibold tracking-tight sm:text-3xl">Siap menyatukan operasi Anda?</h2>
+                <p className="mx-auto mt-3 max-w-xl text-sm text-graphite-300 sm:text-base">
+                    Pilih paket, daftarkan perusahaan Anda, dan workspace IOMS aktif setelah pembayaran dikonfirmasi.
+                </p>
                 <div className="mt-8 flex flex-col items-center justify-center gap-3 sm:flex-row">
-                    <Button size="lg" className="w-full sm:w-auto" asChild><Link href={route('get-started')}>Get Started <ArrowRight className="h-4 w-4" /></Link></Button>
+                    <Button size="lg" className="w-full sm:w-auto" asChild><Link href={route('get-started')}>Mulai Berlangganan <ArrowRight className="h-4 w-4" /></Link></Button>
                     <Button size="lg" variant="outline" className="w-full border-white/20 bg-transparent text-white hover:bg-white/10 sm:w-auto" asChild>
-                        <Link href={route('login')}>Login</Link>
+                        <Link href={route('login')}>Masuk</Link>
                     </Button>
                 </div>
             </div>

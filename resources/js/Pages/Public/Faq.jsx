@@ -11,15 +11,15 @@ import { Button } from '@/Components/ui/button';
  * in-product help cannot drift apart. Native <details> is used rather than
  * a JS accordion: it is keyboard-accessible and works before hydration.
  */
-export default function Faq({ faqs = [], supportEmail }) {
+export default function Faq({ faqs = [], contactEmail }) {
     return (
         <PublicLayout>
             <Head title="FAQ" />
 
             <PublicPageHero
                 eyebrow="FAQ"
-                title="Questions worth answering before you buy."
-                subtitle="Plans, capacity, payment, activation, data isolation and documents — answered plainly."
+                title="Pertanyaan yang perlu dijawab sebelum Anda membeli."
+                subtitle="Paket, kapasitas, pembayaran, aktivasi, pemisahan data, dan dokumen — dijawab apa adanya."
                 size="sm"
             />
 
@@ -39,19 +39,19 @@ export default function Faq({ faqs = [], supportEmail }) {
 
                     <div className="mt-8 rounded-xl border border-steel-200/70 bg-white p-6 text-center shadow-card">
                         <p className="text-sm text-graphite-600">
-                            Still have a question?{' '}
-                            {supportEmail && (
-                                <a href={`mailto:${supportEmail}`} className="font-medium text-brand-700 hover:underline">
-                                    Talk to us
+                            Masih ada pertanyaan?{' '}
+                            {contactEmail && (
+                                <a href={`mailto:${contactEmail}`} className="font-medium text-brand-700 hover:underline">
+                                    Hubungi kami
                                 </a>
                             )}
                         </p>
                         <div className="mt-5 flex flex-col items-center justify-center gap-3 sm:flex-row">
                             <Button asChild>
-                                <Link href={route('get-started')}>Get started <ArrowRight className="h-4 w-4" /></Link>
+                                <Link href={route('get-started')}>Mulai berlangganan <ArrowRight className="h-4 w-4" /></Link>
                             </Button>
                             <Button variant="outline" asChild>
-                                <Link href={route('pricing')}>View plans</Link>
+                                <Link href={route('pricing')}>Lihat paket</Link>
                             </Button>
                         </div>
                     </div>

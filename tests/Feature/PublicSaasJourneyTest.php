@@ -48,11 +48,12 @@ class PublicSaasJourneyTest extends TestCase
     {
         $this->seedPlans();
 
-        // v2.51.0 approved launch pricing. Asserted here so a future edit
-        // to the seeder OR the standardize-pricing migration that drifts
-        // from the recorded commercial model fails loudly.
+        // v2.52.0 approved launch pricing. Asserted here so a future edit
+        // to the seeder OR the standardize-capacity migration that drifts
+        // from the recorded commercial model fails loudly. Capacity itself
+        // is pinned in ProductRevisionV252Test, which owns that invariant.
         $expected = [
-            'starter' => [499000, 4990000],
+            'starter' => [299000, 2990000],
             'professional' => [999000, 9990000],
             'enterprise' => [1999000, 19990000],
         ];
@@ -93,14 +94,17 @@ class PublicSaasJourneyTest extends TestCase
             ]);
         }
 
-        // Re-run just that migration against the placeholder rows.
+        // Re-run the pricing migrations IN ORDER, exactly as an upgraded
+        // deployment does. v2.52.0 supersedes v2.51.0's figures, so testing
+        // only the first would assert prices no environment ends up with.
         (require database_path('migrations/2026_09_17_100220_standardize_launch_plan_pricing.php'))->up();
+        (require database_path('migrations/2026_09_18_100230_standardize_plan_capacity_and_launch_pricing.php'))->up();
 
         $starter = Package::where('slug', 'starter')->first();
         $enterprise = Package::where('slug', 'enterprise')->first();
 
-        $this->assertEquals(499000, (float) $starter->price_monthly);
-        $this->assertEquals(4990000, (float) $starter->price_yearly);
+        $this->assertEquals(299000, (float) $starter->price_monthly);
+        $this->assertEquals(2990000, (float) $starter->price_yearly);
         $this->assertEquals(1999000, (float) $enterprise->price_monthly);
 
         // Enterprise must stop being "Hubungi Kami" -- it is the highest
@@ -112,7 +116,7 @@ class PublicSaasJourneyTest extends TestCase
     /** IDR renders the way an Indonesian buyer reads it, on every surface, from one formatter. */
     public function test_idr_is_formatted_as_rupiah(): void
     {
-        $this->assertSame('Rp999.000', app(\App\Services\PricingService::class)->format(999000.0, 'IDR'));
+        $this->assertSame('Rp299.000', app(\App\Services\PricingService::class)->format(299000.0, 'IDR'));
         $this->assertSame('Rp19.990.000', app(\App\Services\PricingService::class)->format(19990000.0, 'IDR'));
     }
 

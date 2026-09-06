@@ -8,12 +8,21 @@
 <body>
 
 {{--
-    v2.51.0 -- Goods Receipt / Berita Acara Serah Terima Barang (BAST).
+    v2.52.0 -- Goods Receipt / Bukti Penerimaan Barang.
 
-    The receiving record, and the document a delivering party signs. It is
-    framed as a Berita Acara because that is what it functions as in
-    Indonesian industrial practice: a statement that named goods were
-    handed over on a date, witnessed by both sides.
+    CORRECTED from v2.51.0, which titled this "Berita Acara Serah Terima
+    Barang" and framed it as a Berita Acara. That conflated two different
+    business documents.
+
+    This is a WAREHOUSE TRANSACTION: stock arrived, in this quantity, in
+    this condition, on this date, against this Purchase Order, and
+    inventory moved as a result. It happens many times a week and its
+    consequence is a stock level.
+
+    A BAST is a formal handover instrument between two named parties whose
+    consequence is contractual, and it now has its own record and its own
+    document (see pdf/handover-record.blade.php and HandoverRecord). A
+    Goods Receipt may be REFERENCED by a BAST; it is not one.
 
     Where the receipt came from a Purchase Order, ordered quantity is shown
     beside received quantity so a short delivery is visible on the printed
@@ -23,7 +32,7 @@
 
 @include('pdf.partials.letterhead', [
     'identity' => $identity,
-    'docTitle' => 'Goods Receipt / Berita Acara Serah Terima Barang',
+    'docTitle' => 'Goods Receipt / Bukti Penerimaan Barang',
     'docSubtitle' => $goodsReceipt->purchaseOrder?->po_number
         ? 'Terhadap PO '.$goodsReceipt->purchaseOrder->po_number
         : ($goodsReceipt->materialRequest?->request_number ? 'Terhadap MR '.$goodsReceipt->materialRequest->request_number : null),
@@ -100,21 +109,24 @@
     </div>
 @endif
 
+{{-- Deliberately a RECEIVING note, not an acceptance statement. This
+     document records what physically arrived and what stock moved; it does
+     not assert contractual acceptance -- that is what a BAST is for. --}}
 <div class="section avoid-break">
-    <div class="section-title">Pernyataan</div>
     <div class="note">
-        Barang sebagaimana tercantum di atas telah diserahkan dan diterima dalam keadaan sesuai dengan
-        yang tercatat pada tanggal {{ $goodsReceipt->received_date?->format('d M Y') ?? '-' }}.
-        Perbedaan jumlah atau kondisi barang yang ditemukan kemudian dicatat sebagai catatan penerimaan tersendiri.
+        Dokumen ini mencatat penerimaan fisik barang ke gudang pada tanggal
+        {{ $goodsReceipt->received_date?->format('d M Y') ?? '-' }} dan menjadi dasar pembaruan stok.
+        Selisih jumlah atau kondisi barang yang ditemukan kemudian dicatat sebagai catatan penerimaan tersendiri.
+        Serah terima formal antara para pihak dituangkan dalam Berita Acara Serah Terima (BAST) tersendiri.
     </div>
 </div>
 
 <div class="section">
     @include('pdf.partials.signatures', ['signatures' => [
-        ['role' => 'Yang Menyerahkan', 'name' => null, 'position' => $goodsReceipt->purchaseOrder?->vendor?->name ?? 'Pengirim'],
-        ['role' => 'Yang Menerima', 'name' => $goodsReceipt->receiver?->name, 'date' => $goodsReceipt->received_date?->format('d M Y')],
-        ['role' => 'Gudang', 'name' => null, 'position' => $goodsReceipt->warehouse?->name],
-        ['role' => 'Mengetahui', 'name' => null],
+        ['role' => 'Pengirim', 'name' => null, 'position' => $goodsReceipt->purchaseOrder?->vendor?->name ?? 'Pengirim'],
+        ['role' => 'Penerima Barang', 'name' => $goodsReceipt->receiver?->name, 'date' => $goodsReceipt->received_date?->format('d M Y')],
+        ['role' => 'Petugas Gudang', 'name' => null, 'position' => $goodsReceipt->warehouse?->name],
+        ['role' => 'Diperiksa', 'name' => null],
     ]])
 </div>
 

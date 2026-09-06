@@ -108,9 +108,9 @@ class SettingsController extends Controller
             // v1.10.7: `department_key` now selected too, so the Users tab
             // can actually display/edit it -- see storeUser()'s own doc
             // comment for why this was missing.
-            'users' => User::with('roles:id,name')->where('tenant_id', $request->user()->tenant_id)->orderBy('name')->get(['id', 'name', 'email', 'role', 'department_key', 'is_active', 'ptw_access', 'last_login_at'])
+            'users' => User::with('roles:id,name')->where('tenant_id', $request->user()->tenant_id)->orderBy('name')->get(['id', 'name', 'email', 'role', 'department_key', 'is_active', 'ptw_access', 'is_field_user', 'last_login_at'])
                 ->map(fn (User $u) => [
-                    ...$u->only(['id', 'name', 'email', 'role', 'department_key', 'is_active', 'ptw_access', 'last_login_at']),
+                    ...$u->only(['id', 'name', 'email', 'role', 'department_key', 'is_active', 'ptw_access', 'is_field_user', 'last_login_at']),
                     'role_ids' => $u->roles->pluck('id'),
                 ]),
             // v2.17.0 (PTW Field Workflow Foundation + Controlled PTW
@@ -138,6 +138,9 @@ class SettingsController extends Controller
                 // SettingsController::updatePtwAccess()) -- frontend
                 // visibility can never grant more than the server allows.
                 'manage_ptw_access' => request()->user()->canManageHse(),
+                // v2.52.0: a workspace preference, not a permission -- so it
+                // is an administrative setting rather than an HSE one.
+                'manage_field_access' => request()->user()->canManageSystemSettings(),
             ],
             // Milestone 2 (RBAC UI, Task #45). Tenant-side roles only --
             // Role::where('tenant_id', ...) already excludes the
@@ -338,7 +341,7 @@ class SettingsController extends Controller
             // is actually in -- automatic recurring charging requires
             // separate merchant activation and is never assumed.
             'recurringEnabled' => (bool) config('payment.recurring_enabled'),
-            'supportEmail' => config('ioms.support_email'),
+            'billingEmail' => config('ioms.emails.billing'),
         ]);
     }
     public function plans(Request $request): Response
@@ -1155,6 +1158,34 @@ class SettingsController extends Controller
         return back()->with('success', 'PTW Access updated.');
     }
 
+    /**
+     * v2.52.0 -- marks an account as a FIELD account.
+     *
+     * A deliberately separate endpoint from updatePtwAccess() above,
+     * because these are separate concepts and merging them is exactly the
+     * confusion this release exists to remove:
+     *
+     *   is_field_user -> which WORKSPACE you land in (My Work vs Dashboard)
+     *   ptw_access    -> whether you may CREATE a Permit To Work
+     *
+     * It therefore consumes NO quota and grants NO capability. A field
+     * worker normally has this and not PTW Access; a foreman may have
+     * both. Gated to Super Admin because it changes where a colleague's
+     * session lands, which is an administrative decision.
+     */
+    public function updateFieldAccess(Request $request, User $user): RedirectResponse
+    {
+        abort_unless($user->tenant_id === $request->user()->tenant_id, 404);
+        abort_unless($request->user()->canManageSystemSettings(), 403);
+
+        $validated = $request->validate(['is_field_user' => ['required', 'boolean']]);
+
+        $user->update(['is_field_user' => $validated['is_field_user']]);
+
+        ActivityLog::record('updated', 'My Work (field) access for user '.$user->name.' set to '.($validated['is_field_user'] ? 'enabled' : 'disabled').'.', $user);
+
+        return back()->with('success', 'Field workspace updated.');
+    }
     public function destroyUser(Request $request, User $user): RedirectResponse
     {
         $this->authorize('delete', $user);

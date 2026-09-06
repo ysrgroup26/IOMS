@@ -6,6 +6,7 @@ use App\Models\TenantRegistration;
 use Illuminate\Bus\Queueable;
 use Illuminate\Mail\Mailable;
 use Illuminate\Mail\Mailables\Content;
+use Illuminate\Mail\Mailables\Address;
 use Illuminate\Mail\Mailables\Envelope;
 use Illuminate\Queue\SerializesModels;
 
@@ -24,8 +25,12 @@ class VerifyRegistrationEmail extends Mailable
 
     public function envelope(): Envelope
     {
+        // Sent FROM noreply (nobody should reply to a verification link),
+        // but a reply still reaches a human at sales rather than bouncing.
         return new Envelope(
-            subject: 'Confirm your email to continue your IOMS registration ('.$this->registration->reference.')',
+            from: new Address(config('ioms.emails.noreply'), 'IOMS'),
+            replyTo: [new Address(config('ioms.emails.hello'), 'IOMS')],
+            subject: 'Konfirmasi email untuk melanjutkan pendaftaran IOMS ('.$this->registration->reference.')',
         );
     }
 

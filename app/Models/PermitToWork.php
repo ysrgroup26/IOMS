@@ -52,7 +52,7 @@ class PermitToWork extends Model
     ];
 
     protected $fillable = [
-        'ptw_number', 'company_id', 'project_id', 'risk_assessment_id', 'jsa_id',
+        'ptw_number', 'company_id', 'project_id', 'project_name', 'risk_assessment_id', 'jsa_id',
         'permit_type', 'work_description', 'location', 'start_datetime', 'end_datetime',
         'required_qualification', 'precautions', 'requested_by', 'area_authority_id',
         // v2.17.0 (PTW Field Workflow Foundation, Part 8): PIC / Supervisor
@@ -150,5 +150,25 @@ class PermitToWork extends Model
     public static function generateNumber(?int $companyId = null): string
     {
         return app(NumberGeneratorService::class)->generate('permit_to_work', $companyId);
+    }
+
+    /**
+     * v2.52.0 -- the work's own identity, whichever way it was recorded.
+     *
+     * PROJECT IDENTITY AND WORK LOCATION ARE DIFFERENT THINGS, and neither
+     * is optional information on a permit. `location` answers "where", and
+     * this answers "what job".
+     *
+     * A formal Project Master is authoritative when one exists. When it
+     * does not -- because Management has not created the row yet, or
+     * because the work genuinely is not a project -- the free-text
+     * `project_name` carries the identity instead. What must NOT happen is
+     * the permit reading "No Project" for work that plainly has a name;
+     * that is the system telling an auditor it does not know what the work
+     * was, which is untrue and unhelpful.
+     */
+    public function workIdentity(): ?string
+    {
+        return $this->project?->name ?: ($this->project_name ?: null);
     }
 }

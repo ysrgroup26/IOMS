@@ -11,6 +11,7 @@ use App\Models\InspectionEvidence;
 use App\Models\Item;
 use App\Models\MaterialRequestItem;
 use App\Models\PpeReplacementRequestItem;
+use App\Models\RegulationRegister;
 use App\Models\SafetyObservationPhoto;
 use App\Models\VendorDocument;
 use App\Models\VendorQuotation;
@@ -62,6 +63,12 @@ class SecureDocumentRegistry
         'ppe-replacement-item' => PpeReplacementRequestItem::class,
         'asset-attachment' => Asset::class,
         'item-attachment' => Item::class,
+        // v2.52.0: Regulations & Standards Register attachments. A
+        // customer's controlled copies of regulations are not
+        // world-readable, so they go through the SAME authorized,
+        // tenant-checked download path as every other private document
+        // rather than a public URL.
+        'regulation-document' => RegulationRegister::class,
     ];
 
     public static function classFor(string $type): ?string

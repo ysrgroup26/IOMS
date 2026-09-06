@@ -75,6 +75,7 @@ class User extends Authenticatable
         // `is_active`'s exact existing shape -- see this column's own
         // migration doc comment.
         'ptw_access',
+        'is_field_user',
     ];
 
     protected $hidden = [
@@ -89,6 +90,7 @@ class User extends Authenticatable
             'password' => 'hashed',
             'is_active' => 'boolean',
             'ptw_access' => 'boolean',
+            'is_field_user' => 'boolean',
             'last_login_at' => 'datetime',
         ];
     }
@@ -450,5 +452,41 @@ class User extends Authenticatable
             self::ROLE_PLATFORM_ADMIN => 'Master',
             default => ucfirst($this->role),
         };
+    }
+
+    /**
+     * v2.52.0. Does this account perform, supervise or participate in
+     * FIELD work -- foreman, supervisor, field worker, technician,
+     * operator?
+     *
+     * THIS IS A WORKSPACE QUESTION, NOT A PERMISSION QUESTION, and the
+     * difference is the whole point of the flag:
+     *
+     *   isFieldUser()  -> which workspace you LAND IN
+     *   canCreatePtw() -> whether you may CREATE a Permit To Work
+     *
+     * A field worker normally has the first and not the second. A foreman
+     * may have both. An HSE officer may hold PTW authority without being
+     * a field account at all. Conflating them would either strand field
+     * staff in an office dashboard or hand out permit authority with a
+     * navigation preference, and both have happened in products before.
+     */
+    public function isFieldUser(): bool
+    {
+        return (bool) $this->is_field_user;
+    }
+
+    /**
+     * The route this user should land on after signing in.
+     *
+     * A field account goes straight to My Work. Making this a method on
+     * User rather than a branch inside the login controller means every
+     * caller that needs "where does this person belong" -- login, the
+     * public site's authenticated redirect, any future deep-link handler
+     * -- gets the same answer instead of each re-deriving it.
+     */
+    public function landingRouteName(): string
+    {
+        return $this->isFieldUser() ? 'my-work' : 'dashboard';
     }
 }

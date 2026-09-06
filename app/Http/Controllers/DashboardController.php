@@ -392,10 +392,69 @@ class DashboardController extends Controller
         }
         $tiles[] = ['label' => 'My Tasks', 'description' => 'Persetujuan dan tugas yang menunggu Anda.', 'href' => route('work-center.index'), 'icon' => 'CheckSquare'];
 
+        // v2.52.0 -- MY WORK IS A WORKSPACE, NOT A MENU.
+        //
+        // Until now this page answered "what CAN I do", which a foreman
+        // already knows. What they open it for is "what do I have to do
+        // today, and what is still open on me". So the tiles stay, and the
+        // real execution content sits above them.
+        //
+        // Every query below is tenant-scoped through $tenantCompanyIds
+        // (resolved by DashboardStatsService, which respects TenantScope)
+        // and additionally narrowed to THIS user -- their tasks, their
+        // permits. Nothing here widens what the user may see.
+        $myTasks = $this->workCenter->myTasksFor($user)->take(6)->map(fn ($task) => [
+            'id' => $task->id,
+            'title' => $task->title,
+            'priority' => $task->priority,
+            'status' => $task->status,
+            'due_date' => $task->due_date,
+            'is_overdue' => $task->due_date !== null && $task->due_date->isPast(),
+            'href' => route('tasks.show', $task->id),
+        ])->values();
+
+        // Permits this user raised that are still live. PROJECT IDENTITY
+        // AND WORK LOCATION ARE SHOWN SEPARATELY and deliberately: "what
+        // job" and "where" are different questions, and a permit that says
+        // only one of them is missing information a field user needs.
+        $myPermits = PermitToWork::whereIn('company_id', $tenantCompanyIds)
+            ->where('requested_by', $user->id)
+            ->whereIn('status', [
+                PermitToWork::STATUS_SUBMITTED,
+                PermitToWork::STATUS_APPROVED,
+                PermitToWork::STATUS_ACTIVE,
+            ])
+            ->with('project:id,name')
+            ->orderByDesc('start_datetime')
+            ->limit(5)
+            ->get()
+            ->map(fn (PermitToWork $permit) => [
+                'id' => $permit->id,
+                'ptw_number' => $permit->ptw_number,
+                'permit_type' => $permit->permit_type,
+                'status' => $permit->status,
+                // Falls back to the free-text work name when no formal
+                // Project Master exists, so this never reads "No Project"
+                // for work that plainly has an identity.
+                'work_identity' => $permit->workIdentity(),
+                'location' => $permit->location,
+                'start_datetime' => $permit->start_datetime,
+                'href' => route('permits-to-work.show', $permit->id),
+            ]);
+
         return Inertia::render('Field/Home', [
             'tiles' => $tiles,
             'pendingApprovalsCount' => $this->workCenter->pendingApprovalsFor($user)->count(),
             'myTasksCount' => $this->workCenter->myTasksFor($user)->count(),
+            'myTasks' => $myTasks,
+            'myPermits' => $myPermits,
+            // Drives whether My Work offers a Create PTW action at all.
+            // The tile list already respects this; sending it explicitly
+            // lets the page explain the absence instead of silently
+            // showing one fewer button. It can never GRANT anything --
+            // PermitToWorkController enforces the same gate server-side.
+            'canCreatePtw' => $user->canCreatePtw(),
+            'isFieldUser' => $user->isFieldUser(),
         ]);
     }
 }

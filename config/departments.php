@@ -34,6 +34,8 @@ return [
     // here per their own `canManage*()` gates reusing the HSE role)
     // Contractor/Visitor/Document Control.
     'hse' => [
+        // v2.52.0: Regulations & Standards Register.
+        'hse-regulations',
         'ppe', 'ppe-types', 'incidents', 'kpi-input', 'kpi-records', 'hse',
         'safety-observations', 'hse-inspections', 'risk-assessments',
         // v2.42.0: 'permits-to-work' moved to RestrictDepartmentAccess's
@@ -76,6 +78,12 @@ return [
     ],
     'project-management' => [
         'projects', 'daily-reports', 'milestones', 'project-management',
+        // v2.52.0: BAST. Raised by whichever function completed the work
+        // being handed over, so it has several legitimate owners -- the
+        // prefix map has allowed multiple owners since v2.46.0 exactly
+        // for this case, and there is no `management` department_key for
+        // it to live under alone.
+        'handover-records',
     ],
     // v1.10.5: Item Master/Warehouse/Stock added -- Warehouse stays inside
     // Logistics (not the separate, still-placeholder 'warehouse' department
@@ -87,9 +95,10 @@ return [
     'warehouse' => ['warehouse'],
     'procurement' => [
         'procurement', 'purchase-requisitions', 'purchase-orders', 'rfqs', 'vendors',
+        'handover-records',
     ],
     'asset-management' => ['assets', 'asset-management'],
-    'maintenance' => ['maintenance-requests', 'work-orders', 'maintenance'],
+    'maintenance' => ['maintenance-requests', 'work-orders', 'maintenance', 'handover-records'],
     'quality-control' => ['inspection-requests', 'ncrs', 'quality-control'],
     'finance' => ['finance'],
 

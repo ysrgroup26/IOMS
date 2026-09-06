@@ -30,7 +30,7 @@ const STATUS_COPY = {
     cancelled: 'This subscription has been cancelled.',
 };
 
-export default function Billing({ subscription, entitlements, invoices = [], recurringEnabled, supportEmail }) {
+export default function Billing({ subscription, entitlements, invoices = [], recurringEnabled, billingEmail }) {
     const fmtDate = (v) =>
         v ? new Date(v).toLocaleDateString('en-US', { day: 'numeric', month: 'long', year: 'numeric' }) : '—';
 
@@ -56,8 +56,8 @@ export default function Billing({ subscription, entitlements, invoices = [], rec
                     <AlertTriangle className="mt-0.5 h-4 w-4 shrink-0" />
                     <span>
                         {STATUS_COPY[subscription.status]}{' '}
-                        {supportEmail && (
-                            <>Contact <a href={`mailto:${supportEmail}`} className="font-medium underline">{supportEmail}</a> to restore it.</>
+                        {billingEmail && (
+                            <>Contact <a href={`mailto:${billingEmail}`} className="font-medium underline">{billingEmail}</a> to restore it.</>
                         )}
                     </span>
                 </div>
@@ -111,7 +111,7 @@ export default function Billing({ subscription, entitlements, invoices = [], rec
                                             ? 'Your subscription renews automatically at the end of each billing period using your saved payment method. A receipt is issued for every renewal.'
                                             : 'An invoice is issued at the end of each billing period and your subscription continues once it is paid. IOMS does not charge a saved card automatically on this deployment.'}
                                         {' '}To change or cancel your plan
-                                        {supportEmail ? <>, contact <a href={`mailto:${supportEmail}`} className="font-medium text-brand-700 hover:underline">{supportEmail}</a>.</> : '.'}
+                                        {billingEmail ? <>, contact <a href={`mailto:${billingEmail}`} className="font-medium text-brand-700 hover:underline">{billingEmail}</a>.</> : '.'}
                                     </p>
                                 </div>
                             </>

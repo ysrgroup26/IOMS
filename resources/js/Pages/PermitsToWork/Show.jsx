@@ -78,8 +78,12 @@ export default function PermitToWorkShow({ permit: p, activities, canManage, rej
                         </p>
                         <div className="mt-2 flex flex-wrap items-center gap-x-4 gap-y-1 text-xs">
                             <span className="text-navy-300">
-                                <span className="uppercase tracking-wide text-navy-400">Project / Asset</span>{' '}
-                                <span className="font-medium text-steel-100">{p.project?.name || '—'}</span>
+                                {/* v2.52.0: the work's own identity, whichever way it
+                                    was recorded -- a registered project, or the free-text
+                                    job name when none exists. Never "No Project" for work
+                                    that has a name. */}
+                                <span className="uppercase tracking-wide text-navy-400">Project / Job</span>{' '}
+                                <span className="font-medium text-steel-100">{p.project?.name || p.project_name || '—'}</span>
                             </span>
                             <span className="text-navy-300">
                                 <span className="uppercase tracking-wide text-navy-400">Work Location</span>{' '}

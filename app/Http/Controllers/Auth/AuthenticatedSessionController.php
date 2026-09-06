@@ -54,7 +54,10 @@ class AuthenticatedSessionController extends Controller
             return redirect()->intended(route('platform.dashboard'));
         }
 
-        return redirect()->intended(route('dashboard'));
+        // v2.52.0: a field account lands in My Work, not an office
+        // dashboard it has no use for. See User::landingRouteName() -- the
+        // decision lives on the model so every caller agrees.
+        return redirect()->intended(route($request->user()->landingRouteName()));
     }
 
     public function destroy(Request $request): RedirectResponse

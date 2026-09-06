@@ -20,8 +20,8 @@ export default function HowItWorks({ steps = [] }) {
 
             <PublicPageHero
                 eyebrow="How It Works"
-                title="From master data to management reporting."
-                subtitle="IOMS follows one loop. Work is centralized, carried out, approved by the people entitled to approve it, monitored while it is open, and turned into reporting once it closes."
+                title="Dari data induk sampai laporan manajemen."
+                subtitle="IOMS mengikuti satu siklus. Pekerjaan dipusatkan, dijalankan, disetujui oleh pihak yang berwenang, dipantau selama berjalan, lalu menjadi laporan setelah selesai."
             />
 
             <section className="bg-white py-14 sm:py-20">
@@ -50,19 +50,20 @@ export default function HowItWorks({ steps = [] }) {
 
                     <div className="mt-10 rounded-xl border border-steel-200/70 bg-white p-6 text-center shadow-card">
                         <h2 className="text-[15px] font-semibold tracking-tight text-navy-900">
-                            What setting up actually involves
+                            Apa saja yang diperlukan untuk mulai
                         </h2>
                         <p className="mx-auto mt-2 max-w-xl text-sm leading-relaxed text-graphite-600">
-                            You create your account and company, confirm your email, choose a plan and pay. Your
-                            workspace is provisioned once the payment provider confirms the payment — with your company
-                            identity already in place, so your first generated document carries your own letterhead.
+                            Anda membuat akun dan perusahaan, mengonfirmasi email, memilih paket, lalu membayar.
+                            Workspace Anda disiapkan setelah penyedia pembayaran mengonfirmasi pembayaran — dengan
+                            identitas perusahaan Anda sudah terpasang, sehingga dokumen pertama yang Anda buat langsung
+                            memakai kop perusahaan sendiri.
                         </p>
                         <div className="mt-6 flex flex-col items-center justify-center gap-3 sm:flex-row">
                             <Button asChild>
-                                <Link href={route('get-started')}>Get started <ArrowRight className="h-4 w-4" /></Link>
+                                <Link href={route('get-started')}>Mulai berlangganan <ArrowRight className="h-4 w-4" /></Link>
                             </Button>
                             <Button variant="outline" asChild>
-                                <Link href={route('faq')}>Read the FAQ</Link>
+                                <Link href={route('faq')}>Baca FAQ</Link>
                             </Button>
                         </div>
                     </div>

@@ -1,5 +1,5 @@
 import { Head, Link, useForm, usePage } from '@inertiajs/react';
-import { CheckCircle2, Clock, CreditCard, Mail, ShieldCheck, XCircle, ArrowRight } from 'lucide-react';
+import { CheckCircle2, Clock, CreditCard, Mail, ShieldCheck, XCircle, ArrowRight, FileDown } from 'lucide-react';
 import PublicLayout from '@/Layouts/PublicLayout';
 import PublicPageHero from '@/Components/shared/PublicPageHero';
 import { Button } from '@/Components/ui/button';
@@ -136,6 +136,21 @@ export default function RegistrationStatus({ registration, paymentConfigured, co
                                 <Row label="Invoice" value={`${registration.invoice_number} · ${registration.invoice_status}`} />
                             )}
                         </dl>
+
+                        {/* v2.55.0: the invoice as a PDF, before the customer has an
+                            account to sign into. Authorised by the same unguessable
+                            registration token as this page. A plain anchor, not an
+                            Inertia Link -- the response is a file, not a page. */}
+                        {registration.invoice_number && (
+                            <a
+                                href={route('register.invoice', registration.token)}
+                                target="_blank"
+                                rel="noopener"
+                                className="mt-4 inline-flex items-center gap-1.5 text-sm font-medium text-brand-700 hover:underline"
+                            >
+                                <FileDown className="h-4 w-4" /> Unduh invoice (PDF)
+                            </a>
+                        )}
                     </div>
 
                     {/* The one action available at this stage. */}

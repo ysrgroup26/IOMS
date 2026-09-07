@@ -9,6 +9,8 @@ use App\Models\Invoice;
 use App\Models\PaymentTransaction;
 use App\Models\TenantRegistration;
 use App\Models\User;
+use App\Services\InvoiceDocumentService;
+use App\Services\PdfGeneratorService;
 use App\Services\PricingService;
 use App\Services\Payments\MidtransGateway;
 use App\Contracts\PaymentGatewayInterface;
@@ -354,9 +356,21 @@ class RegistrationController extends Controller
                 'amount' => $amount,
                 'currency' => $package->currency,
                 'redirect_url' => $checkout->redirectUrl,
+                'checkout_token' => $checkout->token,
             ]);
 
-            return redirect()->away($checkout->redirectUrl);
+            // v2.55.0 -- IOMS SHOWS ITS OWN ORDER SUMMARY FIRST.
+            //
+            // This used to be redirect()->away($checkout->redirectUrl),
+            // which sent the customer straight off iomsuite.com the instant
+            // they clicked pay. A buyer's last view before entering payment
+            // details should state what they are buying, for how long, and
+            // for exactly how many rupiah -- on the seller's own site.
+            //
+            // The payment interface itself is unchanged and still the
+            // provider's: the next page opens Snap over the summary, and
+            // falls back to the very same redirect URL if it cannot.
+            return redirect()->route('register.pay', $token);
         } catch (Throwable $e) {
             Log::error('Onboarding checkout could not be created.', [
                 'registration' => $registration->reference,
@@ -366,6 +380,115 @@ class RegistrationController extends Controller
             return redirect()->route('register.status', $token)
                 ->withErrors(['payment' => 'We could not start the payment session. Your invoice has been issued — please try again shortly or contact us.']);
         }
+    }
+
+    /**
+     * v2.55.0 -- THE IOMS CHECKOUT PAGE.
+     *
+     * Renders the order the customer is about to pay for -- plan, billing
+     * cycle, period, invoice number and the amount in IDR -- on IOMS's own
+     * page, then opens the provider's payment interface over it using the
+     * Snap token created by `checkout()`.
+     *
+     * NOTHING HERE CAN ACTIVATE ANYTHING. The page is read-only: it renders
+     * server state, and the only thing the browser does with the token is
+     * open a payment window. Whatever Snap reports back to the browser --
+     * success, pending, error -- results in a navigation to the status
+     * page and nothing else. Activation still happens exclusively in
+     * PaymentWebhookController, from a payload the provider signed and this
+     * server verified. That separation is the whole point and it is
+     * unchanged.
+     *
+     * Only the CLIENT key reaches the browser; it identifies the merchant
+     * to Snap and authorises nothing. The server key never leaves
+     * MidtransGateway.
+     */
+    public function pay(string $token): Response|RedirectResponse
+    {
+        $registration = $this->findOpen($token);
+
+        if ($registration->status === TenantRegistration::STATUS_PROVISIONED) {
+            return redirect()->route('login');
+        }
+
+        $invoice = $registration->invoice;
+
+        // No invoice yet means checkout was never started -- send them back
+        // to the status page, which is the page that offers to start it.
+        if (! $invoice || ! $this->paymentConfigured()) {
+            return redirect()->route('register.status', $token);
+        }
+
+        $transaction = PaymentTransaction::where('invoice_id', $invoice->id)
+            ->latest()
+            ->first();
+
+        if (! $transaction || blank($transaction->checkout_token)) {
+            return redirect()->route('register.status', $token)
+                ->withErrors(['payment' => 'Sesi pembayaran belum tersedia. Silakan mulai pembayaran kembali dari halaman ini.']);
+        }
+
+        $gateway = app(PaymentGatewayInterface::class);
+        $package = $registration->package;
+
+        return Inertia::render('Public/Checkout', [
+            'order' => [
+                'reference' => $registration->reference,
+                'token' => $token,
+                'company_name' => $registration->displayName(),
+                'contact_email' => $registration->billingEmail(),
+                'plan_name' => $package?->name,
+                'billing_cycle' => $registration->billing_cycle,
+                'invoice_number' => $invoice->invoice_number,
+                'period_start' => $invoice->period_start?->format('d M Y'),
+                'period_end' => $invoice->period_end?->format('d M Y'),
+                'amount' => $this->pricing->format((float) $invoice->amount, $invoice->currency),
+                'currency' => $invoice->currency,
+            ],
+            'payment' => [
+                // Snap's own client-side configuration. The client key is
+                // public by design; the server key is not sent.
+                ...($gateway instanceof MidtransGateway ? $gateway->clientConfig() : []),
+                'snap_token' => $transaction->checkout_token,
+                // The provider's hosted page, kept as the fallback for a
+                // browser where the Snap script cannot load.
+                'fallback_url' => $transaction->redirect_url,
+            ],
+            'statusUrl' => route('register.status', $token),
+            'invoiceUrl' => route('register.invoice', $token),
+            'billingEmail' => config('ioms.emails.billing'),
+        ]);
+    }
+
+    /**
+     * v2.55.0 -- the invoice PDF for a customer who does not have an
+     * account yet.
+     *
+     * The first invoice is issued at checkout, BEFORE provisioning: there
+     * is no tenant and no login, which is the whole reason
+     * TenantRegistration lives outside the isolation boundary. So the
+     * signed-in route cannot serve it, and the unguessable registration
+     * token is the credential -- the same token that already authorises
+     * the status page and the checkout itself.
+     *
+     * Only ever serves the invoice attached to THAT registration, so a
+     * token cannot be used to reach any other invoice.
+     */
+    public function invoicePdf(string $token, PdfGeneratorService $pdf, InvoiceDocumentService $documents): \Illuminate\Http\Response
+    {
+        $registration = TenantRegistration::where('token', $token)
+            ->with('invoice', 'package')
+            ->firstOrFail();
+
+        $invoice = $registration->invoice;
+
+        abort_if($invoice === null, 404);
+
+        return $pdf->streamInline(
+            'pdf.invoice',
+            $documents->viewData($invoice),
+            $invoice->invoice_number.'.pdf'
+        );
     }
 
     /** A gateway counts as configured only when it is both named AND holds credentials. */
@@ -408,6 +531,10 @@ class RegistrationController extends Controller
                 $planName,
                 $this->pricing->format($amount, $invoice->currency),
                 route('register.status', $registration->token),
+                // v2.55.0: the invoice as a PDF. The customer has no account
+                // yet, so the registration token is the credential -- the same
+                // one that already authorises the status page above.
+                route('register.invoice', $registration->token),
             ));
         } catch (Throwable $e) {
             Log::error('Invoice email failed.', [

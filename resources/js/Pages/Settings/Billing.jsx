@@ -1,5 +1,5 @@
 import { Head, Link } from '@inertiajs/react';
-import { CreditCard, Users, Building2, ShieldCheck, CalendarClock, Receipt, AlertTriangle } from 'lucide-react';
+import { CreditCard, Users, Building2, ShieldCheck, CalendarClock, Receipt, AlertTriangle, FileDown } from 'lucide-react';
 import AuthenticatedLayout from '@/Layouts/AuthenticatedLayout';
 import PageHeader from '@/Components/shared/PageHeader';
 import { Card, CardContent, CardHeader, CardTitle } from '@/Components/ui/card';
@@ -173,6 +173,7 @@ export default function Billing({ subscription, entitlements, invoices = [], rec
                                     <TableHead>Paid</TableHead>
                                     <TableHead>Status</TableHead>
                                     <TableHead className="text-right">Amount</TableHead>
+                                    <TableHead />
                                 </TableRow>
                             </TableHeader>
                             <TableBody>
@@ -189,6 +190,21 @@ export default function Billing({ subscription, entitlements, invoices = [], rec
                                         </TableCell>
                                         <TableCell><StatusBadge value={inv.status} /></TableCell>
                                         <TableCell className="text-right font-medium text-navy-900">{inv.amount_formatted}</TableCell>
+                                        {/* v2.55.0: the invoice as a PDF, on the tenant's own
+                                            letterhead-styled document. A plain anchor, not an
+                                            Inertia Link -- this response is a file, and routing
+                                            it through the SPA would try to render a PDF as a
+                                            page. */}
+                                        <TableCell className="text-right">
+                                            <a
+                                                href={route('subscription.invoices.pdf', inv.id)}
+                                                target="_blank"
+                                                rel="noopener"
+                                                className="inline-flex items-center gap-1.5 text-xs font-medium text-brand-700 hover:underline"
+                                            >
+                                                <FileDown className="h-3.5 w-3.5" /> PDF
+                                            </a>
+                                        </TableCell>
                                     </TableRow>
                                 ))}
                             </TableBody>

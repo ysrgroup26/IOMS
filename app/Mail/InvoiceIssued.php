@@ -25,6 +25,9 @@ class InvoiceIssued extends Mailable
         public string $planName,
         public string $amount,
         public ?string $payUrl = null,
+        // v2.55.0: where the customer can read the invoice as a PDF. Null
+        // when no route applies, and the template simply omits the link.
+        public ?string $invoiceUrl = null,
     ) {}
 
     public function envelope(): Envelope
@@ -46,6 +49,7 @@ class InvoiceIssued extends Mailable
                 'planName' => $this->planName,
                 'amount' => $this->amount,
                 'payUrl' => $this->payUrl,
+                'invoiceUrl' => $this->invoiceUrl,
             ],
         );
     }

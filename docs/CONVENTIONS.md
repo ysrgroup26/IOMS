@@ -3,7 +3,25 @@
 House style, and a deliberately honest list of mistakes that have actually happened in this
 codebase's history — kept here so they don't get repeated in a slightly different shape.
 
-## CRITICAL — Known Pitfall (v2.54.0): the "grep for `unique(`" lesson was already written down, and
+## Convention (v2.55.0): never render a legal or identity fact the deployment does not have
+
+The public Terms, Privacy and Refund pages state who operates IOMS, from what address, and under
+which law. Those are legally meaningful and IOMS does not have them yet.
+
+The mechanism, in `App\Support\LegalDocuments`: clauses are written with `:token` markers, and a
+paragraph containing a token with no configured value is **discarded whole**. `PublicController`
+then drops any section left with no paragraphs. The result is a document that is shorter than it
+will eventually be, and true at every stage — rather than one containing "operated by (  )".
+
+**Rule.** When copy depends on a fact from configuration, omit the sentence when the fact is
+missing. Never emit a placeholder into user-facing text, and never invent the fact to fill the gap.
+
+**And keep merchant KYC out of the codebase.** The identity a payment provider verifies — personal
+name, residential address, tax number, ID documents — is not website content and has no config key
+here. `IOMS_LEGAL_ADDRESS` exists for an address the operator intends to PUBLISH, which is not the
+same address.
+
+---## CRITICAL — Known Pitfall (v2.54.0): the "grep for `unique(`" lesson was already written down, and
 ## the next release still shipped with two of them — this time on the POST-PAYMENT path
 
 v2.40.0 wrote the rule (below): *"grep for `unique(` in old migrations whenever you add a new scoping

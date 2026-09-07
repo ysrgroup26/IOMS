@@ -77,6 +77,24 @@ class MidtransGateway implements PaymentGatewayInterface
         return preg_match('/^INV(\d+)-/', $orderId, $m) ? (int) $m[1] : null;
     }
 
+    /**
+     * What the browser needs to open Snap in place: the CLIENT key (public
+     * by design -- it identifies the merchant to Snap and authorises
+     * nothing) and which Snap script to load.
+     *
+     * The SERVER key never leaves this class.
+     */
+    public function clientConfig(): array
+    {
+        return [
+            'client_key' => $this->clientKey,
+            'is_production' => $this->isProduction,
+            'snap_script' => $this->isProduction
+                ? 'https://app.midtrans.com/snap/snap.js'
+                : 'https://app.sandbox.midtrans.com/snap/snap.js',
+        ];
+    }
+
     public function createCheckout(Invoice $invoice): PaymentCheckoutResult
     {
         return $this->createPayment($invoice);
@@ -136,6 +154,11 @@ class MidtransGateway implements PaymentGatewayInterface
             gatewayReference: $orderId,
             redirectUrl: (string) $response->json('redirect_url'),
             status: 'pending',
+            // v2.55.0: Snap returns both. The redirect URL still works and
+            // remains the fallback; the token is what lets IOMS present its
+            // own order summary and open Snap on top of it, so the customer
+            // never leaves iomsuite.com to reach the payment interface.
+            token: $response->json('token'),
         );
     }
 

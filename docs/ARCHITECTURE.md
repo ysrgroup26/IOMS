@@ -123,6 +123,57 @@ actually renders; anything there that looks dated is dated on purpose.
 **Documents on this system**: Purchase Order (Surat Pesanan), Purchase Requisition (FPB), Goods
 Receipt (BAST), Work Order (SPK), plus the existing Permit To Work.
 
+### Domain, mailboxes and public identity (v2.55.0)
+
+**One setting names the domain.** `APP_URL` is what every absolute URL is built from — password
+reset links, email links, the payment provider's finish callback, invoice links, asset URLs, and
+the webhook URL registered in the provider dashboard. No domain is hardcoded anywhere in
+application code, so moving from `ioms.web.id` to `iomsuite.com` is an environment change:
+`APP_URL`, `SANCTUM_STATEFUL_DOMAINS`, `SESSION_SECURE_COOKIE`, and optionally `SESSION_DOMAIN`.
+(The `ioms.web.id` mention in `docs/ADR/029` is a historical incident record and stays.)
+
+`TRUSTED_PROXIES` was added because cPanel terminates TLS at a proxy and forwards over plain HTTP;
+without it Laravel reads the request as `http://` and puts insecure links in reset emails. It is
+opt-in rather than hardcoded to `*`, because trusting forwarding headers from an untrusted network
+lets a client spoof its own scheme and host.
+
+**Four mailboxes, four jobs** (`config('ioms.emails')`): `support@`, `billing@`, `noreply@`,
+`hello@` on `iomsuite.com`. Every Mailable sends **from** `noreply` with a **Reply-To** matching the
+conversation — billing for an invoice, support for an activation, sales for a signup verification.
+
+**`config('ioms.legal')` is empty by default and must stay that way until real facts exist.** The
+public policy documents are built in `App\Support\LegalDocuments`, which DROPS any clause whose
+underlying fact is unconfigured rather than printing a placeholder that reads like a statement, and
+`PublicController` drops any section left with no clauses. There is deliberately no config key for a
+tax or registration number: the identity a payment provider verifies (personal name, residential
+address, NPWP, ID documents) is merchant KYC data, not website content.
+
+### The invoice is the one document that runs the other way (v2.55.0)
+
+Every other PDF in IOMS is written BY a tenant, so `DocumentEngine::identity()` puts the tenant's
+company on the letterhead. An invoice has IOMS as the vendor and the tenant as the customer, so
+`InvoiceDocumentService::issuerIdentity()` supplies the ISSUER identity in exactly the shape
+`pdf.partials.letterhead` already expects. Same partials, same styles, same footer — no second
+document system.
+
+It is reachable from two places because it exists in two situations: `subscription.invoices.pdf`
+for a signed-in administrator (ownership checked on `invoices.tenant_id`, since that table has no
+`company_id` and inherits nothing from Company's scopes), and `register.invoice` for a prospect who
+has paid but has no account yet, authorised by the same unguessable registration token as the status
+page.
+
+### Checkout: IOMS's page, the provider's payment interface (v2.55.0)
+
+Checkout used to `redirect()->away()` to the provider the instant the customer clicked pay. It now
+lands on `register.pay` — an IOMS order summary stating plan, cycle, period, invoice number and the
+IDR amount — and opens Snap over that page using a token the SERVER created
+(`PaymentCheckoutResult::$token`, persisted on `payment_transactions.checkout_token`).
+
+**Nothing about the activation rule changed.** Only the client key reaches the browser and it
+authorises nothing; every Snap callback does one thing, navigate to the read-only status page; and
+no endpoint accepts a payment result from a browser. A subscription still becomes active only in
+`PaymentWebhookController`, from a payload the provider signed and this server verified.
+
 ### The organizational model (v2.54.0)
 
 ```

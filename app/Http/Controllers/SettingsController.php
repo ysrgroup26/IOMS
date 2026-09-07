@@ -17,6 +17,8 @@ use App\Models\Position;
 use App\Models\User;
 use App\Models\Workspace;
 use App\Services\EntitlementService;
+use App\Services\InvoiceDocumentService;
+use App\Services\PdfGeneratorService;
 use App\Services\PricingService;
 use Illuminate\Http\RedirectResponse;
 use Illuminate\Http\Request;
@@ -392,6 +394,39 @@ class SettingsController extends Controller
             'billingEmail' => config('ioms.emails.billing'),
         ]);
     }
+    /**
+     * v2.55.0 -- the invoice as a downloadable PDF.
+     *
+     * Until now an invoice existed only as a row and an email. Indonesian
+     * B2B customers file invoices, and a subscription product that cannot
+     * produce one is incomplete.
+     *
+     * Built on the EXISTING document architecture -- the same
+     * `pdf.partials.{styles,letterhead,footer}` every operational document
+     * uses -- with `InvoiceDocumentService` supplying the ISSUER identity
+     * rather than DocumentEngine's tenant identity. See that service for
+     * why an invoice is the one document that runs the other way.
+     *
+     * OWNERSHIP IS CHECKED ON THE INVOICE ITSELF. `invoices` carries no
+     * company_id, so it inherits nothing from Company's global scopes:
+     * route-model binding would happily hand over another organization's
+     * invoice on a guessed id. The tenant_id comparison here is the only
+     * thing standing between the two, so it is explicit and it is first.
+     */
+    public function invoicePdf(Request $request, Invoice $invoice, PdfGeneratorService $pdf, InvoiceDocumentService $documents): \Illuminate\Http\Response
+    {
+        abort_unless($request->user()->canManageSystemSettings(), 403);
+        abort_unless($invoice->tenant_id !== null && $invoice->tenant_id === $request->user()->tenant_id, 404);
+
+        $invoice->load('subscription.package', 'registration.package', 'tenant');
+
+        return $pdf->streamInline(
+            'pdf.invoice',
+            $documents->viewData($invoice),
+            $invoice->invoice_number.'.pdf'
+        );
+    }
+
     public function plans(Request $request): Response
     {
         $pricing = app(PricingService::class);

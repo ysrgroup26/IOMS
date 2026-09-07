@@ -159,6 +159,13 @@ Route::get('/get-started/verify/{token}', [RegistrationController::class, 'verif
 Route::post('/get-started/{token}/resend', [RegistrationController::class, 'resendVerification'])
     ->middleware('throttle:5,1')->name('register.resend');
 Route::get('/get-started/{token}/status', [RegistrationController::class, 'status'])->name('register.status');
+// v2.55.0: the first invoice is issued BEFORE provisioning, so there is no
+// account to sign into yet. The unguessable registration token is the
+// credential, exactly as it already is for the status page.
+Route::get('/get-started/{token}/invoice', [RegistrationController::class, 'invoicePdf'])->name('register.invoice');
+// v2.55.0: IOMS's own order-summary page. The payment interface opens
+// over it; this page renders server state and can activate nothing.
+Route::get('/get-started/{token}/pay', [RegistrationController::class, 'pay'])->name('register.pay');
 Route::post('/get-started/{token}/checkout', [RegistrationController::class, 'checkout'])
     ->middleware('throttle:10,1')->name('register.checkout');
 
@@ -173,6 +180,11 @@ Route::post('/webhooks/payment/midtrans', [PaymentWebhookController::class, 'mid
 
 Route::get('/privacy', [PublicController::class, 'privacy'])->name('legal.privacy');
 Route::get('/terms', [PublicController::class, 'terms'])->name('legal.terms');
+// v2.55.0: a paid subscription product needs a stated refund position, and
+// a real contact page rather than a footer mailto: that does nothing on a
+// machine with no mail client.
+Route::get('/refund-policy', [PublicController::class, 'refunds'])->name('legal.refunds');
+Route::get('/contact', [PublicController::class, 'contact'])->name('contact');
 
 /*
 |--------------------------------------------------------------------------
@@ -771,6 +783,10 @@ Route::middleware(['auth', 'restrict.platform-admin'])->group(function () {
     // docs/CONVENTIONS.md's "Known Pitfalls" -- so this placement was
     // deliberate, not incidental.
     Route::get('/subscription/plans', [SettingsController::class, 'plans'])->name('subscription.plans');
+    // v2.55.0: invoice PDF. Ownership is checked on the invoice itself --
+    // `invoices` has no company_id, so it inherits nothing from Company's
+    // global scopes. See SettingsController::invoicePdf().
+    Route::get('/subscription/invoices/{invoice}/pdf', [SettingsController::class, 'invoicePdf'])->name('subscription.invoices.pdf');
     // v2.51.0: the tenant own billing area -- plan, cycle, status,
     // renewal, capacity in use, and real invoice/payment history.
     // Super-Admin-only inside the controller (commercial data), unlike

@@ -3,6 +3,7 @@
 namespace App\Http\Controllers;
 
 use App\Services\PricingService;
+use App\Support\LegalDocuments;
 use Illuminate\Http\Request;
 use Inertia\Inertia;
 use Inertia\Response;
@@ -182,16 +183,17 @@ class PublicController extends Controller
 
     private const FAQS = [
         ['q' => 'Apa itu IOMS?', 'a' => 'IOMS adalah Industrial Operations Platform: satu sistem yang menghubungkan pekerjaan lapangan, Health, Safety & Environment, data tenaga kerja, gudang, procurement, logistik, aset, maintenance, quality control, dan pelaporan manajemen. Pekerjaan dan catatan yang dihasilkannya berada di tempat yang sama.'],
+        ['q' => 'Apa itu Operating Unit?', 'a' => 'IOMS menyusun organisasi Anda sebagai IOMS → Organization → Operating Unit → Department. Satu langganan adalah SATU organisasi. Operating Unit adalah unit operasional di dalamnya — galangan, site, atau divisi — dan setiap Department berada di bawah salah satu Operating Unit. Dua Operating Unit bukan berarti dua perusahaan atau dua langganan terpisah.'],
         ['q' => 'Untuk siapa IOMS dibuat?', 'a' => 'Perusahaan industri yang menjalankan pekerjaan lapangan dan memikul kewajiban keselamatan kerja — galangan kapal, konstruksi, manufaktur, pertambangan, minyak dan gas, energi, fabrikasi, logistik, dan penyedia jasa industri.'],
         ['q' => 'Industri apa saja yang didukung?', 'a' => 'IOMS dibangun untuk operasi industri secara umum, bukan satu sektor tertentu. Modulnya sama di semua industri; yang berbeda adalah domain operasional mana yang diaktifkan oleh perusahaan Anda.'],
-        ['q' => 'Apa isi masing-masing paket?', 'a' => 'Starter mencakup Health, Safety & Environment secara lengkap. Professional menambahkan Human Resources dan visibilitas Management lintas departemen. Enterprise membuka seluruh domain operasional IOMS. Ketiganya adalah platform yang sama — yang berbeda hanyalah luas akses dan kapasitas.'],
-        ['q' => 'Bagaimana perhitungan jumlah pengguna?', 'a' => 'Setiap paket memiliki batas jumlah akun login (Users) dan batas berapa akun di antaranya yang boleh diberi PTW Access. PTW Access adalah izin pada akun yang sudah ada, bukan tambahan akun. Jadi "10 Users, 5 PTW Access" berarti sepuluh orang dapat login dan lima di antara mereka boleh membuat Permit To Work — bukan lima belas akun.'],
-        ['q' => 'Apa itu PTW Access?', 'a' => 'PTW Access adalah izin yang diberikan kepada akun tertentu untuk membuat Permit To Work. Seorang foreman atau supervisor lapangan yang diberi PTW Access dapat mengajukan izin kerja langsung dari My Work, dan HSE tetap yang meninjau serta menyetujuinya.'],
+        ['q' => 'Apa isi masing-masing paket?', 'a' => 'Starter mencakup Health, Safety & Environment secara lengkap untuk satu Operating Unit. Professional menambahkan Human Resources dan visibilitas Management lintas departemen, untuk organisasi yang menjalankan sampai dua Operating Unit. Enterprise membuka seluruh domain operasional IOMS untuk beberapa Operating Unit sekaligus. Ketiganya adalah platform yang sama — yang berbeda hanyalah luas akses dan kapasitas.'],
+        ['q' => 'Bagaimana perhitungan jumlah pengguna?', 'a' => 'Kapasitas paket dinyatakan sebagai SATU angka: jumlah akun login (Users) yang tercakup. Starter mencakup 10 akun dan Professional 50 akun; Enterprise memakai kapasitas standar tertinggi. Izin di dalam IOMS — termasuk PTW Access — diberikan kepada akun yang sudah ada dan tidak menambah jumlah akun maupun biaya.'],
+        ['q' => 'Apa itu PTW Access?', 'a' => 'PTW Access adalah izin yang diberikan kepada akun tertentu untuk membuat Permit To Work — bukan kapasitas yang dijual dan tidak dikenakan biaya tambahan. Seorang foreman atau supervisor lapangan yang diberi PTW Access dapat mengajukan izin kerja langsung dari My Work, dan HSE tetap yang meninjau serta menyetujuinya.'],
         ['q' => 'Apa itu My Work?', 'a' => 'My Work adalah ruang kerja untuk orang yang menjalankan pekerjaan di lapangan — foreman, supervisor, teknisi, operator. Akun yang ditandai sebagai pengguna lapangan langsung diarahkan ke My Work saat login, bukan ke dashboard kantor yang tidak relevan bagi mereka.'],
         ['q' => 'Apakah Enterprise bisa dikustomisasi?', 'a' => 'Enterprise adalah paket standar IOMS yang paling lengkap, bukan paket pengembangan khusus. IOMS adalah satu produk yang terus disempurnakan untuk semua pelanggan — tidak ada pengembangan khusus per perusahaan, dan tidak ada paket seumur hidup.'],
         ['q' => 'Bagaimana proses pembayarannya?', 'a' => 'Anda memilih paket dan siklus penagihan, mengonfirmasi alamat email, lalu membayar melalui penyedia pembayaran kami. Data kartu Anda tidak pernah melewati atau tersimpan di IOMS.'],
         ['q' => 'Kapan workspace kami aktif?', 'a' => 'Setelah penyedia pembayaran mengonfirmasi pembayaran Anda ke server kami. Sekadar sampai di halaman konfirmasi di browser tidak mengaktifkan apa pun — aktivasi mengikuti notifikasi terverifikasi dari penyedia pembayaran.'],
-        ['q' => 'Apakah langganan bisa dibatalkan?', 'a' => 'Bisa. Langganan yang dibatalkan tetap berjalan sampai akhir periode yang sudah dibayar, setelah itu workspace berhenti dapat digunakan. Data Anda tidak dihapus pada saat pembatalan.'],
+        ['q' => 'Apakah langganan bisa dibatalkan?', 'a' => 'Bisa, kapan saja. Langganan yang dibatalkan tetap berjalan sampai akhir periode yang sudah dibayar, setelah itu workspace berhenti dapat digunakan dan tidak ada penagihan berikutnya. Data Anda tidak dihapus pada saat pembatalan. Ketentuan lengkapnya ada di halaman Refund & Cancellation Policy.'],
         ['q' => 'Bagaimana jika pembayaran gagal?', 'a' => 'Tidak ada yang diaktifkan. Untuk langganan yang sedang berjalan, kegagalan perpanjangan melewati masa tenggang lebih dulu sebelum akses dibatasi — Anda diberi tahu, bukan langsung diputus.'],
         ['q' => 'Apakah identitas perusahaan kami bisa ditampilkan?', 'a' => 'Bisa. Setiap pelanggan mengelola nama, logo, alamat, kontak, NPWP, dan NIB perusahaannya sendiri, dan seluruh data itu otomatis menjadi kop pada dokumen yang dihasilkan IOMS.'],
         ['q' => 'Apakah dokumen bisa diekspor ke PDF dan Excel?', 'a' => 'Ya. Dokumen operasional diekspor sebagai PDF A4 siap cetak dengan kop perusahaan Anda, dan data laporan diekspor ke workbook Excel yang sudah tertata.'],
@@ -251,13 +253,77 @@ class PublicController extends Controller
         ]);
     }
 
+    /*
+    |--------------------------------------------------------------------------
+    | Public policy documents (v2.55.0)
+    |--------------------------------------------------------------------------
+    | These were honest placeholders ("This page is being prepared") from
+    | v2.18.0, when the instruction was not to invent legal text. IOMS now
+    | sells subscriptions through a payment provider, and a merchant whose
+    | Terms page is a placeholder is not a merchant a provider can verify.
+    |
+    | The content lives in App\Support\LegalDocuments, not here and not in
+    | JSX -- see that class for why, and for the mechanism that OMITS any
+    | clause whose underlying fact (registered entity, address, governing
+    | law) has not been configured, rather than printing a placeholder that
+    | reads like a statement.
+    */
     public function privacy(): Response
     {
-        return Inertia::render('Public/Legal', ['title' => 'Privacy Policy']);
+        return $this->legalDocument('Privacy Policy', LegalDocuments::privacy(),
+            'Bagaimana IOMS menangani data akun dan data operasional pelanggan.');
     }
 
     public function terms(): Response
     {
-        return Inertia::render('Public/Legal', ['title' => 'Terms of Service']);
+        return $this->legalDocument('Terms of Service', LegalDocuments::terms(),
+            'Ketentuan penggunaan IOMS sebagai layanan langganan untuk organisasi.');
+    }
+
+    public function refunds(): Response
+    {
+        return $this->legalDocument('Refund & Cancellation Policy', LegalDocuments::refunds(),
+            'Kapan langganan dapat dibatalkan, dan dalam keadaan apa dana dikembalikan.');
+    }
+
+    private function legalDocument(string $title, array $sections, string $summary): Response
+    {
+        // A section whose every clause depended on an unconfigured fact
+        // would otherwise render as a numbered heading with nothing under
+        // it, which reads as an omission rather than a deliberate absence.
+        $sections = array_values(array_filter($sections, fn ($s) => $s['body'] !== []));
+
+        return Inertia::render('Public/LegalDocument', [
+            'title' => $title,
+            'summary' => $summary,
+            'sections' => $sections,
+            // Null unless configured. The page prints neither an operator
+            // line nor an effective date it does not have.
+            'operator' => LegalDocuments::operator(),
+            'effectiveDate' => LegalDocuments::effectiveDate(),
+            'emails' => config('ioms.emails'),
+        ]);
+    }
+
+    /**
+     * A real Contact page, replacing a footer `mailto:` that opened the
+     * operating system's "choose an app" dialog and did nothing at all on a
+     * machine with no mail client -- the same acquisition dead end v2.51.0
+     * removed from the pricing CTAs.
+     *
+     * Deliberately publishes the four IOMS mailboxes and NOTHING ELSE. The
+     * identity a payment provider verifies is a personal, private one; a
+     * registered address is frequently a home address, and it does not
+     * belong on a public page. A postal address appears here only when the
+     * operator has explicitly configured one for publication.
+     */
+    public function contact(): Response
+    {
+        return Inertia::render('Public/Contact', [
+            'emails' => config('ioms.emails'),
+            'operator' => LegalDocuments::operator(),
+            'address' => config('ioms.legal.address') ?: null,
+            'sandboxEnabled' => (bool) config('ioms.sandbox.enabled'),
+        ]);
     }
 }

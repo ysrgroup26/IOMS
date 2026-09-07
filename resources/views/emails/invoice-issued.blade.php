@@ -45,6 +45,12 @@
         </table>
     @endif
 
+    @if ($invoiceUrl ?? null)
+        <p style="margin:0 0 18px; font-size:13px; line-height:1.6; color:#334155;">
+            <a href="{{ $invoiceUrl }}" style="color:#2166c4; text-decoration:underline;">Download this invoice as a PDF</a>
+        </p>
+    @endif
+
     <p style="margin:0; font-size:12px; line-height:1.6; color:#64748b;">
         Payment is processed by our payment provider. IOMS never receives or stores your card details.
     </p>

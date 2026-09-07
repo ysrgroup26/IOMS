@@ -15,6 +15,10 @@ class PaymentTransaction extends Model
 
     protected $fillable = [
         'invoice_id', 'gateway', 'gateway_reference', 'status', 'amount', 'currency', 'redirect_url',
+        // v2.55.0: the provider's checkout token, so IOMS can open the
+        // payment interface over its OWN order summary page. Carries no
+        // authority -- see the owning migration.
+        'checkout_token',
     ];
 
     protected function casts(): array

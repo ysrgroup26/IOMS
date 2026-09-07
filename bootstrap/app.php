@@ -23,6 +23,30 @@ return Application::configure(basePath: dirname(__DIR__))
         health: '/up',
     )
     ->withMiddleware(function (Middleware $middleware) {
+        // v2.55.0 -- CORRECT SCHEME AND HOST BEHIND THE HOSTING PROXY.
+        //
+        // IOMS is deployed on shared hosting (cPanel), which terminates TLS
+        // at a proxy and forwards to PHP over plain HTTP. Without trusted
+        // proxies Laravel reads the request as http:// on the internal host,
+        // which produces http:// links in password-reset and invoice emails
+        // and makes `$request->isSecure()` false on a site that genuinely is
+        // secure.
+        //
+        // Unset (the default) trusts nothing, which is right for local
+        // development and for any environment reached directly. Setting
+        // TRUSTED_PROXIES="*" trusts the hosting layer's own forwarding
+        // headers -- correct when the application is only ever reachable
+        // through that proxy, which is the case on cPanel.
+        //
+        // This is deliberately NOT hardcoded to "*": trusting forwarding
+        // headers from an untrusted network lets a client spoof its own
+        // scheme and host.
+        if ($proxies = env('TRUSTED_PROXIES')) {
+            $middleware->trustProxies(
+                at: $proxies === '*' ? '*' : array_map('trim', explode(',', $proxies)),
+            );
+        }
+
         $middleware->web(append: [
             // ResolveTenant runs FIRST (Milestone 2) -- everything after
             // it, including HandleInertiaRequests' own shared props and

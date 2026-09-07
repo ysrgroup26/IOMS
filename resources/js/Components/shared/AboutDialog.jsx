@@ -82,7 +82,12 @@ export default function AboutDialog({ open, onOpenChange }) {
                         <Row icon={ShieldCheck} label="License" value={version?.license} />
                         <Row icon={Globe} label="Website" value={version?.website} />
                         <Row icon={LifeBuoy} label="Support" value={version?.support_email} />
-                        <Row icon={BookOpen} label="Documentation" value={version?.documentation_url} />
+                        {/* v2.55.0: documentation_url is null until the docs site is
+                            published, and a row reading "Documentation —" is worse
+                            than no row. Rendered only when there is somewhere to go. */}
+                        {version?.documentation_url && (
+                            <Row icon={BookOpen} label="Documentation" value={version.documentation_url} />
+                        )}
                     </dl>
 
                     {version?.whats_new?.length > 0 && (

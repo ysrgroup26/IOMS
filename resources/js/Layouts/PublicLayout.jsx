@@ -102,7 +102,7 @@ export default function PublicLayout({ children }) {
 
             <footer className="border-t border-graphite-100 bg-graphite-50">
                 <div className="mx-auto max-w-7xl px-4 py-12 sm:px-6 lg:px-8">
-                    <div className="grid grid-cols-1 gap-8 sm:grid-cols-2 lg:grid-cols-4">
+                    <div className="grid grid-cols-1 gap-8 sm:grid-cols-2 lg:grid-cols-5">
                         <div className="sm:col-span-2 lg:col-span-1">
                             <BrandWordmark className="h-6 w-auto" />
                             {/* v2.22.0 (Complete Product UI/UX Transformation,
@@ -129,9 +129,10 @@ export default function PublicLayout({ children }) {
                                 <li><Link href={route('pricing')} className="hover:text-graphite-900">Pricing</Link></li>
                                 <li><Link href={route('faq')} className="hover:text-graphite-900">FAQ</Link></li>
                                 <li><Link href={route('sandbox')} className="hover:text-graphite-900">Sandbox</Link></li>
-                                {version?.support_email && (
-                                    <li><a href={`mailto:${version.support_email}`} className="hover:text-graphite-900">Contact</a></li>
-                                )}
+                                {/* v2.55.0: a real page. This was a mailto:, which opens
+                                    the OS "choose an app" dialog and does nothing at all
+                                    on a machine with no mail client. */}
+                                <li><Link href={route('contact')} className="hover:text-graphite-900">Contact</Link></li>
                             </ul>
                         </div>
                         <div>
@@ -141,14 +142,26 @@ export default function PublicLayout({ children }) {
                                 <li><Link href={route('get-started')} className="hover:text-graphite-900">Get Started</Link></li>
                             </ul>
                         </div>
+                        {/* v2.55.0: policies get their own column rather than two
+                            small links under the copyright line. A subscription
+                            product's terms, privacy and refund position are things
+                            a buyer looks for BEFORE paying, not fine print. */}
+                        <div>
+                            <p className="text-xs font-semibold uppercase tracking-wide text-graphite-400">Legal</p>
+                            <ul className="mt-3 space-y-2 text-sm text-graphite-600">
+                                <li><Link href={route('legal.terms')} className="hover:text-graphite-900">Terms &amp; Conditions</Link></li>
+                                <li><Link href={route('legal.privacy')} className="hover:text-graphite-900">Privacy Policy</Link></li>
+                                <li><Link href={route('legal.refunds')} className="hover:text-graphite-900">Refund &amp; Cancellation</Link></li>
+                            </ul>
+                        </div>
                     </div>
 
                     <div className="mt-10 flex flex-col gap-3 border-t border-graphite-200 pt-6 text-xs text-graphite-400 sm:flex-row sm:items-center sm:justify-between">
                         <p>&copy; {version?.copyright_year || new Date().getFullYear()} {version?.company}. All rights reserved.</p>
-                        <div className="flex gap-4">
-                            <Link href={route('legal.privacy')} className="hover:text-graphite-600">Privacy</Link>
-                            <Link href={route('legal.terms')} className="hover:text-graphite-600">Terms</Link>
-                        </div>
+                        {/* The policy links moved into their own column above, so
+                            this row carries the brand address instead of repeating
+                            two of the three documents. */}
+                        {version?.website && <p>{version.website}</p>}
                     </div>
                 </div>
             </footer>

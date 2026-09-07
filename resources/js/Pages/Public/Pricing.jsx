@@ -124,7 +124,11 @@ export default function Pricing({ plans = [], contactEmail }) {
                                             </li>
                                             <li className="flex items-start gap-2 text-xs text-graphite-600">
                                                 <Check className="mt-0.5 h-3.5 w-3.5 shrink-0 text-success" />
-                                                <span>{plan.max_companies ? `${plan.max_companies} company` : 'Multi-company access'}</span>
+                                                {/* v2.54.0: Operating Units, not companies. A plan
+                                                    never sells more than ONE organization -- what it
+                                                    sizes is how many operating units that organization
+                                                    may run inside it. */}
+                                                <span>{plan.max_companies ? `${plan.max_companies} Operating Unit${plan.max_companies > 1 ? 's' : ''}` : 'Multiple Operating Units'}</span>
                                             </li>
                                             {(plan.workspaces ?? []).slice(0, 6).map((w) => (
                                                 <li key={w} className="flex items-start gap-2 text-xs text-graphite-600">
@@ -153,16 +157,20 @@ export default function Pricing({ plans = [], contactEmail }) {
                         </span>
                         <p className="text-xs leading-relaxed text-graphite-600">
                             Every plan is the same standardized IOMS platform. We build once and improve it for
-                            everyone — no per-company custom development, and no lifetime plan.
+                            everyone — no per-customer custom development, and no lifetime plan.
                             <strong className="text-navy-800"> Users</strong> is the number of login accounts included.
                             Permissions such as PTW Access are granted to those accounts inside IOMS at no extra cost.
+                            {/* v2.54.0: says plainly what an Operating Unit is, so nobody reads
+                                "2 Operating Units" as "two companies you may bill separately". */}
+                            <strong className="text-navy-800"> Operating Units</strong> are yards, sites or divisions
+                            inside one organization — one subscription, not separate companies.
                         </p>
                     </div>
 
                     <p className="mt-6 text-center text-xs text-graphite-500">
                         Not sure yet?{' '}
                         <Link href={route('sandbox')} className="font-medium text-brand-700 hover:underline">Try the Sandbox</Link>
-                        {' '}first &middot;{' '}
+                        {' '}first — a real workspace with an operation already running in it.
                     </p>
                     <p className="mt-2 text-center text-xs text-graphite-500">
                         Already have an IOMS account?{' '}

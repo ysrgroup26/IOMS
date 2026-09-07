@@ -7,13 +7,21 @@ use Illuminate\Database\Eloquent\SoftDeletes;
 
 /**
  * Milestone 2 (Tenancy Foundation). The real SaaS isolation boundary --
- * one Tenant is one paying customer organization. `Company` (GAJ,
- * Maintenance) keeps its pre-existing meaning unchanged: an internal
- * business unit WITHIN one Tenant, not a tenant itself. See
- * docs/ADR/008-tenancy-foundation.md for the full reasoning, in
- * particular why isolation is enforced via `companies.tenant_id` +
- * Company's own global scope rather than a parallel tenant_id on every
- * downstream table.
+ * one Tenant is one paying customer organization.
+ *
+ * v2.54.0 gives that its product name: a Tenant is an ORGANIZATION, the
+ * second level of IOMS -> Organization -> Operating Unit -> Department.
+ * `Company` is an OPERATING UNIT within it (GAJ, MTC), which is the
+ * meaning it has always had -- ADR-008 called it "an internal business
+ * unit WITHIN one Tenant, not a tenant itself" from the start. Only the
+ * vocabulary is new, and it is now used consistently everywhere a human
+ * reads it. The class names stay: renaming Tenant/Company would touch
+ * every FK, controller and scope in the schema to buy a word.
+ *
+ * See docs/ADR/008-tenancy-foundation.md for why isolation is enforced
+ * via `companies.tenant_id` + Company's own global scope rather than a
+ * parallel tenant_id on every downstream table, and
+ * docs/ARCHITECTURE.md 's Organizational Model section for the hierarchy.
  */
 class Tenant extends Model
 {
@@ -34,9 +42,30 @@ class Tenant extends Model
         ];
     }
 
+    /**
+     * The operating units of this organization.
+     *
+     * `operatingUnits()` is the name the product uses; `companies()` is
+     * kept as the relation the rest of the codebase already calls, so
+     * this is one relationship with a readable alias, not a second
+     * mechanism. Neither applies CompanyAuthorizationScope-free access:
+     * both go through the Company model and therefore through every
+     * scope on it.
+     */
     public function companies()
     {
         return $this->hasMany(Company::class);
+    }
+
+    public function operatingUnits()
+    {
+        return $this->companies();
+    }
+
+    /** The organization's display name -- what a header, invoice or document letterhead calls this customer. */
+    public function organizationName(): string
+    {
+        return $this->name;
     }
 
     public function users()

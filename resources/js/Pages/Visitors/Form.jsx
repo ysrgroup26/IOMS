@@ -27,11 +27,14 @@ export default function VisitorForm({ employees, visitorNumber }) {
                 <Button variant="ghost" size="sm" asChild><Link href={route('visitors.index')}><ArrowLeft className="h-4 w-4" /> Back</Link></Button>
             </div>
 
-            <form onSubmit={submit} className="mx-auto max-w-xl">
+            {/* v2.54.0 (form audit): a form that pairs fields needs room for the pair.
+                max-w-xl caps the column at 576px, so each half of a pair landed at
+                roughly 270px -- narrower than the single-column version it replaced. */}
+            <form onSubmit={submit} className="mx-auto max-w-2xl">
                 <Card>
                     <CardHeader><CardTitle>Register Visitor -- {visitorNumber}</CardTitle></CardHeader>
                     <CardContent className="space-y-4">
-                        <div className="grid grid-cols-2 gap-4">
+                        <div className="grid grid-cols-1 gap-4 sm:grid-cols-2">
                             <div className="space-y-1.5"><Label>Name</Label><Input value={data.name} onChange={(e) => setData('name', e.target.value)} />{errors.name && <p className="text-xs text-red-600">{errors.name}</p>}</div>
                             <div className="space-y-1.5"><Label>Company</Label><Input value={data.visitor_company} onChange={(e) => setData('visitor_company', e.target.value)} placeholder="e.g. PT XYZ" /></div>
                         </div>
@@ -44,7 +47,7 @@ export default function VisitorForm({ employees, visitorNumber }) {
                             </Select>
                             {errors.host_employee_id && <p className="text-xs text-red-600">{errors.host_employee_id}</p>}
                         </div>
-                        <div className="grid grid-cols-2 gap-4">
+                        <div className="grid grid-cols-1 gap-4 sm:grid-cols-2">
                             <div className="space-y-1.5"><Label>Visit Date</Label><Input type="date" value={data.visit_date} onChange={(e) => setData('visit_date', e.target.value)} /></div>
                             <div className="space-y-1.5"><Label>Phone</Label><Input value={data.contact_phone} onChange={(e) => setData('contact_phone', e.target.value)} /></div>
                         </div>

@@ -70,7 +70,7 @@ export default function GoodsReceiptForm({ materialRequests, purchaseOrders, pro
                 <Card>
                     <CardHeader><CardTitle>Goods Receipt -- {receiptNumber}</CardTitle></CardHeader>
                     <CardContent className="space-y-4">
-                        <div className="grid grid-cols-2 gap-3">
+                        <div className="grid grid-cols-1 gap-3 sm:grid-cols-2">
                             <div className="space-y-1.5">
                                 <Label>Received Date</Label>
                                 <Input type="date" value={data.received_date} onChange={(e) => setData('received_date', e.target.value)} />
@@ -102,7 +102,7 @@ export default function GoodsReceiptForm({ materialRequests, purchaseOrders, pro
                             {data.purchase_order_id && <Button type="button" variant="outline" size="sm" onClick={loadPoItems}>Load Remaining Items</Button>}
                         </div>
 
-                        <div className="grid grid-cols-2 gap-3">
+                        <div className="grid grid-cols-1 gap-3 sm:grid-cols-2">
                             <div className="space-y-1.5">
                                 <Label>Project (optional)</Label>
                                 <Select value={data.project_id ? String(data.project_id) : 'none'} onValueChange={(v) => setData('project_id', v === 'none' ? '' : v)}>
@@ -164,7 +164,7 @@ export default function GoodsReceiptForm({ materialRequests, purchaseOrders, pro
                                         )}
                                     </div>
                                 </div>
-                                <div className="grid grid-cols-2 gap-2">
+                                <div className="grid grid-cols-1 gap-2 sm:grid-cols-2">
                                     <div className="space-y-1">
                                         <Label className="text-[11px]">Qty Received</Label>
                                         <Input type="number" step="0.01" min="0" value={item.quantity_received} onChange={(e) => updateItem(index, 'quantity_received', e.target.value)} />

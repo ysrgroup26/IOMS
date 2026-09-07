@@ -37,13 +37,13 @@ export default function WasteRecordForm({ wasteTypes, storageLocations, projects
                 <CardContent className="p-4">
                     <form onSubmit={submit} className="space-y-4">
                         <div className="space-y-1.5">
-                            <Label>Company</Label>
+                            <Label>Operating Unit</Label>
                             <Select value={data.company_id} onValueChange={(v) => setData('company_id', v)}>
                                 <SelectTrigger><SelectValue /></SelectTrigger>
                                 <SelectContent>{companies.map((c) => <SelectItem key={c.id} value={String(c.id)}>{c.name}</SelectItem>)}</SelectContent>
                             </Select>
                         </div>
-                        <div className="grid grid-cols-2 gap-4">
+                        <div className="grid grid-cols-1 gap-4 sm:grid-cols-2">
                             <div className="space-y-1.5">
                                 <Label>Waste Type</Label>
                                 <Select value={data.waste_type_id} onValueChange={(v) => setData('waste_type_id', v)}>
@@ -64,7 +64,7 @@ export default function WasteRecordForm({ wasteTypes, storageLocations, projects
                             </div>
                         </div>
                         <div className="space-y-1.5"><Label>Location / Work Area (optional)</Label><Input value={data.location} onChange={(e) => setData('location', e.target.value)} placeholder="e.g. Workshop B" /></div>
-                        <div className="grid grid-cols-3 gap-4">
+                        <div className="grid grid-cols-1 gap-4 sm:grid-cols-2 lg:grid-cols-3">
                             <div className="space-y-1.5">
                                 <Label>Quantity</Label>
                                 <Input type="number" min="0.01" step="0.01" value={data.quantity} onChange={(e) => setData('quantity', e.target.value)} />
@@ -73,7 +73,7 @@ export default function WasteRecordForm({ wasteTypes, storageLocations, projects
                             <div className="space-y-1.5"><Label>Unit</Label><Input value={data.unit} onChange={(e) => setData('unit', e.target.value)} /></div>
                             <div className="space-y-1.5"><Label>Container (optional)</Label><Input value={data.container} onChange={(e) => setData('container', e.target.value)} placeholder="drum, IBC" /></div>
                         </div>
-                        <div className="grid grid-cols-2 gap-4">
+                        <div className="grid grid-cols-1 gap-4 sm:grid-cols-2">
                             <div className="space-y-1.5"><Label>Generated Date</Label><Input type="date" value={data.generated_date} onChange={(e) => setData('generated_date', e.target.value)} /></div>
                             <div className="space-y-1.5"><Label>Received / Stored Date (optional)</Label><Input type="date" value={data.received_date} onChange={(e) => setData('received_date', e.target.value)} /></div>
                         </div>

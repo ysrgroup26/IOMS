@@ -92,7 +92,8 @@ class SettingsController extends Controller
                 'business_id' => CompanySetting::get('company_business_id'),
                 'industry' => CompanySetting::get('company_industry'),
             ],
-            'companies' => Company::withCount(['employees', 'departments'])->orderBy('name')->get(),
+            'companies' => Company::withCount(['employees', 'departments'])->orderBy('name')
+                ->get(['id', 'name', 'code', 'is_active', 'legal_entity_name', 'legal_entity_registration']),
             'departments' => Department::with('company:id,name')->withCount('employees')->inCompany($companyId)->ordered()->get(),
             'positions' => Position::with('company:id,name', 'department:id,name')->inCompany($companyId)->ordered()->get(),
             'kpiCategories' => KpiCategory::with('company:id,name')->orderBy('sort_order')->orderBy('name')->get(),
@@ -108,10 +109,17 @@ class SettingsController extends Controller
             // v1.10.7: `department_key` now selected too, so the Users tab
             // can actually display/edit it -- see storeUser()'s own doc
             // comment for why this was missing.
-            'users' => User::with('roles:id,name')->where('tenant_id', $request->user()->tenant_id)->orderBy('name')->get(['id', 'name', 'email', 'role', 'department_key', 'is_active', 'ptw_access', 'is_field_user', 'last_login_at'])
+            // v2.54.0: `companies` is eager-loaded WITHOUT global scopes so
+            // the Users tab shows the grants that were actually recorded --
+            // loading them through the scoped relation would hide the very
+            // rows an administrator is trying to review.
+            'users' => User::with(['roles:id,name', 'companies' => fn ($q) => $q->withoutGlobalScopes()->select('companies.id')])
+                ->where('tenant_id', $request->user()->tenant_id)->orderBy('name')->get(['id', 'name', 'email', 'role', 'department_key', 'is_active', 'ptw_access', 'is_field_user', 'last_login_at'])
                 ->map(fn (User $u) => [
                     ...$u->only(['id', 'name', 'email', 'role', 'department_key', 'is_active', 'ptw_access', 'is_field_user', 'last_login_at']),
                     'role_ids' => $u->roles->pluck('id'),
+                    // Empty means UNRESTRICTED (every operating unit), never "none".
+                    'company_ids' => $u->companies->pluck('id'),
                 ]),
             // v2.17.0 (PTW Field Workflow Foundation + Controlled PTW
             // Access, Part 7): the "PTW Users X / Y" quota banner data
@@ -125,6 +133,39 @@ class SettingsController extends Controller
                 // because there is no purchased allowance to compare it to.
                 'used' => app(EntitlementService::class)->ptwUsersUsedCount($request->user()->tenant),
                 'quota' => null,
+            ],
+            // v2.54.0: the organizational context this page is administering,
+            // plus the plan's operating-unit capacity -- computed by the same
+            // EntitlementService that enforces it on create, so the meter can
+            // never disagree with the gate.
+            'organization' => [
+                'name' => $request->user()->tenant?->name,
+                'operating_units' => [
+                    'used' => app(EntitlementService::class)->operatingUnitsUsedCount($request->user()->tenant),
+                    'limit' => app(EntitlementService::class)->operatingUnitLimit($request->user()->tenant),
+                ],
+                // THE ORGANIZATION'S FULL ROSTER OF OPERATING UNITS,
+                // deliberately WITHOUT CompanyAuthorizationScope.
+                //
+                // The scoped `companies` list above is what this admin may
+                // reach OPERATIONALLY, and every module selector rightly uses
+                // it. Administering the organization is a different question.
+                // Drawing the Operating Units tab and the per-user grant
+                // dialog from the scoped list produced a genuine trap, found
+                // in browser testing: an administrator who granted themselves
+                // one unit immediately lost the column and the tab rows that
+                // would have let them undo it -- the control disappeared
+                // because of the setting it controls.
+                //
+                // Settings is Super-Admin-only, and knowing that your own
+                // organization contains a unit called "MTC" is not operational
+                // data. Counts are eager-loaded the same way, so the tab still
+                // shows real numbers.
+                'units' => Company::withoutGlobalScopes()
+                    ->where('tenant_id', $request->user()->tenant_id)
+                    ->withCount(['employees', 'departments'])
+                    ->orderBy('name')
+                    ->get(['id', 'name', 'code', 'is_active', 'legal_entity_name', 'legal_entity_registration']),
             ],
             'filters' => ['company_id' => $companyId],
             'can' => [
@@ -339,7 +380,9 @@ class SettingsController extends Controller
                 // Shown for information -- how many accounts hold PTW Access
                 // -- with no limit, because it is not a purchased capacity.
                 'ptw_users' => ['used' => $ptwUserCount, 'limit' => null],
-                'companies' => ['used' => $companyCount, 'limit' => $package?->max_companies],
+                // Capacity is measured in OPERATING UNITS (v2.54.0) -- the
+                // same `max_companies` number, called what it actually is.
+                'operating_units' => ['used' => $companyCount, 'limit' => $package?->max_companies],
             ],
             'invoices' => $invoices,
             // Renewal behaviour is honest about which mode this deployment
@@ -762,7 +805,7 @@ class SettingsController extends Controller
         return back()->with('success', 'User roles updated.');
     }
 
-    // --- Companies (business entities: GAJ, Maintenance) ---
+    // --- Operating Units (GAJ, MTC -- the `companies` table) ---
 
     public function storeCompanyEntity(Request $request): RedirectResponse
     {
@@ -773,17 +816,41 @@ class SettingsController extends Controller
         // not silently leaking. The `unique:companies,*` rules also
         // validated against the raw table, bypassing TenantScope --
         // scoped to the current tenant here instead, so two different
-        // tenants CAN both have a company named "GAJ".
+        // organizations CAN both have an operating unit named "GAJ".
         $tenantId = $request->user()->tenant_id;
 
         $data = $request->validate([
             'name' => ['required', 'string', 'max:255', Rule::unique('companies', 'name')->where('tenant_id', $tenantId)],
             'code' => ['nullable', 'string', 'max:20', Rule::unique('companies', 'code')->where('tenant_id', $tenantId)],
+            // Optional, and only meaningful to an organization that
+            // trades through more than one registered entity.
+            'legal_entity_name' => ['nullable', 'string', 'max:255'],
+            'legal_entity_registration' => ['nullable', 'string', 'max:100'],
         ]);
 
-        Company::create([...$data, 'tenant_id' => $tenantId]);
+        // v2.54.0: plan capacity is measured in OPERATING UNITS and was
+        // never enforced on this path -- `max_companies` was read for
+        // display only, so a Starter organization could add as many units
+        // as it liked. Same shape as storeUser()'s seat check: lock this
+        // organization's rows, re-count under the lock, then create, so
+        // two concurrent submissions cannot both pass a stale count.
+        $tenant = $request->user()->tenant;
 
-        return back()->with('success', 'Company added.');
+        $company = DB::transaction(function () use ($data, $tenantId, $tenant) {
+            Company::withoutGlobalScopes()->where('tenant_id', $tenantId)->lockForUpdate()->get();
+
+            abort_unless(
+                app(EntitlementService::class)->canCreateOperatingUnit($tenant),
+                422,
+                'Paket Anda sudah mencapai jumlah maksimum Operating Unit. Tingkatkan paket untuk menambah unit baru.'
+            );
+
+            return Company::create([...$data, 'tenant_id' => $tenantId]);
+        });
+
+        ActivityLog::record('created', "Operating Unit \"{$company->name}\" was added.", $company);
+
+        return back()->with('success', 'Operating Unit added.');
     }
 
     public function updateCompanyEntity(Request $request, Company $company): RedirectResponse
@@ -792,22 +859,82 @@ class SettingsController extends Controller
             'name' => ['required', 'string', 'max:255', Rule::unique('companies', 'name')->where('tenant_id', $company->tenant_id)->ignore($company->id)],
             'code' => ['nullable', 'string', 'max:20', Rule::unique('companies', 'code')->where('tenant_id', $company->tenant_id)->ignore($company->id)],
             'is_active' => ['boolean'],
+            'legal_entity_name' => ['nullable', 'string', 'max:255'],
+            'legal_entity_registration' => ['nullable', 'string', 'max:100'],
         ]);
 
         $company->update($data);
 
-        return back()->with('success', 'Company updated.');
+        return back()->with('success', 'Operating Unit updated.');
     }
 
     public function destroyCompanyEntity(Company $company): RedirectResponse
     {
         if ($company->employees()->exists() || $company->departments()->exists()) {
-            return back()->with('error', 'Cannot delete a company that still has departments or employees assigned.');
+            return back()->with('error', 'Cannot remove an operating unit that still has departments or employees assigned.');
         }
 
         $company->delete();
 
-        return back()->with('success', 'Company removed.');
+        return back()->with('success', 'Operating Unit removed.');
+    }
+
+    /**
+     * v2.54.0 -- WHICH OPERATING UNITS THIS USER MAY REACH.
+     *
+     * `company_user` and CompanyAuthorizationScope shipped in v2.53.0 and
+     * were correct, but nothing could WRITE to that pivot: the
+     * authorization existed and was unreachable, so in practice every
+     * user was still unrestricted. This is the endpoint that makes it
+     * real, and it is deliberately separate from updateUser() for the
+     * same reason updatePtwAccess() is -- granting reach across the
+     * organization is not an ordinary profile edit.
+     *
+     * AN EMPTY SELECTION MEANS "ALL OPERATING UNITS", not "none". That is
+     * the documented default of the scope (see its own doc comment): a
+     * user with no grants is unrestricted, which is what keeps a
+     * single-unit organization from having to configure anything and what
+     * stops an administrator from locking a colleague out of everything
+     * with an accidental empty submit. Restriction is something you turn
+     * ON by naming units.
+     *
+     * Every id is validated against the CURRENT ORGANIZATION before it is
+     * written -- `Rule::exists` alone reads the raw table and would
+     * happily accept another organization's unit id.
+     */
+    public function updateUserCompanies(Request $request, User $user): RedirectResponse
+    {
+        abort_unless($user->tenant_id === $request->user()->tenant_id, 404);
+
+        $validated = $request->validate([
+            'company_ids' => ['array'],
+            'company_ids.*' => ['integer'],
+        ]);
+
+        $tenantCompanyIds = Company::withoutGlobalScopes()
+            ->where('tenant_id', $request->user()->tenant_id)
+            ->pluck('id')->all();
+
+        $granted = array_values(array_intersect(
+            array_map('intval', $validated['company_ids'] ?? []),
+            $tenantCompanyIds
+        ));
+
+        // Granting every unit is recorded as "no restriction" rather than
+        // as a full list, so adding a new operating unit later does not
+        // silently exclude everyone who was unrestricted at the time.
+        if (count($granted) === count($tenantCompanyIds)) {
+            $granted = [];
+        }
+
+        $user->companies()->sync($granted);
+        $user->forgetAuthorizedCompanyCache();
+
+        ActivityLog::record('updated', $granted === []
+            ? "User \"{$user->name}\" may now reach every operating unit."
+            : "Operating unit access for user \"{$user->name}\" was updated.", $user);
+
+        return back()->with('success', 'Operating unit access updated.');
     }
 
     // --- Departments ---

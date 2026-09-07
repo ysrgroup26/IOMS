@@ -97,7 +97,7 @@ export default function SubscriptionPlans({ plans, currentPlan, currentPlanId })
                                             <span className="font-medium text-graphite-700 dark:text-slate-300">{plan.max_users ?? 'Tanpa batas'}</span>
                                         </div>
                                         <div className="flex justify-between text-graphite-500">
-                                            <span>Maks. Perusahaan</span>
+                                            <span>Operating Units</span>
                                             <span className="font-medium text-graphite-700 dark:text-slate-300">{plan.max_companies ?? 'Tanpa batas'}</span>
                                         </div>
                                     </div>

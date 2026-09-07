@@ -40,7 +40,10 @@ export default function RfqForm({ companies, purchaseRequisitions, vendors, rfqN
                 <Button variant="ghost" size="sm" asChild><Link href={route('rfqs.index')}><ArrowLeft className="h-4 w-4" /> Back</Link></Button>
             </div>
 
-            <form onSubmit={submit} className="mx-auto max-w-xl">
+            {/* v2.54.0 (form audit): a form that pairs fields needs room for the pair.
+                max-w-xl caps the column at 576px, so each half of a pair landed at
+                roughly 270px -- narrower than the single-column version it replaced. */}
+            <form onSubmit={submit} className="mx-auto max-w-2xl">
                 <Card>
                     <CardHeader><CardTitle>New RFQ -- {rfqNumber}</CardTitle></CardHeader>
                     <CardContent className="space-y-4">
@@ -52,11 +55,11 @@ export default function RfqForm({ companies, purchaseRequisitions, vendors, rfqN
                             </Select>
                             {errors.purchase_requisition_id && <p className="text-xs text-red-600">{errors.purchase_requisition_id}</p>}
                         </div>
-                        <div className="grid grid-cols-2 gap-3">
+                        <div className="grid grid-cols-1 gap-3 sm:grid-cols-2">
                             <div className="space-y-1.5"><Label>Issue Date</Label><Input type="date" value={data.issue_date} onChange={(e) => setData('issue_date', e.target.value)} /></div>
                             <div className="space-y-1.5"><Label>Quotation Deadline</Label><Input type="date" value={data.quotation_deadline} onChange={(e) => setData('quotation_deadline', e.target.value)} />{errors.quotation_deadline && <p className="text-xs text-red-600">{errors.quotation_deadline}</p>}</div>
                         </div>
-                        <div className="grid grid-cols-2 gap-3">
+                        <div className="grid grid-cols-1 gap-3 sm:grid-cols-2">
                             <div className="space-y-1.5"><Label>Delivery Location</Label><Input value={data.delivery_location} onChange={(e) => setData('delivery_location', e.target.value)} /></div>
                             <div className="space-y-1.5"><Label>Currency</Label><Input value={data.currency} onChange={(e) => setData('currency', e.target.value)} /></div>
                         </div>
@@ -64,7 +67,7 @@ export default function RfqForm({ companies, purchaseRequisitions, vendors, rfqN
                         <div className="space-y-1.5"><Label>Payment Terms</Label><Input value={data.payment_terms} onChange={(e) => setData('payment_terms', e.target.value)} /></div>
                         <div className="space-y-1.5"><Label>Notes</Label><Textarea value={data.notes} onChange={(e) => setData('notes', e.target.value)} rows={2} /></div>
                         <div className="space-y-1.5">
-                            <Label>Company</Label>
+                            <Label>Operating Unit</Label>
                             <Select value={data.company_id} onValueChange={(v) => setData('company_id', v)}>
                                 <SelectTrigger><SelectValue /></SelectTrigger>
                                 <SelectContent>{companies.map((c) => <SelectItem key={c.id} value={String(c.id)}>{c.name}</SelectItem>)}</SelectContent>

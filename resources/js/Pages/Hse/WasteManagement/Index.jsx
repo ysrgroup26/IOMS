@@ -42,8 +42,8 @@ export default function WasteRecordsIndex({ records, wasteTypes, companies, filt
 
             <div className="mb-3 flex flex-wrap gap-2">
                 <Select value={filters.company_id ? String(filters.company_id) : '__all'} onValueChange={(v) => updateFilter('company_id', v)}>
-                    <SelectTrigger className="w-40"><SelectValue placeholder="Company" /></SelectTrigger>
-                    <SelectContent><SelectItem value="__all">All Companies</SelectItem>{companies.map((c) => <SelectItem key={c.id} value={String(c.id)}>{c.name}</SelectItem>)}</SelectContent>
+                    <SelectTrigger className="w-40"><SelectValue placeholder="Operating Unit" /></SelectTrigger>
+                    <SelectContent><SelectItem value="__all">All Operating Units</SelectItem>{companies.map((c) => <SelectItem key={c.id} value={String(c.id)}>{c.name}</SelectItem>)}</SelectContent>
                 </Select>
                 <Select value={filters.status || '__all'} onValueChange={(v) => updateFilter('status', v)}>
                     <SelectTrigger className="w-44"><SelectValue placeholder="Status" /></SelectTrigger>

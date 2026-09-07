@@ -796,6 +796,9 @@ Route::middleware(['auth', 'restrict.platform-admin'])->group(function () {
         Route::post('/settings/roles', [SettingsController::class, 'storeRole'])->name('settings.roles.store');
         Route::delete('/settings/roles/{role}', [SettingsController::class, 'destroyRole'])->name('settings.roles.destroy');
         Route::put('/settings/users/{user}/roles', [SettingsController::class, 'updateUserRoles'])->name('settings.users.roles');
+        // v2.54.0: which OPERATING UNITS this account may reach. Separate
+        // endpoint from updateUser() -- see the controller method.
+        Route::put('/settings/users/{user}/companies', [SettingsController::class, 'updateUserCompanies'])->name('settings.users.companies');
         Route::post('/settings/numbering', [SettingsController::class, 'updateNumberingFormats'])->name('settings.numbering');
         Route::post('/settings/approval-flows', [SettingsController::class, 'storeApprovalFlow'])->name('settings.approval-flows.store');
         Route::delete('/settings/approval-flows/{approvalFlow}', [SettingsController::class, 'destroyApprovalFlow'])->name('settings.approval-flows.destroy');

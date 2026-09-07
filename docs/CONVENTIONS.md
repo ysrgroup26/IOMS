@@ -3,7 +3,67 @@
 House style, and a deliberately honest list of mistakes that have actually happened in this
 codebase's history — kept here so they don't get repeated in a slightly different shape.
 
-## CRITICAL — Known Pitfall (v2.53.0): a UNIQUE index and a per-tenant counter are a contradiction,
+## CRITICAL — Known Pitfall (v2.54.0): the "grep for `unique(`" lesson was already written down, and
+## the next release still shipped with two of them — this time on the POST-PAYMENT path
+
+v2.40.0 wrote the rule (below): *"grep for `unique(` in old migrations whenever you add a new scoping
+dimension."* v2.53.0 applied it to fourteen document-number columns. Neither pass looked at
+`companies` itself, where `name` and `code` have been globally `unique()` since the table was created
+in a single-company world.
+
+So two different organizations could not both have an operating unit called "Maintenance" — while
+`SettingsController::storeCompanyEntity()` validated per tenant and its own comment asserted they
+could. The database refused.
+
+**It landed somewhere worse than data entry.** `TenantProvisioningService::activate()` runs from a
+verified payment webhook and creates the organization's first operating unit named after the
+registration, with a code taken from the first six characters of the slugged name:
+
+- two customers called "PT Maju Jaya" collide on `companies_name_unique`;
+- "PT Bahari Nusantara" and "PT Bahari Sejahtera" both give `PTBAHA` and collide on
+  `companies_code_unique`;
+- any name that slugs to nothing hits the literal `'COMP'` fallback, so the second one collides
+  outright.
+
+In every case the insert throws **inside provisioning, after the payment is confirmed**: invoice
+issued, no tenant, no login. A duplicate key is not transient, so nothing retried.
+
+**Rule.** A grep is not a sweep. When you apply this lesson, enumerate EVERY table that gained a
+scope column and check each one — including the table the scope column lives on. Inspect with
+`Schema::getIndexes()`, never a raw `information_schema` query (see v2.51.0 below).
+
+---
+## Known Pitfall (v2.54.0): `npm run lint` was in package.json for a year and never once ran
+
+There was no `eslint.config.js`, so on ESLint 9 (flat config) the script just failed. Nothing was
+ever linted, and the cost was a whole dead tab: `Settings/Index.jsx` read `canFieldAccess` inside a
+module-scope function where it was never a prop, so opening **Settings → Users** threw a
+`ReferenceError` and blanked the page. No test caught it — Radix only mounts the active tab's
+content, so nothing else on the page even rendered the broken component.
+
+`eslint.config.js` is now deliberately narrow: undefined identifiers, unreachable code, duplicate
+keys, JSX referencing an undefined component. Style rules and `exhaustive-deps` are **off on
+purpose** — a lint run that reports thousands of findings across a codebase this size is a lint run
+nobody reads, which is worse than none.
+
+**Rule.** Run `npm run lint` before committing frontend changes. If you add a rule, add one that
+would have caught a bug that actually happened.
+
+---
+## Known Pitfall (v2.54.0): a Tailwind grid with no breakpoint prefix applies at 320px too
+
+Every data-entry form in IOMS paired its fields with a bare `grid-cols-2` / `grid-cols-3`. That is
+not "two columns on desktop" — it is two columns *always*, including on the phone a field worker
+actually files a permit from, where each half lands at roughly 150px. Fifty sites across nineteen
+forms, every one of them written by someone picturing a laptop.
+
+**Rule.** A grid that pairs FORM FIELDS starts at `grid-cols-1` and pairs from `sm:` up. A grid of
+short toggle buttons (Pass / Fail / N/A) is the deliberate exception and stays fixed — stacking those
+makes a checklist three times longer for no gain. This is the same class as the v2.16.0 pitfall below
+(a row with no `overflow-x-auto`): mobile breakage that is invisible unless you actually narrow the
+viewport.
+
+---## CRITICAL — Known Pitfall (v2.53.0): a UNIQUE index and a per-tenant counter are a contradiction,
 ## and it stays invisible until the second tenant exists
 
 Counters became per-tenant in v2.41.0. Fourteen document-number columns kept a **global** `unique()`

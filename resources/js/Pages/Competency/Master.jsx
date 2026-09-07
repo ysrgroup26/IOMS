@@ -149,9 +149,9 @@ export default function CompetencyMaster({ competencyTypes, companies, positions
                     <DialogHeader><DialogTitle>{editing ? 'Edit Competency Type' : 'Add Competency Type'}</DialogTitle></DialogHeader>
                     <form onSubmit={submit} className="max-h-[70vh] space-y-4 overflow-y-auto pr-1">
                         <div className="space-y-1.5">
-                            <Label>Company</Label>
+                            <Label>Operating Unit</Label>
                             <Select value={data.company_id} onValueChange={(v) => setData((prev) => ({ ...prev, company_id: v, required_position_ids: [] }))}>
-                                <SelectTrigger><SelectValue placeholder="Select company" /></SelectTrigger>
+                                <SelectTrigger><SelectValue placeholder="Select operating unit" /></SelectTrigger>
                                 <SelectContent>
                                     {companies.map((c) => <SelectItem key={c.id} value={String(c.id)}>{c.name}</SelectItem>)}
                                 </SelectContent>

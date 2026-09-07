@@ -43,9 +43,9 @@ export default function ActivityCenterIndex({ activities, filters, options }) {
                         </SelectContent>
                     </Select>
                     <Select value={filters.company_id ?? 'all'} onValueChange={(v) => applyFilter('company_id', v === 'all' ? null : v)}>
-                        <SelectTrigger className="w-44"><SelectValue placeholder="All Companies" /></SelectTrigger>
+                        <SelectTrigger className="w-44"><SelectValue placeholder="All Operating Units" /></SelectTrigger>
                         <SelectContent>
-                            <SelectItem value="all">All Companies</SelectItem>
+                            <SelectItem value="all">All Operating Units</SelectItem>
                             {options.companies.map((c) => <SelectItem key={c.id} value={String(c.id)}>{c.name}</SelectItem>)}
                         </SelectContent>
                     </Select>

@@ -75,7 +75,7 @@ export default function TaskForm({ task, users, companies, statuses, priorities 
                             />
                         </div>
 
-                        <div className="grid grid-cols-2 gap-3">
+                        <div className="grid grid-cols-1 gap-3 sm:grid-cols-2">
                             <div className="space-y-1.5">
                                 <Label>Priority</Label>
                                 <Select value={data.priority} onValueChange={(v) => setData('priority', v)}>
@@ -98,7 +98,7 @@ export default function TaskForm({ task, users, companies, statuses, priorities 
                             )}
                         </div>
 
-                        <div className="grid grid-cols-2 gap-3">
+                        <div className="grid grid-cols-1 gap-3 sm:grid-cols-2">
                             <div className="space-y-1.5">
                                 <Label>Assigned To (optional)</Label>
                                 <Select value={data.assigned_user_id || 'none'} onValueChange={(v) => setData('assigned_user_id', v === 'none' ? '' : v)}>
@@ -121,7 +121,7 @@ export default function TaskForm({ task, users, companies, statuses, priorities 
                             </div>
                         </div>
 
-                        <div className="grid grid-cols-2 gap-3">
+                        <div className="grid grid-cols-1 gap-3 sm:grid-cols-2">
                             <div className="space-y-1.5">
                                 <Label>Start Date (optional)</Label>
                                 <Input type="date" value={data.start_date} onChange={(e) => setData('start_date', e.target.value)} />

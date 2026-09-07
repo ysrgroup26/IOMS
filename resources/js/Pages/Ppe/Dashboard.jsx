@@ -44,9 +44,9 @@ export default function PpeDashboard({ totalActive, expiringSoonCount, expiredCo
                 tab first. */}
             <PageHeader title="PPE Dashboard" subtitle="Replacement-due overview across all PPE types. Click a card to see the full list.">
                 <Select value={filters.company_id ? String(filters.company_id) : 'all'} onValueChange={updateCompany}>
-                    <SelectTrigger className="w-40"><SelectValue placeholder="Company" /></SelectTrigger>
+                    <SelectTrigger className="w-40"><SelectValue placeholder="Operating Unit" /></SelectTrigger>
                     <SelectContent>
-                        <SelectItem value="all">All Companies</SelectItem>
+                        <SelectItem value="all">All Operating Units</SelectItem>
                         {companies.map((c) => <SelectItem key={c.id} value={String(c.id)}>{c.name}</SelectItem>)}
                     </SelectContent>
                 </Select>

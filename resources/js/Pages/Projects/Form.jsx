@@ -45,13 +45,13 @@ export default function ProjectForm({ project, companies }) {
                 <CardHeader><CardTitle>Project Information</CardTitle></CardHeader>
                 <CardContent>
                     <form onSubmit={submit} className="space-y-4">
-                        <div className="grid grid-cols-2 gap-4">
+                        <div className="grid grid-cols-1 gap-4 sm:grid-cols-2">
                             <Field label="Project Name" error={errors.name}>
                                 <Input value={data.name} onChange={(e) => setData('name', e.target.value)} placeholder="e.g. Shutdown Maintenance" />
                             </Field>
-                            <Field label="Company" error={errors.company_id}>
+                            <Field label="Operating Unit" error={errors.company_id}>
                                 <Select value={data.company_id} onValueChange={(v) => setData('company_id', v)}>
-                                    <SelectTrigger><SelectValue placeholder="Select company" /></SelectTrigger>
+                                    <SelectTrigger><SelectValue placeholder="Select operating unit" /></SelectTrigger>
                                     <SelectContent>
                                         {companies.map((c) => <SelectItem key={c.id} value={String(c.id)}>{c.name}</SelectItem>)}
                                     </SelectContent>
@@ -63,7 +63,7 @@ export default function ProjectForm({ project, companies }) {
                             <Input value={data.vessel_name} onChange={(e) => setData('vessel_name', e.target.value)} placeholder="e.g. Area A" />
                         </Field>
 
-                        <div className="grid grid-cols-2 gap-4">
+                        <div className="grid grid-cols-1 gap-4 sm:grid-cols-2">
                             <Field label="Start Date" error={errors.start_date}>
                                 <Input type="date" value={data.start_date} onChange={(e) => setData('start_date', e.target.value)} />
                             </Field>

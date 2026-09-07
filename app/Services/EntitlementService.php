@@ -242,6 +242,54 @@ class EntitlementService
     }
 
     /**
+     * v2.54.0 -- OPERATING UNIT CAPACITY, finally enforced.
+     *
+     * `packages.max_companies` is how many OPERATING UNITS an
+     * organization may run (Starter 1, Professional 2, Enterprise
+     * unlimited). Until now it was read for DISPLAY only -- the Settings
+     * billing panel drew a meter from it and the pricing page printed it
+     * -- while `SettingsController::storeCompanyEntity()` created
+     * operating units with no check at all. Exactly the shape of the
+     * revenue leak v2.38.0 found on user seats, in the other quota.
+     *
+     * Null still means unlimited, and a tenant with no subscription or no
+     * package on record gets null rather than 0 -- the same
+     * "don't silently deny an unconfigured tenant" rule every other
+     * method in this service follows.
+     */
+    public function operatingUnitLimit(?Tenant $tenant): ?int
+    {
+        return $tenant?->subscription?->package?->max_companies;
+    }
+
+    /**
+     * Every operating unit belonging to this organization, active or not.
+     *
+     * Deliberately counts WITHOUT global scopes and filters on tenant_id
+     * directly, mirroring usersUsedCount(). Company carries
+     * CompanyAuthorizationScope, so `Company::count()` would return what
+     * the CURRENT USER may see -- an administrator restricted to one unit
+     * would count 1 and be allowed to create past the plan limit. A quota
+     * is a property of the organization, never of the person asking.
+     */
+    public function operatingUnitsUsedCount(?Tenant $tenant): int
+    {
+        if (! $tenant) {
+            return 0;
+        }
+
+        return \App\Models\Company::withoutGlobalScopes()->where('tenant_id', $tenant->id)->count();
+    }
+
+    /** Server-side gate for adding an operating unit. Same null-means-unlimited convention as canCreateUser(). */
+    public function canCreateOperatingUnit(?Tenant $tenant): bool
+    {
+        $limit = $this->operatingUnitLimit($tenant);
+
+        return $limit === null || $this->operatingUnitsUsedCount($tenant) < $limit;
+    }
+
+    /**
      * A short, user-facing reason string for why access is currently
      * blocked -- used by the frontend to distinguish "not built yet"
      * from "not included in your plan" from "subscription issue", per

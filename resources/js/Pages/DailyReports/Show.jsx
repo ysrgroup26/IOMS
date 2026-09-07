@@ -100,7 +100,7 @@ export default function DailyReportShow({ report, can }) {
                     <CardHeader><CardTitle className="flex items-center gap-2"><Calendar className="h-4 w-4" /> Report Info</CardTitle></CardHeader>
                     <CardContent className="space-y-2.5 text-sm">
                         <InfoRow label="Project" value={report.project.name} />
-                        <InfoRow label="Company" value={report.project.company?.name} />
+                        <InfoRow label="Operating Unit" value={report.project.company?.name} />
                         <InfoRow label="Department" value={report.department_name} />
                         <InfoRow label="Type" value={report.report_type} capitalize />
                         <InfoRow label="Activities" value={`${report.activities.length} logged`} />

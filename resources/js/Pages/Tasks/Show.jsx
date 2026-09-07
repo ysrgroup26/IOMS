@@ -136,7 +136,7 @@ export default function TaskShow({ task, can }) {
                                 <div className="flex items-center gap-2 text-sm">
                                     <Building2 className="h-4 w-4 shrink-0 text-graphite-400" />
                                     <div>
-                                        <p className="text-xs text-graphite-400">Company</p>
+                                        <p className="text-xs text-graphite-400">Operating Unit</p>
                                         <p className="font-medium text-graphite-800">{task.company.name}</p>
                                     </div>
                                 </div>

@@ -44,7 +44,7 @@ const ROLE_LABELS = {
     warehouse: 'Warehouse',
 };
 
-export default function SettingsIndex({ company, companies, departments, positions, kpiCategories, users, can, filters, roles, permissionCatalog, numberingFormats, approvalFlows, numberingModuleKeys, notificationPreferences, documentTemplates, documentModuleKeys, fieldMappings, subscription, invoices, ptwAccess }) {
+export default function SettingsIndex({ company, companies, departments, positions, kpiCategories, users, can, filters, roles, permissionCatalog, numberingFormats, approvalFlows, numberingModuleKeys, notificationPreferences, documentTemplates, documentModuleKeys, fieldMappings, subscription, invoices, ptwAccess, organization }) {
     // System-level tabs (Companies, Users, Backup) are Super-Admin-only.
     // HSE sees only the operational tabs (Departments, Positions).
     const canSystem = can?.manage_system;
@@ -80,7 +80,7 @@ export default function SettingsIndex({ company, companies, departments, positio
                 <Tabs.List className="inline-flex flex-wrap items-center gap-x-1 gap-y-1 rounded-lg border border-graphite-200 bg-white p-1 shadow-sm">
                     {canSystem && <Tabs.Trigger value="branding" className={TAB_CLASS}>Branding</Tabs.Trigger>}
                     {canSystem && <Tabs.Trigger value="modules" className={TAB_CLASS}>Module Visibility</Tabs.Trigger>}
-                    {canSystem && <Tabs.Trigger value="companies" className={TAB_CLASS}>Companies</Tabs.Trigger>}
+                    {canSystem && <Tabs.Trigger value="companies" className={TAB_CLASS}>Operating Units</Tabs.Trigger>}
                     {canSystem && <TabDivider />}
 
                     <Tabs.Trigger value="departments" className={TAB_CLASS}>Departments</Tabs.Trigger>
@@ -111,12 +111,12 @@ export default function SettingsIndex({ company, companies, departments, positio
                         <ModulesTab />
                     </Tabs.Content>
                 )}
-                {canSystem && <Tabs.Content value="companies"><CompaniesTab companies={companies} /></Tabs.Content>}
+                {canSystem && <Tabs.Content value="companies"><OperatingUnitsTab companies={organization?.units ?? companies} organization={organization} /></Tabs.Content>}
                 <Tabs.Content value="departments"><DepartmentsTab departments={departments} companies={companies} filters={filters} /></Tabs.Content>
                 <Tabs.Content value="positions"><PositionsTab positions={positions} departments={departments} companies={companies} filters={filters} /></Tabs.Content>
                 <Tabs.Content value="kpi-categories"><KpiCategoriesTab kpiCategories={kpiCategories} companies={companies} /></Tabs.Content>
                 <Tabs.Content value="authentication"><AuthenticationTab /></Tabs.Content>
-                {(canSystem || canPtwAccess) && <Tabs.Content value="users"><UsersTab users={users} roles={roles} ptwAccess={ptwAccess} canManageUsers={canSystem} canPtwAccess={canPtwAccess} /></Tabs.Content>}
+                {(canSystem || canPtwAccess) && <Tabs.Content value="users"><UsersTab users={users} roles={roles} ptwAccess={ptwAccess} canManageUsers={canSystem} canPtwAccess={canPtwAccess} canFieldAccess={canFieldAccess} companies={organization?.units ?? companies} /></Tabs.Content>}
                 {canSystem && <Tabs.Content value="roles"><RolesTab roles={roles} permissionCatalog={permissionCatalog} /></Tabs.Content>}
                 {canSystem && <Tabs.Content value="numbering"><NumberingTab numberingFormats={numberingFormats} /></Tabs.Content>}
                 {canSystem && <Tabs.Content value="approval-flows"><ApprovalFlowsTab approvalFlows={approvalFlows} moduleKeys={numberingModuleKeys} /></Tabs.Content>}
@@ -1291,9 +1291,28 @@ function ModulesTab() {
     );
 }
 
-function CompaniesTab({ companies }) {
+/**
+ * v2.54.0 -- OPERATING UNITS, the third level of
+ * IOMS -> Organization -> Operating Unit -> Department.
+ *
+ * Was "Companies", which read as "the other businesses you own" and is
+ * exactly the wrong idea: GAJ and MTC are two operating units of ONE
+ * organization on ONE subscription, not two customers. Legal entity is
+ * an optional attribute of a unit, shown as such, and is only ever
+ * printed on documents -- nothing is scoped by it.
+ *
+ * The capacity line is drawn from the same EntitlementService that
+ * enforces the limit on create, so the number here and the 422 the server
+ * would return can never disagree.
+ */
+function OperatingUnitsTab({ companies, organization }) {
     const [open, setOpen] = useState(false);
-    const { data, setData, post, processing, reset, errors } = useForm({ name: '', code: '' });
+    const [editing, setEditing] = useState(null);
+    const { data, setData, post, processing, reset, errors } = useForm({ name: '', code: '', legal_entity_name: '', legal_entity_registration: '' });
+
+    const used = organization?.operating_units?.used ?? companies.length;
+    const limit = organization?.operating_units?.limit ?? null;
+    const atLimit = limit !== null && used >= limit;
 
     function submit(e) {
         e.preventDefault();
@@ -1301,38 +1320,70 @@ function CompaniesTab({ companies }) {
     }
 
     function destroy(id) {
-        if (confirm('Hapus perusahaan ini?')) router.delete(route('settings.companies.destroy', id));
+        if (confirm('Hapus Operating Unit ini?')) router.delete(route('settings.companies.destroy', id));
     }
 
     return (
         <Card>
-            <CardHeader className="flex flex-row items-center justify-between space-y-0">
-                <div><CardTitle>Companies</CardTitle><CardDescription>Business entities (e.g. GAJ, Maintenance).</CardDescription></div>
+            <CardHeader className="flex flex-row items-start justify-between space-y-0">
+                <div>
+                    <CardTitle>Operating Units</CardTitle>
+                    <CardDescription>
+                        Unit operasional di dalam organisasi {organization?.name ? <span className="font-medium text-graphite-700">{organization.name}</span> : 'Anda'} —
+                        misalnya galangan, site, atau divisi. Setiap Department berada di bawah satu Operating Unit.
+                    </CardDescription>
+                </div>
                 <Dialog open={open} onOpenChange={setOpen}>
-                    <DialogTrigger asChild><Button size="sm"><Plus className="h-4 w-4" /> Add</Button></DialogTrigger>
+                    <DialogTrigger asChild><Button size="sm" disabled={atLimit}><Plus className="h-4 w-4" /> Add</Button></DialogTrigger>
                     <DialogContent>
-                        <DialogHeader><DialogTitle>Add Company</DialogTitle></DialogHeader>
+                        <DialogHeader><DialogTitle>Add Operating Unit</DialogTitle></DialogHeader>
                         <form onSubmit={submit} className="space-y-3">
-                            <div className="space-y-1.5"><Label>Name</Label><Input value={data.name} onChange={(e) => setData('name', e.target.value)} />
-                                {errors.name && <p className="text-xs text-red-600">{errors.name}</p>}
+                            {Object.keys(errors).length > 0 && (
+                                <div className="rounded-md border border-red-200 bg-red-50 p-2 text-xs text-red-700">
+                                    {Object.values(errors).map((msg, i) => <p key={i}>{msg}</p>)}
+                                </div>
+                            )}
+                            <div className="grid gap-3 sm:grid-cols-2">
+                                <div className="space-y-1.5"><Label>Name</Label><Input value={data.name} onChange={(e) => setData('name', e.target.value)} placeholder="e.g. Galangan Utama" /></div>
+                                <div className="space-y-1.5"><Label>Code</Label><Input value={data.code} onChange={(e) => setData('code', e.target.value)} placeholder="e.g. GAJ" /></div>
                             </div>
-                            <div className="space-y-1.5"><Label>Code</Label><Input value={data.code} onChange={(e) => setData('code', e.target.value)} /></div>
+                            <div className="space-y-1.5">
+                                <Label>Legal Entity <span className="font-normal text-graphite-400">(opsional)</span></Label>
+                                <Input value={data.legal_entity_name} onChange={(e) => setData('legal_entity_name', e.target.value)} placeholder="PT ..." />
+                                <p className="text-xs text-graphite-500">Isi hanya jika unit ini beroperasi atas nama badan hukum yang berbeda. Digunakan pada dokumen, bukan untuk pemisahan data.</p>
+                            </div>
+                            <div className="space-y-1.5">
+                                <Label>Registration Number <span className="font-normal text-graphite-400">(opsional)</span></Label>
+                                <Input value={data.legal_entity_registration} onChange={(e) => setData('legal_entity_registration', e.target.value)} placeholder="NPWP / NIB" />
+                            </div>
                             <DialogFooter><Button type="submit" disabled={processing}>Save</Button></DialogFooter>
                         </form>
                     </DialogContent>
                 </Dialog>
             </CardHeader>
-            <CardContent>
+            <CardContent className="space-y-3">
+                <div className="flex flex-wrap items-center gap-2 rounded-md border border-graphite-200 bg-graphite-50 px-3 py-2 text-xs text-graphite-600">
+                    <span className="font-medium text-graphite-700">{used}{limit !== null ? ` / ${limit}` : ''} Operating Unit{(limit ?? used) === 1 ? '' : 's'}</span>
+                    <span className="text-graphite-400">·</span>
+                    <span>{limit === null ? 'Paket Anda tidak membatasi jumlah unit.' : atLimit ? 'Kapasitas paket sudah terpakai penuh. Tingkatkan paket untuk menambah unit.' : 'Termasuk dalam paket Anda.'}</span>
+                    {atLimit && <Link href={route('subscription.plans')} className="font-medium text-brand-600 hover:underline">Lihat paket</Link>}
+                </div>
                 <Table>
-                    <TableHeader><TableRow><TableHead>Name</TableHead><TableHead>Code</TableHead><TableHead>Departments</TableHead><TableHead>Employees</TableHead><TableHead /></TableRow></TableHeader>
+                    <TableHeader><TableRow><TableHead>Name</TableHead><TableHead>Code</TableHead><TableHead>Legal Entity</TableHead><TableHead>Departments</TableHead><TableHead>Employees</TableHead><TableHead /></TableRow></TableHeader>
                     <TableBody>
                         {companies.map((c) => (
                             <TableRow key={c.id}>
                                 <TableCell className="font-medium">{c.name}</TableCell>
                                 <TableCell>{c.code ?? '—'}</TableCell>
+                                <TableCell>
+                                    {c.legal_entity_name
+                                        ? <span>{c.legal_entity_name}{c.legal_entity_registration ? <span className="ml-1 text-xs text-graphite-400">{c.legal_entity_registration}</span> : null}</span>
+                                        : <span className="text-xs text-graphite-400">Organisasi</span>}
+                                </TableCell>
                                 <TableCell>{c.departments_count}</TableCell>
                                 <TableCell>{c.employees_count}</TableCell>
-                                <TableCell>
+                                <TableCell className="flex items-center gap-1">
+                                    <Button variant="ghost" size="icon" onClick={() => setEditing(c)}><Pencil className="h-4 w-4" /></Button>
                                     <Button variant="ghost" size="icon" onClick={() => destroy(c.id)}><Trash2 className="h-4 w-4 text-red-500" /></Button>
                                 </TableCell>
                             </TableRow>
@@ -1340,7 +1391,55 @@ function CompaniesTab({ companies }) {
                     </TableBody>
                 </Table>
             </CardContent>
+            {editing && <EditOperatingUnitDialog company={editing} onClose={() => setEditing(null)} />}
         </Card>
+    );
+}
+
+function EditOperatingUnitDialog({ company, onClose }) {
+    const { data, setData, put, processing, errors } = useForm({
+        name: company.name ?? '',
+        code: company.code ?? '',
+        is_active: !!company.is_active,
+        legal_entity_name: company.legal_entity_name ?? '',
+        legal_entity_registration: company.legal_entity_registration ?? '',
+    });
+
+    function submit(e) {
+        e.preventDefault();
+        put(route('settings.companies.update', company.id), { onSuccess: onClose });
+    }
+
+    return (
+        <Dialog open onOpenChange={onClose}>
+            <DialogContent>
+                <DialogHeader><DialogTitle>Edit Operating Unit</DialogTitle></DialogHeader>
+                <form onSubmit={submit} className="space-y-3">
+                    {Object.keys(errors).length > 0 && (
+                        <div className="rounded-md border border-red-200 bg-red-50 p-2 text-xs text-red-700">
+                            {Object.values(errors).map((msg, i) => <p key={i}>{msg}</p>)}
+                        </div>
+                    )}
+                    <div className="grid gap-3 sm:grid-cols-2">
+                        <div className="space-y-1.5"><Label>Name</Label><Input value={data.name} onChange={(e) => setData('name', e.target.value)} /></div>
+                        <div className="space-y-1.5"><Label>Code</Label><Input value={data.code} onChange={(e) => setData('code', e.target.value)} /></div>
+                    </div>
+                    <div className="space-y-1.5">
+                        <Label>Legal Entity <span className="font-normal text-graphite-400">(opsional)</span></Label>
+                        <Input value={data.legal_entity_name} onChange={(e) => setData('legal_entity_name', e.target.value)} placeholder="PT ..." />
+                    </div>
+                    <div className="space-y-1.5">
+                        <Label>Registration Number <span className="font-normal text-graphite-400">(opsional)</span></Label>
+                        <Input value={data.legal_entity_registration} onChange={(e) => setData('legal_entity_registration', e.target.value)} placeholder="NPWP / NIB" />
+                    </div>
+                    <label className="flex items-center gap-2 text-sm">
+                        <Checkbox checked={data.is_active} onCheckedChange={(v) => setData('is_active', !!v)} />
+                        <span>Active</span>
+                    </label>
+                    <DialogFooter><Button type="submit" disabled={processing}>Save</Button></DialogFooter>
+                </form>
+            </DialogContent>
+        </Dialog>
     );
 }
 
@@ -1390,17 +1489,17 @@ function DepartmentsTab({ departments, companies, filters }) {
             </CardHeader>
             <CardContent>
                 <div className="mb-3 flex items-center gap-2">
-                    <Label className="text-xs text-graphite-500">Company</Label>
+                    <Label className="text-xs text-graphite-500">Operating Unit</Label>
                     <Select value={filters?.company_id ? String(filters.company_id) : "all"} onValueChange={filterByCompany}>
-                        <SelectTrigger className="w-48"><SelectValue placeholder="All Companies" /></SelectTrigger>
+                        <SelectTrigger className="w-48"><SelectValue placeholder="All Operating Units" /></SelectTrigger>
                         <SelectContent>
-                            <SelectItem value="all">All Companies</SelectItem>
+                            <SelectItem value="all">All Operating Units</SelectItem>
                             {companies.map((c) => <SelectItem key={c.id} value={String(c.id)}>{c.name}</SelectItem>)}
                         </SelectContent>
                     </Select>
                 </div>
                 <Table>
-                    <TableHeader><TableRow><TableHead>Order</TableHead><TableHead>Name</TableHead><TableHead>Company</TableHead><TableHead>Code</TableHead><TableHead>Employees</TableHead><TableHead /></TableRow></TableHeader>
+                    <TableHeader><TableRow><TableHead>Order</TableHead><TableHead>Name</TableHead><TableHead>Operating Unit</TableHead><TableHead>Code</TableHead><TableHead>Employees</TableHead><TableHead /></TableRow></TableHeader>
                     <TableBody>
                         {departments.map((d) => (
                             <TableRow key={d.id}>
@@ -1424,9 +1523,9 @@ function DepartmentsTab({ departments, companies, filters }) {
                     <DialogHeader><DialogTitle>{editing ? 'Edit Department' : 'Add Department'}</DialogTitle></DialogHeader>
                     <form onSubmit={submit} className="space-y-3">
                         <div className="space-y-1.5">
-                            <Label>Company</Label>
+                            <Label>Operating Unit</Label>
                             <Select value={data.company_id} onValueChange={(v) => setData('company_id', v)}>
-                                <SelectTrigger><SelectValue placeholder="Select company" /></SelectTrigger>
+                                <SelectTrigger><SelectValue placeholder="Select operating unit" /></SelectTrigger>
                                 <SelectContent>{companies.map((c) => <SelectItem key={c.id} value={String(c.id)}>{c.name}</SelectItem>)}</SelectContent>
                             </Select>
                             {errors.company_id && <p className="text-xs text-red-600">{errors.company_id}</p>}
@@ -1497,11 +1596,11 @@ function PositionsTab({ positions, departments, companies, filters }) {
             </CardHeader>
             <CardContent>
                 <div className="mb-3 flex items-center gap-2">
-                    <Label className="text-xs text-graphite-500">Company</Label>
+                    <Label className="text-xs text-graphite-500">Operating Unit</Label>
                     <Select value={filters?.company_id ? String(filters.company_id) : 'all'} onValueChange={filterByCompany}>
-                        <SelectTrigger className="w-48"><SelectValue placeholder="All Companies" /></SelectTrigger>
+                        <SelectTrigger className="w-48"><SelectValue placeholder="All Operating Units" /></SelectTrigger>
                         <SelectContent>
-                            <SelectItem value="all">All Companies</SelectItem>
+                            <SelectItem value="all">All Operating Units</SelectItem>
                             {companies.map((c) => <SelectItem key={c.id} value={String(c.id)}>{c.name}</SelectItem>)}
                         </SelectContent>
                     </Select>
@@ -1530,9 +1629,9 @@ function PositionsTab({ positions, departments, companies, filters }) {
                     <form onSubmit={submit} className="space-y-3">
                         <div className="space-y-1.5"><Label>Name</Label><Input value={data.name} onChange={(e) => setData('name', e.target.value)} /></div>
                         <div className="space-y-1.5">
-                            <Label>Company</Label>
+                            <Label>Operating Unit</Label>
                             <Select value={data.company_id} onValueChange={(v) => setData((d) => ({ ...d, company_id: v, department_id: '' }))}>
-                                <SelectTrigger><SelectValue placeholder="Select company" /></SelectTrigger>
+                                <SelectTrigger><SelectValue placeholder="Select operating unit" /></SelectTrigger>
                                 <SelectContent>{companies.map((c) => <SelectItem key={c.id} value={String(c.id)}>{c.name}</SelectItem>)}</SelectContent>
                             </Select>
                         </div>
@@ -1883,19 +1982,29 @@ function DepartmentField({ value, onChange }) {
  * cards is the smallest correct fix -- same components, same data, no
  * new page.
  */
-function UsersTab({ users, roles, ptwAccess, canManageUsers, canPtwAccess }) {
+/**
+ * v2.54.0 -- `canFieldAccess` used to be READ HERE WITHOUT BEING A PROP.
+ * It is declared inside SettingsIndex, and this is a separate
+ * module-scope function, so the reference threw a ReferenceError the
+ * moment the Users tab mounted (Radix only mounts the active tab's
+ * content, which is why the rest of Settings looked fine). Threaded
+ * through as a prop, like every other capability flag on this page.
+ */
+function UsersTab({ users, roles, ptwAccess, canManageUsers, canPtwAccess, canFieldAccess, companies }) {
     return (
         <div className="space-y-4">
-            {canManageUsers && <UserManagementCard users={users} roles={roles} />}
+            {canManageUsers && <UserManagementCard users={users} roles={roles} companies={companies} />}
             {(canManageUsers || canPtwAccess) && <FieldPtwAccessCard users={users} ptwAccess={ptwAccess} canFieldAccess={canFieldAccess} />}
         </div>
     );
 }
 
-function UserManagementCard({ users, roles }) {
+function UserManagementCard({ users, roles, companies }) {
     const [open, setOpen] = useState(false);
     const [editingRolesFor, setEditingRolesFor] = useState(null);
     const [editingUser, setEditingUser] = useState(null);
+    const [editingUnitsFor, setEditingUnitsFor] = useState(null);
+    const multiUnit = (companies ?? []).length > 1;
     const { data, setData, post, processing, reset, errors } = useForm({ name: '', email: '', password: '', role: 'hrd', department_key: '' });
     const customRoles = (roles ?? []).filter((r) => !BUILT_IN_ROLES.includes(r.name));
 
@@ -1955,7 +2064,7 @@ function UserManagementCard({ users, roles }) {
             </CardHeader>
             <CardContent>
                 <Table>
-                    <TableHeader><TableRow><TableHead>Name</TableHead><TableHead>Email</TableHead><TableHead>Role</TableHead><TableHead>Department</TableHead><TableHead>Custom Roles</TableHead><TableHead>Status</TableHead><TableHead /></TableRow></TableHeader>
+                    <TableHeader><TableRow><TableHead>Name</TableHead><TableHead>Email</TableHead><TableHead>Role</TableHead><TableHead>Department</TableHead>{multiUnit && <TableHead>Operating Units</TableHead>}<TableHead>Custom Roles</TableHead><TableHead>Status</TableHead><TableHead /></TableRow></TableHeader>
                     <TableBody>
                         {users.map((u) => {
                             const assignedCustom = customRoles.filter((r) => (u.role_ids ?? []).includes(r.id));
@@ -1968,6 +2077,23 @@ function UserManagementCard({ users, roles }) {
                                     <TableCell>
                                         {deptLabel ? <Badge variant="outline">{deptLabel}</Badge> : <span className="text-xs text-graphite-400">Administrator (all)</span>}
                                     </TableCell>
+                                    {/* v2.54.0: only shown to an organization that actually
+                                        runs more than one operating unit -- a single-unit
+                                        customer has nothing to decide here. An empty grant
+                                        list means every unit, never none. */}
+                                    {multiUnit && (
+                                        <TableCell>
+                                            <div className="flex flex-wrap items-center gap-1">
+                                                {(u.company_ids ?? []).length === 0
+                                                    ? <span className="text-xs text-graphite-400">All units</span>
+                                                    : (companies ?? []).filter((c) => (u.company_ids ?? []).includes(c.id))
+                                                        .map((c) => <Badge key={c.id} variant="outline">{c.code || c.name}</Badge>)}
+                                                <button type="button" onClick={() => setEditingUnitsFor(u)} className="text-xs text-brand-600 hover:underline">
+                                                    Edit
+                                                </button>
+                                            </div>
+                                        </TableCell>
+                                    )}
                                     <TableCell>
                                         <div className="flex flex-wrap items-center gap-1">
                                             {assignedCustom.map((r) => <Badge key={r.id} variant="outline">{r.name}</Badge>)}
@@ -1995,7 +2121,62 @@ function UserManagementCard({ users, roles }) {
             {editingUser && (
                 <EditUserDialog user={editingUser} onClose={() => setEditingUser(null)} />
             )}
+            {editingUnitsFor && (
+                <UserOperatingUnitsDialog user={editingUnitsFor} companies={companies ?? []} onClose={() => setEditingUnitsFor(null)} />
+            )}
         </Card>
+    );
+}
+
+/**
+ * v2.54.0 -- which operating units an account may reach.
+ *
+ * The server is the authority: it validates every id against this
+ * organization, and it is the server that decides an all-units selection
+ * is stored as "no restriction". This dialog only expresses intent.
+ */
+function UserOperatingUnitsDialog({ user, companies, onClose }) {
+    const { data, setData, put, processing } = useForm({ company_ids: user.company_ids ?? [] });
+    const unrestricted = data.company_ids.length === 0;
+
+    function toggle(id) {
+        setData('company_ids', data.company_ids.includes(id)
+            ? data.company_ids.filter((x) => x !== id)
+            : [...data.company_ids, id]);
+    }
+
+    function submit(e) {
+        e.preventDefault();
+        put(route('settings.users.companies', user.id), { onSuccess: onClose });
+    }
+
+    return (
+        <Dialog open onOpenChange={onClose}>
+            <DialogContent>
+                <DialogHeader><DialogTitle>Operating Unit Access — {user.name}</DialogTitle></DialogHeader>
+                <form onSubmit={submit} className="space-y-3">
+                    <p className="text-xs leading-relaxed text-graphite-500">
+                        Pilih unit yang boleh diakses akun ini. Jika tidak ada satu pun yang dipilih, akun
+                        dapat mengakses seluruh Operating Unit dalam organisasi — pembatasan bersifat opsional
+                        dan hanya aktif saat Anda memilih unit tertentu.
+                    </p>
+                    <div className="space-y-2">
+                        {companies.map((c) => (
+                            <label key={c.id} className="flex items-center gap-2 text-sm">
+                                <Checkbox checked={data.company_ids.includes(c.id)} onCheckedChange={() => toggle(c.id)} />
+                                <span>{c.name}{c.code ? <span className="ml-1 text-xs text-graphite-400">({c.code})</span> : null}</span>
+                            </label>
+                        ))}
+                    </div>
+                    {unrestricted && (
+                        <p className="rounded-md border border-graphite-200 bg-graphite-50 p-2 text-xs text-graphite-600">
+                            Saat ini: akses ke seluruh Operating Unit.
+                        </p>
+                    )}
+                    <DialogFooter><Button type="submit" disabled={processing}>Save</Button></DialogFooter>
+                </form>
+            </DialogContent>
+        </Dialog>
     );
 }
 

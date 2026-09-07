@@ -531,9 +531,50 @@ class User extends Authenticatable
     /** `false` is the "not resolved yet" marker, because `null` is a real answer. */
     private array|null|bool $authorizedCompanyIdsCache = false;
 
-    /** True when an administrator has restricted this account to specific companies. */
+    /** True when an administrator has restricted this account to specific operating units. */
     public function hasCompanyRestrictions(): bool
     {
         return $this->authorizedCompanyIds() !== null;
+    }
+
+    /**
+     * Drops the per-request cache above.
+     *
+     * Needed because SettingsController::updateUserCompanies() changes the
+     * grants and then keeps working with the same model instance -- without
+     * this, the rest of that request would still answer from the list the
+     * user had BEFORE the change.
+     */
+    public function forgetAuthorizedCompanyCache(): void
+    {
+        $this->authorizedCompanyIdsCache = false;
+    }
+
+    /**
+     * v2.54.0 -- the organizational context this account works in, for
+     * display. IOMS -> Organization -> Operating Unit -> Department.
+     *
+     * Read-only and derived entirely server-side. There is no
+     * client-selectable operating unit in IOMS: what a user may reach is
+     * decided by CompanyAuthorizationScope from grants an administrator
+     * recorded, never by anything the browser sends.
+     */
+    public function organizationContext(): array
+    {
+        $authorized = $this->authorizedCompanyIds();
+
+        $units = Company::withoutGlobalScopes()
+            ->where('tenant_id', $this->tenant_id)
+            ->when($authorized !== null, fn ($q) => $q->whereIn('id', $authorized))
+            ->orderBy('name')
+            ->get(['id', 'name', 'code']);
+
+        return [
+            'organization' => $this->tenant?->name,
+            'operating_units' => $units->map(fn ($c) => [
+                'id' => $c->id, 'name' => $c->name, 'code' => $c->code,
+            ])->all(),
+            'restricted' => $authorized !== null,
+        ];
     }
 }

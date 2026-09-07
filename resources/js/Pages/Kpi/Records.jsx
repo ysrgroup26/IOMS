@@ -110,9 +110,9 @@ export default function KpiRecords({ records, categories, companies, filters, av
                 rest of this transformation pass. */}
             <div className="mb-4 flex flex-wrap items-center gap-2 rounded-xl border border-steel-200/70 bg-gradient-to-br from-steel-50/80 via-white to-white p-2.5 shadow-card dark:border-slate-800 dark:from-slate-900 dark:via-slate-900 dark:to-slate-900">
                 <Select value={filters.company_id ? String(filters.company_id) : 'all'} onValueChange={(v) => applyFilters({ company_id: v === 'all' ? null : v })}>
-                    <SelectTrigger className="w-40 bg-white"><SelectValue placeholder="Company" /></SelectTrigger>
+                    <SelectTrigger className="w-40 bg-white"><SelectValue placeholder="Operating Unit" /></SelectTrigger>
                     <SelectContent>
-                        <SelectItem value="all">All Companies</SelectItem>
+                        <SelectItem value="all">All Operating Units</SelectItem>
                         {companies.map((c) => <SelectItem key={c.id} value={String(c.id)}>{c.name}</SelectItem>)}
                     </SelectContent>
                 </Select>

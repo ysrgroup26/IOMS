@@ -273,7 +273,7 @@ export default function GetStarted({ plans = [], selectedPlan, billingCycle, ind
                                                 <span className="block text-sm font-semibold text-navy-900">{p.name}</span>
                                                 <span className="block truncate text-[11px] text-graphite-500">
                                                     {p.max_users ? `${p.max_users} user accounts` : 'Highest capacity'}
-                                                    {p.max_companies ? ` · ${p.max_companies} company` : ' · Multi-company'}
+                                                    {p.max_companies ? ` · ${p.max_companies} Operating Unit${p.max_companies > 1 ? 's' : ''}` : ' · Multiple Operating Units'}
                                                 </span>
                                             </span>
                                             <span className="shrink-0 text-right">

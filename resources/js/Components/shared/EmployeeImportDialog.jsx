@@ -123,9 +123,9 @@ export default function EmployeeImportDialog({ open, onOpenChange, companies }) 
                         </div>
 
                         <div className="space-y-1.5">
-                            <Label>Company</Label>
+                            <Label>Operating Unit</Label>
                             <Select value={companyId} onValueChange={setCompanyId}>
-                                <SelectTrigger><SelectValue placeholder="Select company" /></SelectTrigger>
+                                <SelectTrigger><SelectValue placeholder="Select operating unit" /></SelectTrigger>
                                 <SelectContent>
                                     {companies.map((c) => <SelectItem key={c.id} value={String(c.id)}>{c.name}</SelectItem>)}
                                 </SelectContent>

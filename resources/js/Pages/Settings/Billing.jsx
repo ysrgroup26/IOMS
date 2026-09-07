@@ -130,7 +130,9 @@ export default function Billing({ subscription, entitlements, invoices = [], rec
                     <CardHeader><CardTitle>Capacity in use</CardTitle></CardHeader>
                     <CardContent className="space-y-4">
                         <Meter icon={Users} label="User accounts" {...entitlements.users} />
-                        <Meter icon={Building2} label="Companies" {...entitlements.companies} />
+                        {/* v2.54.0: capacity is measured in OPERATING UNITS -- one
+                            organization, one subscription, one or more units. */}
+                        <Meter icon={Building2} label="Operating Units" {...entitlements.operating_units} />
                         {/* v2.53.0: PTW Access is shown as a COUNT, not a meter.
                             It is a permission granted inside IOMS, not a
                             purchased allowance, so there is no limit to fill. */}

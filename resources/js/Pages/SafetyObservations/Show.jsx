@@ -88,7 +88,7 @@ export default function SafetyObservationShow({ observation: o, activities, canM
                             <div><span className="text-xs font-medium uppercase tracking-wide text-graphite-400">Hazard Category</span><p>{o.hazard_category?.name || '-'}</p></div>
                             <div><span className="text-xs font-medium uppercase tracking-wide text-graphite-400">Reported By</span><p>{o.reporter?.name}</p></div>
                             {o.assignee && <div><span className="text-xs font-medium uppercase tracking-wide text-graphite-400">Assigned To</span><p>{o.assignee.name}{o.due_date && ` · due ${new Date(o.due_date).toLocaleDateString('en-US', { day: 'numeric', month: 'short', year: 'numeric' })}`}</p></div>}
-                            {o.company && <div><span className="text-xs font-medium uppercase tracking-wide text-graphite-400">Company</span><p>{o.company.name}</p></div>}
+                            {o.company && <div><span className="text-xs font-medium uppercase tracking-wide text-graphite-400">Operating Unit</span><p>{o.company.name}</p></div>}
                             {o.status === 'closed' && (
                                 <div>
                                     <span className="text-xs font-medium uppercase tracking-wide text-graphite-400">Closed By</span>

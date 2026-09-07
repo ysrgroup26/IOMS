@@ -12,6 +12,21 @@ export default {
             padding: '1.5rem',
         },
         extend: {
+            // v2.54.0 -- THE CHECKBOX WAS INVISIBLE EVERYWHERE.
+            //
+            // Tailwind's default spacing scale carries half-steps only up to
+            // 3.5, so `h-4.5 w-4.5` generated NO CSS AT ALL. Three components
+            // used it, and one of them was `ui/checkbox.jsx` -- meaning every
+            // checkbox in IOMS (49 of them, across module visibility, role
+            // permissions, PPE selection and more) rendered at zero size. The
+            // control was still there and still clickable; there was simply
+            // nothing to see, and no way to tell checked from unchecked.
+            //
+            // Fixed by defining the step rather than by rewriting the classes:
+            // 18px is a deliberate size between Tailwind's 16 and 20, the three
+            // call sites all meant it, and this way a fourth cannot silently
+            // fail the same way.
+            spacing: { 4.5: '1.125rem' },
             colors: {
                 border: 'hsl(var(--border))',
                 input: 'hsl(var(--input))',

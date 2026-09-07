@@ -186,9 +186,9 @@ export default function Dashboard({
                             value={filters.company_id ? String(filters.company_id) : 'all'}
                             onValueChange={(v) => updateFilters({ company_id: v === 'all' ? null : Number(v) })}
                         >
-                            <SelectTrigger className="w-40 border-white/20 bg-white/10 text-white [&_svg]:text-white/70"><SelectValue placeholder="Company" /></SelectTrigger>
+                            <SelectTrigger className="w-40 border-white/20 bg-white/10 text-white [&_svg]:text-white/70"><SelectValue placeholder="Operating Unit" /></SelectTrigger>
                         <SelectContent>
-                            <SelectItem value="all">All Companies</SelectItem>
+                            <SelectItem value="all">All Operating Units</SelectItem>
                             {companies.map((c) => <SelectItem key={c.id} value={String(c.id)}>{c.name}</SelectItem>)}
                         </SelectContent>
                     </Select>

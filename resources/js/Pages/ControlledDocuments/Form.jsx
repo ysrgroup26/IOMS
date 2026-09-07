@@ -26,12 +26,15 @@ export default function ControlledDocumentForm({ companies, departments, documen
                 <Button variant="ghost" size="sm" asChild><Link href={route('controlled-documents.index')}><ArrowLeft className="h-4 w-4" /> Back</Link></Button>
             </div>
 
-            <form onSubmit={submit} className="mx-auto max-w-xl">
+            {/* v2.54.0 (form audit): a form that pairs fields needs room for the pair.
+                max-w-xl caps the column at 576px, so each half of a pair landed at
+                roughly 270px -- narrower than the single-column version it replaced. */}
+            <form onSubmit={submit} className="mx-auto max-w-2xl">
                 <Card>
                     <CardHeader><CardTitle>New Document -- {documentNumber}</CardTitle></CardHeader>
                     <CardContent className="space-y-4">
                         <div className="space-y-1.5"><Label>Title</Label><Input value={data.title} onChange={(e) => setData('title', e.target.value)} />{errors.title && <p className="text-xs text-red-600">{errors.title}</p>}</div>
-                        <div className="grid grid-cols-2 gap-4">
+                        <div className="grid grid-cols-1 gap-4 sm:grid-cols-2">
                             <div className="space-y-1.5"><Label>Category</Label><Input value={data.category} onChange={(e) => setData('category', e.target.value)} placeholder="e.g. SOP, Policy, Drawing" /></div>
                             <div className="space-y-1.5">
                                 <Label>Department (optional)</Label>
@@ -43,7 +46,7 @@ export default function ControlledDocumentForm({ companies, departments, documen
                         </div>
                         <div className="space-y-1.5"><Label>File (version 1.0, optional)</Label><Input type="file" onChange={(e) => setData('file', e.target.files[0])} /></div>
                         <div className="space-y-1.5">
-                            <Label>Company</Label>
+                            <Label>Operating Unit</Label>
                             <Select value={data.company_id} onValueChange={(v) => setData('company_id', v)}>
                                 <SelectTrigger><SelectValue /></SelectTrigger>
                                 <SelectContent>{companies.map((c) => <SelectItem key={c.id} value={String(c.id)}>{c.name}</SelectItem>)}</SelectContent>

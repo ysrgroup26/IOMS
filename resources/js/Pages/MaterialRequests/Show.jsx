@@ -100,7 +100,7 @@ export default function MaterialRequestShow({ materialRequest: mr, approval, act
                         <p className="text-[13px] font-medium text-graphite-800">{mr.requester?.name}</p>
                     </div>
                     <div>
-                        <p className="text-[11px] uppercase tracking-wide text-graphite-400">Company</p>
+                        <p className="text-[11px] uppercase tracking-wide text-graphite-400">Operating Unit</p>
                         <p className="text-[13px] font-medium text-graphite-800">{mr.company?.name || '-'}</p>
                     </div>
                     <div>

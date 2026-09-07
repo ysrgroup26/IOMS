@@ -123,19 +123,59 @@ actually renders; anything there that looks dated is dated on purpose.
 **Documents on this system**: Purchase Order (Surat Pesanan), Purchase Requisition (FPB), Goods
 Receipt (BAST), Work Order (SPK), plus the existing Permit To Work.
 
-### Per-company authorization inside a tenant (v2.53.0)
+### The organizational model (v2.54.0)
 
-Enterprise sells multi-company: one customer running GAJ and MTC in one workspace. `TenantScope`
-narrows Company to the tenant; `CompanyAuthorizationScope` narrows it further to the companies the
-**authenticated user** is authorized for, via the `company_user` pivot.
+```
+IOMS  ->  Organization  ->  Operating Unit(s)  ->  Departments
+```
+
+| Product term | Class / table | What it is |
+|---|---|---|
+| Organization | `Tenant` / `tenants` | The subscribing customer. One organization = one subscription. |
+| Operating Unit | `Company` / `companies` | A yard, site or division inside that organization (GAJ, MTC). |
+| Department | `Department` / `departments` | Belongs to exactly one operating unit. |
+
+**GAJ and MTC are two operating units of ONE organization, not two customers.** That is what the
+production data has always said — both are `companies` rows under a single tenant — and it is what
+ADR-008 meant when it called Company "an internal business unit WITHIN one Tenant". v2.54.0 gave the
+levels their names and used them consistently on every human-readable surface. The classes and tables
+keep their names: renaming `Company` would touch every FK, scope and controller in the schema to buy
+a word.
+
+**Legal entity is an ATTRIBUTE of an operating unit, not a level above it.**
+`companies.legal_entity_name` / `legal_entity_registration` are optional and printed on documents.
+Nothing queries or scopes by them — ownership of a record is `company_id` and only `company_id`, so
+there is exactly one answer to "who does this belong to". Most organizations trade as one entity and
+leave both null.
+
+**Capacity is measured in operating units.** `packages.max_companies` is that number (Starter 1,
+Professional 2, Enterprise unlimited/null). `EntitlementService::canCreateOperatingUnit()` enforces
+it inside a row-locked transaction in `SettingsController::storeCompanyEntity()` — before v2.54.0 the
+number was displayed but never enforced. The usage count deliberately bypasses global scopes: a quota
+is a property of the organization, never of the person asking.
+
+**There is no organizational context switcher, on purpose.** What a user may reach is decided
+server-side from recorded grants; a client-selected operating unit would be a second, untrusted answer
+to a question the server has already settled. `User::organizationContext()` supplies the header's
+read-only context display.
+
+### Per-operating-unit authorization inside an organization (v2.53.0, reachable in v2.54.0)
+
+Enterprise sells multiple operating units in one workspace. `TenantScope` narrows Company to the
+organization; `CompanyAuthorizationScope` narrows it further to the units the **authenticated user**
+is authorized for, via the `company_user` pivot. `SettingsController::updateUserCompanies()` is what
+writes that pivot — until v2.54.0 nothing could, so the authorization existed but was unreachable and
+every user was unrestricted in practice.
 
 Because practically every downstream query resolves its own scope through
 `Company::query()->pluck('id')`, narrowing Company propagates to employees, permits, purchase orders
 and the rest — the same transitive-isolation property TenantScope already relies on.
 
-**The default is "no grants = all companies in the tenant."** Every existing user has no grants, so
-upgrading changes nothing; authorization becomes real the moment an administrator grants a user their
-first company. It only ever removes access.
+**The default is "no grants = all operating units in the organization."** Every existing user has no
+grants, so upgrading changes nothing; authorization becomes real the moment an administrator grants a
+user their first unit. It only ever removes access. Granting EVERY unit is stored as *no restriction*
+rather than as a full list, so adding a unit later does not silently exclude everyone who was
+unrestricted at the time.
 
 ### IOMS Sandbox (v2.53.0)
 

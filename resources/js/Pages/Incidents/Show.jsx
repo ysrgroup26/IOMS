@@ -72,7 +72,7 @@ export default function IncidentShow({ incident: i, activities, canManage, users
                             <div><span className="text-xs font-medium uppercase tracking-wide text-graphite-400">Category</span><p className="capitalize">{i.category.replace('_', ' ')}</p></div>
                             <div><span className="text-xs font-medium uppercase tracking-wide text-graphite-400">Description</span><p className="whitespace-pre-wrap">{i.description || '-'}</p></div>
                             <div><span className="text-xs font-medium uppercase tracking-wide text-graphite-400">Reported By</span><p>{i.reporter?.name}</p></div>
-                            {i.company && <div><span className="text-xs font-medium uppercase tracking-wide text-graphite-400">Company</span><p>{i.company.name}</p></div>}
+                            {i.company && <div><span className="text-xs font-medium uppercase tracking-wide text-graphite-400">Operating Unit</span><p>{i.company.name}</p></div>}
                         </CardContent>
                     </Card>
 

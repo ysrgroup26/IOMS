@@ -293,7 +293,7 @@ function RegulationDialog({ open, onOpenChange, editing, categories, documentTyp
 
                     <div className="grid gap-3 sm:grid-cols-2">
                         <div className="space-y-1.5">
-                            <Label>Perusahaan</Label>
+                            <Label>Operating Unit</Label>
                             <select value={data.company_id} onChange={(e) => setData('company_id', e.target.value)} className="h-9 w-full rounded-md border border-steel-200 bg-white px-3 text-sm">
                                 {companies.map((c) => <option key={c.id} value={c.id}>{c.name}</option>)}
                             </select>

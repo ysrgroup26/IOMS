@@ -33,7 +33,7 @@ export default function CompetencyExpiringSoon({ items, companies, filters }) {
                 <Select value={filters.company_id ? String(filters.company_id) : 'all'} onValueChange={changeCompany}>
                     <SelectTrigger className="w-48"><SelectValue /></SelectTrigger>
                     <SelectContent>
-                        <SelectItem value="all">All Companies</SelectItem>
+                        <SelectItem value="all">All Operating Units</SelectItem>
                         {companies.map((c) => <SelectItem key={c.id} value={String(c.id)}>{c.name}</SelectItem>)}
                     </SelectContent>
                 </Select>
@@ -53,7 +53,7 @@ export default function CompetencyExpiringSoon({ items, companies, filters }) {
                                 <TableHeader>
                                     <TableRow>
                                         <TableHead>Employee</TableHead>
-                                        <TableHead>Company</TableHead>
+                                        <TableHead>Operating Unit</TableHead>
                                         <TableHead>Department</TableHead>
                                         <TableHead>Competency</TableHead>
                                         <TableHead>Expiry</TableHead>

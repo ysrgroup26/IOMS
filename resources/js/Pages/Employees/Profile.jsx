@@ -121,7 +121,7 @@ export default function EmployeeProfile({ employee, yearSummary, monthlyBreakdow
                     </div>
                     <CardContent className="flex flex-col items-center p-4 pt-0 text-center">
                         <div className="w-full space-y-2.5 pt-1 text-left text-sm">
-                            <InfoRow icon={Briefcase} label="Company" value={employee.company?.name ?? '—'} />
+                            <InfoRow icon={Briefcase} label="Operating Unit" value={employee.company?.name ?? '—'} />
                             <InfoRow label="Department" value={employee.department?.name} />
                             <InfoRow label="Position" value={employee.position?.name ?? '—'} />
                             <InfoRow label="Workforce Type" value={employee.employment_type_label ?? '—'} />

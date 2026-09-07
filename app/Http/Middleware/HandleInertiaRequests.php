@@ -299,6 +299,26 @@ class HandleInertiaRequests extends Middleware
                 'whats_new' => config('ioms.whats_new'),
                 'history' => config('ioms.version_history'),
             ],
+            // v2.54.0 -- ORGANIZATIONAL CONTEXT, read-only.
+            //
+            // IOMS -> Organization -> Operating Unit -> Department. A user
+            // should be able to see which organization they are working in
+            // and which operating units they may reach, without having to
+            // open Settings.
+            //
+            // Deliberately NOT a switcher. Everything a user may reach is
+            // already decided server-side by CompanyAuthorizationScope from
+            // grants an administrator recorded; there is no client-selected
+            // operating unit anywhere in IOMS, and adding one would create a
+            // second, client-supplied answer to a question the server has
+            // already answered. This is display only.
+            //
+            // Resolved lazily so a page that never renders it costs no
+            // query, and null for a guest or a Platform Admin (no
+            // organization of their own).
+            'organization' => fn () => $user && $user->tenant_id
+                ? $user->organizationContext()
+                : null,
             // v2.53.0: the IOMS Sandbox. A visitor must always know they
             // are in a demonstration company and not their own workspace --
             // an unlabelled demo is how someone ends up entering real data

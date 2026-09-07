@@ -34,7 +34,7 @@ export default function AssetForm({ companies, vendors, purchaseOrders, employee
                 <Card>
                     <CardHeader><CardTitle>Register Asset -- {assetCode}</CardTitle></CardHeader>
                     <CardContent className="space-y-4">
-                        <div className="grid grid-cols-2 gap-4">
+                        <div className="grid grid-cols-1 gap-4 sm:grid-cols-2">
                             <div className="space-y-1.5"><Label>Name</Label><Input value={data.name} onChange={(e) => setData('name', e.target.value)} />{errors.name && <p className="text-xs text-red-600">{errors.name}</p>}</div>
                             <div className="space-y-1.5">
                                 <Label>Category</Label>
@@ -44,16 +44,16 @@ export default function AssetForm({ companies, vendors, purchaseOrders, employee
                                 </Select>
                             </div>
                         </div>
-                        <div className="grid grid-cols-3 gap-4">
+                        <div className="grid grid-cols-1 gap-4 sm:grid-cols-2 lg:grid-cols-3">
                             <div className="space-y-1.5"><Label>Serial Number</Label><Input value={data.serial_number} onChange={(e) => setData('serial_number', e.target.value)} /></div>
                             <div className="space-y-1.5"><Label>Brand</Label><Input value={data.brand} onChange={(e) => setData('brand', e.target.value)} /></div>
                             <div className="space-y-1.5"><Label>Model</Label><Input value={data.model} onChange={(e) => setData('model', e.target.value)} /></div>
                         </div>
-                        <div className="grid grid-cols-2 gap-4">
+                        <div className="grid grid-cols-1 gap-4 sm:grid-cols-2">
                             <div className="space-y-1.5"><Label>Purchase Date</Label><Input type="date" value={data.purchase_date} onChange={(e) => setData('purchase_date', e.target.value)} /></div>
                             <div className="space-y-1.5"><Label>Location</Label><Input value={data.location} onChange={(e) => setData('location', e.target.value)} /></div>
                         </div>
-                        <div className="grid grid-cols-2 gap-4">
+                        <div className="grid grid-cols-1 gap-4 sm:grid-cols-2">
                             <div className="space-y-1.5">
                                 <Label>Vendor (optional)</Label>
                                 <Select value={data.vendor_id || 'none'} onValueChange={(v) => setData('vendor_id', v === 'none' ? '' : v)}>
@@ -79,7 +79,7 @@ export default function AssetForm({ companies, vendors, purchaseOrders, employee
                         <div className="space-y-1.5"><Label>Notes</Label><Textarea value={data.notes} onChange={(e) => setData('notes', e.target.value)} rows={2} /></div>
                         <div className="space-y-1.5"><Label>Attachment</Label><Input type="file" onChange={(e) => setData('attachment', e.target.files[0])} /></div>
                         <div className="space-y-1.5">
-                            <Label>Company</Label>
+                            <Label>Operating Unit</Label>
                             <Select value={data.company_id} onValueChange={(v) => setData('company_id', v)}>
                                 <SelectTrigger><SelectValue /></SelectTrigger>
                                 <SelectContent>{companies.map((c) => <SelectItem key={c.id} value={String(c.id)}>{c.name}</SelectItem>)}</SelectContent>

@@ -54,7 +54,7 @@ export default function VendorForm({ vendor, companies, types, vendorCode }) {
                 <Card>
                     <CardHeader><CardTitle>{editing ? `Edit Vendor -- ${vendor.vendor_code}` : `Add Vendor -- ${vendorCode}`}</CardTitle></CardHeader>
                     <CardContent className="space-y-4">
-                        <div className="grid grid-cols-2 gap-4">
+                        <div className="grid grid-cols-1 gap-4 sm:grid-cols-2">
                             <div className="space-y-1.5"><Label>Vendor Name</Label><Input value={data.name} onChange={(e) => setData('name', e.target.value)} />{errors.name && <p className="text-xs text-red-600">{errors.name}</p>}</div>
                             <div className="space-y-1.5">
                                 <Label>Type</Label>
@@ -64,12 +64,12 @@ export default function VendorForm({ vendor, companies, types, vendorCode }) {
                                 </Select>
                             </div>
                         </div>
-                        <div className="grid grid-cols-2 gap-4">
+                        <div className="grid grid-cols-1 gap-4 sm:grid-cols-2">
                             <div className="space-y-1.5"><Label>Legal Entity Name</Label><Input value={data.legal_entity_name} onChange={(e) => setData('legal_entity_name', e.target.value)} /></div>
                             <div className="space-y-1.5"><Label>Category</Label><Input value={data.category} onChange={(e) => setData('category', e.target.value)} placeholder="e.g. Safety Equipment, Spare Parts" /></div>
                         </div>
                         <div className="space-y-1.5"><Label>Address</Label><Textarea value={data.address} onChange={(e) => setData('address', e.target.value)} rows={2} /></div>
-                        <div className="grid grid-cols-3 gap-4">
+                        <div className="grid grid-cols-1 gap-4 sm:grid-cols-2 lg:grid-cols-3">
                             <div className="space-y-1.5"><Label>City</Label><Input value={data.city} onChange={(e) => setData('city', e.target.value)} /></div>
                             <div className="space-y-1.5"><Label>Province</Label><Input value={data.province} onChange={(e) => setData('province', e.target.value)} /></div>
                             <div className="space-y-1.5"><Label>Country</Label><Input value={data.country} onChange={(e) => setData('country', e.target.value)} /></div>
@@ -79,7 +79,7 @@ export default function VendorForm({ vendor, companies, types, vendorCode }) {
 
                 <Card>
                     <CardHeader><CardTitle>Contact</CardTitle></CardHeader>
-                    <CardContent className="grid grid-cols-2 gap-4">
+                    <CardContent className="grid grid-cols-1 gap-4 sm:grid-cols-2">
                         <div className="space-y-1.5"><Label>PIC Name</Label><Input value={data.pic_name} onChange={(e) => setData('pic_name', e.target.value)} /></div>
                         <div className="space-y-1.5"><Label>PIC Phone</Label><Input value={data.pic_phone} onChange={(e) => setData('pic_phone', e.target.value)} /></div>
                         <div className="space-y-1.5"><Label>PIC Email</Label><Input type="email" value={data.pic_email} onChange={(e) => setData('pic_email', e.target.value)} />{errors.pic_email && <p className="text-xs text-red-600">{errors.pic_email}</p>}</div>
@@ -89,7 +89,7 @@ export default function VendorForm({ vendor, companies, types, vendorCode }) {
 
                 <Card>
                     <CardHeader><CardTitle>Business</CardTitle></CardHeader>
-                    <CardContent className="grid grid-cols-2 gap-4">
+                    <CardContent className="grid grid-cols-1 gap-4 sm:grid-cols-2">
                         <div className="space-y-1.5"><Label>NPWP</Label><Input value={data.npwp} onChange={(e) => setData('npwp', e.target.value)} /></div>
                         <div className="space-y-1.5"><Label>NIB</Label><Input value={data.nib} onChange={(e) => setData('nib', e.target.value)} /></div>
                         <div className="space-y-1.5"><Label>Bank Name</Label><Input value={data.bank_name} onChange={(e) => setData('bank_name', e.target.value)} /></div>
@@ -106,7 +106,7 @@ export default function VendorForm({ vendor, companies, types, vendorCode }) {
                         <div className="space-y-1.5"><Label>Capability</Label><Textarea value={data.capability} onChange={(e) => setData('capability', e.target.value)} rows={2} /></div>
                         <div className="space-y-1.5"><Label>Notes</Label><Textarea value={data.notes} onChange={(e) => setData('notes', e.target.value)} rows={2} /></div>
                         <div className="space-y-1.5">
-                            <Label>Company</Label>
+                            <Label>Operating Unit</Label>
                             <Select value={data.company_id} onValueChange={(v) => setData('company_id', v)}>
                                 <SelectTrigger><SelectValue /></SelectTrigger>
                                 <SelectContent>{companies.map((c) => <SelectItem key={c.id} value={String(c.id)}>{c.name}</SelectItem>)}</SelectContent>

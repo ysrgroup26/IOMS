@@ -37,7 +37,10 @@ export default function TbmMeetingForm({ companies, projects, employees, tbmNumb
                 <Button variant="ghost" size="sm" asChild><Link href={route('tbm-meetings.index')}><ArrowLeft className="h-4 w-4" /> Back</Link></Button>
             </div>
 
-            <form onSubmit={submit} className="mx-auto max-w-xl">
+            {/* v2.54.0 (form audit): a form that pairs fields needs room for the pair.
+                max-w-xl caps the column at 576px, so each half of a pair landed at
+                roughly 270px -- narrower than the single-column version it replaced. */}
+            <form onSubmit={submit} className="mx-auto max-w-2xl">
                 <Card>
                     <CardHeader><CardTitle>Record TBM -- {tbmNumber}</CardTitle></CardHeader>
                     <CardContent className="space-y-4">
@@ -46,7 +49,7 @@ export default function TbmMeetingForm({ companies, projects, employees, tbmNumb
                             <Input value={data.topic} onChange={(e) => setData('topic', e.target.value)} placeholder="e.g. Housekeeping and Manual Handling" />
                             {errors.topic && <p className="text-xs text-red-600">{errors.topic}</p>}
                         </div>
-                        <div className="grid grid-cols-2 gap-3">
+                        <div className="grid grid-cols-1 gap-3 sm:grid-cols-2">
                             <div className="space-y-1.5"><Label>Date</Label><Input type="date" value={data.meeting_date} onChange={(e) => setData('meeting_date', e.target.value)} /></div>
                             <div className="space-y-1.5"><Label>Location</Label><Input value={data.location} onChange={(e) => setData('location', e.target.value)} /></div>
                         </div>
@@ -62,7 +65,7 @@ export default function TbmMeetingForm({ companies, projects, employees, tbmNumb
                             </Select>
                         </div>
                         <div className="space-y-1.5">
-                            <Label>Company</Label>
+                            <Label>Operating Unit</Label>
                             <Select value={data.company_id} onValueChange={(v) => setData('company_id', v)}>
                                 <SelectTrigger><SelectValue /></SelectTrigger>
                                 <SelectContent>{companies.map((c) => <SelectItem key={c.id} value={String(c.id)}>{c.name}</SelectItem>)}</SelectContent>

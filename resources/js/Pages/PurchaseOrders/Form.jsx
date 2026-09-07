@@ -61,7 +61,7 @@ export default function PurchaseOrderForm({ companies, vendors, purchaseRequisit
                 <Card>
                     <CardHeader><CardTitle>New Purchase Order -- {poNumber}</CardTitle></CardHeader>
                     <CardContent className="space-y-4">
-                        <div className="grid grid-cols-2 gap-3">
+                        <div className="grid grid-cols-1 gap-3 sm:grid-cols-2">
                             <div className="space-y-1.5">
                                 <Label>Vendor</Label>
                                 <Select value={data.vendor_id} onValueChange={(v) => setData('vendor_id', v)}>
@@ -78,17 +78,17 @@ export default function PurchaseOrderForm({ companies, vendors, purchaseRequisit
                                 </Select>
                             </div>
                         </div>
-                        <div className="grid grid-cols-3 gap-3">
+                        <div className="grid grid-cols-1 gap-3 sm:grid-cols-2 lg:grid-cols-3">
                             <div className="space-y-1.5"><Label>PO Date</Label><Input type="date" value={data.po_date} onChange={(e) => setData('po_date', e.target.value)} /></div>
                             <div className="space-y-1.5"><Label>Delivery Date</Label><Input type="date" value={data.delivery_date} onChange={(e) => setData('delivery_date', e.target.value)} /></div>
                             <div className="space-y-1.5"><Label>Delivery Location</Label><Input value={data.delivery_location} onChange={(e) => setData('delivery_location', e.target.value)} /></div>
                         </div>
-                        <div className="grid grid-cols-3 gap-3">
+                        <div className="grid grid-cols-1 gap-3 sm:grid-cols-2 lg:grid-cols-3">
                             <div className="space-y-1.5"><Label>Payment Terms</Label><Input value={data.payment_terms} onChange={(e) => setData('payment_terms', e.target.value)} /></div>
                             <div className="space-y-1.5"><Label>Currency</Label><Input value={data.currency} onChange={(e) => setData('currency', e.target.value)} /></div>
                             <div className="space-y-1.5"><Label>Cost Center (optional)</Label><Input value={data.cost_center} onChange={(e) => setData('cost_center', e.target.value)} /></div>
                         </div>
-                        <div className="grid grid-cols-2 gap-3">
+                        <div className="grid grid-cols-1 gap-3 sm:grid-cols-2">
                             <div className="space-y-1.5">
                                 <Label>Project (optional)</Label>
                                 <Select value={data.project_id || 'none'} onValueChange={(v) => setData('project_id', v === 'none' ? '' : v)}>
@@ -107,7 +107,7 @@ export default function PurchaseOrderForm({ companies, vendors, purchaseRequisit
                         <div className="space-y-1.5"><Label>Terms &amp; Conditions</Label><Textarea value={data.terms_conditions} onChange={(e) => setData('terms_conditions', e.target.value)} rows={2} /></div>
                         <div className="space-y-1.5"><Label>Notes</Label><Textarea value={data.notes} onChange={(e) => setData('notes', e.target.value)} rows={2} /></div>
                         <div className="space-y-1.5">
-                            <Label>Company</Label>
+                            <Label>Operating Unit</Label>
                             <Select value={data.company_id} onValueChange={(v) => setData('company_id', v)}>
                                 <SelectTrigger><SelectValue /></SelectTrigger>
                                 <SelectContent>{companies.map((c) => <SelectItem key={c.id} value={String(c.id)}>{c.name}</SelectItem>)}</SelectContent>
@@ -140,7 +140,7 @@ export default function PurchaseOrderForm({ companies, vendors, purchaseRequisit
                                 ))}
                             </TableBody>
                         </Table>
-                        <div className="mt-3 grid grid-cols-2 gap-3 sm:w-80 sm:ml-auto">
+                        <div className="mt-3 grid grid-cols-1 gap-3 sm:w-80 sm:ml-auto sm:grid-cols-2">
                             <div className="space-y-1.5"><Label className="text-xs">Shipping</Label><Input type="number" value={data.shipping_amount} onChange={(e) => setData('shipping_amount', e.target.value)} /></div>
                             <div className="space-y-1.5"><Label className="text-xs">Other Charges</Label><Input type="number" value={data.other_charges} onChange={(e) => setData('other_charges', e.target.value)} /></div>
                         </div>

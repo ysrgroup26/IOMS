@@ -578,7 +578,7 @@ function Pricing({ plans }) {
                                             {/* v2.53.0: capacity is ONE number. PTW Access is a
                                                 permission granted inside IOMS, not a sold seat. */}
                                             <li className="flex items-center gap-2">
-                                                <ShieldCheck className="h-3.5 w-3.5 shrink-0 text-brand-500" /> {plan.max_companies ? `${plan.max_companies} company` : 'Multi-company access'}
+                                                <Building2 className="h-3.5 w-3.5 shrink-0 text-brand-500" /> {plan.max_companies ? `${plan.max_companies} Operating Unit${plan.max_companies > 1 ? 's' : ''}` : 'Multiple Operating Units'}
                                             </li>
                                             {plan.workspaces.length > 0 && plan.workspaces.map((w) => (
                                                 <li key={w} className="flex items-center gap-2"><Check className="h-3.5 w-3.5 shrink-0 text-brand-500" /> {w}</li>

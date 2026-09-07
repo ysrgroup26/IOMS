@@ -80,7 +80,7 @@ export default function WarehousesMaster({ warehouses, companies, can }) {
                     <DialogHeader><DialogTitle>{editing ? 'Edit' : 'Add'} Warehouse</DialogTitle></DialogHeader>
                     <form onSubmit={submit} className="space-y-4">
                         <div className="space-y-1.5">
-                            <Label>Company</Label>
+                            <Label>Operating Unit</Label>
                             <Select value={data.company_id} onValueChange={(v) => setData('company_id', v)}>
                                 <SelectTrigger><SelectValue /></SelectTrigger>
                                 <SelectContent>{companies.map((c) => <SelectItem key={c.id} value={String(c.id)}>{c.name}</SelectItem>)}</SelectContent>

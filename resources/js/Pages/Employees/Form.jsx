@@ -85,7 +85,7 @@ export default function EmployeeForm({ employee, companies, departments, positio
                     <CardHeader><CardTitle>Employee Information</CardTitle></CardHeader>
                     <CardContent>
                         <form onSubmit={submit} className="space-y-4">
-                            <div className="grid grid-cols-2 gap-4">
+                            <div className="grid grid-cols-1 gap-4 sm:grid-cols-2">
                                 <Field label="Employee ID" error={errors.employee_id}>
                                     <Input value={data.employee_id} onChange={(e) => setData('employee_id', e.target.value)} placeholder="EMP-0001" />
                                 </Field>
@@ -94,16 +94,16 @@ export default function EmployeeForm({ employee, companies, departments, positio
                                 </Field>
                             </div>
 
-                            <div className="grid grid-cols-2 gap-4">
+                            <div className="grid grid-cols-1 gap-4 sm:grid-cols-2">
                                 <Field label="Full Name" error={errors.full_name}>
                                     <Input value={data.full_name} onChange={(e) => setData('full_name', e.target.value)} />
                                 </Field>
-                                <Field label="Company" error={errors.company_id}>
+                                <Field label="Operating Unit" error={errors.company_id}>
                                     <Select
                                         value={data.company_id}
                                         onValueChange={(v) => setData((prevData) => ({ ...prevData, company_id: v, department_id: undefined, position_id: undefined }))}
                                     >
-                                        <SelectTrigger><SelectValue placeholder="Select company" /></SelectTrigger>
+                                        <SelectTrigger><SelectValue placeholder="Select operating unit" /></SelectTrigger>
                                         <SelectContent>
                                             {companies.map((c) => <SelectItem key={c.id} value={String(c.id)}>{c.name}</SelectItem>)}
                                         </SelectContent>
@@ -111,14 +111,14 @@ export default function EmployeeForm({ employee, companies, departments, positio
                                 </Field>
                             </div>
 
-                            <div className="grid grid-cols-2 gap-4">
+                            <div className="grid grid-cols-1 gap-4 sm:grid-cols-2">
                                 <Field label="Department" error={errors.department_id}>
                                     <Select
                                         value={data.department_id}
                                         onValueChange={(v) => setData((prevData) => ({ ...prevData, department_id: v, position_id: undefined }))}
                                         disabled={!data.company_id}
                                     >
-                                        <SelectTrigger><SelectValue placeholder={data.company_id ? 'Select department' : 'Select company first'} /></SelectTrigger>
+                                        <SelectTrigger><SelectValue placeholder={data.company_id ? 'Select department' : 'Select operating unit first'} /></SelectTrigger>
                                         <SelectContent>
                                             {filteredDepartments.map((d) => <SelectItem key={d.id} value={String(d.id)}>{d.name}</SelectItem>)}
                                         </SelectContent>
@@ -134,7 +134,7 @@ export default function EmployeeForm({ employee, companies, departments, positio
                                 </Field>
                             </div>
 
-                            <div className="grid grid-cols-2 gap-4">
+                            <div className="grid grid-cols-1 gap-4 sm:grid-cols-2">
                                 <Field label="Status" error={errors.status}>
                                     <Select value={data.status} onValueChange={(v) => setData('status', v)}>
                                         <SelectTrigger><SelectValue /></SelectTrigger>
@@ -155,7 +155,7 @@ export default function EmployeeForm({ employee, companies, departments, positio
                                 </Field>
                             </div>
 
-                            <div className="grid grid-cols-2 gap-4">
+                            <div className="grid grid-cols-1 gap-4 sm:grid-cols-2">
                                 <Field label="Join Date" error={errors.join_date}>
                                     <Input type="date" value={data.join_date} onChange={(e) => setData('join_date', e.target.value)} />
                                 </Field>
@@ -165,7 +165,7 @@ export default function EmployeeForm({ employee, companies, departments, positio
                             </div>
 
                             {data.employment_type !== 'pkwtt' && (
-                                <div className="grid grid-cols-2 gap-4">
+                                <div className="grid grid-cols-1 gap-4 sm:grid-cols-2">
                                     <Field label="Contract Start" error={errors.contract_start_date}>
                                         <Input type="date" value={data.contract_start_date} onChange={(e) => setData('contract_start_date', e.target.value)} />
                                     </Field>
@@ -207,7 +207,7 @@ export default function EmployeeForm({ employee, companies, departments, positio
                                         <p className="text-xs text-graphite-500">Placement information specific to internship/PKL workers.</p>
                                     </div>
 
-                                    <div className="grid grid-cols-2 gap-4">
+                                    <div className="grid grid-cols-1 gap-4 sm:grid-cols-2">
                                         <Field label="Institution" error={errors['internship.institution']}>
                                             <Input value={data.internship.institution} onChange={(e) => setInternship('institution', e.target.value)} placeholder="School / university" />
                                         </Field>
@@ -216,7 +216,7 @@ export default function EmployeeForm({ employee, companies, departments, positio
                                         </Field>
                                     </div>
 
-                                    <div className="grid grid-cols-2 gap-4">
+                                    <div className="grid grid-cols-1 gap-4 sm:grid-cols-2">
                                         <Field label="Mentor / Supervisor" error={errors['internship.mentor_name']}>
                                             <Input value={data.internship.mentor_name} onChange={(e) => setInternship('mentor_name', e.target.value)} />
                                         </Field>
@@ -225,7 +225,7 @@ export default function EmployeeForm({ employee, companies, departments, positio
                                         </Field>
                                     </div>
 
-                                    <div className="grid grid-cols-2 gap-4">
+                                    <div className="grid grid-cols-1 gap-4 sm:grid-cols-2">
                                         <Field label="Placement Start" error={errors['internship.start_date']}>
                                             <Input type="date" value={data.internship.start_date} onChange={(e) => setInternship('start_date', e.target.value)} />
                                         </Field>
@@ -234,7 +234,7 @@ export default function EmployeeForm({ employee, companies, departments, positio
                                         </Field>
                                     </div>
 
-                                    <div className="grid grid-cols-2 gap-4">
+                                    <div className="grid grid-cols-1 gap-4 sm:grid-cols-2">
                                         <Field label="Work Location" error={errors['internship.work_location']}>
                                             <Input value={data.internship.work_location} onChange={(e) => setInternship('work_location', e.target.value)} />
                                         </Field>

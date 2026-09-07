@@ -471,7 +471,7 @@ export default function AuthenticatedLayout({ children }) {
  * single-option version of the same control.
  */
 function TopBar({ onOpenSidebar, isDepartmentUser, departments, activeWorkspace, onSwitchWorkspace }) {
-    const { auth } = usePage().props;
+    const { auth, organization } = usePage().props;
     const now = useClock();
     const { theme, toggleTheme } = useTheme();
 
@@ -595,6 +595,34 @@ function TopBar({ onOpenSidebar, isDepartmentUser, departments, activeWorkspace,
                 <DropdownMenuContent>
                     <DropdownMenuLabel>{auth?.user?.name}</DropdownMenuLabel>
                     <p className="px-2.5 pb-1.5 text-xs text-graphite-400 dark:text-slate-500">{auth?.user?.role_label}</p>
+                    {/* v2.54.0 -- ORGANIZATIONAL CONTEXT, stated not switched.
+                        IOMS -> Organization -> Operating Unit -> Department. A
+                        user should be able to answer "whose data am I looking
+                        at" without opening Settings. There is deliberately no
+                        switcher: what this account may reach is decided
+                        server-side by CompanyAuthorizationScope, and a
+                        client-selected unit would be a second answer to a
+                        question the server has already settled. */}
+                    {organization?.organization && (
+                        <>
+                            <DropdownMenuSeparator />
+                            <div className="px-2.5 py-1.5">
+                                <p className="text-[10px] font-semibold uppercase tracking-wide text-graphite-400 dark:text-slate-500">Organization</p>
+                                <p className="mt-0.5 truncate text-xs font-medium text-graphite-700 dark:text-slate-300">{organization.organization}</p>
+                                {(organization.operating_units ?? []).length > 0 && (
+                                    <>
+                                        <p className="mt-2 text-[10px] font-semibold uppercase tracking-wide text-graphite-400 dark:text-slate-500">
+                                            Operating Unit{organization.operating_units.length > 1 ? 's' : ''}
+                                            {organization.restricted && <span className="ml-1 font-medium normal-case tracking-normal text-graphite-400">· akses terbatas</span>}
+                                        </p>
+                                        <p className="mt-0.5 truncate text-xs text-graphite-600 dark:text-slate-400">
+                                            {organization.operating_units.map((u) => u.name).join(' · ')}
+                                        </p>
+                                    </>
+                                )}
+                            </div>
+                        </>
+                    )}
                     <DropdownMenuSeparator />
                     {auth?.user?.is_admin && !isDepartmentUser && (
                         <DropdownMenuItem asChild>

@@ -39,7 +39,7 @@ export default function PlatformPlans({ plans }) {
                         <EmptyState icon={Tag} title="No plans defined yet" />
                     ) : (
                         <Table>
-                            <TableHeader><TableRow><TableHead>Name</TableHead><TableHead>Slug</TableHead><TableHead>Monthly</TableHead><TableHead>Yearly</TableHead><TableHead>Trial</TableHead><TableHead>Max Users</TableHead><TableHead>Max Companies</TableHead><TableHead>Status</TableHead><TableHead /></TableRow></TableHeader>
+                            <TableHeader><TableRow><TableHead>Name</TableHead><TableHead>Slug</TableHead><TableHead>Monthly</TableHead><TableHead>Yearly</TableHead><TableHead>Trial</TableHead><TableHead>Max Users</TableHead><TableHead>Max Operating Units</TableHead><TableHead>Status</TableHead><TableHead /></TableRow></TableHeader>
                             <TableBody>
                                 {plans.map((p) => (
                                     <TableRow key={p.id}>
@@ -111,7 +111,7 @@ function PlanDialog({ plan, onClose }) {
                         <div className="space-y-1.5"><Label>Currency</Label><Input value={data.currency} onChange={(e) => setData('currency', e.target.value.toUpperCase())} maxLength={3} /></div>
                         <div className="space-y-1.5"><Label>Trial Days (blank = no trial)</Label><Input type="number" min="0" value={data.trial_days} onChange={(e) => setData('trial_days', e.target.value)} /></div>
                         <div className="space-y-1.5"><Label>Max Users (blank = unlimited)</Label><Input type="number" min="1" value={data.max_users} onChange={(e) => setData('max_users', e.target.value)} /></div>
-                        <div className="space-y-1.5"><Label>Max Companies (blank = unlimited)</Label><Input type="number" min="1" value={data.max_companies} onChange={(e) => setData('max_companies', e.target.value)} /></div>
+                        <div className="space-y-1.5"><Label>Max Operating Units (blank = unlimited)</Label><Input type="number" min="1" value={data.max_companies} onChange={(e) => setData('max_companies', e.target.value)} /></div>
                     </div>
                     <div className="flex flex-wrap items-center gap-4">
                         <div className="flex items-center gap-2"><Checkbox checked={data.is_active} onCheckedChange={(v) => setData('is_active', Boolean(v))} /><Label className="!mt-0">Active</Label></div>

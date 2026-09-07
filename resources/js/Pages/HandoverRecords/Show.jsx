@@ -95,7 +95,7 @@ export default function HandoverRecordShow({ record, canManage }) {
                             <Row label="Type" value={record.type_label} />
                             <Row label="Date" value={fmt(record.handover_date)} />
                             <Row label="Reference" value={record.reference_number} />
-                            <Row label="Company" value={record.company_name} />
+                            <Row label="Operating Unit" value={record.company_name} />
                             <Row label="Created by" value={record.creator_name} />
                             <Row label="Accepted" value={record.accepted_at ? fmt(record.accepted_at) : null} />
                         </dl>

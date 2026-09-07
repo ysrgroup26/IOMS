@@ -97,9 +97,9 @@ export default function MaterialRequestForm({ materialRequest, companies, depart
                             {errors.request_date && <p className="text-xs text-red-600">{errors.request_date}</p>}
                         </div>
                         <div className="space-y-1.5">
-                            <Label>Company</Label>
+                            <Label>Operating Unit</Label>
                             <Select value={data.company_id} onValueChange={(v) => setData((d) => ({ ...d, company_id: v, department_id: undefined, project_id: undefined }))}>
-                                <SelectTrigger><SelectValue placeholder="Select company" /></SelectTrigger>
+                                <SelectTrigger><SelectValue placeholder="Select operating unit" /></SelectTrigger>
                                 <SelectContent>
                                     {companies.map((c) => <SelectItem key={c.id} value={String(c.id)}>{c.name}</SelectItem>)}
                                 </SelectContent>

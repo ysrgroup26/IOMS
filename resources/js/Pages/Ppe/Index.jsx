@@ -69,9 +69,9 @@ export default function PpeIndex({ assignments, ppeTypes, companies, departments
             <Card>
                 <CardContent className="flex flex-wrap gap-2 p-4">
                     <Select value={filters.company_id ? String(filters.company_id) : 'all'} onValueChange={(v) => applyFilters({ company_id: v === 'all' ? null : v, department_id: null })}>
-                        <SelectTrigger className="w-40"><SelectValue placeholder="Company" /></SelectTrigger>
+                        <SelectTrigger className="w-40"><SelectValue placeholder="Operating Unit" /></SelectTrigger>
                         <SelectContent>
-                            <SelectItem value="all">All Companies</SelectItem>
+                            <SelectItem value="all">All Operating Units</SelectItem>
                             {companies.map((c) => <SelectItem key={c.id} value={String(c.id)}>{c.name}</SelectItem>)}
                         </SelectContent>
                     </Select>
@@ -111,7 +111,7 @@ export default function PpeIndex({ assignments, ppeTypes, companies, departments
                         <TableHeader>
                             <TableRow>
                                 <TableHead>Employee</TableHead>
-                                <TableHead>Company</TableHead>
+                                <TableHead>Operating Unit</TableHead>
                                 <TableHead>Department</TableHead>
                                 <TableHead>PPE Type</TableHead>
                                 <TableHead>Issued Date</TableHead>

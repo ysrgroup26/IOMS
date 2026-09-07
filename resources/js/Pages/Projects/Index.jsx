@@ -66,9 +66,9 @@ export default function ProjectsIndex({ projects, companies, filters, can }) {
                         value={filters.company_id ? String(filters.company_id) : 'all'}
                         onValueChange={(v) => applyFilters({ company_id: v === 'all' ? null : v })}
                     >
-                        <SelectTrigger className="w-40"><SelectValue placeholder="Company" /></SelectTrigger>
+                        <SelectTrigger className="w-40"><SelectValue placeholder="Operating Unit" /></SelectTrigger>
                         <SelectContent>
-                            <SelectItem value="all">All Companies</SelectItem>
+                            <SelectItem value="all">All Operating Units</SelectItem>
                             {companies.map((c) => <SelectItem key={c.id} value={String(c.id)}>{c.name}</SelectItem>)}
                         </SelectContent>
                     </Select>

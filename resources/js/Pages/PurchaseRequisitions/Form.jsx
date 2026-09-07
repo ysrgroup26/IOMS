@@ -52,7 +52,7 @@ export default function PurchaseRequisitionForm({ purchaseRequisition, companies
                 <Card>
                     <CardHeader><CardTitle>{editing ? purchaseRequisition.pr_number : `New Purchase Requisition -- ${prNumber}`}</CardTitle></CardHeader>
                     <CardContent className="space-y-4">
-                        <div className="grid grid-cols-3 gap-3">
+                        <div className="grid grid-cols-1 gap-3 sm:grid-cols-2 lg:grid-cols-3">
                             <div className="space-y-1.5"><Label>Request Date</Label><Input type="date" value={data.request_date} onChange={(e) => setData('request_date', e.target.value)} /></div>
                             <div className="space-y-1.5">
                                 <Label>Priority</Label>
@@ -63,7 +63,7 @@ export default function PurchaseRequisitionForm({ purchaseRequisition, companies
                             </div>
                             <div className="space-y-1.5"><Label>Required Date</Label><Input type="date" value={data.required_date} onChange={(e) => setData('required_date', e.target.value)} /></div>
                         </div>
-                        <div className="grid grid-cols-2 gap-3">
+                        <div className="grid grid-cols-1 gap-3 sm:grid-cols-2">
                             <div className="space-y-1.5">
                                 <Label>Department (optional)</Label>
                                 <Select value={data.department_id || 'none'} onValueChange={(v) => setData('department_id', v === 'none' ? '' : v)}>
@@ -73,7 +73,7 @@ export default function PurchaseRequisitionForm({ purchaseRequisition, companies
                             </div>
                             <div className="space-y-1.5"><Label>Cost Center (optional)</Label><Input value={data.cost_center} onChange={(e) => setData('cost_center', e.target.value)} /></div>
                         </div>
-                        <div className="grid grid-cols-2 gap-3">
+                        <div className="grid grid-cols-1 gap-3 sm:grid-cols-2">
                             <div className="space-y-1.5">
                                 <Label>Project (optional)</Label>
                                 <Select value={data.project_id || 'none'} onValueChange={(v) => setData('project_id', v === 'none' ? '' : v)}>
@@ -91,7 +91,7 @@ export default function PurchaseRequisitionForm({ purchaseRequisition, companies
                         </div>
                         <div className="space-y-1.5"><Label>Justification</Label><Textarea value={data.justification} onChange={(e) => setData('justification', e.target.value)} rows={2} /></div>
                         <div className="space-y-1.5">
-                            <Label>Company</Label>
+                            <Label>Operating Unit</Label>
                             <Select value={data.company_id} onValueChange={(v) => setData('company_id', v)}>
                                 <SelectTrigger><SelectValue /></SelectTrigger>
                                 <SelectContent>{companies.map((c) => <SelectItem key={c.id} value={String(c.id)}>{c.name}</SelectItem>)}</SelectContent>

@@ -542,7 +542,7 @@ export const WORKSPACES = [
             { name: 'Users', href: 'settings.index', queryParams: { tab: 'users' }, icon: Users, adminOnly: true },
             { name: 'Departments', href: 'settings.index', queryParams: { tab: 'departments' }, icon: Users, adminOnly: true },
             { name: 'Positions', href: 'settings.index', queryParams: { tab: 'positions' }, icon: Users, adminOnly: true },
-            { name: 'Companies', href: 'settings.index', queryParams: { tab: 'companies' }, icon: Users, adminOnly: true },
+            { name: 'Operating Units', href: 'settings.index', queryParams: { tab: 'companies' }, icon: Building2, adminOnly: true },
             { name: 'Settings', href: 'settings.index', icon: Settings, adminOnly: true },
             { name: 'Module Management', href: 'settings.index', queryParams: { tab: 'modules' }, icon: Settings, adminOnly: true },
             // Milestone 3 (Task #50): was a disabled placeholder since

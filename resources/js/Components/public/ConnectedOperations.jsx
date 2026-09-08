@@ -50,7 +50,6 @@ const NODES = [
     {
         key: 'hse',
         label: 'Health, Safety & Environment',
-        short: 'HSE',
         icon: ShieldCheck,
         x: 50,
         y: 8,
@@ -59,7 +58,6 @@ const NODES = [
     {
         key: 'hr',
         label: 'Human Resources',
-        short: 'People',
         icon: Users,
         x: 85.7,
         y: 22.7,
@@ -68,7 +66,6 @@ const NODES = [
     {
         key: 'project-management',
         label: 'Project Management',
-        short: 'Projects',
         icon: FolderKanban,
         x: 92,
         y: 50,
@@ -77,7 +74,6 @@ const NODES = [
     {
         key: 'logistics',
         label: 'Logistics / PPIC',
-        short: 'Materials',
         icon: PackageSearch,
         x: 85.7,
         y: 77.3,
@@ -86,7 +82,6 @@ const NODES = [
     {
         key: 'procurement',
         label: 'Procurement',
-        short: 'Buying',
         icon: ShoppingCart,
         x: 50,
         y: 92,
@@ -95,7 +90,6 @@ const NODES = [
     {
         key: 'maintenance',
         label: 'Maintenance',
-        short: 'Assets',
         icon: Wrench,
         x: 14.3,
         y: 77.3,
@@ -104,7 +98,6 @@ const NODES = [
     {
         key: 'quality-control',
         label: 'Quality Control',
-        short: 'Quality',
         icon: BadgeCheck,
         x: 8,
         y: 50,
@@ -113,7 +106,6 @@ const NODES = [
     {
         key: 'reports',
         label: 'Reports & Analytics',
-        short: 'Reporting',
         icon: LineChart,
         x: 14.3,
         y: 22.7,

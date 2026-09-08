@@ -3,7 +3,40 @@
 House style, and a deliberately honest list of mistakes that have actually happened in this
 codebase's history — kept here so they don't get repeated in a slightly different shape.
 
-## Known Pitfall (v2.57.0): `MAIL_MAILER=log` hides every mail defect until the day it doesn't
+## CRITICAL — Known Pitfall (v2.58.0): two layers answering the same question, differently
+
+A self-service customer could sign in, reach the Dashboard, and see a navy sidebar with **nothing in
+it**. The cause was not one bug but two rules that contradicted each other:
+
+- `EntitlementService::tenantCanUseWorkspace()` treats *"this tenant has no grant rows"* as
+  **unrestricted** — deliberate and documented, so a tenant provisioned before grants existed is
+  never locked out of its own product.
+- `HandleInertiaRequests` independently plucked the same pivot and forced every workspace not in the
+  list to `is_active: false`. An empty list therefore meant **nothing granted**.
+
+So the route layer let the customer through and the navigation layer showed them no way to get
+there. Neither piece of code was wrong on its own; they had simply never been asked to agree.
+
+Compounding it: `reports` and `administration` carry `tier: 'global'` — Settings, Users, Audit Logs,
+Report Center — and the sidebar's global state (the state you are in **on the Dashboard**) is built
+from exactly those two. `Package::defaultWorkspaceKeys()` listed departments only, so no plan
+granted them and every Starter and Professional tenant lost the entire sidebar. The same keys appear
+in `config('departments')`, so those tenants were also **403'd out of Reports and Analytics**.
+
+**Rules.**
+
+1. When two layers gate the same thing, one of them owns the answer and the other calls it.
+   `grantedWorkspaceKeys()` / `grantedModuleKeys()` are now that owner. Do not re-derive a grant by
+   plucking a pivot.
+2. **Not everything in a catalog is sellable.** `tier` had encoded that distinction from the start
+   and the entitlement layer ignored it. Ask `Workspace::isGlobalKey()`; never hardcode the pair.
+3. A `match` on a plan slug with `default => []` means "an unrecognised plan gets no product".
+   Fail open to the same rule the rest of the codebase uses, or the first custom plan is an outage.
+4. **Verify navigation as a customer, on a customer's plan.** Every prior pass was verified on the
+   development tenant, which is on Enterprise — the one plan that received every workspace and
+   therefore the only one where this bug was invisible.
+
+---## Known Pitfall (v2.57.0): `MAIL_MAILER=log` hides every mail defect until the day it doesn't
 
 Development ran on the `log` mailer, which writes messages to `storage/logs` instead of sending
 them. Nobody opens those files, so for the whole life of the project two things were wrong and

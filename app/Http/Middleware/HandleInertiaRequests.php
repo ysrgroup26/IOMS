@@ -6,6 +6,7 @@ use App\Models\Company;
 use App\Models\CompanySetting;
 use App\Models\Module;
 use App\Models\Workspace;
+use App\Services\EntitlementService;
 use App\Services\TenantReadinessService;
 use App\Services\WorkCenterService;
 use Illuminate\Http\Request;
@@ -152,11 +153,18 @@ class HandleInertiaRequests extends Middleware
                 // doesn't include. Guests/Platform Super Admin (no
                 // tenant) get an empty catalog -- neither has any
                 // tenant-side module visibility to manage.
+                // v2.58.0: asks EntitlementService rather than plucking the
+                // pivot directly. A tenant with NO grant rows means "not yet
+                // restricted" there, and meant "nothing at all" here -- so a
+                // tenant the route layer let through was shown no modules.
                 'available' => $user?->tenant
-                    ? $user->tenant->modules()->orderBy('sort_order')->pluck('label', 'modules.key')->all()
+                    ? Module::query()
+                        ->whereIn('key', app(EntitlementService::class)->grantedModuleKeys($user->tenant))
+                        ->orderBy('sort_order')
+                        ->pluck('label', 'modules.key')->all()
                     : [],
                 'enabled' => (function () use ($user) {
-                    $allKeys = $user?->tenant ? $user->tenant->modules()->pluck('key')->all() : [];
+                    $allKeys = $user?->tenant ? app(EntitlementService::class)->grantedModuleKeys($user->tenant) : [];
 
                     // v1.6.8 (second pass): reads the database directly,
                     // deliberately bypassing CompanySetting::get()'s cache
@@ -230,8 +238,34 @@ class HandleInertiaRequests extends Middleware
             // no changes at all. Guests/Platform Super Admin (no tenant)
             // get every workspace forced inactive -- neither has any
             // tenant-side nav to show.
+            //
+            // v2.58.0 -- THE EMPTY-SIDEBAR DEFECT WAS HERE.
+            //
+            // This plucked `tenant_workspaces` directly and forced every
+            // workspace NOT in that list to `is_active: false`. Three
+            // consequences, all of them live:
+            //
+            //  1. Reports and Administration are `tier: 'global'` -- the
+            //     application's own chrome -- and the sidebar's global
+            //     state (the state you are in ON THE DASHBOARD) is built
+            //     from exactly those two. No plan granted them:
+            //     Package::defaultWorkspaceKeys() listed departments only.
+            //     So every self-service Starter and Professional customer
+            //     reached the Dashboard and saw a navy sidebar with
+            //     NOTHING IN IT.
+            //  2. A tenant with no grant rows at all got an empty list,
+            //     which this read as "nothing granted" while
+            //     EntitlementService reads the same state as "unrestricted".
+            //  3. A package whose slug was not one of the three known ones
+            //     fell through `default => []` and hit both of the above.
+            //
+            // Resolved by asking EntitlementService::grantedWorkspaceKeys(),
+            // now the single answer both this and the route gate use.
+            // Explicit per-workspace grants still restrict departments
+            // exactly as before -- nothing was loosened except the two keys
+            // that were never sellable.
             'workspace_catalog' => function () use ($user) {
-                $grantedKeys = $user?->tenant ? $user->tenant->workspaces()->pluck('key')->all() : [];
+                $grantedKeys = app(EntitlementService::class)->grantedWorkspaceKeys($user?->tenant);
 
                 return Workspace::query()
                     ->orderBy('sort_order')

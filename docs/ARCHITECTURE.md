@@ -123,6 +123,40 @@ actually renders; anything there that looks dated is dated on purpose.
 **Documents on this system**: Purchase Order (Surat Pesanan), Purchase Requisition (FPB), Goods
 Receipt (BAST), Work Order (SPK), plus the existing Permit To Work.
 
+### Workspace grants: departments are sold, chrome is not (v2.58.0)
+
+`workspaces.tier` separates `department` from `global`. Only DEPARTMENT workspaces are plan
+capacity. `reports` and `administration` are the application's own chrome — Reports, Analytics,
+Report Center, Settings, Users, Audit Logs — and no plan may withhold them.
+
+**`EntitlementService::grantedWorkspaceKeys()` is the single answer** to "what may this tenant
+reach", used by both the route gate (`EnforceTenantEntitlement` →`tenantCanUseWorkspace()`) and the
+navigation layer (`HandleInertiaRequests` → `workspace_catalog` → `applyCatalog()` in
+`resources/js/lib/workspaces.js`). Before v2.58.0 those two derived it separately and disagreed; see
+CONVENTIONS' pitfall entry for what that cost.
+
+The rules it applies, in order: a global-tier workspace is always granted; a tenant with **no grant
+rows at all** is unrestricted (matching the documented entitlement default); otherwise the explicit
+grant list plus the global keys.
+
+### The IOMS email design system (v2.58.0)
+
+One shell — `resources/views/emails/layout.blade.php` — with three partials: `partials/logo`,
+`partials/button`, `partials/summary`. Every transactional message extends it, so no template draws
+its own header, button or key/value table.
+
+The shell provides a hidden **preheader** (the inbox preview line), the IOMS mark, a 3px **tone
+band** coloured by purpose (`brand` / `security` / `billing` / `success` / `danger`), an optional
+**eyebrow** category, the body, and a footer carrying the reply mailbox plus Terms / Privacy /
+Refund / Contact. Contextual variation is the tone band and eyebrow, and deliberately nothing more:
+a transactional email is read in four seconds by somebody who wants one fact.
+
+Table-based and inline-styled throughout — Outlook renders no flex or grid, and Gmail strips
+`<style>` in some contexts, so the single `<style>` block holds only media queries.
+
+**The logo lives in exactly one file.** `partials/logo.blade.php` renders a typographic wordmark
+today and carries the instructions for swapping in the official mark: absolute https URL, explicit
+width/height, keep the alt text and keep the wordmark as the image-blocked fallback.
 ### Domain, mailboxes and public identity (v2.55.0)
 
 **One setting names the domain.** `APP_URL` is what every absolute URL is built from — password

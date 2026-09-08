@@ -2,8 +2,10 @@
 
 namespace App\Services;
 
+use App\Models\Module;
 use App\Models\Tenant;
 use App\Models\User;
+use App\Models\Workspace;
 
 /**
  * v1.11.0 (SaaS Finalization Pass). The single, central authority for
@@ -115,11 +117,69 @@ class EntitlementService
             return false;
         }
 
+        // v2.58.0: a GLOBAL-tier workspace is never withheld by a plan.
+        // Reports and Administration are the application's own chrome, not
+        // sold capacity -- see Workspace::globalKeys(). Without this a
+        // Starter or Professional tenant was 403'd out of Reports,
+        // Analytics, Report Center and Audit Logs, because both keys
+        // appear in config('departments') and this check is enabled by
+        // default.
+        if (Workspace::isGlobalKey($workspaceKey)) {
+            return true;
+        }
+
         if (! $tenant->workspaces()->exists()) {
             return true;
         }
 
         return $tenant->workspaces()->where('key', $workspaceKey)->exists();
+    }
+
+    /**
+     * v2.58.0 -- THE ONE ANSWER TO "WHICH WORKSPACES DOES THIS TENANT
+     * HAVE", used by the navigation layer as well as the route gate.
+     *
+     * It exists because the two layers had drifted into contradicting each
+     * other. `tenantCanUseWorkspace()` treats "this tenant has no grant
+     * rows at all" as UNRESTRICTED -- a deliberate, documented decision so
+     * a tenant provisioned before grants existed is never locked out of
+     * its own product. HandleInertiaRequests independently implemented the
+     * opposite: it plucked the grant rows and forced every workspace not
+     * in that list to `is_active: false`, so an empty list hid the ENTIRE
+     * sidebar. The same tenant was therefore allowed through every route
+     * and shown no navigation to reach them with.
+     *
+     * Both callers now ask here, so they cannot disagree again.
+     */
+    public function grantedWorkspaceKeys(?Tenant $tenant): array
+    {
+        $global = Workspace::globalKeys();
+
+        if (! $tenant) {
+            return $global;
+        }
+
+        $granted = $tenant->workspaces()->pluck('key')->all();
+
+        // No grants recorded == not yet restricted, exactly as
+        // tenantCanUseWorkspace() reads it.
+        if ($granted === []) {
+            return Workspace::query()->pluck('key')->all();
+        }
+
+        return array_values(array_unique([...$granted, ...$global]));
+    }
+
+    /** The module equivalent, with the same "no grants recorded == unrestricted" rule. */
+    public function grantedModuleKeys(?Tenant $tenant): array
+    {
+        if (! $tenant) {
+            return [];
+        }
+
+        $granted = $tenant->modules()->pluck('key')->all();
+
+        return $granted === [] ? Module::query()->pluck('key')->all() : $granted;
     }
 
     /**

@@ -22,7 +22,7 @@ import {
     Users, Building2, CalendarDays, HardHat, CheckCircle2, AlertTriangle, Plus, UserCog, ArrowRight,
     Sparkles, X, ClipboardCheck, ShoppingCart, Boxes, Box, Wrench, Flag, Clock,
     Eye, FileWarning, ShieldAlert, FlaskConical, GraduationCap, PackagePlus, PackageCheck,
-    ArrowRightLeft, FileStack, UserPlus, CheckSquare, Recycle, Lock, Circle,
+    ArrowRightLeft, FileStack, UserPlus, CheckSquare, Recycle, Lock, Circle, ChevronDown,
 } from 'lucide-react';
 
 // v2.2.0 (IOMS OS Ecosystem pass, Part 5): matches every icon key
@@ -57,6 +57,8 @@ export default function Dashboard({
     const deptPrefixes = auth?.user?.department_prefixes ?? null;
     const now = useClock();
     const [announcementDismissed, setAnnouncementDismissed] = useState(false);
+    // Collapsed by default -- see the release panel below.
+    const [announcementOpen, setAnnouncementOpen] = useState(false);
 
     // Company filter is kept separate from PeriodFilter so all four
     // filter values (company/year/month) are always sent together.
@@ -218,8 +220,8 @@ export default function Dashboard({
                 after release (computed server-side) plus a per-session
                 client-side dismiss. */}
             {showAnnouncement && !announcementDismissed && (
-                <div className="mt-4 flex items-start gap-3 rounded-xl border border-brand-200 bg-brand-50/60 p-4">
-                    <div className="flex h-9 w-9 shrink-0 items-center justify-center rounded-lg bg-brand-100 text-brand-700">
+                <div className="mt-3 flex items-start gap-3 rounded-xl border border-brand-200 bg-brand-50/60 px-4 py-3">
+                    <div className="flex h-8 w-8 shrink-0 items-center justify-center rounded-lg bg-brand-100 text-brand-700">
                         <Sparkles className="h-4.5 w-4.5" />
                     </div>
                     <div className="min-w-0 flex-1">
@@ -229,14 +231,30 @@ export default function Dashboard({
                                 {version?.release_date && new Date(version.release_date).toLocaleDateString('en-US', { day: 'numeric', month: 'short', year: 'numeric' })}
                             </Badge>
                         </div>
-                        <ul className="mt-2 grid grid-cols-1 gap-x-4 gap-y-1 sm:grid-cols-2">
-                            {version?.whats_new?.slice(0, 6).map((item, i) => (
-                                <li key={i} className="flex items-start gap-1.5 text-xs text-graphite-600">
-                                    <CheckCircle2 className="mt-0.5 h-3.5 w-3.5 shrink-0 text-emerald-500" />
-                                    {item}
-                                </li>
-                            ))}
-                        </ul>
+                        {/* v2.58.0: COLLAPSED BY DEFAULT. Six release notes in a
+                            two-column grid was a full band of engineering changelog
+                            sitting above a customer's operational figures, on every
+                            release. The announcement still arrives and nothing is
+                            lost -- it is one line until somebody asks for it. */}
+                        <button
+                            type="button"
+                            onClick={() => setAnnouncementOpen((v) => !v)}
+                            className="mt-0.5 flex items-center gap-1 text-xs font-medium text-brand-700 hover:underline"
+                            aria-expanded={announcementOpen}
+                        >
+                            What&apos;s new
+                            <ChevronDown className={cn('h-3.5 w-3.5 transition-transform', announcementOpen && 'rotate-180')} />
+                        </button>
+                        {announcementOpen && (
+                            <ul className="mt-2 grid grid-cols-1 gap-x-4 gap-y-1 sm:grid-cols-2">
+                                {version?.whats_new?.slice(0, 6).map((item, i) => (
+                                    <li key={i} className="flex items-start gap-1.5 text-xs text-graphite-600">
+                                        <CheckCircle2 className="mt-0.5 h-3.5 w-3.5 shrink-0 text-emerald-500" />
+                                        {item}
+                                    </li>
+                                ))}
+                            </ul>
+                        )}
                     </div>
                     <button onClick={() => setAnnouncementDismissed(true)} className="rounded p-1 text-graphite-400 hover:bg-white hover:text-graphite-600">
                         <X className="h-4 w-4" />
@@ -260,12 +278,23 @@ export default function Dashboard({
                 is "current state" and the other is "operational
                 attention," the exact hierarchy this pass's own directive
                 asks the Dashboard to lead with. */}
-            <p className="mt-4 text-[11px] font-semibold uppercase tracking-wide text-graphite-400 dark:text-slate-500">Company Snapshot</p>
-            <div className="mt-2 grid grid-cols-2 gap-3 lg:grid-cols-4">
-                <StatCard icon={Users} value={`${formatNumber(companyHeadcount.overall_total)} Employees`} label="Active Workforce" href={deptSafeHref('employees.index', deptPrefixes)} />
-                <StatCard icon={FolderKanban} value={`${formatNumber(activeProjectsCount)} Active Projects`} label="Running Projects" accent="green" href={deptSafeHref('projects.index', deptPrefixes)} />
-                <StatCard icon={Building2} value={formatNumber(companyHeadcount.by_company.length)} label="Companies" accent="neutral" href={deptSafeHref('settings.index', deptPrefixes) ? route('settings.index') + '?tab=companies' : undefined} />
-                <StatCard icon={CalendarDays} value={currentMonth} label="Current Period" accent="neutral" href={deptSafeHref('kpi-records.index', deptPrefixes, { year: filters.year, month: filters.month })} />
+            {/* v2.58.0 -- DENSITY PASS.
+                Three changes, none of them decorative:
+
+                1. "Current Period" is gone. It was never a metric -- it
+                   restated the year/month selector sitting a few pixels
+                   above it, and cost a quarter of this row to do so.
+                2. "Companies" is now "Operating Units", the vocabulary the
+                   product has used since v2.54.0. The number was already
+                   operating units; only the label was two releases stale.
+                3. `size="sm"` on both bands. These ten cards were the
+                   tallest thing between a customer and their charts, and a
+                   figure of 0 does not need 18px type to be read. */}
+            <p className="mt-3 text-[11px] font-semibold uppercase tracking-wide text-graphite-400 dark:text-slate-500">Company Snapshot</p>
+            <div className="mt-1.5 grid grid-cols-1 gap-2.5 sm:grid-cols-3">
+                <StatCard size="sm" icon={Users} value={`${formatNumber(companyHeadcount.overall_total)} Employees`} label="Active Workforce" href={deptSafeHref('employees.index', deptPrefixes)} />
+                <StatCard size="sm" icon={FolderKanban} value={`${formatNumber(activeProjectsCount)} Active Projects`} label="Running Projects" accent="green" href={deptSafeHref('projects.index', deptPrefixes)} />
+                <StatCard size="sm" icon={Building2} value={formatNumber(companyHeadcount.by_company.length)} label="Operating Units" accent="neutral" href={deptSafeHref('settings.index', deptPrefixes) ? route('settings.index') + '?tab=companies' : undefined} />
             </div>
 
             {/* Milestone 4, Acceleration Part 7 -- Executive cross-department
@@ -278,14 +307,14 @@ export default function Dashboard({
                 DIFFERENT department renders without a link instead of a
                 click that would 403 (RestrictDepartmentAccess itself is
                 unchanged; this only avoids exposing a link it would reject). */}
-            <p className="mt-4 text-[11px] font-semibold uppercase tracking-wide text-graphite-400 dark:text-slate-500">Needs Attention</p>
-            <div className="mt-2 grid grid-cols-2 gap-3 sm:grid-cols-3 lg:grid-cols-6">
-                <StatCard icon={AlertTriangle} value={formatNumber(openIncidentsCount)} label="Open Incidents" accent={openIncidentsCount > 0 ? 'red' : 'green'} href={deptSafeHref('incidents.index', deptPrefixes)} />
-                <StatCard icon={ClipboardCheck} value={formatNumber(openCapaCount)} label="Open CAPA" accent={openCapaCount > 0 ? 'amber' : 'green'} href={deptSafeHref('corrective-actions.index', deptPrefixes)} />
-                <StatCard icon={ShoppingCart} value={formatNumber(pendingProcurementCount)} label="Pending Procurement" accent="purple" href={deptSafeHref('procurement.dashboard', deptPrefixes)} />
-                <StatCard icon={Boxes} value={formatNumber(stockAlertCount)} label="Stock Alerts" accent={stockAlertCount > 0 ? 'amber' : 'green'} href={deptSafeHref('stock.index', deptPrefixes, { low_stock: 1 })} />
-                <StatCard icon={Box} value={formatNumber(assetCount)} label="Active Assets" accent="purple" href={deptSafeHref('assets.index', deptPrefixes)} />
-                <StatCard icon={Wrench} value={formatNumber(maintenanceDueCount)} label="Maintenance Due (7d)" accent={maintenanceDueCount > 0 ? 'amber' : 'green'} href={deptSafeHref('work-orders.index', deptPrefixes)} />
+            <p className="mt-3 text-[11px] font-semibold uppercase tracking-wide text-graphite-400 dark:text-slate-500">Needs Attention</p>
+            <div className="mt-1.5 grid grid-cols-2 gap-2.5 sm:grid-cols-3 lg:grid-cols-6">
+                <StatCard size="sm" icon={AlertTriangle} value={formatNumber(openIncidentsCount)} label="Open Incidents" accent={openIncidentsCount > 0 ? 'red' : 'green'} href={deptSafeHref('incidents.index', deptPrefixes)} />
+                <StatCard size="sm" icon={ClipboardCheck} value={formatNumber(openCapaCount)} label="Open CAPA" accent={openCapaCount > 0 ? 'amber' : 'green'} href={deptSafeHref('corrective-actions.index', deptPrefixes)} />
+                <StatCard size="sm" icon={ShoppingCart} value={formatNumber(pendingProcurementCount)} label="Pending Procurement" accent="purple" href={deptSafeHref('procurement.dashboard', deptPrefixes)} />
+                <StatCard size="sm" icon={Boxes} value={formatNumber(stockAlertCount)} label="Stock Alerts" accent={stockAlertCount > 0 ? 'amber' : 'green'} href={deptSafeHref('stock.index', deptPrefixes, { low_stock: 1 })} />
+                <StatCard size="sm" icon={Box} value={formatNumber(assetCount)} label="Active Assets" accent="purple" href={deptSafeHref('assets.index', deptPrefixes)} />
+                <StatCard size="sm" icon={Wrench} value={formatNumber(maintenanceDueCount)} label="Maintenance Due (7d)" accent={maintenanceDueCount > 0 ? 'amber' : 'green'} href={deptSafeHref('work-orders.index', deptPrefixes)} />
             </div>
 
             {/* Pending Tasks -- Universal Task Engine Dashboard integration
@@ -354,8 +383,8 @@ export default function Dashboard({
                 a new category here requires zero code changes. Each card
                 links into the KPI Records list pre-filtered to that
                 category + the current period/company. */}
-            <div className="mt-4">
-                <p className="mb-2 text-xs font-semibold uppercase tracking-wide text-graphite-400">KPI Summary</p>
+            <div className="mt-3">
+                <p className="mb-1.5 text-[11px] font-semibold uppercase tracking-wide text-graphite-400">KPI Summary</p>
                 <div className="grid grid-cols-2 gap-2 sm:grid-cols-4 lg:grid-cols-8">
                     {summary.categories.map((c) => (
                         <KpiSummaryCard

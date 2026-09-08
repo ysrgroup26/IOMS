@@ -84,14 +84,35 @@ class Package extends Model
      * Keyed by slug rather than name so a future rename of the display
      * name doesn't silently break this mapping.
      */
+    /**
+     * The DEPARTMENT workspaces a plan includes.
+     *
+     * v2.58.0: global-tier workspaces (Reports, Administration) are unioned
+     * in for every plan, and `default` no longer means "nothing". Both were
+     * live defects. Reports and Administration are the application's own
+     * chrome — Settings, Users, Audit Logs, Report Center — not sold
+     * capacity, and listing only departments here is what left every
+     * self-service Starter and Professional tenant with an empty sidebar
+     * and a 403 on Reports.
+     *
+     * An unrecognised slug now grants the global keys rather than an empty
+     * array. It still records no departments, and `grantedWorkspaceKeys()`
+     * reads "no department grants" through the same fail-open rule this
+     * codebase applies to every other unconfigured tenant, rather than
+     * inventing a second, contradictory policy.
+     */
     public function defaultWorkspaceKeys(): array
     {
-        return match ($this->slug) {
+        $global = Workspace::globalKeys();
+
+        $departments = match ($this->slug) {
             'starter' => ['hse'],
             'professional' => ['hse', 'hr'],
-            'enterprise' => Workspace::pluck('key')->all(),
+            'enterprise' => Workspace::where('tier', Workspace::TIER_DEPARTMENT)->pluck('key')->all(),
             default => [],
         };
+
+        return array_values(array_unique([...$departments, ...$global]));
     }
 
     /**

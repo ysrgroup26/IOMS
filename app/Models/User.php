@@ -485,6 +485,31 @@ class User extends Authenticatable
      * public site's authenticated redirect, any future deep-link handler
      * -- gets the same answer instead of each re-deriving it.
      */
+    /**
+     * v2.57.0 -- routes Laravel's password broker through the IOMS mail
+     * identity.
+     *
+     * The broker calls this method; the default implementation sends
+     * Laravel's stock ResetPassword notification, which carries scaffolding
+     * wording, no IOMS letterhead, no Reply-To, and a From address taken
+     * from MAIL_FROM_ADDRESS instead of the IOMS mailbox configuration
+     * every other IOMS email uses. That went unnoticed because MAIL_MAILER
+     * was `log` — the message was written to a file and never delivered.
+     *
+     * Overriding here rather than publishing a Notification keeps one mail
+     * architecture: PasswordResetLink is an ordinary Mailable on the same
+     * `emails.layout` shell as the other three.
+     */
+    public function sendPasswordResetNotification($token): void
+    {
+        \Illuminate\Support\Facades\Mail::to($this->email)->send(
+            new \App\Mail\PasswordResetLink(
+                url(route('password.reset', ['token' => $token, 'email' => $this->email], false)),
+                (int) config('auth.passwords.users.expire', 60),
+            )
+        );
+    }
+
     public function landingRouteName(): string
     {
         return $this->isFieldUser() ? 'my-work' : 'dashboard';

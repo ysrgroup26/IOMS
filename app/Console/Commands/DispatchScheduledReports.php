@@ -17,8 +17,8 @@ use Maatwebsite\Excel\Facades\Excel;
  * Milestone 3 (Report Center, Task #65). Generates every due
  * ReportSchedule's file into storage/app/reports and notifies the
  * owning user through the Notification Center -- deliberately NOT an
- * email dispatcher: no Mail transport is configured anywhere in this
- * app today (see docs/ADR/020-report-center.md), so building an email
+ * email dispatcher: scheduled reports were never wired to a Mail
+ * transport (see docs/ADR/020-report-center.md), so building an email
  * pipeline here would be exactly the kind of unverifiable "looks done,
  * isn't" feature CLAUDE.md warns against. The notification links back
  * into Report Center, where the same dataset can be re-downloaded live

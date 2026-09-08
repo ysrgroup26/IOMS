@@ -456,12 +456,55 @@ SESSION_SECURE_COOKIE=true
 # password-reset and invoice emails.
 TRUSTED_PROXIES=*
 
-MAIL_FROM_ADDRESS="noreply@iomsuite.com"
 IOMS_SUPPORT_EMAIL=support@iomsuite.com
 IOMS_BILLING_EMAIL=billing@iomsuite.com
 IOMS_NOREPLY_EMAIL=noreply@iomsuite.com
 IOMS_HELLO_EMAIL=hello@iomsuite.com
 IOMS_WEBSITE=iomsuite.com
+```
+
+### Production mail (v2.57.0)
+
+The four mailboxes live on cPanel. IOMS sends through the `noreply@` account and never through the
+other three — they exist to receive replies.
+
+**Safe to commit; these are configuration, not credentials:**
+
+```env
+MAIL_MAILER=smtp
+MAIL_HOST=mail.iomsuite.com
+MAIL_PORT=465
+MAIL_SCHEME=smtps
+MAIL_USERNAME=noreply@iomsuite.com
+```
+
+**Entered by hand on the server, never in git — this is the only mail secret:**
+
+```env
+MAIL_PASSWORD=
+```
+
+`MAIL_FROM_ADDRESS` does not need setting: `config/mail.php` falls back to `IOMS_NOREPLY_EMAIL`, so
+configuring the four mailboxes is enough and the sender identity follows. Set it only to override.
+
+**There is no `MAIL_ENCRYPTION`.** Laravel 11 removed it — the key does not exist in `config/mail.php`,
+so `MAIL_ENCRYPTION=ssl` would silently do nothing. Implicit TLS on port 465 comes from the *scheme*;
+Laravel infers `smtps` from the port on its own, and `MAIL_SCHEME=smtps` states it so the setting
+survives a later port change.
+
+Who each message replies to, all from `IOMS <noreply@iomsuite.com>`:
+
+| Email | Reply-To |
+|---|---|
+| Invoice issued | `billing@` |
+| Workspace activated | `support@` |
+| Password reset | `support@` |
+| Registration verification | `hello@` |
+
+Check delivery after entering the password (writes a real message, so use your own address):
+
+```bash
+php artisan tinker --execute="Mail::raw('IOMS SMTP check', fn(\$m) => \$m->to('you@example.com')->subject('IOMS SMTP check'));"
 ```
 
 **`APP_NAME` must be `IOMS`.** The long-form expansion is not the product name — see
@@ -508,6 +551,7 @@ deliberately no configuration key for a tax or registration number at all.
 - [ ] `SANCTUM_STATEFUL_DOMAINS` matches your production domain
 - [ ] `TRUSTED_PROXIES` set if the app sits behind a TLS-terminating proxy
 - [ ] Payment notification URL registered against the live domain
+- [ ] `MAIL_PASSWORD` entered on the server only; SPF/DKIM/DMARC valid for the sending domain
 - [ ] No credential is committed — every key in `.env.example` ships empty
 - [ ] Database backups scheduled outside manual button-clicks
 

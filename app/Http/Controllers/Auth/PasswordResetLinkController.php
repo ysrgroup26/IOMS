@@ -17,12 +17,17 @@ class PasswordResetLinkController extends Controller
     }
 
     /**
-     * Uses Laravel's built-in Password broker (password_reset_tokens table
-     * already existed from the original scaffolding; User already has the
-     * Notifiable trait needed for the default reset-link notification) --
-     * no new infrastructure required. MAIL_MAILER defaults to `log` in
-     * .env.example, so the reset link is written to storage/logs, not
-     * actually emailed, until real SMTP credentials are configured.
+     * Uses Laravel's built-in Password broker -- the `password_reset_tokens`
+     * table came with the original scaffolding and User already has the
+     * Notifiable trait.
+     *
+     * v2.57.0: what the broker SENDS is no longer Laravel's stock
+     * notification. `User::sendPasswordResetNotification()` routes it
+     * through App\Mail\PasswordResetLink, so the message carries the IOMS
+     * letterhead, comes from the noreply mailbox and replies to support.
+     * That was invisible while MAIL_MAILER was `log` -- which it still is
+     * locally, so a reset link lands in storage/logs rather than an inbox
+     * until real SMTP credentials are configured on the server.
      */
     public function store(Request $request): RedirectResponse
     {

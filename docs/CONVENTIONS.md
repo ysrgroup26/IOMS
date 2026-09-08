@@ -3,7 +3,34 @@
 House style, and a deliberately honest list of mistakes that have actually happened in this
 codebase's history — kept here so they don't get repeated in a slightly different shape.
 
-## Convention (v2.55.0): never render a legal or identity fact the deployment does not have
+## Known Pitfall (v2.57.0): `MAIL_MAILER=log` hides every mail defect until the day it doesn't
+
+Development ran on the `log` mailer, which writes messages to `storage/logs` instead of sending
+them. Nobody opens those files, so for the whole life of the project two things were wrong and
+invisible:
+
+- The **password reset email** was Laravel's stock `ResetPassword` notification — scaffolding
+  wording, no IOMS letterhead, no Reply-To, and a From address taken from `MAIL_FROM_ADDRESS`
+  rather than the IOMS mailbox configuration every other IOMS email uses. It is the message a SaaS
+  sends most often, and it would have become live the instant SMTP credentials were entered.
+- `MAIL_FROM_ADDRESS` in the local `.env` was still `hse@shipyard.local` — **two product renames
+  old**. A From address the sending domain does not authorise is the ordinary reason transactional
+  mail lands in spam.
+
+Both were found by a test asserting envelopes, not by reading code.
+
+**Rules.**
+
+1. Assert the ENVELOPE of every Mailable — From, Reply-To, subject. It needs no transport, no
+   credential and no network, so there is no excuse not to.
+2. Anything that sends mail without an explicit From inherits `config('mail.from')`. That value now
+   chains to `IOMS_NOREPLY_EMAIL` (see `config/mail.php`) so configuring the four IOMS mailboxes is
+   enough; do not reintroduce a second place to set the sender.
+3. `MAIL_ENCRYPTION` does not exist in Laravel 11+. Setting it does nothing. Implicit TLS comes from
+   `MAIL_SCHEME` (or is inferred from port 465). Documenting the dead variable is worse than
+   documenting nothing, because it reads as configured.
+
+---## Convention (v2.55.0): never render a legal or identity fact the deployment does not have
 
 The public Terms, Privacy and Refund pages state who operates IOMS, from what address, and under
 which law. Those are legally meaningful and IOMS does not have them yet.

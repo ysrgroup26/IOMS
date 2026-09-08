@@ -433,12 +433,82 @@ a VPS's Nginx config can reference any path), standard Laravel rewrite to `index
 Settings → Backup Database shells out to `mysqldump`; ensure the binary is installed and the DB user
 has sufficient privileges. For unattended backups, also schedule `mysqldump` via cron directly.
 
+### Production environment: the official domain (v2.56.0)
+
+IOMS's official domain is **iomsuite.com**. No domain is hardcoded anywhere in application code, so
+moving a deployment onto it is entirely an environment change — these values, applied by hand to the
+production `.env`. Nothing in this list is a secret and nothing here belongs in git.
+
+```env
+APP_NAME="IOMS"
+APP_ENV=production
+APP_DEBUG=false
+APP_URL=https://iomsuite.com
+
+SANCTUM_STATEFUL_DOMAINS=iomsuite.com
+SESSION_SECURE_COOKIE=true
+# Only if you actually need a cookie shared across subdomains. A wrong value
+# here logs everybody out on every request.
+# SESSION_DOMAIN=iomsuite.com
+
+# cPanel terminates TLS at a proxy and forwards over plain HTTP. Without this
+# Laravel reads the request as http:// and puts insecure links into
+# password-reset and invoice emails.
+TRUSTED_PROXIES=*
+
+MAIL_FROM_ADDRESS="noreply@iomsuite.com"
+IOMS_SUPPORT_EMAIL=support@iomsuite.com
+IOMS_BILLING_EMAIL=billing@iomsuite.com
+IOMS_NOREPLY_EMAIL=noreply@iomsuite.com
+IOMS_HELLO_EMAIL=hello@iomsuite.com
+IOMS_WEBSITE=iomsuite.com
+```
+
+**`APP_NAME` must be `IOMS`.** The long-form expansion is not the product name — see
+`config/ioms.php`'s Canonical Product Identity block, which exists because that expansion kept
+surfacing in browser titles and generated documents.
+
+After editing `.env` on the server:
+
+```bash
+php artisan config:clear && php artisan config:cache && php artisan route:cache
+```
+
+**Register the payment notification URL** in the provider dashboard against the new domain:
+`https://iomsuite.com/webhooks/payment/midtrans`. Until that points at the live domain, a verified
+payment cannot activate a subscription — the webhook is the only thing that can.
+
+**Serving both domains.** `ioms.web.id` and `iomsuite.com` may point at the same application while
+the migration settles. Only `APP_URL` decides which domain generated links use, so email links,
+invoice links and the payment callback all follow whichever one is set — the other domain keeps
+serving pages but should not be the one customers are sent links for.
+
+### Legal identity (optional, empty by default)
+
+The public Terms, Privacy and Refund pages omit any clause whose fact is unconfigured rather than
+printing a placeholder. Set these once official information exists:
+
+```env
+IOMS_LEGAL_ENTITY=
+IOMS_LEGAL_ADDRESS=
+IOMS_JURISDICTION=
+IOMS_LEGAL_VENUE=
+```
+
+`IOMS_LEGAL_ADDRESS` is for an address intended for **publication**. The address a payment provider
+verifies for KYC is frequently a residential one and does not belong on a public page; there is
+deliberately no configuration key for a tax or registration number at all.
+
 ### Security checklist before going live
 
 - [ ] Change all four default seeded passwords
 - [ ] `APP_DEBUG=false`
 - [ ] HTTPS enforced, `SESSION_SECURE_COOKIE=true`
+- [ ] `APP_URL` is the official https domain, with no trailing slash
 - [ ] `SANCTUM_STATEFUL_DOMAINS` matches your production domain
+- [ ] `TRUSTED_PROXIES` set if the app sits behind a TLS-terminating proxy
+- [ ] Payment notification URL registered against the live domain
+- [ ] No credential is committed — every key in `.env.example` ships empty
 - [ ] Database backups scheduled outside manual button-clicks
 
 ---

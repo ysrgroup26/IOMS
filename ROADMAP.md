@@ -1,6 +1,6 @@
 # Roadmap
 
-**Integrated Operations Management System (IOMS) — Industrial Operations Platform**
+**IOMS — Industrial Operations Platform**
 
 This roadmap reflects the intended direction of the application. It is deliberately conservative:
 the product philosophy is **simple, fast, minimal clicks, clean UI** — *not* an ERP. Every future

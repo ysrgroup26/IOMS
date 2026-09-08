@@ -20,9 +20,9 @@ import { cn } from '@/lib/utils';
  * not happened yet.
  */
 const FLOW = [
-    { key: 'verify', label: 'Konfirmasi email', icon: Mail },
-    { key: 'pay', label: 'Pembayaran', icon: CreditCard },
-    { key: 'provision', label: 'Workspace siap', icon: ShieldCheck },
+    { key: 'verify', label: 'Confirm email', icon: Mail },
+    { key: 'pay', label: 'Payment', icon: CreditCard },
+    { key: 'provision', label: 'Workspace ready', icon: ShieldCheck },
 ];
 
 export default function RegistrationStatus({ registration, paymentConfigured, contactEmail }) {
@@ -53,12 +53,12 @@ export default function RegistrationStatus({ registration, paymentConfigured, co
                 eyebrow={registration.reference}
                 title={
                     isProvisioned
-                        ? 'Workspace IOMS Anda sudah siap.'
+                        ? 'Your IOMS workspace is ready.'
                         : isPaid
-                            ? 'Pembayaran diterima — penyiapan sedang berjalan.'
+                            ? 'Payment received — your workspace is being prepared.'
                             : isVerified
-                                ? 'Selesaikan pembayaran untuk mengaktifkan IOMS.'
-                                : 'Konfirmasi alamat email Anda untuk melanjutkan.'
+                                ? 'Complete payment to activate IOMS.'
+                                : 'Confirm your email address to continue.'
                 }
                 subtitle={registration.company_name}
                 size="sm"
@@ -72,8 +72,8 @@ export default function RegistrationStatus({ registration, paymentConfigured, co
                     {errors.payment && <Notice tone="danger">{errors.payment}</Notice>}
                     {registration.is_expired && !isProvisioned && (
                         <Notice tone="danger">
-                            Pendaftaran ini sudah kedaluwarsa. Silakan mulai lagi dari halaman Mulai Berlangganan,
-                            atau hubungi kami bila Anda sudah melakukan pembayaran.
+                            This registration has expired. Please start again from Get Started, or contact us if
+                            you have already paid.
                         </Notice>
                     )}
 
@@ -113,7 +113,7 @@ export default function RegistrationStatus({ registration, paymentConfigured, co
                                         <span className="min-w-0">
                                             <span className="block text-[13px] font-semibold text-navy-900">{s.label}</span>
                                             <span className="block text-[11px] text-graphite-500">
-                                                {done ? 'Selesai' : current ? 'Sedang berjalan' : 'Menunggu'}
+                                                {done ? 'Done' : current ? 'In progress' : 'Waiting'}
                                             </span>
                                         </span>
                                     </li>
@@ -124,14 +124,14 @@ export default function RegistrationStatus({ registration, paymentConfigured, co
 
                     {/* Summary */}
                     <div className="rounded-xl border border-steel-200/70 bg-white p-6 shadow-panel">
-                        <h2 className="text-[15px] font-semibold tracking-tight text-navy-900">Data pendaftaran</h2>
+                        <h2 className="text-[15px] font-semibold tracking-tight text-navy-900">Registration details</h2>
                         <dl className="mt-4 grid gap-x-6 gap-y-3 sm:grid-cols-2">
-                            <Row label="Nomor Referensi" value={registration.reference} />
-                            <Row label="Perusahaan" value={registration.company_legal_name} />
+                            <Row label="Reference" value={registration.reference} />
+                            <Row label="Company" value={registration.company_legal_name} />
                             <Row label="Administrator" value={registration.contact_email} />
-                            <Row label="Paket" value={registration.plan_name} />
-                            <Row label="Siklus" value={registration.billing_cycle === 'monthly' ? 'Bulanan' : 'Tahunan'} />
-                            <Row label="Jumlah" value={registration.amount} strong />
+                            <Row label="Plan" value={registration.plan_name} />
+                            <Row label="Billing cycle" value={registration.billing_cycle === 'monthly' ? 'Monthly' : 'Annual'} />
+                            <Row label="Amount" value={registration.amount} strong />
                             {registration.invoice_number && (
                                 <Row label="Invoice" value={`${registration.invoice_number} · ${registration.invoice_status}`} />
                             )}
@@ -148,7 +148,7 @@ export default function RegistrationStatus({ registration, paymentConfigured, co
                                 rel="noopener"
                                 className="mt-4 inline-flex items-center gap-1.5 text-sm font-medium text-brand-700 hover:underline"
                             >
-                                <FileDown className="h-4 w-4" /> Unduh invoice (PDF)
+                                <FileDown className="h-4 w-4" /> Download invoice (PDF)
                             </a>
                         )}
                     </div>
@@ -158,59 +158,59 @@ export default function RegistrationStatus({ registration, paymentConfigured, co
                         <div className="rounded-xl border border-success/20 bg-gradient-to-b from-success/[0.08] via-white to-white p-6 text-center shadow-panel">
                             <CheckCircle2 className="mx-auto h-8 w-8 text-success" />
                             <h2 className="mt-3 text-base font-semibold tracking-tight text-navy-900">
-                                Workspace Anda sudah aktif
+                                Your workspace is active
                             </h2>
                             <p className="mx-auto mt-2 max-w-md text-sm leading-relaxed text-graphite-600">
-                                Masuk menggunakan {registration.contact_email} dan kata sandi yang Anda buat saat
-                                mendaftar. IOMS tidak pernah mengirim kata sandi lewat email.
+                                Sign in with {registration.contact_email} and the password you chose when you
+                                registered. IOMS never sends a password by email.
                             </p>
                             <Button className="mt-5" asChild>
-                                <Link href={route('login')}>Masuk ke IOMS <ArrowRight className="h-4 w-4" /></Link>
+                                <Link href={route('login')}>Sign in to IOMS <ArrowRight className="h-4 w-4" /></Link>
                             </Button>
                         </div>
                     ) : isPaid ? (
                         <div className="rounded-xl border border-steel-200/70 bg-white p-6 text-center shadow-panel">
                             <Clock className="mx-auto h-8 w-8 text-brand-600" />
                             <h2 className="mt-3 text-base font-semibold tracking-tight text-navy-900">
-                                Pembayaran dikonfirmasi — workspace sedang disiapkan
+                                Payment confirmed — preparing your workspace
                             </h2>
                             <p className="mx-auto mt-2 max-w-md text-sm leading-relaxed text-graphite-600">
-                                Proses ini biasanya selesai dalam hitungan detik. Anda akan menerima email begitu akun
-                                administrator Anda siap.
+                                This usually finishes within seconds. You will receive an email as soon as your
+                                administrator account is ready.
                             </p>
                         </div>
                     ) : !isVerified ? (
                         <div className="rounded-xl border border-steel-200/70 bg-white p-6 text-center shadow-panel">
                             <Mail className="mx-auto h-8 w-8 text-brand-600" />
                             <h2 className="mt-3 text-base font-semibold tracking-tight text-navy-900">
-                                Periksa kotak masuk Anda
+                                Check your inbox
                             </h2>
                             <p className="mx-auto mt-2 max-w-md text-sm leading-relaxed text-graphite-600">
-                                Kami mengirim tautan konfirmasi ke <strong className="text-navy-800">{registration.contact_email}</strong>.
-                                Konfirmasi untuk melanjutkan ke pembayaran.
+                                We sent a confirmation link to <strong className="text-navy-800">{registration.contact_email}</strong>.
+                                Confirm it to continue to payment.
                             </p>
                             <form onSubmit={resend}>
                                 <Button type="submit" variant="outline" className="mt-5" disabled={processing}>
-                                    Kirim ulang email konfirmasi
+                                    Resend confirmation email
                                 </Button>
                             </form>
                         </div>
                     ) : (
                         <div className="rounded-xl border border-steel-200/70 bg-gradient-to-b from-steel-100/70 via-white to-white p-6 shadow-panel">
-                            <h2 className="text-[15px] font-semibold tracking-tight text-navy-900">Selesaikan pembayaran</h2>
+                            <h2 className="text-[15px] font-semibold tracking-tight text-navy-900">Complete your payment</h2>
                             <p className="mt-2 text-sm leading-relaxed text-graphite-600">
                                 {paymentConfigured
-                                    ? 'Anda akan diarahkan ke penyedia pembayaran kami. IOMS tidak pernah menerima atau menyimpan data kartu Anda, dan workspace hanya aktif setelah penyedia pembayaran mengonfirmasi pembayaran ke server kami.'
-                                    : 'Pembayaran online belum diaktifkan pada instalasi ini. Melanjutkan akan menerbitkan invoice Anda dan tim kami akan menghubungi Anda dengan instruksi pembayaran — tidak ada penagihan di halaman ini.'}
+                                    ? 'You will see your order summary next, then pay through our licensed payment provider. IOMS never receives or stores your card details, and your workspace activates only once the provider confirms the payment to our server.'
+                                    : 'Online payment is not enabled on this deployment yet. Continuing issues your invoice and our team will contact you with payment instructions — nothing is charged on this page.'}
                             </p>
 
                             <form onSubmit={pay}>
                                 <Button type="submit" className="mt-5 w-full sm:w-auto" disabled={processing || registration.is_expired}>
                                     {processing
-                                        ? 'Menyiapkan…'
+                                        ? 'Preparing…'
                                         : paymentConfigured
-                                            ? <>Bayar {registration.amount} <ArrowRight className="h-4 w-4" /></>
-                                            : <>Terbitkan invoice saya <ArrowRight className="h-4 w-4" /></>}
+                                            ? <>Continue to payment · {registration.amount} <ArrowRight className="h-4 w-4" /></>
+                                            : <>Issue my invoice <ArrowRight className="h-4 w-4" /></>}
                                 </Button>
                             </form>
                         </div>
@@ -218,9 +218,9 @@ export default function RegistrationStatus({ registration, paymentConfigured, co
 
                     {contactEmail && (
                         <p className="text-center text-xs text-graphite-500">
-                            Ada pertanyaan tentang pendaftaran ini?{' '}
+                            Questions about this registration?{' '}
                             <a href={`mailto:${contactEmail}?subject=${encodeURIComponent(registration.reference)}`} className="font-medium text-brand-700 hover:underline">
-                                Hubungi kami
+                                {contactEmail}
                             </a>
                         </p>
                     )}

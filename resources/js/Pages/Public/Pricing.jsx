@@ -82,11 +82,13 @@ export default function Pricing({ plans = [], contactEmail }) {
                         <div className="grid grid-cols-1 gap-5 md:grid-cols-3">
                             {plans.map((plan) => {
                                 const price = yearly ? plan.yearly : plan.monthly;
-                                // Real saving from the plan's OWN two prices; never a claim.
-                                const saving =
-                                    yearly && plan.monthly?.amount > 0 && plan.yearly?.amount > 0
-                                        ? Math.round(100 - (plan.yearly.amount / (plan.monthly.amount * 12)) * 100)
-                                        : null;
+                                // v2.56.0: derived ONCE, server-side, from the plan's own two
+                                // prices (PricingService::annualSaving). It used to be computed
+                                // in this expression, which was correct but lived on one page --
+                                // so Get Started and the checkout showed the annual figure with
+                                // no sign it was already discounted, and any surface that wanted
+                                // the number had to copy the arithmetic.
+                                const saving = yearly ? plan.annual_saving : null;
 
                                 return (
                                     <div
@@ -104,8 +106,16 @@ export default function Pricing({ plans = [], contactEmail }) {
                                             </p>
                                             <p className="mt-1.5 text-[11px] uppercase tracking-wide text-graphite-400">
                                                 per {yearly ? 'year' : 'month'}
-                                                {saving > 0 && <span className="ml-1 font-semibold text-success">· {saving}% less than monthly</span>}
+                                                {saving && <span className="ml-1 font-semibold text-success">· {saving.percent}% less than monthly</span>}
                                             </p>
+                                            {/* The rupiah figure beside the percentage: a buyer
+                                                comparing cycles wants the amount, not a rate. */}
+                                            {saving && (
+                                                <p className="mt-1 text-[11px] text-graphite-500">
+                                                    <span className="line-through">{saving.monthly_equivalent_formatted}</span>
+                                                    {' '}if paid monthly · save {saving.formatted}
+                                                </p>
+                                            )}
                                         </div>
 
                                         {/* Built from the plan's OWN entitlement values --

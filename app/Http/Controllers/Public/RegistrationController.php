@@ -444,6 +444,13 @@ class RegistrationController extends Controller
                 'period_end' => $invoice->period_end?->format('d M Y'),
                 'amount' => $this->pricing->format((float) $invoice->amount, $invoice->currency),
                 'currency' => $invoice->currency,
+                // v2.56.0: the same annual-saving figures the Pricing page and
+                // Get Started show, from the one server-side derivation, so a
+                // buyer sees the discount restated at the moment they pay.
+                // Only meaningful on an annual order.
+                'annual_saving' => $registration->billing_cycle === 'yearly' && $package
+                    ? $this->pricing->summarize($package)['annual_saving']
+                    : null,
             ],
             'payment' => [
                 // Snap's own client-side configuration. The client key is

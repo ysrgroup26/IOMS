@@ -62,7 +62,7 @@ export default function ForgotPassword() {
                                 autoFocus
                                 value={data.email}
                                 onChange={(e) => setData('email', e.target.value)}
-                                placeholder="admin@ioms.local"
+                                placeholder="you@company.com"
                             />
                             {errors.email && <p className="text-xs text-red-600">{errors.email}</p>}
                         </div>

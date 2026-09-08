@@ -1,7 +1,7 @@
 {
     "name": "ioms/platform",
     "type": "project",
-    "description": "Integrated Operations Management System (IOMS) - a professional industrial operations platform for HSE, projects, PPE, and daily reporting across shipyard, mining, construction, manufacturing, oil & gas, and energy operations.",
+    "description": "IOMS - Industrial Operations Platform. A professional operations platform for HSE, projects, PPE, and daily reporting across shipyard, mining, construction, manufacturing, oil & gas, and energy operations.",
     "keywords": ["laravel", "hse", "operations", "inertia"],
     "license": "MIT",
     "require": {

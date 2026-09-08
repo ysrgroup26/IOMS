@@ -264,7 +264,7 @@ class DemoTenantSeeder extends Seeder
      */
     private function demoUser(Tenant $tenant, Company $company): User
     {
-        $email = config('ioms.sandbox.user_email', 'demo@ioms.id');
+        $email = config('ioms.sandbox.user_email', 'demo@iomsuite.com');
 
         $user = User::firstOrCreate(
             ['email' => $email],

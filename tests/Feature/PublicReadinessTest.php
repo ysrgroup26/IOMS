@@ -322,8 +322,17 @@ class PublicReadinessTest extends TestCase
             ->where('order.currency', 'IDR')
             ->where('payment.snap_token', 'snap-token-testonly')
             ->where('payment.client_key', 'SB-Mid-client-TESTONLY')
+            // v2.56.0: an annual order restates the discount at the moment
+            // of payment, from the same server-side derivation the Pricing
+            // page and Get Started use.
+            ->where('order.annual_saving.monthly_equivalent_formatted', 'Rp11.988.000')
+            ->where('order.annual_saving.formatted', 'Rp1.998.000')
+            ->where('order.annual_saving.percent', 17)
             ->etc()
         );
+
+        // The rendered page carries the amounts, not just the props.
+        $response->assertSee('Rp11.988.000')->assertSee('Rp1.998.000');
 
         // The server key signs webhooks. It must never reach a browser.
         $response->assertDontSee('SB-Mid-server-TESTONLY');

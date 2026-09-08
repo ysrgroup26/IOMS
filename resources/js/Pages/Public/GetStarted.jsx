@@ -62,6 +62,8 @@ export default function GetStarted({ plans = [], selectedPlan, billingCycle, ind
 
     const plan = plans.find((p) => p.slug === data.plan) || null;
     const price = plan ? (yearly ? plan.yearly : plan.monthly) : null;
+    // Server-derived, from the plan's own two prices -- never computed here.
+    const saving = plan?.annual_saving ?? null;
 
     const chooseCycle = (isYearly) => {
         setYearly(isYearly);
@@ -77,10 +79,10 @@ export default function GetStarted({ plans = [], selectedPlan, billingCycle, ind
     // one that matters: activation follows a verified payment, not a
     // browser landing on a success page.
     const steps = [
-        { icon: Mail, title: 'Konfirmasi email', body: 'Kami mengirim tautan konfirmasi ke alamat yang Anda daftarkan. Alamat ini menjadi kontak administrator sekaligus kontak penagihan.' },
-        { icon: CreditCard, title: 'Bayar paket Anda', body: 'Invoice diterbitkan sesuai siklus yang Anda pilih dan dibayar melalui penyedia pembayaran kami. Data kartu Anda tidak pernah masuk ke IOMS.' },
-        { icon: Building2, title: 'Workspace Anda dibuat', body: 'Tenant, perusahaan pertama, akun administrator, dan hak akses disiapkan — lengkap dengan identitas perusahaan Anda.' },
-        { icon: KeyRound, title: 'Masuk ke IOMS', body: 'Gunakan kata sandi yang Anda buat di sini. IOMS tidak pernah mengirim kata sandi lewat email.' },
+        { icon: Mail, title: 'Confirm your email', body: 'We send a confirmation link to the address you register. It becomes both your administrator contact and your billing contact.' },
+        { icon: CreditCard, title: 'Pay for your plan', body: 'An invoice is issued for the cycle you choose and paid through our payment provider. Your card details never reach IOMS.' },
+        { icon: Building2, title: 'Your workspace is created', body: 'Your organization, first operating unit, administrator account and permissions are set up — with your own company identity on them.' },
+        { icon: KeyRound, title: 'Sign in to IOMS', body: 'Use the password you set here. IOMS never sends a password by email.' },
     ];
 
     return (
@@ -88,9 +90,9 @@ export default function GetStarted({ plans = [], selectedPlan, billingCycle, ind
             <Head title="Get Started" />
 
             <PublicPageHero
-                eyebrow="Mulai Berlangganan"
-                title="Siapkan IOMS untuk operasi Anda."
-                subtitle="Buat akun dan perusahaan Anda, pilih paket, lalu selesaikan pembayaran. Workspace Anda disiapkan segera setelah pembayaran dikonfirmasi."
+                eyebrow="Get Started"
+                title="Set IOMS up for your operation."
+                subtitle="Create your account and company, choose a plan, then complete payment. Your workspace is prepared as soon as the payment is confirmed."
                 size="sm"
             />
 
@@ -104,8 +106,8 @@ export default function GetStarted({ plans = [], selectedPlan, billingCycle, ind
                     {/* ------------------------------------------------ */}
                     <div className="space-y-6">
                         <FormSection
-                            title="Akun Anda"
-                            hint="Akun ini menjadi administrator workspace IOMS Anda."
+                            title="Your account"
+                            hint="This account becomes the administrator of your IOMS workspace."
                         >
                             <Field label="Full name" required error={errors.contact_name} className="sm:col-span-2">
                                 <Input value={data.contact_name} onChange={(e) => setData('contact_name', e.target.value)} autoComplete="name" />
@@ -125,8 +127,8 @@ export default function GetStarted({ plans = [], selectedPlan, billingCycle, ind
                         </FormSection>
 
                         <FormSection
-                            title="Perusahaan Anda"
-                            hint="Dipakai sebagai identitas workspace dan kop pada dokumen yang dihasilkan IOMS."
+                            title="Your company"
+                            hint="Used as your workspace identity and as the letterhead on documents IOMS generates."
                         >
                             <Field label="Legal company name" required error={errors.company_legal_name} className="sm:col-span-2">
                                 <Input value={data.company_legal_name} onChange={(e) => setData('company_legal_name', e.target.value)} placeholder="PT Contoh Industri Nusantara" />
@@ -224,9 +226,9 @@ export default function GetStarted({ plans = [], selectedPlan, billingCycle, ind
                     <div className="space-y-6 lg:sticky lg:top-20">
                         <div className="rounded-xl border border-steel-200/70 bg-white p-6 shadow-panel">
                             <div className="flex flex-wrap items-center justify-between gap-3">
-                                <h2 className="text-[15px] font-semibold tracking-tight text-navy-900">Paket Anda</h2>
+                                <h2 className="text-[15px] font-semibold tracking-tight text-navy-900">Your plan</h2>
                                 <div className="inline-flex items-center gap-1 rounded-full border border-steel-200 bg-steel-50 p-0.5" role="group" aria-label="Billing cycle">
-                                    {[{ k: false, l: 'Bulanan' }, { k: true, l: 'Tahunan' }].map((o) => (
+                                    {[{ k: false, l: 'Monthly' }, { k: true, l: 'Annual' }].map((o) => (
                                         <button
                                             key={o.l}
                                             type="button"
@@ -300,29 +302,46 @@ export default function GetStarted({ plans = [], selectedPlan, billingCycle, ind
                             <div className="mt-5 border-t border-steel-100 pt-5">
                                 <div className="flex items-baseline justify-between">
                                     <span className="text-xs font-medium uppercase tracking-wide text-graphite-400">
-                                        Tagihan · {yearly ? 'Tahunan' : 'Bulanan'}
+                                        {yearly ? 'Annual billing' : 'Monthly billing'}
                                     </span>
                                     <span className="text-lg font-semibold tracking-tight text-navy-900">
                                         {price?.formatted ?? '—'}
                                     </span>
                                 </div>
 
+                                {/* v2.56.0: the annual price was shown as a bare figure, so a
+                                    buyer choosing a cycle had to work out for themselves that
+                                    it was already discounted. The comparison is stated instead,
+                                    from the plan's own two prices (PricingService::annualSaving). */}
+                                {yearly && saving && (
+                                    <div className="mt-3 rounded-lg border border-success/20 bg-success/[0.06] px-3 py-2.5">
+                                        <div className="flex items-baseline justify-between text-[11px] text-graphite-600">
+                                            <span>12 × {plan.monthly.formatted}</span>
+                                            <span className="line-through">{saving.monthly_equivalent_formatted}</span>
+                                        </div>
+                                        <div className="mt-1 flex items-baseline justify-between text-xs font-semibold text-success">
+                                            <span>You save</span>
+                                            <span>{saving.formatted} · {saving.percent}%</span>
+                                        </div>
+                                    </div>
+                                )}
+
                                 <Button type="submit" className="mt-4 w-full" disabled={processing || !plan}>
-                                    {processing ? 'Membuat pendaftaran…' : <>Lanjut ke pembayaran <ArrowRight className="h-4 w-4" /></>}
+                                    {processing ? 'Creating your registration…' : <>Continue to payment <ArrowRight className="h-4 w-4" /></>}
                                 </Button>
 
                                 <p className="mt-2.5 flex items-start gap-1.5 text-center text-[11px] leading-relaxed text-graphite-500">
                                     <ShieldCheck className="mt-px h-3.5 w-3.5 shrink-0 text-graphite-400" />
                                     <span className="text-left">
-                                        Langganan Anda hanya aktif setelah penyedia pembayaran mengonfirmasi pembayaran.
-                                        Formulir ini tidak menagih apa pun.
+                                        Your subscription becomes active only after the payment provider confirms
+                                        payment. This form charges nothing.
                                     </span>
                                 </p>
                             </div>
                         </div>
 
                         <div className="rounded-xl border border-steel-200/70 bg-gradient-to-b from-steel-100/70 via-white to-white p-6 shadow-panel">
-                            <h2 className="text-[15px] font-semibold tracking-tight text-navy-900">Setelah ini</h2>
+                            <h2 className="text-[15px] font-semibold tracking-tight text-navy-900">What happens next</h2>
                             <ol className="mt-4 space-y-4">
                                 {steps.map((s, i) => (
                                     <li key={s.title} className="flex gap-3">
@@ -342,19 +361,19 @@ export default function GetStarted({ plans = [], selectedPlan, billingCycle, ind
 
                             <div className="mt-6 rounded-lg border border-steel-100 bg-white p-3.5">
                                 <p className="text-xs leading-relaxed text-graphite-600">
-                                    <span className="font-semibold text-navy-800">Sudah menjadi pelanggan IOMS?</span>{' '}
-                                    <Link href={route('login')} className="font-medium text-brand-700 hover:underline">Masuk di sini</Link>
-                                    {' '}— atau{' '}
-                                    <Link href={route('pricing')} className="font-medium text-brand-700 hover:underline">bandingkan paket</Link>
-                                    {' '}lebih dulu.
+                                    <span className="font-semibold text-navy-800">Already an IOMS customer?</span>{' '}
+                                    <Link href={route('login')} className="font-medium text-brand-700 hover:underline">Sign in here</Link>
+                                    {' '}— or{' '}
+                                    <Link href={route('pricing')} className="font-medium text-brand-700 hover:underline">compare plans</Link>
+                                    {' '}first.
                                 </p>
                             </div>
                         </div>
 
                         {contactEmail && (
                             <p className="text-center text-xs text-graphite-500">
-                                Butuh bantuan memilih paket?{' '}
-                                <a href={`mailto:${contactEmail}`} className="font-medium text-brand-700 hover:underline">Hubungi kami</a>
+                                Need help choosing a plan?{' '}
+                                <Link href={route('contact')} className="font-medium text-brand-700 hover:underline">Talk to us</Link>
                             </p>
                         )}
                     </div>

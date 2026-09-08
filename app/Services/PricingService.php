@@ -62,8 +62,70 @@ class PricingService
             // nothing to say about it -- capacity is TOTAL USERS.
             'monthly' => $this->money($package->price_monthly, $package->currency, $package->is_custom),
             'yearly' => $this->money($package->price_yearly, $package->currency, $package->is_custom),
+            // v2.56.0: the annual saving, derived ONCE and server-side --
+            // see annualSaving() for why it stopped being a JSX expression.
+            'annual_saving' => $this->annualSaving($package),
             'workspaces' => $this->labelsFor(Workspace::class, $package->defaultWorkspaceKeys()),
             'modules' => $this->labelsFor(Module::class, $package->defaultModuleKeys()),
+        ];
+    }
+
+    /**
+     * v2.56.0 -- THE ANNUAL SAVING, DERIVED ONCE.
+     *
+     * The percentage used to be computed inline in Pricing.jsx:
+     *
+     *     Math.round(100 - (plan.yearly.amount / (plan.monthly.amount * 12)) * 100)
+     *
+     * which was correct, but it lived on ONE page. Get Started and the
+     * checkout order summary showed the annual figure with no indication
+     * that it was already discounted, so a buyer comparing the two cycles
+     * had to do the arithmetic themselves at the exact moment they were
+     * deciding to pay. Any second surface that wanted the number would have
+     * had to copy the expression, and a copied derivation is how two pages
+     * eventually disagree about the same price.
+     *
+     * It is now computed here, from the package's OWN two prices, and every
+     * surface reads it. Nothing is invented: `monthly_equivalent` is simply
+     * twelve monthly payments, `amount` is the difference, and `percent` is
+     * that difference as a share of the twelve payments. If a plan has no
+     * usable pair of prices -- custom, free, or missing either figure --
+     * this returns null and the surfaces render nothing rather than a zero.
+     *
+     * Rounded DOWN, so the advertised saving is never larger than the real
+     * one: 16.67% is presented as 16%... except that rounding a genuine
+     * 16.67 to 16 understates it, so the value is rounded normally to 17
+     * and the exact rupiah figure is shown beside it. The dependable number
+     * on the page is the amount; the percentage is the summary.
+     */
+    private function annualSaving(Package $package): ?array
+    {
+        if ($package->is_custom) {
+            return null;
+        }
+
+        $monthly = (float) ($package->price_monthly ?? 0);
+        $yearly = (float) ($package->price_yearly ?? 0);
+
+        if ($monthly <= 0 || $yearly <= 0) {
+            return null;
+        }
+
+        $equivalent = $monthly * 12;
+        $saved = $equivalent - $yearly;
+
+        // An annual price at or above twelve monthly payments is not a
+        // saving, and must never be presented as one.
+        if ($saved <= 0) {
+            return null;
+        }
+
+        return [
+            'monthly_equivalent' => $equivalent,
+            'monthly_equivalent_formatted' => $this->format($equivalent, $package->currency),
+            'amount' => $saved,
+            'formatted' => $this->format($saved, $package->currency),
+            'percent' => (int) round(($saved / $equivalent) * 100),
         ];
     }
 

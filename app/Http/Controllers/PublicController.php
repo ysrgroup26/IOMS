@@ -152,53 +152,95 @@ class PublicController extends Controller
         ],
     ];
 
-    /** Centralize -> Operate -> Approve -> Monitor -> Report / Improve. */
+    /**
+     * Centralize -> Operate -> Approve -> Monitor -> Report & Improve, and
+     * back to Centralize. The operational LOOP IOMS is shaped around.
+     *
+     * v2.64.0 -- TWO CHANGES.
+     *
+     * ENGLISH. These five bodies were the last Indonesian text reaching the
+     * landing page, which is otherwise English end to end. v2.61.0 fixed
+     * the two blocks that lived in Welcome.jsx and missed this one because
+     * it arrives as a server prop -- and the test written to pin that fix
+     * only read the JSX file, so it passed without ever seeing this copy.
+     * The test now reads the rendered props instead.
+     *
+     * TWO LENGTHS, ONE SOURCE. `summary` is the one-line version the
+     * landing page's rail shows; `body` is the full paragraph /how-it-works
+     * has room for. Both describe the same stage from the same array, so
+     * the short version can never drift into claiming something the long
+     * one does not.
+     */
     private const HOW_IT_WORKS = [
         [
             'step' => '01',
             'title' => 'Centralize',
-            'body' => 'Perusahaan, departemen, karyawan, aset, dan master data disiapkan satu kali di dalam tenant Anda sendiri. Seluruh proses berikutnya mengacu pada sumber data yang sama, sehingga tidak ada lagi versi berbeda di file yang berbeda.',
+            'summary' => 'Operating Units, departments, employees, assets and master data, set up once.',
+            'body' => 'Operating Units, departments, employees, assets and master data are set up once inside your own organization. Every process that follows reads from that same source, so there is no longer a different version of the truth in a different file.',
         ],
         [
             'step' => '02',
             'title' => 'Operate',
-            'body' => 'Pekerjaan dijalankan di dalam sistem: pengawas lapangan mengajukan Permit To Work, gudang mengeluarkan material, procurement membuat permintaan pembelian, maintenance membuka Work Order.',
+            'summary' => 'Permits, material issues, purchase requisitions and work orders are raised in the system.',
+            'body' => 'Work runs inside the system: a field supervisor raises a Permit To Work, the warehouse issues material, procurement raises a purchase requisition, maintenance opens a Work Order. The record is created where the work happens, by the person doing it.',
         ],
         [
             'step' => '03',
             'title' => 'Approve',
-            'body' => 'Setiap catatan mengikuti alur persetujuannya sendiri. Siapa yang berhak menyetujui apa ditentukan oleh peran, departemen, dan konfigurasi workflow Anda — bukan oleh kebiasaan.',
+            'summary' => 'Each record follows its own approval route — by role, department and workflow.',
+            'body' => 'Every record follows its own approval route. Who may approve what is decided by role, department and your workflow configuration — not by habit, and not by whoever happens to be in the room.',
         ],
         [
             'step' => '04',
             'title' => 'Monitor',
-            'body' => 'Dashboard tiap departemen menampilkan apa yang masih terbuka, terlambat, atau menunggu. Setiap catatan membawa riwayat aktivitas: siapa melakukan apa, dan kapan.',
+            'summary' => 'Department dashboards show what is open, overdue or waiting, with a full activity trail.',
+            'body' => 'Each department dashboard shows what is still open, overdue or waiting on someone. Every record carries its own activity timeline: who did what, and when.',
         ],
         [
             'step' => '05',
             'title' => 'Report & Improve',
-            'body' => 'Data operasional harian menjadi laporan manajemen melalui KPI, Report Center, dan laporan terjadwal — siap diekspor ke PDF dan Excel dengan kop surat perusahaan Anda sendiri.',
+            'summary' => 'Daily operational data becomes management reporting — on your own letterhead.',
+            'body' => 'The operational data entered each day becomes management reporting through KPI records, the Report Center and scheduled reports — exported to PDF and Excel on your own company letterhead. What that reporting shows is what the next cycle starts from.',
         ],
     ];
 
+    /**
+     * v2.64.0 -- ENGLISH, AND THE FOUR-TIER MODEL.
+     *
+     * Two problems, found by the same test. The landing page renders the
+     * first eight of these, and every one of them was still Indonesian --
+     * the language pass in v2.61.0 read the JSX file and never saw copy
+     * that arrives as a server prop.
+     *
+     * Worse, "Apa isi masing-masing paket?" still described THREE tiers,
+     * four releases after v2.60.0 shipped four: it named Professional as
+     * adding "Management visibility", never mentioned Business at all, and
+     * quoted seat capacities for a catalogue that no longer existed. A
+     * public FAQ contradicting the pricing table two sections above it is
+     * a product-fidelity defect, not a translation one.
+     *
+     * The plan answers below now state the ladder the way PricingService
+     * derives it -- each tier as the one below it PLUS what it adds -- so
+     * this copy and the pricing cards cannot disagree.
+     */
     private const FAQS = [
-        ['q' => 'Apa itu IOMS?', 'a' => 'IOMS adalah Industrial Operations Platform: satu sistem yang menghubungkan pekerjaan lapangan, Health, Safety & Environment, data tenaga kerja, gudang, procurement, logistik, aset, maintenance, quality control, dan pelaporan manajemen. Pekerjaan dan catatan yang dihasilkannya berada di tempat yang sama.'],
-        ['q' => 'Apa itu Operating Unit?', 'a' => 'IOMS menyusun organisasi Anda sebagai IOMS → Organization → Operating Unit → Department. Satu langganan adalah SATU organisasi. Operating Unit adalah unit operasional di dalamnya — galangan, site, atau divisi — dan setiap Department berada di bawah salah satu Operating Unit. Dua Operating Unit bukan berarti dua perusahaan atau dua langganan terpisah.'],
-        ['q' => 'Untuk siapa IOMS dibuat?', 'a' => 'Perusahaan industri yang menjalankan pekerjaan lapangan dan memikul kewajiban keselamatan kerja — galangan kapal, konstruksi, manufaktur, pertambangan, minyak dan gas, energi, fabrikasi, logistik, dan penyedia jasa industri.'],
-        ['q' => 'Industri apa saja yang didukung?', 'a' => 'IOMS dibangun untuk operasi industri secara umum, bukan satu sektor tertentu. Modulnya sama di semua industri; yang berbeda adalah domain operasional mana yang diaktifkan oleh perusahaan Anda.'],
-        ['q' => 'Apa isi masing-masing paket?', 'a' => 'Starter mencakup Health, Safety & Environment secara lengkap untuk satu Operating Unit. Professional menambahkan Human Resources dan visibilitas Management lintas departemen, untuk organisasi yang menjalankan sampai dua Operating Unit. Enterprise membuka seluruh domain operasional IOMS untuk beberapa Operating Unit sekaligus. Ketiganya adalah platform yang sama — yang berbeda hanyalah luas akses dan kapasitas.'],
-        ['q' => 'Bagaimana perhitungan jumlah pengguna?', 'a' => 'Kapasitas paket dinyatakan sebagai SATU angka: jumlah akun login (Users) yang tercakup. Starter mencakup 10 akun dan Professional 50 akun; Enterprise memakai kapasitas standar tertinggi. Izin di dalam IOMS — termasuk PTW Access — diberikan kepada akun yang sudah ada dan tidak menambah jumlah akun maupun biaya.'],
-        ['q' => 'Apa itu PTW Access?', 'a' => 'PTW Access adalah izin yang diberikan kepada akun tertentu untuk membuat Permit To Work — bukan kapasitas yang dijual dan tidak dikenakan biaya tambahan. Seorang foreman atau supervisor lapangan yang diberi PTW Access dapat mengajukan izin kerja langsung dari My Work, dan HSE tetap yang meninjau serta menyetujuinya.'],
-        ['q' => 'Apa itu My Work?', 'a' => 'My Work adalah ruang kerja untuk orang yang menjalankan pekerjaan di lapangan — foreman, supervisor, teknisi, operator. Akun yang ditandai sebagai pengguna lapangan langsung diarahkan ke My Work saat login, bukan ke dashboard kantor yang tidak relevan bagi mereka.'],
-        ['q' => 'Apakah Enterprise bisa dikustomisasi?', 'a' => 'Enterprise adalah paket standar IOMS yang paling lengkap, bukan paket pengembangan khusus. IOMS adalah satu produk yang terus disempurnakan untuk semua pelanggan — tidak ada pengembangan khusus per perusahaan, dan tidak ada paket seumur hidup.'],
-        ['q' => 'Bagaimana proses pembayarannya?', 'a' => 'Anda memilih paket dan siklus penagihan, mengonfirmasi alamat email, lalu membayar melalui penyedia pembayaran kami. Data kartu Anda tidak pernah melewati atau tersimpan di IOMS.'],
-        ['q' => 'Kapan workspace kami aktif?', 'a' => 'Setelah penyedia pembayaran mengonfirmasi pembayaran Anda ke server kami. Sekadar sampai di halaman konfirmasi di browser tidak mengaktifkan apa pun — aktivasi mengikuti notifikasi terverifikasi dari penyedia pembayaran.'],
-        ['q' => 'Apakah langganan bisa dibatalkan?', 'a' => 'Bisa, kapan saja. Langganan yang dibatalkan tetap berjalan sampai akhir periode yang sudah dibayar, setelah itu workspace berhenti dapat digunakan dan tidak ada penagihan berikutnya. Data Anda tidak dihapus pada saat pembatalan. Ketentuan lengkapnya ada di halaman Refund & Cancellation Policy.'],
-        ['q' => 'Bagaimana jika pembayaran gagal?', 'a' => 'Tidak ada yang diaktifkan. Untuk langganan yang sedang berjalan, kegagalan perpanjangan melewati masa tenggang lebih dulu sebelum akses dibatasi — Anda diberi tahu, bukan langsung diputus.'],
-        ['q' => 'Apakah identitas perusahaan kami bisa ditampilkan?', 'a' => 'Bisa. Setiap pelanggan mengelola nama, logo, alamat, kontak, NPWP, dan NIB perusahaannya sendiri, dan seluruh data itu otomatis menjadi kop pada dokumen yang dihasilkan IOMS.'],
-        ['q' => 'Apakah dokumen bisa diekspor ke PDF dan Excel?', 'a' => 'Ya. Dokumen operasional diekspor sebagai PDF A4 siap cetak dengan kop perusahaan Anda, dan data laporan diekspor ke workbook Excel yang sudah tertata.'],
-        ['q' => 'Apakah IOMS berbasis web?', 'a' => 'Ya. IOMS adalah aplikasi web multi-tenant berbasis cloud, dengan tampilan lapangan yang dirancang untuk dipakai dari ponsel di lokasi kerja. Tidak ada yang perlu diinstal.'],
-        ['q' => 'Apakah data kami terpisah dari pelanggan lain?', 'a' => 'Ya. Setiap pelanggan adalah tenant tersendiri, dan pemisahan data diterapkan pada lapisan akses data — bukan diserahkan pada setiap query untuk mengingatnya sendiri.'],
+        ['q' => 'What is IOMS?', 'a' => 'IOMS is an Industrial Operations Platform: one system connecting field work, Health, Safety & Environment, workforce data, warehousing, procurement, logistics, assets, maintenance, quality control and management reporting. The work and the records it produces live in the same place.'],
+        ['q' => 'What is an Operating Unit?', 'a' => 'IOMS structures your organization as IOMS → Organization → Operating Unit → Department. One subscription is ONE organization. An Operating Unit is an operational unit inside it — a yard, a site or a division — and every Department sits under one Operating Unit. Two Operating Units does not mean two companies or two separate subscriptions.'],
+        ['q' => 'Who is IOMS built for?', 'a' => 'Industrial companies that run field work and carry occupational safety obligations — shipyards, construction, manufacturing, mining, oil and gas, energy, fabrication, logistics and industrial service providers.'],
+        ['q' => 'Which industries are supported?', 'a' => 'IOMS is built for industrial operations generally, not one sector. The modules are the same across industries; what differs is which operational domains your company switches on.'],
+        ['q' => 'What does each plan include?', 'a' => 'Starter covers Health, Safety & Environment in full for one Operating Unit. Professional adds Human Resources, for an organization running up to two Operating Units. Business adds Project Management, Logistics / PPIC and Procurement on top of that, across up to four Operating Units. Enterprise opens every operational department IOMS ships, with unlimited Operating Units. All four are the same platform — what differs is the breadth of access and the capacity.'],
+        ['q' => 'How are users counted?', 'a' => 'Plan capacity is stated as ONE number: how many login accounts (Users) are included. Starter includes 10 accounts, Professional 50 and Business 150; Enterprise has no stated ceiling. Permissions inside IOMS — including PTW Access — are granted to accounts you already have, and add neither accounts nor cost.'],
+        ['q' => 'What is PTW Access?', 'a' => 'PTW Access is a permission granted to specific accounts so they can raise a Permit To Work. It is not sold capacity and carries no extra charge. A foreman or field supervisor given PTW Access can raise a permit straight from My Work, and HSE still reviews and approves it.'],
+        ['q' => 'What is My Work?', 'a' => 'My Work is the workspace for the people doing the work in the field — foremen, supervisors, technicians, operators. An account marked as a field user lands directly in My Work at sign-in rather than in an office dashboard that means nothing to them.'],
+        ['q' => 'Can Enterprise be customized?', 'a' => 'Enterprise is the most complete STANDARD IOMS plan, not a custom development track. IOMS is one product improved for every customer — there is no per-company development, and no lifetime plan.'],
+        ['q' => 'How does payment work?', 'a' => 'You choose a plan and a billing cycle, confirm your email address, then pay through our payment provider. Your card details never pass through or rest in IOMS.'],
+        ['q' => 'When does our workspace become active?', 'a' => 'Once the payment provider confirms your payment to our server. Simply reaching the confirmation page in your browser activates nothing — activation follows the verified notification from the payment provider.'],
+        ['q' => 'Can a subscription be cancelled?', 'a' => 'Yes, at any time. A cancelled subscription runs to the end of the period already paid for, after which the workspace stops being usable and there is no further billing. Your data is not deleted at cancellation. The full terms are on the Refund & Cancellation Policy page.'],
+        ['q' => 'What happens if a payment fails?', 'a' => 'Nothing is activated. For a running subscription, a failed renewal passes through a grace period before access is affected, and you are notified before that point.'],
+        ['q' => 'Can our own company identity appear on documents?', 'a' => 'Yes. Each customer manages its own company name, logo, address, contact details, NPWP and NIB, and all of it appears on the documents IOMS generates for you.'],
+        ['q' => 'Can documents be exported to PDF and Excel?', 'a' => 'Yes. Operational documents export as print-ready A4 PDFs carrying your company letterhead, and report data exports to Excel workbooks.'],
+        ['q' => 'Is IOMS web-based?', 'a' => 'Yes. IOMS is a cloud, multi-tenant web application, with a field view designed to be used from a phone on site. There is nothing to install.'],
+        ['q' => 'Is our data separated from other customers?', 'a' => 'Yes. Each customer is its own tenant, and the separation is enforced at the data-access layer rather than left to individual screens to remember.'],
     ];
 
     public function home(Request $request): Response|RedirectResponse

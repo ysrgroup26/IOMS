@@ -138,6 +138,7 @@ does not own their markup.
 | `ConnectedOperations` | The hero diagram: eight workspaces around an IOMS hub, with a record travelling inward along each spoke. Hover/focus names what that department records. |
 | `DepartmentGrid` | The eight operational domains, one accent each. |
 | `FragmentedToConnected` | The problem→solution panel: six disconnected tools on the left, one record crossing five departments on the right. |
+| `OperatingLoop` (v2.64.0) | The five How-It-Works stages as one route: stations on a rail that fills as you scroll, closing back to stage 01. Vertical spine below `lg`. |
 
 **The showcase is the positioning fix.** What it replaced rendered two panels of placeholder
 furniture — figures that were literally "—" above a dashed rectangle — and both panels were HSE/PTW,

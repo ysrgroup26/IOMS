@@ -27,9 +27,55 @@ import { cn } from '@/lib/utils';
  * `variant` picks how much of it appears. `hero` gets the full stack;
  * `band` is the quieter version for mid-page dark sections so they read as
  * the same material without competing with the hero.
+ *
+ * v2.64.0 -- `light` INVERTS IT FOR A PALE SECTION.
+ *
+ * The page had exactly two kinds of surface: navy bands and plain white.
+ * "How It Works" sat on a flat `brand-50` wash and read as empty. Making
+ * it a fourth navy band would have been the easy answer and the wrong one
+ * -- four dark sections in one scroll flattens the rhythm they exist to
+ * create.
+ *
+ * So this is the same material, lit from the other side: the grid drawn in
+ * navy at low alpha instead of white, one steel bloom instead of a brand
+ * one, and no silhouette (the horizon belongs to the dark bands; repeating
+ * it here would make the two read as the same section). The result is a
+ * third surface type -- "lit blueprint" -- so the page alternates rather
+ * than repeats.
  */
 export default function BlueprintBackdrop({ variant = 'band', className }) {
     const isHero = variant === 'hero';
+    const isLight = variant === 'light';
+
+    if (isLight) {
+        return (
+            <div className={cn('pointer-events-none absolute inset-0 -z-10 overflow-hidden', className)} aria-hidden="true">
+                {/* Technical grid, navy on pale, fading at both edges so the
+                    section has a middle rather than a border. */}
+                <div
+                    className="absolute inset-0"
+                    style={{
+                        backgroundImage:
+                            'linear-gradient(to right, rgba(15,39,71,0.055) 1px, transparent 1px), linear-gradient(to bottom, rgba(15,39,71,0.055) 1px, transparent 1px)',
+                        backgroundSize: '56px 56px',
+                        maskImage: 'radial-gradient(ellipse 80% 70% at 50% 45%, rgba(0,0,0,0.85), transparent 100%)',
+                        WebkitMaskImage: 'radial-gradient(ellipse 80% 70% at 50% 45%, rgba(0,0,0,0.85), transparent 100%)',
+                    }}
+                />
+
+                {/* Two soft blooms, well apart and well below the content's
+                    contrast. Steel and a cool indigo -- atmosphere, not
+                    colour: at these alphas they read as depth. */}
+                <div className="absolute -left-24 top-[-6rem] h-[26rem] w-[26rem] rounded-full bg-steel-400 opacity-[0.10] blur-3xl" />
+                <div className="absolute -right-32 bottom-[-8rem] h-[30rem] w-[30rem] rounded-full bg-indigo-400 opacity-[0.07] blur-3xl" />
+
+                {/* A single hairline horizon, the one piece of geometry.
+                    It sits behind the rail and gives the composition a
+                    ground without drawing a picture. */}
+                <div className="absolute inset-x-0 top-1/2 h-px bg-gradient-to-r from-transparent via-navy-900/[0.07] to-transparent" />
+            </div>
+        );
+    }
 
     return (
         <div className={cn('pointer-events-none absolute inset-0 -z-10 overflow-hidden', className)} aria-hidden="true">

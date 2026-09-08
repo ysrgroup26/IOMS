@@ -7,6 +7,7 @@ import PlatformShowcase from '@/Components/public/PlatformShowcase';
 import ConnectedOperations from '@/Components/public/ConnectedOperations';
 import FragmentedToConnected from '@/Components/public/FragmentedToConnected';
 import DepartmentGrid from '@/Components/public/DepartmentGrid';
+import OperatingLoop from '@/Components/public/OperatingLoop';
 import { Button } from '@/Components/ui/button';
 import {
     ArrowRight, Users, FileCheck2, Flame, Eye, ClipboardCheck, ChevronDown,
@@ -596,24 +597,31 @@ function Pricing({ plans }) {
 /* ------------------------------------------------------------------ */
 /* Section: How It Works                                               */
 /* ------------------------------------------------------------------ */
-function HowItWorks({ steps: serverSteps = [] }) {
+function HowItWorks({ steps = [] }) {
     // v2.52.0: the server's own list (PublicController::HOW_IT_WORKS), so
     // the landing page and /how-it-works can never describe two different
     // products -- they had already drifted while each kept its own copy.
-    const steps = serverSteps.map((s) => ({ n: s.step, title: s.title, body: s.body }));
-
+    //
+    // v2.64.0: the five stages moved into OperatingLoop, which renders them
+    // as one route rather than five cards. The old grid was `lg:grid-cols-4`
+    // for FIVE steps, so every large screen orphaned the last one on a
+    // second row -- see that component for the concept that replaced it.
     return (
-        <section id="how-it-works" className="border-b border-graphite-100 bg-gradient-to-b from-brand-50/50 to-brand-50/20 py-20">
-            <div className="mx-auto max-w-6xl px-4 sm:px-6 lg:px-8">
-                <SectionHeading eyebrow="How It Works" title="From master data to management reporting" />
-                <div className="mt-12 grid grid-cols-1 gap-6 sm:grid-cols-2 lg:grid-cols-4">
-                    {steps.map((s) => (
-                        <div key={s.n} className="rounded-xl border border-graphite-200 bg-white p-5 shadow-card">
-                            <p className="text-2xl font-semibold text-graphite-200">{s.n}</p>
-                            <h3 className="mt-2 text-sm font-semibold text-graphite-900">{s.title}</h3>
-                            <p className="mt-1.5 text-sm text-graphite-500">{s.body}</p>
-                        </div>
-                    ))}
+        <section
+            id="how-it-works"
+            className="relative isolate overflow-hidden border-b border-graphite-100 bg-gradient-to-b from-brand-50/60 via-white to-steel-50/40 py-20 sm:py-24"
+        >
+            <BlueprintBackdrop variant="light" />
+
+            <div className="relative mx-auto max-w-6xl px-4 sm:px-6 lg:px-8">
+                <SectionHeading
+                    eyebrow="How It Works"
+                    title="From master data to management reporting"
+                    subtitle="One record travels the whole route: set up once, worked on in the field, approved by whoever is accountable, watched while it runs, and reported on when it closes."
+                />
+
+                <div className="mt-14">
+                    <OperatingLoop steps={steps} />
                 </div>
             </div>
         </section>

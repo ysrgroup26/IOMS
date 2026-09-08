@@ -669,6 +669,71 @@ established way to produce that value (it does: `Company::query()->pluck('id')` 
 different types). A new shared service sitting downstream of both needs to accept both, not silently
 assume whichever pattern its first caller happened to use.
 
+## Known Pitfall (v2.64.0) — an assertion that reads the COMPONENT FILE cannot see copy that arrives
+## as a server prop, and will pass for years while the page says something else
+
+v2.61.0 made the landing page English and added a test to pin it:
+
+```php
+$welcome = file_get_contents(base_path('resources/js/Pages/Public/Welcome.jsx'));
+$this->assertStringNotContainsString('Untuk tim yang', $welcome);
+```
+
+It read the JSX file. The "How It Works" bodies and all seventeen FAQ answers come from
+`PublicController`'s own constants and arrive as Inertia props, so the test never saw them — and both
+were still Indonesian **three releases later**, on a page whose test suite said it was English.
+
+Worse, the FAQ was also **factually stale**: it described three plans four releases after the
+four-tier model shipped, naming Professional as adding "Management visibility", never mentioning
+Business, and quoting seat capacities for a catalogue that no longer existed. A public FAQ
+contradicting the pricing table two sections above it.
+
+**Assert against what the page RENDERS, not against where you happened to author it:**
+
+```php
+$props = $this->get(route('home'))->viewData('page')['props'];
+$copy  = json_encode($props['steps'] ?? [], JSON_UNESCAPED_UNICODE);
+```
+
+This is the same blind spot shape as the v2.63.0 isolation gap — a coverage test scoped to the place
+its author was looking rather than to the thing it claims to cover. When you write an assertion about
+"the page", ask what parts of the page your source of truth cannot reach.
+
+## Known Pitfall (v2.64.0) — observer-driven state that gates APPEARANCE, not just animation, needs a
+## deadman switch
+
+`Reveal`/`useReveal` can afford a silent IntersectionObserver because it only ever ADDS a keyframe:
+the content is visible either way (that inversion is itself a v2.59.0 pitfall entry). It is easy to
+reuse the same pattern for something that is **not** animation-only and reintroduce the bug in a new
+shape.
+
+`OperatingLoop` lights each stage as it scrolls into view. That state drives **colour**, so an
+observer that never reports leaves every station pale — the section looks broken rather than
+un-animated. This is not hypothetical: it was found during verification on a page whose animation
+clock had frozen (a `CSSTransition` stuck in `playState: "running"`, and every existing `Reveal` on
+the page reporting zero animated elements).
+
+**An IntersectionObserver always delivers an initial callback for each observed target.** So if
+nothing has arrived shortly after mount, the mechanism is not running, and the honest resting state
+is "fully lit":
+
+```js
+let reported = false;
+const observer = new IntersectionObserver((entries) => { reported = true; /* ... */ });
+const deadman = window.setTimeout(() => { if (! reported) setLit(steps.length); }, 1200);
+```
+
+Costs the choreography, never the design. The rule: **if observer state decides how something LOOKS
+at rest, the resting state must be reachable without the observer.**
+
+### Two smaller traps from the same component
+
+- **`vectorEffect="non-scaling-stroke"` makes `strokeDasharray` resolve in PIXELS**, not in the
+  normalised `pathLength` units. A "one dash travels the line" effect became fourteen dashes across
+  an 870px rail. If you normalise with `pathLength`, do not also ask for non-scaling strokes.
+- **Two responsive layouts of the same list are BOTH in the DOM** (`hidden lg:block` / `lg:hidden`).
+  They need separate ref arrays: one shared array is overwritten by whichever renders last, leaving
+  the observer watching `display:none` elements that can never intersect.
 ## CRITICAL — Known Pitfall (v2.63.0): a coverage test that only inspects models WITH `company_id`
 ## passes vacuously for every model without one — and those are owned too
 

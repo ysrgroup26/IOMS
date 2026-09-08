@@ -5,11 +5,14 @@ namespace Tests\Feature;
 use App\Models\Company;
 use App\Models\Invoice;
 use App\Models\Package;
+use App\Models\PaymentTransaction;
 use App\Models\Tenant;
 use App\Models\TenantRegistration;
 use App\Models\User;
+use App\Services\PricingService;
 use App\Support\CurrentTenant;
 use App\Support\LegalDocuments;
+use Database\Seeders\WorkspaceSeeder;
 use Illuminate\Foundation\Testing\RefreshDatabase;
 use PHPUnit\Framework\Attributes\DataProvider;
 use Tests\TestCase;
@@ -309,11 +312,11 @@ class PublicReadinessTest extends TestCase
             'payment.midtrans.is_production' => false,
         ]);
 
-        \App\Models\PaymentTransaction::create([
+        PaymentTransaction::create([
             'invoice_id' => $invoice->id,
             'gateway' => 'midtrans',
             'gateway_reference' => 'INV'.$invoice->id.'-20260908000000',
-            'status' => \App\Models\PaymentTransaction::STATUS_PENDING,
+            'status' => PaymentTransaction::STATUS_PENDING,
             'amount' => $invoice->amount,
             'currency' => $invoice->currency,
             'redirect_url' => 'https://app.sandbox.midtrans.com/snap/v2/vtweb/testonly',
@@ -438,7 +441,7 @@ class PublicReadinessTest extends TestCase
     {
         // The `workspaces` table is seeded, not migrated -- without it every
         // label resolves to an empty string and this passes vacuously.
-        $this->seed(\Database\Seeders\WorkspaceSeeder::class);
+        $this->seed(WorkspaceSeeder::class);
 
         $this->assertSame(['warehouse', 'finance'], config('plans.shells'));
 
@@ -455,7 +458,7 @@ class PublicReadinessTest extends TestCase
         }
 
         // And no public plan may name one as something the tier adds.
-        foreach (app(\App\Services\PricingService::class)->publicPlans() as $plan) {
+        foreach (app(PricingService::class)->publicPlans() as $plan) {
             foreach (['Warehouse', 'Finance'] as $shell) {
                 $this->assertNotContains(
                     $shell,
@@ -477,9 +480,9 @@ class PublicReadinessTest extends TestCase
      */
     public function test_each_tier_is_described_as_the_tier_below_it_plus_what_it_adds(): void
     {
-        $this->seed(\Database\Seeders\WorkspaceSeeder::class);
+        $this->seed(WorkspaceSeeder::class);
 
-        $plans = app(\App\Services\PricingService::class)->publicPlans()->keyBy('slug');
+        $plans = app(PricingService::class)->publicPlans()->keyBy('slug');
 
         $this->assertNull($plans['starter']['scope']['inherits_from'], 'The entry tier inherits from nothing.');
         $this->assertSame(['Health, Safety & Environment'], $plans['starter']['scope']['added']);
@@ -520,6 +523,74 @@ class PublicReadinessTest extends TestCase
         }
     }
 
+    /**
+     * v2.64.0 -- THE SAME TEST, AGAINST WHAT THE PAGE ACTUALLY RENDERS.
+     *
+     * The version above reads the JSX FILE, so it only ever saw copy that
+     * is written in the component. The "How It Works" bodies arrive as a
+     * server prop from PublicController::HOW_IT_WORKS, and they were still
+     * Indonesian for three releases after v2.61.0 "fixed the language" --
+     * the test passed the whole time without once looking at them. Exactly
+     * the blind spot the tenant-isolation coverage test had: an assertion
+     * scoped to the place the author happened to be looking.
+     *
+     * This reads the rendered Inertia props instead, so every string the
+     * visitor can actually see is in scope, wherever it was authored.
+     */
+    public function test_no_server_supplied_landing_copy_is_indonesian(): void
+    {
+        $props = $this->get(route('home'))->viewData('page')['props'];
+
+        // Function words common in Indonesian and absent from English, so a
+        // whole sentence does not have to be guessed to catch a lapse.
+        $markers = [
+            'yang', 'dan ', 'untuk', 'dengan', 'pada ', 'dari ', 'tidak',
+            'Anda', 'setiap', 'dapat', 'adalah', 'perusahaan', 'pekerjaan',
+        ];
+
+        foreach (['steps', 'faqs'] as $key) {
+            $copy = json_encode($props[$key] ?? [], JSON_UNESCAPED_UNICODE);
+
+            foreach ($markers as $marker) {
+                $this->assertStringNotContainsStringIgnoringCase(
+                    $marker,
+                    $copy,
+                    "Server-supplied `{$key}` copy on the landing page is still Indonesian (found \"{$marker}\")."
+                );
+            }
+        }
+    }
+
+    /**
+     * The five stages are a JOURNEY, and the section that renders them is
+     * built from the server's list. Both lengths have to exist or the
+     * landing rail falls back to the detail page's full paragraph and the
+     * cards become uneven walls of text.
+     */
+    public function test_every_how_it_works_stage_carries_both_a_summary_and_a_body(): void
+    {
+        $steps = $this->get(route('home'))->viewData('page')['props']['steps'];
+
+        $this->assertCount(5, $steps, 'The operating loop is five stages.');
+
+        foreach ($steps as $step) {
+            $this->assertNotEmpty($step['step'], 'A stage has no number.');
+            $this->assertNotEmpty($step['title'], "Stage {$step['step']} has no title.");
+            $this->assertNotEmpty($step['summary'] ?? null, "Stage {$step['step']} has no short summary for the landing rail.");
+            $this->assertNotEmpty($step['body'] ?? null, "Stage {$step['step']} has no full body for /how-it-works.");
+            $this->assertLessThan(
+                140,
+                strlen($step['summary']),
+                "Stage {$step['step']}'s summary is long enough to unbalance the rail; it belongs in `body`."
+            );
+        }
+
+        $this->assertSame(
+            ['Centralize', 'Operate', 'Approve', 'Monitor', 'Report & Improve'],
+            array_column($steps, 'title')
+        );
+    }
+
     /** The placeholder furniture the showcase replaced must not come back. */
     public function test_the_landing_page_shows_no_placeholder_product_mockups(): void
     {
@@ -541,6 +612,7 @@ class PublicReadinessTest extends TestCase
         $this->assertStringContainsString('motion-safe:animate-reveal', $reveal);
         $this->assertStringNotContainsString('opacity-0', $reveal, 'A reveal that starts at opacity 0 can strand content.');
     }
+
     public function test_get_started_is_an_onboarding_flow_and_not_a_login_redirect(): void
     {
         $this->package();

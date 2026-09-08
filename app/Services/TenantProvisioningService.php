@@ -115,6 +115,15 @@ class TenantProvisioningService
             'billing_cycle' => $cycle,
             'starts_at' => now(),
             'ends_at' => $cycle === Subscription::CYCLE_MONTHLY ? now()->addMonth() : now()->addYear(),
+            // v2.60.0 -- the price this customer actually bought at, taken
+            // at the moment of activation. Both cycles are stored so a
+            // later monthly<->yearly switch does not silently reprice
+            // them. Without this, a future edit to the catalogue would
+            // change what an existing customer is billed at renewal --
+            // see Subscription::agreedAmountFor().
+            'agreed_price_monthly' => $package->price_monthly,
+            'agreed_price_yearly' => $package->price_yearly,
+            'agreed_currency' => $package->currency,
         ]);
 
         // The same Package -> Workspace/Module grant mapping

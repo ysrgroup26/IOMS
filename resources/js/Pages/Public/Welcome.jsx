@@ -509,24 +509,20 @@ function Industries() {
 // capacity, and full reporting -- without touching is_custom, pricing, or
 // entitlement logic itself (out of scope for this pass).
 const PLAN_FRAMING = {
-    starter: 'Untuk tim yang baru mulai memusatkan operasional mereka.',
-    professional: 'Untuk operasional industri yang berkembang dan butuh departemen yang saling terhubung.',
-    enterprise: 'Untuk organisasi yang butuh akses penuh, kapasitas lebih besar, dan pelaporan menyeluruh.',
+    starter: 'Untuk tim yang baru mulai memusatkan Health, Safety & Environment.',
+    professional: 'Untuk operasi yang juga perlu mengelola tenaga kerja dan kompetensinya.',
+    business: 'Untuk operasi yang menjalankan pekerjaan, material, dan pengadaan di beberapa lokasi.',
+    enterprise: 'Untuk organisasi yang butuh akses penuh, kapasitas tanpa batas, dan tata kelola lintas unit.',
 };
 
 function Pricing({ plans }) {
     const [interval, setInterval] = useState('monthly');
     const { version } = usePage().props;
-    // v2.27.0: visual emphasis for the middle plan only -- a pure LAYOUT
-    // decision (border/scale/shadow), never a "Most Popular"/"Recommended"
-    // text claim, since no such signal exists in the actual Package data
-    // (per this pass's own "if unsure, do not invent" instruction).
-    const emphasizedIndex = plans && plans.length === 3 ? 1 : -1;
 
     return (
         <section id="pricing" className="border-b border-graphite-100 bg-white py-20">
             <div className="mx-auto max-w-7xl px-4 sm:px-6 lg:px-8">
-                <SectionHeading eyebrow="Pricing" title="Plans that grow with your operation" subtitle="One standardized product at three levels of access and capacity. No hidden implementation fee, and no per-company custom development." />
+                <SectionHeading eyebrow="Pricing" title="Plans that grow with your operation" subtitle="One standardized product at four levels of access and capacity. No hidden implementation fee, and no per-customer custom development." />
 
                 {plans && plans.length > 0 ? (
                     <>
@@ -545,20 +541,42 @@ function Pricing({ plans }) {
                             </div>
                         </div>
 
-                        <div className="mt-10 grid grid-cols-1 gap-6 md:grid-cols-2 lg:grid-cols-3 lg:items-start">
-                            {plans.map((plan, i) => {
+                        {/* v2.60.0: four tiers. Two-up from md, four-up only at
+                            xl -- three across at lg would leave a lone card on a
+                            second row, and squeezing four into lg makes each
+                            narrower than its own price line. */}
+                        <div className="mt-10 grid grid-cols-1 gap-6 md:grid-cols-2 xl:grid-cols-4 xl:items-start">
+                            {plans.map((plan) => {
                                 const price = interval === 'monthly' ? plan.monthly : plan.yearly;
-                                const emphasized = i === emphasizedIndex;
+                                // Server-derived (config/plans.php -> PricingService),
+                                // never inferred from the card's index -- which is what
+                                // broke the moment a fourth tier arrived.
+                                const emphasized = plan.is_popular;
                                 const framing = PLAN_FRAMING[plan.slug] || '';
+                                // Capped: Enterprise grants ten departments and an
+                                // unbroken list of them turned one landing card into
+                                // four times the height of Starter's. The full list is
+                                // on /pricing, which is where a visitor comparing tiers
+                                // line by line is going anyway.
+                                const departments = plan.department_workspaces ?? [];
                                 return (
                                     <div
                                         key={plan.id}
                                         className={
                                             emphasized
-                                                ? 'relative flex h-full flex-col rounded-2xl border-2 border-brand-500 bg-gradient-to-b from-brand-50/60 to-white p-7 shadow-card-hover lg:-translate-y-2'
-                                                : 'flex h-full flex-col rounded-2xl border border-graphite-200 bg-white p-7 shadow-card'
+                                                ? 'relative flex h-full flex-col rounded-2xl border-2 border-brand-500 bg-gradient-to-b from-brand-50/60 to-white p-6 shadow-card-hover xl:-translate-y-2'
+                                                : 'flex h-full flex-col rounded-2xl border border-graphite-200 bg-white p-6 shadow-card'
                                         }
                                     >
+                                        {/* v2.60.0: `is_popular` is a real field now
+                                            (config/plans.php -> PricingService), so the
+                                            emphasis can be stated rather than implied by
+                                            a border the visitor has to interpret. */}
+                                        {emphasized && (
+                                            <span className="absolute -top-2.5 left-6 rounded-full bg-brand-600 px-2.5 py-0.5 text-[10px] font-semibold uppercase tracking-wide text-white">
+                                                Paling banyak dipilih
+                                            </span>
+                                        )}
                                         <h3 className="text-lg font-semibold text-graphite-900">{plan.name}</h3>
                                         {framing && <p className="mt-1.5 text-sm leading-relaxed text-graphite-500">{framing}</p>}
 
@@ -578,9 +596,19 @@ function Pricing({ plans }) {
                                             <li className="flex items-center gap-2">
                                                 <Building2 className="h-3.5 w-3.5 shrink-0 text-brand-500" /> {plan.max_companies ? `${plan.max_companies} Operating Unit${plan.max_companies > 1 ? 's' : ''}` : 'Multiple Operating Units'}
                                             </li>
-                                            {plan.workspaces.length > 0 && plan.workspaces.map((w) => (
+                                            {/* v2.60.0: the DEPARTMENTS the tier grants, not
+                                                the full provisioning grant -- Reports and
+                                                Settings belong to every plan and listing them
+                                                as bullets made four tiers look more alike
+                                                than they are. */}
+                                            {departments.slice(0, 6).map((w) => (
                                                 <li key={w} className="flex items-center gap-2"><Check className="h-3.5 w-3.5 shrink-0 text-brand-500" /> {w}</li>
                                             ))}
+                                            {departments.length > 6 && (
+                                                <li className="flex items-center gap-2 text-graphite-500">
+                                                    <Check className="h-3.5 w-3.5 shrink-0 text-brand-500" /> +{departments.length - 6} departemen lainnya
+                                                </li>
+                                            )}
                                         </ul>
 
                                         {/* v2.52.0: this was a mailto: "Talk to Us" whenever a

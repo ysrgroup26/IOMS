@@ -3,6 +3,66 @@
 House style, and a deliberately honest list of mistakes that have actually happened in this
 codebase's history — kept here so they don't get repeated in a slightly different shape.
 
+## Known Pitfall (v2.60.0): a data migration makes every test's fixtures a duplicate
+
+The four-tier pricing catalogue ships in a migration, not only in the seeder — deliberately, because
+`db:seed` does not re-run on a live deployment (see the v2.51.0 entry below). The consequence nobody
+predicted: `RefreshDatabase` runs migrations, so **every test now starts with those rows already in
+the table**. Twenty-nine tests failed at once with `UNIQUE constraint failed: packages.slug`, purely
+because each had been building its own `Package::create(['slug' => 'starter', ...])`.
+
+**Rules.**
+
+- A test that needs a catalogue row should **read it** (`Package::where('slug', …)->firstOrFail()`),
+  not create it. That also makes the test assert what a deployment actually ends up with.
+- A test that needs *some* plan, and does not care which, uses `firstOrCreate(['slug' => …], [...])`.
+- A test that deliberately reconstructs an older state (to run an old migration over it) uses
+  `updateOrCreate` — it is writing *over* the migrated row, which is the point.
+- Before adding data to a migration, grep the test suite for that table.
+
+---
+## Known Pitfall (v2.60.0): the same approved figure typed into three test files
+
+The prices were pinned in `PricingConsistencyTest`, `ProductRevisionV252Test` and
+`PublicSaasJourneyTest`. Repricing broke all three at once and each had to be found and corrected by
+hand — which is the exact failure mode those tests exist to prevent, reproduced inside the tests.
+
+`Tests\Support\ApprovedCatalogue` is now the single place the commercial model is written down, and
+the three files read from it.
+
+It is deliberately **not** derived from `config/plans.php` or from the migration. A test that reads
+its expectation from the code under test only asserts that the code equals itself. These numbers are
+transcribed from the approved commercial decision, and their whole job is to fail when the code stops
+matching it.
+
+---
+## Known Pitfall (v2.60.0): a catalogue UPDATE path that forgets a column the INSERT path sets
+
+`2026_09_26_100270_establish_four_tier_pricing` sets `trial_days` on insert and, in its first
+version, not on update. Every *existing* tier takes the update path — so Professional kept
+`trial_days = 14` from an older catalogue and the Plans page went on advertising a free trial IOMS
+does not sell. The whole test suite was green; it was found by looking at the running page.
+
+**Rule.** In an upsert migration, build ONE `$attributes` array and use it for both branches. If a
+column belongs in the insert, justify out loud why it does not belong in the update. And when a
+migration changes what a customer sees, open the page.
+
+---
+## Known Pitfall (v2.60.0): a backfill that reads the table an earlier migration just changed
+
+`…100271_snapshot_agreed_subscription_price` backfills each subscription with the price its customer
+agreed to. The obvious source is the `packages` table. It is the wrong one: migrations run in
+filename order, `…100270` reprices the catalogue **first**, so reading `packages` would have stamped
+every existing customer with the NEW price — the precise outcome the snapshot columns exist to
+prevent, written into the data permanently.
+
+The backfill therefore carries a **literal table of the pre-v2.60 prices**, and only touches rows
+where both snapshot columns are still null.
+
+**Rule.** A backfill of "what was true before" must never read state that a migration in the same
+deploy has already rewritten. Write the historical values down in the migration.
+
+---
 ## Known Pitfall (v2.59.0): a scroll reveal that starts hidden can strand content permanently
 
 The obvious way to build one is "render at `opacity-0`, transition to visible when an

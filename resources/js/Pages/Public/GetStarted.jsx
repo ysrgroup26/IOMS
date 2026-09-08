@@ -290,7 +290,8 @@ export default function GetStarted({ plans = [], selectedPlan, billingCycle, ind
 
                             {plan && (
                                 <ul className="mt-4 space-y-1.5 border-t border-steel-100 pt-4">
-                                    {(plan.workspaces ?? []).slice(0, 5).map((w) => (
+                                    {/* v2.60.0: departments only -- see Pricing.jsx. */}
+                                    {(plan.department_workspaces ?? []).slice(0, 5).map((w) => (
                                         <li key={w} className="flex items-start gap-2 text-xs text-graphite-600">
                                             <Check className="mt-0.5 h-3.5 w-3.5 shrink-0 text-success" />
                                             <span>{w}</span>

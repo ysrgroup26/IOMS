@@ -75,11 +75,14 @@ export default function Pricing({ plans = [], contactEmail }) {
             </section>
 
             <section className="bg-graphite-100 py-14 sm:py-20">
-                <div className="mx-auto max-w-6xl px-4 sm:px-6">
+                {/* v2.60.0: 7xl, not 6xl -- four cards at 6xl left each one
+                    narrower than its own price line. */}
+                <div className="mx-auto max-w-7xl px-4 sm:px-6">
                     {plans.length === 0 ? (
                         <p className="text-center text-sm text-graphite-500">Plan information is not available right now.</p>
                     ) : (
-                        <div className="grid grid-cols-1 gap-5 md:grid-cols-3">
+                        // v2.60.0: four tiers -- two-up from md, four-up only at xl.
+                        <div className="grid grid-cols-1 gap-5 md:grid-cols-2 xl:grid-cols-4">
                             {plans.map((plan) => {
                                 const price = yearly ? plan.yearly : plan.monthly;
                                 // v2.56.0: derived ONCE, server-side, from the plan's own two
@@ -89,13 +92,31 @@ export default function Pricing({ plans = [], contactEmail }) {
                                 // no sign it was already discounted, and any surface that wanted
                                 // the number had to copy the arithmetic.
                                 const saving = yearly ? plan.annual_saving : null;
+                                const departments = plan.department_workspaces ?? [];
 
                                 return (
                                     <div
                                         key={plan.slug}
-                                        className="flex flex-col rounded-xl border border-steel-200/70 bg-gradient-to-b from-steel-100/70 via-white to-white p-6 shadow-panel"
+                                        className={
+                                            plan.is_popular
+                                                ? 'relative flex flex-col rounded-xl border-2 border-brand-500 bg-gradient-to-b from-brand-50/70 via-white to-white p-6 shadow-card-hover'
+                                                : 'flex flex-col rounded-xl border border-steel-200/70 bg-gradient-to-b from-steel-100/70 via-white to-white p-6 shadow-panel'
+                                        }
                                     >
+                                        {/* v2.60.0: the recommendation is now a real
+                                            signal in the data (config/plans.php), so the
+                                            page can state it instead of hinting with
+                                            layout alone. Kept to a small uppercase label
+                                            -- this is a B2B page, not a consumer one. */}
+                                        {plan.is_popular && (
+                                            <span className="absolute -top-2.5 left-6 rounded-full bg-brand-600 px-2.5 py-0.5 text-[10px] font-semibold uppercase tracking-wide text-white">
+                                                Most popular
+                                            </span>
+                                        )}
                                         <h2 className="text-lg font-semibold tracking-tight text-navy-900">{plan.name}</h2>
+                                        {plan.positioning && (
+                                            <p className="mt-1 text-xs font-semibold text-brand-700">{plan.positioning}</p>
+                                        )}
                                         {plan.description && (
                                             <p className="mt-1.5 text-xs leading-relaxed text-graphite-500">{plan.description}</p>
                                         )}
@@ -140,12 +161,25 @@ export default function Pricing({ plans = [], contactEmail }) {
                                                     may run inside it. */}
                                                 <span>{plan.max_companies ? `${plan.max_companies} Operating Unit${plan.max_companies > 1 ? 's' : ''}` : 'Multiple Operating Units'}</span>
                                             </li>
-                                            {(plan.workspaces ?? []).slice(0, 6).map((w) => (
+                                            {/* v2.60.0: DEPARTMENTS only. `workspaces` also
+                                                carries Reports and Settings, which every plan
+                                                has -- printing them here spent two of the six
+                                                visible bullets saying nothing about the tier.
+                                                Enterprise grants more than six, so the
+                                                remainder is counted rather than silently
+                                                truncated the way it used to be. */}
+                                            {departments.slice(0, 6).map((w) => (
                                                 <li key={w} className="flex items-start gap-2 text-xs text-graphite-600">
                                                     <Check className="mt-0.5 h-3.5 w-3.5 shrink-0 text-success" />
                                                     <span>{w}</span>
                                                 </li>
                                             ))}
+                                            {departments.length > 6 && (
+                                                <li className="flex items-start gap-2 text-xs text-graphite-500">
+                                                    <Check className="mt-0.5 h-3.5 w-3.5 shrink-0 text-success" />
+                                                    <span>+{departments.length - 6} more departments</span>
+                                                </li>
+                                            )}
                                         </ul>
 
                                         <div className="mt-6 pt-1">

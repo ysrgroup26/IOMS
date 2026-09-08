@@ -23,7 +23,6 @@ class Package extends Model
         'max_users',
         'max_companies',
         'max_ptw_users',
-        'features',
         'is_active',
         'is_public',
         'is_custom',
@@ -37,7 +36,6 @@ class Package extends Model
             'price_yearly' => 'decimal:2',
             'trial_days' => 'integer',
             'max_ptw_users' => 'integer',
-            'features' => 'array',
             'is_active' => 'boolean',
             'is_public' => 'boolean',
             'is_custom' => 'boolean',
@@ -49,10 +47,28 @@ class Package extends Model
         return $this->hasMany(Subscription::class);
     }
 
-    public function hasFeature(string $key): bool
-    {
-        return in_array($key, $this->features ?? [], true);
-    }
+    /*
+     * v2.60.0 -- `hasFeature()` AND `packages.features` ARE GONE.
+     *
+     * The column held a third list of what a plan includes, alongside the
+     * workspace grant and the module grant. `hasFeature()` was its only
+     * reader and a repository-wide search found NOT ONE call site: no
+     * controller, no middleware, no policy, no Blade view, no JSX, no
+     * test. It gated nothing.
+     *
+     * It was removed rather than left dormant because a dead entitlement
+     * source is not harmless -- it is a plausible-looking answer to
+     * "what does this plan include" sitting next to the real one, and the
+     * next person to need a feature flag would have reached for it. The
+     * server-authoritative chain is, and stays, exactly one path:
+     *
+     *   config/plans.php -> Package::defaultWorkspaceKeys()/
+     *   defaultModuleKeys() -> tenant_workspaces / tenant_modules ->
+     *   EntitlementService::grantedWorkspaceKeys() -> route gate + nav
+     *
+     * The column itself is dropped by the same migration that adds the
+     * Business tier.
+     */
 
     public function scopeActive($query)
     {
@@ -66,72 +82,83 @@ class Package extends Model
     }
 
     /**
-     * v1.11.15 (SaaS Package + Ecosystem pass, Part 1/26/27). The
-     * canonical Package -> Workspace(department)-key mapping the product
-     * requirement describes:
-     *   Starter      = HSE only, but fully operational.
-     *   Professional = HSE + Management + HRD.
-     *   Enterprise   = full IOMS (every existing workspace).
-     * "Management" isn't a gated workspace of its own (the Main
-     * Dashboard is universal, not department-scoped), so Professional's
-     * real workspace grant is HSE + HR. Used by
-     * `PlatformController::storeTenant()` to actually grant a new
-     * tenant's Module/Workspace rows at creation time -- previously
-     * `storeTenant()` created the Subscription but never granted
-     * anything, so the chosen Package had ZERO effect on what the tenant
-     * could actually reach (confirmed by auditing this pass, not
-     * assumed -- see `EnforceTenantEntitlement`'s own doc comment).
-     * Keyed by slug rather than name so a future rename of the display
-     * name doesn't silently break this mapping.
-     */
-    /**
-     * The DEPARTMENT workspaces a plan includes.
+     * The DEPARTMENT workspaces this plan includes, from config/plans.php.
      *
-     * v2.58.0: global-tier workspaces (Reports, Administration) are unioned
-     * in for every plan, and `default` no longer means "nothing". Both were
-     * live defects. Reports and Administration are the application's own
-     * chrome — Settings, Users, Audit Logs, Report Center — not sold
-     * capacity, and listing only departments here is what left every
-     * self-service Starter and Professional tenant with an empty sidebar
-     * and a 403 on Reports.
+     * Read by both grant paths -- `TenantProvisioningService::activate()`
+     * for a self-service purchase and `PlatformController::storeTenant()`
+     * for an operator-created tenant -- so the two cannot diverge. Keyed
+     * by slug, so renaming a plan's display name never breaks the mapping.
      *
-     * An unrecognised slug now grants the global keys rather than an empty
-     * array. It still records no departments, and `grantedWorkspaceKeys()`
-     * reads "no department grants" through the same fail-open rule this
-     * codebase applies to every other unconfigured tenant, rather than
-     * inventing a second, contradictory policy.
+     * v2.58.0 fixed the half of this that hid the application's own chrome
+     * from paying customers; v2.60.0 moved the list itself out of a
+     * hardcoded `match` whose `default => []` arm gave an unrecognised
+     * slug a price and no product.
      */
     public function defaultWorkspaceKeys(): array
     {
-        $global = Workspace::globalKeys();
+        $departments = $this->planScope('workspaces', fn () => Workspace::query()
+            ->where('tier', Workspace::TIER_DEPARTMENT)
+            ->pluck('key')->all());
 
-        $departments = match ($this->slug) {
-            'starter' => ['hse'],
-            'professional' => ['hse', 'hr'],
-            'enterprise' => Workspace::where('tier', Workspace::TIER_DEPARTMENT)->pluck('key')->all(),
-            default => [],
-        };
-
-        return array_values(array_unique([...$departments, ...$global]));
+        // Global-tier workspaces are the application's own chrome and are
+        // never sold -- unioned in here so no plan can omit them and no
+        // config entry has to remember to list them. See v2.58.0.
+        return array_values(array_unique([...$departments, ...Workspace::globalKeys()]));
     }
 
     /**
-     * Module-level grant is intentionally narrower than workspace-level
-     * (see `Module`'s own small, mostly-cross-cutting key set --
-     * `config/modules.php`'s own doc comment explains most real HSE
-     * functionality has no separate Module key at all, only the
-     * workspace/department grant + role capability gate it). Starter
-     * gets every Module that's actually HSE-relevant or cross-cutting;
-     * Professional adds nothing new at the Module layer (HRD has no
-     * Module-table entries of its own yet); Enterprise gets everything.
+     * v2.60.0 -- the DEPARTMENT workspaces this plan grants, i.e. the part
+     * of the grant that actually differs between tiers.
+     *
+     * `defaultWorkspaceKeys()` is the provisioning answer and must include
+     * the global chrome. A pricing card is a different question: listing
+     * "Reports" and "Administration" as bullet points under every tier
+     * presents the application's own furniture as a purchased feature,
+     * which is exactly the confusion config/plans.php refuses to encode.
+     * So the pricing surfaces read this instead.
+     */
+    public function departmentWorkspaceKeys(): array
+    {
+        return array_values(array_diff($this->defaultWorkspaceKeys(), Workspace::globalKeys()));
+    }
+
+    /**
+     * The Module grants, from config/plans.php.
+     *
+     * Deliberately narrower than the workspace layer: most real HSE
+     * functionality has no Module key at all and is gated by the workspace
+     * grant plus a role check (see config/modules.php). Professional adds
+     * nothing here over Starter because HR has no Module rows of its own;
+     * Business adds the modules its new departments actually use.
      */
     public function defaultModuleKeys(): array
     {
-        return match ($this->slug) {
-            'starter' => ['employees', 'ppe', 'kpi_input', 'reports'],
-            'professional' => ['employees', 'ppe', 'kpi_input', 'reports'],
-            'enterprise' => Module::pluck('key')->all(),
-            default => [],
-        };
+        return $this->planScope('modules', fn () => Module::query()->pluck('key')->all());
+    }
+
+    /**
+     * v2.60.0 -- resolves one scope list for THIS plan from
+     * `config/plans.php`, replacing a hardcoded `match` whose
+     * `default => []` arm meant a mistyped or admin-created slug got a
+     * price and no product.
+     *
+     * `'*'` means "everything that exists", resolved through $all so a
+     * department added later is included without editing config.
+     *
+     * An unknown slug falls back to the configured entry tier rather than
+     * to an empty array -- a paid customer must never receive zero
+     * departments. If even the fallback is missing (a broken config), the
+     * everything-list is used: the operator sees an obviously over-granted
+     * tenant, which is recoverable, rather than a customer locked out of a
+     * product they paid for, which is not.
+     */
+    private function planScope(string $kind, callable $all): array
+    {
+        $map = config("plans.$kind", []);
+        $fallbackSlug = config('plans.fallback', 'starter');
+
+        $scope = $map[$this->slug] ?? $map[$fallbackSlug] ?? '*';
+
+        return $scope === '*' ? $all() : $scope;
     }
 }

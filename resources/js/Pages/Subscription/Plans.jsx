@@ -62,7 +62,7 @@ export default function SubscriptionPlans({ plans, currentPlan, currentPlanId })
             {plans.length === 0 ? (
                 <Card><CardContent className="p-8 text-center text-sm text-graphite-400">Belum ada paket yang tersedia untuk ditampilkan.</CardContent></Card>
             ) : (
-                <div className="grid grid-cols-1 gap-4 md:grid-cols-2 lg:grid-cols-3">
+                <div className="grid grid-cols-1 gap-4 md:grid-cols-2 xl:grid-cols-4">
                     {plans.map((plan) => {
                         const isCurrent = plan.id === currentPlanId;
                         const price = interval === 'monthly' ? plan.monthly : plan.yearly;
@@ -102,11 +102,15 @@ export default function SubscriptionPlans({ plans, currentPlan, currentPlanId })
                                         </div>
                                     </div>
 
-                                    {plan.workspaces.length > 0 && (
+                                    {/* v2.60.0: this list is headed "Departemen", so it
+                                        shows departments -- it used to include Reports and
+                                        Administration, which are neither departments nor
+                                        something a plan grants or withholds. */}
+                                    {(plan.department_workspaces ?? []).length > 0 && (
                                         <div className="space-y-1.5 border-t border-graphite-100 pt-3 dark:border-slate-800">
                                             <p className="text-xs font-medium uppercase tracking-wide text-graphite-400">Departemen</p>
                                             <ul className="space-y-1 text-sm">
-                                                {plan.workspaces.map((label) => (
+                                                {plan.department_workspaces.map((label) => (
                                                     <li key={label} className="flex items-center gap-1.5 text-graphite-700 dark:text-slate-300">
                                                         <Check className="h-3.5 w-3.5 shrink-0 text-emerald-600" /> {label}
                                                     </li>

@@ -50,25 +50,39 @@ class ProductRevisionV252Test extends TestCase
      * 1. CAPACITY MODEL: TOTAL USERS. PTW Access is not a sold seat.
      * ================================================================ */
 
-    public function test_the_launch_catalog_has_the_approved_prices_and_capacity(): void
+    /**
+     * The SEEDER and the MIGRATION must produce the same catalog.
+     *
+     * v2.60.0: the figures themselves moved to
+     * Tests\Support\ApprovedCatalogue and PricingConsistencyTest owns
+     * asserting them. What is left here is the invariant this test was
+     * really about -- a fresh install (seeder) and an upgraded deployment
+     * (migration) must not end up on different prices, which is the
+     * v2.51.0 defect that started all of this.
+     */
+    public function test_the_seeder_and_the_migration_agree_on_the_catalog(): void
     {
+        $fromMigration = Package::orderBy('slug')->get()
+            ->mapWithKeys(fn (Package $p) => [$p->slug => [
+                (float) $p->price_monthly, (float) $p->price_yearly, $p->max_users, $p->max_companies,
+            ]])->all();
+
         $this->seed(\Database\Seeders\PackageSeeder::class);
 
-        $expected = [
-            'starter' => ['monthly' => 299000, 'yearly' => 2990000, 'users' => 10, 'companies' => 1],
-            'professional' => ['monthly' => 999000, 'yearly' => 9990000, 'users' => 50, 'companies' => 1],
-            // Enterprise is the multi-company tier: null = no ceiling.
-            'enterprise' => ['monthly' => 1999000, 'yearly' => 19990000, 'users' => null, 'companies' => null],
-        ];
+        $fromSeeder = Package::orderBy('slug')->get()
+            ->mapWithKeys(fn (Package $p) => [$p->slug => [
+                (float) $p->price_monthly, (float) $p->price_yearly, $p->max_users, $p->max_companies,
+            ]])->all();
 
-        foreach ($expected as $slug => $e) {
-            $package = Package::where('slug', $slug)->firstOrFail();
+        $this->assertSame(
+            $fromMigration,
+            $fromSeeder,
+            'A fresh install and an upgraded deployment would be on different prices.'
+        );
 
-            $this->assertEquals($e['monthly'], (float) $package->price_monthly, "{$slug} monthly");
-            $this->assertEquals($e['yearly'], (float) $package->price_yearly, "{$slug} yearly");
-            $this->assertSame($e['users'], $package->max_users, "{$slug} max_users");
-            $this->assertSame($e['companies'], $package->max_companies, "{$slug} max_companies");
-            $this->assertFalse((bool) $package->is_custom, "{$slug} is a standardized plan");
+        foreach (\Tests\Support\ApprovedCatalogue::PLANS as $slug => [$monthly, $yearly, $users, $units]) {
+            $this->assertSame([$monthly, $yearly, $users, $units], $fromSeeder[$slug] ?? null, "{$slug} drifted.");
+            $this->assertFalse((bool) Package::where('slug', $slug)->value('is_custom'), "{$slug} is a standardized plan");
         }
     }
 
@@ -97,14 +111,38 @@ class ProductRevisionV252Test extends TestCase
         $this->assertTrue($entitlements->canEnablePtwAccess(null));
     }
 
-    /** Professional is a ONE-company plan; multi-company is what Enterprise sells. */
-    public function test_only_enterprise_is_multi_company(): void
+    /**
+     * Operating-unit capacity rises with the tier, and only Enterprise is
+     * unlimited.
+     *
+     * v2.60.0 replaces "only Enterprise is multi-company". Under the
+     * four-tier model Professional runs two Operating Units and Business
+     * four -- capacity is now part of the ladder rather than a single
+     * Enterprise-only switch. What has NOT changed is the two ends:
+     * Starter is one unit, and NULL (unlimited) belongs to Enterprise
+     * alone.
+     */
+    public function test_operating_unit_capacity_climbs_and_only_enterprise_is_unlimited(): void
     {
         $this->seed(\Database\Seeders\PackageSeeder::class);
 
         $this->assertSame(1, Package::where('slug', 'starter')->value('max_companies'));
-        $this->assertSame(1, Package::where('slug', 'professional')->value('max_companies'));
-        $this->assertNull(Package::where('slug', 'enterprise')->value('max_companies'));
+
+        $previous = 0;
+
+        foreach (\Tests\Support\ApprovedCatalogue::slugs() as $slug) {
+            $units = Package::where('slug', $slug)->value('max_companies');
+
+            if ($slug === 'enterprise') {
+                $this->assertNull($units, 'Enterprise is the only unlimited tier.');
+
+                continue;
+            }
+
+            $this->assertNotNull($units, "{$slug} must have a stated Operating Unit ceiling.");
+            $this->assertGreaterThan($previous, $units, "{$slug} must allow more Operating Units than the tier below it.");
+            $previous = $units;
+        }
     }
 
     /** The capacity migration alone must produce the catalog on an already-seeded deployment. */
@@ -112,8 +150,13 @@ class ProductRevisionV252Test extends TestCase
     {
         // A deployment carrying the previous release's values, including the
         // NULL PTW allowance that silently meant "unlimited".
-        Package::create([
-            'name' => 'Starter', 'slug' => 'starter', 'price_monthly' => 499000, 'price_yearly' => 4990000,
+        //
+        // v2.60.0: written OVER the migrated Starter row rather than
+        // inserted beside it -- the four-tier migration has already run on
+        // this database, and the point of the test is to hand the v2.52.0
+        // migration the stale state it was written to correct.
+        Package::updateOrCreate(['slug' => 'starter'], [
+            'name' => 'Starter', 'price_monthly' => 499000, 'price_yearly' => 4990000,
             'currency' => 'IDR', 'max_users' => 15, 'max_ptw_users' => null, 'max_companies' => 1,
             'is_active' => true, 'is_public' => true, 'is_custom' => false,
         ]);

@@ -194,6 +194,8 @@ class PlatformController extends Controller
                 'status' => $validated['status'],
             ]);
 
+            $chosenPackage = Package::find($validated['package_id']);
+
             Subscription::create([
                 'tenant_id' => $tenant->id,
                 'package_id' => $validated['package_id'],
@@ -201,6 +203,13 @@ class PlatformController extends Controller
                 'billing_cycle' => Subscription::CYCLE_MONTHLY,
                 'starts_at' => now(),
                 'ends_at' => now()->addMonth(),
+                // v2.60.0: an operator-created tenant records the agreed
+                // price exactly as a self-service purchase does, so the two
+                // paths cannot diverge on what a customer is billed when
+                // the public catalogue later changes.
+                'agreed_price_monthly' => $chosenPackage?->price_monthly,
+                'agreed_price_yearly' => $chosenPackage?->price_yearly,
+                'agreed_currency' => $chosenPackage?->currency,
             ]);
 
             // v1.11.15 (SaaS Package + Ecosystem pass, Part 1/26/27):
@@ -505,6 +514,8 @@ class PlatformController extends Controller
                 $subscription->update(['package_id' => $validated['package_id']]);
             }
         } else {
+            $chosenPackage = Package::find($validated['package_id']);
+
             Subscription::create([
                 'tenant_id' => $tenant->id,
                 'package_id' => $validated['package_id'],
@@ -512,6 +523,13 @@ class PlatformController extends Controller
                 'billing_cycle' => Subscription::CYCLE_MONTHLY,
                 'starts_at' => now(),
                 'ends_at' => now()->addMonth(),
+                // v2.60.0: an operator-created tenant records the agreed
+                // price exactly as a self-service purchase does, so the two
+                // paths cannot diverge on what a customer is billed when
+                // the public catalogue later changes.
+                'agreed_price_monthly' => $chosenPackage?->price_monthly,
+                'agreed_price_yearly' => $chosenPackage?->price_yearly,
+                'agreed_currency' => $chosenPackage?->currency,
             ]);
         }
 

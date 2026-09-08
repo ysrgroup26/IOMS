@@ -84,6 +84,20 @@ export default function Billing({ subscription, entitlements, invoices = [], rec
                                         <p className="mt-0.5 text-xl font-semibold tracking-tight text-navy-900">
                                             {subscription.price || '—'}
                                         </p>
+                                        {/* v2.60.0: this figure is the price the customer
+                                            AGREED to, which after a catalogue change is no
+                                            longer the published one. Saying so here is the
+                                            difference between "my bill is right" and a
+                                            support ticket asking why the pricing page shows
+                                            something else. */}
+                                        {subscription.is_legacy_pricing && (
+                                            <p className="mt-1 max-w-[15rem] text-[11px] leading-relaxed text-graphite-500">
+                                                Your agreed price, kept from when you subscribed.
+                                                {subscription.catalogue_price
+                                                    ? ` This plan is now published at ${subscription.catalogue_price}.`
+                                                    : ''}
+                                            </p>
+                                        )}
                                     </div>
                                 </div>
 

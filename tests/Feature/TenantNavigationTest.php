@@ -55,11 +55,18 @@ class TenantNavigationTest extends TestCase
 
     private function plan(string $slug): Package
     {
-        return Package::create([
-            'name' => ucfirst($slug), 'slug' => $slug,
-            'price_monthly' => 299000, 'price_yearly' => 2990000, 'currency' => 'IDR',
-            'max_users' => 10, 'max_companies' => 1, 'is_active' => true, 'is_public' => true,
-        ]);
+        // v2.60.0: firstOrCreate, because the four-tier migration already
+        // wrote starter/professional/business/enterprise into `packages`.
+        // A real tier resolves to its real row; an off-catalog slug (the
+        // unknown-plan case below) is still created on the spot.
+        return Package::firstOrCreate(
+            ['slug' => $slug],
+            [
+                'name' => ucfirst($slug),
+                'price_monthly' => 299000, 'price_yearly' => 2990000, 'currency' => 'IDR',
+                'max_users' => 10, 'max_companies' => 1, 'is_active' => true, 'is_public' => true,
+            ]
+        );
     }
 
     /** A tenant provisioned exactly the way TenantProvisioningService does it. */
@@ -101,9 +108,13 @@ class TenantNavigationTest extends TestCase
         ]);
     }
 
+    /** Every tier a real customer can be on -- Business included since v2.60.0. */
     public static function customerPlans(): array
     {
-        return ['starter' => ['starter'], 'professional' => ['professional'], 'enterprise' => ['enterprise']];
+        return array_map(
+            fn (string $slug) => [$slug],
+            array_combine(\Tests\Support\ApprovedCatalogue::slugs(), \Tests\Support\ApprovedCatalogue::slugs())
+        );
     }
 
     /* ================================================================
@@ -175,6 +186,31 @@ class TenantNavigationTest extends TestCase
         $this->assertFalse((bool) $catalog['warehouse']['is_active'], 'Starter must not receive Warehouse.');
         $this->assertFalse((bool) $catalog['hr']['is_active'], 'Starter must not receive Human Resources.');
         $this->assertTrue((bool) $catalog['hse']['is_active'], 'Starter must receive its own HSE department.');
+    }
+
+    /**
+     * v2.60.0 -- the Business tier is the reason the four-tier ladder
+     * exists: it is the first plan that crosses departments. It must
+     * receive the three it adds, and must still stop short of Enterprise.
+     */
+    public function test_a_business_tenant_receives_the_cross_functional_departments(): void
+    {
+        $tenant = $this->tenantOnPlan('business');
+        $admin = $this->adminFor($tenant);
+
+        $catalog = $this->actingAs($admin)
+            ->get(route('dashboard'))
+            ->viewData('page')['props']['workspace_catalog'];
+
+        foreach (['hse', 'hr', 'project-management', 'logistics', 'procurement'] as $key) {
+            $this->assertTrue((bool) $catalog[$key]['is_active'], "Business must receive {$key}.");
+        }
+
+        // `warehouse` is a shell workspace granted only at Enterprise --
+        // Business buys the real capability under Logistics / PPIC, which
+        // is why the two must not be confused for each other.
+        $this->assertFalse((bool) $catalog['warehouse']['is_active'], 'Business must not receive Warehouse.');
+        $this->assertFalse((bool) $catalog['finance']['is_active'], 'Business must not receive Finance.');
     }
 
     public function test_a_professional_tenant_receives_hr_but_not_warehouse(): void

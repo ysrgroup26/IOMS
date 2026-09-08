@@ -373,8 +373,21 @@ class SettingsController extends Controller
                 'is_usable' => $subscription->isUsable(),
                 'is_expired' => $subscription->isExpired(),
                 'plan_name' => $package?->name,
-                'price' => $package
-                    ? $pricing->format($pricing->amountFor($package, $subscription->billing_cycle), $package->currency)
+                // v2.60.0: the price THIS customer agreed to, not whatever
+                // the public catalogue says today. A customer who bought
+                // before a price change must keep seeing what they pay.
+                'price' => ($amount = $subscription->agreedAmountFor()) !== null
+                    ? $pricing->format($amount, $subscription->agreedCurrency())
+                    : null,
+                // True when their agreed price no longer matches the
+                // catalogue, so the page can say so rather than leaving a
+                // customer to notice the discrepancy themselves.
+                'is_legacy_pricing' => $subscription->isOnLegacyPricing(),
+                // The published price of the same plan today. Sent only when
+                // it actually differs, so the page has something concrete to
+                // compare against instead of an unexplained number.
+                'catalogue_price' => $subscription->isOnLegacyPricing() && $package
+                    ? $pricing->format((float) $pricing->amountFor($package, $subscription->billing_cycle), $package->currency)
                     : null,
             ] : null,
             'entitlements' => [

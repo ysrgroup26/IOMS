@@ -503,10 +503,24 @@ them actually did anything at request time:
    department regardless of Package, gated only by role. See `docs/CONVENTIONS.md`'s "a fully-built
    enforcement mechanism with zero call sites" pitfall entry for the full audit finding.
 
-As of v2.1.0:
+As of v2.1.0, revised in v2.60.0:
 - `Package::defaultWorkspaceKeys()` / `defaultModuleKeys()` (on `app/Models/Package.php`) is the
-  canonical Starter=HSE / Professional=HSE+HRD / Enterprise=all-workspaces mapping, keyed by
-  `Package::slug` so a display-name rename can't silently break it.
+  canonical plan → Workspace/Module mapping, keyed by `Package::slug` so a display-name rename
+  can't silently break it. **The mapping itself lives in `config/plans.php`**, not in the model —
+  it used to be a hardcoded `match` whose `default => []` arm meant a plan created through the
+  Platform Admin UI, or one whose slug was mistyped, resolved to ZERO departments while still
+  carrying a price. That is the v2.58.0 empty-sidebar defect one layer up. An unrecognised slug now
+  falls back to `config('plans.fallback')` (the entry tier), so a paid customer always receives a
+  working, clearly-bounded product and the operator sees an obviously wrong plan instead of a
+  customer with no navigation.
+- `Package::departmentWorkspaceKeys()` is the same grant **minus the global chrome**. Provisioning
+  uses `defaultWorkspaceKeys()`; pricing surfaces use `departmentWorkspaceKeys()`, because listing
+  Reports and Settings as bullet points under every tier presents the application's own furniture as
+  a purchased feature.
+- `config/plans.php` also carries each tier's one-line `positioning` and the single `popular` slug,
+  served through `PricingService::summarize()` as `positioning` / `is_popular`. The UI must never
+  infer emphasis from a card's index — v2.27.0's `plans.length === 3 ? 1 : -1` silently emphasised
+  nothing the moment a fourth tier arrived.
 - `PlatformController::storeTenant()` now calls `$tenant->workspaces()->sync(...)` /
   `$tenant->modules()->sync(...)` using that mapping immediately after creating the `Subscription`,
   so a new tenant's Module/Workspace grants actually reflect the Package it was created with. A
@@ -538,6 +552,47 @@ shares core data with it. `Employee` is core data shared by both HSE and HRD; PP
 depends only on `Employee`, never on HRD being enabled. The one violation of this rule found in this
 codebase (`User::canManageManHour()` requiring `isHrd()` for what is genuinely shared HSE+HRD
 Man-Hour data) was fixed in v2.1.0 — see that method's own doc comment.
+
+## The commercial model (v2.60.0)
+
+Four standardized tiers. Annual is monthly × 10 on every tier (≈16.67%, displayed as 17%); no
+percentage is written down anywhere — `PricingService::annualSaving()` derives it from the plan's own
+two prices.
+
+| Tier | Monthly | Yearly | Users | Operating Units | Departments |
+|---|---|---|---|---|---|
+| Starter | Rp299.000 | Rp2.990.000 | 10 | 1 | HSE |
+| Professional | Rp799.000 | Rp7.990.000 | 50 | 2 | + People / HR |
+| **Business** | Rp1.499.000 | Rp14.990.000 | 150 | 4 | + Project Management, Logistics / PPIC, Procurement |
+| Enterprise | Rp2.499.000 | Rp24.990.000 | unlimited | unlimited | all |
+
+The ladder is operational complexity, not module count. Business is the first tier that crosses
+departments and is the one marked `popular`. `null` on `max_users`/`max_companies` is this schema's
+"unlimited". There is no free trial and no custom/bespoke tier — Enterprise is the most complete
+STANDARDIZED plan, not a negotiated build.
+
+**The catalogue ships in a migration, not only in the seeder.** `db:seed` does not re-run on a live
+deployment; the `packages` table is what renders. v2.51.0 shipped a whole release where production
+still showed the previous prices because only the seeder had changed. `PackageSeeder` and
+`2026_09_26_100270_establish_four_tier_pricing` must state the same figures, and
+`ProductRevisionV252Test` asserts they do.
+
+**A catalogue price change never reprices an existing customer.** `subscriptions` carries
+`agreed_price_monthly` / `agreed_price_yearly` / `agreed_currency`, stamped at provisioning
+(`TenantProvisioningService::activate()`, both `PlatformController` create paths) and read back
+through `Subscription::agreedAmountFor()`, which falls back to the catalogue only for rows that
+predate the columns. `isOnLegacyPricing()` is true when the two differ, and the billing page says so
+in words rather than leaving the customer to notice. `repriceTo()` is the deliberate act of moving a
+customer onto new pricing.
+
+> The backfill migration reads a **literal table of pre-v2.60 prices**, never the live `packages`
+> table. Migrations run in filename order and the repricing migration runs first, so reading the
+> catalogue would have backfilled every existing customer at the NEW price — the exact error the
+> columns exist to prevent.
+
+`packages.features` was dropped in this release. It was a third, non-authoritative list of what a
+plan includes, sitting beside the two that are actually enforced (the Module and Workspace grant
+tables) and drifting from them; `hasFeature()` went with it.
 
 ## SaaS Productization: Plan/Pricing Foundation (v2.14.0)
 

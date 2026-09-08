@@ -13,20 +13,13 @@ class PackageSeeder extends Seeder
      * not tenant-scoped, no CurrentTenant dependency (see Package's own
      * doc comment).
      *
-     * v1.11.15 (SaaS Package + Ecosystem pass, Part 1/26): `features`
-     * corrected to the actual product requirement -- Starter's old list
-     * (`employees, ppe, reports`) was barely a fraction of real HSE
-     * functionality (no incidents/observations/inspections/CAPA/PTW/
-     * LOTO/gas-test/JSA/HIRADC/waste/master-data/man-hour at all), and
-     * Professional/Enterprise previously had IDENTICAL lists -- Enterprise
-     * unlocked nothing Professional didn't already have. Package.features
-     * itself is a display/reference field only (confirmed via a
-     * whole-codebase search that nothing reads `hasFeature()`/`features`
-     * at runtime -- the actual enforcement mechanism is the Module/
-     * Workspace grant tables, see `Package::defaultWorkspaceKeys()`/
-     * `defaultModuleKeys()` and `PlatformController::storeTenant()`), but
-     * corrected here too so the stored catalog description matches what
-     * the tenant actually gets, not a stale, narrower list.
+     * v2.60.0: `features` IS GONE. v1.11.15 had already established that
+     * nothing read `hasFeature()`/`features` at runtime and that the real
+     * enforcement is the Module/Workspace grant tables -- so it was a
+     * third, non-authoritative list of what a plan includes, sitting
+     * beside the real one and drifting from it. It has been dropped from
+     * the schema (see the drop_dead_package_features_column migration)
+     * rather than left dormant for somebody to reach for.
      *
      * v2.52.0 SUPERSEDES v2.51.0 on prices AND capacity. Launch pricing is
      * now Starter 299.000/2.990.000, Professional 999.000/9.990.000,
@@ -100,29 +93,35 @@ class PackageSeeder extends Seeder
      */
     public function run(): void
     {
+        // v2.60.0 -- THE APPROVED FOUR-TIER CATALOGUE.
+        //
+        // This seeder is for a FRESH install. An existing deployment is
+        // updated by 2026_09_26_100270_establish_four_tier_pricing, because
+        // `db:seed` does not re-run on a live database -- the v2.51.0
+        // lesson, recorded in CONVENTIONS. The two must state the same
+        // figures, and a test asserts they do.
+        //
+        // Annual is monthly x 10 on every tier (~16.67%, shown as 17%).
+        // PricingService derives the saving from the plan's own two prices,
+        // so no percentage is written down anywhere.
+        //
+        // What each tier GRANTS lives in config/plans.php, not here.
         $packages = [
             [
                 'name' => 'Starter',
                 'slug' => 'starter',
-                'description' => 'Complete Health, Safety & Environment for a single company -- incidents, observations, inspections, PPE, Permit To Work, CAPA and every other HSE module.',
-                // Starter -- HSE-focused access.
+                'description' => 'Digitalize Health, Safety & Environment for one operating unit — incidents, observations, inspections, PPE, Permit To Work, CAPA and every other HSE module.',
                 'price_monthly' => 299000,
                 'price_yearly' => 2990000,
                 'currency' => 'IDR',
                 'trial_days' => null,
-                // v2.17.1 fix: max_users raised 10 -> 15 so max_ptw_users
-                // (this phase's own explicit "Starter = 15" baseline) is
-                // never larger than the pool of User Accounts it's a
-                // subset of. See this seeder's own class-level doc
-                // comment for the full correction reasoning.
                 'max_users' => 10,
                 'max_companies' => 1,
-                // v2.53.0: PTW Access is no longer a sold capacity -- see the
-                // retire_ptw_seat_entitlement migration. Null means the
-                // entitlement layer applies no ceiling; the PERMISSION
-                // (users.ptw_access) and its server-side gate are untouched.
+                // v2.53.0: PTW Access is no longer a sold capacity. Null
+                // means the entitlement layer applies no ceiling; the
+                // PERMISSION (users.ptw_access) and its server-side gate
+                // are untouched.
                 'max_ptw_users' => null,
-                'features' => ['employees', 'ppe', 'kpi_input', 'reports'],
                 'is_public' => true,
                 'is_custom' => false,
                 'sort_order' => 1,
@@ -130,47 +129,66 @@ class PackageSeeder extends Seeder
             [
                 'name' => 'Professional',
                 'slug' => 'professional',
-                'description' => 'Health, Safety & Environment plus Human Resources and cross-department Management visibility, for a single company with a growing operation.',
-                // Professional -- HSE + Management + People/HR.
-                'price_monthly' => 999000,
-                'price_yearly' => 9990000,
+                'description' => 'Health, Safety & Environment plus People and Workforce — employees, competency and certificate expiry, shifts and rosters, leave — for an organization running up to two operating units.',
+                // v2.60.0: 999.000 -> 799.000. Professional cost 3.3x
+                // Starter and added ONE department while Enterprise added
+                // eight for 2x -- the expensive step was the small one.
+                'price_monthly' => 799000,
+                'price_yearly' => 7990000,
                 'currency' => 'IDR',
-                'trial_days' => 14,
+                'trial_days' => null,
                 'max_users' => 50,
-                // Professional is a ONE-company plan. It had advertised five,
-                // which is neither the commercial decision nor what the tier
-                // is for -- multi-company is what Enterprise sells.
-                'max_companies' => 1,
+                'max_companies' => 2,
                 'max_ptw_users' => null,
-                'features' => ['employees', 'ppe', 'kpi_input', 'reports', 'projects', 'daily_reports', 'material_requests'],
                 'is_public' => true,
                 'is_custom' => false,
                 'sort_order' => 2,
             ],
             [
-                'name' => 'Enterprise',
-                'slug' => 'enterprise',
-                'description' => 'The full IOMS platform -- every department (Health, Safety & Environment, Human Resources, Project Management, Logistics / PPIC, Warehouse, Procurement, Assets, Maintenance, Quality Control) with multi-company access and the highest standardized capacity.',
-                // Enterprise -- the full standardized platform.
-                'price_monthly' => 1999000,
-                'price_yearly' => 19990000,
+                'name' => 'Business',
+                'slug' => 'business',
+                'description' => 'Cross-functional operational visibility: Health, Safety & Environment and People, plus Project Management, Logistics / PPIC and Procurement — so work, materials and approvals stop living in separate systems.',
+                // The bridge tier, and the largest scope jump in the ladder:
+                // three departments at the middle price. That is what earns
+                // it "Most Popular" rather than a badge chosen for effect.
+                'price_monthly' => 1499000,
+                'price_yearly' => 14990000,
                 'currency' => 'IDR',
                 'trial_days' => null,
-                'max_users' => null,
-                'max_companies' => null,
+                'max_users' => 150,
+                'max_companies' => 4,
                 'max_ptw_users' => null,
-                'features' => ['employees', 'ppe', 'kpi_input', 'reports', 'projects', 'daily_reports', 'material_requests'],
                 'is_public' => true,
-                // v2.50.0: was `is_custom => true`, which rendered Enterprise as
-                // "Hubungi Kami" with no price. Enterprise is the most complete
-                // STANDARDIZED tier, not a negotiated custom build -- it has a
-                // published price like every other plan. "Build once, improve for
-                // everyone": no per-customer development is being sold here.
                 'is_custom' => false,
                 'sort_order' => 3,
             ],
+            [
+                'name' => 'Enterprise',
+                'slug' => 'enterprise',
+                'description' => 'The complete IOMS platform — every operational department, unlimited operating units and unlimited user accounts, with per-unit authorization and legal entity structures where they apply.',
+                // v2.60.0: 1.999.000 -> 2.499.000. Enterprise adds only a
+                // handful of thin departments over Business; what it sells
+                // is UNLIMITED operating units and users plus multi-entity
+                // governance. At 1.999.000 it sat too close to Business and
+                // would have cannibalised it.
+                'price_monthly' => 2499000,
+                'price_yearly' => 24990000,
+                'currency' => 'IDR',
+                'trial_days' => null,
+                // Null is this schema's "unlimited" on both columns.
+                'max_users' => null,
+                'max_companies' => null,
+                'max_ptw_users' => null,
+                'is_public' => true,
+                // v2.50.0: was `is_custom => true`, which rendered Enterprise
+                // as "Hubungi Kami" with no price. Enterprise is the most
+                // complete STANDARDIZED tier, not a negotiated custom build.
+                // "Build once, improve for everyone": no per-customer
+                // development is sold here.
+                'is_custom' => false,
+                'sort_order' => 4,
+            ],
         ];
-
         foreach ($packages as $package) {
             Package::updateOrCreate(['slug' => $package['slug']], $package);
         }

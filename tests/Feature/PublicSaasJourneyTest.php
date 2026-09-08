@@ -48,17 +48,12 @@ class PublicSaasJourneyTest extends TestCase
     {
         $this->seedPlans();
 
-        // v2.52.0 approved launch pricing. Asserted here so a future edit
-        // to the seeder OR the standardize-capacity migration that drifts
-        // from the recorded commercial model fails loudly. Capacity itself
-        // is pinned in ProductRevisionV252Test, which owns that invariant.
-        $expected = [
-            'starter' => [299000, 2990000],
-            'professional' => [999000, 9990000],
-            'enterprise' => [1999000, 19990000],
-        ];
-
-        foreach ($expected as $slug => [$monthly, $yearly]) {
+        // The approved commercial model, asserted here so a seeder edit
+        // that drifts from it fails loudly. v2.60.0 moved the figures
+        // themselves to Tests\Support\ApprovedCatalogue, because they had
+        // been transcribed into three separate test files and repricing
+        // broke all three at once.
+        foreach (\Tests\Support\ApprovedCatalogue::PLANS as $slug => [$monthly, $yearly, , ]) {
             $package = Package::where('slug', $slug)->first();
 
             $this->assertNotNull($package, "Plan {$slug} is missing.");
@@ -86,9 +81,13 @@ class PublicSaasJourneyTest extends TestCase
     {
         // Seed the ORIGINAL placeholder rows the migration has to correct,
         // exactly as an upgraded deployment would hold them.
+        // v2.60.0: updateOrCreate, because the four-tier migration has
+        // already written these slugs. The point is unchanged -- put the
+        // database into the state an upgrading deployment was in, then run
+        // the v2.51/v2.52 migrations over it.
         foreach ([['starter', 0, 0], ['professional', 49, 490], ['enterprise', 149, 1490]] as [$slug, $m, $y]) {
-            Package::create([
-                'name' => ucfirst($slug), 'slug' => $slug,
+            Package::updateOrCreate(['slug' => $slug], [
+                'name' => ucfirst($slug),
                 'price_monthly' => $m, 'price_yearly' => $y, 'currency' => 'IDR',
                 'is_active' => true, 'is_public' => true, 'is_custom' => $slug === 'enterprise',
             ]);

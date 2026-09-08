@@ -35,11 +35,11 @@ class EmailIdentityTest extends TestCase
 
     private function registration(): TenantRegistration
     {
-        $package = Package::create([
-            'name' => 'Professional', 'slug' => 'professional',
-            'price_monthly' => 999000, 'price_yearly' => 9990000, 'currency' => 'IDR',
-            'max_users' => 50, 'max_companies' => 2, 'is_active' => true, 'is_public' => true,
-        ]);
+        // v2.60.0: the four-tier migration writes the catalog, so a
+        // RefreshDatabase run already HAS Professional. This test only
+        // needs some plan to hang a registration on; creating a second one
+        // with the same slug is now a unique-key violation.
+        $package = Package::where('slug', 'professional')->firstOrFail();
 
         return TenantRegistration::create([
             'token' => TenantRegistration::newToken(),

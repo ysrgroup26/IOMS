@@ -29,11 +29,17 @@ class PublicReadinessTest extends TestCase
 
     private function package(string $slug = 'professional'): Package
     {
-        return Package::create([
-            'name' => ucfirst($slug), 'slug' => $slug,
-            'price_monthly' => 999000, 'price_yearly' => 9990000, 'currency' => 'IDR',
-            'max_users' => 50, 'max_companies' => 2, 'is_active' => true, 'is_public' => true,
-        ]);
+        // v2.60.0: taken from the migrated catalog rather than invented --
+        // the four tiers now exist on a RefreshDatabase run, and these
+        // tests are about the checkout journey, not about the figures.
+        return Package::firstOrCreate(
+            ['slug' => $slug],
+            [
+                'name' => ucfirst($slug),
+                'price_monthly' => 999000, 'price_yearly' => 9990000, 'currency' => 'IDR',
+                'max_users' => 50, 'max_companies' => 2, 'is_active' => true, 'is_public' => true,
+            ]
+        );
     }
 
     private function registrationWithInvoice(): array
@@ -325,14 +331,14 @@ class PublicReadinessTest extends TestCase
             // v2.56.0: an annual order restates the discount at the moment
             // of payment, from the same server-side derivation the Pricing
             // page and Get Started use.
-            ->where('order.annual_saving.monthly_equivalent_formatted', 'Rp11.988.000')
-            ->where('order.annual_saving.formatted', 'Rp1.998.000')
+            ->where('order.annual_saving.monthly_equivalent_formatted', 'Rp9.588.000')
+            ->where('order.annual_saving.formatted', 'Rp1.598.000')
             ->where('order.annual_saving.percent', 17)
             ->etc()
         );
 
         // The rendered page carries the amounts, not just the props.
-        $response->assertSee('Rp11.988.000')->assertSee('Rp1.998.000');
+        $response->assertSee('Rp9.588.000')->assertSee('Rp1.598.000');
 
         // The server key signs webhooks. It must never reach a browser.
         $response->assertDontSee('SB-Mid-server-TESTONLY');

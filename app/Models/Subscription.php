@@ -55,6 +55,11 @@ class Subscription extends Model
         'type',
         'status',
         'billing_cycle',
+        // v2.60.0 -- the price this customer actually agreed to. See
+        // agreedAmountFor(); null means "follow the catalogue".
+        'agreed_price_monthly',
+        'agreed_price_yearly',
+        'agreed_currency',
         'seat_limit',
         'license_key',
         'billing_reference',
@@ -73,6 +78,10 @@ class Subscription extends Model
             'ends_at' => 'datetime',
             'trial_ends_at' => 'datetime',
             'cancelled_at' => 'datetime',
+            // Nullable on purpose -- null means "follow the catalogue", so
+            // `decimal:2` must not coerce an absent snapshot into 0.00.
+            'agreed_price_monthly' => 'decimal:2',
+            'agreed_price_yearly' => 'decimal:2',
         ];
     }
 
@@ -156,5 +165,75 @@ class Subscription extends Model
     public function seatLimit(): ?int
     {
         return $this->seat_limit ?? $this->package?->max_users;
+    }
+
+    /**
+     * v2.60.0 -- WHAT THIS CUSTOMER AGREED TO PAY, for the given cycle.
+     *
+     * Reads the snapshot taken when the subscription was created and falls
+     * back to the current catalogue price when there is none. That
+     * fallback is what makes the column safe to add: a subscription
+     * without a snapshot behaves exactly as it did before this release.
+     *
+     * The point is the direction of authority. Before this, every amount
+     * was recomputed from the package's CURRENT price, so editing a
+     * catalogue row silently repriced live customers -- which this
+     * release's own Enterprise increase would have done to every existing
+     * Enterprise subscription at renewal. A price the customer agreed to
+     * is now a fact recorded against their subscription, and changing it
+     * is something the operator does deliberately (see repriceTo()), not
+     * something that happens as a side effect of a marketing decision.
+     */
+    public function agreedAmountFor(?string $cycle = null): ?float
+    {
+        $cycle = $cycle ?? $this->billing_cycle;
+
+        $agreed = $cycle === self::CYCLE_MONTHLY
+            ? $this->agreed_price_monthly
+            : $this->agreed_price_yearly;
+
+        if ($agreed !== null) {
+            return (float) $agreed;
+        }
+
+        $catalogue = $cycle === self::CYCLE_MONTHLY
+            ? $this->package?->price_monthly
+            : $this->package?->price_yearly;
+
+        return $catalogue === null ? null : (float) $catalogue;
+    }
+
+    public function agreedCurrency(): string
+    {
+        return $this->agreed_currency ?? $this->package?->currency ?? config('payment.currency', 'IDR');
+    }
+
+    /** True when this customer is on a price that no longer matches the public catalogue. */
+    public function isOnLegacyPricing(): bool
+    {
+        $package = $this->package;
+
+        if (! $package || $this->agreed_price_monthly === null) {
+            return false;
+        }
+
+        return (float) $this->agreed_price_monthly !== (float) $package->price_monthly
+            || (float) $this->agreed_price_yearly !== (float) $package->price_yearly;
+    }
+
+    /**
+     * Records a DELIBERATE price change on this subscription -- the only
+     * supported way an agreed price moves. Nothing calls this
+     * automatically; it exists so that when the operator does move a
+     * customer onto new pricing, the change is written down rather than
+     * inferred from whatever the catalogue happens to say that day.
+     */
+    public function repriceTo(float $monthly, float $yearly, ?string $currency = null): void
+    {
+        $this->update([
+            'agreed_price_monthly' => $monthly,
+            'agreed_price_yearly' => $yearly,
+            'agreed_currency' => $currency ?? $this->agreedCurrency(),
+        ]);
     }
 }

@@ -65,7 +65,20 @@ class PricingService
             // v2.56.0: the annual saving, derived ONCE and server-side --
             // see annualSaving() for why it stopped being a JSX expression.
             'annual_saving' => $this->annualSaving($package),
+            // v2.60.0 -- positioning and the recommended flag come from
+            // config/plans.php, beside the scope they describe, so every
+            // pricing surface states the same thing and no page keeps its
+            // own copy. `is_popular` exists so the UI never has to guess
+            // which card to emphasise from its position in the array --
+            // which broke the moment a fourth tier arrived.
+            'positioning' => config("plans.positioning.{$package->slug}"),
+            'is_popular' => config('plans.popular') === $package->slug,
+            // The complete grant, as provisioned.
             'workspaces' => $this->labelsFor(Workspace::class, $package->defaultWorkspaceKeys()),
+            // v2.60.0: the part that differs between tiers -- what a pricing
+            // card should list. Reports and Settings are not a tier's
+            // selling point; every plan has them.
+            'department_workspaces' => $this->labelsFor(Workspace::class, $package->departmentWorkspaceKeys()),
             'modules' => $this->labelsFor(Module::class, $package->defaultModuleKeys()),
         ];
     }

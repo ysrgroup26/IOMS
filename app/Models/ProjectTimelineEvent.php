@@ -2,6 +2,8 @@
 
 namespace App\Models;
 
+use App\Models\Concerns\BelongsToCompanyThrough;
+
 use Illuminate\Database\Eloquent\Model;
 
 /**
@@ -14,6 +16,11 @@ use Illuminate\Database\Eloquent\Model;
  */
 class ProjectTimelineEvent extends Model
 {
+    use BelongsToCompanyThrough;
+
+    /** Ownership resolves through this relation -- see BelongsToCompanyThrough. */
+    protected string $companyOwnerRelation = 'project';
+
     protected $fillable = [
         'project_id',
         'event_type',

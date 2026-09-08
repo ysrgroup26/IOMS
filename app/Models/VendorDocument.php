@@ -2,12 +2,19 @@
 
 namespace App\Models;
 
+use App\Models\Concerns\BelongsToCompanyThrough;
+
 use App\Concerns\HasSecureDocument;
 use Illuminate\Database\Eloquent\Model;
 
 /** Milestone 4, Workstream C1. See the owning migration's own doc comment. */
 class VendorDocument extends Model
 {
+    use BelongsToCompanyThrough;
+
+    /** Ownership resolves through this relation -- see BelongsToCompanyThrough. */
+    protected string $companyOwnerRelation = 'vendor';
+
     use HasSecureDocument;
     public const TYPES = ['legal_document', 'company_profile', 'certificate', 'contract', 'other'];
 

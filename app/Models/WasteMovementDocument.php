@@ -2,6 +2,8 @@
 
 namespace App\Models;
 
+use App\Models\Concerns\BelongsToCompanyThrough;
+
 use App\Concerns\HasSecureDocument;
 use Illuminate\Database\Eloquent\Model;
 
@@ -17,6 +19,11 @@ use Illuminate\Database\Eloquent\Model;
  */
 class WasteMovementDocument extends Model
 {
+    use BelongsToCompanyThrough;
+
+    /** Ownership resolves through this relation -- see BelongsToCompanyThrough. */
+    protected string $companyOwnerRelation = 'wasteMovement';
+
     use HasSecureDocument;
     public const TYPES = ['manifest', 'disposal_certificate', 'transporter_document', 'photo', 'other'];
 

@@ -2,6 +2,8 @@
 
 namespace App\Models;
 
+use App\Models\Concerns\BelongsToCompanyThrough;
+
 use Illuminate\Database\Eloquent\Model;
 
 /**
@@ -12,6 +14,11 @@ use Illuminate\Database\Eloquent\Model;
  */
 class EmployeeInternship extends Model
 {
+    use BelongsToCompanyThrough;
+
+    /** Ownership resolves through this relation -- see BelongsToCompanyThrough. */
+    protected string $companyOwnerRelation = 'employee';
+
     public const STATUS_ONGOING = 'ongoing';
 
     public const STATUS_COMPLETED = 'completed';

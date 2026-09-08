@@ -669,6 +669,65 @@ established way to produce that value (it does: `Company::query()->pluck('id')` 
 different types). A new shared service sitting downstream of both needs to accept both, not silently
 assume whichever pattern its first caller happened to use.
 
+## CRITICAL — Known Pitfall (v2.63.0): a coverage test that only inspects models WITH `company_id`
+## passes vacuously for every model without one — and those are owned too
+
+v2.62.0 made ownership structural for every table carrying a `company_id`, and asserted it with a
+test that walked *models carrying a `company_id`*. The tables that have none were never examined,
+so the test was green while three of them leaked. Found by the follow-up audit:
+
+| Table | Owned through | What it exposed |
+|---|---|---|
+| `kpi_records` | `employee` | `KpiInputController::create()` ran `KpiRecord::latest()->limit(10)->get()` — the ten most recent KPI records **in the installation**. 426 foreign rows were readable in development, including free-text `remarks`. |
+| `daily_reports` | `project` | `DailyReportPolicy` checked only a role capability and `show()` had no guard at all: `GET /daily-reports/{id}` returned any tenant's report, and `PUT` could modify it. A cross-tenant **write**. |
+| `approvals` | polymorphic `approvable` | `ApprovalEngine::authorize()` asked "does this person hold the deciding role", never "whose record is this". A Super Admin of one tenant could approve or reject another tenant's material request, purchase order or permit. |
+
+**The rule.** A table with no `company_id` is not unowned — it is owned one join away. Give it
+`BelongsToCompanyThrough` and name the relation:
+
+```php
+use BelongsToCompanyThrough;
+
+protected string $companyOwnerRelation = 'employee';
+```
+
+**The coverage test now inspects EVERY model**, and a model is only allowed to have no isolation
+scope if it is named in `$declaredGlobal` with a reason. A new model that is neither fails the
+suite, which is the property the first version of this test was supposed to have.
+
+**Two things that are easy to get wrong when scoping through a relation:**
+
+- **Soft deletion is not an ownership question.** A plain `whereHas('employee')` also hides the
+  records of every soft-deleted employee — which would silently change historical HSE totals as a
+  side effect of a security fix. The trait applies `withTrashed()` to the parent; only
+  `CompanyOwnedScope` is doing the isolation.
+- **Some tables have several possible parents.** A goods receipt can arrive against a purchase
+  order, a material request, or straight into a warehouse, and any of the three may be null. It
+  gets an explicit OR-shaped scope of its own rather than being forced through a trait that walks
+  exactly one relation.
+
+## Known Pitfall (v2.63.0) — a relation from a SHARED table into a SCOPED one silently becomes a
+## per-tenant question
+
+`ppe_types` is deliberately installation-wide reference data. `employee_ppe` became tenant-scoped in
+v2.62.0. So this delete guard quietly changed meaning:
+
+```php
+if ($ppeType->assignments()->exists()) {          // "is MY tenant using it"
+    return back()->with('error', 'Cannot delete ...');
+}
+```
+
+It now answers "is *my* tenant using this type", which would let one customer delete a PPE type
+another customer is actively issuing, orphaning their records. The installation-wide question has to
+say so:
+
+```php
+if ($ppeType->assignments()->withoutGlobalScopes()->exists()) {   // "is anyone, anywhere"
+```
+
+Whenever you add a scope to a table, check what relations point INTO it from unscoped tables. The
+scope is correct; the caller's question changed underneath it.
 ## CRITICAL — Known Pitfall (v2.62.0, production incident #4): "safe transitively" is a property of
 ## the DATA MODEL, not of the QUERIES — a company-owned table needs its own global scope
 

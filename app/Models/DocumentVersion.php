@@ -2,12 +2,19 @@
 
 namespace App\Models;
 
+use App\Models\Concerns\BelongsToCompanyThrough;
+
 use App\Concerns\HasSecureDocument;
 use Illuminate\Database\Eloquent\Model;
 
 /** Milestone 4, Acceleration Part 6. See the owning migration's own doc comment. */
 class DocumentVersion extends Model
 {
+    use BelongsToCompanyThrough;
+
+    /** Ownership resolves through this relation -- see BelongsToCompanyThrough. */
+    protected string $companyOwnerRelation = 'controlledDocument';
+
     use HasSecureDocument;
     protected $fillable = ['controlled_document_id', 'version', 'file_path', 'original_name', 'uploaded_by', 'notes'];
 

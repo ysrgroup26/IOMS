@@ -37,7 +37,17 @@ class PpeTypeController extends Controller
     {
         $this->authorize('delete', $ppeType);
 
-        if ($ppeType->assignments()->exists()) {
+        // v2.63.0 -- THIS GUARD ASKS AN INSTALLATION-WIDE QUESTION, so it
+        // must ignore the tenant scope.
+        //
+        // `ppe_types` is deliberately shared reference data (see the class
+        // comment), but `employee_ppe` became tenant-scoped in v2.62.0. A
+        // plain `assignments()->exists()` therefore started answering "is
+        // MY tenant using this type", which would have let one customer
+        // delete a type another customer is actively issuing -- orphaning
+        // their PPE records. "Is anyone anywhere using this row" is the
+        // only correct question to ask about a shared row.
+        if ($ppeType->assignments()->withoutGlobalScopes()->exists()) {
             return back()->with('error', 'Cannot delete a PPE type that has been issued to employees.');
         }
 

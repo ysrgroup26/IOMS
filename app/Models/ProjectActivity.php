@@ -2,11 +2,18 @@
 
 namespace App\Models;
 
+use App\Models\Concerns\BelongsToCompanyThrough;
+
 use Illuminate\Database\Eloquent\Model;
 
 /** Milestone 4, Acceleration Part 3. See the owning migration's own doc comment on how this differs from DailyReportActivity. */
 class ProjectActivity extends Model
 {
+    use BelongsToCompanyThrough;
+
+    /** Ownership resolves through this relation -- see BelongsToCompanyThrough. */
+    protected string $companyOwnerRelation = 'project';
+
     public const STATUSES = ['not_started', 'in_progress', 'completed', 'on_hold'];
 
     protected $fillable = ['project_id', 'name', 'assigned_employee_id', 'progress', 'status'];

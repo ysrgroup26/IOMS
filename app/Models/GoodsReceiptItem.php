@@ -2,10 +2,17 @@
 
 namespace App\Models;
 
+use App\Models\Concerns\BelongsToCompanyThrough;
+
 use Illuminate\Database\Eloquent\Model;
 
 class GoodsReceiptItem extends Model
 {
+    use BelongsToCompanyThrough;
+
+    /** Ownership resolves through this relation -- see BelongsToCompanyThrough. */
+    protected string $companyOwnerRelation = 'goodsReceipt';
+
     protected $fillable = [
         'goods_receipt_id',
         'purchase_order_item_id',

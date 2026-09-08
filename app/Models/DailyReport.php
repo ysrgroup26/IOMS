@@ -2,6 +2,7 @@
 
 namespace App\Models;
 
+use App\Models\Concerns\BelongsToCompanyThrough;
 use Illuminate\Database\Eloquent\Model;
 
 /**
@@ -17,6 +18,11 @@ use Illuminate\Database\Eloquent\Model;
  */
 class DailyReport extends Model
 {
+    use BelongsToCompanyThrough;
+
+    /** Ownership resolves through this relation -- see BelongsToCompanyThrough. */
+    protected string $companyOwnerRelation = 'project';
+
     protected $fillable = [
         'project_id',
         'department_name',

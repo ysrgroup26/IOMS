@@ -2,11 +2,18 @@
 
 namespace App\Models;
 
+use App\Models\Concerns\BelongsToCompanyThrough;
+
 use Illuminate\Database\Eloquent\Model;
 
 /** Milestone 4, Workstream C4. See the owning migration's own doc comment on why this is a real child table. */
 class PurchaseOrderItem extends Model
 {
+    use BelongsToCompanyThrough;
+
+    /** Ownership resolves through this relation -- see BelongsToCompanyThrough. */
+    protected string $companyOwnerRelation = 'purchaseOrder';
+
     protected $fillable = ['purchase_order_id', 'description', 'specification', 'quantity', 'unit', 'unit_price', 'discount', 'tax', 'line_total', 'sort_order'];
 
     protected $appends = ['delivered_quantity', 'remaining_quantity', 'delivery_status'];

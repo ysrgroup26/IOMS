@@ -441,8 +441,24 @@ actually common.
 > - `App\Models\Concerns\BelongsToCompany` + `App\Models\Scopes\CompanyOwnedScope` (v2.62.0) —
 >   applied to **every model with a `company_id`**. A company-owned query can only return rows whose
 >   company is one of `Company::query()->select('id')`, i.e. one the current request may see.
+> - `App\Models\Concerns\BelongsToCompanyThrough` (v2.63.0) — for tables with **no `company_id` of
+>   their own**, which are owned one join away: a KPI record through its employee, a daily report
+>   through its project, a line item through its parent document. The model names the relation and
+>   the scope adds `whereHas`, so the parent's own scope decides what "exists" means and no rule is
+>   restated. `withTrashed()` on the parent, because soft deletion is not an ownership question.
 > - `App\Models\Scopes\UserTenantScope` (v2.62.0) — `users` is tenant-owned (its `company_id` is
 >   nullable by design), so it is scoped on `tenant_id` instead.
+>
+> **Every model is now either isolated or explicitly declared global.** That decision is recorded in
+> `TransitiveTenantIsolationTest::test_every_model_is_either_isolated_or_declared_global()`, which
+> fails when a new model appears in neither list. The globals are: the platform catalogues
+> (`packages`, `modules`, `workspaces`, `ppe_types`, `storage_locations`), billing and pre-tenant
+> onboarding (`invoices`, `subscriptions`, `tenant_registrations`, `payment_transactions`,
+> `payment_webhook_events` — owned by `tenant_id`, with every tenant-facing read constraining it
+> explicitly, and a registration existing *before* its tenant does), the approval engine's own
+> tables (walked across tenants by a scheduled command; the tenancy check lives in
+> `ApprovalEngine::authorize()`), `notifications` (guarded by `user_id`), and `tenants` /
+> `company_settings` (which has its own two-tier `CompanySettingScope`).
 >
 > ### Why the second layer exists (v2.62.0, and read this before removing it)
 >
@@ -499,6 +515,27 @@ actually common.
 > and the scheduled-report driver genuinely operate across tenants and say
 > `withoutGlobalScope(CompanyOwnedScope::class)` / `withoutGlobalScopes()`. "I mean across tenants"
 > is reviewable; "I forgot a where clause" is not.
+>
+> ### `ppe_types` is shared reference data, on purpose (v2.63.0)
+>
+> Six generic rows — Safety Helmet, Safety Shoes, Coverall, Safety Glasses, Headlamp, Harness — with
+> a replacement interval each. No `company_id`, no `tenant_id`, nothing that identifies a customer,
+> and every tenant issues from the same catalogue. It is **not** an oversight and must not be turned
+> into per-tenant data without a product decision.
+>
+> Two consequences worth knowing:
+>
+> 1. **A relation from a shared table into a scoped one answers a per-tenant question by default.**
+>    `PpeType::assignments()` returns `EmployeePpe`, which *is* scoped. A caller asking the
+>    installation-wide question — "is anyone anywhere using this type", which is what a delete guard
+>    needs — must say `->withoutGlobalScopes()`. `PpeTypeController::destroy()` does; without it one
+>    customer could delete a type another was actively issuing.
+> 2. **Writes to it are cross-tenant by construction.** The mutation routes sit behind
+>    `role:super_admin`, which every customer has one of, so any customer's Super Admin can rename a
+>    type or change its replacement interval for everyone — and the interval feeds
+>    `EmployeePpe`'s expiry calculation. That is a *product* question (should the catalogue be
+>    Platform-Admin-only, or per-tenant?), flagged rather than changed here, because narrowing it
+>    would remove a capability customers currently have.
 >
 > **Tenant-owned settings** (`company_settings`) use a distinct two-tier model, because guests and
 > the platform genuinely need values too: `tenant_id IS NULL` is the platform default,

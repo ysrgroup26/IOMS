@@ -2,11 +2,18 @@
 
 namespace App\Models;
 
+use App\Models\Concerns\BelongsToCompanyThrough;
+
 use App\Concerns\HasSecureDocument;
 use Illuminate\Database\Eloquent\Model;
 
 class MaterialRequestItem extends Model
 {
+    use BelongsToCompanyThrough;
+
+    /** Ownership resolves through this relation -- see BelongsToCompanyThrough. */
+    protected string $companyOwnerRelation = 'materialRequest';
+
     use HasSecureDocument;
     protected $fillable = [
         'material_request_id',

@@ -2,11 +2,18 @@
 
 namespace App\Models;
 
+use App\Models\Concerns\BelongsToCompanyThrough;
+
 use App\Concerns\HasSecureDocument;
 use Illuminate\Database\Eloquent\Model;
 
 class DailyReportPhoto extends Model
 {
+    use BelongsToCompanyThrough;
+
+    /** Ownership resolves through this relation -- see BelongsToCompanyThrough. */
+    protected string $companyOwnerRelation = 'dailyReport';
+
     use HasSecureDocument;
     protected $fillable = ['daily_report_id', 'photo_path', 'caption'];
 

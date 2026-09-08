@@ -2,12 +2,19 @@
 
 namespace App\Models;
 
+use App\Models\Concerns\BelongsToCompanyThrough;
+
 use App\Concerns\HasSecureDocument;
 use Illuminate\Database\Eloquent\Model;
 
 /** Milestone 4, Acceleration Part 3. Mirrors DailyReportPhoto's pattern. */
 class InspectionEvidence extends Model
 {
+    use BelongsToCompanyThrough;
+
+    /** Ownership resolves through this relation -- see BelongsToCompanyThrough. */
+    protected string $companyOwnerRelation = 'inspectionRequest';
+
     use HasSecureDocument;
     protected $fillable = ['inspection_request_id', 'photo_path', 'caption'];
 

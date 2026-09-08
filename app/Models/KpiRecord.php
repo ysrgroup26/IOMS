@@ -2,10 +2,16 @@
 
 namespace App\Models;
 
+use App\Models\Concerns\BelongsToCompanyThrough;
 use Illuminate\Database\Eloquent\Model;
 
 class KpiRecord extends Model
 {
+    use BelongsToCompanyThrough;
+
+    /** Ownership resolves through this relation -- see BelongsToCompanyThrough. */
+    protected string $companyOwnerRelation = 'employee';
+
     protected $fillable = [
         'employee_id',
         'department_id',

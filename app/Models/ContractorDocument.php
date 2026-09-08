@@ -2,12 +2,19 @@
 
 namespace App\Models;
 
+use App\Models\Concerns\BelongsToCompanyThrough;
+
 use App\Concerns\HasSecureDocument;
 use Illuminate\Database\Eloquent\Model;
 
 /** Milestone 4, Acceleration Part 4. Mirrors VendorDocument exactly. */
 class ContractorDocument extends Model
 {
+    use BelongsToCompanyThrough;
+
+    /** Ownership resolves through this relation -- see BelongsToCompanyThrough. */
+    protected string $companyOwnerRelation = 'contractor';
+
     use HasSecureDocument;
     public const TYPES = ['legal_document', 'safety_document', 'contract', 'insurance', 'other'];
 

@@ -101,6 +101,25 @@ class ApprovalEngine
      */
     public function authorize(Approval $approval, User $user): bool
     {
+        // v2.63.0 -- TENANCY FIRST, CAPABILITY SECOND.
+        //
+        // Both branches below answer "does this person hold the role that
+        // decides this step". Neither asked whose record it is. `approvals`
+        // has no company_id and the route binds it by id, so a Super Admin
+        // of tenant A could approve or reject tenant B's material request,
+        // purchase order or permit -- a cross-tenant WRITE, reachable by
+        // guessing an integer.
+        //
+        // The check reuses the scopes rather than adding a rule: an
+        // approval's `approvable` is a morphTo onto the module's own model,
+        // every one of which now carries CompanyOwnedScope, so a foreign
+        // subject simply does not resolve. `null` therefore means either
+        // "belongs to another tenant" or "the underlying record is gone",
+        // and neither is something to decide on.
+        if (! $approval->approvable) {
+            return false;
+        }
+
         if (! $approval->approval_flow_id) {
             $approvers = config('workflow.approvers', []);
 

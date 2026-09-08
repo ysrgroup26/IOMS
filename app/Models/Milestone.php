@@ -2,11 +2,18 @@
 
 namespace App\Models;
 
+use App\Models\Concerns\BelongsToCompanyThrough;
+
 use Illuminate\Database\Eloquent\Model;
 
 /** Project Management's first real module beyond Projects/Daily Reports (v1.10.0). */
 class Milestone extends Model
 {
+    use BelongsToCompanyThrough;
+
+    /** Ownership resolves through this relation -- see BelongsToCompanyThrough. */
+    protected string $companyOwnerRelation = 'project';
+
     public const STATUSES = ['pending', 'in_progress', 'completed', 'delayed'];
 
     protected $appends = ['is_overdue'];

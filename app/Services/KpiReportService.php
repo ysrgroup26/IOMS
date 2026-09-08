@@ -39,6 +39,18 @@ class KpiReportService
         $employees = $employeesQuery->get();
 
         // Pull all matching KPI totals in one grouped query instead of N+1 per employee.
+        //
+        // v2.63.0 -- the `when($companyId, ...)` here was the last instance
+        // of the idiom that caused the v2.62.0 incident: with no company
+        // chosen (the default) the join was skipped and this aggregated
+        // every tenant's KPI records. It never REACHED the page -- the
+        // result is keyed by employee_id and only read back for the
+        // tenant's own employees, which the $employees query above scopes
+        // -- so this was an over-fetch rather than a leak. It is still not
+        // a query that should be able to see another customer's rows, and
+        // KpiRecord's own scope now settles that before the filter is
+        // considered. The optional join stays, because narrowing to ONE of
+        // the tenant's companies is what the filter is for.
         $totals = KpiRecord::query()
             ->join('kpi_categories', 'kpi_categories.id', '=', 'kpi_records.kpi_category_id')
             ->when($companyId, function ($q) use ($companyId) {

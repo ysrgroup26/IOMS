@@ -2,11 +2,18 @@
 
 namespace App\Models;
 
+use App\Models\Concerns\BelongsToCompanyThrough;
+
 use Illuminate\Database\Eloquent\Model;
 
 /** Milestone 4, Workstream C3. Invited-vendor response tracking -- see the owning migration's own doc comment. */
 class RfqVendor extends Model
 {
+    use BelongsToCompanyThrough;
+
+    /** Ownership resolves through this relation -- see BelongsToCompanyThrough. */
+    protected string $companyOwnerRelation = 'rfq';
+
     public const STATUSES = ['invited', 'viewed', 'responded', 'no_response', 'declined', 'expired'];
 
     protected $fillable = ['rfq_id', 'vendor_id', 'status', 'invited_at'];

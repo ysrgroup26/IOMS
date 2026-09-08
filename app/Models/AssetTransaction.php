@@ -2,11 +2,18 @@
 
 namespace App\Models;
 
+use App\Models\Concerns\BelongsToCompanyThrough;
+
 use Illuminate\Database\Eloquent\Model;
 
 /** Milestone 4, Acceleration Part 1C. See the owning migration's own doc comment. */
 class AssetTransaction extends Model
 {
+    use BelongsToCompanyThrough;
+
+    /** Ownership resolves through this relation -- see BelongsToCompanyThrough. */
+    protected string $companyOwnerRelation = 'asset';
+
     public const TYPE_ASSIGNMENT = 'assignment';
 
     public const TYPE_TRANSFER = 'transfer';

@@ -3,7 +3,38 @@
 House style, and a deliberately honest list of mistakes that have actually happened in this
 codebase's history — kept here so they don't get repeated in a slightly different shape.
 
-## CRITICAL — Known Pitfall (v2.58.0): two layers answering the same question, differently
+## Known Pitfall (v2.59.0): a scroll reveal that starts hidden can strand content permanently
+
+The obvious way to build one is "render at `opacity-0`, transition to visible when an
+IntersectionObserver reports the element". It has a failure mode that only appears in a real
+browser: **IntersectionObserver reports threshold CROSSINGS, not positions.** An element that moves
+from below the viewport to above it inside a single frame — a programmatic jump, an in-page anchor,
+the browser restoring scroll position on reload — was never intersecting at either sample, so no
+callback ever fires and it stays at `opacity: 0` forever.
+
+Verified live: one `window.scrollTo()` past a heading left it invisible. Patching it with scroll
+listeners only narrows the window, and the browser pane could not fire scroll events at all, so the
+patch was unverifiable there too.
+
+**Rule.** Motion must be purely ADDITIVE. Render the element visible and let entering the viewport
+add a one-shot keyframe (`animate-reveal`); never let it remove one. Then a failed, skipped or
+unsupported observer costs the animation and nothing else. There must be no code path that can hide
+content — a reveal that can strand content is a content bug wearing an animation.
+
+Gate every such class behind `motion-safe:` AND short-circuit in the hook when the visitor prefers
+reduced motion. Two independent guards, because one of them is a CSS variant somebody can delete.
+
+---
+## Known Pitfall (v2.59.0): "dead" code that lint says is alive
+
+Removing the landing page's placeholder mockups looked safe — `MockupFieldHome` appeared unreferenced
+in the section being replaced. `npm run lint` caught it immediately: it was rendered by a *different*
+section further up the file.
+
+That is the second real defect the narrow ESLint config (added v2.54.0) has caught. **Run it before
+committing frontend changes**, especially deletions.
+
+---## CRITICAL — Known Pitfall (v2.58.0): two layers answering the same question, differently
 
 A self-service customer could sign in, reach the Dashboard, and see a navy sidebar with **nothing in
 it**. The cause was not one bug but two rules that contradicted each other:

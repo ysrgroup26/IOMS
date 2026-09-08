@@ -191,12 +191,21 @@ export default {
                     '0%, 100%': { opacity: '0.5' },
                     '50%': { opacity: '0.9' },
                 },
+                // v2.59.0 -- the public site's scroll reveal. A ONE-SHOT
+                // keyframe rather than a transition between two states, so
+                // an element that never receives it is simply not animated
+                // -- it can never be left invisible. See lib/useReveal.js.
+                reveal: {
+                    '0%': { opacity: '0', transform: 'translateY(16px)' },
+                    '100%': { opacity: '1', transform: 'translateY(0)' },
+                },
             },
             animation: {
                 'fade-in': 'fade-in 0.2s ease-out',
                 float: 'float 6s ease-in-out infinite',
                 'float-slow': 'float 9s ease-in-out infinite',
                 'pulse-glow': 'pulse-glow 4s ease-in-out infinite',
+                reveal: 'reveal 0.55s cubic-bezier(0.22, 1, 0.36, 1) both',
             },
         },
     },

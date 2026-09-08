@@ -123,6 +123,26 @@ actually renders; anything there that looks dated is dated on purpose.
 **Documents on this system**: Purchase Order (Surat Pesanan), Purchase Requisition (FPB), Goods
 Receipt (BAST), Work Order (SPK), plus the existing Permit To Work.
 
+### The public site's motion and product showcase (v2.59.0)
+
+Three small components under `resources/js/Components/public/`, and no animation library — Framer
+Motion would have been ~50KB gzipped for what an IntersectionObserver and one keyframe already do.
+The whole system cost about 6KB.
+
+| Component | What it is |
+|---|---|
+| `Reveal` + `lib/useReveal` | The one motion gesture: a rise and fade as a block enters view. **Always visible; entering the viewport only ADDS a one-shot `animate-reveal` keyframe.** See CONVENTIONS for the stranding bug that shape prevents. |
+| `BlueprintBackdrop` | Atmosphere for the navy bands: technical grid, one light source, and an abstract industrial silhouette (gantry, tanks, frames) as inline SVG. No image request. `variant="hero"` or `"band"`. |
+| `PlatformShowcase` | The product showcase: five real workspaces in one application frame, switched by tabs. |
+
+**The showcase is the positioning fix.** What it replaced rendered two panels of placeholder
+furniture — figures that were literally "—" above a dashed rectangle — and both panels were HSE/PTW,
+so the entire product visualisation on a page selling an Industrial Operations Platform showed one
+department. The showcase presents Dashboard, HSE, Warehouse, Procurement and Maintenance, using the
+authenticated product's own visual language (navy rail, navy page header with eyebrow, compact stat
+chips) and real IOMS vocabulary. PTW is one row inside one of five tabs, which is its true
+proportion. A test asserts the module set and the vocabulary, so a later edit cannot quietly narrow
+it back to one department.
 ### Workspace grants: departments are sold, chrome is not (v2.58.0)
 
 `workspaces.tier` separates `department` from `global`. Only DEPARTMENT workspaces are plan

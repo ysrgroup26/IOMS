@@ -379,6 +379,51 @@ class PublicReadinessTest extends TestCase
         $this->assertStringContainsString('Operating Unit', $faqs);
     }
 
+    /**
+     * v2.59.0 -- the landing page's product showcase must present the
+     * PLATFORM, not one department. The section it replaced rendered two
+     * panels and both were HSE/PTW, which is a positioning error on a page
+     * selling an Industrial Operations Platform.
+     *
+     * Asserted against the shipped source rather than a rendered page: the
+     * showcase is a client component, and what matters is that the module
+     * set stays broad if somebody edits it later.
+     */
+    public function test_the_product_showcase_presents_more_than_one_department(): void
+    {
+        $showcase = file_get_contents(base_path('resources/js/Components/public/PlatformShowcase.jsx'));
+
+        foreach (['Dashboard', 'Health, Safety & Environment', 'Warehouse', 'Procurement', 'Maintenance'] as $module) {
+            $this->assertStringContainsString($module, $showcase, "The showcase no longer presents {$module}.");
+        }
+
+        // Real IOMS vocabulary, so the marketing surface and the product agree.
+        foreach (['Operating Units', 'Permit To Work', 'Purchase Order', 'Work Order'] as $term) {
+            $this->assertStringContainsString($term, $showcase);
+        }
+    }
+
+    /** The placeholder furniture the showcase replaced must not come back. */
+    public function test_the_landing_page_shows_no_placeholder_product_mockups(): void
+    {
+        $welcome = file_get_contents(base_path('resources/js/Pages/Public/Welcome.jsx'));
+
+        $this->assertStringNotContainsString("value: '—'", $welcome, 'Placeholder em-dash figures are back on the landing page.');
+        $this->assertStringNotContainsString('PTW-2026-XXXXX', $welcome, 'A placeholder permit number is back on the landing page.');
+    }
+
+    /**
+     * Motion must never be able to hide content. Every reveal is a one-shot
+     * keyframe behind `motion-safe:`, so a visitor who prefers reduced
+     * motion — or whose observer never fires — still sees everything.
+     */
+    public function test_the_reveal_system_cannot_hide_content(): void
+    {
+        $reveal = file_get_contents(base_path('resources/js/Components/public/Reveal.jsx'));
+
+        $this->assertStringContainsString('motion-safe:animate-reveal', $reveal);
+        $this->assertStringNotContainsString('opacity-0', $reveal, 'A reveal that starts at opacity 0 can strand content.');
+    }
     public function test_get_started_is_an_onboarding_flow_and_not_a_login_redirect(): void
     {
         $this->package();

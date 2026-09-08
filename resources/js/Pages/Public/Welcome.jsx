@@ -1,11 +1,13 @@
 import { Head, Link, usePage } from '@inertiajs/react';
 import { useState } from 'react';
 import PublicLayout from '@/Layouts/PublicLayout';
+import Reveal from '@/Components/public/Reveal';
+import BlueprintBackdrop from '@/Components/public/BlueprintBackdrop';
+import PlatformShowcase from '@/Components/public/PlatformShowcase';
 import { Button } from '@/Components/ui/button';
-import { Badge } from '@/Components/ui/badge';
 import {
     ArrowRight, HardHat, ShieldCheck, Users, BarChart3, FileCheck2, ClipboardList,
-    Flame, Wind, Lock, AlertTriangle, Eye, ClipboardCheck, Clock, ChevronDown,
+    Flame, Wind, Lock, AlertTriangle, Eye, ClipboardCheck, ChevronDown,
     Ship, Building2, Factory, Wrench, Truck, Zap, Cog, Check, Smartphone, Building,
     Warehouse, ShoppingCart, FolderKanban, LineChart, Sparkles,
 } from 'lucide-react';
@@ -105,18 +107,11 @@ const ORBIT_NODES = [
 function Hero() {
     return (
         <section className="relative isolate overflow-hidden border-b border-navy-800 bg-navy-900 text-white">
-            <div
-                className="pointer-events-none absolute inset-0 -z-10 opacity-[0.16]"
-                aria-hidden="true"
-                style={{
-                    backgroundImage:
-                        'linear-gradient(to right, rgba(255,255,255,0.10) 1px, transparent 1px), linear-gradient(to bottom, rgba(255,255,255,0.10) 1px, transparent 1px)',
-                    backgroundSize: '56px 56px',
-                    maskImage: 'linear-gradient(to bottom, black, transparent 90%)',
-                }}
-            />
-            <div className="pointer-events-none absolute -right-40 -top-40 -z-10 h-[38rem] w-[38rem] rounded-full bg-steel-500 opacity-[0.15] blur-3xl" aria-hidden="true" />
-            <div className="pointer-events-none absolute -bottom-56 -left-40 -z-10 h-[34rem] w-[34rem] rounded-full bg-brand-600 opacity-[0.12] blur-3xl" aria-hidden="true" />
+            {/* v2.59.0: replaces a 56px grid plus two blurred blobs -- the
+                same treatment every navy band on this page used, which is
+                why three dark sections read as one flat blue field. See
+                BlueprintBackdrop for what each layer is doing. */}
+            <BlueprintBackdrop variant="hero" />
 
             <div className="relative mx-auto max-w-7xl px-4 py-20 sm:px-6 sm:py-28 lg:px-8">
                 <div className="mx-auto max-w-3xl text-center">
@@ -322,7 +317,7 @@ function PtwHseStory() {
 
     return (
         <section id="solutions" className="relative isolate overflow-hidden border-b border-navy-800 bg-navy-900 py-20 text-white">
-            <div className="pointer-events-none absolute -right-32 -top-32 -z-10 h-[30rem] w-[30rem] rounded-full bg-steel-500 opacity-[0.13] blur-3xl" aria-hidden="true" />
+            <BlueprintBackdrop />
             <div className="mx-auto max-w-5xl px-4 sm:px-6 lg:px-8">
                 <div className="text-center">
                     <p className="text-xs font-semibold uppercase tracking-[0.2em] text-brand-400">How the chain works</p>
@@ -374,93 +369,96 @@ function FieldExperience() {
                             ))}
                         </ul>
                     </div>
-                    <div className="rounded-xl border border-graphite-200 bg-graphite-50 p-4 shadow-card sm:p-6">
-                        <MockupFieldHome />
-                    </div>
+                    <Reveal className="rounded-xl border border-graphite-200 bg-graphite-50 p-4 shadow-card sm:p-6">
+                        <MyWorkPreview />
+                    </Reveal>
                 </div>
             </div>
         </section>
     );
 }
 
+/**
+ * v2.59.0 -- My Work as it actually looks: a phone-shaped frame, the real
+ * greeting, action tiles first and live permits below them.
+ *
+ * The previous version was four bordered rectangles in a 2x2 grid, which
+ * communicated neither the ordering the page's own copy describes
+ * ("actions within thumb's reach, running permits second") nor that this
+ * is a phone surface at all.
+ */
+function MyWorkPreview() {
+    const actions = [
+        { label: 'New Permit To Work', icon: Flame },
+        { label: 'Safety Observation', icon: Eye },
+        { label: 'My Tasks', icon: ClipboardCheck },
+        { label: 'Daily Report', icon: FileCheck2 },
+    ];
+
+    return (
+        <div className="mx-auto w-full max-w-[260px] overflow-hidden rounded-[20px] border-4 border-navy-900 bg-white shadow-panel">
+            <div className="bg-navy-900 px-3.5 pb-3 pt-2.5">
+                <p className="text-[9px] font-semibold uppercase tracking-[0.16em] text-steel-300">My Work</p>
+                <p className="mt-0.5 text-[13px] font-semibold text-white">Good Morning, Team.</p>
+            </div>
+
+            <div className="space-y-2 p-3">
+                {actions.map((a) => (
+                    <div key={a.label} className="flex items-center gap-2.5 rounded-lg border border-graphite-100 bg-white p-2.5">
+                        <span className="flex h-8 w-8 shrink-0 items-center justify-center rounded-[9px] bg-gradient-to-br from-navy-800 to-brand-600 text-white">
+                            <a.icon className="h-4 w-4" />
+                        </span>
+                        <span className="truncate text-[11px] font-semibold text-navy-900">{a.label}</span>
+                    </div>
+                ))}
+
+                <p className="pt-1 text-[9px] font-semibold uppercase tracking-wide text-graphite-400">My permits</p>
+                <div className="rounded-lg border border-graphite-100 p-2.5">
+                    <div className="flex items-center justify-between">
+                        <span className="text-[10px] font-semibold text-navy-900">PTW-2026-00184</span>
+                        <span className="rounded-full bg-success/10 px-1.5 py-0.5 text-[9px] font-semibold text-success">Active</span>
+                    </div>
+                    <p className="mt-1 text-[9px] text-graphite-500">Hot work · Graving Dock 2</p>
+                </div>
+            </div>
+        </div>
+    );
+}
+
 /* ------------------------------------------------------------------ */
-/* Section: Product Preview (mockups, not screenshots)                 */
+/* Section: Product Preview                                            */
 /* ------------------------------------------------------------------ */
+/**
+ * v2.59.0 -- THE PAGE'S CENTREPIECE, and previously its weakest section.
+ *
+ * What stood here rendered two panels of placeholder furniture: four
+ * figures that were literally the character "—" above a dashed empty
+ * rectangle, and a permit with three grey bars where its content should
+ * be. A visitor evaluating industrial software saw no product at all.
+ *
+ * Both panels were also HSE/PTW, so the entire product visualisation on a
+ * page selling an Industrial Operations Platform showed one department.
+ * PlatformShowcase replaces it with five real workspaces in one
+ * application frame -- see that component for the reasoning.
+ */
 function ProductPreview() {
     return (
         <section className="border-b border-graphite-100 bg-white py-20">
-            <div className="mx-auto max-w-7xl px-4 sm:px-6 lg:px-8">
-                <SectionHeading eyebrow="Product" title="What working in IOMS looks like" subtitle="Illustrative screens built from the real IOMS design system, with sample operational data — not stock photography." />
+            <div className="mx-auto max-w-5xl px-4 sm:px-6 lg:px-8">
+                <SectionHeading
+                    eyebrow="Product"
+                    title="This is the platform, not a screenshot of one module"
+                    subtitle="Switch between the workspaces IOMS actually ships. Built from the real IOMS design system with illustrative operational data — not stock photography."
+                />
 
-                <div className="mt-12 grid grid-cols-1 gap-6 lg:grid-cols-2">
-                    <div className="rounded-xl border border-graphite-200 bg-graphite-50 p-4 shadow-card sm:p-6">
-                        <p className="mb-3 text-xs font-semibold uppercase tracking-wide text-graphite-400">HSE Dashboard</p>
-                        <MockupDashboard />
-                    </div>
-                    <div className="rounded-xl border border-graphite-200 bg-graphite-50 p-4 shadow-card sm:p-6">
-                        <p className="mb-3 text-xs font-semibold uppercase tracking-wide text-graphite-400">Permit To Work</p>
-                        <MockupPtw />
-                    </div>
-                </div>
+                <Reveal className="mt-10">
+                    <PlatformShowcase />
+                </Reveal>
             </div>
         </section>
     );
 }
 
-function MockupDashboard() {
-    const stats = [
-        { label: 'Open PTW', value: '—' }, { label: 'Incidents', value: '—' },
-        { label: 'Inspections Due', value: '—' }, { label: 'CAPA Open', value: '—' },
-    ];
-    return (
-        <div className="rounded-lg border border-graphite-200 bg-white p-4">
-            <div className="grid grid-cols-2 gap-2 sm:grid-cols-4">
-                {stats.map((s) => (
-                    <div key={s.label} className="rounded-md border border-graphite-100 p-2.5 text-center">
-                        <p className="text-lg font-semibold text-graphite-300">{s.value}</p>
-                        <p className="text-[10px] text-graphite-400">{s.label}</p>
-                    </div>
-                ))}
-            </div>
-            <div className="mt-3 h-24 rounded-md border border-dashed border-graphite-200" />
-        </div>
-    );
-}
-
-function MockupPtw() {
-    return (
-        <div className="rounded-lg border border-graphite-200 bg-white p-4">
-            <div className="flex items-center justify-between border-b border-graphite-100 pb-2">
-                <span className="text-sm font-semibold text-graphite-700">PTW-2026-XXXXX</span>
-                <Badge variant="outline">Pending</Badge>
-            </div>
-            <div className="mt-3 space-y-2">
-                <div className="h-2.5 w-3/4 rounded bg-graphite-100" />
-                <div className="h-2.5 w-1/2 rounded bg-graphite-100" />
-                <div className="h-2.5 w-2/3 rounded bg-graphite-100" />
-            </div>
-        </div>
-    );
-}
-
-function MockupFieldHome() {
-    const tiles = [
-        { label: 'Create PTW', icon: Flame }, { label: 'My PTW', icon: FileCheck2 },
-        { label: "Today's Jobs", icon: Clock }, { label: 'My Tasks', icon: ClipboardCheck },
-    ];
-    return (
-        <div className="rounded-lg border border-graphite-200 bg-white p-4">
-            <div className="grid grid-cols-2 gap-2.5">
-                {tiles.map((t) => (
-                    <div key={t.label} className="flex items-center gap-2 rounded-lg border border-graphite-100 p-2.5">
-                        <t.icon className="h-4 w-4 shrink-0 text-brand-500" />
-                        <span className="truncate text-xs font-medium text-graphite-600">{t.label}</span>
-                    </div>
-                ))}
-            </div>
-        </div>
-    );
-}
 
 /* ------------------------------------------------------------------ */
 /* Section: Industries                                                 */
@@ -671,7 +669,7 @@ function Faq({ faqs = [] }) {
 function FinalCta() {
     return (
         <section className="relative isolate overflow-hidden bg-navy-900 py-20 text-white">
-            <div className="pointer-events-none absolute -left-32 -bottom-40 -z-10 h-[28rem] w-[28rem] rounded-full bg-brand-600 opacity-[0.14] blur-3xl" aria-hidden="true" />
+            <BlueprintBackdrop />
             <div className="mx-auto max-w-3xl px-4 text-center sm:px-6 lg:px-8">
                 <h2 className="text-2xl font-semibold tracking-tight sm:text-3xl">Ready to connect your operation?</h2>
                 <p className="mx-auto mt-3 max-w-xl text-sm text-graphite-300 sm:text-base">
@@ -692,12 +690,17 @@ function FinalCta() {
 /* ------------------------------------------------------------------ */
 /* Shared: Section heading                                             */
 /* ------------------------------------------------------------------ */
+/**
+ * v2.59.0: reveals on scroll. Putting it here rather than at each call
+ * site means every section on the page inherits the same single gesture
+ * for free, and there is exactly one place to change or remove it.
+ */
 function SectionHeading({ eyebrow, title, subtitle }) {
     return (
-        <div className="mx-auto max-w-2xl text-center">
+        <Reveal className="mx-auto max-w-2xl text-center">
             <p className="text-xs font-semibold uppercase tracking-[0.2em] text-brand-600">{eyebrow}</p>
             <h2 className="mt-3 text-2xl font-semibold tracking-tight text-graphite-900 sm:text-3xl">{title}</h2>
             {subtitle && <p className="mt-3 text-sm text-graphite-600 sm:text-base">{subtitle}</p>}
-        </div>
+        </Reveal>
     );
 }

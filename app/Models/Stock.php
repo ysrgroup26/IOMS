@@ -2,11 +2,14 @@
 
 namespace App\Models;
 
+use App\Models\Concerns\BelongsToCompany;
 use Illuminate\Database\Eloquent\Model;
 
 /** Milestone 4, Acceleration Part 1B. Stored running balance per item+warehouse -- see the owning migration's own doc comment on why this is stored, not computed. */
 class Stock extends Model
 {
+    use BelongsToCompany;
+
     protected $fillable = ['company_id', 'item_id', 'warehouse_id', 'storage_location_id', 'quantity', 'reserved_quantity'];
 
     protected $appends = ['available_quantity'];

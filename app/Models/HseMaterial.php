@@ -2,11 +2,14 @@
 
 namespace App\Models;
 
+use App\Models\Concerns\BelongsToCompany;
 use Illuminate\Database\Eloquent\Model;
 
 /** Milestone 4, Workstream B11. See the owning migration's own doc comment. */
 class HseMaterial extends Model
 {
+    use BelongsToCompany;
+
     public const CATEGORIES = ['consumable', 'reusable_material', 'chemical', 'other'];
 
     protected $fillable = ['company_id', 'name', 'category', 'unit', 'current_stock', 'reorder_level', 'notes', 'is_active'];

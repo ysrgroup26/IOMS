@@ -2,6 +2,7 @@
 
 namespace App\Models;
 
+use App\Models\Concerns\BelongsToCompany;
 use Illuminate\Database\Eloquent\Model;
 use Illuminate\Support\Carbon;
 
@@ -22,6 +23,8 @@ use Illuminate\Support\Carbon;
  */
 class WasteRecord extends Model
 {
+    use BelongsToCompany;
+
     public const STATUS_GENERATED = 'generated';
 
     public const STATUS_STORED = 'stored';

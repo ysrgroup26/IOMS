@@ -13,6 +13,7 @@ use Illuminate\Foundation\Configuration\Exceptions;
 use Illuminate\Foundation\Configuration\Middleware;
 use Illuminate\Http\Middleware\AddLinkHeadersForPreloadedAssets;
 use Illuminate\Http\Request;
+use Illuminate\Routing\Middleware\SubstituteBindings;
 use Inertia\Inertia;
 use Symfony\Component\HttpFoundation\Response;
 
@@ -47,12 +48,35 @@ return Application::configure(basePath: dirname(__DIR__))
             );
         }
 
-        $middleware->web(append: [
-            // ResolveTenant runs FIRST (Milestone 2) -- everything after
-            // it, including HandleInertiaRequests' own shared props and
-            // every Company-scoped query in the request, needs the tenant
-            // context already resolved.
+        // v2.62.0 -- RESOLVETENANT MUST PRECEDE ROUTE MODEL BINDING.
+        //
+        // The comment below used to say "ResolveTenant runs FIRST". It did
+        // not. `web(append:)` puts it at the END of the group, which is
+        // AFTER Laravel's own SubstituteBindings -- so every route-model
+        // binding in the application (`show(Task $task)`,
+        // `show(Employee $employee)`, every implicit binding in the router)
+        // resolved its record with NO tenant in context.
+        //
+        // That was invisible while tenant-owned models had no global scope:
+        // an unscoped binding query finds the row, and the controller's own
+        // `assertInCurrentTenant()` then rejects a foreign one. Once
+        // CompanyOwnedScope existed, the same binding query ran with
+        // TenantScope's fail-closed `tenant_id = -1` and returned 404 for a
+        // record the user legitimately owns.
+        //
+        // Removing SubstituteBindings and re-adding it after ResolveTenant
+        // is the whole fix. Order matters in both directions and both are
+        // now asserted by TenantIsolationTest:
+        //
+        //   StartSession    must come first -- ResolveTenant reads
+        //                   $request->user(), which needs the session.
+        //   ResolveTenant   next, so the tenant exists...
+        //   SubstituteBindings  ...before any record is looked up by id.
+        $middleware->web(remove: [SubstituteBindings::class], append: [
             ResolveTenant::class,
+            // Re-added here rather than left in place: bindings must be
+            // resolved in tenant context. See the note above.
+            SubstituteBindings::class,
             HandleInertiaRequests::class,
             IdentifyTenant::class,
             // v1.11.0: entitlement (does the tenant's subscription allow

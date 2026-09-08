@@ -2,10 +2,13 @@
 
 namespace App\Models;
 
+use App\Models\Concerns\BelongsToCompany;
 use Illuminate\Database\Eloquent\Model;
 
 class Department extends Model
 {
+    use BelongsToCompany;
+
     protected $fillable = ['company_id', 'name', 'description', 'code', 'sort_order', 'is_active'];
 
     protected function casts(): array

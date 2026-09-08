@@ -3,12 +3,14 @@
 namespace App\Models;
 
 use App\Concerns\HasSecureDocument;
+use App\Models\Concerns\BelongsToCompany;
 use Illuminate\Database\Eloquent\Model;
 
 /** Milestone 4, Workstream C3 (Vendor Quotation). See the owning migration's own doc comment. */
 class VendorQuotation extends Model
 {
-    use HasSecureDocument;
+    use BelongsToCompany, HasSecureDocument;
+
     public const STATUSES = ['submitted', 'withdrawn'];
 
     protected $fillable = [

@@ -435,21 +435,70 @@ actually common.
 >
 > - `App\Support\CurrentTenant` — request-scoped singleton holding the resolved Tenant.
 > - `App\Http\Middleware\ResolveTenant` — the ONE place that resolves it (from `$user->tenant`).
-> - `App\Models\Scopes\TenantScope` — applied to `Company` **only**. Everything beneath a Company
->   (departments, positions, employees, ...) is safe *transitively*, because it can only reference a
->   Company this scope already filtered. It **fails closed** (`tenant_id = -1`) when no tenant is
->   resolved, so an unresolved request returns zero rows rather than every tenant's.
+> - `App\Models\Scopes\TenantScope` — applied to `Company`. It **fails closed** (`tenant_id = -1`)
+>   when no tenant is resolved, so an unresolved request returns zero rows rather than every
+>   tenant's.
+> - `App\Models\Concerns\BelongsToCompany` + `App\Models\Scopes\CompanyOwnedScope` (v2.62.0) —
+>   applied to **every model with a `company_id`**. A company-owned query can only return rows whose
+>   company is one of `Company::query()->select('id')`, i.e. one the current request may see.
+> - `App\Models\Scopes\UserTenantScope` (v2.62.0) — `users` is tenant-owned (its `company_id` is
+>   nullable by design), so it is scoped on `tenant_id` instead.
 >
-> Two consequences that have each already caused a real defect:
+> ### Why the second layer exists (v2.62.0, and read this before removing it)
 >
-> 1. *Transitively safe* only holds if the code actually routes through `Company::query()`. A
->    route-model-bound record must still be guarded by hand —
->    `abort_unless(Company::query()->pluck('id')->contains($x->company_id), 404)` — and submitted
->    foreign keys must use the `App\Rules\InCurrentTenant` validation rule. These are two different
->    layers (record *access* vs request *input*); both are required.
-> 2. Fail-closed is correct for security but means **any code running without an HTTP request has no
->    tenant**. Scheduled commands must restore context explicitly, or they silently produce empty
->    output — see `DispatchScheduledReports`, which did exactly that until v2.40.0.
+> Until v2.62.0 only `Company` was scoped, and everything beneath it was called "safe
+> *transitively*, because it can only reference a Company this scope already filtered". That is true
+> of the DATA MODEL and false of the QUERIES. A row's `company_id` does point at exactly one
+> Company; nothing forced a query to go looking at Company at all. Transitive safety only held for
+> queries that voluntarily resolved `Company::query()->pluck('id')` first — a convention, across 66
+> models and several hundred call sites.
+>
+> **It failed in production.** A newly provisioned Starter tenant opened Reports and saw another
+> customer's departments and employee names. The responsible line is optional by design:
+>
+> ```php
+> Department::where('is_active', true)
+>     ->when($companyId, fn ($q) => $q->where('company_id', $companyId))
+> ```
+>
+> With no company chosen — the default — `when()` is a no-op and every department in the
+> installation comes back. A static sweep found 72 sites of that shape, and `Employee::find($id)`
+> reached another tenant's employee outright.
+>
+> So ownership is now **structural**: a forgotten `where` clause is no longer a breach, and adding a
+> new company-owned table needs `company_id` plus the trait and nothing else.
+> `TenantIsolationCoverageTest` (in `TenantDataIsolationTest`) asserts that every model carrying a
+> `company_id` has an isolation scope, so the next table cannot be added without one by accident.
+>
+> Three consequences, each of which has caused a real defect:
+>
+> 1. **`ResolveTenant` must run before `SubstituteBindings`.** Route model binding looks a record up
+>    by id before any controller code runs; with no tenant in context it resolves against
+>    `tenant_id = -1`. `bootstrap/app.php` removes `SubstituteBindings` from the `web` group and
+>    re-adds it after `ResolveTenant` for exactly this reason. The order is
+>    `StartSession → ResolveTenant → SubstituteBindings`, and all three positions matter.
+> 2. **Fail-closed means code without an HTTP request has no tenant.** Scheduled commands must
+>    restore context explicitly or they silently produce empty output — see
+>    `DispatchScheduledReports`, which did exactly that until v2.40.0, and whose one deliberately
+>    cross-tenant query now says `withoutGlobalScopes()` in so many words.
+> 3. **Defence in depth is still required for INPUT.** The scope governs which rows a query returns;
+>    a submitted foreign key is a different question and still uses the `App\Rules\InCurrentTenant`
+>    validation rule. Record *access* and request *input* are two layers; both are required.
+>
+> **Null owners.** A null `company_id` means "unowned", and unowned means visible to nobody — the
+> safe reading, since a row nobody owns must not become a row everybody can see. Three tables use
+> null to mean "the built-in default every customer starts from" instead (`kpi_categories`,
+> `numbering_formats`, `numbering_sequences`) and opt in with
+> `companyScopeAllowsGlobalRows(): true`. Two more are owned through a different column and say so
+> with their own scope: `activity_logs` (a tenant-level action is owned by the user who performed
+> it) and `tasks` (a company-less task is owned by its creator or assignee). `employee_ppe` and
+> `ppe_replacement_request_items` have no `company_id` at all and resolve ownership through their
+> parent with `whereHas`.
+>
+> **The escape hatch is deliberate and greppable.** Provisioning, the Platform Super Admin surface
+> and the scheduled-report driver genuinely operate across tenants and say
+> `withoutGlobalScope(CompanyOwnedScope::class)` / `withoutGlobalScopes()`. "I mean across tenants"
+> is reviewable; "I forgot a where clause" is not.
 >
 > **Tenant-owned settings** (`company_settings`) use a distinct two-tier model, because guests and
 > the platform genuinely need values too: `tenant_id IS NULL` is the platform default,
@@ -466,9 +515,13 @@ actually common.
   not scoped to one company); a real multi-tenant customer's users would have it set.
 - `app/Services/TenantContext.php` + `app/Http/Middleware/IdentifyTenant.php` — resolve "the
   current company" from the authenticated user plus an optional request parameter, cached per
-  request. Deliberately does **not** auto-scope Eloquent queries globally (a retroactive global
-  scope across every model was judged too risky to introduce all at once) — scoping is still
-  explicit, per-query (`scopeInCompany`, `->where('company_id', ...)`), not automatic.
+  request. This layer answers *which of my companies am I looking at*, a UI filter.
+  **It is not, and never was, the isolation boundary** — `CompanyOwnedScope` is (v2.62.0).
+  This convention originally read "deliberately does not auto-scope Eloquent queries globally (a
+  retroactive global scope across every model was judged too risky to introduce all at once)". That
+  judgement is what produced the v2.62.0 cross-tenant read incident: the risk of adding the scope
+  was one release of test failures, and the risk of not adding it was a customer reading another
+  customer's employee names.
 - **Company filtering convention, app-wide**: a per-request query parameter (`?company_id=X`),
   consistently, everywhere — Dashboard, PPE, Reports, Employees, Settings' Departments/Positions
   filters. **There is no persistent "Active Company" session concept anywhere in this codebase.**

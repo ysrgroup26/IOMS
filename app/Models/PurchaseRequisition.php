@@ -3,6 +3,7 @@
 namespace App\Models;
 
 use App\Concerns\HasWorkflow;
+use App\Models\Concerns\BelongsToCompany;
 use App\Services\NumberGeneratorService;
 use Illuminate\Database\Eloquent\Model;
 use Illuminate\Database\Eloquent\SoftDeletes;
@@ -17,7 +18,7 @@ use Illuminate\Database\Eloquent\SoftDeletes;
  */
 class PurchaseRequisition extends Model
 {
-    use HasWorkflow, SoftDeletes;
+    use BelongsToCompany, HasWorkflow, SoftDeletes;
 
     public const STATUS_DRAFT = 'draft';
 

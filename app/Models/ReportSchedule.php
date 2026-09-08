@@ -2,6 +2,7 @@
 
 namespace App\Models;
 
+use App\Models\Concerns\BelongsToCompany;
 use Illuminate\Database\Eloquent\Model;
 
 /**
@@ -10,6 +11,8 @@ use Illuminate\Database\Eloquent\Model;
  */
 class ReportSchedule extends Model
 {
+    use BelongsToCompany;
+
     public const FREQUENCY_DAILY = 'daily';
 
     public const FREQUENCY_WEEKLY = 'weekly';

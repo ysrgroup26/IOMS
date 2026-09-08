@@ -2,6 +2,7 @@
 
 namespace App\Models;
 
+use App\Models\Concerns\BelongsToCompany;
 use App\Services\NumberGeneratorService;
 use Illuminate\Database\Eloquent\Model;
 use Illuminate\Database\Eloquent\SoftDeletes;
@@ -16,7 +17,7 @@ use Illuminate\Database\Eloquent\SoftDeletes;
  */
 class LotoRecord extends Model
 {
-    use SoftDeletes;
+    use BelongsToCompany, SoftDeletes;
 
     public const STATUS_ISOLATED = 'isolated';
 

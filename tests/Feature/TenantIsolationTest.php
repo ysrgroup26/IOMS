@@ -115,7 +115,17 @@ class TenantIsolationTest extends TestCase
             'status' => 'ongoing',
         ]);
 
-        $response->assertForbidden();
+        // v2.62.0: 403 -> 404, and that is an improvement rather than a
+        // regression. Before CompanyOwnedScope, route model binding found
+        // the foreign project and the controller then refused it, which
+        // confirmed the record exists to somebody who may not see it. Now
+        // the binding itself cannot resolve another tenant's row, so the
+        // application answers "no such project" -- the correct response to
+        // a record the caller has no right to know about.
+        //
+        // What this test is really asserting is unchanged and still holds
+        // in full: the foreign row is not modified and not reassigned.
+        $response->assertNotFound();
         $this->assertSame('Tenant B Project', $foreignProject->fresh()->name, 'Foreign project must not be modified.');
         $this->assertSame($this->companyB->id, $foreignProject->fresh()->company_id, 'Foreign project must not be reassigned.');
     }
@@ -153,6 +163,16 @@ class TenantIsolationTest extends TestCase
      * A task with no company at all is legitimate (`tasks.company_id` is
      * nullable by design) and must stay reachable -- guarding against a
      * fix that over-corrects into breaking real data.
+     *
+     * v2.62.0 -- the fixture now sets `created_by`, because every task the
+     * PRODUCT can create has one: `TaskService::createTask()` takes the
+     * creator as a required argument and there is no other path that
+     * writes this table. That matters, because the creator is what the
+     * company-less task is owned THROUGH once CompanyOwnedScope exists
+     * (see Task::companyScopeNullOwnerQuery). A row with neither a
+     * company nor a person is genuinely unowned and is deliberately
+     * visible to nobody -- it is also not a row this application can
+     * produce.
      */
     public function test_task_without_a_company_is_still_viewable(): void
     {
@@ -161,11 +181,41 @@ class TenantIsolationTest extends TestCase
             'task_number' => 'TSK-GLOBAL-1',
             'title' => 'Unassigned Task',
             'company_id' => null,
+            'created_by' => $this->userA->id,
         ]);
 
         $this->actingAs($this->userA)
             ->get("/tasks/{$globalTask->id}")
             ->assertOk();
+    }
+
+    /**
+     * The other half of the rule above, and the reason "no company" could
+     * not simply be made visible to everyone: a company-less task belongs
+     * to the tenant of the person who raised it, and to nobody else.
+     */
+    public function test_a_company_less_task_does_not_leak_to_another_tenant(): void
+    {
+        $userB = User::create([
+            'name' => 'Admin B',
+            'email' => 'admin-b@example.test',
+            'password' => bcrypt('password'),
+            'role' => 'super_admin',
+            'tenant_id' => $this->tenantB->id,
+            'is_active' => true,
+        ]);
+
+        $tenantBTask = Task::create([
+            'uuid' => (string) Str::uuid(),
+            'task_number' => 'TSK-B-GLOBAL',
+            'title' => 'Tenant B unassigned task',
+            'company_id' => null,
+            'created_by' => $userB->id,
+        ]);
+
+        $this->actingAs($this->userA)
+            ->get("/tasks/{$tenantBTask->id}")
+            ->assertNotFound();
     }
 
     /** A user's own tenant data must remain fully reachable. */

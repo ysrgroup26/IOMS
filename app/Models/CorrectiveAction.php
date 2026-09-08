@@ -2,6 +2,7 @@
 
 namespace App\Models;
 
+use App\Models\Concerns\BelongsToCompany;
 use Illuminate\Database\Eloquent\Model;
 
 /**
@@ -12,6 +13,8 @@ use Illuminate\Database\Eloquent\Model;
  */
 class CorrectiveAction extends Model
 {
+    use BelongsToCompany;
+
     public const STATUS_OPEN = 'open';
 
     public const STATUS_IN_PROGRESS = 'in_progress';

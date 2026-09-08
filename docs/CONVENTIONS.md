@@ -669,6 +669,109 @@ established way to produce that value (it does: `Company::query()->pluck('id')` 
 different types). A new shared service sitting downstream of both needs to accept both, not silently
 assume whichever pattern its first caller happened to use.
 
+## CRITICAL — Known Pitfall (v2.62.0, production incident #4): "safe transitively" is a property of
+## the DATA MODEL, not of the QUERIES — a company-owned table needs its own global scope
+
+**The incident.** A newly provisioned Starter tenant opened Reports and saw an existing customer's
+departments and employee names. Read leakage, not data duplication — the new tenant owned no
+foreign rows; it could simply see them.
+
+**The reasoning that produced it** was written down in ARCHITECTURE and sounded right:
+
+> `TenantScope` is applied to `Company` only. Everything beneath a Company (departments, positions,
+> employees, ...) is safe *transitively*, because it can only ever reference a Company this scope
+> already filtered.
+
+Every clause of that is true about the DATA. None of it is true about a QUERY. A row's `company_id`
+does point at exactly one Company; nothing forces a query to go looking at Company at all.
+Transitive safety only held for queries that voluntarily started from
+`Company::query()->pluck('id')`, which made isolation a convention across 66 models.
+
+**The shape that broke it** — and it is an idiom, not a typo, which is why it spread:
+
+```php
+// The filter is OPTIONAL. When no company is chosen -- the default -- when()
+// is a no-op and this returns every department in the installation.
+Department::where('is_active', true)
+    ->when($companyId, fn ($q) => $q->where('company_id', $companyId))
+```
+
+A static sweep found **72 sites** of that shape across controllers and services. `Employee::find($id)`
+reached another tenant's employee outright, so the leak was not limited to lists.
+
+**The fix, and the rule going forward.** Ownership is structural now: `BelongsToCompany` +
+`CompanyOwnedScope` on every model with a `company_id`, `UserTenantScope` on `users`. A forgotten
+`where` clause is no longer a breach.
+
+- **Adding a company-owned table?** `company_id` NOT NULL, `use BelongsToCompany;`, done. A test
+  asserts every model with a `company_id` carries an isolation scope, so you cannot forget.
+- **Never** "fix" a cross-tenant leak by filtering in the frontend, in a Blade view, or in a
+  collection `->filter()` after the query. The query is the boundary.
+- **Never** use `when($companyId, ...)` as the only company constraint. It means "filter if the
+  user picked one", which is a UI convenience, not a security control.
+- **Crossing tenants on purpose?** Say `withoutGlobalScope(CompanyOwnedScope::class)` or
+  `withoutGlobalScopes()`, on that statement, with a comment saying why. Provisioning, the Platform
+  Super Admin surface and `DispatchScheduledReports` legitimately do. "I mean across tenants" is
+  greppable; "I forgot a where clause" is not.
+- **A null owner is not a shared row.** Null `company_id` means unowned, and unowned means visible
+  to nobody. If null genuinely means "the built-in default everyone starts from", override
+  `companyScopeAllowsGlobalRows()` — only `kpi_categories`, `numbering_formats` and
+  `numbering_sequences` qualify. If the row is owned through a different column, write that scope
+  explicitly (see `ActivityLog`, `Task`).
+
+## CRITICAL — Known Pitfall (v2.62.0): `ResolveTenant` must run BEFORE `SubstituteBindings`, and
+## `web(append:)` does not do that
+
+`bootstrap/app.php` carried this comment for four milestones:
+
+> ResolveTenant runs FIRST -- everything after it needs the tenant context already resolved.
+
+It did not. `$middleware->web(append: [...])` puts middleware at the **end** of the `web` group,
+which is *after* Laravel's own `SubstituteBindings`. So every implicit route-model binding in the
+application — `show(Task $task)`, `show(Employee $employee)`, all of them — resolved its record
+with **no tenant in context**.
+
+That was invisible while company-owned models had no global scope: an unscoped binding query finds
+the row, and the controller's `assertInCurrentTenant()` then rejects a foreign one. The moment
+`CompanyOwnedScope` existed, the same binding ran against `TenantScope`'s fail-closed
+`tenant_id = -1` and returned **404 for a record the user legitimately owns**.
+
+The fix is to remove `SubstituteBindings` from the group and re-add it after `ResolveTenant`:
+
+```php
+$middleware->web(remove: [SubstituteBindings::class], append: [
+    ResolveTenant::class,
+    SubstituteBindings::class,
+    // ...
+]);
+```
+
+Three positions matter and all three are now asserted by `TenantIsolationTest`:
+
+| Order | Why |
+|---|---|
+| `StartSession` first | `ResolveTenant` reads `$request->user()`, which needs the session. |
+| `ResolveTenant` next | so a tenant exists... |
+| `SubstituteBindings` after | ...before any record is looked up by id. |
+
+**How to check the real order** — do not trust the comment, print it:
+
+```bash
+php artisan tinker --execute="\$k=app(Illuminate\Contracts\Http\Kernel::class); \$r=new ReflectionClass(\$k); \$p=\$r->getProperty('middlewareGroups'); \$p->setAccessible(true); foreach(\$p->getValue(\$k)['web'] as \$i=>\$m) echo \$i.' '.\$m.PHP_EOL;"
+```
+
+## Known Pitfall (v2.62.0) — a global scope on a model turns an assertion about the DATABASE into an
+## assertion about the CURRENT TENANT
+
+Two existing tests broke on the scope change, and neither was a bug in the fix:
+
+- `PermitToWork::where('ptw_number', 'PTW-2026-00001')->count()` was asserting that two companies
+  may hold the same document number. Post-scope it returns 1, because it now answers "how many can
+  *I* see". A test about what the database HOLDS needs `withoutGlobalScopes()`; a test about what a
+  user SEES does not.
+- A cross-tenant update went from **403 to 404**, because route model binding stopped resolving the
+  foreign record at all. That is an improvement — 403 confirms the record exists to somebody with no
+  right to know — so the expectation was updated rather than the code.
 ## Known Pitfall (v2.61.0) — a grid or flex item defaults to `min-width: auto`, so ONE `<select>` can
 ## make a whole page scroll sideways on a phone
 

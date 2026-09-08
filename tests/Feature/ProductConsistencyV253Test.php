@@ -80,7 +80,22 @@ class ProductConsistencyV253Test extends TestCase
         ]);
 
         $this->assertNotNull($second->id);
-        $this->assertSame(2, PermitToWork::where('ptw_number', 'PTW-2026-00001')->count());
+
+        // v2.62.0: `withoutGlobalScopes()`. This assertion is about what
+        // the DATABASE holds -- two rows sharing a number across two
+        // companies -- not about what one tenant may see. Since
+        // CompanyOwnedScope arrived, a plain count answers the second
+        // question and returns 1, which is the scope working, not the
+        // uniqueness rule failing.
+        $this->assertSame(2, PermitToWork::withoutGlobalScopes()->where('ptw_number', 'PTW-2026-00001')->count());
+
+        // And the isolation half of the same fact: each tenant sees only
+        // its own permit under that number.
+        $this->actingAs($userB);
+        app(\App\Support\CurrentTenant::class)->set($tenantB);
+        $visible = PermitToWork::where('ptw_number', 'PTW-2026-00001')->get();
+        $this->assertCount(1, $visible);
+        $this->assertSame($companyB->id, $visible->first()->company_id);
     }
 
     /* ================================================================

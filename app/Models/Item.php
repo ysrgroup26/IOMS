@@ -3,7 +3,7 @@
 namespace App\Models;
 
 use App\Concerns\HasSecureDocument;
-
+use App\Models\Concerns\BelongsToCompany;
 use App\Services\NumberGeneratorService;
 use Illuminate\Database\Eloquent\Model;
 use Illuminate\Database\Eloquent\SoftDeletes;
@@ -11,7 +11,7 @@ use Illuminate\Database\Eloquent\SoftDeletes;
 /** Milestone 4, Acceleration Part 1A (Item Master). See the owning migration's own doc comment. */
 class Item extends Model
 {
-    use HasSecureDocument;
+    use BelongsToCompany, HasSecureDocument;
     use SoftDeletes;
 
     public const TYPES = ['consumable', 'spare_part', 'ppe', 'tool', 'asset'];

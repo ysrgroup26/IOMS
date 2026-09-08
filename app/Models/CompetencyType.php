@@ -2,6 +2,7 @@
 
 namespace App\Models;
 
+use App\Models\Concerns\BelongsToCompany;
 use Illuminate\Database\Eloquent\Model;
 
 /**
@@ -13,6 +14,8 @@ use Illuminate\Database\Eloquent\Model;
  */
 class CompetencyType extends Model
 {
+    use BelongsToCompany;
+
     public const TYPE_TRAINING = 'training';
 
     public const TYPE_CERTIFICATION = 'certification';

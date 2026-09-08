@@ -3,6 +3,7 @@
 namespace App\Models;
 
 use App\Concerns\HasWorkflow;
+use App\Models\Concerns\BelongsToCompany;
 use Illuminate\Database\Eloquent\Model;
 use Illuminate\Database\Eloquent\SoftDeletes;
 
@@ -12,7 +13,7 @@ use Illuminate\Database\Eloquent\SoftDeletes;
  */
 class Incident extends Model
 {
-    use HasWorkflow, SoftDeletes;
+    use BelongsToCompany, HasWorkflow, SoftDeletes;
 
     public const STATUS_REPORTED = 'reported';
 

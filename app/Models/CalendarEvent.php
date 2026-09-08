@@ -2,11 +2,14 @@
 
 namespace App\Models;
 
+use App\Models\Concerns\BelongsToCompany;
 use Illuminate\Database\Eloquent\Model;
 
 /** v1.11.0 (SaaS Finalization Pass). Manual calendar events only -- see the owning migration's own doc comment for why. */
 class CalendarEvent extends Model
 {
+    use BelongsToCompany;
+
     public const TYPES = ['general', 'meeting', 'deadline', 'reminder'];
 
     protected $fillable = [

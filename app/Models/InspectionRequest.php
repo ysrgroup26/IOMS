@@ -2,12 +2,15 @@
 
 namespace App\Models;
 
+use App\Models\Concerns\BelongsToCompany;
 use App\Services\NumberGeneratorService;
 use Illuminate\Database\Eloquent\Model;
 
 /** Milestone 4, Acceleration Part 3 (QC Foundation). See the owning migration's own doc comment. */
 class InspectionRequest extends Model
 {
+    use BelongsToCompany;
+
     public const STATUS_REQUESTED = 'requested';
 
     public const STATUS_COMPLETED = 'completed';

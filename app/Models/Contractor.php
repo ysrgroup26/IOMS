@@ -2,6 +2,7 @@
 
 namespace App\Models;
 
+use App\Models\Concerns\BelongsToCompany;
 use App\Services\NumberGeneratorService;
 use Illuminate\Database\Eloquent\Model;
 use Illuminate\Database\Eloquent\SoftDeletes;
@@ -9,7 +10,7 @@ use Illuminate\Database\Eloquent\SoftDeletes;
 /** Milestone 4, Acceleration Part 4 (Contractor Management). See the owning migration's own doc comment on why this is separate from Vendor. */
 class Contractor extends Model
 {
-    use SoftDeletes;
+    use BelongsToCompany, SoftDeletes;
 
     public const APPROVAL_STATUSES = ['pending', 'approved', 'rejected'];
 

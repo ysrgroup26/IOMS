@@ -2,12 +2,15 @@
 
 namespace App\Models;
 
+use App\Models\Concerns\BelongsToCompany;
 use Illuminate\Database\Eloquent\Factories\HasFactory;
 use Illuminate\Database\Eloquent\Model;
 use Illuminate\Database\Eloquent\SoftDeletes;
 
 class Employee extends Model
 {
+    use BelongsToCompany;
+
     // v1.10.5 fix: EmployeeFactory (database/factories/EmployeeFactory.php)
     // already existed and EmployeeSeeder already called Employee::factory()
     // -- this trait was simply missing, so db:seed failed on any run that

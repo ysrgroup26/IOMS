@@ -3,7 +3,7 @@
 namespace App\Models;
 
 use App\Concerns\HasSecureDocument;
-
+use App\Models\Concerns\BelongsToCompany;
 use App\Services\NumberGeneratorService;
 use Illuminate\Database\Eloquent\Model;
 use Illuminate\Database\Eloquent\SoftDeletes;
@@ -11,7 +11,7 @@ use Illuminate\Database\Eloquent\SoftDeletes;
 /** Milestone 4, Acceleration Part 1C (Asset Management). See the owning migration's own doc comment. */
 class Asset extends Model
 {
-    use HasSecureDocument;
+    use BelongsToCompany, HasSecureDocument;
     use SoftDeletes;
 
     public const STATUSES = ['active', 'assigned', 'under_maintenance', 'retired', 'disposed'];

@@ -3,11 +3,21 @@
 namespace App\Models;
 
 use App\Concerns\HasSecureDocument;
+use Illuminate\Database\Eloquent\Builder;
 use Illuminate\Database\Eloquent\Model;
 
 class PpeReplacementRequestItem extends Model
 {
     use HasSecureDocument;
+
+    /** v2.62.0 -- no company_id of its own; ownership resolves through the parent request, which has one. */
+    protected static function booted(): void
+    {
+        static::addGlobalScope('company', function (Builder $builder) {
+            $builder->whereHas('replacementRequest');
+        });
+    }
+
     protected $fillable = [
         'ppe_replacement_request_id',
         'employee_ppe_id',

@@ -2,6 +2,7 @@
 
 namespace App\Models;
 
+use App\Models\Scopes\UserTenantScope;
 use Illuminate\Foundation\Auth\User as Authenticatable;
 use Illuminate\Notifications\Notifiable;
 use Laravel\Sanctum\HasApiTokens;
@@ -18,6 +19,17 @@ class User extends Authenticatable
     // (see docs/ADR/008), not bundled into this one so this change stays
     // reviewable and doesn't risk regressing access for any current user.
     use HasApiTokens, HasRoles, Notifiable;
+
+    /**
+     * v2.62.0 -- users are tenant-owned. Three assignee pickers were
+     * listing every user of every customer; see UserTenantScope for why
+     * this is a tenant scope rather than a company one, and for why it
+     * has to stay off until ResolveTenant has actually run.
+     */
+    protected static function booted(): void
+    {
+        static::addGlobalScope(new UserTenantScope);
+    }
 
     // Four-role system: Super Admin (full access), HSE (operational
     // input/management), HRD (read-only), Manager (read-only, broader

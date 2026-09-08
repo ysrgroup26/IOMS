@@ -2,12 +2,15 @@
 
 namespace App\Models;
 
+use App\Models\Concerns\BelongsToCompany;
 use App\Services\NumberGeneratorService;
 use Illuminate\Database\Eloquent\Model;
 
 /** Milestone 4, Acceleration Part 5 (Visitor Management). See the owning migration's own doc comment. */
 class Visitor extends Model
 {
+    use BelongsToCompany;
+
     public const STATUS_PENDING = 'pending';
 
     public const STATUS_APPROVED = 'approved';

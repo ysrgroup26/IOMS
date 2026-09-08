@@ -2,6 +2,7 @@
 
 namespace App\Models;
 
+use App\Models\Concerns\BelongsToCompany;
 use Illuminate\Database\Eloquent\Model;
 
 /**
@@ -15,6 +16,8 @@ use Illuminate\Database\Eloquent\Model;
  */
 class ReportConfiguration extends Model
 {
+    use BelongsToCompany;
+
     public const GROUP_BY_DEPARTMENT = 'department';
 
     public const GROUP_BY_MONTH = 'month';

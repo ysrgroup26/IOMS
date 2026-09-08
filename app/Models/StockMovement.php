@@ -2,12 +2,15 @@
 
 namespace App\Models;
 
+use App\Models\Concerns\BelongsToCompany;
 use App\Services\NumberGeneratorService;
 use Illuminate\Database\Eloquent\Model;
 
 /** Milestone 4, Acceleration Part 1B. Permanent transaction log -- see the owning migration's own doc comment. */
 class StockMovement extends Model
 {
+    use BelongsToCompany;
+
     public const TYPE_RECEIPT = 'receipt';
 
     public const TYPE_ISSUE = 'issue';

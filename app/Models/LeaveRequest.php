@@ -4,6 +4,7 @@ namespace App\Models;
 
 use App\Concerns\HasApprovals;
 use App\Concerns\HasWorkflow;
+use App\Models\Concerns\BelongsToCompany;
 use Illuminate\Database\Eloquent\Model;
 use Illuminate\Database\Eloquent\SoftDeletes;
 
@@ -18,7 +19,7 @@ use Illuminate\Database\Eloquent\SoftDeletes;
  */
 class LeaveRequest extends Model
 {
-    use HasApprovals, HasWorkflow, SoftDeletes;
+    use BelongsToCompany, HasApprovals, HasWorkflow, SoftDeletes;
 
     public const STATUS_DRAFT = 'draft';
 

@@ -2,11 +2,14 @@
 
 namespace App\Models;
 
+use App\Models\Concerns\BelongsToCompany;
 use Illuminate\Database\Eloquent\Model;
 
 /** Milestone 4, Workstream B12 (P3K / First Aid). See the owning migration's own doc comment on scope boundaries. */
 class P3kBox extends Model
 {
+    use BelongsToCompany;
+
     public const STATUSES = ['complete', 'incomplete'];
 
     protected $fillable = ['company_id', 'location', 'last_inspection_date', 'next_inspection_due', 'inspected_by', 'status', 'notes'];

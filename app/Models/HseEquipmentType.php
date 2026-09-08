@@ -2,11 +2,14 @@
 
 namespace App\Models;
 
+use App\Models\Concerns\BelongsToCompany;
 use Illuminate\Database\Eloquent\Model;
 
 /** v1.11.1. Configurable HSE operational equipment category master -- mirrors HazardCategory exactly. See the owning migration's own doc comment. */
 class HseEquipmentType extends Model
 {
+    use BelongsToCompany;
+
     protected $fillable = [
         'company_id', 'name', 'code', 'code_prefix', 'description', 'is_active', 'sort_order',
         // v2.53.0 -- WHICH LIFECYCLES THIS TYPE HAS. A gas detector is

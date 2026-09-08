@@ -2,6 +2,7 @@
 
 namespace App\Models;
 
+use App\Models\Concerns\BelongsToCompany;
 use App\Services\NumberGeneratorService;
 use Illuminate\Database\Eloquent\Model;
 use Illuminate\Database\Eloquent\SoftDeletes;
@@ -9,7 +10,7 @@ use Illuminate\Database\Eloquent\SoftDeletes;
 /** Milestone 4, Workstream B3 (TBM). See the owning migration's own doc comment. */
 class TbmMeeting extends Model
 {
-    use SoftDeletes;
+    use BelongsToCompany, SoftDeletes;
 
     public const STATUS_CONDUCTED = 'conducted';
 

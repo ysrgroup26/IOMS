@@ -2,11 +2,14 @@
 
 namespace App\Models;
 
+use App\Models\Concerns\BelongsToCompany;
 use Illuminate\Database\Eloquent\Model;
 
 /** v1.11.1. Real inspection history for a SafetyEquipment row -- see the owning migration's own doc comment (mirrors GasTestRecord's own "child table, individually meaningful" reasoning). */
 class SafetyEquipmentInspection extends Model
 {
+    use BelongsToCompany;
+
     public const CONDITIONS = ['good', 'fair', 'poor', 'damaged'];
 
     public const RESULTS = ['pass', 'fail', 'needs_action'];

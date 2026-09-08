@@ -2,11 +2,14 @@
 
 namespace App\Models;
 
+use App\Models\Concerns\BelongsToCompany;
 use Illuminate\Database\Eloquent\Model;
 
 /** Milestone 4, Workstream B14. See the owning migration's own doc comment. */
 class IncidentInvestigation extends Model
 {
+    use BelongsToCompany;
+
     public const METHODS = ['5_why', 'fishbone', 'other'];
 
     protected $fillable = [

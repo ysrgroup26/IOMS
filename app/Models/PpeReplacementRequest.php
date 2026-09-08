@@ -2,12 +2,13 @@
 
 namespace App\Models;
 
+use App\Models\Concerns\BelongsToCompany;
 use Illuminate\Database\Eloquent\Model;
 use Illuminate\Database\Eloquent\SoftDeletes;
 
 class PpeReplacementRequest extends Model
 {
-    use SoftDeletes;
+    use BelongsToCompany, SoftDeletes;
 
     public const STATUS_DRAFT = 'draft';
 

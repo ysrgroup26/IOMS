@@ -2,11 +2,14 @@
 
 namespace App\Models;
 
+use App\Models\Concerns\BelongsToCompany;
 use Illuminate\Database\Eloquent\Model;
 
 /** Milestone 4, Acceleration Part 1B (Warehouse Master). */
 class Warehouse extends Model
 {
+    use BelongsToCompany;
+
     protected $fillable = ['code', 'company_id', 'name', 'location', 'pic_id', 'status'];
 
     public function company()

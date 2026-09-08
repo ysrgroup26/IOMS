@@ -2,10 +2,19 @@
 
 namespace App\Models;
 
+use App\Models\Concerns\BelongsToCompany;
 use Illuminate\Database\Eloquent\Model;
 
 class KpiCategory extends Model
 {
+    use BelongsToCompany;
+
+    /** A null company_id here is the shared built-in default, not an unowned row. */
+    public function companyScopeAllowsGlobalRows(): bool
+    {
+        return true;
+    }
+
     // Fixed category codes per the company's KPI standard (see KpiCategorySeeder).
     public const FATALITY = 'fatality';
 

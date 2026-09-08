@@ -2,6 +2,7 @@
 
 namespace App\Models;
 
+use Illuminate\Database\Eloquent\Builder;
 use Illuminate\Database\Eloquent\Model;
 use Illuminate\Support\Carbon;
 
@@ -88,6 +89,24 @@ class EmployeePpe extends Model
 
     protected static function booted(): void
     {
+        /**
+         * v2.62.0 -- THIS TABLE HAS NO company_id, AND STILL HAS AN OWNER.
+         *
+         * A PPE assignment belongs to the employee it was issued to, and
+         * the employee belongs to an Operating Unit. That is the whole
+         * ownership path, so the scope walks it: a row is visible when
+         * its employee is visible, and Employee's own CompanyOwnedScope
+         * decides that. Nothing here duplicates the tenant rules.
+         *
+         * `employee_id` is nullable (unassigned stock, see the class
+         * comment). Such a row has no owner at all and is therefore
+         * visible to nobody until it is issued -- the same reading every
+         * other table takes of an unowned row.
+         */
+        static::addGlobalScope('company', function (Builder $builder) {
+            $builder->whereHas('employee');
+        });
+
         // Expiry is always derived from the PPE type's replacement interval
         // at issuance time, never entered manually -- one source of truth.
         static::creating(function (EmployeePpe $record) {

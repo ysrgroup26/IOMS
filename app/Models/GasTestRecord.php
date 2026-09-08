@@ -2,6 +2,7 @@
 
 namespace App\Models;
 
+use App\Models\Concerns\BelongsToCompany;
 use Illuminate\Database\Eloquent\Model;
 
 /**
@@ -14,6 +15,8 @@ use Illuminate\Database\Eloquent\Model;
  */
 class GasTestRecord extends Model
 {
+    use BelongsToCompany;
+
     public const RESULTS = ['pass', 'fail'];
 
     public const STAGE_INITIAL = 'initial';

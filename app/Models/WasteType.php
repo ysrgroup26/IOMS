@@ -2,11 +2,14 @@
 
 namespace App\Models;
 
+use App\Models\Concerns\BelongsToCompany;
 use Illuminate\Database\Eloquent\Model;
 
 /** v1.11.4 (HSE Waste Management, Part 12). Mirrors HazardCategory/HseEquipmentType's own master-data shape. */
 class WasteType extends Model
 {
+    use BelongsToCompany;
+
     public const CATEGORY_B3 = 'b3';
 
     public const CATEGORY_NON_B3 = 'non_b3';

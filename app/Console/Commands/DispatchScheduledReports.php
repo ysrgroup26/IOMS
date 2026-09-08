@@ -33,7 +33,21 @@ class DispatchScheduledReports extends Command
 
     public function handle(AnalyticsService $analytics, NotificationService $notifications): int
     {
-        $due = ReportSchedule::where('is_active', true)
+        // v2.62.0 -- the ONE query in this command that is deliberately
+        // cross-tenant, and it says so.
+        //
+        // This command is the driver that walks every customer's due
+        // schedules and then adopts each one's tenant in turn (see the
+        // loop below). It therefore runs BEFORE any tenant exists, where
+        // CompanyOwnedScope correctly returns nothing -- so the scope is
+        // dropped by name for this statement only. Everything the loop
+        // does afterwards runs fully scoped, under the schedule's own
+        // tenant.
+        //
+        // `withoutGlobalScopes()` here is the greppable, reviewable form of
+        // "I mean across tenants". A forgotten where-clause is not.
+        $due = ReportSchedule::withoutGlobalScopes()
+            ->where('is_active', true)
             ->where(function ($q) {
                 $q->whereNull('next_run_at')->orWhere('next_run_at', '<=', now());
             })

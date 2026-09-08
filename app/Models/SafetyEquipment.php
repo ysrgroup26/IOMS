@@ -2,11 +2,14 @@
 
 namespace App\Models;
 
+use App\Models\Concerns\BelongsToCompany;
 use Illuminate\Database\Eloquent\Model;
 
 /** Milestone 4, Workstream B10. See the owning migration's own doc comment. */
 class SafetyEquipment extends Model
 {
+    use BelongsToCompany;
+
     public const TYPES = ['fire_extinguisher', 'safety_shower', 'eyewash_station', 'emergency_alarm', 'spill_kit', 'other'];
 
     public const STATUSES = ['active', 'out_of_service'];

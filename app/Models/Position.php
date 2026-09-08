@@ -2,10 +2,13 @@
 
 namespace App\Models;
 
+use App\Models\Concerns\BelongsToCompany;
 use Illuminate\Database\Eloquent\Model;
 
 class Position extends Model
 {
+    use BelongsToCompany;
+
     protected $fillable = ['name', 'description', 'company_id', 'department_id', 'sort_order', 'is_active'];
 
     protected function casts(): array

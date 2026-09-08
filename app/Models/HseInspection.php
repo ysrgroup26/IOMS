@@ -2,6 +2,7 @@
 
 namespace App\Models;
 
+use App\Models\Concerns\BelongsToCompany;
 use App\Services\NumberGeneratorService;
 use Illuminate\Database\Eloquent\Model;
 use Illuminate\Database\Eloquent\SoftDeletes;
@@ -9,7 +10,7 @@ use Illuminate\Database\Eloquent\SoftDeletes;
 /** Milestone 4, Workstream B2 (HSE Inspection). See the owning migration's own doc comment. */
 class HseInspection extends Model
 {
-    use SoftDeletes;
+    use BelongsToCompany, SoftDeletes;
 
     // v1.11.1 (HSE Domain Hardening II, Part 9): 'lsa' (Life Saving
     // Appliances) and 'ffa' (Fire Fighting Appliances) added as explicit

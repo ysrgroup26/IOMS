@@ -2,11 +2,14 @@
 
 namespace App\Models;
 
+use App\Models\Concerns\BelongsToCompany;
 use Illuminate\Database\Eloquent\Model;
 
 /** v1.11.4 (HSE Waste Management, Part 16). See the owning migration's own doc comment (mirrors SafetyEquipmentInspection/GasTestRecord's "child log" pattern). */
 class WasteMovement extends Model
 {
+    use BelongsToCompany;
+
     public const STATUS_SCHEDULED = 'scheduled';
 
     public const STATUS_PICKED_UP = 'picked_up';

@@ -2,6 +2,7 @@
 
 namespace App\Models;
 
+use App\Models\Concerns\BelongsToCompany;
 use Illuminate\Database\Eloquent\Model;
 
 /**
@@ -15,6 +16,8 @@ use Illuminate\Database\Eloquent\Model;
  */
 class WasteContainerInventory extends Model
 {
+    use BelongsToCompany;
+
     public const STATUS_ACTIVE = 'active';
 
     public const STATUS_UNDER_MAINTENANCE = 'under_maintenance';

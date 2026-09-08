@@ -2,6 +2,7 @@
 
 namespace App\Models;
 
+use App\Models\Concerns\BelongsToCompany;
 use Illuminate\Database\Eloquent\Model;
 use Illuminate\Support\Carbon;
 
@@ -13,6 +14,8 @@ use Illuminate\Support\Carbon;
  */
 class Shift extends Model
 {
+    use BelongsToCompany;
+
     protected $fillable = [
         'company_id',
         'name',

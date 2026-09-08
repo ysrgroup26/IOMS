@@ -2,6 +2,9 @@
 
 namespace App\Models;
 
+use App\Models\Concerns\BelongsToCompany;
+use App\Support\CurrentTenant;
+use Illuminate\Database\Eloquent\Builder;
 use Illuminate\Database\Eloquent\Model;
 use Illuminate\Database\Eloquent\SoftDeletes;
 use Illuminate\Support\Str;
@@ -16,7 +19,41 @@ use Illuminate\Support\Str;
  */
 class Task extends Model
 {
-    use SoftDeletes;
+    use BelongsToCompany, SoftDeletes;
+
+    /**
+     * v2.62.0 -- A COMPANY-LESS TASK IS NOT AN UNOWNED TASK.
+     *
+     * `tasks.company_id` is nullable by design: a task can be raised
+     * without being attached to an Operating Unit, and TaskController's
+     * own `assertTaskInCurrentTenant()` has always let those through.
+     * CompanyOwnedScope's default reading -- "no owner means nobody may
+     * see it" -- would have made every such task disappear, which is a
+     * data-loss-shaped bug rather than a security improvement.
+     *
+     * The second ownership path is the people on it. `created_by` and
+     * `assigned_user_id` point at users, and users are tenant-owned
+     * (UserTenantScope), so a company-less task is visible to the tenant
+     * whose member raised it or is doing it -- and to nobody else. A task
+     * with neither a company nor a person attached has genuinely no owner
+     * and stays invisible.
+     *
+     * This is the same shape as ActivityLog's scope, and the reason both
+     * are written out rather than folded into
+     * `companyScopeAllowsGlobalRows()`: "shared with everyone" and "owned
+     * through a different column" are different answers, and only the
+     * second one is safe here.
+     */
+    public function companyScopeNullOwnerQuery(Builder $query): void
+    {
+        $tenantUsers = User::query()
+            ->withoutGlobalScopes()
+            ->select('id')
+            ->where('tenant_id', app(CurrentTenant::class)->id() ?? -1);
+
+        $query->whereIn('tasks.created_by', $tenantUsers)
+            ->orWhereIn('tasks.assigned_user_id', $tenantUsers);
+    }
 
     public const STATUS_DRAFT = 'draft';
 

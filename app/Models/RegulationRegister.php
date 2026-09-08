@@ -3,6 +3,7 @@
 namespace App\Models;
 
 use App\Concerns\HasSecureDocument;
+use App\Models\Concerns\BelongsToCompany;
 use Illuminate\Database\Eloquent\Model;
 
 /**
@@ -20,6 +21,8 @@ use Illuminate\Database\Eloquent\Model;
  */
 class RegulationRegister extends Model
 {
+    use BelongsToCompany;
+
     // The attachment is served through SecureDocumentController: authorized,
     // tenant-checked, and never a public URL.
     use HasSecureDocument;

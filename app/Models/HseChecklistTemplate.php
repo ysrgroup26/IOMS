@@ -2,6 +2,7 @@
 
 namespace App\Models;
 
+use App\Models\Concerns\BelongsToCompany;
 use Illuminate\Database\Eloquent\Model;
 
 /**
@@ -11,6 +12,8 @@ use Illuminate\Database\Eloquent\Model;
  */
 class HseChecklistTemplate extends Model
 {
+    use BelongsToCompany;
+
     protected $fillable = ['company_id', 'category', 'name', 'items', 'is_active', 'sort_order'];
 
     protected function casts(): array

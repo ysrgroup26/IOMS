@@ -2,10 +2,47 @@
 
 namespace App\Models;
 
+use App\Support\CurrentTenant;
+use Illuminate\Database\Eloquent\Builder;
 use Illuminate\Database\Eloquent\Model;
 
 class ActivityLog extends Model
 {
+    /**
+     * v2.62.0 -- THE AUDIT TRAIL HAS TWO OWNERSHIP PATHS, AND NEEDED BOTH.
+     *
+     * `ActivityLog::record()` copies `company_id` off the subject, so a
+     * log about a record is owned exactly like the record. But a
+     * tenant-level action -- signing in, changing a setting, editing a
+     * user -- has no company subject and stores a null `company_id`. Those
+     * rows are still owned: by the USER who performed them, and users are
+     * tenant-owned.
+     *
+     * A plain company scope would have hidden every tenant-level entry
+     * from its own Audit Log; treating null as "shared" would have shown
+     * every customer's sign-ins to every other customer. So the scope
+     * accepts a row on either path and nothing else.
+     */
+    protected static function booted(): void
+    {
+        static::addGlobalScope('tenant', function (Builder $builder) {
+            $visibleCompanies = Company::query()->select('id');
+            $tenantUsers = User::query()
+                ->withoutGlobalScopes()
+                ->select('id')
+                ->where('tenant_id', app(CurrentTenant::class)->id() ?? -1);
+
+            $builder->where(function (Builder $query) use ($visibleCompanies, $tenantUsers) {
+                $query
+                    ->whereIn('activity_logs.company_id', $visibleCompanies)
+                    ->orWhere(function (Builder $inner) use ($tenantUsers) {
+                        $inner
+                            ->whereNull('activity_logs.company_id')
+                            ->whereIn('activity_logs.user_id', $tenantUsers);
+                    });
+            });
+        });
+    }
     protected $fillable = [
         'user_id',
         'action',

@@ -2,6 +2,7 @@
 
 namespace App\Models;
 
+use App\Models\Concerns\BelongsToCompany;
 use Illuminate\Database\Eloquent\Model;
 use Illuminate\Database\Eloquent\Relations\MorphTo;
 
@@ -24,6 +25,8 @@ use Illuminate\Database\Eloquent\Relations\MorphTo;
  */
 class HandoverRecord extends Model
 {
+    use BelongsToCompany;
+
     public const TYPE_WORK_COMPLETION = 'work_completion';
     public const TYPE_GOODS = 'goods';
     public const TYPE_SERVICE = 'service';

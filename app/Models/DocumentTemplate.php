@@ -2,6 +2,7 @@
 
 namespace App\Models;
 
+use App\Models\Concerns\BelongsToCompany;
 use Illuminate\Database\Eloquent\Model;
 
 /**
@@ -11,6 +12,8 @@ use Illuminate\Database\Eloquent\Model;
  */
 class DocumentTemplate extends Model
 {
+    use BelongsToCompany;
+
     protected $fillable = [
         'tenant_id',
         'company_id',

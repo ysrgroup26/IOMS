@@ -2,6 +2,7 @@
 
 namespace App\Models;
 
+use App\Models\Concerns\BelongsToCompany;
 use Illuminate\Database\Eloquent\Model;
 
 /**
@@ -11,6 +12,8 @@ use Illuminate\Database\Eloquent\Model;
  */
 class FieldMapping extends Model
 {
+    use BelongsToCompany;
+
     public const DIRECTION_IMPORT = 'import';
 
     public const DIRECTION_EXPORT = 'export';

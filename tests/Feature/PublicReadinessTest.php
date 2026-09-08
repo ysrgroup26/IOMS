@@ -391,6 +391,11 @@ class PublicReadinessTest extends TestCase
      * panels and both were HSE/PTW, which is a positioning error on a page
      * selling an Industrial Operations Platform.
      *
+     * v2.61.0 -- the set is now the four SELLABLE departments plus the
+     * management Dashboard, which is also exactly the plan ladder: HSE at
+     * Starter, People at Professional, Projects / Materials / Buying at
+     * Business. A visitor comparing tiers can see what each one adds.
+     *
      * Asserted against the shipped source rather than a rendered page: the
      * showcase is a client component, and what matters is that the module
      * set stays broad if somebody edits it later.
@@ -399,13 +404,119 @@ class PublicReadinessTest extends TestCase
     {
         $showcase = file_get_contents(base_path('resources/js/Components/public/PlatformShowcase.jsx'));
 
-        foreach (['Dashboard', 'Health, Safety & Environment', 'Warehouse', 'Procurement', 'Maintenance'] as $module) {
+        foreach ([
+            'Dashboard',
+            'Health, Safety & Environment',
+            'Human Resources',
+            'Project Management',
+            'Logistics / PPIC',
+            'Procurement',
+        ] as $module) {
             $this->assertStringContainsString($module, $showcase, "The showcase no longer presents {$module}.");
         }
 
         // Real IOMS vocabulary, so the marketing surface and the product agree.
-        foreach (['Operating Units', 'Permit To Work', 'Purchase Order', 'Work Order'] as $term) {
+        foreach (['Operating Unit', 'Permit To Work', 'Material Request', 'Item Master'] as $term) {
             $this->assertStringContainsString($term, $showcase);
+        }
+    }
+
+    /**
+     * v2.61.0 -- THE SHELL WORKSPACES MUST NOT BE SOLD AS CAPABILITY.
+     *
+     * `warehouse` and `finance` are a Dashboard and an Overview each. The
+     * showcase used to carry a "Warehouse" tab whose contents (item master,
+     * stock levels, goods receipt) actually live under Logistics / PPIC --
+     * a real capability shown under a workspace name that does not own it,
+     * which is the one kind of inaccuracy a product showcase cannot afford.
+     *
+     * This also guards the pricing surfaces: config/plans.php lists the
+     * shells so PricingService drops them from a tier's "plus" list. They
+     * are still GRANTED -- this is about what is advertised.
+     */
+    public function test_the_public_site_does_not_advertise_a_shell_workspace(): void
+    {
+        // The `workspaces` table is seeded, not migrated -- without it every
+        // label resolves to an empty string and this passes vacuously.
+        $this->seed(\Database\Seeders\WorkspaceSeeder::class);
+
+        $this->assertSame(['warehouse', 'finance'], config('plans.shells'));
+
+        $showcaseTabs = [];
+        preg_match_all(
+            "/label: '([^']+)',\n\s+icon:/",
+            file_get_contents(base_path('resources/js/Components/public/PlatformShowcase.jsx')),
+            $showcaseTabs
+        );
+
+        foreach ($showcaseTabs[1] as $label) {
+            $this->assertNotSame('Warehouse', $label, 'Warehouse is a shell workspace and must not be a showcase tab.');
+            $this->assertNotSame('Finance', $label, 'Finance is a shell workspace and must not be a showcase tab.');
+        }
+
+        // And no public plan may name one as something the tier adds.
+        foreach (app(\App\Services\PricingService::class)->publicPlans() as $plan) {
+            foreach (['Warehouse', 'Finance'] as $shell) {
+                $this->assertNotContains(
+                    $shell,
+                    $plan['scope']['added'],
+                    "{$plan['slug']} advertises the {$shell} shell workspace as a reason to buy the tier."
+                );
+            }
+        }
+    }
+
+    /**
+     * v2.61.0 -- A TIER IS DESCRIBED AGAINST THE ONE BELOW IT.
+     *
+     * Business grants five departments and a flat list of all five read as
+     * "Business is five new things", when two of them are Starter's and
+     * Professional's. The comparison is derived from the same
+     * config/plans.php scope the entitlement layer uses, so it cannot
+     * drift from what a customer is actually granted.
+     */
+    public function test_each_tier_is_described_as_the_tier_below_it_plus_what_it_adds(): void
+    {
+        $this->seed(\Database\Seeders\WorkspaceSeeder::class);
+
+        $plans = app(\App\Services\PricingService::class)->publicPlans()->keyBy('slug');
+
+        $this->assertNull($plans['starter']['scope']['inherits_from'], 'The entry tier inherits from nothing.');
+        $this->assertSame(['Health, Safety & Environment'], $plans['starter']['scope']['added']);
+
+        $this->assertSame('Starter', $plans['professional']['scope']['inherits_from']);
+        $this->assertSame(['Human Resources'], $plans['professional']['scope']['added']);
+
+        // The headline claim of the four-tier model: Business is
+        // Professional PLUS THREE OPERATIONAL DOMAINS, not five departments.
+        $this->assertSame('Professional', $plans['business']['scope']['inherits_from']);
+        $this->assertSame(
+            ['Project Management', 'Logistics / PPIC', 'Procurement'],
+            $plans['business']['scope']['added']
+        );
+
+        $this->assertSame('Business', $plans['enterprise']['scope']['inherits_from']);
+        $this->assertTrue($plans['enterprise']['scope']['covers_everything']);
+        $this->assertFalse($plans['business']['scope']['covers_everything']);
+    }
+
+    /**
+     * v2.61.0 -- ONE LANGUAGE.
+     *
+     * The landing page was English apart from two blocks: the Permit To
+     * Work chain and the plan framing lines, both Indonesian. A visitor
+     * scrolling from the hero changed language halfway down the page.
+     */
+    public function test_the_landing_page_is_written_in_one_language(): void
+    {
+        $welcome = file_get_contents(base_path('resources/js/Pages/Public/Welcome.jsx'));
+
+        foreach (['Pengguna lapangan', 'Untuk tim yang', 'Paling banyak dipilih', 'per bulan', 'departemen lainnya'] as $indonesian) {
+            $this->assertStringNotContainsString(
+                $indonesian,
+                $welcome,
+                "The landing page switches language mid-scroll: \"{$indonesian}\"."
+            );
         }
     }
 

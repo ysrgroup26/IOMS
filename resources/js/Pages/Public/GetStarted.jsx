@@ -104,7 +104,14 @@ export default function GetStarted({ plans = [], selectedPlan, billingCycle, ind
                     {/* ------------------------------------------------ */}
                     {/* Left: the actual form                             */}
                     {/* ------------------------------------------------ */}
-                    <div className="space-y-6">
+                    {/* v2.61.0: min-w-0. A grid item defaults to
+                        min-width:auto, so the single mobile column could not
+                        shrink below this column's MIN-CONTENT width -- which the
+                        Industry <select> sets from its longest option. The track
+                        computed to 445px inside a 367px viewport and the whole
+                        acquisition form scrolled sideways on a phone. Present
+                        since the page shipped; found probing the redesign. */}
+                    <div className="min-w-0 space-y-6">
                         <FormSection
                             title="Your account"
                             hint="This account becomes the administrator of your IOMS workspace."
@@ -223,7 +230,7 @@ export default function GetStarted({ plans = [], selectedPlan, billingCycle, ind
                     {/* ------------------------------------------------ */}
                     {/* Right: plan summary + what happens next           */}
                     {/* ------------------------------------------------ */}
-                    <div className="space-y-6 lg:sticky lg:top-20">
+                    <div className="min-w-0 space-y-6 lg:sticky lg:top-20">
                         <div className="rounded-xl border border-steel-200/70 bg-white p-6 shadow-panel">
                             <div className="flex flex-wrap items-center justify-between gap-3">
                                 <h2 className="text-[15px] font-semibold tracking-tight text-navy-900">Your plan</h2>
@@ -290,13 +297,27 @@ export default function GetStarted({ plans = [], selectedPlan, billingCycle, ind
 
                             {plan && (
                                 <ul className="mt-4 space-y-1.5 border-t border-steel-100 pt-4">
-                                    {/* v2.60.0: departments only -- see Pricing.jsx. */}
-                                    {(plan.department_workspaces ?? []).slice(0, 5).map((w) => (
+                                    {/* v2.61.0: the tier stated against the one below it, the
+                                        same way /pricing states it, so the plan a buyer picked
+                                        on that page describes itself identically here. */}
+                                    {plan.scope?.inherits_from && (
+                                        <li className="flex items-start gap-2 text-xs font-semibold text-navy-800">
+                                            <Check className="mt-0.5 h-3.5 w-3.5 shrink-0 text-brand-600" />
+                                            <span>Everything in {plan.scope.inherits_from}, plus</span>
+                                        </li>
+                                    )}
+                                    {(plan.scope?.added ?? plan.department_workspaces ?? []).map((w) => (
                                         <li key={w} className="flex items-start gap-2 text-xs text-graphite-600">
                                             <Check className="mt-0.5 h-3.5 w-3.5 shrink-0 text-success" />
                                             <span>{w}</span>
                                         </li>
                                     ))}
+                                    {plan.scope?.covers_everything && (
+                                        <li className="flex items-start gap-2 text-xs text-graphite-600">
+                                            <Check className="mt-0.5 h-3.5 w-3.5 shrink-0 text-success" />
+                                            <span>Every department IOMS ships</span>
+                                        </li>
+                                    )}
                                 </ul>
                             )}
 

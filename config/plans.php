@@ -91,6 +91,25 @@ return [
 
     /*
     |--------------------------------------------------------------------
+    | Shell workspaces -- granted, but never advertised
+    |--------------------------------------------------------------------
+    | v2.61.0. `warehouse` and `finance` are a Dashboard and an Overview
+    | and nothing else. Enterprise really does receive them and they stay
+    | in every entitlement answer -- this list ONLY removes them from the
+    | marketing copy, so a pricing card never presents an empty room as a
+    | reason to buy the tier.
+    |
+    | The real warehouse capability (Item Master, Inventory, Goods
+    | Receipt, Stock Movement) lives under `logistics`, which is why
+    | Business buys Logistics / PPIC and not "Warehouse".
+    |
+    | When one of these grows into a real workspace, delete it from this
+    | list -- nothing else has to change.
+    */
+    'shells' => ['warehouse', 'finance'],
+
+    /*
+    |--------------------------------------------------------------------
     | Positioning line for each tier
     |--------------------------------------------------------------------
     | The one-line answer to "who is this tier for". Kept beside the scope

@@ -123,26 +123,48 @@ actually renders; anything there that looks dated is dated on purpose.
 **Documents on this system**: Purchase Order (Surat Pesanan), Purchase Requisition (FPB), Goods
 Receipt (BAST), Work Order (SPK), plus the existing Permit To Work.
 
-### The public site's motion and product showcase (v2.59.0)
+### The public site's components (v2.59.0, extended v2.61.0)
 
-Three small components under `resources/js/Components/public/`, and no animation library — Framer
-Motion would have been ~50KB gzipped for what an IntersectionObserver and one keyframe already do.
-The whole system cost about 6KB.
+Everything the landing page is built from lives under `resources/js/Components/public/`, and there
+is **no animation library** — Framer Motion would have been ~50KB gzipped for what an
+IntersectionObserver and a handful of CSS keyframes already do. `Welcome.jsx` composes these; it
+does not own their markup.
 
 | Component | What it is |
 |---|---|
 | `Reveal` + `lib/useReveal` | The one motion gesture: a rise and fade as a block enters view. **Always visible; entering the viewport only ADDS a one-shot `animate-reveal` keyframe.** See CONVENTIONS for the stranding bug that shape prevents. |
 | `BlueprintBackdrop` | Atmosphere for the navy bands: technical grid, one light source, and an abstract industrial silhouette (gantry, tanks, frames) as inline SVG. No image request. `variant="hero"` or `"band"`. |
-| `PlatformShowcase` | The product showcase: five real workspaces in one application frame, switched by tabs. |
+| `PlatformShowcase` | The product showcase: six real workspaces in one application frame, switched by an arrow-key-navigable tablist. |
+| `ConnectedOperations` | The hero diagram: eight workspaces around an IOMS hub, with a record travelling inward along each spoke. Hover/focus names what that department records. |
+| `DepartmentGrid` | The eight operational domains, one accent each. |
+| `FragmentedToConnected` | The problem→solution panel: six disconnected tools on the left, one record crossing five departments on the right. |
 
 **The showcase is the positioning fix.** What it replaced rendered two panels of placeholder
 furniture — figures that were literally "—" above a dashed rectangle — and both panels were HSE/PTW,
 so the entire product visualisation on a page selling an Industrial Operations Platform showed one
-department. The showcase presents Dashboard, HSE, Warehouse, Procurement and Maintenance, using the
-authenticated product's own visual language (navy rail, navy page header with eyebrow, compact stat
-chips) and real IOMS vocabulary. PTW is one row inside one of five tabs, which is its true
-proportion. A test asserts the module set and the vocabulary, so a later edit cannot quietly narrow
-it back to one department.
+department. It now presents Dashboard, HSE, Human Resources, Project Management, Logistics / PPIC
+and Procurement, using the authenticated product's own visual language (navy rail, navy page header
+with eyebrow, compact stat chips) and real IOMS vocabulary. Every stat label is the label the
+matching department dashboard actually renders; the figures are illustrative and the section says
+so. A test asserts the module set and the vocabulary, so a later edit cannot quietly narrow it back
+to one department.
+
+**Two workspace names the marketing copy used to get wrong (v2.61.0).** `warehouse` and `finance`
+are *shell* workspaces — a Dashboard and an Overview each. The showcase's old "Warehouse" tab was
+displaying item master, stock and goods receipt, all of which belong to **Logistics / PPIC**; and
+the platform grid carried an "Operations" card that was not a workspace at all, just a bucket
+holding the cross-cutting layer (Work Center, Tasks, Man-Hour, activity timeline). `config/plans.php`
+now names the shells in a `shells` key so `PricingService` drops them from a tier's "plus" list —
+they are still **granted**, they are simply never advertised. The cross-cutting layer is presented
+as a layer, below the department grid.
+
+**Motion on the public site.** Three keyframes, all reached only through Tailwind's `motion-safe:`
+variant, so `prefers-reduced-motion` removes every one of them and no code path can hide content:
+
+- `reveal` — the one-shot entrance gesture (v2.59.0).
+- `dataflow` — moves `stroke-dashoffset` along a hero spoke, so a record visibly travels from a
+  department into the hub. Staggered per node; the static spoke is always drawn underneath it.
+- `hub-ring` — one slow ring leaving the centre as records arrive.
 ### Workspace grants: departments are sold, chrome is not (v2.58.0)
 
 `workspaces.tier` separates `department` from `global`. Only DEPARTMENT workspaces are plan

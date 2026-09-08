@@ -669,6 +669,51 @@ established way to produce that value (it does: `Company::query()->pluck('id')` 
 different types). A new shared service sitting downstream of both needs to accept both, not silently
 assume whichever pattern its first caller happened to use.
 
+## Known Pitfall (v2.61.0) — a grid or flex item defaults to `min-width: auto`, so ONE `<select>` can
+## make a whole page scroll sideways on a phone
+
+`/get-started` scrolled horizontally at 375px. The form is a CSS grid; on mobile it is a single
+column. That column's track computed to **445px inside a 367px viewport**, and every element in the
+page inherited the over-wide column, so the whole acquisition form — the page a paying customer
+fills in — could be dragged sideways on a phone.
+
+Nothing in the markup was too wide. The cause is a spec default that is easy to forget:
+
+> A grid item (and a flex item) has `min-width: auto`, which means **it will not shrink below its
+> own min-content width**, regardless of the container.
+
+The min-content width here came from the **Industry `<select>`**: a select's intrinsic minimum is
+its longest `<option>`. One dropdown, and the track could not shrink.
+
+**The fix is `min-w-0` on the grid/flex CHILD**, not on the container and not `overflow-hidden` on
+an ancestor (which hides the symptom and clips content):
+
+```jsx
+<form className="grid gap-6 lg:grid-cols-[minmax(0,1.35fr)_minmax(0,1fr)]">
+    <div className="min-w-0 space-y-6"> ... </div>   {/* not just space-y-6 */}
+</form>
+```
+
+`minmax(0, …)` on the explicit `lg:` columns was already doing this job at desktop — which is why
+the page looked correct on every desktop check. The *implicit* single column at mobile had no such
+guard.
+
+**How to check this, because a viewport-emulation screenshot will not tell you.** Emulated resizes
+can report `window.innerWidth` and `documentElement.clientWidth` disagreeing while the resize is in
+flight, which produces both false positives and false negatives. Measure inside a fixed-width
+iframe instead — it is deterministic and reproducible:
+
+```js
+const f = document.createElement('iframe');
+f.style.cssText = 'position:fixed;left:-9999px;width:375px;height:812px;border:0';
+document.body.appendChild(f); f.src = '/get-started';
+// after load:
+f.contentDocument.documentElement.scrollWidth >
+f.contentDocument.documentElement.clientWidth   // true = horizontal overflow
+```
+
+Run it over every public route, not the one you just edited: this defect had shipped and survived
+several passes that each checked only the page they were working on.
 ## CRITICAL — Known Pitfall (v1.11.2, production incident #3): a global middleware's `handle()` can
 ## only ever receive `(Request $request, Closure $next)` — a type-hinted service as a third
 ## parameter is silently unreachable and crashes every request

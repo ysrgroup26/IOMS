@@ -199,6 +199,27 @@ export default {
                     '0%': { opacity: '0', transform: 'translateY(16px)' },
                     '100%': { opacity: '1', transform: 'translateY(0)' },
                 },
+                // v2.61.0 -- THE CONNECTED-OPERATIONS VISUAL.
+                //
+                // `dataflow` travels a dashed segment along an SVG path by
+                // moving its dash offset. On the hero's spokes that reads as
+                // a record leaving a department and arriving at IOMS, which
+                // is the one thing that visual exists to say. It animates a
+                // single presentation attribute, stays on the compositor's
+                // cheap path, and costs no library.
+                //
+                // `hub-ring` is the arrival: one slow expanding ring at the
+                // centre, not a pulse on every node. Both are applied only
+                // through `motion-safe:`.
+                dataflow: {
+                    '0%': { strokeDashoffset: 'var(--flow-length, 60)' },
+                    '100%': { strokeDashoffset: '0' },
+                },
+                'hub-ring': {
+                    '0%': { transform: 'scale(0.82)', opacity: '0.55' },
+                    '70%': { opacity: '0' },
+                    '100%': { transform: 'scale(1.35)', opacity: '0' },
+                },
             },
             animation: {
                 'fade-in': 'fade-in 0.2s ease-out',
@@ -206,6 +227,8 @@ export default {
                 'float-slow': 'float 9s ease-in-out infinite',
                 'pulse-glow': 'pulse-glow 4s ease-in-out infinite',
                 reveal: 'reveal 0.55s cubic-bezier(0.22, 1, 0.36, 1) both',
+                dataflow: 'dataflow 3.4s cubic-bezier(0.5, 0, 0.5, 1) infinite',
+                'hub-ring': 'hub-ring 3.4s ease-out infinite',
             },
         },
     },

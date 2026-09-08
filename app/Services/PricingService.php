@@ -35,13 +35,75 @@ class PricingService
      */
     public function publicPlans(): Collection
     {
-        return Package::query()
-            ->active()
-            ->public()
-            ->orderBy('sort_order')
-            ->get()
-            ->map(fn (Package $package) => $this->summarize($package))
-            ->values();
+        return $this->withLadderScope(
+            Package::query()
+                ->active()
+                ->public()
+                ->orderBy('sort_order')
+                ->get()
+                ->map(fn (Package $package) => $this->summarize($package))
+                ->values()
+        );
+    }
+
+    /**
+     * v2.61.0 -- A TIER INHERITS THE ONE BELOW IT. SAY SO.
+     *
+     * Business grants five departments, and a card that simply listed all
+     * five read as "Business is five new things" -- which is wrong twice
+     * over. Two of the five are Starter's and Professional's, and the
+     * three that are actually new (Project Management, Logistics / PPIC,
+     * Procurement) are whole operational domains, not line items.
+     *
+     * So each tier is described against its predecessor: "Everything in
+     * Professional, plus ...". The comparison is DERIVED from the same
+     * config/plans.php scope the entitlement layer uses, which means it
+     * cannot drift from what a customer is actually granted, and adding a
+     * fifth tier needs no copy written for it.
+     *
+     * Shell workspaces are dropped from the added list only (see
+     * config/plans.php 'shells') -- they are still granted, and still
+     * appear in the complete `department_workspaces` list a paying
+     * customer sees on their own Plans page.
+     *
+     * @param  Collection<int, array>  $plans  ordered cheapest first
+     * @return Collection<int, array>
+     */
+    private function withLadderScope(Collection $plans): Collection
+    {
+        $shells = $this->labelsFor(Workspace::class, config('plans.shells', []));
+        $previous = null;
+
+        return $plans->map(function (array $plan) use (&$previous, $shells) {
+            $mine = $plan['department_workspaces'];
+            $added = $previous === null
+                ? $mine
+                : array_values(array_diff($mine, $previous['department_workspaces']));
+
+            $plan['scope'] = [
+                'inherits_from' => $previous['name'] ?? null,
+                // What THIS tier brings that the one below it does not.
+                'added' => array_values(array_diff($added, $shells)),
+                // True when the tier grants every department that exists,
+                // which is the honest way to describe Enterprise without
+                // reciting a list nobody reads.
+                'covers_everything' => $this->grantsEveryDepartment($mine),
+            ];
+
+            $previous = $plan;
+
+            return $plan;
+        });
+    }
+
+    /** Does this label set cover every department workspace IOMS ships? */
+    private function grantsEveryDepartment(array $labels): bool
+    {
+        $everyDepartment = Workspace::query()
+            ->where('tier', Workspace::TIER_DEPARTMENT)
+            ->count();
+
+        return $everyDepartment > 0 && count($labels) >= $everyDepartment;
     }
 
     /** Same shape as publicPlans(), for a single Package -- used to render a tenant's OWN current plan even if it happens to be internal-only/inactive (a grandfathered plan should still describe itself correctly to the tenant using it). */
@@ -79,6 +141,12 @@ class PricingService
             // card should list. Reports and Settings are not a tier's
             // selling point; every plan has them.
             'department_workspaces' => $this->labelsFor(Workspace::class, $package->departmentWorkspaceKeys()),
+            // Filled in by withLadderScope() for the public catalogue,
+            // where a plan can be compared with the tier below it. A plan
+            // summarised on its own has no ladder to sit in, and the key
+            // is present-but-null rather than absent so the frontend does
+            // not have to test for two different shapes.
+            'scope' => null,
             'modules' => $this->labelsFor(Module::class, $package->defaultModuleKeys()),
         ];
     }

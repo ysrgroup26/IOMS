@@ -4,12 +4,13 @@ import PublicLayout from '@/Layouts/PublicLayout';
 import Reveal from '@/Components/public/Reveal';
 import BlueprintBackdrop from '@/Components/public/BlueprintBackdrop';
 import PlatformShowcase from '@/Components/public/PlatformShowcase';
+import ConnectedOperations from '@/Components/public/ConnectedOperations';
+import FragmentedToConnected from '@/Components/public/FragmentedToConnected';
+import DepartmentGrid from '@/Components/public/DepartmentGrid';
 import { Button } from '@/Components/ui/button';
 import {
-    ArrowRight, HardHat, ShieldCheck, Users, BarChart3, FileCheck2, ClipboardList,
-    Flame, Wind, Lock, AlertTriangle, Eye, ClipboardCheck, ChevronDown,
-    Ship, Building2, Factory, Wrench, Truck, Zap, Cog, Check, Smartphone, Building,
-    Warehouse, ShoppingCart, FolderKanban, LineChart, Sparkles,
+    ArrowRight, Users, FileCheck2, Flame, Eye, ClipboardCheck, ChevronDown,
+    Ship, Building2, Factory, Wrench, Truck, Zap, Check, Plus, Smartphone, Building,
 } from 'lucide-react';
 
 /**
@@ -69,25 +70,6 @@ export default function PublicWelcome({ plans, steps = [], faqs = [], contactEma
 /* Section: Hero                                                       */
 /* ------------------------------------------------------------------ */
 const INDUSTRIES_STRIP = ['Shipyard', 'Construction', 'Manufacturing', 'Mining & Energy'];
-
-// v2.27.0 (Public Website & Auth Visual Transformation, Part 4/7). The
-// platform-visualization node set -- 8 real domains around a central
-// "IOMS" hub, each cross-checked against `PLATFORM_AREAS` /
-// `resources/js/lib/workspaces.js` below (same source of truth every
-// other section on this page already uses) so this visual never implies
-// a capability that doesn't exist. Positions are plain percentage
-// coordinates on a 100x100 circle (top, going clockwise) -- no JS
-// trig/animation library, just static numbers computed once.
-const ORBIT_NODES = [
-    { label: 'Health, Safety & Environment', icon: ShieldCheck, x: 50, y: 10 },
-    { label: 'Human Resources', icon: Users, x: 84, y: 24 },
-    { label: 'Operations', icon: Cog, x: 90, y: 50 },
-    { label: 'Warehouse', icon: Warehouse, x: 84, y: 76 },
-    { label: 'Procurement', icon: ShoppingCart, x: 50, y: 90 },
-    { label: 'Logistics', icon: Truck, x: 16, y: 76 },
-    { label: 'Project Management', icon: FolderKanban, x: 10, y: 50 },
-    { label: 'Reports', icon: LineChart, x: 16, y: 24 },
-];
 
 /**
  * v2.45.0 -- the hero moves onto a deep navy atmospheric surface, the same
@@ -157,44 +139,13 @@ function Hero() {
                     </div>
                 </div>
 
-                {/* The platform visualization: a central IOMS hub with eight
-                    real product domains around it. Desktop-only -- absolute
-                    nodes on a percentage circle cannot reflow safely to a
-                    narrow viewport, so mobile gets the plain wrap-grid below
-                    rather than a shrunken copy of this same layout. */}
-                <div className="relative mx-auto mt-20 hidden aspect-square max-w-xl lg:block">
-                    <svg className="absolute inset-0 h-full w-full" viewBox="0 0 100 100" aria-hidden="true">
-                        {ORBIT_NODES.map((n) => (
-                            <line key={n.label} x1="50" y1="50" x2={n.x} y2={n.y} stroke="rgb(255 255 255 / 0.16)" strokeWidth="0.35" />
-                        ))}
-                    </svg>
-
-                    <div className="absolute left-1/2 top-1/2 flex h-32 w-32 -translate-x-1/2 -translate-y-1/2 flex-col items-center justify-center rounded-full border border-white/15 bg-navy-800/80 shadow-panel backdrop-blur-sm">
-                        <div className="flex h-14 w-14 items-center justify-center rounded-full bg-white/10 text-steel-200 ring-1 ring-inset ring-white/15">
-                            <Sparkles className="h-6 w-6" />
-                        </div>
-                        <p className="mt-2 text-sm font-bold tracking-tight text-white">IOMS</p>
-                    </div>
-
-                    {ORBIT_NODES.map((n) => (
-                        <div
-                            key={n.label}
-                            className="absolute flex -translate-x-1/2 -translate-y-1/2 flex-col items-center gap-1.5 rounded-xl border border-white/10 bg-white/[0.07] px-3 py-2.5 backdrop-blur-sm"
-                            style={{ left: `${n.x}%`, top: `${n.y}%` }}
-                        >
-                            <n.icon className="h-4 w-4 text-steel-300" />
-                            <span className="whitespace-nowrap text-[11px] font-medium text-steel-100">{n.label}</span>
-                        </div>
-                    ))}
-                </div>
-
-                <div className="mx-auto mt-16 grid max-w-md grid-cols-2 gap-3 sm:grid-cols-4 lg:hidden">
-                    {ORBIT_NODES.map((n) => (
-                        <div key={n.label} className="flex flex-col items-center gap-1.5 rounded-xl border border-white/10 bg-white/[0.06] px-3 py-3 text-center">
-                            <n.icon className="h-4 w-4 text-steel-300" />
-                            <span className="text-[11px] font-medium leading-tight text-steel-100">{n.label}</span>
-                        </div>
-                    ))}
+                {/* v2.61.0: the platform visualisation moved into its own
+                    component and learned to move -- see ConnectedOperations
+                    for what the motion is saying and why it is not
+                    decoration. The hero keeps owning the composition; it no
+                    longer owns 40 lines of absolute positioning. */}
+                <div className="mt-16 sm:mt-20">
+                    <ConnectedOperations />
                 </div>
             </div>
         </section>
@@ -218,54 +169,25 @@ function TrustStatement() {
 /* Section: The Problem                                                */
 /* ------------------------------------------------------------------ */
 function ProblemSection() {
-    const fragments = ['Excel per department', 'WhatsApp approvals', 'Paper permits', 'Separate HSE records', 'Manual stock notes', 'Reports rebuilt by hand'];
-
     return (
         <section className="border-b border-graphite-100 bg-gradient-to-b from-brand-50/50 to-brand-50/20 py-20">
-            <div className="mx-auto max-w-5xl px-4 sm:px-6 lg:px-8">
-                <div className="text-center">
-                    <h2 className="text-2xl font-semibold tracking-tight text-graphite-900 sm:text-3xl">
-                        Your departments already have the data. They just don't share it.
-                    </h2>
-                    <p className="mt-3 text-base text-graphite-600">
-                        Procurement cannot see what the yard actually consumed. HSE cannot see which job the permit
-                        belongs to. Management rebuilds the same report every month.
-                    </p>
-                </div>
+            <div className="mx-auto max-w-6xl px-4 sm:px-6 lg:px-8">
+                <SectionHeading
+                    eyebrow="The problem"
+                    title="Your departments already have the data. They just don't share it."
+                    subtitle="Procurement cannot see what the yard actually consumed. HSE cannot see which job the permit belongs to. Management rebuilds the same report every month."
+                />
 
-                <div className="mt-10 grid grid-cols-2 gap-3 sm:grid-cols-3">
-                    {fragments.map((f) => (
-                        <div key={f} className="rounded-lg border border-graphite-200 bg-white px-3 py-4 text-center text-sm text-graphite-500 shadow-card">
-                            {f}
-                        </div>
-                    ))}
-                </div>
-
-                <div className="mt-6 flex justify-center">
-                    <ArrowRight className="h-6 w-6 rotate-90 text-graphite-300" />
-                </div>
-
-                <div className="mt-6 rounded-xl border-2 border-graphite-900 bg-white p-6 text-center shadow-card-hover sm:p-8">
-                    <p className="text-xs font-semibold uppercase tracking-[0.2em] text-brand-600">IOMS</p>
-                    <p className="mt-2 text-xl font-semibold text-graphite-900 sm:text-2xl">One connected operation</p>
+                <div className="mt-12">
+                    <FragmentedToConnected />
                 </div>
             </div>
         </section>
     );
 }
-
 /* ------------------------------------------------------------------ */
 /* Section: Platform Overview                                          */
 /* ------------------------------------------------------------------ */
-const PLATFORM_AREAS = [
-    { title: 'Project Management', icon: FolderKanban, items: ['Projects & milestones', 'Manpower assignment', 'Daily reports', 'Progress records'] },
-    { title: 'Operations', icon: Cog, items: ['Work Center', 'Tasks & follow-up', 'Man-Hour', 'Activity timeline on every record'] },
-    { title: 'Human Resources', icon: Users, items: ['Employee master data', 'Competency & certificate expiry', 'Shifts & rosters', 'Contractors & visitors'] },
-    { title: 'Procurement & Warehouse', icon: ShoppingCart, items: ['Purchase Requisition (FPB)', 'RFQ & vendor comparison', 'Purchase Order', 'Goods receipt & stock movement'] },
-    { title: 'Health, Safety & Environment', icon: ShieldCheck, items: ['Permit To Work', 'Incidents & observations', 'Inspections, JSA, HIRADC', 'LOTO, gas test, PPE, CAPA'] },
-    { title: 'Management & Reporting', icon: BarChart3, items: ['KPI records', 'Report Center', 'Scheduled reports', 'PDF & Excel on your letterhead'] },
-];
-
 function PlatformOverview() {
     return (
         <section id="platform" className="border-b border-graphite-100 bg-white py-20">
@@ -273,48 +195,54 @@ function PlatformOverview() {
                 <SectionHeading
                     eyebrow="Platform"
                     title="One platform, every operational domain"
-                    subtitle="Every domain below runs in IOMS today — not a roadmap. They share one set of master data, one approval layer and one reporting layer."
+                    subtitle="Every workspace below runs in IOMS today — not a roadmap. They share one set of master data, one approval layer and one reporting layer."
                 />
 
-                <div className="mt-12 grid grid-cols-1 gap-5 sm:grid-cols-2 lg:grid-cols-3">
-                    {PLATFORM_AREAS.map((area) => (
-                        <div key={area.title} className="rounded-xl border border-graphite-200 p-6 shadow-card">
-                            <div className="flex h-10 w-10 items-center justify-center rounded-lg bg-brand-50">
-                                <area.icon className="h-5 w-5 text-brand-600" />
-                            </div>
-                            <h3 className="mt-4 text-base font-semibold text-graphite-900">{area.title}</h3>
-                            <ul className="mt-3 space-y-1.5">
-                                {area.items.map((i) => (
-                                    <li key={i} className="flex items-start gap-1.5 text-sm text-graphite-600">
-                                        <Check className="mt-0.5 h-3.5 w-3.5 shrink-0 text-brand-500" />
-                                        <span>{i}</span>
-                                    </li>
-                                ))}
-                            </ul>
-                        </div>
-                    ))}
+                {/* v2.61.0: the cards moved into DepartmentGrid, which also
+                    corrects two names this section had wrong -- see that
+                    component for what "Operations" and "Procurement &
+                    Warehouse" were actually describing. */}
+                <div className="mt-12">
+                    <DepartmentGrid />
                 </div>
             </div>
         </section>
     );
 }
-
 /* ------------------------------------------------------------------ */
 /* Section: PTW -> HSE Story                                           */
 /* ------------------------------------------------------------------ */
-function PtwHseStory() {
-    const flow = [
-        'Pengguna lapangan membuat PTW',
-        'Requester tercatat otomatis dari akun yang login',
-        'Penanggung Jawab Pekerjaan (opsional)',
-        'Workforce dari direktori karyawan (opsional)',
-        'Diajukan',
-        'Ditinjau oleh Health, Safety & Environment',
-        'HIRADC / JSA / Gas Test bila diperlukan',
-        'Disetujui',
-        'Status izin terlihat kembali di lapangan',
-    ];
+/**
+ * v2.61.0 -- the chain, in English and with the department that owns each
+ * step named.
+ *
+ * This section was a nine-item numbered list written in Indonesian on an
+ * otherwise English page — the only place on the landing page where the
+ * language changed mid-scroll. Worse for the argument it is making: a flat
+ * list of nine steps says "there are nine steps", when the point is that
+ * the record CROSSES DEPARTMENTS without anybody rekeying it. The owner of
+ * each step is now the first thing on the row, and the row is tinted by
+ * which side of the handover it sits on.
+ */
+const PTW_CHAIN = [
+    { owner: 'Field', step: 'A field user raises a Permit To Work' },
+    { owner: 'Field', step: 'The requester is recorded automatically from the signed-in account' },
+    { owner: 'Field', step: 'Person in charge of the work, if the job has one' },
+    { owner: 'People', step: 'Workforce picked from the employee directory' },
+    { owner: 'Field', step: 'Submitted' },
+    { owner: 'HSE', step: 'Reviewed by Health, Safety & Environment' },
+    { owner: 'HSE', step: 'HIRADC, JSA or gas test attached where the work requires it' },
+    { owner: 'HSE', step: 'Approved' },
+    { owner: 'Field', step: 'The permit status is visible again on site' },
+];
 
+const OWNER_TONE = {
+    Field: 'bg-steel-500/20 text-steel-100 ring-steel-400/30',
+    HSE: 'bg-danger/20 text-red-200 ring-red-400/30',
+    People: 'bg-brand-500/20 text-brand-200 ring-brand-400/30',
+};
+
+function PtwHseStory() {
     return (
         <section id="solutions" className="relative isolate overflow-hidden border-b border-navy-800 bg-navy-900 py-20 text-white">
             <BlueprintBackdrop />
@@ -329,13 +257,24 @@ function PtwHseStory() {
                     </p>
                 </div>
 
-                <ol className="mx-auto mt-12 flex max-w-3xl flex-col gap-2">
-                    {flow.map((step, i) => (
-                        <li key={step} className="flex items-center gap-3 rounded-lg border border-white/10 bg-white/5 px-4 py-3">
-                            <span className="flex h-6 w-6 shrink-0 items-center justify-center rounded-full bg-brand-500 text-xs font-semibold text-white">
+                <ol className="mx-auto mt-12 max-w-3xl">
+                    {PTW_CHAIN.map((row, i) => (
+                        <li key={row.step} className="relative flex items-center gap-3 pb-2 last:pb-0">
+                            {/* The spine, drawn behind the numbers, so nine
+                                rows read as one continuous record rather
+                                than nine separate cards. */}
+                            {i < PTW_CHAIN.length - 1 && (
+                                <span aria-hidden="true" className="absolute left-3 top-6 h-full w-px bg-white/15" />
+                            )}
+                            <span className="relative z-10 flex h-6 w-6 shrink-0 items-center justify-center rounded-full bg-brand-500 text-xs font-semibold text-white ring-4 ring-navy-900">
                                 {i + 1}
                             </span>
-                            <span className="text-sm text-graphite-100 sm:text-[15px]">{step}</span>
+                            <span className="flex min-w-0 flex-1 flex-wrap items-center gap-x-3 gap-y-1 rounded-lg border border-white/10 bg-white/5 px-4 py-3">
+                                <span className={`shrink-0 rounded-full px-2 py-0.5 text-[10px] font-semibold uppercase tracking-wide ring-1 ring-inset ${OWNER_TONE[row.owner]}`}>
+                                    {row.owner}
+                                </span>
+                                <span className="min-w-0 text-sm text-graphite-100 sm:text-[15px]">{row.step}</span>
+                            </span>
                         </li>
                     ))}
                 </ol>
@@ -343,7 +282,6 @@ function PtwHseStory() {
         </section>
     );
 }
-
 /* ------------------------------------------------------------------ */
 /* Section: Field Experience                                           */
 /* ------------------------------------------------------------------ */
@@ -490,31 +428,32 @@ function Industries() {
 /* ------------------------------------------------------------------ */
 /* Section: Pricing (data-driven -- no hardcoded amount)                */
 /* ------------------------------------------------------------------ */
-// v2.27.0 (Public Website & Auth Visual Transformation, Part 9). Purely
-// PRESENTATIONAL framing text (not an entitlement, not sourced from the
-// Package row) -- matches this pass's own suggested "for smaller teams
-// beginning to centralize operations" philosophy. Keyed by `slug` with a
-// graceful empty-string fallback for any plan this map doesn't recognize
-// (e.g. a future Plan a Platform Admin adds later) -- never blocks
-// rendering, never invents copy for an unrecognized plan.
-//
-// v2.28.0 (Product Experience Transformation, Section 1): the Enterprise
-// line previously said "...dan penyesuaian khusus" ("...and custom
-// tailoring") -- the one place in the whole app where Enterprise was
-// framed as bespoke/custom-built work. IOMS is a standardized SaaS
-// product ("build once, improve for everyone"); Enterprise is the most
-// COMPLETE tier of the same product, not a custom development track.
-// Reworded to what Enterprise actually is under `Package`/`PricingService`
-// -- broader module/workspace access, higher max_users/max_ptw_users
-// capacity, and full reporting -- without touching is_custom, pricing, or
-// entitlement logic itself (out of scope for this pass).
+/**
+ * Purely PRESENTATIONAL framing -- not an entitlement, and not sourced
+ * from the Package row. Keyed by `slug` with an empty-string fallback, so
+ * a plan a Platform Admin adds later renders without copy rather than
+ * blocking or inventing some.
+ *
+ * v2.28.0: Enterprise used to be framed as "...and custom tailoring", the
+ * one place in the app where it read as bespoke work. IOMS is a
+ * standardized product; Enterprise is the most COMPLETE tier of it.
+ *
+ * v2.61.0 -- ENGLISH, AND WHO THE TIER IS FOR.
+ *
+ * These four lines were the only Indonesian text left in this section of
+ * an otherwise English page, so a visitor scrolling from the hero changed
+ * language halfway down. They also described each tier in isolation; what
+ * a buyer is actually deciding is which STEP UP they need, which is now
+ * what the line says. The scope itself ("Everything in Professional,
+ * plus...") comes from the server -- see PricingService::withLadderScope()
+ * -- so this map never has to restate what a tier contains.
+ */
 const PLAN_FRAMING = {
-    starter: 'Untuk tim yang baru mulai memusatkan Health, Safety & Environment.',
-    professional: 'Untuk operasi yang juga perlu mengelola tenaga kerja dan kompetensinya.',
-    business: 'Untuk operasi yang menjalankan pekerjaan, material, dan pengadaan di beberapa lokasi.',
-    enterprise: 'Untuk organisasi yang butuh akses penuh, kapasitas tanpa batas, dan tata kelola lintas unit.',
+    starter: 'For a team putting Health, Safety & Environment on one system for the first time.',
+    professional: 'For an operation that also has to manage its people, competency and rosters.',
+    business: 'For an operation running projects, materials and purchasing across several sites.',
+    enterprise: 'For an organization that needs every department, unlimited capacity and cross-unit governance.',
 };
-
 function Pricing({ plans }) {
     const [interval, setInterval] = useState('monthly');
     const { version } = usePage().props;
@@ -553,12 +492,11 @@ function Pricing({ plans }) {
                                 // broke the moment a fourth tier arrived.
                                 const emphasized = plan.is_popular;
                                 const framing = PLAN_FRAMING[plan.slug] || '';
-                                // Capped: Enterprise grants ten departments and an
-                                // unbroken list of them turned one landing card into
-                                // four times the height of Starter's. The full list is
-                                // on /pricing, which is where a visitor comparing tiers
-                                // line by line is going anyway.
-                                const departments = plan.department_workspaces ?? [];
+                                // v2.61.0: each tier stated against the one below it.
+                                // Listing Business's five departments flat read as
+                                // "five new things" when two of them are Starter's and
+                                // Professional's -- see PricingService::withLadderScope().
+                                const scope = plan.scope ?? { inherits_from: null, added: plan.department_workspaces ?? [], covers_everything: false };
                                 return (
                                     <div
                                         key={plan.id}
@@ -574,16 +512,32 @@ function Pricing({ plans }) {
                                             a border the visitor has to interpret. */}
                                         {emphasized && (
                                             <span className="absolute -top-2.5 left-6 rounded-full bg-brand-600 px-2.5 py-0.5 text-[10px] font-semibold uppercase tracking-wide text-white">
-                                                Paling banyak dipilih
+                                                Most popular
                                             </span>
                                         )}
                                         <h3 className="text-lg font-semibold text-graphite-900">{plan.name}</h3>
+                                        {/* The tier's one-line answer to "who is this
+                                            for", served from config/plans.php beside the
+                                            scope it describes so the two cannot drift. */}
+                                        {plan.positioning && (
+                                            <p className="mt-1 text-xs font-semibold text-brand-700">{plan.positioning}</p>
+                                        )}
                                         {framing && <p className="mt-1.5 text-sm leading-relaxed text-graphite-500">{framing}</p>}
 
                                         <div className="mt-5">
                                             <p className={emphasized ? 'text-3xl font-bold text-brand-700' : 'text-3xl font-bold text-graphite-900'}>{price.formatted}</p>
                                             {!plan.is_custom && price.amount !== null && (
-                                                <p className="text-xs text-graphite-400">per {interval === 'monthly' ? 'bulan' : 'tahun'}</p>
+                                                <p className="text-xs text-graphite-400">per {interval === 'monthly' ? 'month' : 'year'}</p>
+                                            )}
+                                            {/* v2.61.0: the annual saving stated where the
+                                                cycle is chosen. Derived server-side from the
+                                                plan's own two prices (PricingService::
+                                                annualSaving) -- no percentage is written
+                                                down on this page. */}
+                                            {interval === 'yearly' && plan.annual_saving && (
+                                                <p className="mt-1 text-xs font-medium text-success">
+                                                    Save {plan.annual_saving.formatted} · {plan.annual_saving.percent}% less than monthly
+                                                </p>
                                             )}
                                         </div>
 
@@ -596,17 +550,21 @@ function Pricing({ plans }) {
                                             <li className="flex items-center gap-2">
                                                 <Building2 className="h-3.5 w-3.5 shrink-0 text-brand-500" /> {plan.max_companies ? `${plan.max_companies} Operating Unit${plan.max_companies > 1 ? 's' : ''}` : 'Multiple Operating Units'}
                                             </li>
-                                            {/* v2.60.0: the DEPARTMENTS the tier grants, not
-                                                the full provisioning grant -- Reports and
-                                                Settings belong to every plan and listing them
-                                                as bullets made four tiers look more alike
-                                                than they are. */}
-                                            {departments.slice(0, 6).map((w) => (
+                                            {/* v2.60.0: DEPARTMENTS only. The full grant also
+                                                carries Reports and Settings, which every plan
+                                                has -- listing them here made four tiers look
+                                                more alike than they are. */}
+                                            {scope.inherits_from && (
+                                                <li className="flex items-center gap-2 pt-1 font-semibold text-navy-900">
+                                                    <Plus className="h-3.5 w-3.5 shrink-0 text-brand-600" /> Everything in {scope.inherits_from}, plus
+                                                </li>
+                                            )}
+                                            {scope.added.map((w) => (
                                                 <li key={w} className="flex items-center gap-2"><Check className="h-3.5 w-3.5 shrink-0 text-brand-500" /> {w}</li>
                                             ))}
-                                            {departments.length > 6 && (
-                                                <li className="flex items-center gap-2 text-graphite-500">
-                                                    <Check className="h-3.5 w-3.5 shrink-0 text-brand-500" /> +{departments.length - 6} departemen lainnya
+                                            {scope.covers_everything && (
+                                                <li className="flex items-center gap-2 font-medium text-graphite-700">
+                                                    <Check className="h-3.5 w-3.5 shrink-0 text-brand-500" /> Every department IOMS ships
                                                 </li>
                                             )}
                                         </ul>

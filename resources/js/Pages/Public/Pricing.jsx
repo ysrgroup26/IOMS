@@ -1,6 +1,6 @@
 import { Head, Link } from '@inertiajs/react';
 import { useState } from 'react';
-import { Check, ArrowRight, ShieldCheck } from 'lucide-react';
+import { Check, Plus, ArrowRight, ShieldCheck } from 'lucide-react';
 import PublicLayout from '@/Layouts/PublicLayout';
 import { Button } from '@/Components/ui/button';
 import { cn } from '@/lib/utils';
@@ -92,7 +92,13 @@ export default function Pricing({ plans = [], contactEmail }) {
                                 // no sign it was already discounted, and any surface that wanted
                                 // the number had to copy the arithmetic.
                                 const saving = yearly ? plan.annual_saving : null;
-                                const departments = plan.department_workspaces ?? [];
+                                // v2.61.0: a tier is described against the one
+                                // below it, not as a flat list -- see
+                                // PricingService::withLadderScope(). Business
+                                // listing five departments read as "five new
+                                // things" when three of them are what you are
+                                // actually buying.
+                                const scope = plan.scope ?? { inherits_from: null, added: plan.department_workspaces ?? [], covers_everything: false };
 
                                 return (
                                     <div
@@ -161,23 +167,26 @@ export default function Pricing({ plans = [], contactEmail }) {
                                                     may run inside it. */}
                                                 <span>{plan.max_companies ? `${plan.max_companies} Operating Unit${plan.max_companies > 1 ? 's' : ''}` : 'Multiple Operating Units'}</span>
                                             </li>
-                                            {/* v2.60.0: DEPARTMENTS only. `workspaces` also
+                                            {/* v2.60.0: DEPARTMENTS only. The full grant also
                                                 carries Reports and Settings, which every plan
-                                                has -- printing them here spent two of the six
-                                                visible bullets saying nothing about the tier.
-                                                Enterprise grants more than six, so the
-                                                remainder is counted rather than silently
-                                                truncated the way it used to be. */}
-                                            {departments.slice(0, 6).map((w) => (
+                                                has -- printing them here said nothing about
+                                                the tier. */}
+                                            {scope.inherits_from && (
+                                                <li className="flex items-start gap-2 pt-0.5 text-xs font-semibold text-navy-800">
+                                                    <Plus className="mt-0.5 h-3.5 w-3.5 shrink-0 text-brand-600" />
+                                                    <span>Everything in {scope.inherits_from}, plus</span>
+                                                </li>
+                                            )}
+                                            {scope.added.map((w) => (
                                                 <li key={w} className="flex items-start gap-2 text-xs text-graphite-600">
                                                     <Check className="mt-0.5 h-3.5 w-3.5 shrink-0 text-success" />
                                                     <span>{w}</span>
                                                 </li>
                                             ))}
-                                            {departments.length > 6 && (
-                                                <li className="flex items-start gap-2 text-xs text-graphite-500">
+                                            {scope.covers_everything && (
+                                                <li className="flex items-start gap-2 text-xs font-medium text-graphite-700">
                                                     <Check className="mt-0.5 h-3.5 w-3.5 shrink-0 text-success" />
-                                                    <span>+{departments.length - 6} more departments</span>
+                                                    <span>Every department IOMS ships</span>
                                                 </li>
                                             )}
                                         </ul>

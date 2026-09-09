@@ -36,10 +36,15 @@ class VisitorController extends Controller
 
     public function create(Request $request): Response
     {
-        $tenantCompanyIds = Company::query()->pluck('id');
-
+        // v2.66.0: the employee directory is no longer preloaded. The host
+        // is now picked through the shared EmployeeSelector, which queries
+        // /employee-lookup on demand (tenant-scoped, 50 rows per request).
+        // Visitor registration happens at a gatehouse with somebody
+        // waiting, so shipping the whole directory to render a <select>
+        // nobody can scroll was the worst version of this trade.
+        // `store()` still validates the submitted id against the tenant's
+        // own employees -- the authority did not move.
         return Inertia::render('Visitors/Form', [
-            'employees' => Employee::whereIn('company_id', $tenantCompanyIds)->active()->orderBy('full_name')->get(['id', 'full_name', 'company_id']),
             'visitorNumber' => Visitor::generateNumber(),
         ]);
     }

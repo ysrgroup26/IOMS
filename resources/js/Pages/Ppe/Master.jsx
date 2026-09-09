@@ -8,6 +8,7 @@ import { Label } from '@/Components/ui/label';
 import { Badge } from '@/Components/ui/badge';
 import { Table, TableHeader, TableBody, TableRow, TableHead, TableCell } from '@/Components/ui/table';
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogFooter, DialogTrigger } from '@/Components/ui/dialog';
+import { FormField } from '@/Components/shared/form';
 import { Checkbox } from '@/Components/ui/checkbox';
 import { Plus, Trash2, Pencil } from 'lucide-react';
 import PpeTabNav from '@/Components/shared/PpeTabNav';
@@ -109,22 +110,36 @@ export default function PpeMaster({ ppeTypes, can }) {
             <Dialog open={open} onOpenChange={setOpen}>
                 <DialogContent>
                     <DialogHeader><DialogTitle>{editing ? 'Edit PPE Type' : 'Add PPE Type'}</DialogTitle></DialogHeader>
+                    {/* v2.66.0 -- DIALOG FORMS USE FormField AND NOTHING ELSE
+                        from the form system. A dialog is short and entirely in
+                        view, so an ErrorSummary would restate what is already
+                        on screen, and FormActions would compete with
+                        DialogFooter, which IS the action area. What a dialog
+                        genuinely lacked was the field contract: requiredness,
+                        aria wiring, and an error slot that cannot be omitted.
+                        See Components/shared/form/index.js. */}
                     <form onSubmit={submit} className="space-y-4">
-                        <div className="space-y-1.5">
-                            <Label>Name</Label>
-                            <Input value={data.name} onChange={(e) => setData('name', e.target.value)} placeholder="e.g. Safety Helmet" />
-                            {errors.name && <p className="text-xs text-red-600">{errors.name}</p>}
-                        </div>
-                        <div className="space-y-1.5">
-                            <Label>Replacement Interval (months)</Label>
-                            <Input
-                                type="number" min="1" max="120"
-                                value={data.replacement_interval_months}
-                                onChange={(e) => setData('replacement_interval_months', e.target.value)}
-                                placeholder="Leave empty for request-based equipment (e.g. Harness)"
-                            />
-                            {errors.replacement_interval_months && <p className="text-xs text-red-600">{errors.replacement_interval_months}</p>}
-                        </div>
+                        <FormField label="Name" name="name" required error={errors.name}>
+                            {(control) => (
+                                <Input {...control} value={data.name} onChange={(e) => setData('name', e.target.value)} placeholder="e.g. Safety Helmet" />
+                            )}
+                        </FormField>
+
+                        <FormField
+                            label="Replacement interval (months)"
+                            name="replacement_interval_months"
+                            error={errors.replacement_interval_months}
+                            hint="Leave empty for request-based equipment such as a harness. Drives the PPE expiry date at issue."
+                        >
+                            {(control) => (
+                                <Input
+                                    {...control}
+                                    type="number" inputMode="numeric" min="1" max="120"
+                                    value={data.replacement_interval_months}
+                                    onChange={(e) => setData('replacement_interval_months', e.target.value)}
+                                />
+                            )}
+                        </FormField>
                         <label className="flex items-center gap-2 text-sm">
                             <Checkbox checked={data.is_active} onCheckedChange={(v) => setData('is_active', !!v)} />
                             Active

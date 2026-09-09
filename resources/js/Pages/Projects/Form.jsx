@@ -1,14 +1,42 @@
-import { Head, useForm, Link } from '@inertiajs/react';
+import { useRef } from 'react';
+import { Head, useForm, Link, router } from '@inertiajs/react';
 import AuthenticatedLayout from '@/Layouts/AuthenticatedLayout';
-import { Card, CardContent, CardHeader, CardTitle } from '@/Components/ui/card';
 import { Input } from '@/Components/ui/input';
-import { Label } from '@/Components/ui/label';
-import { Button } from '@/Components/ui/button';
+import { Textarea } from '@/Components/ui/textarea';
 import { Select, SelectTrigger, SelectValue, SelectContent, SelectItem } from '@/Components/ui/select';
-import { ArrowLeft, Loader2 } from 'lucide-react';
+import { FormSection, FormField, FormActions, ErrorSummary, SearchableSelect } from '@/Components/shared/form';
+import { useUnsavedChanges } from '@/lib/useUnsavedChanges';
+import { ArrowLeft, FolderKanban, CalendarClock } from 'lucide-react';
+
+/**
+ * v2.66.0 -- master data rollout.
+ *
+ * A SHORT FORM THAT DID NOT NEED MUCH, and this is the case worth being
+ * explicit about: seven fields is not a structural problem, so almost
+ * nothing here is restructured. What it gained is the contract -- required
+ * marking that matches the server (company_id, name and status; NOT the
+ * dates, which are nullable), errors that can be found, an action bar
+ * reachable on a phone, and protection for work in progress.
+ *
+ * Two sections rather than one only because the dates answer a genuinely
+ * different question from the identity fields, and `end_date` carries a
+ * server rule (`after_or_equal:start_date`) that is worth stating in a
+ * hint before somebody trips over it rather than after.
+ *
+ * `description` was a single-line Input for a field the server allows 2000
+ * characters in. It is a Textarea now.
+ */
+
+const ERROR_LABELS = {
+    company_id: 'Operating Unit',
+    vessel_name: 'Vessel',
+    start_date: 'Start date',
+    end_date: 'End date',
+};
 
 export default function ProjectForm({ project, companies }) {
     const isEdit = !!project;
+    const initial = useRef(null);
 
     const { data, setData, post, put, processing, errors } = useForm({
         company_id: project?.company_id ? String(project.company_id) : undefined,
@@ -20,13 +48,23 @@ export default function ProjectForm({ project, companies }) {
         description: project?.description || '',
     });
 
+    if (initial.current === null) initial.current = { ...data };
+
+    const { release } = useUnsavedChanges(data, initial.current, !processing);
+
     function submit(e) {
         e.preventDefault();
+        release();
         if (isEdit) {
             put(route('projects.update', project.id));
         } else {
             post(route('projects.store'));
         }
+    }
+
+    function cancel() {
+        release();
+        router.visit(route('projects.index'));
     }
 
     return (
@@ -37,44 +75,43 @@ export default function ProjectForm({ project, companies }) {
                 <ArrowLeft className="h-4 w-4" /> Back to Projects
             </Link>
 
-            <h1 className="mb-6 text-[22px] font-semibold tracking-tight text-graphite-900">
+            <h1 className="mb-1 text-[22px] font-semibold tracking-tight text-graphite-900 dark:text-slate-100">
                 {isEdit ? 'Edit Project' : 'Add Project'}
             </h1>
+            <p className="mb-6 text-sm text-graphite-500 dark:text-slate-400">
+                Permits, material requests, daily reports and manpower assignments are charged to a project.
+            </p>
 
-            <Card className="max-w-2xl">
-                <CardHeader><CardTitle>Project Information</CardTitle></CardHeader>
-                <CardContent>
-                    <form onSubmit={submit} className="space-y-4">
-                        <div className="grid grid-cols-1 gap-4 sm:grid-cols-2">
-                            <Field label="Project Name" error={errors.name}>
-                                <Input value={data.name} onChange={(e) => setData('name', e.target.value)} placeholder="e.g. Shutdown Maintenance" />
-                            </Field>
-                            <Field label="Operating Unit" error={errors.company_id}>
-                                <Select value={data.company_id} onValueChange={(v) => setData('company_id', v)}>
-                                    <SelectTrigger><SelectValue placeholder="Select operating unit" /></SelectTrigger>
-                                    <SelectContent>
-                                        {companies.map((c) => <SelectItem key={c.id} value={String(c.id)}>{c.name}</SelectItem>)}
-                                    </SelectContent>
-                                </Select>
-                            </Field>
-                        </div>
+            <form onSubmit={submit} className="max-w-3xl space-y-6">
+                <ErrorSummary errors={errors} labels={ERROR_LABELS} />
 
-                        <Field label="Location" error={errors.vessel_name}>
-                            <Input value={data.vessel_name} onChange={(e) => setData('vessel_name', e.target.value)} placeholder="e.g. Area A" />
-                        </Field>
+                <FormSection
+                    title="Identity"
+                    description="What the project is, and which Operating Unit is running it."
+                    icon={FolderKanban}
+                >
+                    <FormField label="Project name" name="name" required error={errors.name} className="sm:col-span-2">
+                        {(control) => (
+                            <Input {...control} value={data.name} onChange={(e) => setData('name', e.target.value)} placeholder="e.g. Tanker drydocking — MT Sinar" />
+                        )}
+                    </FormField>
 
-                        <div className="grid grid-cols-1 gap-4 sm:grid-cols-2">
-                            <Field label="Start Date" error={errors.start_date}>
-                                <Input type="date" value={data.start_date} onChange={(e) => setData('start_date', e.target.value)} />
-                            </Field>
-                            <Field label="End Date" error={errors.end_date}>
-                                <Input type="date" value={data.end_date} onChange={(e) => setData('end_date', e.target.value)} />
-                            </Field>
-                        </div>
+                    <FormField label="Operating Unit" name="company_id" required error={errors.company_id}>
+                        {(control) => (
+                            <SearchableSelect
+                                {...control}
+                                value={data.company_id ?? ''}
+                                onChange={(v) => setData('company_id', v)}
+                                options={companies.map((c) => ({ value: c.id, label: c.name }))}
+                                placeholder="Select operating unit"
+                            />
+                        )}
+                    </FormField>
 
-                        <Field label="Status" error={errors.status}>
+                    <FormField label="Status" name="status" required error={errors.status}>
+                        {(control) => (
                             <Select value={data.status} onValueChange={(v) => setData('status', v)}>
-                                <SelectTrigger><SelectValue /></SelectTrigger>
+                                <SelectTrigger {...control}><SelectValue /></SelectTrigger>
                                 <SelectContent>
                                     <SelectItem value="planned">Planned</SelectItem>
                                     <SelectItem value="ongoing">Ongoing</SelectItem>
@@ -82,40 +119,53 @@ export default function ProjectForm({ project, companies }) {
                                     <SelectItem value="cancelled">Cancelled</SelectItem>
                                 </SelectContent>
                             </Select>
-                        </Field>
+                        )}
+                    </FormField>
 
-                        <Field label="Description" error={errors.description}>
-                            <textarea
-                                className="flex w-full rounded-lg border border-input bg-white px-3 py-2 text-sm shadow-sm placeholder:text-graphite-400 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-1"
-                                rows={3}
-                                value={data.description}
-                                onChange={(e) => setData('description', e.target.value)}
-                                placeholder="Brief notes about this project..."
-                            />
-                        </Field>
+                    <FormField
+                        label="Vessel"
+                        name="vessel_name"
+                        error={errors.vessel_name}
+                        hint="For marine and shipyard work. Leave blank for shore-based projects."
+                        className="sm:col-span-2"
+                    >
+                        {(control) => (
+                            <Input {...control} value={data.vessel_name} onChange={(e) => setData('vessel_name', e.target.value)} />
+                        )}
+                    </FormField>
 
-                        <div className="flex justify-end gap-2 pt-2">
-                            <Button type="button" variant="outline" asChild>
-                                <Link href={route('projects.index')}>Cancel</Link>
-                            </Button>
-                            <Button type="submit" disabled={processing}>
-                                {processing && <Loader2 className="h-4 w-4 animate-spin" />}
-                                {isEdit ? 'Save Changes' : 'Create Project'}
-                            </Button>
-                        </div>
-                    </form>
-                </CardContent>
-            </Card>
+                    <FormField label="Description" name="description" error={errors.description} className="sm:col-span-2">
+                        {(control) => (
+                            <Textarea {...control} value={data.description} onChange={(e) => setData('description', e.target.value)} rows={3} />
+                        )}
+                    </FormField>
+                </FormSection>
+
+                <FormSection title="Schedule" description="When the work is expected to run." icon={CalendarClock}>
+                    <FormField label="Start date" name="start_date" error={errors.start_date}>
+                        {(control) => (
+                            <Input {...control} type="date" value={data.start_date} onChange={(e) => setData('start_date', e.target.value)} />
+                        )}
+                    </FormField>
+
+                    <FormField
+                        label="End date"
+                        name="end_date"
+                        error={errors.end_date}
+                        hint="Must be on or after the start date."
+                    >
+                        {(control) => (
+                            <Input {...control} type="date" min={data.start_date || undefined} value={data.end_date} onChange={(e) => setData('end_date', e.target.value)} />
+                        )}
+                    </FormField>
+                </FormSection>
+
+                <FormActions
+                    submitLabel={isEdit ? 'Save changes' : 'Create project'}
+                    onCancel={cancel}
+                    processing={processing}
+                />
+            </form>
         </AuthenticatedLayout>
-    );
-}
-
-function Field({ label, error, children }) {
-    return (
-        <div className="space-y-1.5">
-            <Label>{label}</Label>
-            {children}
-            {error && <p className="text-xs text-red-600">{error}</p>}
-        </div>
     );
 }

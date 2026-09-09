@@ -20,8 +20,22 @@
  * how a form BEHAVES and READS, never what it submits or what the server
  * accepts.
  *
- * See docs/UX_ARCHITECTURE_DISCOVERY.md §8 for the reasoning, and
- * Pages/Employees/Form.jsx for the reference implementation.
+ * PAGE FORMS vs DIALOG FORMS (v2.66.0, learned during the master-data
+ * rollout). A dialog already has an action area -- DialogFooter -- and is
+ * short enough to be read whole, so:
+ *
+ *   PAGE   FormSection + FormField + FormActions + ErrorSummary
+ *   DIALOG FormField only
+ *
+ * Putting FormActions inside a dialog gives it two action bars; putting an
+ * ErrorSummary above five visible fields restates what is already on
+ * screen. The field contract is the part that generalises to both, which
+ * is why the answer was to use LESS of the system rather than to grow a
+ * second dialog-flavoured set of components.
+ *
+ * See docs/UX_ARCHITECTURE_DISCOVERY.md §8 and §20 for the reasoning,
+ * Pages/Employees/Form.jsx for the page reference, and Pages/Ppe/Master.jsx
+ * for the dialog reference.
  */
 export { default as FormSection } from './FormSection';
 export { default as FormField } from './FormField';

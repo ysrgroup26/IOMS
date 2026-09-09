@@ -39,11 +39,30 @@ class FormExperienceSystemTest extends TestCase
 {
     use RefreshDatabase;
 
-    /** The forms converted in this phase. */
+    /**
+     * Every page form on the system. v2.65.0 proved it on three; v2.66.0
+     * rolled it across the remaining dedicated master-data pages.
+     */
     private const CONVERTED_FORMS = [
+        // v2.65.0
         'resources/js/Pages/Employees/Form.jsx',
         'resources/js/Pages/Assets/Form.jsx',
         'resources/js/Pages/MaterialRequests/Form.jsx',
+        // v2.66.0 -- master data rollout
+        'resources/js/Pages/Vendors/Form.jsx',
+        'resources/js/Pages/Projects/Form.jsx',
+        'resources/js/Pages/Contractors/Form.jsx',
+        'resources/js/Pages/Visitors/Form.jsx',
+    ];
+
+    /**
+     * Dialog-shaped editors. They take FormField and deliberately NOT
+     * FormSection/FormActions/ErrorSummary -- see the note in
+     * Components/shared/form/index.js for why.
+     */
+    private const CONVERTED_DIALOGS = [
+        'resources/js/Pages/Ppe/Master.jsx',
+        'resources/js/Pages/Settings/Index.jsx',
     ];
 
     private function source(string $path): string
@@ -196,6 +215,10 @@ class FormExperienceSystemTest extends TestCase
             'employees.create' => 'Employees/Form',
             'assets.create' => 'Assets/Form',
             'material-requests.create' => 'MaterialRequests/Form',
+            'vendors.create' => 'Vendors/Form',
+            'projects.create' => 'Projects/Form',
+            'contractors.create' => 'Contractors/Form',
+            'visitors.create' => 'Visitors/Form',
         ] as $routeName => $component) {
             $this->actingAs($admin)
                 ->get(route($routeName))
@@ -282,6 +305,47 @@ class FormExperienceSystemTest extends TestCase
                 "The Asset form treats {$optional} as optional; the server now disagrees."
             );
         }
+    }
+
+    /**
+     * v2.66.0 -- the dialog rule, pinned.
+     *
+     * The rollout hit a real limit of the v2.65.0 system: FormActions is a
+     * sticky page footer and DialogFooter is already a dialog's action
+     * area, so putting both in one modal gives it two. And an ErrorSummary
+     * above five fields that are all on screen restates what the reader can
+     * already see. The answer was NOT a second set of components -- it was
+     * to use only the part that generalises, which is the field contract.
+     */
+    public function test_dialog_editors_take_the_field_contract_but_not_the_page_furniture(): void
+    {
+        foreach (self::CONVERTED_DIALOGS as $path) {
+            $source = $this->source($path);
+
+            $this->assertStringContainsString('<FormField', $source, "$path does not use the field contract.");
+        }
+
+        $ppe = $this->source('resources/js/Pages/Ppe/Master.jsx');
+        $this->assertStringNotContainsString('<FormActions', $ppe, 'A dialog must not carry a second action bar beside DialogFooter.');
+        $this->assertStringNotContainsString('<ErrorSummary', $ppe, 'A dialog small enough to see whole does not need a summary.');
+        $this->assertStringContainsString('DialogFooter', $ppe);
+    }
+
+    /**
+     * Visitor registration happens at a gatehouse with somebody waiting, so
+     * the host picker moved to EmployeeSelector and the page stopped
+     * shipping the directory -- the same fix Assets got in v2.65.0. The
+     * server still validates the submitted id against the tenant's own
+     * employees; only the payload changed.
+     */
+    public function test_the_visitor_form_no_longer_ships_the_employee_directory(): void
+    {
+        $admin = $this->tenantAdmin();
+
+        $props = $this->actingAs($admin)->get(route('visitors.create'))->viewData('page')['props'];
+
+        $this->assertArrayNotHasKey('employees', $props);
+        $this->assertArrayHasKey('visitorNumber', $props);
     }
 
     /** An Administrator of a real tenant, provisioned the way the app does it. */

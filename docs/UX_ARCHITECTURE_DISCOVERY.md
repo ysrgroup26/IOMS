@@ -1,6 +1,7 @@
 # IOMS — UX Architecture Discovery
 
-**Status:** Discovery / proposal. Phase 1 (forms) implemented in v2.65.0 — see the note at §16.
+**Status:** Discovery / proposal. Phases 1–2 (forms) implemented in v2.65.0 and v2.66.0 — see §16
+and the rollout log at §20.
 
 > **Correction (v2.65.0).** §8 and §16 recommend adopting `Combobox` for option lists over ~15.
 > That was wrong and is superseded: `Combobox` returns free text and must never back a foreign key.
@@ -509,7 +510,7 @@ Extract `Field` from `GetStarted.jsx` into `Components/shared/form/`. Add `FormS
 `FormActions`, `ErrorSummary`, `useUnsavedChanges`. Convert **three** representative forms — one per
 category — and stop. Validate the contract before scaling.
 
-**Phase 2 — Form rollout by category**
+**Phase 2 — Form rollout by category** — **DONE for master data, v2.66.0.** See §20.
 Master data first (most forms, most repetition), then workflow, then field capture. Adopt `Combobox`
 wherever an option list can exceed ~15. Configuration last — it depends on Phase 4.
 
@@ -600,3 +601,78 @@ The success criteria in the brief map cleanly onto the two phases:
 | What information do I need to enter? | `FormSection` + required marking (Phase 1) |
 | Why is this information required? | Section descriptions + field hints (Phase 1) |
 | What happens after I save? | Workflow form outcome line (Phase 2) |
+
+---
+
+## 20. Rollout log — what the master-data pass actually taught us (v2.66.0)
+
+### 20.1 What was upgraded
+
+| Form | Shape | Notable change |
+|---|---|---|
+| Vendors | Page, 23 fields | Operating Unit moved from second-to-last to the identity group |
+| Projects | Page, 7 fields | Contract kept, structure barely touched — see §20.3 |
+| Contractors | Page, 6 fields | "Company" → "Operating Unit"; two adjacent fields had meant opposite things |
+| Visitors | Page, 8 fields | Host picker → `EmployeeSelector`; directory no longer preloaded |
+| PPE Types | Dialog | First dialog conversion; established the dialog rule |
+| Settings → Departments | Dialog | Operating Unit → `SearchableSelect` |
+
+### 20.2 The system changed once, and it was a subtraction
+
+The rollout hit a real limit: **`FormActions` and `DialogFooter` both want to be the action area**,
+and an `ErrorSummary` above five fields that are already entirely on screen restates what the reader
+can see. The temptation was a second, dialog-flavoured set of components.
+
+The answer was to use *less* of the system, not to grow it:
+
+> **Page forms** take `FormSection` + `FormField` + `FormActions` + `ErrorSummary`.
+> **Dialog forms** take `FormField` only — `DialogFooter` is already the action area, and a dialog
+> small enough to see whole does not need a summary.
+
+No new component. The rule is recorded in `Components/shared/form/index.js` and pinned by a test.
+
+### 20.3 New principle: ownership belongs near the top
+
+Three of the four page forms buried the Operating Unit field near the bottom — Vendors had it
+second-to-last, under a heading reading "Capability & Notes". That field decides **who owns the
+record and therefore who will ever see it again**. Master data is created so the rest of IOMS can
+rely on it, so the reader has to know whose register they are writing into *before* they fill it in.
+
+**Ownership and context fields belong in the first section, beside identity.**
+
+### 20.4 New principle: not every form needs restructuring
+
+Projects is seven fields. It did not have a hierarchy problem, and inventing sections for it would
+have added ceremony without clarity. It got the *contract* — accurate required marking, findable
+errors, a reachable action bar, unsaved-change protection — and almost nothing else.
+
+**The contract is the valuable part and applies everywhere. The restructuring is situational.**
+
+### 20.5 The `<select>` over a directory keeps reappearing
+
+`EmployeeSelector` was built in v2.38.0 for exactly this and named seven offending controllers.
+v2.65.0 found an eighth (Assets), v2.66.0 a ninth (Visitors). Each one shipped the entire employee
+directory to render a dropdown nobody could scroll. **When adding an employee field, reach for
+`EmployeeSelector` and do not add an `employees` prop to the controller.**
+
+### 20.6 Intentionally left unchanged
+
+- **The 20 workflow/transaction forms** (PTW, Incidents, JSA, HIRADC, Purchase Orders, Goods
+  Receipts, Daily Reports, Tasks, Leave, LOTO, TBM, RFQ, Work Orders, NCR, Maintenance Requests,
+  Inspection Requests, Safety Observations, HSE Inspections, Purchase Requisitions, Risk
+  Assessments). Out of scope for a master-data phase, and several are approval-bearing — they
+  deserve their own pass with the workflow-specific question ("what happens when I submit?") in
+  view. Material Request in v2.65.0 is the reference for that pass.
+- **Settings → Positions, Operating Units, KPI Categories and the other 13 tabs.** Positions and
+  Operating Units are each *two* dialog variants inside the 2,526-line `Settings/Index.jsx`.
+  Converting them piecemeal adds edit risk to that file without delivering the structural benefit;
+  they should be done as part of the Settings decomposition (§16 Phase 4), where the file is being
+  split anyway.
+- **`Master.jsx` inline editors** for Items, Warehouses, Shifts and Competency — same reasoning as
+  the Settings tabs, and lower traffic than the pages converted here.
+
+### 20.7 Remaining rollout work
+
+1. Settings decomposition + its dialog forms (Phase 4).
+2. Workflow forms, as their own pass.
+3. `Master.jsx` inline editors.

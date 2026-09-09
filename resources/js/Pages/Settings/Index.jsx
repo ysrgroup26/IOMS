@@ -16,7 +16,7 @@ import { Table, TableHeader, TableBody, TableRow, TableHead, TableCell } from '@
 import { Checkbox } from '@/Components/ui/checkbox';
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogFooter, DialogTrigger } from '@/Components/ui/dialog';
 import { Plus, Trash2, Pencil, Download, Upload, Loader2, Lock, Search, AppWindow, FileSignature, Palette } from 'lucide-react';
-import { FormSection, FormField, FormActions, ErrorSummary } from '@/Components/shared/form';
+import { FormSection, FormField, FormActions, ErrorSummary, SearchableSelect } from '@/Components/shared/form';
 import { useUnsavedChanges } from '@/lib/useUnsavedChanges';
 import { WORKSPACES } from '@/lib/workspaces';
 
@@ -1569,19 +1569,28 @@ function DepartmentsTab({ departments, companies, filters }) {
             <Dialog open={open} onOpenChange={setOpen}>
                 <DialogContent>
                     <DialogHeader><DialogTitle>{editing ? 'Edit Department' : 'Add Department'}</DialogTitle></DialogHeader>
+                    {/* v2.66.0 -- a DIALOG uses FormField only: no ErrorSummary
+                        (everything is already in view) and no FormActions
+                        (DialogFooter is the action area). See
+                        Components/shared/form/index.js for the rule. */}
                     <form onSubmit={submit} className="space-y-3">
-                        <div className="space-y-1.5">
-                            <Label>Operating Unit</Label>
-                            <Select value={data.company_id} onValueChange={(v) => setData('company_id', v)}>
-                                <SelectTrigger><SelectValue placeholder="Select operating unit" /></SelectTrigger>
-                                <SelectContent>{companies.map((c) => <SelectItem key={c.id} value={String(c.id)}>{c.name}</SelectItem>)}</SelectContent>
-                            </Select>
-                            {errors.company_id && <p className="text-xs text-red-600">{errors.company_id}</p>}
-                        </div>
-                        <div className="space-y-1.5"><Label>Name</Label><Input value={data.name} onChange={(e) => setData('name', e.target.value)} />
-                            {errors.name && <p className="text-xs text-red-600">{errors.name}</p>}
-                        </div>
-                        <div className="space-y-1.5"><Label>Code</Label><Input value={data.code} onChange={(e) => setData('code', e.target.value)} /></div>
+                        <FormField label="Operating Unit" name="company_id" required error={errors.company_id}>
+                            {(control) => (
+                                <SearchableSelect
+                                    {...control}
+                                    value={data.company_id ?? ''}
+                                    onChange={(v) => setData('company_id', v)}
+                                    options={companies.map((c) => ({ value: c.id, label: c.name }))}
+                                    placeholder="Select operating unit"
+                                />
+                            )}
+                        </FormField>
+                        <FormField label="Name" name="name" required error={errors.name}>
+                            {(control) => <Input {...control} value={data.name} onChange={(e) => setData('name', e.target.value)} />}
+                        </FormField>
+                        <FormField label="Code" name="code" error={errors.code} hint="Short identifier used on documents and exports.">
+                            {(control) => <Input {...control} value={data.code} onChange={(e) => setData('code', e.target.value)} />}
+                        </FormField>
                         <div className="space-y-1.5">
                             <Label>Display Order</Label>
                             <Input type="number" min="0" value={data.sort_order} onChange={(e) => setData('sort_order', e.target.value)} />

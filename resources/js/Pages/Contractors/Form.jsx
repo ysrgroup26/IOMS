@@ -1,57 +1,136 @@
-import { Head, useForm, Link } from '@inertiajs/react';
+import { useRef } from 'react';
+import { Head, useForm, Link, router } from '@inertiajs/react';
 import AuthenticatedLayout from '@/Layouts/AuthenticatedLayout';
-import { Card, CardContent, CardHeader, CardTitle } from '@/Components/ui/card';
 import { Button } from '@/Components/ui/button';
 import { Input } from '@/Components/ui/input';
-import { Label } from '@/Components/ui/label';
 import { Textarea } from '@/Components/ui/textarea';
-import { Select, SelectTrigger, SelectValue, SelectContent, SelectItem } from '@/Components/ui/select';
-import { ArrowLeft } from 'lucide-react';
+import { FormSection, FormField, FormActions, ErrorSummary, SearchableSelect } from '@/Components/shared/form';
+import { useUnsavedChanges } from '@/lib/useUnsavedChanges';
+import { ArrowLeft, HardHat, Contact } from 'lucide-react';
+
+/**
+ * v2.66.0 -- master data rollout, and a terminology fix.
+ *
+ * THE OPERATING UNIT FIELD WAS LABELLED "Company". IOMS renamed Company
+ * to Operating Unit for users in v2.54.0 precisely because "company" made
+ * people read it as a separate legal entity or a separate subscription.
+ * On a CONTRACTOR form the word is worse than ambiguous: the page already
+ * has a field called "Company Name" meaning the contractor's own firm, so
+ * two adjacent controls both said Company and meant opposite things --
+ * whose register this belongs to, and who the contractor is. Renamed to
+ * Operating Unit and moved up beside the identity fields, where ownership
+ * belongs.
+ *
+ * Otherwise a small form that needed the contract, not a redesign.
+ */
+
+const ERROR_LABELS = {
+    company_id: 'Operating Unit',
+    company_name: 'Contractor company name',
+    pic_name: 'PIC name',
+    pic_contact: 'PIC contact',
+};
 
 export default function ContractorForm({ companies, contractorCode }) {
+    const initial = useRef(null);
+
     const { data, setData, post, processing, errors } = useForm({
         company_id: companies[0]?.id ? String(companies[0].id) : '',
         company_name: '', address: '', pic_name: '', pic_contact: '', notes: '',
     });
 
+    if (initial.current === null) initial.current = { ...data };
+
+    const { release } = useUnsavedChanges(data, initial.current, !processing);
+
     function submit(e) {
         e.preventDefault();
+        release();
         post(route('contractors.store'));
+    }
+
+    function cancel() {
+        release();
+        router.visit(route('contractors.index'));
     }
 
     return (
         <AuthenticatedLayout>
             <Head title="Register Contractor" />
 
-            <div className="mb-4 flex items-center gap-2">
-                <Button variant="ghost" size="sm" asChild><Link href={route('contractors.index')}><ArrowLeft className="h-4 w-4" /> Back</Link></Button>
+            <div className="mb-4">
+                <Button variant="ghost" size="sm" asChild>
+                    <Link href={route('contractors.index')}><ArrowLeft className="h-4 w-4" /> Back</Link>
+                </Button>
             </div>
 
-            {/* v2.54.0 (form audit): a form that pairs fields needs room for the pair.
-                max-w-xl caps the column at 576px, so each half of a pair landed at
-                roughly 270px -- narrower than the single-column version it replaced. */}
-            <form onSubmit={submit} className="mx-auto max-w-2xl">
-                <Card>
-                    <CardHeader><CardTitle>Register Contractor -- {contractorCode}</CardTitle></CardHeader>
-                    <CardContent className="space-y-4">
-                        <div className="space-y-1.5"><Label>Company Name</Label><Input value={data.company_name} onChange={(e) => setData('company_name', e.target.value)} placeholder="e.g. PT ABC" />{errors.company_name && <p className="text-xs text-red-600">{errors.company_name}</p>}</div>
-                        <div className="space-y-1.5"><Label>Address</Label><Textarea value={data.address} onChange={(e) => setData('address', e.target.value)} rows={2} /></div>
-                        <div className="grid grid-cols-1 gap-4 sm:grid-cols-2">
-                            <div className="space-y-1.5"><Label>PIC Name</Label><Input value={data.pic_name} onChange={(e) => setData('pic_name', e.target.value)} /></div>
-                            <div className="space-y-1.5"><Label>PIC Contact</Label><Input value={data.pic_contact} onChange={(e) => setData('pic_contact', e.target.value)} /></div>
-                        </div>
-                        <div className="space-y-1.5"><Label>Notes</Label><Textarea value={data.notes} onChange={(e) => setData('notes', e.target.value)} rows={2} /></div>
-                        <div className="space-y-1.5">
-                            <Label>Company</Label>
-                            <Select value={data.company_id} onValueChange={(v) => setData('company_id', v)}>
-                                <SelectTrigger><SelectValue /></SelectTrigger>
-                                <SelectContent>{companies.map((c) => <SelectItem key={c.id} value={String(c.id)}>{c.name}</SelectItem>)}</SelectContent>
-                            </Select>
-                            {errors.company_id && <p className="text-xs text-red-600">{errors.company_id}</p>}
-                        </div>
-                        <Button type="submit" disabled={processing} className="w-full">Register Contractor</Button>
-                    </CardContent>
-                </Card>
+            <h1 className="mb-1 text-[22px] font-semibold tracking-tight text-graphite-900 dark:text-slate-100">
+                Register Contractor
+            </h1>
+            <p className="mb-6 text-sm text-graphite-500 dark:text-slate-400">
+                Will be registered as <span className="font-mono font-medium text-navy-800 dark:text-slate-200">{contractorCode}</span>.
+                Contractor workers and their documents are held against this record.
+            </p>
+
+            <form onSubmit={submit} className="max-w-3xl space-y-6">
+                <ErrorSummary errors={errors} labels={ERROR_LABELS} />
+
+                <FormSection
+                    title="The contractor"
+                    description="Which firm this is, and which Operating Unit's register they belong to."
+                    icon={HardHat}
+                >
+                    <FormField label="Company name" name="company_name" required error={errors.company_name}>
+                        {(control) => (
+                            <Input {...control} value={data.company_name} onChange={(e) => setData('company_name', e.target.value)} placeholder="e.g. PT ABC" />
+                        )}
+                    </FormField>
+
+                    <FormField
+                        label="Operating Unit"
+                        name="company_id"
+                        required
+                        error={errors.company_id}
+                        hint="Yours — not the contractor's."
+                    >
+                        {(control) => (
+                            <SearchableSelect
+                                {...control}
+                                value={data.company_id}
+                                onChange={(v) => setData('company_id', v)}
+                                options={companies.map((c) => ({ value: c.id, label: c.name }))}
+                                placeholder="Select operating unit"
+                            />
+                        )}
+                    </FormField>
+
+                    <FormField label="Address" name="address" error={errors.address} className="sm:col-span-2">
+                        {(control) => (
+                            <Textarea {...control} value={data.address} onChange={(e) => setData('address', e.target.value)} rows={2} />
+                        )}
+                    </FormField>
+                </FormSection>
+
+                <FormSection title="Contact & notes" description="Who to reach, and anything site security should know." icon={Contact}>
+                    <FormField label="PIC name" name="pic_name" error={errors.pic_name}>
+                        {(control) => <Input {...control} value={data.pic_name} onChange={(e) => setData('pic_name', e.target.value)} />}
+                    </FormField>
+
+                    <FormField label="PIC contact" name="pic_contact" error={errors.pic_contact}>
+                        {(control) => <Input {...control} value={data.pic_contact} onChange={(e) => setData('pic_contact', e.target.value)} placeholder="Phone or email" />}
+                    </FormField>
+
+                    <FormField label="Notes" name="notes" error={errors.notes} className="sm:col-span-2">
+                        {(control) => <Textarea {...control} value={data.notes} onChange={(e) => setData('notes', e.target.value)} rows={2} />}
+                    </FormField>
+                </FormSection>
+
+                <FormActions
+                    submitLabel="Register contractor"
+                    onCancel={cancel}
+                    processing={processing}
+                    note="Registered contractors start as unapproved; approval is recorded separately."
+                />
             </form>
         </AuthenticatedLayout>
     );

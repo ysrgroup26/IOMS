@@ -44,7 +44,7 @@ class AssetController extends Controller
         // fabricated number.
         $inspectionDueCount = Asset::whereIn('company_id', $tenantCompanyIds)
             ->active()
-            ->whereDoesntHave('transactions', fn ($q) => $q->where('type', \App\Models\AssetTransaction::TYPE_INSPECTION)->where('transaction_date', '>=', now()->subDays(90)))
+            ->whereDoesntHave('transactions', fn ($q) => $q->where('type', AssetTransaction::TYPE_INSPECTION)->where('transaction_date', '>=', now()->subDays(90)))
             ->count();
 
         return Inertia::render('Assets/Index', [
@@ -73,7 +73,14 @@ class AssetController extends Controller
             'companies' => Company::active()->orderBy('name')->get(['id', 'name']),
             'vendors' => Vendor::whereIn('company_id', $tenantCompanyIds)->active()->get(['id', 'name']),
             'purchaseOrders' => PurchaseOrder::whereIn('company_id', $tenantCompanyIds)->get(['id', 'po_number', 'company_id']),
-            'employees' => Employee::whereIn('company_id', $tenantCompanyIds)->active()->orderBy('full_name')->get(['id', 'full_name', 'company_id']),
+            // v2.65.0: the employee directory is no longer preloaded here.
+            // Assets/Form now picks the responsible employee through the
+            // shared EmployeeSelector, which queries /employee-lookup on
+            // demand (tenant-scoped, 50 rows per request) -- this page was
+            // one of the seven that shipped the entire directory purely to
+            // render a <select>, which is the exact cost that component was
+            // introduced to remove in v2.38.0. Assets/Show still preloads
+            // its own narrower list; only this create payload changes.
             'categories' => Asset::CATEGORIES,
             'assetCode' => Asset::generateCode(),
             'prefill' => $prefill,

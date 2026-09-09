@@ -1,6 +1,6 @@
 import { Head, Link, useForm, router, usePage } from '@inertiajs/react';
 import PageHeader from '@/Components/shared/PageHeader';
-import { useState, useEffect } from 'react';
+import { useState, useEffect, useRef } from 'react';
 import * as Tabs from '@radix-ui/react-tabs';
 import ImageUploadField from '@/Components/shared/ImageUploadField';
 import { AVAILABLE_ICON_NAMES } from '@/lib/iconMap';
@@ -15,7 +15,9 @@ import { Select, SelectTrigger, SelectValue, SelectContent, SelectItem } from '@
 import { Table, TableHeader, TableBody, TableRow, TableHead, TableCell } from '@/Components/ui/table';
 import { Checkbox } from '@/Components/ui/checkbox';
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogFooter, DialogTrigger } from '@/Components/ui/dialog';
-import { Plus, Trash2, Pencil, Download, Upload, Loader2, Lock, Search } from 'lucide-react';
+import { Plus, Trash2, Pencil, Download, Upload, Loader2, Lock, Search, AppWindow, FileSignature, Palette } from 'lucide-react';
+import { FormSection, FormField, FormActions, ErrorSummary } from '@/Components/shared/form';
+import { useUnsavedChanges } from '@/lib/useUnsavedChanges';
 import { WORKSPACES } from '@/lib/workspaces';
 
 // v2.31.0: added transition-colors so the active-tab tinted surface
@@ -130,8 +132,34 @@ export default function SettingsIndex({ company, companies, departments, positio
     );
 }
 
+/**
+ * v2.65.0 -- THE CONFIGURATION CASE for the Form Experience System.
+ *
+ * Configuration is not master data and should not read like it. What a
+ * settings form owes the user is CONSEQUENCE: not "what is this field"
+ * but "what will change if I set it". This tab held seventeen fields and
+ * four uploads in one flat `max-w-lg` card, and mixed two genuinely
+ * different concerns the code comments already distinguished but the
+ * layout did not -- how the APPLICATION is branded, and what appears on
+ * GENERATED DOCUMENTS as the legal letterhead.
+ *
+ * They are now three sections, each stating what it affects. Nothing was
+ * added or removed; the same seventeen fields post to the same route.
+ *
+ * IT ALSO COULD NOT DISPLAY A SINGLE VALIDATION ERROR: `errors` was never
+ * destructured from `useForm`, so a server rejection on the email or
+ * website field produced a form that silently declined to save. Now
+ * wired throughout, plus a summary.
+ *
+ * Every field here is genuinely optional except the application name,
+ * which is why almost nothing is marked required -- and that is now
+ * stated by the system rather than by "(optional)" appended to fourteen
+ * separate labels.
+ */
 function BrandingTab({ company }) {
-    const { data, setData, post, processing } = useForm({
+    const initial = useRef(null);
+
+    const { data, setData, post, processing, errors } = useForm({
         company_name: company.name,
         company_subtitle: company.subtitle || '',
         company_short_name: company.short_name || '',
@@ -166,103 +194,125 @@ function BrandingTab({ company }) {
         remove_brand_icon: false,
     });
 
+    if (initial.current === null) initial.current = { ...data };
+
+    const { release } = useUnsavedChanges(data, initial.current, !processing);
+
     function submit(e) {
         e.preventDefault();
+        release();
         post(route('settings.company'), { forceFormData: true });
     }
 
     return (
-        <Card className="max-w-lg">
-            <CardHeader><CardTitle>Application Branding</CardTitle><CardDescription>Name, subtitle, and the brand assets shown across the app and on generated documents.</CardDescription></CardHeader>
-            <CardContent>
-                <form onSubmit={submit} className="space-y-4">
-                    <div className="space-y-1.5">
-                        <Label>Application Name</Label>
-                        <Input value={data.company_name} onChange={(e) => setData('company_name', e.target.value)} />
-                    </div>
-                    <div className="space-y-1.5">
-                        <Label>Subtitle</Label>
-                        <Input value={data.company_subtitle} onChange={(e) => setData('company_subtitle', e.target.value)} placeholder="Industrial Operations Platform" />
-                    </div>
-                    <div className="space-y-1.5">
-                        <Label>Company Short Name (optional)</Label>
-                        <Input value={data.company_short_name} onChange={(e) => setData('company_short_name', e.target.value)} placeholder="e.g. GAJ" maxLength={50} />
-                    </div>
-                    <div className="space-y-1.5">
-                        <Label>Footer Copyright Text (optional)</Label>
-                        <Input value={data.footer_copyright} onChange={(e) => setData('footer_copyright', e.target.value)} placeholder="Leave blank to use the default" />
-                    </div>
-                    <div className="rounded-lg border border-steel-200/70 bg-steel-50/50 p-3.5">
-                        <p className="text-[11px] font-semibold uppercase tracking-wide text-brand-700">Document identity</p>
-                        <p className="mt-0.5 text-[11px] leading-relaxed text-graphite-500">
-                            Used as the letterhead on every document IOMS generates for your company &mdash; permits,
-                            purchase orders, receipts and work orders.
-                        </p>
+        <form onSubmit={submit} className="max-w-3xl space-y-6">
+            <ErrorSummary errors={errors} />
 
-                        <div className="mt-3 space-y-3">
-                            <div className="space-y-1.5">
-                                <Label>Legal Company Name (optional)</Label>
-                                <Input value={data.company_legal_name} onChange={(e) => setData('company_legal_name', e.target.value)} placeholder="PT Contoh Industri Nusantara" />
-                            </div>
-                            <div className="space-y-1.5">
-                                <Label>Address (optional)</Label>
-                                <Input value={data.company_address} onChange={(e) => setData('company_address', e.target.value)} placeholder="Street address" />
-                            </div>
-                            <div className="grid grid-cols-2 gap-3">
-                                <div className="space-y-1.5">
-                                    <Label>City</Label>
-                                    <Input value={data.company_city} onChange={(e) => setData('company_city', e.target.value)} />
-                                </div>
-                                <div className="space-y-1.5">
-                                    <Label>Province</Label>
-                                    <Input value={data.company_province} onChange={(e) => setData('company_province', e.target.value)} />
-                                </div>
-                            </div>
-                            <div className="grid grid-cols-2 gap-3">
-                                <div className="space-y-1.5">
-                                    <Label>Postal Code</Label>
-                                    <Input value={data.company_postal_code} onChange={(e) => setData('company_postal_code', e.target.value)} />
-                                </div>
-                                <div className="space-y-1.5">
-                                    <Label>Country</Label>
-                                    <Input value={data.company_country} onChange={(e) => setData('company_country', e.target.value)} placeholder="Indonesia" />
-                                </div>
-                            </div>
-                            <div className="grid grid-cols-2 gap-3">
-                                <div className="space-y-1.5">
-                                    <Label>NPWP</Label>
-                                    <Input value={data.company_tax_id} onChange={(e) => setData('company_tax_id', e.target.value)} />
-                                </div>
-                                <div className="space-y-1.5">
-                                    <Label>NIB</Label>
-                                    <Input value={data.company_business_id} onChange={(e) => setData('company_business_id', e.target.value)} />
-                                </div>
-                            </div>
+            <FormSection
+                title="Application identity"
+                description="What this workspace calls itself, in the sidebar and the browser tab."
+                icon={AppWindow}
+            >
+                <FormField label="Application name" name="company_name" required error={errors.company_name}>
+                    {(control) => (
+                        <Input {...control} value={data.company_name} onChange={(e) => setData('company_name', e.target.value)} />
+                    )}
+                </FormField>
+
+                <FormField label="Subtitle" name="company_subtitle" error={errors.company_subtitle}>
+                    {(control) => (
+                        <Input {...control} value={data.company_subtitle} onChange={(e) => setData('company_subtitle', e.target.value)} placeholder="Industrial Operations Platform" />
+                    )}
+                </FormField>
+
+                <FormField label="Short name" name="company_short_name" error={errors.company_short_name} hint="Used where space is tight, such as the collapsed sidebar.">
+                    {(control) => (
+                        <Input {...control} value={data.company_short_name} onChange={(e) => setData('company_short_name', e.target.value)} placeholder="e.g. GAJ" maxLength={50} />
+                    )}
+                </FormField>
+
+                <FormField label="Footer copyright" name="footer_copyright" error={errors.footer_copyright} hint="Leave blank to use the default.">
+                    {(control) => (
+                        <Input {...control} value={data.footer_copyright} onChange={(e) => setData('footer_copyright', e.target.value)} />
+                    )}
+                </FormField>
+            </FormSection>
+
+            <FormSection
+                title="Document identity"
+                description="The letterhead on every document IOMS generates for you — permits, purchase orders, receipts and work orders."
+                icon={FileSignature}
+            >
+                <FormField label="Legal company name" name="company_legal_name" error={errors.company_legal_name} className="sm:col-span-2">
+                    {(control) => (
+                        <Input {...control} value={data.company_legal_name} onChange={(e) => setData('company_legal_name', e.target.value)} placeholder="PT Contoh Industri Nusantara" />
+                    )}
+                </FormField>
+
+                <FormField label="Address" name="company_address" error={errors.company_address} className="sm:col-span-2">
+                    {(control) => (
+                        <Input {...control} value={data.company_address} onChange={(e) => setData('company_address', e.target.value)} placeholder="Street address" />
+                    )}
+                </FormField>
+
+                <FormField label="City" name="company_city" error={errors.company_city}>
+                    {(control) => <Input {...control} value={data.company_city} onChange={(e) => setData('company_city', e.target.value)} />}
+                </FormField>
+
+                <FormField label="Province" name="company_province" error={errors.company_province}>
+                    {(control) => <Input {...control} value={data.company_province} onChange={(e) => setData('company_province', e.target.value)} />}
+                </FormField>
+
+                <FormField label="Postal code" name="company_postal_code" error={errors.company_postal_code}>
+                    {(control) => <Input {...control} value={data.company_postal_code} onChange={(e) => setData('company_postal_code', e.target.value)} />}
+                </FormField>
+
+                <FormField label="Country" name="company_country" error={errors.company_country}>
+                    {(control) => <Input {...control} value={data.company_country} onChange={(e) => setData('company_country', e.target.value)} placeholder="Indonesia" />}
+                </FormField>
+
+                <FormField label="NPWP" name="company_tax_id" error={errors.company_tax_id}>
+                    {(control) => <Input {...control} value={data.company_tax_id} onChange={(e) => setData('company_tax_id', e.target.value)} />}
+                </FormField>
+
+                <FormField label="NIB" name="company_business_id" error={errors.company_business_id}>
+                    {(control) => <Input {...control} value={data.company_business_id} onChange={(e) => setData('company_business_id', e.target.value)} />}
+                </FormField>
+
+                <FormField label="Phone" name="company_phone" error={errors.company_phone}>
+                    {(control) => <Input {...control} type="tel" value={data.company_phone} onChange={(e) => setData('company_phone', e.target.value)} />}
+                </FormField>
+
+                <FormField label="Email" name="company_email" error={errors.company_email}>
+                    {(control) => <Input {...control} type="email" value={data.company_email} onChange={(e) => setData('company_email', e.target.value)} />}
+                </FormField>
+
+                <FormField label="Website" name="company_website" error={errors.company_website}>
+                    {(control) => <Input {...control} value={data.company_website} onChange={(e) => setData('company_website', e.target.value)} placeholder="https://" />}
+                </FormField>
+            </FormSection>
+
+            <FormSection
+                title="Brand assets"
+                description="Shown in the sidebar and on generated documents. Leave empty to keep the standard IOMS mark."
+                icon={Palette}
+            >
+                <FormField label="Brand colour" name="brand_color" error={errors.brand_color}>
+                    {(control) => (
+                        <div className="flex items-center gap-2">
+                            <input
+                                type="color"
+                                value={data.brand_color}
+                                onChange={(e) => setData('brand_color', e.target.value)}
+                                className="h-9 w-10 cursor-pointer rounded border border-graphite-200"
+                                aria-label="Pick brand colour"
+                            />
+                            <Input {...control} value={data.brand_color} onChange={(e) => setData('brand_color', e.target.value)} className="w-28" />
                         </div>
-                    </div>
-                    <div className="grid grid-cols-2 gap-3">
-                        <div className="space-y-1.5">
-                            <Label>Phone (optional)</Label>
-                            <Input value={data.company_phone} onChange={(e) => setData('company_phone', e.target.value)} />
-                        </div>
-                        <div className="space-y-1.5">
-                            <Label>Email (optional)</Label>
-                            <Input type="email" value={data.company_email} onChange={(e) => setData('company_email', e.target.value)} />
-                        </div>
-                    </div>
-                    <div className="grid grid-cols-2 gap-3">
-                        <div className="space-y-1.5">
-                            <Label>Website (optional)</Label>
-                            <Input value={data.company_website} onChange={(e) => setData('company_website', e.target.value)} placeholder="https://" />
-                        </div>
-                        <div className="space-y-1.5">
-                            <Label>Brand Color</Label>
-                            <div className="flex items-center gap-2">
-                                <input type="color" value={data.brand_color} onChange={(e) => setData('brand_color', e.target.value)} className="h-8 w-10 cursor-pointer rounded border border-graphite-200" />
-                                <Input value={data.brand_color} onChange={(e) => setData('brand_color', e.target.value)} className="w-24" />
-                            </div>
-                        </div>
-                    </div>
+                    )}
+                </FormField>
+
+                <div className="sm:col-span-2 grid grid-cols-1 gap-4 sm:grid-cols-2">
                     <ImageUploadField
                         label="Logo (SVG or PNG)"
                         existingUrl={data.remove_logo ? null : company.logo_url}
@@ -271,53 +321,51 @@ function BrandingTab({ company }) {
                         onRemoveExisting={() => setData('remove_logo', true)}
                         accept="image/png,image/jpeg,image/jpg,image/webp,image/svg+xml"
                         shape="square"
+                        error={errors.logo}
                     />
                     <ImageUploadField
-                        label="Favicon (optional)"
+                        label="Favicon"
                         existingUrl={data.remove_favicon ? null : company.favicon_url}
                         file={data.favicon}
                         onChange={(file) => setData({ ...data, favicon: file, remove_favicon: false })}
                         onRemoveExisting={() => setData('remove_favicon', true)}
                         accept="image/png,image/x-icon,image/svg+xml"
                         shape="square"
+                        error={errors.favicon}
                     />
-
                     {/* v2.41.0 -- the wordmark/icon keys HandleInertiaRequests has
                         read since v1.5.3 but nothing could write. Both are genuine
                         optional overrides: with no wordmark, BrandWordmark renders a
                         typographic IOMS mark rather than a wrong image. */}
-                    <div className="rounded-lg border border-graphite-200 bg-graphite-50/50 p-3">
-                        <p className="mb-1 text-[11px] font-semibold uppercase tracking-wide text-graphite-500">Brand Identity (optional)</p>
-                        <p className="mb-3 text-[11px] leading-snug text-graphite-500">
-                            Used in the sidebar and on generated documents. Leave empty to keep the standard IOMS mark.
-                        </p>
-                        <div className="space-y-4">
-                            <ImageUploadField
-                                label="Wordmark (horizontal logotype)"
-                                existingUrl={data.remove_wordmark ? null : company.wordmark_url}
-                                file={data.wordmark}
-                                onChange={(file) => setData({ ...data, wordmark: file, remove_wordmark: false })}
-                                onRemoveExisting={() => setData('remove_wordmark', true)}
-                                accept="image/png,image/jpeg,image/jpg,image/webp,image/svg+xml"
-                                shape="square"
-                            />
-                            <ImageUploadField
-                                label="Brand Icon (square mark)"
-                                existingUrl={data.remove_brand_icon ? null : company.brand_icon_url}
-                                file={data.brand_icon}
-                                onChange={(file) => setData({ ...data, brand_icon: file, remove_brand_icon: false })}
-                                onRemoveExisting={() => setData('remove_brand_icon', true)}
-                                accept="image/png,image/jpeg,image/jpg,image/webp,image/svg+xml"
-                                shape="square"
-                            />
-                        </div>
-                    </div>
-                    <Button type="submit" disabled={processing}>
-                        {processing && <Loader2 className="h-4 w-4 animate-spin" />} Save Changes
-                    </Button>
-                </form>
-            </CardContent>
-        </Card>
+                    <ImageUploadField
+                        label="Wordmark (horizontal logotype)"
+                        existingUrl={data.remove_wordmark ? null : company.wordmark_url}
+                        file={data.wordmark}
+                        onChange={(file) => setData({ ...data, wordmark: file, remove_wordmark: false })}
+                        onRemoveExisting={() => setData('remove_wordmark', true)}
+                        accept="image/png,image/jpeg,image/jpg,image/webp,image/svg+xml"
+                        shape="square"
+                        error={errors.wordmark}
+                    />
+                    <ImageUploadField
+                        label="Brand icon (square mark)"
+                        existingUrl={data.remove_brand_icon ? null : company.brand_icon_url}
+                        file={data.brand_icon}
+                        onChange={(file) => setData({ ...data, brand_icon: file, remove_brand_icon: false })}
+                        onRemoveExisting={() => setData('remove_brand_icon', true)}
+                        accept="image/png,image/jpeg,image/jpg,image/webp,image/svg+xml"
+                        shape="square"
+                        error={errors.brand_icon}
+                    />
+                </div>
+            </FormSection>
+
+            <FormActions
+                submitLabel="Save changes"
+                processing={processing}
+                note="Applies to every user in this workspace and to documents generated from now on."
+            />
+        </form>
     );
 }
 

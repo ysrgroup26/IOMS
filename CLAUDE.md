@@ -12,7 +12,7 @@ employee records, PPE (personal protective equipment) lifecycle, KPI tracking an
 project manpower assignment, and an increasingly general-purpose workflow layer (Material Request
 today, more modules planned) built on shared, reusable engines rather than per-module one-offs.
 
-Current version: **2.64.0 Beta**. Check `config/ioms.php` (`version`, `stage`, `build`) for the
+Current version: **2.65.0 Beta**. Check `config/ioms.php` (`version`, `stage`, `build`) for the
 authoritative current number — this document doesn't restate it elsewhere to avoid it going stale
 in two places.
 
@@ -36,6 +36,10 @@ authorization path. See `docs/ADR/008-tenancy-foundation.md` for the reasoning a
 - `app/Imports/`, `app/Exports/` — Maatwebsite Excel import/export classes.
 - `resources/js/Pages/` — one Inertia page per route, grouped by module folder (`Employees/`,
   `MaterialRequests/`, `Ppe/`, etc.).
+- `resources/js/Components/shared/form/` — the IOMS Form Experience System (v2.65.0): `FormSection`,
+  `FormField`, `FormActions`, `ErrorSummary`, `SearchableSelect`, plus `lib/useUnsavedChanges`. Every
+  new or edited form should use these rather than hand-rolling labels, error markup or action bars.
+  See `Pages/Employees/Form.jsx` for the reference implementation.
 - `resources/js/Components/shared/` — the reusable frontend components every module is expected to
   use rather than reinvent: `StatusBadge`, `ApprovalActions`, `ActivityTimeline`, `ModuleTabNav`,
   `PageHeader`, `EmptyState`, `LoadingState`, `StatCard`, `EmployeeImportDialog`, and others.

@@ -1,6 +1,7 @@
 # IOMS — UX Architecture Discovery
 
-**Status:** Discovery / proposal. Phases 1–2 (forms) implemented in v2.65.0 and v2.66.0 — see §16
+**Status:** Discovery / proposal. Phases 1–2 (forms) implemented in v2.65.0 and v2.66.0, Phase 5
+(accessibility) implemented for the shell in v2.67.0 — see §16
 and the rollout log at §20.
 
 > **Correction (v2.65.0).** §8 and §16 recommend adopting `Combobox` for option lists over ~15.
@@ -422,8 +423,8 @@ management for free), `motion-safe:` discipline, visible focus rings on public p
   should wire `aria-describedby` and `aria-invalid`, and `ErrorSummary` should be a focus target on
   submit failure — the single largest accessibility win available.
 - **Icon-only rail needs names.** Every rail item needs an accessible label and a visible tooltip;
-  the active item needs `aria-current="page"`.
-- **No skip link** to main content past the nav.
+  the active item needs `aria-current="page"`. — **DONE, v2.67.0.** See §21.
+- **No skip link** to main content past the nav. — **DONE, v2.67.0.**
 - **Required state is not programmatic** — no `required`/`aria-required` anywhere in module forms.
 
 ---
@@ -523,7 +524,7 @@ Department Selector only after a release of overlap.
 Split the 17-tab monolith along the five clusters that already exist as visual groupings. Makes the
 Administration sidebar entries honest and cuts the bundle.
 
-**Phase 5 — Accessibility completion**
+**Phase 5 — Accessibility completion** — **DONE, v2.65.0 (forms) + v2.67.0 (shell).** See §21.
 `aria-describedby`/`aria-invalid` wiring, focus-on-error, skip link, rail labelling.
 
 **Separate, not part of this work:** the release-date test (§14.1). One test, one commit, today.
@@ -676,3 +677,113 @@ directory to render a dropdown nobody could scroll. **When adding an employee fi
 1. Settings decomposition + its dialog forms (Phase 4).
 2. Workflow forms, as their own pass.
 3. `Master.jsx` inline editors.
+
+---
+
+## 21. The application shell (v2.67.0) — and the defect this discovery missed
+
+Phase 5 was scoped as "accessibility completion". Doing it surfaced a **layout** defect that no
+part of this document had caught, which is the more useful finding of the two.
+
+### 21.1 The overflow had been named three times and measured zero times
+
+Every authenticated page scrolled sideways across a wide band of viewport sizes. v2.65.0 recorded it
+as "roughly 768px to 1100px … the TopBar global search at a fixed `w-[380px]`", v2.66.0 confirmed it
+as pre-existing, and both deferred it to the navigation phase. The cause was right. The band was
+wrong, and it was wrong in the direction that mattered:
+
+| Viewport | Header overflow, before | After |
+|---|---|---|
+| 640px | **265px** (41% of the viewport) | 0 |
+| 768px (iPad portrait) | **137px** | 0 |
+| 820px | 85px | 0 |
+| 900px | 5px | 0 |
+| 1024px (iPad landscape) | **89px** | 0 |
+| 1100px | 13px | 0 |
+| 1180px and up | 0 | 0 |
+
+It starts at **640px**, not 768px — exactly where `sm:` reveals the search field. Measured against
+the real compiled stylesheet, before and after, at thirteen widths from 320px to 1920px.
+
+**The lesson is about the note, not the bug.** "Known issue, deferred" was recorded three times
+without anyone spending the twenty minutes to measure it. Had it been measured once, the 41%
+overflow at 640px would have changed its priority immediately.
+
+### 21.2 Why one hard width survived three releases
+
+`w-[380px]` on a flex item with no `min-w-0` cannot shrink. But flexbox's default `shrink: 1` let
+*every other* control give way instead, so the symptom presented as "the header looks cramped"
+rather than "the header is 137px wider than the tablet it is on". **A shared shrink budget hides
+which item is actually at fault.**
+
+The rule now: **exactly one item in a bar may flex.** Every other control is `shrink-0`; the
+department selector — the only unbounded string in the header, since customers name their own
+departments — may `truncate`. One flexible item makes the result predictable at every width.
+
+### 21.3 A fixed width was never the right shape
+
+One number cannot serve a header whose contents change at four breakpoints. The field now has two
+presentations over one piece of state:
+
+| Range | Presentation |
+|---|---|
+| `< sm` | nothing — unchanged; `MobileBottomNav` owns navigation there |
+| `sm → lg` | an icon that opens the field full-size in a popover |
+| `lg +` | the inline field; `w-[380px]` is a basis it may shrink **from** |
+
+### 21.4 The same mistake, made twice, four years apart in version numbers
+
+v2.38.0 hid the header's Dashboard link below `sm` because `MobileBottomNav` pins Dashboard as its
+first tab. Correct reasoning, **wrong breakpoint** — the bottom nav renders up to `lg`, so Dashboard
+was drawn twice on every screen from 640px to 1023px, the exact band with no room to spare.
+
+**When you hide something because another component duplicates it, the breakpoint must be that
+component's breakpoint, not a guess.**
+
+### 21.5 The drawer looked modal and behaved like a div
+
+It had a scrim and a close button, and none of the three things a dialog owes its user:
+
+- **Enter** — focus never moved into it.
+- **Stay** — Tab walked straight out into the page behind, which was still there and still
+  focusable, so a keyboard user operated a page they could not see. Escape did nothing.
+- **Return** — closing it dropped focus to `<body>`, restarting the next Tab from the top of the
+  document rather than from the control that opened it.
+
+Worse, a **closed** drawer is moved off-screen with a `transform`, so it was still rendered and
+still in the tab order — roughly twenty invisible links between the header and the page on every
+phone. It is `inert` when closed now.
+
+`useFocusTrap` and `useMediaQuery` are the two primitives this needed. `useMediaQuery` exists for a
+reason worth stating: **the rail is a permanent landmark above `lg` and a modal dialog below it, and
+`role` is an attribute, not a style.** No CSS media query can say that.
+
+### 21.6 Invalid markup that had a real cost
+
+The drawer's close control was a `<span onClick>` nested **inside** the About button. Interactive
+content inside a button is invalid HTML, and the practical cost was that Close could not be reached
+or activated from a keyboard at all — on a phone, where it is the only way to dismiss the drawer
+short of finding the scrim.
+
+### 21.7 What was verified, and what was not
+
+Stated plainly because the distinction matters:
+
+- **Browser-measured:** the layout, at thirteen widths, before and after, against the real compiled
+  stylesheet.
+- **Contract-tested and reviewed, not interaction-verified:** the focus trap, `inert`, the skip
+  link, accessible names, `aria-current`. Signing in could not be automated in this environment, and
+  the shell is React that never runs server-side — an Inertia response is a prop bag containing none
+  of this markup. This is the same limit `FormExperienceSystemTest` records.
+
+### 21.8 Still open
+
+1. **The two-zone navigation model (§4)** — untouched. This release fixed how the *existing* shell
+   behaves; it did not restructure it. Nothing here blocks that work, and the `shrink-0` discipline
+   and the two hooks carry straight into it.
+2. **Settings decomposition (Phase 4)** and its dialog forms.
+3. **Workflow forms**, as their own pass.
+4. **The release-date test (§14.1)** — still one test, one commit.
+5. **`CHANGELOG.md` stops at 2.0.0.** Every release from v2.1.0 to v2.67.0 is recorded only in
+   `config/ioms.php`'s `version_history`. Reconstructing 23 entries from those summaries is its own
+   task and should not be improvised inside an unrelated release.

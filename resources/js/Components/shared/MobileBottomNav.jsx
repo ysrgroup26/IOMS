@@ -92,6 +92,10 @@ export default function MobileBottomNav({ visibleNav, currentUrl, onOpenMore }) 
             <button
                 type="button"
                 onClick={onOpenMore}
+                // v2.67.0: this opens the sidebar drawer, so it owns the
+                // same relationship the header hamburger does.
+                aria-label="More navigation"
+                aria-controls="ioms-sidebar"
                 className="flex min-w-0 flex-1 flex-col items-center justify-center gap-0.5 py-2 text-graphite-500 dark:text-slate-400"
             >
                 <Menu className="h-5 w-5 shrink-0" />
@@ -120,6 +124,10 @@ function BottomNavLink({ href, label, icon: Icon, active }) {
     return (
         <Link
             href={href}
+            // v2.67.0: the active tab was indicated by a bar and a tint --
+            // v2.29.0 fixed "easy to miss at a glance" for sighted users
+            // and left the same gap for everybody else.
+            aria-current={active ? 'page' : undefined}
             className={cn(
                 'relative flex min-w-0 flex-1 flex-col items-center justify-center gap-0.5 py-2 transition-colors',
                 active ? 'text-brand-600 dark:text-brand-400' : 'text-graphite-500 dark:text-slate-400'

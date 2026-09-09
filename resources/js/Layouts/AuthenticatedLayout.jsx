@@ -1,5 +1,5 @@
 import { Link, usePage, router } from '@inertiajs/react';
-import { useState } from 'react';
+import { useEffect, useState } from 'react';
 import {
     LogOut, Menu, X,
     Bell, User as UserIcon, ChevronDown, Sun, Moon, ChevronRight,
@@ -9,6 +9,8 @@ import {
 import { cn } from '@/lib/utils';
 import { useClock } from '@/lib/useClock';
 import { useTheme, DARK_MODE_ENABLED } from '@/lib/useTheme';
+import { useFocusTrap } from '@/lib/useFocusTrap';
+import { useMediaQuery } from '@/lib/useMediaQuery';
 import { getSelectableDepartments, getGlobalNavItems, getWorkspaceKeyForRoute, isDepartmentWorkspaceKey } from '@/lib/workspaces';
 import AboutDialog from '@/Components/shared/AboutDialog';
 import BrandWordmark from '@/Components/shared/BrandWordmark';
@@ -90,6 +92,42 @@ export default function AuthenticatedLayout({ children }) {
     }
     const [aboutOpen, setAboutOpen] = useState(false);
     const currentUrl = usePage().url;
+
+    /* v2.67.0 -- THE RAIL IS TWO DIFFERENT THINGS.
+
+       Above lg it is permanent page furniture. Below lg it is a modal
+       drawer over the page. It looked modal already -- scrim, close
+       button -- but behaved like ordinary content: Tab walked straight
+       out of it into the page underneath, Escape did nothing, and
+       closing it dropped focus to <body>. `role` is an attribute, not a
+       style, so this is the one part of the responsive shell that CSS
+       cannot express and JavaScript has to. */
+    const isDesktop = useMediaQuery('(min-width: 1024px)');
+    const drawerOpen = sidebarOpen && ! isDesktop;
+    const sidebarRef = useFocusTrap(drawerOpen, () => setSidebarOpen(false));
+
+    // Widening past lg reveals the rail anyway. Leaving `sidebarOpen`
+    // set would keep dialog semantics on an element that is now simply
+    // part of the page.
+    useEffect(() => {
+        if (isDesktop && sidebarOpen) setSidebarOpen(false);
+    }, [isDesktop, sidebarOpen]);
+
+    /* A closed drawer is off-screen via `-translate-x-full`, which is a
+       TRANSFORM -- the rail is still rendered, still hit-testable and
+       still in the tab order. On a phone that put roughly twenty
+       invisible links between the header and the page. `inert` is set
+       imperatively because React 18 has no boolean prop for it. */
+    useEffect(() => {
+        const el = sidebarRef.current;
+        if (! el) return;
+
+        if (! isDesktop && ! sidebarOpen) {
+            el.setAttribute('inert', '');
+        } else {
+            el.removeAttribute('inert');
+        }
+    }, [isDesktop, sidebarOpen, sidebarRef]);
 
     const enabledModules = modules?.enabled ?? [];
 
@@ -188,11 +226,25 @@ export default function AuthenticatedLayout({ children }) {
                 the BACKGROUND layer, not a new card treatment. */}
             <div className="pointer-events-none fixed inset-0 -z-10 bg-gradient-to-br from-steel-100/70 via-transparent to-transparent dark:from-blue-950/20" aria-hidden="true" />
             <div className="pointer-events-none fixed inset-0 -z-10 bg-gradient-to-tl from-steel-200/50 via-transparent to-transparent dark:from-slate-900/40" aria-hidden="true" />
+
+            {/* v2.67.0 -- the first thing a keyboard reaches on every page.
+                Without it, getting from the address bar to the actual
+                content means tabbing the entire rail and header on EVERY
+                navigation. Visually hidden until focused, which is the
+                whole point: it costs sighted users nothing. */}
+            <a
+                href="#main-content"
+                className="sr-only focus:not-sr-only focus:absolute focus:left-4 focus:top-4 focus:z-[200] focus:rounded-md focus:bg-white focus:px-4 focus:py-2 focus:text-sm focus:font-medium focus:text-navy-900 focus:shadow-lg focus:outline-none focus:ring-2 focus:ring-brand-500"
+            >
+                Skip to main content
+            </a>
+
             {/* Mobile overlay */}
             {sidebarOpen && (
                 <div
                     className="fixed inset-0 z-40 bg-graphite-900/30 lg:hidden"
                     onClick={() => setSidebarOpen(false)}
+                    aria-hidden="true"
                 />
             )}
 
@@ -203,6 +255,10 @@ export default function AuthenticatedLayout({ children }) {
                 240px per spec -- a narrower rail reads more confident with
                 the logo now the dominant visual element. */}
             <aside
+                ref={sidebarRef}
+                id="ioms-sidebar"
+                aria-label="Main navigation"
+                {...(drawerOpen ? { role: 'dialog', 'aria-modal': true } : {})}
                 className={cn(
                     // v1.11.12 (Final Visual Design System pass): width
                     // spec restates 240px -- the stale comment above (from
@@ -255,24 +311,36 @@ export default function AuthenticatedLayout({ children }) {
                     described. Reduced to 72px and tightened container
                     padding on top of that, rather than only adjusting
                     padding around an unnecessarily large box. */}
-                <button
-                    onClick={() => setAboutOpen(true)}
-                    className="flex shrink-0 items-start gap-2 border-b border-white/10 px-4 pb-1.5 pt-3 text-left transition-colors hover:bg-white/[0.05] dark:border-slate-800 dark:hover:bg-slate-900/60"
-                    title="About IOMS"
-                >
-                    <div className="min-w-0 flex-1 overflow-visible">
-                        <BrandWordmark className="h-[72px] w-auto max-w-full -ml-[22px] object-contain text-3xl text-white" />
-                        <p className="mt-0.5 text-[10px] font-medium uppercase leading-snug tracking-wide text-steel-300 dark:text-slate-500">{company?.subtitle || 'Industrial Operations Platform'}</p>
-                    </div>
-                    <span
-                        className="ml-auto rounded p-1 text-navy-300 hover:text-white lg:hidden"
-                        onClick={(e) => { e.stopPropagation(); setSidebarOpen(false); }}
+                {/* v2.67.0 -- these were NESTED: the close control was a
+                    <span onClick> inside the About button. Interactive
+                    content inside a button is invalid, and the practical
+                    cost was that Close could not be reached or activated
+                    from a keyboard at all -- on a phone, where this is the
+                    only way to dismiss the drawer short of finding the
+                    scrim. They are siblings now, and Close is a real
+                    button with a name. */}
+                <div className="flex shrink-0 items-start gap-2 border-b border-white/10 dark:border-slate-800">
+                    <button
+                        onClick={() => setAboutOpen(true)}
+                        className="flex min-w-0 flex-1 items-start px-4 pb-1.5 pt-3 text-left transition-colors hover:bg-white/[0.05] dark:hover:bg-slate-900/60"
+                        title="About IOMS"
+                    >
+                        <div className="min-w-0 flex-1 overflow-visible">
+                            <BrandWordmark className="h-[72px] w-auto max-w-full -ml-[22px] object-contain text-3xl text-white" />
+                            <p className="mt-0.5 text-[10px] font-medium uppercase leading-snug tracking-wide text-steel-300 dark:text-slate-500">{company?.subtitle || 'Industrial Operations Platform'}</p>
+                        </div>
+                    </button>
+                    <button
+                        type="button"
+                        onClick={() => setSidebarOpen(false)}
+                        aria-label="Close navigation"
+                        className="mr-2 mt-3 shrink-0 rounded p-1 text-navy-300 outline-none transition-colors hover:bg-white/[0.08] hover:text-white lg:hidden"
                     >
                         <X className="h-5 w-5" />
-                    </span>
-                </button>
+                    </button>
+                </div>
 
-                <nav className="flex-1 space-y-0.5 overflow-y-auto px-3 pb-3 pt-1.5">
+                <nav aria-label="Workspace" className="flex-1 space-y-0.5 overflow-y-auto px-3 pb-3 pt-1.5">
                     {visibleNav.map((item) => {
                         const Icon = item.icon;
 
@@ -288,6 +356,11 @@ export default function AuthenticatedLayout({ children }) {
                                     key={item.name}
                                     className="flex h-9 cursor-not-allowed items-center gap-2.5 rounded-[10px] px-3 text-[13px] font-medium text-navy-500 dark:text-slate-600"
                                     title={`${item.name} -- coming soon`}
+                                    // The lock glyph is the only thing saying
+                                    // "not yet", and it is decorative -- so the
+                                    // row read as a plain, inexplicably
+                                    // unreachable label.
+                                    aria-label={`${item.name} — coming soon`}
                                 >
                                     <Icon className="h-4 w-4 shrink-0 text-navy-600 dark:text-slate-700" />
                                     <span className="flex-1 truncate">{item.name}</span>
@@ -366,6 +439,9 @@ export default function AuthenticatedLayout({ children }) {
                                                             // moves to Inertia's persistent-layout pattern).
                                                             // Explicit now, defensively.
                                                             onClick={() => setSidebarOpen(false)}
+                                                            // v2.67.0: active state was weight and colour
+                                                            // only -- nothing a screen reader could report.
+                                                            aria-current={childActive ? 'page' : undefined}
                                                             className={cn(
                                                                 'flex h-[34px] items-center gap-2 rounded-lg px-2.5 text-[13px] leading-tight transition-colors duration-150',
                                                                 childActive ? 'font-semibold text-white dark:text-brand-400' : 'font-normal text-navy-400 hover:text-white dark:text-slate-500 dark:hover:text-slate-200'
@@ -388,6 +464,7 @@ export default function AuthenticatedLayout({ children }) {
                                 key={item.name}
                                 href={route(item.href, item.queryParams)}
                                 onClick={() => setSidebarOpen(false)}
+                                aria-current={active ? 'page' : undefined}
                                 className={cn(
                                     // v1.11.13: bumped text-xs(12px) -> text-[13px], matching
                                     // this pass's "Main menu text: 13px/500" exactly.
@@ -430,6 +507,7 @@ export default function AuthenticatedLayout({ children }) {
             <div className="lg:pl-[240px]">
                 <TopBar
                     onOpenSidebar={() => setSidebarOpen(true)}
+                    sidebarOpen={sidebarOpen}
                     isDepartmentUser={isDepartmentUser}
                     departments={selectableDepartments}
                     activeWorkspace={activeWorkspace}
@@ -451,7 +529,9 @@ export default function AuthenticatedLayout({ children }) {
                     meeting. Persistent, above the content, on every page. */}
                 <SandboxBanner />
 
-                <main className="p-5 pb-24 lg:p-8 lg:pb-8">{children}</main>
+                {/* tabIndex -1 so the skip link moves FOCUS here, not
+                    only the viewport. */}
+                <main id="main-content" tabIndex={-1} className="p-5 pb-24 outline-none lg:p-8 lg:pb-8">{children}</main>
             </div>
 
             <MobileBottomNav visibleNav={visibleNav} currentUrl={currentUrl} onOpenMore={() => setSidebarOpen(true)} />
@@ -470,7 +550,7 @@ export default function AuthenticatedLayout({ children }) {
  * no way to switch, so there is nothing to render, not a disabled or
  * single-option version of the same control.
  */
-function TopBar({ onOpenSidebar, isDepartmentUser, departments, activeWorkspace, onSwitchWorkspace }) {
+function TopBar({ onOpenSidebar, sidebarOpen, isDepartmentUser, departments, activeWorkspace, onSwitchWorkspace }) {
     const { auth, organization } = usePage().props;
     const now = useClock();
     const { theme, toggleTheme } = useTheme();
@@ -488,10 +568,35 @@ function TopBar({ onOpenSidebar, isDepartmentUser, departments, activeWorkspace,
     // hero: it is chrome, so it stays flat, quiet and translucent, and
     // page content keeps its light surfaces. Controls inside flip to
     // light-on-dark below for the same reason.
+    //
+    // v2.67.0 -- WHY EVERY CONTROL BELOW IS `shrink-0`.
+    //
+    // This header overflowed the page from 640px to roughly 1140px, on
+    // every authenticated screen. The cause was the search field's hard
+    // `w-[380px]` (see GlobalSearch), but the reason it went unnoticed
+    // for so long is that flexbox's default `shrink: 1` let EVERY control
+    // give way a little, so the damage read as "things look cramped"
+    // rather than "the header is 137px wider than the iPad it is on".
+    //
+    // Shrinking is now explicit and singular: the search field is the one
+    // item allowed to give way, the department selector may TRUNCATE
+    // (its label is the only unbounded text here and can be any length a
+    // customer names a department), and everything else holds its size.
+    // One flexible item makes the outcome predictable at every width.
     return (
-        <header className="sticky top-0 z-30 flex h-14 items-center gap-2 border-b border-navy-800 bg-navy-900/95 px-3 shadow-sm backdrop-blur sm:gap-3 sm:px-5 dark:border-slate-800 dark:bg-slate-950/90">
-            <button className="lg:hidden" onClick={onOpenSidebar}>
-                <Menu className="h-5 w-5 text-navy-300" />
+        <header
+            aria-label="Application"
+            className="sticky top-0 z-30 flex h-14 items-center gap-2 border-b border-navy-800 bg-navy-900/95 px-3 shadow-sm backdrop-blur sm:gap-3 sm:px-5 dark:border-slate-800 dark:bg-slate-950/90"
+        >
+            <button
+                type="button"
+                className="shrink-0 rounded-md p-1 text-navy-300 outline-none transition-colors hover:bg-white/[0.08] hover:text-white lg:hidden"
+                onClick={onOpenSidebar}
+                aria-label="Open navigation"
+                aria-controls="ioms-sidebar"
+                aria-expanded={sidebarOpen}
+            >
+                <Menu className="h-5 w-5" />
             </button>
 
             {/* Dashboard: the Global Dashboard, NOT a Department -- always
@@ -504,12 +609,17 @@ function TopBar({ onOpenSidebar, isDepartmentUser, departments, activeWorkspace,
                 320px viewport). Dashboard is the one header control that is
                 genuinely DUPLICATED on mobile -- MobileBottomNav pins it as
                 its first tab -- so hiding it here removes redundancy rather
-                than function, and is what brings the header back inside the
-                viewport at 320px. It returns at sm: and up, where the bottom
-                nav is not rendered. */}
+                than function.
+
+                v2.67.0: that argument was right and was applied at the
+                WRONG breakpoint. MobileBottomNav renders up to `lg`, not up
+                to `sm`, so Dashboard was drawn twice on every screen from
+                640px to 1023px -- exactly the band where the header had no
+                room to spare. Hidden to `lg:` now, which is where the
+                duplicate actually stops. */}
             <Link
                 href={route('dashboard')}
-                className="hidden h-8 items-center gap-1.5 rounded-md px-2.5 text-xs font-medium text-navy-200 transition-colors hover:bg-white/[0.08] hover:text-white sm:flex dark:text-slate-300 dark:hover:bg-slate-800"
+                className="hidden h-8 shrink-0 items-center gap-1.5 rounded-md px-2.5 text-xs font-medium text-navy-200 transition-colors hover:bg-white/[0.08] hover:text-white lg:flex dark:text-slate-300 dark:hover:bg-slate-800"
             >
                 <LayoutDashboard className="h-3.5 w-3.5 shrink-0" />
                 <span className="hidden sm:inline">Dashboard</span>
@@ -521,7 +631,7 @@ function TopBar({ onOpenSidebar, isDepartmentUser, departments, activeWorkspace,
                 comment), so it isn't owned by any single one of them. */}
             <Link
                 href={route('calendar.index')}
-                className="flex h-8 items-center gap-1.5 rounded-md px-2.5 text-xs font-medium text-navy-200 transition-colors hover:bg-white/[0.08] hover:text-white dark:text-slate-300 dark:hover:bg-slate-800"
+                className="flex h-8 shrink-0 items-center gap-1.5 rounded-md px-2.5 text-xs font-medium text-navy-200 transition-colors hover:bg-white/[0.08] hover:text-white dark:text-slate-300 dark:hover:bg-slate-800"
             >
                 <CalendarDays className="h-3.5 w-3.5 shrink-0" />
                 <span className="hidden sm:inline">Calendar</span>
@@ -533,10 +643,18 @@ function TopBar({ onOpenSidebar, isDepartmentUser, departments, activeWorkspace,
                 Administrators only. */}
             {!isDepartmentUser && (
                 <DropdownMenu>
-                    <DropdownMenuTrigger className="flex h-8 items-center gap-1.5 rounded-md border border-white/15 bg-white/[0.06] px-3 text-xs font-medium text-white outline-none transition-colors hover:bg-white/[0.12] dark:border-slate-700 dark:text-slate-300 dark:hover:bg-slate-800">
+                    {/* v2.67.0: `min-w-0` + `truncate`. This label is the
+                        only unbounded string in the header -- a customer
+                        names their own departments -- and without a floor
+                        of zero it forced the header wider than the page
+                        instead of ellipsing. */}
+                    <DropdownMenuTrigger
+                        className="flex h-8 min-w-0 items-center gap-1.5 rounded-md border border-white/15 bg-white/[0.06] px-3 text-xs font-medium text-white outline-none transition-colors hover:bg-white/[0.12] dark:border-slate-700 dark:text-slate-300 dark:hover:bg-slate-800"
+                        aria-label="Switch department"
+                    >
                         {activeWorkspace && <activeWorkspace.icon className="h-3.5 w-3.5 shrink-0 text-steel-300" />}
-                        {activeWorkspace?.label ?? 'Department'}
-                        <ChevronDown className="h-3.5 w-3.5 text-steel-300" />
+                        <span className="truncate">{activeWorkspace?.label ?? 'Department'}</span>
+                        <ChevronDown className="h-3.5 w-3.5 shrink-0 text-steel-300" />
                     </DropdownMenuTrigger>
                     <DropdownMenuContent className="max-h-[70vh] overflow-y-auto">
                         <DropdownMenuLabel className="text-[10px] uppercase tracking-wide text-graphite-400">Departments</DropdownMenuLabel>
@@ -549,15 +667,15 @@ function TopBar({ onOpenSidebar, isDepartmentUser, departments, activeWorkspace,
                 </DropdownMenu>
             )}
 
-            <div className="flex-1" />
+            <div className="min-w-0 flex-1" />
 
             {/* Current Date/Time -- collapsed to a single compact line
                 (v1.9.0) to reduce topbar clutter; still live via useClock(). */}
-            <div className="hidden text-xs text-navy-300 dark:text-slate-500 xl:block">
+            <div className="hidden shrink-0 text-xs text-navy-300 dark:text-slate-500 xl:block">
                 {now.toLocaleDateString('en-US', { weekday: 'short', month: 'short', day: 'numeric' })} · {now.toLocaleTimeString('en-US', { hour: 'numeric', minute: '2-digit', hour12: true })}
             </div>
 
-            <div className="hidden h-5 w-px bg-white/15 xl:block" />
+            <div className="hidden h-5 w-px shrink-0 bg-white/15 xl:block" aria-hidden="true" />
 
             {/* Global Search (v1.6.3) -- real search across Employees and Projects. */}
             <GlobalSearch />
@@ -565,8 +683,9 @@ function TopBar({ onOpenSidebar, isDepartmentUser, departments, activeWorkspace,
             {DARK_MODE_ENABLED && (
                 <button
                     onClick={toggleTheme}
-                    className="rounded-md p-2 text-navy-300 transition-colors hover:bg-white/[0.08] hover:text-white"
+                    className="shrink-0 rounded-md p-2 text-navy-300 transition-colors hover:bg-white/[0.08] hover:text-white"
                     title={theme === 'dark' ? 'Switch to light mode' : 'Switch to dark mode'}
+                    aria-label={theme === 'dark' ? 'Switch to light mode' : 'Switch to dark mode'}
                 >
                     {theme === 'dark' ? <Sun className="h-[18px] w-[18px]" /> : <Moon className="h-[18px] w-[18px]" />}
                 </button>
@@ -577,7 +696,10 @@ function TopBar({ onOpenSidebar, isDepartmentUser, departments, activeWorkspace,
 
             {/* Profile menu: identity + About + Logout */}
             <DropdownMenu>
-                <DropdownMenuTrigger className="flex min-w-0 max-w-[180px] items-center gap-2 rounded-lg py-1 pl-1 pr-2 outline-none transition-colors hover:bg-white/[0.08] dark:hover:bg-slate-800">
+                <DropdownMenuTrigger
+                    className="flex min-w-0 max-w-[180px] shrink-0 items-center gap-2 rounded-lg py-1 pl-1 pr-2 outline-none transition-colors hover:bg-white/[0.08] dark:hover:bg-slate-800"
+                    aria-label={`Account menu for ${auth?.user?.name}`}
+                >
                     <div className="flex h-7 w-7 shrink-0 items-center justify-center rounded-full bg-white/[0.12] text-xs font-semibold text-white dark:bg-slate-800 dark:text-slate-300">
                         {auth?.user?.name?.charAt(0)}
                     </div>
@@ -691,7 +813,15 @@ function WorkCenterMenu() {
 
     return (
         <DropdownMenu>
-            <DropdownMenuTrigger className="relative rounded-md p-2 text-graphite-400 outline-none transition-colors hover:bg-graphite-100 hover:text-graphite-600 dark:hover:bg-slate-800" title="Work Center">
+            {/* v2.67.0: `title` is not an accessible name -- it is a
+                tooltip, unreliable to assistive technology and invisible
+                on touch. These were icon-only buttons announcing as
+                "button". */}
+            <DropdownMenuTrigger
+                className="relative shrink-0 rounded-md p-2 text-graphite-400 outline-none transition-colors hover:bg-graphite-100 hover:text-graphite-600 dark:hover:bg-slate-800"
+                title="Work Center"
+                aria-label={total > 0 ? `Work Center, ${total} item(s) awaiting you` : 'Work Center'}
+            >
                 <ClipboardCheck className="h-[18px] w-[18px]" />
                 {total > 0 && (
                     <span className="absolute -right-0.5 -top-0.5 flex h-4 min-w-[16px] items-center justify-center rounded-full bg-red-500 px-1 text-[9px] font-bold text-white">
@@ -784,8 +914,9 @@ function NotificationsMenu() {
     return (
         <DropdownMenu>
             <DropdownMenuTrigger
-                className="relative rounded-md p-2 text-navy-300 outline-none transition-colors hover:bg-white/[0.08] hover:text-white dark:hover:bg-slate-800"
+                className="relative shrink-0 rounded-md p-2 text-navy-300 outline-none transition-colors hover:bg-white/[0.08] hover:text-white dark:hover:bg-slate-800"
                 title={badgeCount > 0 ? `${badgeCount} notification(s)` : 'No notifications'}
+                aria-label={badgeCount > 0 ? `Notifications, ${badgeCount} unread` : 'Notifications'}
             >
                 <Bell className="h-[18px] w-[18px]" />
                 {badgeCount > 0 && (

@@ -12,7 +12,7 @@ employee records, PPE (personal protective equipment) lifecycle, KPI tracking an
 project manpower assignment, and an increasingly general-purpose workflow layer (Material Request
 today, more modules planned) built on shared, reusable engines rather than per-module one-offs.
 
-Current version: **2.66.0 Beta**. Check `config/ioms.php` (`version`, `stage`, `build`) for the
+Current version: **2.67.0 Beta**. Check `config/ioms.php` (`version`, `stage`, `build`) for the
 authoritative current number — this document doesn't restate it elsewhere to avoid it going stale
 in two places.
 
@@ -43,6 +43,11 @@ authorization path. See `docs/ADR/008-tenancy-foundation.md` for the reasoning a
 - `resources/js/Components/shared/` — the reusable frontend components every module is expected to
   use rather than reinvent: `StatusBadge`, `ApprovalActions`, `ActivityTimeline`, `ModuleTabNav`,
   `PageHeader`, `EmptyState`, `LoadingState`, `StatCard`, `EmployeeImportDialog`, and others.
+- `resources/js/lib/useFocusTrap.js`, `resources/js/lib/useMediaQuery.js` — the shell's two behavioural
+  primitives (v2.67.0). `useFocusTrap` is what makes an overlay a *dialog* rather than a div on top:
+  focus enters, Tab cycles, Escape closes, focus returns to the opener. `useMediaQuery` exists
+  because `role` is an attribute, not a style — the sidebar is a landmark above `lg` and a modal
+  below it, and no media query in CSS can say so. Reach for these before hand-rolling either.
 - `resources/js/lib/workspaces.js` — the workspace navigation registry (Workspace → Item), the
   single source of truth for the top workspace switcher and dynamic sidebar. See
   `docs/ARCHITECTURE.md`'s Navigation Architecture section and

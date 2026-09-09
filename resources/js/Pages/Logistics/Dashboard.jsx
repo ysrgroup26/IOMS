@@ -11,19 +11,19 @@ import { cn } from '@/lib/utils';
 
 // v1.11.7 (Bahasa Indonesia Standardization, Part 4) -- hrefs unchanged.
 const LOGISTICS_MODULES = [
-    { icon: PackageSearch, title: 'Permintaan Material', description: 'Alur permintaan & persetujuan.', href: 'material-requests.index' },
-    { icon: PackageCheck, title: 'Penerimaan Barang', description: 'Barang masuk sesuai PO.', href: 'goods-receipts.index' },
-    { icon: Warehouse, title: 'Stok Gudang', description: 'Level stok per gudang.', href: 'stock.index' },
-    { icon: ArrowRightLeft, title: 'Pergerakan Stok', description: 'Catatan keluar, transfer, penyesuaian.', href: 'stock.movements' },
-    { icon: Package, title: 'Data Master Barang', description: 'Katalog barang/material.', href: 'items.index' },
+    { icon: PackageSearch, title: 'Material Requests', description: 'Alur permintaan & persetujuan.', href: 'material-requests.index' },
+    { icon: PackageCheck, title: 'Goods Receipt', description: 'Barang masuk sesuai PO.', href: 'goods-receipts.index' },
+    { icon: Warehouse, title: 'Stock Summary', description: 'Level stok per gudang.', href: 'stock.index' },
+    { icon: ArrowRightLeft, title: 'Stock Movement History', description: 'Catatan keluar, transfer, penyesuaian.', href: 'stock.movements' },
+    { icon: Package, title: 'Item Master', description: 'Katalog barang/material.', href: 'items.index' },
 ];
 
 const FLOW_STAGES = [
-    { key: 'material_requests', label: 'Permintaan Material', icon: PackageSearch },
-    { key: 'procurement', label: 'Pengadaan', icon: FileText },
-    { key: 'purchase_orders', label: 'Pesanan Pembelian', icon: ShoppingCart },
-    { key: 'goods_receipt', label: 'Penerimaan Barang', icon: PackageCheck },
-    { key: 'warehouse_stock', label: 'Gudang', icon: Warehouse },
+    { key: 'material_requests', label: 'Material Requests', icon: PackageSearch },
+    { key: 'procurement', label: 'Procurement', icon: FileText },
+    { key: 'purchase_orders', label: 'Purchase Orders', icon: ShoppingCart },
+    { key: 'goods_receipt', label: 'Goods Receipt', icon: PackageCheck },
+    { key: 'warehouse_stock', label: 'Warehouse', icon: Warehouse },
 ];
 
 /**
@@ -43,14 +43,14 @@ export default function LogisticsDashboard({
 
     return (
         <AuthenticatedLayout>
-            <Head title="Ringkasan Logistik / PPIC" />
-            <DashboardShell title="Ringkasan Logistik / PPIC" subtitle="Tampilan operasional alur material.">
+            <Head title="Logistics / PPIC Overview" />
+            <DashboardShell title="Logistics / PPIC Overview" subtitle="Tampilan operasional alur material.">
                 {/* LEVEL 1 -- compact KPI strip */}
                 <div className="grid grid-cols-2 gap-3 lg:grid-cols-4">
-                    <StatCard icon={PackageSearch} value={pendingMaterialRequests} label="Permintaan Material Tertunda" href={route('material-requests.index', { status: 'submitted' })} />
-                    <StatCard icon={ClipboardCheck} value={waitingApprovals} label="Menunggu Persetujuan" accent={waitingApprovals > 0 ? 'amber' : 'green'} href={route('work-center.index')} />
-                    <StatCard icon={PackageCheck} value={goodsReceiptsThisMonth} label="Diterima Bulan Ini" href={route('goods-receipts.index')} />
-                    <StatCard icon={Boxes} value={lowStockCount} label="Barang Stok Menipis" accent={lowStockCount > 0 ? 'red' : 'green'} href={route('stock.index', { low_stock: 1 })} />
+                    <StatCard icon={PackageSearch} value={pendingMaterialRequests} label="Pending Material Requests" href={route('material-requests.index', { status: 'submitted' })} />
+                    <StatCard icon={ClipboardCheck} value={waitingApprovals} label="Awaiting Approval" accent={waitingApprovals > 0 ? 'amber' : 'green'} href={route('work-center.index')} />
+                    <StatCard icon={PackageCheck} value={goodsReceiptsThisMonth} label="Received This Month" href={route('goods-receipts.index')} />
+                    <StatCard icon={Boxes} value={lowStockCount} label="Low Stock Items" accent={lowStockCount > 0 ? 'red' : 'green'} href={route('stock.index', { low_stock: 1 })} />
                 </div>
 
                 {/* LEVEL 2 -- Material Flow pipeline. v2.30.0 (Interior UI
@@ -69,7 +69,7 @@ export default function LogisticsDashboard({
                     answer. */}
                 <Card>
                     <CardHeader className="pb-2">
-                        <CardTitle>Alur Material</CardTitle>
+                        <CardTitle>Material Flow</CardTitle>
                         <CardDescription>Item terbuka per tahap, saat ini</CardDescription>
                     </CardHeader>
                     <CardContent>
@@ -106,7 +106,7 @@ export default function LogisticsDashboard({
                 {/* LEVEL 4 -- status breakdown + recent receipts */}
                 <div className="grid grid-cols-1 gap-3 lg:grid-cols-2">
                     <Card>
-                        <CardHeader className="pb-2"><CardTitle>Permintaan Material per Status</CardTitle></CardHeader>
+                        <CardHeader className="pb-2"><CardTitle>Material Requests by Status</CardTitle></CardHeader>
                         <CardContent>
                             <ActivityList
                                 items={statusEntries}
@@ -121,12 +121,12 @@ export default function LogisticsDashboard({
                                     </div>
                                 )}
                             />
-                            <Link href={route('material-requests.index')} className="mt-2 inline-block text-xs font-medium text-brand-600 hover:underline">Lihat semua</Link>
+                            <Link href={route('material-requests.index')} className="mt-2 inline-block text-xs font-medium text-brand-600 hover:underline">View all</Link>
                         </CardContent>
                     </Card>
 
                     <Card>
-                        <CardHeader className="pb-2"><CardTitle>Penerimaan Barang Terbaru</CardTitle></CardHeader>
+                        <CardHeader className="pb-2"><CardTitle>Recent Goods Receipts</CardTitle></CardHeader>
                         <CardContent>
                             <ActivityList
                                 items={recentGoodsReceipts}
@@ -141,7 +141,7 @@ export default function LogisticsDashboard({
                                     </div>
                                 )}
                             />
-                            <Link href={route('goods-receipts.index')} className="mt-2 inline-block text-xs font-medium text-brand-600 hover:underline">Lihat semua</Link>
+                            <Link href={route('goods-receipts.index')} className="mt-2 inline-block text-xs font-medium text-brand-600 hover:underline">View all</Link>
                         </CardContent>
                     </Card>
                 </div>
@@ -149,7 +149,7 @@ export default function LogisticsDashboard({
                 {/* LEVEL 5 -- recent movements + calendar */}
                 <div className="grid grid-cols-1 gap-3 lg:grid-cols-2">
                     <Card>
-                        <CardHeader className="flex flex-row items-center gap-2 pb-2"><ArrowRightLeft className="h-4 w-4 text-graphite-400" /><CardTitle>Pergerakan Stok Terbaru</CardTitle></CardHeader>
+                        <CardHeader className="flex flex-row items-center gap-2 pb-2"><ArrowRightLeft className="h-4 w-4 text-graphite-400" /><CardTitle>Recent Stock Movements</CardTitle></CardHeader>
                         <CardContent>
                             <ActivityList
                                 items={recentStockMovements}
@@ -164,11 +164,11 @@ export default function LogisticsDashboard({
                                     </div>
                                 )}
                             />
-                            <Link href={route('stock.movements')} className="mt-2 inline-block text-xs font-medium text-brand-600 hover:underline">Lihat semua</Link>
+                            <Link href={route('stock.movements')} className="mt-2 inline-block text-xs font-medium text-brand-600 hover:underline">View all</Link>
                         </CardContent>
                     </Card>
 
-                    <DepartmentCalendarWidget events={departmentCalendar} title="Kalender Logistik" description="Jadwal stok & pengiriman, 3 minggu ke depan" />
+                    <DepartmentCalendarWidget events={departmentCalendar} title="Logistics Calendar" description="Jadwal stok & pengiriman, 3 minggu ke depan" />
                 </div>
             </DashboardShell>
         </AuthenticatedLayout>

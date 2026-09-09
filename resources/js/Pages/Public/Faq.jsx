@@ -18,8 +18,8 @@ export default function Faq({ faqs = [], contactEmail }) {
 
             <PublicPageHero
                 eyebrow="FAQ"
-                title="Pertanyaan yang perlu dijawab sebelum Anda membeli."
-                subtitle="Paket, kapasitas, pembayaran, aktivasi, pemisahan data, dan dokumen — dijawab apa adanya."
+                title="The questions worth answering before you buy."
+                subtitle="Plans, capacity, payment, activation, data separation and documents — answered plainly."
                 size="sm"
             />
 
@@ -39,19 +39,19 @@ export default function Faq({ faqs = [], contactEmail }) {
 
                     <div className="mt-8 rounded-xl border border-steel-200/70 bg-white p-6 text-center shadow-card">
                         <p className="text-sm text-graphite-600">
-                            Masih ada pertanyaan?{' '}
+                            Still have a question?{' '}
                             {contactEmail && (
                                 <a href={`mailto:${contactEmail}`} className="font-medium text-brand-700 hover:underline">
-                                    Hubungi kami
+                                    Contact us
                                 </a>
                             )}
                         </p>
                         <div className="mt-5 flex flex-col items-center justify-center gap-3 sm:flex-row">
                             <Button asChild>
-                                <Link href={route('get-started')}>Mulai berlangganan <ArrowRight className="h-4 w-4" /></Link>
+                                <Link href={route('get-started')}>Get started <ArrowRight className="h-4 w-4" /></Link>
                             </Button>
                             <Button variant="outline" asChild>
-                                <Link href={route('pricing')}>Lihat paket</Link>
+                                <Link href={route('pricing')}>View plans</Link>
                             </Button>
                         </div>
                     </div>

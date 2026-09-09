@@ -787,3 +787,90 @@ Stated plainly because the distinction matters:
 5. **`CHANGELOG.md` stops at 2.0.0.** Every release from v2.1.0 to v2.67.0 is recorded only in
    `config/ioms.php`'s `version_history`. Reconstructing 23 entries from those summaries is its own
    task and should not be improvised inside an unrelated release.
+
+---
+
+## 22. The product-level reassessment (v2.68.0) — and why it did not become a redesign
+
+This pass began as an open-ended reassessment of the whole product, public and authenticated, with
+no assumption that the answer was a redesign. That mattered, because **it wasn't**.
+
+### 22.1 What the running application said that the source could not
+
+Everything in §21.7's "browser-measured" column was measured again, plus the app was driven against
+**MySQL with the real seeded tenant** (3 tenants, 68 employees, 29 departments) rather than an empty
+database. Three defects surfaced that no amount of source reading would have produced, and all three
+needed *real data* rather than merely a running app:
+
+| Defect | Why source reading missed it |
+|---|---|
+| `Fatality` rendering as `FAT...` | The label is a DB column (`kpi_categories.short_label`, max 20 chars). The JSX says `label={c.short_label}` — correct. The width only fails once eight real categories sit in a `lg:grid-cols-8` strip. |
+| A 14-slice rainbow pie | `backgroundColor: CHART_COLORS` reads fine. It only breaks when a tenant has more departments than the palette has colours. |
+| A bare `404 NOT FOUND` | The component, the handler and the route table are each correct alone. The gap is in the *guard*, and only a full-page request exposes it. |
+
+The last one is the sharpest reminder of §21's lesson: **the defect was in an intent-versus-reality
+gap that a doc comment actively concealed.** The comment said "non-Inertia, non-JSON request (e.g. a
+raw asset 404)" — which describes what the author *meant*, and reads as correct, while the condition
+as written also caught every ordinary page load.
+
+### 22.2 The finding that turned out to be the product-level one
+
+The brief asked whether the public website and the authenticated product feel like the same product
+family. They did not, and the reason was not visual — the visual system is genuinely coherent and was
+left alone. **They were not speaking the same language, and neither was the app speaking it to
+itself.**
+
+This is written up as convention and pitfall in `docs/CONVENTIONS.md`. The short version: v2.53.0's
+language hierarchy is a good rule that lived only in a changelog summary, so it was violated three
+times over sixteen releases, and the five department Overview pages were still running the policy it
+replaced. The sidebar said `CAPA`; the card underneath said `Tindakan Perbaikan`.
+
+**The fix is a subtraction, not an addition** — the same shape as §20.2. No new abstraction, no
+translation layer, no i18n framework. The slot each string already sat in (`title`/`label` versus
+`description`/`subtitle`) *already encoded* which language it should be, so the rule could be applied
+mechanically and then pinned by a test that reads those same slots.
+
+### 22.3 What was deliberately not touched, and why
+
+Restraint was the main design decision of this pass:
+
+- **The two-zone navigation model (§4).** Still the largest open item, still not done here, and
+  deliberately so. §3.3 establishes that it affects *the administrator's zoomed-out state only* —
+  department and field users are already correct. It is a restructure of the shell justified by one
+  reported experience, and this pass found no new evidence for it while finding several defects that
+  were unambiguous. Doing it as a rider on a language-and-quality pass would have been the wrong
+  order.
+- **Settings decomposition (Phase 4)** and the **20 workflow forms.** Unchanged, for the reasons
+  already in §20.6 and §20.7.
+- **The visual system.** Navy rail, graphite ground, white raised cards, the `StatCard`/`PageHeader`/
+  `EmptyState` family. It is coherent and it is the product's identity. Nothing here recoloured
+  anything for the sake of looking different.
+- **The shell's accessibility work from v2.67.0.** Re-verified in a browser this time rather than by
+  contract test — landmarks, skip link, no unnamed controls on the pages checked — and left alone.
+- **Every business boundary.** Tenant isolation, RBAC, entitlements, subscription, payment, approval
+  and PTW rules, workflow transitions, server-side validation: untouched. The one change that comes
+  near them (`bootstrap/app.php`) alters *rendering* only and is covered by
+  `ErrorPagePresentationTest`, which asserts the status code does not move.
+
+### 22.4 A note on `truncate`
+
+The KPI-label defect generalised further than expected. `truncate` had been applied to *labels* in
+three separate shared components, which means the same class of defect was one long customer name or
+one wide department away in every module that uses them. The convention now recorded — **a card may
+clip its value, never its label** — is worth more than the specific 33px fix that prompted it.
+
+### 22.5 Still open
+
+Unchanged from §21.8 except where noted:
+
+1. **The two-zone navigation model (§4)** — see §22.3 for why it is still open on purpose.
+2. **Settings decomposition (Phase 4)** and its dialog forms.
+3. **Workflow forms**, as their own pass.
+4. **The release-date test (§14.1)**.
+5. **`CHANGELOG.md` stops at 2.0.0.** Now 24 releases behind (v2.1.0 → v2.68.0).
+6. **Bundle size.** `npm run build` emits a single ~1.8 MB JS chunk (~440 KB gzipped) and warns about
+   it on every build. Not addressed here — code-splitting an Inertia app is a real piece of work with
+   its own verification needs, and it is a performance concern rather than a correctness one — but it
+   is the largest unexamined quality item left in the frontend.
+7. **Two stat labels clip at 320px**, where a single word is wider than its column. Clean from 375px
+   up. Recorded in `docs/CONVENTIONS.md` rather than fixed with a font-size special case.

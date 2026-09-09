@@ -28,19 +28,19 @@ export default function Contact({ emails, operator, address, sandboxEnabled }) {
             icon: LifeBuoy,
             label: 'Support',
             email: emails?.support,
-            blurb: 'Pertanyaan produk, bantuan teknis, dan hal-hal terkait akun untuk pelanggan yang sudah berjalan.',
+            blurb: 'Product questions, technical help and account matters for customers already running on IOMS.',
         },
         {
             icon: Receipt,
             label: 'Billing',
             email: emails?.billing,
-            blurb: 'Faktur, pembayaran, perpanjangan, pembatalan, dan seluruh urusan langganan.',
+            blurb: 'Invoices, payments, renewals, cancellations and everything else to do with a subscription.',
         },
         {
             icon: Briefcase,
             label: 'Sales',
             email: emails?.hello,
-            blurb: 'Pertanyaan sebelum berlangganan, pemilihan paket, dan permintaan informasi dari calon pelanggan.',
+            blurb: 'Pre-sales questions, choosing a plan, and information requests from prospective customers.',
         },
     ].filter((c) => c.email);
 
@@ -52,11 +52,11 @@ export default function Contact({ emails, operator, address, sandboxEnabled }) {
                 <div className="mx-auto max-w-4xl px-4 py-14 sm:px-6 lg:px-8">
                     <p className="text-xs font-semibold uppercase tracking-[0.2em] text-graphite-400">Contact</p>
                     <h1 className="mt-3 text-3xl font-semibold tracking-tight text-graphite-900 sm:text-4xl">
-                        Hubungi IOMS
+                        Contact IOMS
                     </h1>
                     <p className="mt-3 max-w-2xl text-base leading-relaxed text-graphite-600">
-                        IOMS — Industrial Operations Platform. Tiga alamat, tiga urusan yang berbeda, supaya
-                        pertanyaan Anda langsung sampai ke orang yang tepat. Kami menjawab pada hari kerja.
+                        IOMS — Industrial Operations Platform. Three addresses for three different jobs, so your
+                        question reaches the right person first time. We reply on business days.
                     </p>
                 </div>
             </div>
@@ -93,36 +93,36 @@ export default function Contact({ emails, operator, address, sandboxEnabled }) {
 
                 <div className="mt-10 grid gap-4 sm:grid-cols-2">
                     <div className="rounded-xl border border-graphite-200 p-5">
-                        <p className="text-sm font-semibold text-graphite-900">Belum berlangganan?</p>
+                        <p className="text-sm font-semibold text-graphite-900">Not a customer yet?</p>
                         <p className="mt-1.5 text-sm leading-relaxed text-graphite-600">
-                            Lihat cakupan dan harga tiap paket, lalu mulai pendaftaran langsung dari situs ini.
+                            See what each plan covers and what it costs, then start registration right here on the site.
                         </p>
                         <div className="mt-4 flex flex-wrap gap-2">
                             <Button asChild size="sm"><Link href={route('get-started')}>Get Started <ArrowRight className="h-4 w-4" /></Link></Button>
-                            <Button asChild size="sm" variant="outline"><Link href={route('pricing')}>Lihat Pricing</Link></Button>
+                            <Button asChild size="sm" variant="outline"><Link href={route('pricing')}>View Pricing</Link></Button>
                         </div>
                     </div>
 
                     <div className="rounded-xl border border-graphite-200 p-5">
-                        <p className="text-sm font-semibold text-graphite-900">Ingin melihat produknya dulu?</p>
+                        <p className="text-sm font-semibold text-graphite-900">Want to see the product first?</p>
                         <p className="mt-1.5 text-sm leading-relaxed text-graphite-600">
                             {sandboxEnabled
-                                ? 'IOMS Sandbox adalah workspace demonstrasi berisi data operasional yang sudah berjalan. Tidak perlu mendaftar dan tidak ada yang harus dibatalkan.'
-                                : 'Hubungi tim kami untuk mengatur peninjauan produk sesuai kebutuhan operasi Anda.'}
+                                ? 'The IOMS Sandbox is a demonstration workspace filled with an operation already running. Nothing to register for, and nothing to cancel afterwards.'
+                                : 'Contact our team to arrange a product review shaped around how your operation works.'}
                         </p>
                         <div className="mt-4 flex flex-wrap gap-2">
                             {sandboxEnabled
-                                ? <Button asChild size="sm" variant="outline"><Link href={route('sandbox')}>Buka Sandbox</Link></Button>
-                                : emails?.hello && <Button asChild size="sm" variant="outline"><a href={`mailto:${emails.hello}`}>Hubungi Sales</a></Button>}
-                            <Button asChild size="sm" variant="ghost"><Link href={route('faq')}>Baca FAQ</Link></Button>
+                                ? <Button asChild size="sm" variant="outline"><Link href={route('sandbox')}>Open the Sandbox</Link></Button>
+                                : emails?.hello && <Button asChild size="sm" variant="outline"><a href={`mailto:${emails.hello}`}>Contact Sales</a></Button>}
+                            <Button asChild size="sm" variant="ghost"><Link href={route('faq')}>Read the FAQ</Link></Button>
                         </div>
                     </div>
                 </div>
 
                 <p className="mt-10 text-xs leading-relaxed text-graphite-500">
-                    Sudah menjadi pelanggan? Sebagian besar pertanyaan mengenai akun, kapasitas paket, faktur,
-                    dan pembatalan dapat diselesaikan sendiri dari halaman Billing di dalam workspace Anda
-                    setelah <Link href={route('login')} className="font-medium text-brand-700 hover:underline">masuk</Link>.
+                    Already a customer? Most questions about your account, plan capacity, invoices and cancellation
+                    can be handled yourself from the Billing page inside your workspace once you
+                    <Link href={route('login')} className="font-medium text-brand-700 hover:underline"> sign in</Link>.
                 </p>
             </div>
         </PublicLayout>

@@ -166,9 +166,9 @@ export default function FieldHome({
                                 </div>
 
                                 <dl className="mt-2.5 grid gap-x-4 gap-y-1.5 sm:grid-cols-3">
-                                    <Fact icon={Briefcase} label="Pekerjaan" value={permit.work_identity} />
+                                    <Fact icon={Briefcase} label="Work" value={permit.work_identity} />
                                     <Fact icon={MapPin} label="Lokasi kerja" value={permit.location} />
-                                    <Fact icon={CalendarClock} label="Mulai" value={fmtDateTime(permit.start_datetime)} />
+                                    <Fact icon={CalendarClock} label="Start" value={fmtDateTime(permit.start_datetime)} />
                                 </dl>
                             </Link>
                         ))}

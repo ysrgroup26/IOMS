@@ -162,10 +162,10 @@ export default function RegulationsIndex({
                                                 )}
                                                 {canManage && (
                                                     <>
-                                                        <button onClick={() => startEdit(row)} className="mr-2 text-graphite-500 hover:text-navy-800" title="Ubah">
+                                                        <button onClick={() => startEdit(row)} className="mr-2 text-graphite-500 hover:text-navy-800" title="Edit" aria-label="Edit">
                                                             <Pencil className="h-4 w-4" />
                                                         </button>
-                                                        <button onClick={() => remove(row)} className="text-graphite-400 hover:text-danger" title="Hapus">
+                                                        <button onClick={() => remove(row)} className="text-graphite-400 hover:text-danger" title="Delete" aria-label="Delete">
                                                             <Trash2 className="h-4 w-4" />
                                                         </button>
                                                     </>

@@ -204,7 +204,7 @@ export default function EmployeeSelector({
                             {!disabled && (
                                 <button
                                     type="button"
-                                    aria-label="Hapus"
+                                    aria-label="Remove"
                                     onClick={() => clearSelection(id)}
                                     className="rounded-full p-0.5 hover:bg-graphite-200 dark:hover:bg-slate-700"
                                 >

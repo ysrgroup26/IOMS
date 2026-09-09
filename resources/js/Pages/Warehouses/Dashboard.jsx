@@ -22,12 +22,12 @@ function HealthBadge({ status }) {
 }
 
 const WAREHOUSE_MODULES = [
-    { icon: Warehouse, title: 'Data Master Gudang', description: 'Gudang & lokasi penyimpanan.', href: 'warehouses.master' },
-    { icon: Box, title: 'Data Master Barang', description: 'Katalog barang & level stok.', href: 'items.index' },
-    { icon: Boxes, title: 'Inventaris', description: 'Stok saat ini per gudang.', href: 'stock.index' },
-    { icon: PackageCheck, title: 'Penerimaan Barang', description: 'Catatan stok masuk.', href: 'goods-receipts.index' },
-    { icon: ArrowRightLeft, title: 'Keluar / Transfer / Penyesuaian', description: 'Pergerakan stok keluar & internal.', href: 'stock.transactions.create' },
-    { icon: ClipboardList, title: 'Riwayat Pergerakan', description: 'Log lengkap pergerakan stok.', href: 'stock.movements' },
+    { icon: Warehouse, title: 'Warehouse Master', description: 'Gudang & lokasi penyimpanan.', href: 'warehouses.master' },
+    { icon: Box, title: 'Item Master', description: 'Katalog barang & level stok.', href: 'items.index' },
+    { icon: Boxes, title: 'Inventory', description: 'Stok saat ini per gudang.', href: 'stock.index' },
+    { icon: PackageCheck, title: 'Goods Receipt', description: 'Catatan stok masuk.', href: 'goods-receipts.index' },
+    { icon: ArrowRightLeft, title: 'Stock Out / Transfer / Adjustment', description: 'Pergerakan stok keluar & internal.', href: 'stock.transactions.create' },
+    { icon: ClipboardList, title: 'Stock Movement History', description: 'Log lengkap pergerakan stok.', href: 'stock.movements' },
 ];
 
 /**
@@ -45,14 +45,14 @@ export default function WarehouseDashboard({
 }) {
     return (
         <AuthenticatedLayout>
-            <Head title="Ringkasan Gudang" />
-            <DashboardShell title="Ringkasan Gudang" subtitle="Kesehatan stok, penerimaan, dan pengeluaran.">
+            <Head title="Warehouse Overview" />
+            <DashboardShell title="Warehouse Overview" subtitle="Kesehatan stok, penerimaan, dan pengeluaran.">
                 <div className="grid grid-cols-2 gap-3 lg:grid-cols-5">
-                    <StatCard icon={Box} value={totalItemsCount} label="Barang Aktif" href={route('items.index')} />
-                    <StatCard icon={Warehouse} value={totalWarehousesCount} label="Gudang" href={route('warehouses.master')} />
-                    <StatCard icon={AlertTriangle} value={lowStockCount} label="Stok Menipis" accent={lowStockCount > 0 ? 'amber' : 'green'} href={route('stock.index', { low_stock: 1 })} />
-                    <StatCard icon={XCircle} value={outOfStockCount} label="Stok Habis" accent={outOfStockCount > 0 ? 'red' : 'green'} href={route('stock.index')} />
-                    <StatCard icon={PackageCheck} value={goodsReceiptsThisMonth} label="Diterima Bulan Ini" href={route('goods-receipts.index')} />
+                    <StatCard icon={Box} value={totalItemsCount} label="Active Items" href={route('items.index')} />
+                    <StatCard icon={Warehouse} value={totalWarehousesCount} label="Warehouses" href={route('warehouses.master')} />
+                    <StatCard icon={AlertTriangle} value={lowStockCount} label="Low Stock" accent={lowStockCount > 0 ? 'amber' : 'green'} href={route('stock.index', { low_stock: 1 })} />
+                    <StatCard icon={XCircle} value={outOfStockCount} label="Out of Stock" accent={outOfStockCount > 0 ? 'red' : 'green'} href={route('stock.index')} />
+                    <StatCard icon={PackageCheck} value={goodsReceiptsThisMonth} label="Received This Month" href={route('goods-receipts.index')} />
                 </div>
 
                 <div className="grid grid-cols-2 gap-3 sm:grid-cols-3 lg:grid-cols-6">
@@ -62,7 +62,7 @@ export default function WarehouseDashboard({
                 {/* Inventory Health -- compact table, Phase 6 */}
                 <Card>
                     <CardHeader className="pb-2">
-                        <CardTitle>Kesehatan Inventaris</CardTitle>
+                        <CardTitle>Inventory Health</CardTitle>
                         <CardDescription>Stok terendah relatif terhadap minimum, dahulu</CardDescription>
                     </CardHeader>
                     <CardContent className="overflow-x-auto">
@@ -72,11 +72,11 @@ export default function WarehouseDashboard({
                             <table className="w-full min-w-[640px] text-sm">
                                 <thead>
                                     <tr className="border-b border-graphite-100 text-left text-xs text-graphite-400 dark:border-slate-800">
-                                        <th className="py-1.5 font-medium">Barang</th>
-                                        <th className="py-1.5 font-medium">Kategori</th>
-                                        <th className="py-1.5 font-medium">Lokasi</th>
-                                        <th className="py-1.5 font-medium">Stok</th>
-                                        <th className="py-1.5 font-medium">Batas Min.</th>
+                                        <th className="py-1.5 font-medium">Item</th>
+                                        <th className="py-1.5 font-medium">Category</th>
+                                        <th className="py-1.5 font-medium">Location</th>
+                                        <th className="py-1.5 font-medium">Stock</th>
+                                        <th className="py-1.5 font-medium">Min. Level</th>
                                         <th className="py-1.5 font-medium">Status</th>
                                     </tr>
                                 </thead>
@@ -97,7 +97,7 @@ export default function WarehouseDashboard({
                                 </tbody>
                             </table>
                         )}
-                        <Link href={route('stock.index')} className="mt-2 inline-block text-xs font-medium text-brand-600 hover:underline">Lihat seluruh inventaris</Link>
+                        <Link href={route('stock.index')} className="mt-2 inline-block text-xs font-medium text-brand-600 hover:underline">View full inventory</Link>
                     </CardContent>
                 </Card>
 
@@ -111,7 +111,7 @@ export default function WarehouseDashboard({
                         an empty list keeps the plain neutral card. */}
                     <Card className={lowStockItems?.length > 0 ? 'border-amber-200' : undefined}>
                         <CardHeader className={lowStockItems?.length > 0 ? 'rounded-t-[10px] bg-amber-50/60' : undefined}>
-                            <CardTitle className={lowStockItems?.length > 0 ? 'text-amber-800' : undefined}>Barang Stok Menipis</CardTitle>
+                            <CardTitle className={lowStockItems?.length > 0 ? 'text-amber-800' : undefined}>Low Stock Items</CardTitle>
                         </CardHeader>
                         <CardContent>
                             <ActivityList
@@ -130,7 +130,7 @@ export default function WarehouseDashboard({
                     </Card>
 
                     <Card>
-                        <CardHeader><CardTitle>Penerimaan Terbaru</CardTitle></CardHeader>
+                        <CardHeader><CardTitle>Recent Receipts</CardTitle></CardHeader>
                         <CardContent>
                             <ActivityList
                                 items={recentReceiving}
@@ -149,7 +149,7 @@ export default function WarehouseDashboard({
                     </Card>
 
                     <Card>
-                        <CardHeader><CardTitle>Pengeluaran / Transfer Terbaru</CardTitle></CardHeader>
+                        <CardHeader><CardTitle>Recent Issues / Transfers</CardTitle></CardHeader>
                         <CardContent>
                             <ActivityList
                                 items={recentIssuing}
@@ -167,7 +167,7 @@ export default function WarehouseDashboard({
                     </Card>
                 </div>
 
-                <DepartmentCalendarWidget events={departmentCalendar} title="Kalender Gudang" description="3 minggu ke depan" />
+                <DepartmentCalendarWidget events={departmentCalendar} title="Warehouse Calendar" description="3 minggu ke depan" />
             </DashboardShell>
         </AuthenticatedLayout>
     );

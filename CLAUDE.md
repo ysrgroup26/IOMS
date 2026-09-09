@@ -70,6 +70,26 @@ authorization path. See `docs/ADR/008-tenancy-foundation.md` for the reasoning a
 | `docs/CONVENTIONS.md` | The house style: migration patterns, naming, status-enum conventions, verification habits, things that have caused real bugs before and how they were fixed. Read before writing a migration, adding a role check, or touching anything cache-related. |
 | `docs/ADR/*.md` | The *reasoning* behind a handful of specific, larger decisions (why the Approval Engine is shaped the way it is, why "Pending Approval" isn't a stored status, why Tenancy/RBAC/Platform Super Admin are shaped the way they are in `008`). Read the relevant one before revisiting a decision it documents, so you don't re-litigate something that was already deliberately decided with tradeoffs in mind. |
 
+## The product speaks two languages, and which one depends on the slot
+
+Before editing any user-facing string, know this rule (v2.53.0, full version and rationale in
+`docs/CONVENTIONS.md` § *The language hierarchy*):
+
+- **English** — module and feature names, navigation labels, page titles, column headers, status
+  labels, stat labels, action labels and buttons, accessible names.
+- **Indonesian** — subtitles, card descriptions, help text, hints, empty-state guidance, and the
+  `whats_new` list. Legal documents are Indonesian deliberately.
+
+So `<Head title>`, `label=`, `<CardTitle>` and `<th>` are English; `subtitle=`, `description=`,
+`<CardDescription>` and `emptyTitle=` are Indonesian, **on the same page**. The split is per slot,
+not per page. Established terms (HSE, PPE, JSA, HIRADC, PTW, LOTO, CAPA, TBM, NCR, RFQ, FPB, SPK) are
+never translated either way.
+
+This is not decoration: a menu item and the page it opens must be recognisably the same thing. The
+rule was broken three times in sixteen releases because it previously existed only inside a changelog
+summary. `tests/Feature/LanguageHierarchyTest.php` now pins it — and pins it against **both** the JSX
+literals and the rendered server props, because copy reaches a page from either.
+
 ## The single most important habit in this codebase: verify before building
 
 Across this project's history, the instruction "verify first, don't assume a feature is missing"

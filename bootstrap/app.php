@@ -8,6 +8,7 @@ use App\Http\Middleware\ResolveTenant;
 use App\Http\Middleware\RestrictDemoTenant;
 use App\Http\Middleware\RestrictDepartmentAccess;
 use App\Http\Middleware\RestrictPlatformAdminFromTenantRoutes;
+use App\Support\ErrorMessagePresenter;
 use Illuminate\Foundation\Application;
 use Illuminate\Foundation\Configuration\Exceptions;
 use Illuminate\Foundation\Configuration\Middleware;
@@ -130,9 +131,41 @@ return Application::configure(basePath: dirname(__DIR__))
         // codebase is completely untouched; this only changes how the
         // resulting 403/404/419/429 response is RENDERED.
         $exceptions->respond(function (Response $response, Throwable $exception, Request $request) {
-            if (! $request->header('X-Inertia') && ! $request->wantsJson()) {
-                // Non-Inertia, non-JSON request (e.g. a raw asset 404) --
-                // leave Laravel's own default handling alone.
+            /* v2.68.0 -- THE FRIENDLY PAGE WAS UNREACHABLE FOR THE CASE
+               THAT NEEDS IT MOST.
+
+               This guard used to require the `X-Inertia` header, which is
+               present only on an XHR navigation made from inside the
+               running SPA. Every FULL-PAGE request therefore fell through
+               to Laravel's default handler and rendered a bare
+               "404 NOT FOUND" with no navigation and no way back -- the
+               exact break-out of the SPA this block was written to
+               prevent. Verified in a browser: a direct GET of an unmatched
+               URL returned the plain page, not Errors/Show.
+
+               Those are the situations a person actually hits an error in:
+               a stale bookmark, a link pasted from a chat, a refresh after
+               the session expired (419), a deep link into a department
+               they cannot see (403). None of them carry `X-Inertia`.
+
+               A full-page navigation is now included. Asset requests are
+               still excluded -- a missing .css/.js/.png should stay a cheap
+               default 404 rather than render a React page no one will look
+               at -- by testing for a file extension on the path.
+
+               Rendering only. The status code, `$alwaysFriendly`, the
+               production-only handling of 500/503, and every abort()/
+               abort_unless() upstream are untouched: a 403 is still a 403
+               and still refuses. */
+            $isAssetRequest = (bool) preg_match('/\.[A-Za-z0-9]{1,8}$/', $request->path());
+
+            $shouldRenderFriendlyPage = $request->header('X-Inertia')
+                || $request->wantsJson()
+                || ($request->acceptsHtml() && ! $isAssetRequest);
+
+            if (! $shouldRenderFriendlyPage) {
+                // e.g. a raw asset 404 -- leave Laravel's own default
+                // handling alone.
                 return $response;
             }
 
@@ -151,7 +184,7 @@ return Application::configure(basePath: dirname(__DIR__))
             if ($alwaysFriendly || $friendlyInProduction) {
                 return Inertia::render('Errors/Show', [
                     'status' => $status,
-                    'message' => in_array($status, [500, 503], true) ? null : $exception->getMessage(),
+                    'message' => ErrorMessagePresenter::forStatus($status, $exception),
                 ])->toResponse($request)->setStatusCode($status);
             }
 

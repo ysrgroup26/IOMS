@@ -89,7 +89,7 @@ export default function ModuleCard({ icon: Icon, title, description, href, statu
         <div className="flex items-center gap-3">
             {chip}
             <div className="min-w-0 flex-1">
-                <p className="truncate text-base font-semibold text-navy-900 dark:text-slate-50">{title}</p>
+                <p className="text-base font-semibold text-navy-900 dark:text-slate-50">{title}</p>
                 {description && <p className="truncate text-xs text-graphite-500 dark:text-slate-400">{description}</p>}
             </div>
             {isActive && <ArrowRight className="h-4 w-4 shrink-0 text-graphite-300 dark:text-slate-600" />}
@@ -102,7 +102,7 @@ export default function ModuleCard({ icon: Icon, title, description, href, statu
                 {status === 'locked' && <Badge variant="destructive" className="shrink-0">Not in plan</Badge>}
                 {isActive && <ArrowRight className="h-3.5 w-3.5 shrink-0 text-graphite-300 dark:text-slate-600" />}
             </div>
-            <p className="mt-2 truncate text-[13px] font-semibold text-navy-800 dark:text-slate-100">{title}</p>
+            <p className="mt-2 text-[13px] font-semibold leading-snug text-navy-800 dark:text-slate-100">{title}</p>
             {description && <p className="mt-0.5 line-clamp-1 text-[11px] text-graphite-400 dark:text-slate-500">{description}</p>}
         </>
     );

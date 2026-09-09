@@ -38,7 +38,7 @@ export default function KpiSummaryCard({ label, value, isNegative, icon, color, 
                     <Icon className="h-3 w-3" />
                 </div>
                 <div className="min-w-0 flex-1">
-                    <p className="truncate text-[10px] font-medium uppercase tracking-wide text-graphite-400">{label}</p>
+                    <p className="line-clamp-3 text-[10px] font-medium uppercase tracking-wide text-graphite-400">{label}</p>
                     <p className="text-sm font-bold leading-tight text-navy-900" style={valueColor}>
                         {formatNumber(value)}
                     </p>
@@ -63,7 +63,7 @@ export default function KpiSummaryCard({ label, value, isNegative, icon, color, 
                     <Icon className="h-4.5 w-4.5" />
                 </div>
                 <div className="min-w-0">
-                    <p className="truncate text-[11px] font-medium uppercase tracking-wide text-graphite-400">{label}</p>
+                    <p className="line-clamp-3 text-[11px] font-medium uppercase tracking-wide text-graphite-400">{label}</p>
                     <p className="text-lg font-bold text-graphite-900" style={valueColor}>
                         {formatNumber(value)}
                     </p>

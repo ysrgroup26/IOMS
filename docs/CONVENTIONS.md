@@ -3,6 +3,127 @@
 House style, and a deliberately honest list of mistakes that have actually happened in this
 codebase's history — kept here so they don't get repeated in a slightly different shape.
 
+## Convention (v2.53.0, written down properly in v2.68.0): THE LANGUAGE HIERARCHY
+
+**IOMS is bilingual on purpose, and the split is by SLOT, not by page.**
+
+| Slot | Language |
+|---|---|
+| Module and feature names, navigation labels, page titles (`<Head title>`, `DashboardShell title`) | **English** |
+| Column headers, status labels, stat/KPI labels, action labels and buttons, accessible names | **English** |
+| Subtitles, card descriptions, help text, hints, empty-state guidance, `whats_new` | **Indonesian** |
+| Legal documents (terms, privacy, refunds) | **Indonesian**, deliberately — an Indonesian legal audience |
+
+Established technical terms are never translated in either direction: HSE, PPE, JSA, HIRADC, PTW,
+LOTO, CAPA, TBM, NCR, RFQ, KPI, Gas Test, Man-Hour, Work Order, Goods Receipt, Purchase Order, and
+the Indonesian document names FPB and SPK.
+
+**Why the English half is not negotiable.** v2.53.0 states the test: a user must be able to say
+*"open Regulations & Standards"* out loud and have it match what is on screen. A menu item and the
+page it opens must be recognisably the same thing. Translating that layer breaks the connection
+between the two.
+
+**Why this entry exists at all.** This rule was real from v2.53.0 onward but lived only inside
+`config/ioms.php`'s `version_history` summaries — a place nobody reads before editing a page. It was
+therefore violated three separate times (see the pitfall below). A rule that only exists in a
+changelog is a rule that will be broken. It is pinned by `tests/Feature/LanguageHierarchyTest.php`.
+
+## Known Pitfall (v2.68.0): every attempt to hold a language line was scoped to the file its author
+## happened to have open — three times, across sixteen releases
+
+This is the same shape as the v2.63.0 isolation gap and the v2.64.0 landing-copy gap, and it kept
+recurring because each fix looked complete from where it was written:
+
+- **v1.11.7** translated navigation and the five department Overview dashboards into Indonesian under
+  the then-current "standardize on Bahasa Indonesia" policy.
+- **v2.53.0** replaced that policy with the hierarchy above and corrected the pages it was looking
+  at. **Nothing re-checked the five Overview dashboards.** They kept running the superseded policy
+  for fifteen releases, so the sidebar said `CAPA` while the card beneath it said
+  `Tindakan Perbaikan`, and clicking `Observasi Keselamatan` landed on a page titled
+  `Safety Observation`.
+- **v2.61.0** made the landing page English and pinned it with a test that read `Welcome.jsx` — so
+  the copy arriving as a *server prop* stayed Indonesian for three more releases (already recorded
+  as its own v2.64.0 pitfall).
+
+**Two rules come out of this:**
+
+1. **A label can come from two places — the JSX literal and the server prop — so a test that claims
+   to cover "the page" has to read both.** `LanguageHierarchyTest` scans label positions in every
+   `.jsx` *and* asserts against the rendered Inertia props of every public route.
+2. **When a policy is replaced, the replacement has to name what the OLD policy touched.** v2.53.0
+   corrected the pages in front of it and never listed v1.11.7's five dashboards as outstanding.
+
+`resources/js/lib/id.js`, the v1.11.7 terminology map, was deleted in v2.68.0 — it had been imported
+by nothing for many releases (its strings were absent from the compiled bundle entirely). A
+dictionary encoding a superseded policy is how that policy comes back; a test now asserts it stays
+gone.
+
+## Convention (v2.68.0): a stat card may clip its VALUE, never its LABEL
+
+`truncate` on a label is almost always a bug. The value is a number and the card links to the record
+behind it, so clipping it costs little. The label is the only thing that says *what the number
+counts* — clipping it makes the tile unreadable rather than merely abbreviated.
+
+Measured on the Dashboard at 1440px before this was fixed: the KPI strip was `lg:grid-cols-8`, which
+left **33px** for the label, so `Fatality` — the most severe category in an HSE product — rendered as
+`FAT...`, and the "needs attention" row showed `PENDING PROCUREM...` and `MAINTENANCE DUE (...`.
+
+`StatCard`, `KpiSummaryCard` and `ModuleCard` therefore wrap their label (`line-clamp-3`) instead of
+truncating it. Two consequences worth knowing:
+
+- **Wrapping is cheaper than it looks**: a label that already fits is unaffected, so this only ever
+  costs height on the cards that were previously broken.
+- **Wrapping cannot save a single word wider than its column.** At 320px, `OBSERVATIONS` alone
+  exceeds the 64px column in a 2-up grid and still clips. That is a known, accepted limit at 320px
+  only — clean from 375px up.
+
+## Convention (v2.68.0): colour in a chart must not borrow a meaning the app already assigned to it
+
+`CHART_COLORS` is a *categorical* palette and contains `#ef4444` and `#22c55e` — the same red and
+green `StatCard` uses semantically for "open incidents" and "healthy". Using it to colour categories
+means a department, a warehouse or a vendor can be drawn in the colour this product uses for danger.
+
+- **Prefer one colour** when the chart has a single series (a ranked bar chart answers "who is
+  biggest?" without colour doing any work).
+- **When a category already owns a colour, use that one.** KPI categories carry an admin-configured
+  `effective_color` that their cards and sparklines use; the Dashboard trend chart used to colour by
+  array position instead, so `Fatality` was red on its card and blue on the line directly beneath it.
+  Both payloads carry `code`, so they are joined in the page — presentation, not query.
+- **Past ~6 categories, stop using a pie.** "Employees by Department" was fourteen slices from a
+  nine-colour palette; nobody can rank two similar wedges, which is the only question that card is
+  asked.
+
+## Known Pitfall (v2.68.0): a guard written for the SPA made the friendly error page unreachable
+## from a browser address bar — the one place it was needed
+
+`bootstrap/app.php` renders `Errors/Show` for expected statuses so an error stays inside the product
+with a link back. Its first guard was:
+
+```php
+if (! $request->header('X-Inertia') && ! $request->wantsJson()) {
+    return $response;   // "non-Inertia, non-JSON request (e.g. a raw asset 404)"
+}
+```
+
+`X-Inertia` is present **only on an XHR navigation made from inside the already-running SPA**. So
+every *full-page* request — a typed URL, a stale bookmark, a link pasted from a chat, a refresh after
+the session expired, a deep link into a department the user cannot open — fell through to Laravel's
+default and rendered a bare `404 NOT FOUND` with no navigation at all. Those are precisely the
+moments someone needs a way back, and the component, the handler and the route table each looked
+correct read on their own.
+
+**The rule: "is this request part of the SPA?" is not the same question as "is this request a page?"**
+The intent was to skip *asset* 404s. Test for that directly (a file extension on the path) rather
+than using the SPA header as a proxy for it.
+
+**And the consequence to check whenever a renderer starts reaching more requests:** what it renders
+now reaches more readers. Forwarding `$exception->getMessage()` verbatim was survivable while only
+in-app navigation saw it; broadening the guard meant a framework string like
+`No query results for model [App\Models\Employee] 99999` became the entire explanation of a 404.
+`App\Support\ErrorMessagePresenter` now suppresses framework-generated text while preserving the
+three 403 messages this codebase writes on purpose. Widening *reach* and tightening *content* belong
+in the same change.
+
 ## Known Pitfall (v2.60.0): a data migration makes every test's fixtures a duplicate
 
 The four-tier pricing catalogue ships in a migration, not only in the seeder — deliberately, because

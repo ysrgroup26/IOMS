@@ -167,11 +167,16 @@ export const WORKSPACES = [
          * (it has no disabled-child treatment), so nesting them would
          * have rendered as a broken Link, not a locked row.
          */
-        // v1.11.7 (Bahasa Indonesia Standardization, Part 4) -- every item
-        // name below translated per resources/js/lib/id.js's terminology
-        // map; hrefs/route names UNCHANGED. Established acronyms (PPE,
-        // JSA, HIRADC, PTW, LOTO, CAPA, TBM, KPI) kept as-is rather than
-        // forced into unnatural Indonesian, matching that file's own rules.
+        // v2.68.0: this block used to point at resources/js/lib/id.js, the
+        // v1.11.7 "standardize on Bahasa Indonesia" terminology map. That
+        // policy was superseded by v2.53.0's language hierarchy (English
+        // for navigation, feature names, headers, status and action
+        // labels), and the file had been imported by nothing for many
+        // releases -- its strings did not appear in the built bundle at
+        // all. It has been deleted rather than left as a dictionary
+        // someone could wire back up. These names are, and stay, English;
+        // established acronyms (PPE, JSA, HIRADC, PTW, LOTO, CAPA, TBM,
+        // KPI) are kept as-is. hrefs/route names UNCHANGED.
         items: [
             { name: 'Dashboard', href: 'dashboard', icon: LayoutDashboard, global: true },
             { name: 'My Work', href: 'my-work', icon: ClipboardList, global: true, departmentUserOnly: true },

@@ -11,11 +11,11 @@ import { FolderKanban, AlertTriangle, Flag, ClipboardList, ListTodo, CheckSquare
 
 // v1.11.7 (Bahasa Indonesia Standardization, Part 4) -- hrefs unchanged.
 const PM_MODULES = [
-    { icon: FolderKanban, title: 'Proyek', description: 'Register proyek & linimasa.', href: 'projects.index' },
+    { icon: FolderKanban, title: 'Projects', description: 'Register proyek & linimasa.', href: 'projects.index' },
     { icon: Flag, title: 'Milestone', description: 'Pelacakan milestone lintas proyek.', href: 'milestones.index' },
-    { icon: ClipboardList, title: 'Laporan Harian', description: 'Catatan progres aktivitas harian.', href: 'daily-reports.index' },
-    { icon: CheckSquare, title: 'Tugas', description: 'Penugasan & pelacakan tugas.', href: 'tasks.index' },
-    { icon: ClipboardCheck, title: 'Permintaan Inspeksi', description: 'Permintaan inspeksi kualitas.', href: 'inspection-requests.index' },
+    { icon: ClipboardList, title: 'Daily Reports', description: 'Catatan progres aktivitas harian.', href: 'daily-reports.index' },
+    { icon: CheckSquare, title: 'Tasks', description: 'Penugasan & pelacakan tugas.', href: 'tasks.index' },
+    { icon: ClipboardCheck, title: 'QC Inspection Request', description: 'Permintaan inspeksi kualitas.', href: 'inspection-requests.index' },
     { icon: FileWarning, title: 'NCR', description: 'Laporan ketidaksesuaian.', href: 'ncrs.index' },
 ];
 
@@ -50,21 +50,21 @@ export default function ProjectManagementDashboard({
 }) {
     return (
         <AuthenticatedLayout>
-            <Head title="Ringkasan Manajemen Proyek" />
-            <DashboardShell title="Ringkasan Manajemen Proyek" subtitle="Tampilan operasional berbasis portofolio.">
+            <Head title="Project Management Overview" />
+            <DashboardShell title="Project Management Overview" subtitle="Tampilan operasional berbasis portofolio.">
                 {/* LEVEL 1 -- compact KPI strip */}
                 <div className="grid grid-cols-2 gap-3 lg:grid-cols-5">
-                    <StatCard icon={FolderKanban} value={activeProjectsCount} label="Proyek Aktif" href={route('projects.index')} />
-                    <StatCard icon={AlertTriangle} value={delayedProjectsCount} label="Proyek Terlambat" accent={delayedProjectsCount > 0 ? 'red' : 'green'} href={route('projects.index')} />
-                    <StatCard icon={Flag} value={milestoneCompletionPercent === null ? '—' : `${milestoneCompletionPercent}%`} label="Penyelesaian Milestone" href={route('milestones.index')} />
-                    <StatCard icon={ListTodo} value={avgActivityProgressPercent === null ? '—' : `${avgActivityProgressPercent}%`} label="Rata-rata Progres Aktivitas" />
-                    <StatCard icon={ClipboardList} value={todaysActivitiesCount} label="Aktivitas Hari Ini" href={route('daily-reports.index')} />
+                    <StatCard icon={FolderKanban} value={activeProjectsCount} label="Active Projects" href={route('projects.index')} />
+                    <StatCard icon={AlertTriangle} value={delayedProjectsCount} label="Delayed Projects" accent={delayedProjectsCount > 0 ? 'red' : 'green'} href={route('projects.index')} />
+                    <StatCard icon={Flag} value={milestoneCompletionPercent === null ? '—' : `${milestoneCompletionPercent}%`} label="Milestone Completion" href={route('milestones.index')} />
+                    <StatCard icon={ListTodo} value={avgActivityProgressPercent === null ? '—' : `${avgActivityProgressPercent}%`} label="Avg. Activity Progress" />
+                    <StatCard icon={ClipboardList} value={todaysActivitiesCount} label="Today's Activities" href={route('daily-reports.index')} />
                 </div>
 
                 {/* LEVEL 2 -- Project Portfolio, a compact TABLE not cards */}
                 <Card>
                     <CardHeader className="pb-2">
-                        <CardTitle>Portofolio Proyek</CardTitle>
+                        <CardTitle>Project Portfolio</CardTitle>
                         <CardDescription>Proyek aktif & terencana, tenggat terdekat dahulu</CardDescription>
                     </CardHeader>
                     <CardContent className="overflow-x-auto">
@@ -74,7 +74,7 @@ export default function ProjectManagementDashboard({
                             <table className="w-full min-w-[640px] text-sm">
                                 <thead>
                                     <tr className="border-b border-graphite-100 text-left text-xs text-graphite-400 dark:border-slate-800">
-                                        <th className="py-1.5 font-medium">Proyek</th>
+                                        <th className="py-1.5 font-medium">Project</th>
                                         <th className="py-1.5 font-medium">Manajer</th>
                                         <th className="py-1.5 font-medium">Status</th>
                                         <th className="py-1.5 font-medium">Progres</th>
@@ -98,7 +98,7 @@ export default function ProjectManagementDashboard({
                                 </tbody>
                             </table>
                         )}
-                        <Link href={route('projects.index')} className="mt-2 inline-block text-xs font-medium text-brand-600 hover:underline">Lihat semua proyek</Link>
+                        <Link href={route('projects.index')} className="mt-2 inline-block text-xs font-medium text-brand-600 hover:underline">View all projects</Link>
                     </CardContent>
                 </Card>
 
@@ -110,7 +110,7 @@ export default function ProjectManagementDashboard({
                 {/* LEVEL 4 -- milestone control + delayed projects + calendar */}
                 <div className="grid grid-cols-1 gap-3 lg:grid-cols-3">
                     <Card>
-                        <CardHeader className="pb-2"><CardTitle>Kontrol Milestone</CardTitle></CardHeader>
+                        <CardHeader className="pb-2"><CardTitle>Milestone Control</CardTitle></CardHeader>
                         <CardContent>
                             <ActivityList
                                 items={upcomingMilestones}
@@ -128,12 +128,12 @@ export default function ProjectManagementDashboard({
                                     </div>
                                 )}
                             />
-                            <Link href={route('milestones.index')} className="mt-2 inline-block text-xs font-medium text-brand-600 hover:underline">Lihat semua</Link>
+                            <Link href={route('milestones.index')} className="mt-2 inline-block text-xs font-medium text-brand-600 hover:underline">View all</Link>
                         </CardContent>
                     </Card>
 
                     <Card>
-                        <CardHeader className="pb-2"><CardTitle>Proyek Terlambat</CardTitle></CardHeader>
+                        <CardHeader className="pb-2"><CardTitle>Delayed Projects</CardTitle></CardHeader>
                         <CardContent>
                             <ActivityList
                                 items={delayedProjects}
@@ -151,7 +151,7 @@ export default function ProjectManagementDashboard({
                         </CardContent>
                     </Card>
 
-                    <DepartmentCalendarWidget events={departmentCalendar} title="Kalender Proyek" description="Milestone & tenggat, 3 minggu ke depan" />
+                    <DepartmentCalendarWidget events={departmentCalendar} title="Project Calendar" description="Milestone & tenggat, 3 minggu ke depan" />
                 </div>
             </DashboardShell>
         </AuthenticatedLayout>

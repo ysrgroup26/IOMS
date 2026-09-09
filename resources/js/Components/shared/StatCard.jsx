@@ -142,7 +142,16 @@ export default function StatCard({ icon: Icon, value, label, hint, href, accent,
                 </div>
                 <div className="min-w-0 flex-1">
                     <p className={cn('truncate font-semibold leading-tight text-navy-900 dark:text-slate-50', isSmall ? 'text-base' : 'text-lg')}>{value}</p>
-                    <p className={cn('truncate font-medium uppercase tracking-wide text-graphite-400 dark:text-slate-500', isSmall ? 'text-[10px]' : 'text-[11px]')}>{label}</p>
+                    {/* v2.68.0: was `truncate`. A stat's VALUE may be
+                        clipped safely -- it is a number and the card links
+                        to the full record -- but the label is the only
+                        thing that says WHAT the number counts, so clipping
+                        it makes the tile unreadable rather than merely
+                        abbreviated. Measured at 1440px, "Pending
+                        Procurement" needed 129px in a 118px box and read as
+                        "Pending Procurem...". Wrapping to a second line
+                        costs ~12px of row height and never hides a word. */}
+                    <p className={cn('line-clamp-3 font-medium uppercase tracking-wide text-graphite-400 dark:text-slate-500', isSmall ? 'text-[10px]' : 'text-[11px]')}>{label}</p>
                     {hint && <p className="mt-0.5 truncate text-[10px] font-medium text-graphite-500 dark:text-slate-400">{hint}</p>}
                 </div>
                 {/* Renders only when the caller genuinely has a series --

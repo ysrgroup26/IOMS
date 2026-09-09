@@ -3,7 +3,7 @@ import StatusBadge from '@/Components/shared/StatusBadge';
 import { useState } from 'react';
 import '@/lib/chartSetup';
 import { CHART_COLORS } from '@/lib/chartSetup';
-import { Pie, Line } from 'react-chartjs-2';
+import { Bar, Line } from 'react-chartjs-2';
 import AuthenticatedLayout from '@/Layouts/AuthenticatedLayout';
 import { Card, CardContent, CardHeader, CardTitle, CardDescription } from '@/Components/ui/card';
 import { Badge } from '@/Components/ui/badge';
@@ -75,12 +75,50 @@ export default function Dashboard({
         updateFilters({ year, month });
     }
 
-    const pieData = {
-        labels: departmentDistribution.map((d) => d.label),
+    /* v2.68.0 -- HEADCOUNT BY DEPARTMENT WAS A 14-SLICE PIE.
+       Two separate defects, both only visible with real data:
+
+       1. A pie answers "what share is this?" for a handful of parts. This
+          tenant has 14 departments with active staff (29 exist), so it
+          drew 14 wedges under a 14-entry legend -- nobody can rank two
+          similar wedges, which is the only question this card is asked.
+       2. `backgroundColor: CHART_COLORS` assigned category colours from a
+          9-colour palette containing #ef4444 and #22c55e -- the exact red
+          and green this app uses semantically everywhere else (an
+          `accent="red"` StatCard means open incidents). A department
+          rendered red read as a department in trouble. Colour was
+          carrying a meaning it did not have, and ran out after 9.
+
+       Ranked horizontal bars answer the ranking question directly, and
+       one brand colour carries no accidental meaning. Sorting and the
+       "Other" roll-up are presentation only -- DashboardStatsService is
+       tenant-scoped business logic and is deliberately untouched. */
+    const DEPARTMENT_BAR_LIMIT = 10;
+    const rankedDepartments = [...departmentDistribution].sort((a, b) => b.value - a.value);
+    const topDepartments = rankedDepartments.slice(0, DEPARTMENT_BAR_LIMIT);
+    const remainingDepartments = rankedDepartments.slice(DEPARTMENT_BAR_LIMIT);
+    const departmentBars = remainingDepartments.length > 0
+        ? [...topDepartments, {
+            label: `Other (${remainingDepartments.length} departments)`,
+            value: remainingDepartments.reduce((sum, d) => sum + d.value, 0),
+        }]
+        : topDepartments;
+
+    const departmentData = {
+        labels: departmentBars.map((d) => d.label),
         datasets: [{
-            data: departmentDistribution.map((d) => d.value),
-            backgroundColor: CHART_COLORS,
+            label: 'Active employees',
+            data: departmentBars.map((d) => d.value),
+            // The "Other" roll-up is a residual, not a department, and it
+            // is often the largest bar simply because it is a sum. Muting
+            // it keeps the eye on the ranked departments above it.
+            backgroundColor: departmentBars.map((d) =>
+                d.label.startsWith('Other (') ? '#cbd5e1' : CHART_COLORS[0]
+            ),
+            borderRadius: 3,
             borderWidth: 0,
+            barThickness: 'flex',
+            maxBarThickness: 18,
         }],
     };
 
@@ -92,16 +130,31 @@ export default function Dashboard({
         (monthlyTrend?.series ?? []).map((serie) => [serie.label, Array.from(serie.data ?? [])])
     );
 
+    /* v2.68.0: a KPI category already HAS a colour -- `effective_color`,
+       admin-configurable in Settings > KPI Categories -- and its summary
+       card and sparkline both use it. This chart ignored it and coloured
+       by position instead, so Fatality was red on its card and whatever
+       CHART_COLORS[0] happened to be on the line directly beneath it. Both
+       payloads already carry `code`, so the two are joined here rather
+       than in DashboardStatsService: presentation, not query. Position
+       stays the fallback for a category with no colour set. */
+    const categoryColorByCode = Object.fromEntries(
+        (summary?.categories ?? []).map((c) => [c.code, c.color])
+    );
+
     const trendData = {
         labels: monthlyTrend.labels,
-        datasets: monthlyTrend.series.map((s, i) => ({
-            label: s.label,
-            data: s.data,
-            borderColor: CHART_COLORS[i % CHART_COLORS.length],
-            backgroundColor: CHART_COLORS[i % CHART_COLORS.length] + '20',
-            tension: 0.35,
-            pointRadius: 2,
-        })),
+        datasets: monthlyTrend.series.map((s, i) => {
+            const color = categoryColorByCode[s.code] ?? CHART_COLORS[i % CHART_COLORS.length];
+            return {
+                label: s.label,
+                data: s.data,
+                borderColor: color,
+                backgroundColor: color + '20',
+                tension: 0.35,
+                pointRadius: 2,
+            };
+        }),
     };
 
     return (
@@ -385,7 +438,7 @@ export default function Dashboard({
                 category + the current period/company. */}
             <div className="mt-3">
                 <p className="mb-1.5 text-[11px] font-semibold uppercase tracking-wide text-graphite-400">KPI Summary</p>
-                <div className="grid grid-cols-2 gap-2 sm:grid-cols-4 lg:grid-cols-8">
+                <div className="grid grid-cols-2 gap-2 sm:grid-cols-4 lg:grid-cols-4 2xl:grid-cols-8">
                     {summary.categories.map((c) => (
                         <KpiSummaryCard
                             key={c.id}
@@ -427,19 +480,29 @@ export default function Dashboard({
                 <Card className="lg:col-span-2">
                     <CardHeader>
                         <CardTitle>Employees by Department</CardTitle>
-                        <CardDescription>Active headcount distribution</CardDescription>
+                        <CardDescription>
+                            Active headcount, largest first
+                            {remainingDepartments.length > 0 && ` — top ${DEPARTMENT_BAR_LIMIT} shown`}
+                        </CardDescription>
                     </CardHeader>
                     <CardContent>
                         <div className="h-80">
                             {departmentDistribution.length === 0 ? (
                                 <p className="flex h-full items-center justify-center text-sm text-graphite-400">No data yet.</p>
                             ) : (
-                                <Pie
-                                    data={pieData}
+                                <Bar
+                                    data={departmentData}
                                     options={{
+                                        indexAxis: 'y',
                                         responsive: true,
                                         maintainAspectRatio: false,
-                                        plugins: { legend: { position: 'bottom', labels: { boxWidth: 10, font: { size: 11 } } } },
+                                        // One series, one colour: a legend would
+                                        // only restate the card title.
+                                        plugins: { legend: { display: false } },
+                                        scales: {
+                                            x: { beginAtZero: true, ticks: { precision: 0 }, grid: { drawBorder: false } },
+                                            y: { grid: { display: false }, ticks: { font: { size: 11 }, autoSkip: false } },
+                                        },
                                     }}
                                 />
                             )}

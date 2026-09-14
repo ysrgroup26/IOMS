@@ -41,6 +41,7 @@ use App\Http\Controllers\WarehouseController;
 use App\Http\Controllers\WarehouseDashboardController;
 use App\Http\Controllers\KpiInputController;
 use App\Http\Controllers\KpiRecordController;
+use App\Http\Controllers\EmployeeCaseController;
 use App\Http\Controllers\LeaveRequestController;
 use App\Http\Controllers\ManHourController;
 use App\Http\Controllers\LogisticsDashboardController;
@@ -892,6 +893,11 @@ Route::middleware(['auth', 'restrict.platform-admin'])->group(function () {
     Route::post('/material-requests/{materialRequest}/complete', [MaterialRequestController::class, 'complete'])->name('material-requests.complete');
     Route::post('/material-requests/{materialRequest}/reopen', [MaterialRequestController::class, 'reopen'])->name('material-requests.reopen');
     Route::post('/material-requests/{materialRequest}/cancel', [MaterialRequestController::class, 'cancel'])->name('material-requests.cancel');
+    // v2.69.0 -- demand consolidation. Authorization is inside the
+    // controller (canConsolidateDemand()), matching how every other
+    // action in this group gates itself rather than via route middleware.
+    Route::post('/material-requests/{materialRequest}/consolidate', [MaterialRequestController::class, 'consolidate'])->name('material-requests.consolidate');
+    Route::post('/material-requests/{materialRequest}/release-consolidation', [MaterialRequestController::class, 'releaseConsolidation'])->name('material-requests.release-consolidation');
 
     // Universal Approval Engine (v1.6.9) -- generic, not scoped under
     // /material-requests, since these two routes work against any
@@ -919,6 +925,29 @@ Route::middleware(['auth', 'restrict.platform-admin'])->group(function () {
     Route::post('/leave-requests', [LeaveRequestController::class, 'store'])->name('leave-requests.store');
     Route::get('/leave-requests/{leaveRequest}', [LeaveRequestController::class, 'show'])->name('leave-requests.show');
     Route::post('/leave-requests/{leaveRequest}/cancel', [LeaveRequestController::class, 'cancel'])->name('leave-requests.cancel');
+
+    /*
+     * v2.69.0 -- Employee Cases (HR employee relations / discipline).
+     *
+     * No route middleware: every action gates itself on
+     * canManageEmployeeCases() inside the controller, the same way every
+     * other module in this group does. Deliberately NOT wrapped in a
+     * `role:` group -- v1.9.x shipped a real outage by nesting Material
+     * Request routes inside `role:super_admin`, and the pitfall is
+     * recorded in docs/CONVENTIONS.md.
+     */
+    Route::get('/employee-cases', [EmployeeCaseController::class, 'index'])->name('employee-cases.index');
+    Route::get('/employee-cases/create', [EmployeeCaseController::class, 'create'])->name('employee-cases.create');
+    Route::post('/employee-cases', [EmployeeCaseController::class, 'store'])->name('employee-cases.store');
+    Route::get('/employee-cases/{employeeCase}', [EmployeeCaseController::class, 'show'])->name('employee-cases.show');
+    Route::get('/employee-cases/{employeeCase}/edit', [EmployeeCaseController::class, 'edit'])->name('employee-cases.edit');
+    Route::put('/employee-cases/{employeeCase}', [EmployeeCaseController::class, 'update'])->name('employee-cases.update');
+    Route::post('/employee-cases/{employeeCase}/start-review', [EmployeeCaseController::class, 'startReview'])->name('employee-cases.start-review');
+    Route::post('/employee-cases/{employeeCase}/actions', [EmployeeCaseController::class, 'storeAction'])->name('employee-cases.actions.store');
+    Route::post('/employee-cases/{employeeCase}/actions/{action}/acknowledge', [EmployeeCaseController::class, 'acknowledgeAction'])->name('employee-cases.actions.acknowledge');
+    Route::post('/employee-cases/{employeeCase}/close', [EmployeeCaseController::class, 'close'])->name('employee-cases.close');
+    Route::post('/employee-cases/{employeeCase}/dismiss', [EmployeeCaseController::class, 'dismiss'])->name('employee-cases.dismiss');
+    Route::post('/employee-cases/{employeeCase}/reopen', [EmployeeCaseController::class, 'reopen'])->name('employee-cases.reopen');
 
     // Man-Hour (v1.11.6, Production Readiness pass, Part 4) -- HR-owned operational log, see ManHourController's own doc comment.
     Route::get('/man-hour', [ManHourController::class, 'index'])->name('man-hour.index');

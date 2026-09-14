@@ -61,6 +61,16 @@ const STATUS_MAP = {
     approved: 'success',
     rejected: 'destructive',
     processing: 'outline',
+    // v2.69.0 -- demand deliberately retained so it can be bought with
+    // related requests. `outline` on purpose: this is a NORMAL, correct
+    // state, and colouring it as a warning would restate the exact
+    // confusion the state exists to remove -- a consolidated request is
+    // not a stalled one. Its age is what earns emphasis, not its status.
+    consolidating: 'outline',
+    // v2.69.0 -- Employee Case lifecycle.
+    under_review: 'warning',
+    action_issued: 'destructive',
+    dismissed: 'secondary',
     // Generic
     active: 'success',
     inactive: 'secondary',

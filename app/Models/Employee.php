@@ -128,6 +128,55 @@ class Employee extends Model
     }
 
     /**
+     * v2.69.0 -- Employee Cases (HR employee relations / discipline).
+     */
+    public function cases()
+    {
+        return $this->hasMany(EmployeeCase::class)->orderByDesc('reported_at');
+    }
+
+    /**
+     * Every disciplinary action ever issued to this person, across all of
+     * their cases -- the actual "historical record" this module exists to
+     * provide, as opposed to a current-state flag.
+     */
+    public function caseActions()
+    {
+        return $this->hasManyThrough(
+            EmployeeCaseAction::class,
+            EmployeeCase::class,
+            'employee_id',
+            'employee_case_id',
+        );
+    }
+
+    /**
+     * v2.69.0 -- THE EMPLOYEE'S CURRENT STANDING, DERIVED AND NEVER STORED.
+     *
+     * The most severe disciplinary action still in force, or null for a
+     * clean standing. This is deliberately NOT a column on `employees`,
+     * for the reason a column could not survive: an SP lapses on a date,
+     * and nothing would be watching. Derived from the actions' own
+     * validity windows, the answer is correct on every read, including the
+     * morning after one expires, with no scheduled job to run or forget.
+     *
+     * Same principle as `profile_status` directly above, and as
+     * PurchaseOrderItem::delivered_quantity -- if it can be computed from
+     * records that already exist, it is not state.
+     *
+     * Not appended: it costs a query per employee, so a list of 200 people
+     * must not pay for it. Callers that need it load it explicitly.
+     */
+    public function currentDisciplinaryStanding(): ?EmployeeCaseAction
+    {
+        return $this->caseActions()
+            ->inForce()
+            ->get()
+            ->sortByDesc('severity_rank')
+            ->first();
+    }
+
+    /**
      * Milestone 4, Workstream A3 (Shift & Roster Management).
      */
     public function shiftAssignments()

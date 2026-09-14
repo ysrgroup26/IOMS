@@ -1,18 +1,50 @@
-import { Head, Link, router } from '@inertiajs/react';
+import { useState } from 'react';
+import { Head, Link, router, useForm } from '@inertiajs/react';
 import AuthenticatedLayout from '@/Layouts/AuthenticatedLayout';
-import { Card, CardContent, CardHeader, CardTitle } from '@/Components/ui/card';
+import { Card, CardContent, CardHeader, CardTitle, CardDescription } from '@/Components/ui/card';
 import { Button } from '@/Components/ui/button';
+import { Textarea } from '@/Components/ui/textarea';
+import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogDescription, DialogFooter } from '@/Components/ui/dialog';
 import { Table, TableHeader, TableBody, TableRow, TableHead, TableCell } from '@/Components/ui/table';
 import ApprovalActions from '@/Components/shared/ApprovalActions';
 import ActivityTimeline from '@/Components/shared/ActivityTimeline';
 import StatusBadge from '@/Components/shared/StatusBadge';
-import { ArrowLeft, Pencil, FileDown, Printer, PackageCheck, CheckCheck, RotateCcw, XCircle } from 'lucide-react';
+import AgingIndicator from '@/Components/shared/AgingIndicator';
+import { FormField } from '@/Components/shared/form';
+import { ArrowLeft, Pencil, FileDown, Printer, PackageCheck, CheckCheck, RotateCcw, XCircle, Layers, PlayCircle, Truck } from 'lucide-react';
 import PageHeader from '@/Components/shared/PageHeader';
 
-export default function MaterialRequestShow({ materialRequest: mr, approval, activities, canDecide, canProcess, canOverride }) {
+function formatDate(value) {
+    if (!value) return null;
+    return new Date(value).toLocaleDateString('en-US', { day: 'numeric', month: 'short', year: 'numeric' });
+}
+
+export default function MaterialRequestShow({ materialRequest: mr, approval, activities, canDecide, canProcess, canOverride, canConsolidate }) {
+    const [holdOpen, setHoldOpen] = useState(false);
+    const [cancelOpen, setCancelOpen] = useState(false);
+
+    const holdForm = useForm({ reason: '' });
+    const cancelForm = useForm({ reason: '' });
+
     function act(action, confirmMessage) {
         if (confirmMessage && !confirm(confirmMessage)) return;
         router.post(route(`material-requests.${action}`, mr.id));
+    }
+
+    function submitHold(e) {
+        e.preventDefault();
+        holdForm.post(route('material-requests.consolidate', mr.id), {
+            preserveScroll: true,
+            onSuccess: () => { setHoldOpen(false); holdForm.reset(); },
+        });
+    }
+
+    function submitCancel(e) {
+        e.preventDefault();
+        cancelForm.post(route('material-requests.cancel', mr.id), {
+            preserveScroll: true,
+            onSuccess: () => { setCancelOpen(false); cancelForm.reset(); },
+        });
     }
 
     return (
@@ -40,7 +72,25 @@ export default function MaterialRequestShow({ materialRequest: mr, approval, act
 
                     {/* Approved: Warehouse (or Super Admin) starts
                         processing. */}
-                    {mr.status === 'approved' && canProcess && (
+                    {/*
+                        v2.69.0 -- hold approved demand so it can be bought
+                        together with related requests. Offered only from
+                        `approved`: consolidating something already being
+                        fulfilled would mean un-processing it.
+                    */}
+                    {mr.status === 'approved' && canConsolidate && (
+                        <Button variant="outline" onClick={() => setHoldOpen(true)}>
+                            <Layers className="h-4 w-4" /> Hold for consolidation
+                        </Button>
+                    )}
+
+                    {mr.status === 'consolidating' && canConsolidate && (
+                        <Button variant="outline" onClick={() => act('release-consolidation', 'Release this request back into the approved queue?')}>
+                            <PlayCircle className="h-4 w-4" /> Release hold
+                        </Button>
+                    )}
+
+                    {['approved', 'consolidating'].includes(mr.status) && canProcess && (
                         <Button onClick={() => act('process', 'Start processing this request?')}>
                             <PackageCheck className="h-4 w-4" /> Start Processing
                         </Button>
@@ -68,8 +118,14 @@ export default function MaterialRequestShow({ materialRequest: mr, approval, act
                     {/* Cancel is available as an override from any
                         non-final state -- not a normal user action,
                         matching "Company Admin: Override if required." */}
+                    {/*
+                        v2.69.0 -- cancelling now records WHY. A separate
+                        terminal "closed" state was rejected as a duplicate
+                        of this one: the missing information was never a
+                        status, it was the reason. See ADR/030.
+                    */}
                     {canOverride && !['completed', 'cancelled'].includes(mr.status) && (
-                        <Button variant="outline" onClick={() => act('cancel', 'Cancel this request? This cannot be undone.')}>
+                        <Button variant="outline" onClick={() => setCancelOpen(true)}>
                             <XCircle className="h-4 w-4" /> Cancel
                         </Button>
                     )}
@@ -150,6 +206,89 @@ export default function MaterialRequestShow({ materialRequest: mr, approval, act
                 </CardContent>
             </Card>
 
+            {/*
+                v2.69.0 -- WHY THIS REQUEST IS STILL OPEN.
+                The panel a requester needed and never had. It answers three
+                questions the status alone could not: how long has this been
+                waiting, is the wait deliberate, and who is holding it now.
+            */}
+            {(mr.is_outstanding || mr.status === 'cancelled') && (
+                <Card className="mt-4">
+                    <CardHeader className="pb-2">
+                        <CardTitle>Progress</CardTitle>
+                        <CardDescription>Posisi permintaan ini pada alur pengadaan.</CardDescription>
+                    </CardHeader>
+                    <CardContent className="space-y-3 text-[13px]">
+                        {mr.is_outstanding && (
+                            <div className="flex flex-wrap items-center gap-x-2 gap-y-1">
+                                <span className="text-graphite-500">Open for</span>
+                                <AgingIndicator days={mr.open_age_days} level={mr.aging_level} className="text-sm" />
+                                <span className="text-graphite-400">&middot;</span>
+                                <StatusBadge value={mr.status} label={mr.status === 'submitted' ? 'Waiting Approval' : undefined} />
+                            </div>
+                        )}
+
+                        {mr.status === 'consolidating' && (
+                            <div className="rounded-lg border border-steel-200 bg-steel-100/60 p-3 dark:border-slate-700 dark:bg-slate-800/50">
+                                <p className="flex items-center gap-1.5 font-medium text-navy-900 dark:text-slate-100">
+                                    <Layers className="h-4 w-4" /> Ditahan untuk konsolidasi
+                                </p>
+                                <p className="mt-1 text-graphite-600 dark:text-slate-300">{mr.consolidation_reason}</p>
+                                <p className="mt-1 text-xs text-graphite-400">
+                                    {mr.consolidated_by?.name ? mr.consolidated_by.name + ' \u00b7 ' : ''}
+                                    {formatDate(mr.consolidated_at)}
+                                </p>
+                                <p className="mt-2 text-xs text-graphite-500">
+                                    Ini keputusan yang disengaja, bukan permintaan yang terlupakan &mdash; pengadaan menunggu kebutuhan sejenis agar dibeli sekaligus.
+                                </p>
+                            </div>
+                        )}
+
+                        {mr.status === 'cancelled' && mr.cancellation_reason && (
+                            <div className="rounded-lg border border-graphite-200 bg-graphite-50 p-3 dark:border-slate-800 dark:bg-slate-800/50">
+                                <p className="font-medium text-graphite-800 dark:text-slate-100">Alasan pembatalan</p>
+                                <p className="mt-1 text-graphite-600 dark:text-slate-300">{mr.cancellation_reason}</p>
+                            </div>
+                        )}
+
+                        {/*
+                            The downstream chain, present only when a
+                            purchase actually exists. An empty "no orders
+                            yet" block would say nothing the status has not
+                            already said.
+                        */}
+                        {mr.purchase_requisitions?.length > 0 && (
+                            <div>
+                                <p className="mb-1.5 flex items-center gap-1.5 font-medium text-graphite-800 dark:text-slate-100">
+                                    <Truck className="h-4 w-4" /> Pengadaan terkait
+                                </p>
+                                <ul className="space-y-1.5">
+                                    {mr.purchase_requisitions.map((pr) => (
+                                        <li key={pr.id} className="rounded-md border border-graphite-100 px-2.5 py-2 dark:border-slate-800">
+                                            <div className="flex flex-wrap items-center gap-2">
+                                                <span className="font-medium text-graphite-800 dark:text-slate-100">{pr.pr_number}</span>
+                                                <StatusBadge value={pr.status} />
+                                            </div>
+                                            {pr.purchase_orders?.length > 0 && (
+                                                <ul className="mt-1.5 space-y-1 pl-3 text-xs text-graphite-600 dark:text-slate-300">
+                                                    {pr.purchase_orders.map((po) => (
+                                                        <li key={po.id} className="flex flex-wrap items-center gap-2">
+                                                            <span className="font-medium">{po.po_number}</span>
+                                                            <StatusBadge value={po.status} />
+                                                            {po.delivery_date && <span className="text-graphite-400">due {formatDate(po.delivery_date)}</span>}
+                                                        </li>
+                                                    ))}
+                                                </ul>
+                                            )}
+                                        </li>
+                                    ))}
+                                </ul>
+                            </div>
+                        )}
+                    </CardContent>
+                </Card>
+            )}
+
             {mr.notes && (
                 <Card className="mt-4">
                     <CardHeader><CardTitle>Notes</CardTitle></CardHeader>
@@ -163,6 +302,68 @@ export default function MaterialRequestShow({ materialRequest: mr, approval, act
                     <ActivityTimeline activities={activities} />
                 </CardContent>
             </Card>
+
+            <Dialog open={holdOpen} onOpenChange={setHoldOpen}>
+                <DialogContent>
+                    <form onSubmit={submitHold}>
+                        <DialogHeader>
+                            <DialogTitle>Hold for consolidation</DialogTitle>
+                            <DialogDescription>
+                                Permintaan tetap disetujui dan tetap terhitung sebagai kebutuhan terbuka. Alasan inilah yang membedakannya dari permintaan yang terlupakan.
+                            </DialogDescription>
+                        </DialogHeader>
+
+                        <div className="py-3">
+                            <FormField
+                                label="Reason"
+                                name="reason"
+                                required
+                                error={holdForm.errors.reason}
+                                hint="Contoh: menunggu permintaan APD lain agar pembelian digabung."
+                            >
+                                <Textarea
+                                    id="field-reason"
+                                    rows={3}
+                                    value={holdForm.data.reason}
+                                    onChange={(e) => holdForm.setData('reason', e.target.value)}
+                                />
+                            </FormField>
+                        </div>
+
+                        <DialogFooter>
+                            <Button type="button" variant="outline" onClick={() => setHoldOpen(false)}>Cancel</Button>
+                            <Button type="submit" disabled={holdForm.processing}>Hold for consolidation</Button>
+                        </DialogFooter>
+                    </form>
+                </DialogContent>
+            </Dialog>
+
+            <Dialog open={cancelOpen} onOpenChange={setCancelOpen}>
+                <DialogContent>
+                    <form onSubmit={submitCancel}>
+                        <DialogHeader>
+                            <DialogTitle>Cancel this request</DialogTitle>
+                            <DialogDescription>Tidak dapat dibatalkan. Alasannya tersimpan pada catatan permintaan.</DialogDescription>
+                        </DialogHeader>
+
+                        <div className="py-3">
+                            <FormField label="Reason" name="cancel_reason" required error={cancelForm.errors.reason}>
+                                <Textarea
+                                    id="field-cancel_reason"
+                                    rows={3}
+                                    value={cancelForm.data.reason}
+                                    onChange={(e) => cancelForm.setData('reason', e.target.value)}
+                                />
+                            </FormField>
+                        </div>
+
+                        <DialogFooter>
+                            <Button type="button" variant="outline" onClick={() => setCancelOpen(false)}>Keep request</Button>
+                            <Button type="submit" variant="outline" disabled={cancelForm.processing}>Cancel request</Button>
+                        </DialogFooter>
+                    </form>
+                </DialogContent>
+            </Dialog>
         </AuthenticatedLayout>
     );
 }

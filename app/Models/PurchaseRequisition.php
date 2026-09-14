@@ -58,7 +58,7 @@ class PurchaseRequisition extends Model
     ];
 
     protected $fillable = [
-        'pr_number', 'company_id', 'project_id', 'department_id', 'source_material_request_id',
+        'pr_number', 'company_id', 'project_id', 'department_id',
         'cost_center', 'requested_by', 'request_date', 'priority', 'required_date', 'justification',
         'items', 'estimated_total', 'notes', 'status',
     ];
@@ -88,9 +88,24 @@ class PurchaseRequisition extends Model
         return $this->belongsTo(Department::class);
     }
 
-    public function sourceMaterialRequest()
+    /**
+     * v2.69.0 -- WAS `sourceMaterialRequest()`, a single belongsTo.
+     *
+     * A Purchase Requisition is how Procurement CONSOLIDATES demand:
+     * several approved Material Requests for the same or related items
+     * become one purchase, which is the entire reason a request is held
+     * back rather than bought alone. A single foreign key could not say
+     * that, so `source_material_request_id` was migrated into a pivot and
+     * dropped -- one source of truth, not two.
+     *
+     * Still optional: Procurement can raise a PR with no upstream request
+     * at all (replenishment, a framework order), which is why the old
+     * column was nullable and why this relation may legitimately be empty.
+     */
+    public function materialRequests()
     {
-        return $this->belongsTo(MaterialRequest::class, 'source_material_request_id');
+        return $this->belongsToMany(MaterialRequest::class, 'material_request_purchase_requisition')
+            ->withTimestamps();
     }
 
     public function requester()

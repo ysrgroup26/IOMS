@@ -28,6 +28,14 @@ class MaterialRequest extends Model
 
     public const STATUS_APPROVED = 'approved';
 
+    /**
+     * v2.69.0. Procurement has DELIBERATELY retained this demand so it
+     * can be purchased together with related requests. This is normal,
+     * correct procurement behaviour, not a problem -- see the class doc
+     * comment and ADR/030.
+     */
+    public const STATUS_CONSOLIDATING = 'consolidating';
+
     public const STATUS_REJECTED = 'rejected';
 
     public const STATUS_PROCESSING = 'processing';
@@ -37,18 +45,63 @@ class MaterialRequest extends Model
     public const STATUS_CANCELLED = 'cancelled';
 
     /**
+     * Statuses where the requester is still owed something. Everything
+     * else is terminal or not yet submitted, and neither ages.
+     */
+    public const OUTSTANDING_STATUSES = [
+        self::STATUS_SUBMITTED,
+        self::STATUS_APPROVED,
+        self::STATUS_CONSOLIDATING,
+        self::STATUS_PROCESSING,
+    ];
+
+    /**
+     * Aging thresholds, in days since `request_date`.
+     *
+     * These are presentation emphasis, never business rules: nothing
+     * transitions, expires or escalates because of them, and the exact
+     * day count is always shown next to the label so the reader sees the
+     * fact rather than only our opinion of it. They exist because "47
+     * days" means nothing to someone scanning eighty rows.
+     *
+     * 14 and 30 are the operational reading of this workflow rather than
+     * arbitrary round numbers: a request that has not moved inside two
+     * weeks has missed at least one normal procurement cycle, and one
+     * past a month has missed the monthly one. A future per-tenant
+     * setting is the natural home for these (the same place numbering
+     * formats went); a constant is honest until a customer asks.
+     */
+    public const AGING_ATTENTION_DAYS = 14;
+
+    public const AGING_OVERDUE_DAYS = 30;
+
+    /**
      * The actual lifecycle guard HasWorkflow enforces. "Rejected" only
      * allows a return to "draft" -- and even that path is additionally
      * gated to Company Admin (Super Admin) in the controller, matching
      * "Rejected returns to Draft only if business rules allow" and the
      * Action Buttons spec, which shows Rejected as read-only
      * ("View Rejection Reason") for everyone else.
+     *
+     * v2.69.0 adds `consolidating` between approval and processing, in
+     * both directions: Procurement may retain approved demand, and must
+     * be able to release it once there is enough to buy. It is reachable
+     * ONLY from `approved` -- consolidating something already being
+     * fulfilled would mean un-processing it, which is not a thing.
      */
     protected static array $transitions = [
         self::STATUS_DRAFT => [self::STATUS_SUBMITTED, self::STATUS_CANCELLED],
         self::STATUS_SUBMITTED => [self::STATUS_APPROVED, self::STATUS_REJECTED, self::STATUS_CANCELLED],
-        self::STATUS_APPROVED => [self::STATUS_PROCESSING, self::STATUS_CANCELLED],
-        self::STATUS_PROCESSING => [self::STATUS_COMPLETED, self::STATUS_CANCELLED],
+        self::STATUS_APPROVED => [self::STATUS_CONSOLIDATING, self::STATUS_PROCESSING, self::STATUS_CANCELLED],
+        self::STATUS_CONSOLIDATING => [self::STATUS_PROCESSING, self::STATUS_APPROVED, self::STATUS_CANCELLED],
+        // `processing -> approved` is the HAND-BACK path, and exists for
+        // one caller: PurchaseRequisitionController::releaseSourcedDemand(),
+        // when the purchase that was sourcing this demand is cancelled.
+        // Without it a cancelled PR would strand every request it carried
+        // in `processing` with nobody working on them -- the precise
+        // failure this release exists to remove. It is not offered as a
+        // user action anywhere.
+        self::STATUS_PROCESSING => [self::STATUS_COMPLETED, self::STATUS_APPROVED, self::STATUS_CANCELLED],
         self::STATUS_REJECTED => [self::STATUS_DRAFT],
         self::STATUS_COMPLETED => [],
         self::STATUS_CANCELLED => [],
@@ -64,6 +117,10 @@ class MaterialRequest extends Model
         'status',
         'notes',
         'completed_at',
+        'consolidation_reason',
+        'consolidated_by',
+        'consolidated_at',
+        'cancellation_reason',
     ];
 
     protected function casts(): array
@@ -71,8 +128,15 @@ class MaterialRequest extends Model
         return [
             'request_date' => 'date',
             'completed_at' => 'datetime',
+            'consolidated_at' => 'datetime',
         ];
     }
+
+    /**
+     * Exposed on every serialization so the index, the detail page and
+     * the dashboards all read aging from one derivation instead of three.
+     */
+    protected $appends = ['open_age_days', 'aging_level', 'is_outstanding'];
 
     public function company()
     {
@@ -97,6 +161,81 @@ class MaterialRequest extends Model
     public function items()
     {
         return $this->hasMany(MaterialRequestItem::class)->orderBy('sort_order');
+    }
+
+    public function consolidatedBy()
+    {
+        return $this->belongsTo(User::class, 'consolidated_by');
+    }
+
+    /**
+     * v2.69.0. Many-to-many, because consolidation means several requests
+     * become one purchase. This replaces
+     * `purchase_requisitions.source_material_request_id`, which could only
+     * ever express one -- see the pivot's own migration for why the column
+     * was dropped rather than kept alongside it.
+     *
+     * This is also the answer to "what is actually happening with my
+     * request": the PR, and through it the RFQ and Purchase Order, are
+     * where a request that has left the warehouse actually lives.
+     */
+    public function purchaseRequisitions()
+    {
+        return $this->belongsToMany(PurchaseRequisition::class, 'material_request_purchase_requisition')
+            ->withTimestamps();
+    }
+
+    /** Still owed to the requester: submitted through processing. */
+    public function scopeOutstanding($query)
+    {
+        return $query->whereIn('status', self::OUTSTANDING_STATUSES);
+    }
+
+    /**
+     * Oldest outstanding demand first -- the order every "what has been
+     * sitting too long" view wants, and the reason this release added the
+     * (status, request_date) index.
+     */
+    public function scopeAgingFirst($query)
+    {
+        return $query->orderBy('request_date');
+    }
+
+    public function getIsOutstandingAttribute(): bool
+    {
+        return in_array($this->status, self::OUTSTANDING_STATUSES, true);
+    }
+
+    /**
+     * Days this request has been waiting. Null once it is no longer
+     * outstanding, because a completed request has an age that means
+     * nothing and would sort alongside live work if it were rendered.
+     */
+    public function getOpenAgeDaysAttribute(): ?int
+    {
+        if (! $this->is_outstanding || ! $this->request_date) {
+            return null;
+        }
+
+        // `startOfDay` on both sides: a request raised this morning is 0
+        // days old, not "1" because the clock crossed an hour boundary.
+        return $this->request_date->startOfDay()->diffInDays(now()->startOfDay());
+    }
+
+    /** Presentation emphasis only -- see the AGING_* constants. */
+    public function getAgingLevelAttribute(): ?string
+    {
+        $age = $this->open_age_days;
+
+        if ($age === null) {
+            return null;
+        }
+
+        return match (true) {
+            $age >= self::AGING_OVERDUE_DAYS => 'overdue',
+            $age >= self::AGING_ATTENTION_DAYS => 'attention',
+            default => 'normal',
+        };
     }
 
     /**

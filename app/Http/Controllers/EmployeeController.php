@@ -12,6 +12,7 @@ use App\Models\Company;
 use App\Models\CompetencyType;
 use App\Models\Department;
 use App\Models\Employee;
+use App\Models\EmployeeCase;
 use App\Models\EmployeeInternship;
 use App\Models\Position;
 use App\Models\Project;
@@ -152,7 +153,38 @@ class EmployeeController extends Controller
             'shifts' => Shift::active()->where('company_id', $employee->company_id)->get(['id', 'name', 'code']),
             'rosterPatterns' => RosterPattern::active()->where('company_id', $employee->company_id)->get(['id', 'name', 'days_on', 'days_off']),
             'availableProjects' => Project::where('company_id', $employee->company_id)->orderBy('name')->get(['id', 'name']),
-            'can' => ['manage' => request()->user()->isAdmin()],
+            'can' => [
+                'manage' => request()->user()->isAdmin(),
+                // v2.69.0 -- gates the Employee Relations card below.
+                'viewCases' => request()->user()->canManageEmployeeCases(),
+            ],
+
+            /*
+             * v2.69.0 -- EMPLOYEE RELATIONS, AND WHY IT IS CONDITIONAL.
+             *
+             * This page is readable by anyone who can view employees --
+             * HSE, project managers, warehouse. A disciplinary history is
+             * not that kind of data, so these props are resolved ONLY for
+             * a viewer who may read cases. Sending them and hiding the
+             * card in React would still put them in the page payload,
+             * where anyone can read them; the authorization has to happen
+             * before serialization, not after.
+             *
+             * Standing is derived (see Employee::currentDisciplinaryStanding)
+             * rather than stored, so it lapses on its own.
+             */
+            'disciplinary' => request()->user()->canManageEmployeeCases()
+                ? [
+                    'standing' => $employee->currentDisciplinaryStanding(),
+                    'openCases' => EmployeeCase::query()
+                        ->where('employee_id', $employee->id)
+                        ->active()
+                        ->count(),
+                    'totalCases' => EmployeeCase::query()
+                        ->where('employee_id', $employee->id)
+                        ->count(),
+                ]
+                : null,
         ]);
     }
 

@@ -7,7 +7,8 @@ import { Select, SelectTrigger, SelectValue, SelectContent, SelectItem } from '@
 import { Table, TableHeader, TableBody, TableRow, TableHead, TableCell } from '@/Components/ui/table';
 import StatusBadge from '@/Components/shared/StatusBadge';
 import EmptyState from '@/Components/shared/EmptyState';
-import { Plus, Search, FileText, ChevronLeft, ChevronRight } from 'lucide-react';
+import AgingIndicator from '@/Components/shared/AgingIndicator';
+import { Plus, Search, FileText, ChevronLeft, ChevronRight, Clock } from 'lucide-react';
 
 /**
  * Material Request MVP (v1.6.8). Deliberately simple -- no approval
@@ -16,7 +17,9 @@ import { Plus, Search, FileText, ChevronLeft, ChevronRight } from 'lucide-react'
  * list shows requests visible to the user's company (or all companies
  * for a Super Admin), regardless of which department created them.
  */
-export default function MaterialRequestsIndex({ requests, filters, can }) {
+export default function MaterialRequestsIndex({ requests, filters, can, outstandingSummary }) {
+    const outstandingOnly = !!filters.outstanding;
+
     function applyFilters(overrides = {}) {
         router.get(route('material-requests.index'), { ...filters, ...overrides }, { preserveState: true, replace: true });
     }
@@ -56,14 +59,59 @@ export default function MaterialRequestsIndex({ requests, filters, can }) {
                             <SelectItem value="draft">Draft</SelectItem>
                             <SelectItem value="submitted">Submitted / Pending Approval</SelectItem>
                             <SelectItem value="approved">Approved</SelectItem>
+                            <SelectItem value="consolidating">Consolidating</SelectItem>
                             <SelectItem value="rejected">Rejected</SelectItem>
                             <SelectItem value="processing">Processing</SelectItem>
                             <SelectItem value="completed">Completed</SelectItem>
                             <SelectItem value="cancelled">Cancelled</SelectItem>
                         </SelectContent>
                     </Select>
+
+                    {/*
+                        v2.69.0 -- "what is still owed", which is every
+                        non-terminal state at once and therefore something
+                        the status dropdown next to it structurally cannot
+                        express. Sorts oldest first, because the reason to
+                        ask this question is to find what has been waiting
+                        too long.
+                    */}
+                    <Button
+                        type="button"
+                        variant={outstandingOnly ? 'default' : 'outline'}
+                        onClick={() => applyFilters({ outstanding: outstandingOnly ? null : 1, status: null })}
+                        aria-pressed={outstandingOnly}
+                    >
+                        <Clock className="h-4 w-4" /> Outstanding
+                        {outstandingSummary?.total > 0 && (
+                            <span className="ml-1.5 rounded-full bg-white/20 px-1.5 text-[11px] tabular-nums">{outstandingSummary.total}</span>
+                        )}
+                    </Button>
                 </CardContent>
             </Card>
+
+            {/*
+                Only worth a line when something is actually ageing. A
+                permanent "0 overdue" banner trains people to stop reading
+                the row it lives in.
+            */}
+            {outstandingSummary?.overdue > 0 && (
+                <div className="mb-4 flex items-start gap-2 rounded-lg border border-danger/20 bg-danger/[0.04] px-3 py-2 text-sm dark:border-red-900/40 dark:bg-red-950/20">
+                    <Clock className="mt-0.5 h-4 w-4 shrink-0 text-danger" />
+                    <p className="text-graphite-700 dark:text-slate-200">
+                        <span className="font-semibold text-danger">{outstandingSummary.overdue}</span>
+                        {' '}permintaan terbuka lebih dari {outstandingSummary.overdue_days} hari
+                        {outstandingSummary.attention > 0 && `, ${outstandingSummary.attention} lainnya lebih dari ${outstandingSummary.attention_days} hari`}.
+                        {' '}
+                        <button
+                            type="button"
+                            className="font-medium text-brand-600 underline-offset-2 hover:underline"
+                            onClick={() => applyFilters({ outstanding: 1, status: null })}
+                        >
+                            Lihat yang tertunda
+                        </button>
+                    </p>
+                </div>
+            )}
 
             <Card>
                 <CardContent className="p-0">
@@ -79,6 +127,7 @@ export default function MaterialRequestsIndex({ requests, filters, can }) {
                                     <TableHead>Project</TableHead>
                                     <TableHead>Requested By</TableHead>
                                     <TableHead>Items</TableHead>
+                                    <TableHead>Waiting</TableHead>
                                     <TableHead>Status</TableHead>
                                 </TableRow>
                             </TableHeader>
@@ -91,6 +140,7 @@ export default function MaterialRequestsIndex({ requests, filters, can }) {
                                         <TableCell>{r.project?.name || '-'}</TableCell>
                                         <TableCell>{r.requester?.name}</TableCell>
                                         <TableCell>{r.items_count}</TableCell>
+                                        <TableCell><AgingIndicator days={r.open_age_days} level={r.aging_level} /></TableCell>
                                         <TableCell><StatusBadge value={r.status} label={r.status === 'submitted' ? 'Waiting Approval' : undefined} /></TableCell>
                                     </TableRow>
                                 ))}

@@ -124,6 +124,58 @@ in-app navigation saw it; broadening the guard meant a framework string like
 three 403 messages this codebase writes on purpose. Widening *reach* and tightening *content* belong
 in the same change.
 
+## Known Pitfall (v2.69.0): `transitionTo()` in a loop is an N+1, because a status change notifies
+## somebody — and the relation it reads is not loaded
+
+`HasWorkflow::transitionTo()` ends by notifying the record's owner, and
+`notificationRecipient()` resolves that by reading a `requester`/`reporter`/`creator` relation. On a
+single transition from a controller action that is invisible. In a **loop** it is one query per
+model:
+
+```php
+foreach ($requests as $materialRequest) {              // N models
+    $materialRequest->transitionTo('processing', ...); // -> lazy-loads `requester` N times
+}
+```
+
+Demand consolidation makes this worse by definition — the whole point is attaching many requests at
+once, so the loop is never length 1 in the case that matters. The fix is one word at the query:
+
+```php
+$requests = MaterialRequest::whereIn('id', $ids)->with('requester')->get();
+```
+
+**Caught by a test, not in production**, because Laravel's strict lazy-loading is on in this suite
+and throws where production would have silently issued the extra queries. That is the same reason
+`Model::preventLazyLoading()` is worth keeping on: it converts a performance bug into a failing
+test.
+
+**The general rule: before transitioning models in a loop, eager-load whatever the transition's own
+side effects read.** A trait that does something helpful on your behalf still does it once per call.
+
+## Known Pitfall (v2.69.0): a conventionally-named pivot table can exceed MySQL's 64-character
+## identifier limit before you have added a single column
+
+Same limit as the v2.51.0 entry below, reached a different way. Laravel derives constraint names as
+`{table}_{column}_{type}`, and a pivot's conventional name is both tables joined:
+
+```
+material_request_purchase_requisition                              (37 chars)
+material_request_purchase_requisition_material_request_id_foreign  (65 — fails)
+```
+
+`$table->foreignId(...)->constrained()` therefore fails on MySQL for any pivot between two tables
+with longish names, and it fails at migrate time on a fresh database rather than in review. Name the
+constraints explicitly:
+
+```php
+$table->foreign('material_request_id', 'mr_pr_material_request_fk')
+    ->references('id')->on('material_requests')->cascadeOnDelete();
+```
+
+**Worth knowing because the failure is invisible until someone actually runs the migration** — which
+is the argument for running it rather than reasoning about it.
+
 ## Known Pitfall (v2.60.0): a data migration makes every test's fixtures a duplicate
 
 The four-tier pricing catalogue ships in a migration, not only in the seeder — deliberately, because

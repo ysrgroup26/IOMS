@@ -87,6 +87,14 @@ export const WORKSPACES = [
             // second, confusing "almost the same thing" entry.
             { name: 'Man-Hour', href: 'man-hour.index', icon: ClipboardList },
             { name: 'Leave', href: 'leave-requests.index', icon: CalendarDays },
+            // v2.69.0 -- Employee Cases (employee relations / discipline).
+            // Sits directly under Employees and Leave because it is about
+            // the same person record. Visibility is NOT decided here: the
+            // controller gates every action on canManageEmployeeCases(),
+            // and this entry only hides a link the server would refuse
+            // anyway -- navigation is subordinate to authorization, per
+            // ADR/007.
+            { name: 'Employee Cases', href: 'employee-cases.index', icon: ShieldAlert },
             // Milestone 4, Workstream A3: Shift & Roster Management --
             // real backend (Shift/EmployeeShiftAssignment/RosterPattern/
             // EmployeeRoster). "Shift/Roster belongs to HR/Workforce

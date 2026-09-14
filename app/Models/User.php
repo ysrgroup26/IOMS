@@ -323,6 +323,31 @@ class User extends Authenticatable
     }
 
     /**
+     * v2.69.0 -- Employee Cases (HR employee relations and discipline).
+     *
+     * DELIBERATELY NARROWER THAN EVERY OTHER HR PERMISSION, and this is
+     * the security decision in the module rather than an oversight.
+     *
+     * Most HR data in IOMS is operational: a manager has a legitimate
+     * reason to see who is on shift, on leave, or certified. A record
+     * that someone was investigated for misconduct is not that. It is
+     * read by the people accountable for handling it -- HR and the
+     * Company Admin -- and by nobody else by virtue of seniority.
+     * `isManager()` is explicitly absent, even though Manager can read
+     * most of this workspace, because "can view the employee list" must
+     * not silently become "can read their disciplinary history".
+     *
+     * A departmental line manager who genuinely needs to act on a case is
+     * given it through `assigned_to` on the case itself, which is a
+     * per-case grant and auditable, not a role that opens every case in
+     * the company.
+     */
+    public function canManageEmployeeCases(): bool
+    {
+        return $this->isSuperAdmin() || $this->isHrd();
+    }
+
+    /**
      * v1.11.15 (SaaS Package + Ecosystem pass, Part 27 -- Entitlement
      * Dependency Rule): previously `isSuperAdmin() || isHrd()` only. That
      * is exactly the "module must not require another paid module merely
@@ -402,6 +427,29 @@ class User extends Authenticatable
     public function canManageProcurement(): bool
     {
         return $this->isSuperAdmin() || $this->isWarehouse();
+    }
+
+    /**
+     * v2.69.0 -- who may deliberately hold approved demand back so it can
+     * be bought together with related requests.
+     *
+     * Named for the decision rather than reusing canManageProcurement()
+     * directly, even though the roles are identical today, because the
+     * two answer different questions and will diverge: "may operate the
+     * Procurement module" is not the same authority as "may decide that
+     * somebody else's approved request waits". Naming it now means the
+     * day a tenant wants a dedicated planner role, there is one place to
+     * change instead of a call site that happens to read
+     * canManageProcurement().
+     *
+     * Deliberately NOT the requester and NOT the approver: a requester
+     * parking their own request is not consolidation, and holding demand
+     * is an operational buying decision rather than an approval one --
+     * the same segregation of duties config/workflow.php already draws.
+     */
+    public function canConsolidateDemand(): bool
+    {
+        return $this->canManageProcurement();
     }
 
     /** Milestone 4, Acceleration Part 1 (Item Master / Warehouse / Stock). Same Warehouse-role reasoning as canManageProcurement()/canManageGoodsReceipts() -- named for its own domain rather than reused directly, since Item Master conceptually belongs to Warehouse, not Procurement. */

@@ -17,7 +17,7 @@
  */
 return [
     'hr' => [
-        'employees', 'employee-competencies', 'employee-rosters',
+        'employees', 'employee-cases', 'employee-competencies', 'employee-rosters',
         'employee-shift-assignments', 'leave-requests', 'shifts', 'rosters',
         'roster-patterns', 'competency', 'competency-types', 'hr',
         // v1.11.15: 'man-hour' moved OUT of this list -- see

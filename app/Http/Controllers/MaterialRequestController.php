@@ -32,14 +32,31 @@ class MaterialRequestController extends Controller
             ->withCount('items')
             ->when($request->input('search'), fn ($q, $v) => $q->where('request_number', 'like', "%{$v}%"))
             ->when($request->input('status'), fn ($q, $v) => $q->where('status', $v))
-            ->latest('request_date')
+            /*
+             * v2.69.0 -- "show me what is still owed, oldest first".
+             *
+             * The single view this module was missing. `outstanding`
+             * is not another status filter sitting beside the status
+             * dropdown; it is the set of every non-terminal state at
+             * once, which is what somebody chasing overdue demand
+             * actually wants and could not previously express.
+             */
+            ->when($request->boolean('outstanding'), fn ($q) => $q->outstanding()->agingFirst())
+            ->when(! $request->boolean('outstanding'), fn ($q) => $q->latest('request_date'))
             ->paginate(20)
             ->withQueryString();
 
         return Inertia::render('MaterialRequests/Index', [
             'requests' => $requests,
-            'filters' => $request->only('search', 'status'),
-            'can' => ['manage' => $user->canManageMaterialRequests()],
+            'filters' => $request->only('search', 'status', 'outstanding'),
+            'can' => [
+                'manage' => $user->canManageMaterialRequests(),
+                'consolidate' => $user->canConsolidateDemand(),
+            ],
+            // Counted over everything the viewer may see, not just the
+            // current page -- a badge that only describes page 1 is worse
+            // than no badge.
+            'outstandingSummary' => $this->outstandingSummary($user),
         ]);
     }
 
@@ -129,7 +146,26 @@ class MaterialRequestController extends Controller
     public function show(MaterialRequest $materialRequest, Request $request): InertiaResponse
     {
         $this->assertInCurrentTenant($materialRequest);
-        $materialRequest->load('company:id,name', 'department:id,name', 'project:id,name', 'requester:id,name', 'items');
+        /*
+         * v2.69.0 -- WHAT IS ACTUALLY HAPPENING WITH THIS REQUEST.
+         *
+         * Until now a requester could see only their own document and its
+         * status. Everything that explains a long wait -- the purchase it
+         * was consolidated into, the orders raised against that purchase,
+         * whether those have been delivered -- lived in Procurement's
+         * records with no route back. Loading the chain here is what turns
+         * "Processing, 63 days" into "on PO-PROC-2026-00014, issued".
+         */
+        $materialRequest->load(
+            'company:id,name',
+            'department:id,name',
+            'project:id,name',
+            'requester:id,name',
+            'items',
+            'consolidatedBy:id,name',
+            'purchaseRequisitions:id,pr_number,status,request_date',
+            'purchaseRequisitions.purchaseOrders:id,po_number,status,purchase_requisition_id,delivery_date',
+        );
         $approval = $materialRequest->latestApproval()?->load('requester:id,name', 'approver:id,name');
 
         // Reusable across every future approvable module's Show page --
@@ -148,7 +184,31 @@ class MaterialRequestController extends Controller
             'canDecide' => $request->user()->isSuperAdmin() || in_array($request->user()->role, config('workflow.approvers', []), true),
             'canProcess' => $request->user()->isSuperAdmin() || in_array($request->user()->role, config('workflow.processors', []), true),
             'canOverride' => $request->user()->isSuperAdmin() || in_array($request->user()->role, config('workflow.overriders', []), true),
+            'canConsolidate' => $request->user()->canConsolidateDemand(),
         ]);
+    }
+
+    /**
+     * How much is outstanding, and how much of it has aged past the
+     * thresholds on MaterialRequest. Deliberately derived from the same
+     * scope the list uses, so the badge and the list can never disagree.
+     */
+    private function outstandingSummary($user): array
+    {
+        $ages = MaterialRequest::query()
+            ->visibleTo($user)
+            ->outstanding()
+            ->pluck('request_date')
+            ->map(fn ($date) => $date?->startOfDay()->diffInDays(now()->startOfDay()))
+            ->filter(fn ($days) => $days !== null);
+
+        return [
+            'total' => $ages->count(),
+            'attention' => $ages->filter(fn ($d) => $d >= MaterialRequest::AGING_ATTENTION_DAYS && $d < MaterialRequest::AGING_OVERDUE_DAYS)->count(),
+            'overdue' => $ages->filter(fn ($d) => $d >= MaterialRequest::AGING_OVERDUE_DAYS)->count(),
+            'attention_days' => MaterialRequest::AGING_ATTENTION_DAYS,
+            'overdue_days' => MaterialRequest::AGING_OVERDUE_DAYS,
+        ];
     }
 
     public function edit(MaterialRequest $materialRequest): InertiaResponse
@@ -313,13 +373,107 @@ class MaterialRequestController extends Controller
         return back()->with('flash', ['success' => 'Reopened to Draft.']);
     }
 
+    /**
+     * v2.69.0 -- HOLD APPROVED DEMAND FOR CONSOLIDATION.
+     *
+     * The deliberate, operationally correct reason a request sits still:
+     * Procurement is waiting for related demand so it can buy once
+     * instead of five times. Recording it as its own state is what
+     * separates it from the request nobody remembers -- and the reason is
+     * mandatory precisely so that distinction survives contact with a
+     * busy week.
+     *
+     * Gated to whoever actually decides what gets bought
+     * (`canConsolidateDemand()`), not to the requester: a requester
+     * cannot park their own request, and holding demand is not an
+     * approval decision either.
+     */
+    public function consolidate(Request $request, MaterialRequest $materialRequest): RedirectResponse
+    {
+        $this->assertInCurrentTenant($materialRequest);
+        abort_unless($request->user()->canConsolidateDemand(), 403);
+
+        $data = $request->validate([
+            'reason' => ['required', 'string', 'max:1000'],
+        ], [], ['reason' => 'consolidation reason']);
+
+        try {
+            $materialRequest->transitionTo(
+                MaterialRequest::STATUS_CONSOLIDATING,
+                $request->user(),
+                'Held for consolidation: '.$data['reason'],
+            );
+
+            $materialRequest->update([
+                'consolidation_reason' => $data['reason'],
+                'consolidated_by' => $request->user()->id,
+                'consolidated_at' => now(),
+            ]);
+        } catch (ValidationException $e) {
+            return back()->withErrors($e->errors());
+        }
+
+        return back()->with('flash', ['success' => 'Held for consolidation.']);
+    }
+
+    /**
+     * Put consolidated demand back into the ordinary queue without
+     * raising a purchase for it -- the decision to wait was wrong, or the
+     * related demand never materialised. Returning it to `approved`
+     * rather than straight to `processing` is deliberate: releasing a
+     * hold is not the same act as starting to fulfil it, and collapsing
+     * the two would hide which one actually happened.
+     */
+    public function releaseConsolidation(Request $request, MaterialRequest $materialRequest): RedirectResponse
+    {
+        $this->assertInCurrentTenant($materialRequest);
+        abort_unless($request->user()->canConsolidateDemand(), 403);
+
+        try {
+            $materialRequest->transitionTo(
+                MaterialRequest::STATUS_APPROVED,
+                $request->user(),
+                'Released from consolidation back into the approved queue.',
+            );
+
+            $materialRequest->update([
+                'consolidation_reason' => null,
+                'consolidated_by' => null,
+                'consolidated_at' => null,
+            ]);
+        } catch (ValidationException $e) {
+            return back()->withErrors($e->errors());
+        }
+
+        return back()->with('flash', ['success' => 'Released back to approved demand.']);
+    }
+
+    /**
+     * v2.69.0 -- a cancelled request now has to say why.
+     *
+     * A second terminal "closed" status was considered and rejected: it
+     * would have meant the same thing as `cancelled` with a different
+     * label. The real gap was that `cancelled` recorded no reason, so
+     * "we bought it another way", "no longer needed" and "nobody ever
+     * actioned this" were indistinguishable afterwards. See ADR/030.
+     */
     public function cancel(Request $request, MaterialRequest $materialRequest): RedirectResponse
     {
         $this->assertInCurrentTenant($materialRequest);
         $this->authorizeWorkflowAction($request, 'overriders');
 
+        $data = $request->validate([
+            'reason' => ['required', 'string', 'max:1000'],
+        ], [], ['reason' => 'cancellation reason']);
+
         try {
-            $materialRequest->transitionTo(MaterialRequest::STATUS_CANCELLED, $request->user());
+            $materialRequest->transitionTo(
+                MaterialRequest::STATUS_CANCELLED,
+                $request->user(),
+                'Cancelled: '.$data['reason'],
+            );
+
+            $materialRequest->update(['cancellation_reason' => $data['reason']]);
         } catch (ValidationException $e) {
             return back()->withErrors($e->errors());
         }

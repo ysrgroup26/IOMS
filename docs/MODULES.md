@@ -44,6 +44,43 @@ Core master data: `Employee` model, one per person. Belongs to a `Company`, opti
   Profile page and its own conditional section on the Employee form, never merged into the ordinary
   employee fields.
 
+## Employee Cases (HR employee relations & discipline)
+
+**Department:** Human Resources. Added v2.69.0 — full reasoning in `ADR/031-employee-cases.md`.
+
+The record of a concern raised about an employee, from the moment it is raised to the moment it is
+concluded, plus whatever was formally issued along the way.
+
+- **`EmployeeCase`** (`employee_cases`) — `case_number` (`EC-{YEAR}-{00001}`), employee, category
+  (`conduct`/`attendance`/`performance`/`safety`/`policy`/`other`), severity, the concern itself,
+  who raised it, who is handling it (`assigned_to`), and how it ended (`outcome`, `closure_note`).
+  Soft-deleted: an HR record is evidence of a decision about a person.
+- **Lifecycle** via `HasWorkflow`: `open -> under_review -> action_issued -> closed`, plus
+  `dismissed` from `open`/`under_review`, and an override-only reopen back to `under_review`.
+  **`action_issued` is reachable only from `under_review`** — a sanction cannot be issued on a case
+  nobody reviewed, and the guard enforces that rather than the UI.
+- **`dismissed` is not `closed`.** "Reviewed, nothing to answer" and "ran its course" are different
+  outcomes, and from the employee's side the difference is the point.
+- **`EmployeeCaseAction`** (`employee_case_actions`) — what was actually issued: `counselling`,
+  `verbal_warning`, `written_warning`, `sp1`/`sp2`/`sp3`, `suspension`, `demotion`, `termination`,
+  each with `issued_at`, a nullable `effective_until` (**null means "does not lapse"**, e.g.
+  termination), the company's own `reference_number`, and `acknowledged_at` — service of the letter
+  being a different fact from issuing it.
+- **Standing is DERIVED, never stored.** `Employee::currentDisciplinaryStanding()` returns the most
+  severe action still in force, computed from the validity windows. There is no
+  `disciplinary_status` column and there must not be one: an SP lapses on a date and a column would
+  not notice. Same rule as `Employee::profile_status`.
+- **Permissions are narrower than the rest of HR.** `User::canManageEmployeeCases()` is HR +
+  Company Admin only; `isManager()` is deliberately absent. "Can view the employee list" must not
+  become "can read their disciplinary history". A manager who must act on a specific case is named
+  on it via `assigned_to`.
+- **The employee profile enforces that before serialization**, not in React: `EmployeeController`
+  resolves the `disciplinary` prop only for an authorised viewer, because an Inertia page ships its
+  props whether or not a component renders them. `EmployeeCaseTest` asserts the payload is null
+  otherwise.
+- `sp1`/`sp2`/`sp3` keep the local term (Surat Peringatan I/II/III) the way PTW/HIRADC/JSA/LOTO do;
+  `disciplinaryActionLabel()` in `lib/utils.js` renders them "SP 1" from one place.
+
 ## Training & Competency Management
 
 **Department:** Human Resources (`competency.master` — see workspaces.js's own comment on why this
@@ -220,10 +257,30 @@ department — the module itself still has exactly one implementation, Work Cent
 The most complete example of the reusable-engine pattern — read this section together with
 `ARCHITECTURE.md`'s engine descriptions and `ADR/006-material-request-workflow.md`.
 
-- **Full lifecycle**: `draft -> submitted -> approved -> processing -> completed`, with
-  `rejected`/`cancelled` branches. Enforced by `HasWorkflow`'s `$transitions` map on the
-  `MaterialRequest` model — invalid transitions throw a descriptive error, they don't silently fail
-  or get caught only by UI convention.
+- **Full lifecycle** (extended v2.69.0): `draft -> submitted -> approved -> processing ->
+  completed`, with `rejected`/`cancelled` branches **and `consolidating` between `approved` and
+  `processing`**. Enforced by `HasWorkflow`'s `$transitions` map on the `MaterialRequest` model —
+  invalid transitions throw a descriptive error, they don't silently fail or get caught only by UI
+  convention. See `ADR/030-material-request-lifecycle-and-demand-consolidation.md`.
+- **`consolidating` — demand deliberately retained** so it can be bought together with related
+  requests. Reachable only from `approved`, carries a **mandatory reason** plus who decided and
+  when, and is gated to `User::canConsolidateDemand()` (a requester cannot park their own request).
+  It is not "on hold": `on_hold` already means "stopped, waiting on something" in this codebase's
+  status vocabulary, which is the opposite claim.
+- **There is no `closed` status, deliberately.** It would duplicate `cancelled`; what was missing
+  was never a state but a REASON, so `cancellation_reason` is now required. Same reasoning as the
+  refusal to store `pending_approval` (ADR 006).
+- **`processing -> approved` exists as a hand-back path** with exactly one caller
+  (`PurchaseRequisitionController::releaseSourcedDemand()`), never offered as a user action —
+  without it a cancelled purchase would strand the demand it carried.
+- **Aging is computed, not stored**: `open_age_days`/`aging_level`/`is_outstanding` derive from
+  `request_date` and status, and are null once the request is no longer owed. `AGING_ATTENTION_DAYS`
+  (14) and `AGING_OVERDUE_DAYS` (30) are **presentation emphasis only** — nothing escalates because
+  of them, and the day count is always rendered beside the label. The index's "Outstanding" filter
+  is every non-terminal state at once, oldest first, which no single status filter could express.
+- **The requester can see what is happening**: the Show page renders the linked Purchase
+  Requisitions and their Purchase Orders. Before v2.69.0 raising a PR from a request changed nothing
+  on the request at all, which is why one could sit at "Approved" for months.
 - **"Pending Approval" is not a stored status** — it's how `submitted` is *labeled* in the UI while
   the associated `Approval` record's own status is `pending`. Don't add a literal
   `pending_approval` database value; it would duplicate what `Approval.status` already represents.
@@ -993,8 +1050,12 @@ protect, matching the explicit "do not build accounting integration" instruction
 
 ### Purchase Requisition (PR)
 `PurchaseRequisition` (`app/Models/PurchaseRequisition.php`). Procurement's own internal document,
-optionally sourced from an approved `MaterialRequest` (`source_material_request_id`, nullable — can
-also stand alone for Procurement-initiated purchasing). Full spec lifecycle via `HasWorkflow`:
+optionally sourced from approved `MaterialRequest`s via the
+`material_request_purchase_requisition` pivot (v2.69.0 — **was a single
+`source_material_request_id` column, migrated into the pivot and dropped**, because consolidation
+means SEVERAL requests become one purchase and one column could not say that; see ADR 030). May
+still stand alone for Procurement-initiated purchasing. Attaching a request transitions it to
+`processing`; cancelling the PR hands it back to `approved`. Full spec lifecycle via `HasWorkflow`:
 `draft -> submitted -> under_review -> approved/rejected -> converted_to_rfq -> converted_to_po ->
 completed`, plus `cancelled` from most states. `items` is JSON (same reasoning as HIRADC/JSA's own
 line items from Workstream B — edited/viewed as one document, nothing else queries an individual

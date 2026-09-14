@@ -1,6 +1,6 @@
 import { Head, Link, router } from '@inertiajs/react';
 import AuthenticatedLayout from '@/Layouts/AuthenticatedLayout';
-import { Card, CardContent, CardHeader, CardTitle } from '@/Components/ui/card';
+import { Card, CardContent, CardHeader, CardTitle, CardDescription } from '@/Components/ui/card';
 import { Button } from '@/Components/ui/button';
 import { Table, TableHeader, TableBody, TableRow, TableHead, TableCell } from '@/Components/ui/table';
 import ActivityTimeline from '@/Components/shared/ActivityTimeline';
@@ -22,7 +22,7 @@ export default function PurchaseRequisitionShow({ purchaseRequisition: pr, activ
                 <ArrowLeft className="h-4 w-4" /> Back to Purchase Requisitions
             </Link>
 
-            <PageHeader title={<>{pr.pr_number}<StatusBadge value={pr.priority} /><StatusBadge value={pr.status} /></>} subtitle={<>{new Date(pr.request_date).toLocaleDateString('en-US', { day: 'numeric', month: 'long', year: 'numeric' })} {pr.department && ` · ${pr.department.name}`}{pr.project && ` · ${pr.project.name}`} {pr.source_material_request && ` · from ${pr.source_material_request.request_number}`}</>}>
+            <PageHeader title={<>{pr.pr_number}<StatusBadge value={pr.priority} /><StatusBadge value={pr.status} /></>} subtitle={<>{new Date(pr.request_date).toLocaleDateString('en-US', { day: 'numeric', month: 'long', year: 'numeric' })} {pr.department && ` · ${pr.department.name}`}{pr.project && ` · ${pr.project.name}`}</>}>
                 <div className="flex flex-wrap items-center gap-2">
                     {/* v2.51.0: FPB on the tenant's own letterhead. */}
                     <Button variant="outline" asChild>
@@ -47,6 +47,41 @@ export default function PurchaseRequisitionShow({ purchaseRequisition: pr, activ
                     )}
                 </div>
             </PageHeader>
+
+            {/*
+                v2.69.0 -- THE DEMAND THIS PURCHASE COVERS.
+                Was a single "from MR-..." fragment in the page subtitle,
+                which could only ever name one request. Consolidation means
+                a purchase may answer several, so it gets a card that can
+                actually list them -- and each row links back, because the
+                requester's own record is where the story continues.
+            */}
+            {pr.material_requests?.length > 0 && (
+                <Card className="mb-4">
+                    <CardHeader className="pb-2">
+                        <CardTitle>
+                            {pr.material_requests.length > 1 ? 'Consolidated demand' : 'Sourced demand'}
+                        </CardTitle>
+                        <CardDescription>
+                            {pr.material_requests.length > 1
+                                ? `${pr.material_requests.length} permintaan digabung menjadi satu pengadaan.`
+                                : 'Permintaan yang menjadi dasar pengadaan ini.'}
+                        </CardDescription>
+                    </CardHeader>
+                    <CardContent className="flex flex-wrap gap-2">
+                        {pr.material_requests.map((mr) => (
+                            <Link
+                                key={mr.id}
+                                href={route('material-requests.show', mr.id)}
+                                className="inline-flex items-center gap-2 rounded-md border border-graphite-200 px-2.5 py-1.5 text-xs transition-colors hover:border-brand-300 hover:bg-brand-50/40 dark:border-slate-800"
+                            >
+                                <span className="font-medium text-graphite-800 dark:text-slate-100">{mr.request_number}</span>
+                                <StatusBadge value={mr.status} />
+                            </Link>
+                        ))}
+                    </CardContent>
+                </Card>
+            )}
 
             <div className="grid grid-cols-1 gap-4 lg:grid-cols-3">
                 <div className="space-y-4 lg:col-span-2">

@@ -17,7 +17,9 @@ export default function PurchaseRequisitionForm({ purchaseRequisition, companies
         company_id: editing ? String(purchaseRequisition.company_id) : (companies[0]?.id ? String(companies[0].id) : ''),
         project_id: editing && purchaseRequisition.project_id ? String(purchaseRequisition.project_id) : '',
         department_id: editing && purchaseRequisition.department_id ? String(purchaseRequisition.department_id) : '',
-        source_material_request_id: editing && purchaseRequisition.source_material_request_id ? String(purchaseRequisition.source_material_request_id) : '',
+        material_request_ids: editing && purchaseRequisition.material_requests
+            ? purchaseRequisition.material_requests.map((m) => String(m.id))
+            : [],
         cost_center: purchaseRequisition?.cost_center || '',
         request_date: purchaseRequisition?.request_date?.slice(0, 10) || new Date().toISOString().slice(0, 10),
         priority: purchaseRequisition?.priority || 'medium',
@@ -81,14 +83,70 @@ export default function PurchaseRequisitionForm({ purchaseRequisition, companies
                                     <SelectContent><SelectItem value="none">No project</SelectItem>{projects.map((p) => <SelectItem key={p.id} value={String(p.id)}>{p.name}</SelectItem>)}</SelectContent>
                                 </Select>
                             </div>
-                            <div className="space-y-1.5">
-                                <Label>Source Material Request (optional)</Label>
-                                <Select value={data.source_material_request_id || 'none'} onValueChange={(v) => setData('source_material_request_id', v === 'none' ? '' : v)}>
-                                    <SelectTrigger><SelectValue placeholder="None" /></SelectTrigger>
-                                    <SelectContent><SelectItem value="none">None</SelectItem>{materialRequests.map((m) => <SelectItem key={m.id} value={String(m.id)}>{m.request_number}</SelectItem>)}</SelectContent>
-                                </Select>
-                            </div>
                         </div>
+                        {/*
+                            v2.69.0 -- CONSOLIDATED DEMAND.
+                            Was a single "Source Material Request" dropdown,
+                            which could express one request and therefore
+                            could not express the thing Procurement actually
+                            does: buy several requests together. Several may
+                            be attached; each one attached moves to
+                            Processing so its requester can see it has been
+                            picked up.
+                        */}
+                        <div className="space-y-1.5">
+                            <Label>Material Requests covered by this purchase</Label>
+                            <p className="text-xs text-graphite-500">
+                                Pilih satu atau beberapa permintaan yang dibeli bersama-sama. Kosongkan untuk pengadaan yang tidak berasal dari permintaan.
+                            </p>
+
+                            {materialRequests.length === 0 ? (
+                                <p className="rounded-md border border-dashed border-graphite-200 px-3 py-4 text-center text-xs text-graphite-400">
+                                    Belum ada permintaan disetujui yang menunggu pengadaan.
+                                </p>
+                            ) : (
+                                <div className="max-h-56 space-y-1 overflow-y-auto rounded-md border border-graphite-200 p-2 dark:border-slate-800">
+                                    {materialRequests.map((m) => {
+                                        const id = String(m.id);
+                                        const checked = data.material_request_ids.includes(id);
+
+                                        return (
+                                            <label
+                                                key={m.id}
+                                                className="flex cursor-pointer items-center gap-2 rounded px-2 py-1.5 text-sm hover:bg-graphite-50 dark:hover:bg-slate-800"
+                                            >
+                                                <input
+                                                    type="checkbox"
+                                                    className="rounded border-graphite-300 text-brand-600 focus:ring-brand-500"
+                                                    checked={checked}
+                                                    onChange={(e) => setData(
+                                                        'material_request_ids',
+                                                        e.target.checked
+                                                            ? [...data.material_request_ids, id]
+                                                            : data.material_request_ids.filter((x) => x !== id),
+                                                    )}
+                                                />
+                                                <span className="font-medium text-graphite-800 dark:text-slate-100">{m.request_number}</span>
+                                                <span className="text-xs capitalize text-graphite-400">{String(m.status).replace('_', ' ')}</span>
+                                                {m.request_date && (
+                                                    <span className="ml-auto text-xs text-graphite-400">
+                                                        {new Date(m.request_date).toLocaleDateString('en-US', { day: 'numeric', month: 'short', year: 'numeric' })}
+                                                    </span>
+                                                )}
+                                            </label>
+                                        );
+                                    })}
+                                </div>
+                            )}
+
+                            {data.material_request_ids.length > 1 && (
+                                <p className="text-xs text-brand-700">
+                                    {data.material_request_ids.length} permintaan akan digabung menjadi satu pengadaan.
+                                </p>
+                            )}
+                            {errors.material_request_ids && <p className="text-xs text-red-600">{errors.material_request_ids}</p>}
+                        </div>
+
                         <div className="space-y-1.5"><Label>Justification</Label><Textarea value={data.justification} onChange={(e) => setData('justification', e.target.value)} rows={2} /></div>
                         <div className="space-y-1.5">
                             <Label>Operating Unit</Label>

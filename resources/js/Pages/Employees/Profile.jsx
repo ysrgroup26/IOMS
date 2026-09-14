@@ -14,7 +14,7 @@ import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogFooter } from '
 import { Table, TableHeader, TableBody, TableRow, TableHead, TableCell } from '@/Components/ui/table';
 import KpiSummaryCard from '@/Components/shared/KpiSummaryCard';
 import { ArrowLeft, Pencil, Trash2, Phone, Calendar, Briefcase, FolderKanban, HardHat, GraduationCap, Plus, Clock } from 'lucide-react';
-import { MONTH_NAMES } from '@/lib/utils';
+import { MONTH_NAMES, disciplinaryActionLabel } from '@/lib/utils';
 
 const COMPETENCY_STATUS_VARIANT = {
     valid: 'success',
@@ -41,7 +41,7 @@ const CATEGORY_META = [
     { code: 'tbm', label: 'TBM', negative: false },
 ];
 
-export default function EmployeeProfile({ employee, yearSummary, monthlyBreakdown, year, yearsOfService, projects, competencyTypes, shifts, rosterPatterns, availableProjects, can }) {
+export default function EmployeeProfile({ employee, yearSummary, monthlyBreakdown, year, yearsOfService, projects, competencyTypes, shifts, rosterPatterns, availableProjects, can, disciplinary }) {
     const [competencyDialogOpen, setCompetencyDialogOpen] = useState(false);
     const [shiftDialogOpen, setShiftDialogOpen] = useState(false);
     const [rosterDialogOpen, setRosterDialogOpen] = useState(false);
@@ -199,6 +199,64 @@ export default function EmployeeProfile({ employee, yearSummary, monthlyBreakdow
                             </div>
                         </CardContent>
                     </Card>
+
+                    {/*
+                        v2.69.0 -- EMPLOYEE RELATIONS.
+                        Rendered only when the viewer may read cases; the
+                        controller does not even serialize `disciplinary`
+                        otherwise, so this is a display of an authorization
+                        decision rather than the decision itself.
+
+                        Deliberately a SUMMARY with a link, not the case
+                        detail: the profile answers "does this person have
+                        anything outstanding", and the case record answers
+                        "what happened", which is a different page with its
+                        own audit trail.
+                    */}
+                    {can.viewCases && disciplinary && (
+                        <Card>
+                            <CardHeader>
+                                <CardTitle>Employee Relations</CardTitle>
+                                <CardDescription>Posisi disiplin dihitung dari tindakan yang masih berlaku.</CardDescription>
+                            </CardHeader>
+                            <CardContent className="flex flex-wrap items-center gap-x-8 gap-y-3 text-sm">
+                                <div>
+                                    <p className="text-xs uppercase tracking-wide text-graphite-400">Current standing</p>
+                                    {disciplinary.standing ? (
+                                        <>
+                                            <p className="font-semibold text-danger">
+                                                {disciplinaryActionLabel(disciplinary.standing.type)}
+                                            </p>
+                                            <p className="text-xs text-graphite-500">
+                                                {disciplinary.standing.effective_until
+                                                    ? `Berlaku sampai ${new Date(disciplinary.standing.effective_until).toLocaleDateString('en-US', { day: 'numeric', month: 'short', year: 'numeric' })}`
+                                                    : 'Tidak berakhir'}
+                                            </p>
+                                        </>
+                                    ) : (
+                                        <p className="font-semibold text-success">Clear</p>
+                                    )}
+                                </div>
+
+                                <div>
+                                    <p className="text-xs uppercase tracking-wide text-graphite-400">Open cases</p>
+                                    <p className="font-semibold tabular-nums text-graphite-900 dark:text-slate-50">{disciplinary.openCases}</p>
+                                </div>
+
+                                <div>
+                                    <p className="text-xs uppercase tracking-wide text-graphite-400">Total cases</p>
+                                    <p className="font-semibold tabular-nums text-graphite-900 dark:text-slate-50">{disciplinary.totalCases}</p>
+                                </div>
+
+                                <Link
+                                    href={route('employee-cases.index', { search: employee.employee_id })}
+                                    className="ml-auto text-xs font-medium text-brand-600 hover:underline"
+                                >
+                                    Lihat riwayat kasus
+                                </Link>
+                            </CardContent>
+                        </Card>
+                    )}
 
                     {employee.internship && (
                         <Card>

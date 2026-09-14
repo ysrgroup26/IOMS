@@ -786,8 +786,8 @@ new tenants get real grants matching what they bought; (3) wired the actual per-
 (`saas.enforce_workspace_entitlement`) rather than turning it on immediately — because this
 environment had no way to verify the one live production tenant's existing grant rows actually cover
 what it currently uses, and flipping on new enforcement blind risks locking out the only real tenant
-this system serves. See [[entitlement-dependency-rule]] for the related "must not require a whole
-paid module for shared core data" rule this same audit pass also found and fixed
+this system serves. See [[ARCHITECTURE|ARCHITECTURE.md § SaaS Entitlement chain]] for the related "must not require a
+whole paid module for shared core data" rule this same audit pass also found and fixed
 (`User::canManageManHour()` incorrectly required HRD for Man-Hour, which is genuinely shared HSE
 data too — see `App\Models\User::canManageManHour()`'s own doc comment).
 

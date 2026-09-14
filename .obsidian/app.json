@@ -1,0 +1,17 @@
+{
+  "alwaysUpdateLinks": true,
+  "newLinkFormat": "shortest",
+  "useMarkdownLinks": false,
+  "attachmentFolderPath": "docs/kb/assets",
+  "showLineNumber": true,
+  "strictLineBreaks": false,
+  "userIgnoreFilters": [
+    "node_modules/",
+    "vendor/",
+    "public/build/",
+    "storage/",
+    "bootstrap/cache/",
+    ".claude/",
+    "tests/"
+  ]
+}

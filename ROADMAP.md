@@ -6,6 +6,18 @@ This roadmap reflects the intended direction of the application. It is deliberat
 the product philosophy is **simple, fast, minimal clicks, clean UI** — *not* an ERP. Every future
 module below is designed to slot into the existing architecture without breaking changes.
 
+> [!NOTE]
+> **Read this file for direction, not for status.**
+>
+> The *Guiding principles* below are current and authoritative. The **"Delivered" sections are
+> historical**, and several items still listed as **"Near-term" have since shipped** — Notification
+> Center, Global Search, Smart Dashboard widgets, the Document Engine and Import/Export mapping all
+> exist now.
+>
+> **`docs/kb/Requirements Register.md` is authoritative for whether a work item is planned,
+> in progress, implemented, verified, deferred or superseded**, and records which of the sections
+> below were resolved against the code.
+
 ---
 
 ## Guiding principles

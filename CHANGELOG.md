@@ -4,6 +4,16 @@ All notable changes to **IOMS — Industrial Operations Platform** (formerly Shi
 Management System, formerly SAFETY LOG) are documented here. This project adheres to
 [Semantic Versioning](https://semver.org/).
 
+> [!WARNING]
+> **This file stops at v2.0.0 and is 71 releases behind.**
+>
+> It remains authoritative for **v1.1.0 – v1.5.4**, which predate the in-app release history.
+> Everything from **v1.6.0 onward** lives in `config/ioms.php`'s `version_history` array — which is
+> what the in-app About dialog renders, and is therefore the authoritative record for that era.
+>
+> For a single navigable index across both sources, see **`docs/kb/Release History.md`**.
+> Backfilling this file is tracked as planned work in `docs/kb/Requirements Register.md`.
+
 ---
 
 ## [2.0.0 Beta] — 2026-08-16

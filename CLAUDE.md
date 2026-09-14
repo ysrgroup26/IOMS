@@ -60,11 +60,30 @@ authorization path. See `docs/ADR/008-tenancy-foundation.md` for the reasoning a
 - `CHANGELOG.md`, `ROADMAP.md`, `README.md` — existing project docs, not duplicated here. This file
   is about orientation and "how to think about the codebase," not a changelog.
 
-## The five documents in this knowledge base, and when to read which
+## Start here for product state: the Obsidian knowledge base (`docs/kb/`)
+
+`docs/kb/` is IOMS's long-term memory, and the fastest way for a new session to get oriented. It is
+a **map over the documents below, not a copy of them** — it links outward rather than restating, and
+adds the layers that live nowhere else: what is implemented, pending, deferred or superseded; a
+decision index; a glossary; a unified release index; and an honest record of what was actually run
+versus carefully reasoned about.
+
+Open `docs/kb/IOMS Knowledge Base.md` first. Four notes are usually enough to act safely:
+`Product Identity and Principles` → `Current State` → `Requirements Register` →
+`Working with This Knowledge Base` (which is also how you record what you did when you finish).
+
+The repository root is an Obsidian vault, so every document below is a linkable note. Reasoning:
+`docs/ADR/032-obsidian-knowledge-base.md`.
+
+**When you finish a change, update the knowledge in the same session.** A separate cleanup pass does
+not happen — `CHANGELOG.md` fell 71 releases behind exactly that way.
+
+## The reference documents, and when to read which
 
 | Document | Read it when you need to know... |
 |---|---|
 | **CLAUDE.md** (this file) | Where to start, how the pieces fit together at a glance. |
+| `docs/kb/` | Current product state, tracked work, decisions, terminology, release history. |
 | `docs/ARCHITECTURE.md` | How the reusable engines work (Approval, Workflow, Timeline, Import, PDF, Report Export), the multi-tenant/company-scoping model, and the authorization approach. Read before building anything that might duplicate an existing engine. |
 | `docs/MODULES.md` | What a specific module (Employees, PPE, Material Request, Projects, KPI, Tasks, Settings) actually does, its key files, and its module-specific business rules. Read before touching a module you haven't worked in yet. |
 | `docs/CONVENTIONS.md` | The house style: migration patterns, naming, status-enum conventions, verification habits, things that have caused real bugs before and how they were fixed. Read before writing a migration, adding a role check, or touching anything cache-related. |

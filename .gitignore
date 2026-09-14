@@ -39,3 +39,13 @@ database/database.sqlite
 
 # v2.38.0: Storage::fake() artifacts from the test suite
 /storage/framework/testing
+
+# Obsidian: the vault CONFIG is shared (.obsidian/app.json pins the ignore
+# filters and link style so the knowledge base opens the same way for
+# everyone), but per-user UI state is not. See docs/kb/ and ADR 032.
+/.obsidian/workspace.json
+/.obsidian/workspace-mobile.json
+/.obsidian/appearance.json
+/.obsidian/hotkeys.json
+/.obsidian/graph.json
+/.obsidian/cache

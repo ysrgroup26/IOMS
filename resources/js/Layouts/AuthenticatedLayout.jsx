@@ -4,7 +4,7 @@ import {
     LogOut, Menu, X,
     Bell, User as UserIcon, ChevronDown, Sun, Moon, ChevronRight,
     ClipboardCheck, CheckSquare, HardHat, Inbox, Lock, LayoutDashboard, CalendarDays,
-    FlaskConical,
+    FlaskConical, AlertTriangle,
 } from 'lucide-react';
 import { cn } from '@/lib/utils';
 import { useClock } from '@/lib/useClock';
@@ -529,6 +529,10 @@ export default function AuthenticatedLayout({ children }) {
                     meeting. Persistent, above the content, on every page. */}
                 <SandboxBanner />
 
+                {/* v2.70.0 -- nobody should learn that their subscription
+                    lapsed by having a form refuse to save. */}
+                <SubscriptionBanner />
+
                 {/* tabIndex -1 so the skip link moves FOCUS here, not
                     only the viewport. */}
                 <main id="main-content" tabIndex={-1} className="p-5 pb-24 outline-none lg:p-8 lg:pb-8">{children}</main>
@@ -802,6 +806,105 @@ function SandboxBanner() {
             >
                 Get your own workspace
             </a>
+        </div>
+    );
+}
+
+/**
+ * v2.70.0 -- THE SUBSCRIPTION BANNER.
+ *
+ * The lapse this eventually announces is a 403 on every write. Nobody
+ * should meet that cold, so the shell starts warning while the renewal is
+ * still ahead, and keeps warning through grace into lapse.
+ *
+ * Three things it is careful about:
+ *
+ *  - It says nothing at all while a subscription is comfortably active.
+ *    A permanent billing strip above every page is how a warning becomes
+ *    wallpaper, and the one that matters gets ignored with the rest.
+ *  - The lapsed copy states what was withdrawn AND what was not. A
+ *    customer who believes their safety records are gone reacts very
+ *    differently from one who understands that recording is paused.
+ *  - It offers the action only to an account that can take it. Telling a
+ *    supervisor to go and pay is a dead end; telling them who to speak to
+ *    is not.
+ */
+function SubscriptionBanner() {
+    const { subscriptionState: state } = usePage().props;
+
+    if (!state) {
+        return null;
+    }
+
+    // Quiet unless there is something to act on. The lead window comes
+    // from the server -- it is the point at which the renewal invoice is
+    // raised, so the banner and the invoice appear together instead of
+    // the shell inventing its own threshold.
+    const leadDays = state.lead_days ?? 14;
+    const soon = typeof state.days_remaining === 'number'
+        && state.days_remaining >= 0
+        && state.days_remaining <= leadDays;
+
+    if (state.state === 'active' && !soon) {
+        return null;
+    }
+
+    const COPY = {
+        active: {
+            tone: 'bg-amber-50 border-amber-200 text-amber-900',
+            label: 'Renewal due soon',
+            body: `Masa aktif langganan berakhir dalam ${state.days_remaining} hari.`,
+        },
+        grace: {
+            tone: 'bg-amber-50 border-amber-200 text-amber-900',
+            label: 'Renewal overdue',
+            body: 'Masa aktif langganan telah berakhir. Akses penuh masih berjalan untuk sementara; setelah itu pencatatan data baru dijeda.',
+        },
+        lapsed: {
+            tone: 'bg-red-50 border-red-200 text-red-900',
+            label: 'Recording paused',
+            body: 'Masa aktif langganan telah berakhir, sehingga pencatatan data baru dijeda. Seluruh data Anda tetap utuh dan dapat dibuka seperti biasa.',
+        },
+        suspended: {
+            tone: 'bg-red-50 border-red-200 text-red-900',
+            label: 'Subscription suspended',
+            body: 'Langganan organisasi Anda dihentikan sementara. Data Anda tidak dihapus.',
+        },
+        cancelled: {
+            tone: 'bg-red-50 border-red-200 text-red-900',
+            label: 'Subscription cancelled',
+            body: 'Langganan organisasi Anda telah dibatalkan. Data Anda tidak dihapus.',
+        },
+    };
+
+    const copy = COPY[state.state];
+
+    if (!copy) {
+        return null;
+    }
+
+    return (
+        <div
+            role="status"
+            className={`flex flex-wrap items-center justify-between gap-2 border-b px-5 py-2 text-xs lg:px-8 ${copy.tone}`}
+        >
+            <span className="flex min-w-0 items-start gap-2">
+                <AlertTriangle className="mt-0.5 h-3.5 w-3.5 shrink-0" />
+                <span className="min-w-0">
+                    <strong className="font-semibold">{copy.label}</strong>
+                    <span className="opacity-90"> — {copy.body}</span>
+                </span>
+            </span>
+            {state.can_manage ? (
+                <Link
+                    href={route('subscription.billing')}
+                    className="shrink-0 rounded-md bg-black/[0.07] px-2.5 py-1 font-medium transition-colors hover:bg-black/[0.12]"
+                >
+                    Go to Billing
+                </Link>
+            ) : (
+                <span className="shrink-0 opacity-80">Hubungi Administrator organisasi Anda.</span>
+            )}
         </div>
     );
 }

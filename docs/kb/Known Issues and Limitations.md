@@ -1,7 +1,7 @@
 ---
 title: Known Issues and Limitations
 type: register
-updated: 2026-09-14
+updated: 2026-09-15
 tags: [kb/issues]
 ---
 
@@ -33,7 +33,7 @@ or waiting on something external.
 | Issue | Detail |
 |---|---|
 | **Release dates are unreliable** | **16 of 82** entries in `version_history` are dated *after* the current release date (2026-09-14), and there are **2 non-monotonic pairs** (v2.12.0 → v2.13.0, and v2.64.0 → v2.65.0 which goes backwards by 20 days). Version *ordering* is correct; the dates are not. A release-date test is `#status/planned` in [[Requirements Register]] |
-| **ADR numbering has gaps and a collision** | 002, 003 and 005 do not exist, and **029 is used twice**. Recorded in [[Decision Register]]; next free number is 033 |
+| **ADR numbering has gaps and a collision** | 002, 003 and 005 do not exist, and **029 is used twice**. Recorded in [[Decision Register]]; next free number is 034 |
 
 ## Product limitations
 
@@ -41,7 +41,8 @@ or waiting on something external.
 |---|---|
 | **Finance workspace is a placeholder** | Registered in navigation, routes to a Coming Soon page. No capability behind it |
 | **HR placeholder items** | Recruitment, Performance, HR KPI, Documents and Reports are `disabled: true` navigation entries |
-| **Live payments need external configuration** | The integration is built and the activation boundary is pinned by tests, but going live requires provider credentials and configuration outside this repository |
+| **Live payments need external configuration** | The integration is built and the activation boundary is pinned by tests, but going live requires provider credentials and configuration outside this repository. IOMS bills invoice-per-cycle; there is no automatic card charging, and Midtrans Subscription/Recurring would be a separate integration rather than a flag |
+| **Renewal automation needs a cron entry** | `subscriptions:lifecycle` must be reached by `php artisan schedule:run` for renewal invoices and reminders to be issued. It does NOT gate access -- subscription standing is derived from the dates on every read -- so a stopped scheduler delays billing without locking anyone out. ADR [[033-subscription-lifecycle|033]] |
 | **Settings is a 2,500-line monolith** | 17 tabs in one file. Editing it carries risk disproportionate to the change. Decomposition is `#status/deferred` |
 | **Workspaces and route-prefix departments are synced by hand** | `workspaces.js` and `config/departments.php` describe overlapping things in two places. Adding a route prefix means touching both — a recorded pitfall. This is the thing most likely to break as the workspace count grows |
 | **Field-level audit does not exist** | `ActivityLog` records a free-text description, not structured before/after values per field |

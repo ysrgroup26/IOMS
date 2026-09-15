@@ -3,6 +3,7 @@
 namespace App\Services;
 
 use App\Models\Module;
+use App\Models\Subscription;
 use App\Models\Tenant;
 use App\Models\User;
 use App\Models\Workspace;
@@ -52,6 +53,20 @@ class EntitlementService
             return false;
         }
 
+        // v2.70.0 -- the account-level switch, finally enforced.
+        //
+        // `tenants.status` had a Platform Admin UI that wrote a value
+        // NOTHING read: suspending an organization did exactly nothing.
+        // A control that claims to suspend a customer and does not is
+        // worse than no control, so it is now read here, next to the
+        // commercial state, and the two answer different questions:
+        // `tenants.status` is the ACCOUNT (abuse, legal, a deliberate
+        // shutdown), `subscriptions.status` is the COMMERCIAL
+        // ARRANGEMENT. Either closing is enough to close the door.
+        if (! $tenant->isActive()) {
+            return false;
+        }
+
         $subscription = $tenant->subscription;
 
         return $subscription === null || $subscription->isUsable();
@@ -67,6 +82,47 @@ class EntitlementService
         $subscription = $tenant->subscription;
 
         return $subscription === null || $subscription->isDegraded();
+    }
+
+    /**
+     * v2.70.0 -- where this organization sits in the subscription
+     * lifecycle right now. Derived on every read; nothing stores it.
+     *
+     * A tenant with NO subscription row is treated as ACTIVE, not lapsed,
+     * for the same reason every other method in this service is generous
+     * about a missing commercial record: "no subscription on file" is far
+     * more likely to be a data gap than a delinquent customer, and this
+     * service exists to avoid stale-data lockouts, not to create them.
+     */
+    public function tenantLifecycleState(?Tenant $tenant): string
+    {
+        if (! $tenant) {
+            return Subscription::LIFECYCLE_ACTIVE;
+        }
+
+        if (! $tenant->isActive()) {
+            return Subscription::LIFECYCLE_SUSPENDED;
+        }
+
+        return $tenant->subscription?->lifecycleState() ?? Subscription::LIFECYCLE_ACTIVE;
+    }
+
+    /**
+     * Whether this organization may still RECORD new work.
+     *
+     * False only while lapsed -- and a lapse withdraws writing, never
+     * reading. See EnforceSubscriptionWriteAccess for why a read-only
+     * lapse is the correct behaviour for a safety system of record.
+     */
+    public function tenantAllowsWrites(?Tenant $tenant): bool
+    {
+        return $this->tenantLifecycleState($tenant) !== Subscription::LIFECYCLE_LAPSED;
+    }
+
+    /** Whole days until the current period ends. Negative once past it; null when it never ends or there is no subscription. */
+    public function daysUntilRenewal(?Tenant $tenant): ?int
+    {
+        return $tenant?->subscription?->daysUntilPeriodEnd();
     }
 
     /**
@@ -362,20 +418,29 @@ class EntitlementService
             return 'no_tenant';
         }
 
+        // v2.70.0: an account-level suspension is reported as its own
+        // reason, so support can tell "we switched this account off" apart
+        // from "their subscription lapsed" without opening the database.
+        if (! $tenant->isActive()) {
+            return 'account_suspended';
+        }
+
         $subscription = $tenant->subscription;
 
         if (! $subscription) {
             return 'no_subscription';
         }
 
-        if (in_array($subscription->status, ['suspended', 'cancelled'], true)) {
-            return $subscription->status;
-        }
-
-        if ($subscription->isExpired()) {
-            return $subscription->status === 'trial' ? 'trial_expired' : 'expired';
-        }
-
-        return null;
+        // v2.70.0: the derived lifecycle, not the stored status. `grace`
+        // and `lapsed` are real, distinguishable situations a customer
+        // must be told apart -- "you have days left" versus "new records
+        // are paused" -- and neither was expressible before.
+        return match ($subscription->lifecycleState()) {
+            Subscription::LIFECYCLE_SUSPENDED => 'suspended',
+            Subscription::LIFECYCLE_CANCELLED => 'cancelled',
+            Subscription::LIFECYCLE_GRACE => $subscription->status === Subscription::STATUS_TRIAL ? 'trial_expired' : 'grace',
+            Subscription::LIFECYCLE_LAPSED => $subscription->status === Subscription::STATUS_TRIAL ? 'trial_expired' : 'lapsed',
+            default => null,
+        };
     }
 }

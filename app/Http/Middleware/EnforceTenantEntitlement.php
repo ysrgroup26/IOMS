@@ -79,6 +79,16 @@ class EnforceTenantEntitlement
     private const ALLOWLIST_PREFIXES = [
         'dashboard', 'home', 'settings', 'logout', 'login', 'password',
         'notifications', 'work-center', 'search',
+        // v2.70.0 -- THE PAGE THAT EXPLAINS THE BLOCK WAS ITSELF BLOCKED.
+        //
+        // The doc comment above has always promised that a user whose
+        // tenant has gone unusable can still "reach Settings to see WHY
+        // (Tenant Admin's own Subscription tab)". That tab is not under
+        // the `settings` route prefix -- it is `subscription.billing` --
+        // so the allowlist did not cover it and a suspended tenant was
+        // 403'd out of the only page that could tell them what happened,
+        // and out of the only page from which they could pay to fix it.
+        'subscription',
     ];
 
     public function __construct(private readonly EntitlementService $entitlements)

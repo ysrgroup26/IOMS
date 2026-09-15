@@ -27,10 +27,30 @@ class Tenant extends Model
 {
     use SoftDeletes;
 
+    /*
+     |-------------------------------------------------------------------
+     | ACCOUNT STATUS -- the platform operator's switch (v2.70.0)
+     |-------------------------------------------------------------------
+     | Whether this organization's ACCOUNT is open. Distinct from the
+     | subscription, which is the commercial arrangement: an account can
+     | be switched off for abuse or a legal reason while the subscription
+     | is paid up, and a paid-up account can still lapse commercially.
+     |
+     | `expired` is gone. It was never written by anything, and expiry is
+     | not an account decision -- it is where the SUBSCRIPTION sits in
+     | time, which Subscription::lifecycleState() derives from the dates.
+     | Keeping a second, stored, never-updated copy of that here could
+     | only ever disagree with it.
+     |
+     | This is now enforced: EntitlementService::tenantIsUsable() reads
+     | isActive(). Before v2.70.0 the Platform Admin UI wrote this column
+     | and NOTHING read it, so suspending a customer did nothing at all.
+     */
     public const STATUS_TRIAL = 'trial';
     public const STATUS_ACTIVE = 'active';
     public const STATUS_SUSPENDED = 'suspended';
-    public const STATUS_EXPIRED = 'expired';
+
+    public const STATUSES = [self::STATUS_TRIAL, self::STATUS_ACTIVE, self::STATUS_SUSPENDED];
 
     protected $fillable = ['name', 'slug', 'status', 'trial_ends_at', 'is_demo'];
 
@@ -108,6 +128,11 @@ class Tenant extends Model
         return (bool) $this->is_demo;
     }
 
+    /**
+     * Whether the ACCOUNT is open. Says nothing about whether the
+     * subscription is paid -- that is Subscription::lifecycleState().
+     * Read by EntitlementService::tenantIsUsable() on every gated request.
+     */
     public function isActive(): bool
     {
         return $this->status === self::STATUS_ACTIVE || $this->status === self::STATUS_TRIAL;

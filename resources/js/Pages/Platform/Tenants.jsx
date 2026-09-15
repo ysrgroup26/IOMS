@@ -17,7 +17,6 @@ const STATUS_VARIANT = {
     active: 'success',
     trial: 'default',
     suspended: 'destructive',
-    expired: 'secondary',
 };
 
 // Mirrors the server-side regex in Store/UpdateTenantRequest -- lowercase
@@ -149,7 +148,6 @@ export default function PlatformTenants({ tenants, packages }) {
                                                     <SelectItem value="trial">Trial</SelectItem>
                                                     <SelectItem value="active">Active</SelectItem>
                                                     <SelectItem value="suspended">Suspended</SelectItem>
-                                                    <SelectItem value="expired">Expired</SelectItem>
                                                 </SelectContent>
                                             </Select>
                                         </TableCell>
@@ -218,7 +216,6 @@ export default function PlatformTenants({ tenants, packages }) {
                                         <SelectItem value="trial">Trial</SelectItem>
                                         <SelectItem value="active">Active</SelectItem>
                                         <SelectItem value="suspended">Suspended</SelectItem>
-                                        <SelectItem value="expired">Expired</SelectItem>
                                     </SelectContent>
                                 </Select>
                                 {errors.status && <p className="text-xs text-red-600">{errors.status}</p>}

@@ -1,7 +1,7 @@
 ---
 title: Pricing Plans and Entitlements
 type: reference
-updated: 2026-09-14
+updated: 2026-09-15
 tags: [kb/commercial]
 ---
 
@@ -102,14 +102,95 @@ design — pinned by `ErrorPagePresentationTest`.
 ## Payments
 
 Checkout is IOMS's own page; the provider supplies the payment interface. **Nothing the browser does
-can activate a subscription** — activation is server-side on a signature-verified webhook, and
-`PublicReadinessTest` pins that boundary.
+can activate or extend a subscription** — that happens server-side on a signature-verified webhook,
+and `PublicReadinessTest` and `SubscriptionLifecycleTest` both pin that boundary.
 
-Invoices exist as real documents because Indonesian B2B customers file them.
+The one other path that can settle an invoice is a Platform Admin recording a bank transfer, under
+their own audited identity. It runs the identical lifecycle code, so the gateway path and the manual
+path cannot diverge.
+
+Invoices exist as real documents because Indonesian B2B customers file them. Each one carries a
+`purpose` (`onboarding` / `renewal` / `plan_change`) and, for a plan change, the target package and
+cycle — so a verified payment can tell what it bought without inferring it from which foreign keys
+happen to be null.
+
+**IOMS bills invoice-per-cycle. There is no automatic card charging.** A `recurring_enabled` flag
+used to promise it; nothing implemented it, so it was removed in v2.70.0 rather than left as a trap.
 
 > [!note] Live payments still need external configuration
 > The integration is built; going live requires provider credentials and configuration outside this
 > repository. See [[Known Issues and Limitations]] and `ROADMAP.md`.
+
+---
+
+## The subscription lifecycle (v2.70.0)
+
+Full reasoning in ADR [[033-subscription-lifecycle|033]]. The parts that change how you read the
+code:
+
+### Stored status vs derived standing
+
+`subscriptions.status` carries only what was **decided** — `trial`, `active`, `suspended`,
+`cancelled`. Where the subscription sits in **time** is derived on every read by
+`Subscription::lifecycleState()` from the dates already on the row.
+
+`expired` and `grace_period` are gone from the vocabulary. They were stored values that **nothing
+ever wrote**, so a subscription four months past its end date reported itself as `active`.
+
+> [!important] A stopped scheduler cannot lock anyone out
+> Because standing is derived, access is correct whether `subscriptions:lifecycle` ran last night or
+> has never run. A missed cron delays an invoice and a reminder. It cannot withdraw access, and it
+> cannot grant it.
+
+### What each state permits
+
+| Standing | Reads | Writes |
+|---|---|---|
+| `active` — inside the paid period | ✅ | ✅ |
+| `grace` — past it, within `saas.grace_days` (14) | ✅ | ✅, warned |
+| `lapsed` — past grace | ✅ | ❌ |
+| `suspended` / `cancelled` — a deliberate operator act | ❌ | ❌ |
+
+> [!important] Expiry is read-only, never a lockout, and never destructive
+> IOMS holds the permits, incident reports and training expiry an organization produces for a
+> regulator or after somebody is hurt. Withholding those over a late invoice would turn a billing
+> dispute into a safety and legal problem. Enforced by `EnforceSubscriptionWriteAccess`, which
+> allow-lists paying, session and credential routes, and marking one's own notification read.
+
+### Renewal, and the arithmetic that matters
+
+`subscriptions:lifecycle` (daily, 02:00) issues the next invoice inside `saas.renewal_lead_days`,
+emails it, reminds once a day through grace, and applies plan changes waiting on a period boundary.
+
+**Every extension is `max(current period end, now) + one cycle`.** Renewing early keeps the days
+already paid for; renewing late does not sell a month nobody could use. `now + cycle` is the classic
+bug here and it quietly steals from whichever party it rounds against.
+
+### Plan changes
+
+- **Upgrade** — prorated invoice for the rest of the period, applied when paid. Never negative.
+- **Downgrade or cycle change** — recorded in `pending_package_id` and applied at the boundary. A
+  downgrade below current seats or operating units is **refused**, naming the number to reduce.
+- A plan change re-agrees the price and re-syncs grants; renewing on the same plan does neither,
+  which is what preserves a grandfathered price (v2.60.0).
+
+> [!warning] Grant sync can remove — but only from a deliberate plan change
+> `SubscriptionLifecycleService::syncGrantsToPackage()` is a true `sync()`. `tenants:sync-grants`
+> stays additive on purpose: a safety net must never be able to take capability away by accident.
+
+### A payment buys time, not reinstatement
+
+A suspended or cancelled subscription cannot issue itself a renewal invoice, and settling one by
+another route extends the period while leaving the status alone. Lifting a suspension is the
+platform operator's decision; money must not overturn it. `trial` → `active` is the one status
+change a payment legitimately makes.
+
+### `tenants.status` is the ACCOUNT switch, and is now enforced
+
+Separate question from the subscription: is the **account** open (abuse, legal hold, deliberate
+shutdown), versus what the **commercial arrangement** says. Either closing is enough.
+`EntitlementService::tenantIsUsable()` reads both. Before v2.70.0 the Platform Admin suspend control
+wrote a column nothing read, so suspending a customer did nothing at all.
 
 ---
 

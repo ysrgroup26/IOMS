@@ -251,6 +251,15 @@ authorises nothing; every Snap callback does one thing, navigate to the read-onl
 no endpoint accepts a payment result from a browser. A subscription still becomes active only in
 `PaymentWebhookController`, from a payload the provider signed and this server verified.
 
+**v2.70.0 — the same page, signed in.** `subscription.pay` is the authenticated twin of
+`register.pay`, for renewals and plan changes, and deliberately the same shape: IOMS's own order
+summary, Snap opened over it with a server-created token, every callback navigating to the read-only
+billing page. **The rule is unchanged and now covers extension as well as activation** — a period
+moves only on a verified webhook, and `SubscriptionLifecycleTest` pins that alongside
+`PublicReadinessTest`. The one other way an invoice can settle is a Platform Admin recording a bank
+transfer under their own audited identity, which runs the identical lifecycle code so the two paths
+cannot diverge.
+
 ### The organizational model (v2.54.0)
 
 ```
@@ -608,6 +617,24 @@ them actually did anything at request time:
    `tenantIsDegraded()` → enforced by `EnforceTenantEntitlement` middleware (registered globally on
    the `web` group), gated by `config('saas.enforce_entitlement')` (default `true`). This part has
    worked and been enforced since v1.11.1.
+
+   **v2.70.0 splits this question along the axis that actually differs.** `subscriptions.status`
+   now carries only what a human or a verified payment DECIDED (`trial`/`active`/`suspended`/
+   `cancelled`); where the subscription sits in TIME — `active` / `grace` / `lapsed` — is derived
+   on every read by `Subscription::lifecycleState()` from the dates already on the row, exactly as
+   `Employee::profile_status` and `PurchaseOrderItem::delivered_quantity` are derived. `expired`
+   and `grace_period` are removed: they were stored values **nothing ever wrote**, so a
+   subscription months past its end date reported itself as `active`.
+
+   A second middleware, `EnforceSubscriptionWriteAccess`, runs immediately after the first and
+   handles what it leaves through: a subscription that ran out of time drops to **read-only** once
+   its grace window closes. Writes are refused outside a short allow-list (paying, session and
+   credential routes); **reads are never withdrawn by the passage of time at any setting**, because
+   IOMS holds the compliance evidence an organization answers a regulator with.
+
+   `Tenant::status` is the separate, ACCOUNT-level switch, and `tenantIsUsable()` now reads it —
+   before v2.70.0 the Platform Admin suspend control wrote a column nothing read. See
+   `docs/ADR/033-subscription-lifecycle.md`.
 2. **"Is this specific department/workspace included in what this tenant bought?"** —
    `Tenant::modules()` / `Tenant::workspaces()` (pivot tables `tenant_modules`/`tenant_workspaces`,
    editable per-tenant from the Platform Admin "Tenant Grants" page) → `EntitlementService::
@@ -739,25 +766,28 @@ explicitly-entered date is always respected as-is. No automatic trial-expiry cro
 Entitlement chain section above); actually converting an expired trial to active/expired remains a
 Platform Admin action, matching this phase's explicit "payment conversion belongs to a later phase."
 
-**Upgrade/Downgrade domain (documented, not built)**: per this phase's own Part 10, the intended
-future behavior is recorded here rather than implemented with no real caller yet. A plan change should
-eventually be representable as one of: *effective immediately* (today's only actual behavior —
-`updateSubscription()` edits the current Subscription row in place) or *effective next billing cycle*
-(a pending change, not yet representable — would need a `pending_package_id`/`pending_effective_at`
-pair on `Subscription`, deliberately NOT added yet since nothing reads or writes it). "Upgrade" vs.
-"downgrade" is not a distinct code path today — both are the same `package_id` edit; the distinction
-only matters once proration/billing rules exist, which is out of scope until the Checkout/Billing
-phase.
+**Upgrade/Downgrade — BUILT in v2.70.0.** The two paragraphs that stood here recorded this as
+future intent ("not yet representable — would need a `pending_package_id` pair on `Subscription`,
+deliberately NOT added yet"). Both now exist, and the distinction they described is a real code
+path:
 
-**Billing-ready architecture (documented boundary, no new tables)**: `Invoice`, `PaymentTransaction`,
-`PaymentWebhookEvent`, and `PaymentGatewayInterface`/`NullPaymentGateway` already exist (an earlier
-pass provisioned them) and were re-confirmed still correctly unwired this phase — no route or
-controller calls the gateway interface, `NullPaymentGateway` throws on every method rather than faking
-success. Intended future relationship, for the next phase to build against rather than re-derive:
-`Subscription` (1) → `Invoice` (many, one per billing period) → `PaymentTransaction` (many, one per
-attempt) → `PaymentWebhookEvent` (gateway callbacks, verified+processed independently of the
-transaction they relate to, so a replayed/out-of-order webhook can't double-apply a payment). This
-phase added no table to that chain — `packages`' four new columns are the only schema change.
+- **Upgrade** — applied when paid, billed prorated for the remainder of the current period
+  (`SubscriptionLifecycleService::upgradeProration()`, never negative).
+- **Downgrade or cycle change** — recorded in `subscriptions.pending_package_id` /
+  `pending_billing_cycle` and applied at the period boundary. The customer paid for the period they
+  are in, and a smaller plan applied today could drop a tenant below the seats or operating units it
+  is actively using; a downgrade below current usage is refused outright.
+- Upgrade vs downgrade is decided by **price**, not by a hardcoded tier order — the catalogue is
+  editable and a plan's name tells you nothing about what it costs.
+
+The whole chain is now wired end to end: `Subscription` (1) → `Invoice` (many, each carrying its own
+`period_start`/`period_end` and a `purpose` saying what paying it buys) → `PaymentTransaction` (many,
+one per attempt) → `PaymentWebhookEvent` (unique on `(gateway, event_id)`, so a replayed or
+out-of-order notification cannot double-apply a payment). `NullPaymentGateway` still throws rather
+than faking success when no gateway is configured, and the billing page then offers a bank transfer
+against the real invoice rather than a button that would fail.
+
+Full reasoning: `docs/ADR/033-subscription-lifecycle.md`.
 
 ### PTW User Quota — a USER entitlement, not a Module/Workspace grant (v2.17.0)
 

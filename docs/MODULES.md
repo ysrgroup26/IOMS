@@ -1511,9 +1511,11 @@ all). What was added:
   `billing_reference`, `notes`, `created_by` also added (all nullable, additive).
 - **`Invoice`** (genuinely new — confirmed via search that no billing/invoice concept existed
   anywhere before this) — one row per billing document, tenant-owned, optionally linked to the
-  Subscription it bills for. No payment gateway integration exists; `markPaid()` is the ONLY way
-  `status` becomes `'paid'`, always an explicit Platform Admin action recording a payment that
-  happened outside this system, never a fabricated confirmation.
+  Subscription it bills for. **v2.70.0:** an invoice now states its `purpose`
+  (`onboarding` / `renewal` / `plan_change`) plus the package and cycle a plan change targets, so a
+  verified payment can tell what it bought. `status` becomes `'paid'` in exactly two places:
+  `PaymentWebhookController` after a signature-verified settlement, and a Platform Admin recording
+  a bank transfer — never inferred from a browser redirect.
 - **`EntitlementService`** (`app/Services/EntitlementService.php`) — the single new authority for
   "is this tenant's subscription usable right now". Deliberately does NOT reimplement
   `Tenant::modules()`/`workspaces()` (existing grant mechanism) or `RestrictDepartmentAccess`
@@ -1522,24 +1524,45 @@ all). What was added:
 - **`EnforceTenantEntitlement`** middleware — the backend, direct-URL-safe enforcement of the above,
   registered globally. **v1.11.1: `Subscription::isBlocked()`/`isDegraded()` split the previous
   single "usable" check into two** — blocked (hard 403) ONLY for an explicit `suspended`/`cancelled`
-  status (always a deliberate Platform Admin action); degraded (a warning banner in Settings →
-  Subscription, never a block) for expired-by-date or a completely missing Subscription row, which
-  are far more likely to be stale/unconfigured data than an actual delinquent tenant. This is what
-  made it safe to flip `config('saas.enforce_entitlement')`'s default to `true` this pass — a stale
-  seeded `Subscription.ends_at` can no longer lock anyone out; only an explicit suspend/cancel can.
-  Still overridable per-install via `SAAS_ENFORCE_ENTITLEMENT=false` in `.env`.
+  status (always a deliberate Platform Admin action); degraded (a warning, never a block) for
+  expired-by-date or a completely missing Subscription row, which are far more likely to be
+  stale/unconfigured data than an actual delinquent tenant. This is what made it safe to flip
+  `config('saas.enforce_entitlement')`'s default to `true` — a stale seeded `Subscription.ends_at`
+  can no longer lock anyone out; only an explicit suspend/cancel can. Still overridable per-install
+  via `SAAS_ENFORCE_ENTITLEMENT=false` in `.env`.
+- **`EnforceSubscriptionWriteAccess`** middleware (**v2.70.0**) — runs immediately after the above,
+  and handles the softer case it leaves through. A subscription that simply ran out of time drops
+  to **read-only** once its grace window closes: unsafe HTTP methods are refused, an allow-list
+  (paying, session and credential routes, marking one's own notification read) still passes, and
+  **reads are never withdrawn**. IOMS holds the permits, incident reports and training-expiry
+  records an organization answers a regulator with; withholding those over a late invoice would
+  turn a billing dispute into a safety and legal problem. See `docs/ADR/033-subscription-lifecycle.md`.
+- **`SubscriptionLifecycleService`** (**v2.70.0**) — every subscription state transition in one
+  place: renewal-invoice issuance, period extension (always `max(current end, now) + cycle`, so
+  paying early never discards time and paying late never sells a month nobody could use), plan
+  changes (upgrade prorated and applied when paid; downgrade and cycle change deferred to the period
+  boundary), and the one grant sync permitted to *remove* grants. Driven by
+  `php artisan subscriptions:lifecycle` (scheduled daily), which issues invoices and reminders but
+  **never gates access** — standing is derived from the dates on every read, so a stopped cron
+  delays billing without locking anyone out.
 - **Platform Admin console** (`/platform`): `Plans` (new page — `Package` previously had no
   create/edit UI at all, only a read-only dropdown), and `TenantDetail`'s Subscription card is now
   editable (type/status/seats/license key/dates) with an Invoices card (issue invoice, mark paid).
-- **Tenant Admin view**: Settings → Subscription tab (read-only — changing it stays Platform Admin-
-  only) shows plan/type/status/dates/seats/invoices; explicitly renders "Lifetime License -- no
-  expiry" rather than a misleading renewal date when `type === 'lifetime'`.
+- **Tenant Admin view**: Settings → Subscription tab shows plan/type/standing/dates/seats/invoices;
+  explicitly renders "Lifetime License -- no expiry" rather than a misleading renewal date when
+  `type === 'lifetime'`. **v2.70.0** adds the real billing surface at `/subscription/billing`
+  (`SubscriptionController`): renew, pay an outstanding invoice through IOMS's own checkout page,
+  change plan, and withdraw a scheduled change. All Super-Admin-only, and none of it can extend
+  anything — it issues invoices and opens payment sessions; the period moves only on a verified
+  webhook.
+- **The application shell warns before the refusal** (**v2.70.0**): a banner appears once the
+  renewal is inside the lead window and gets louder through grace into lapse, so nobody discovers
+  their subscription ran out by having a form refuse to save.
 
-**Known limitation, explicitly not built this pass**: no payment gateway is connected (by design —
-the architecture is provider-agnostic; a future gateway integration would call `Invoice::markPaid()`
-the same way a Platform Admin does manually today, no core rewrite needed). Frontend navigation does
-NOT yet hide a workspace based on entitlement status (only the backend middleware, itself gated off
-by default, enforces it) — flagged as a follow-up, not silently claimed done.
+**Known limitation**: going live still needs Midtrans credentials and a registered Payment
+Notification URL — configuration outside this repository. IOMS bills invoice-per-cycle; there is no
+automatic card charging, and Midtrans Subscription/Recurring would be a separate integration rather
+than a configuration flag.
 
 ### SaaS Productization / Pricing Foundation (v2.14.0)
 

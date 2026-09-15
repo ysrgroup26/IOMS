@@ -43,9 +43,7 @@ class StoreTenantRequest extends FormRequest
             // form field drives creating that tenant's first Subscription
             // row in the controller, it is not a tenants table column.
             'package_id' => ['required', 'integer', 'exists:packages,id'],
-            'status' => ['required', Rule::in([
-                Tenant::STATUS_TRIAL, Tenant::STATUS_ACTIVE, Tenant::STATUS_SUSPENDED, Tenant::STATUS_EXPIRED,
-            ])],
+            'status' => ['required', Rule::in(Tenant::STATUSES)],
             // Initial Administrator -- same shape/uniqueness rule as
             // SettingsController::storeUser() (a tenant's own Super Admin
             // creating another user), just prefixed `admin_*` to keep this

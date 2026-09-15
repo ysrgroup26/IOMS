@@ -1,7 +1,7 @@
 ---
 title: Verification Status
 type: register
-updated: 2026-09-14
+updated: 2026-09-15
 tags: [kb/verification]
 ---
 
@@ -49,7 +49,7 @@ on every phone width.
 
 | | |
 |---|---|
-| Suite | **353 tests, 1563 assertions — all passing** (2026-09-14) |
+| Suite | **391 tests, 1664 assertions — all passing** (2026-09-15) |
 | Database | In-memory **SQLite**, so no MySQL or external service is needed |
 | Lint | `npm run lint` — 0 errors (4 pre-existing warnings in `GasTestRecords/Index.jsx` and `Settings/Index.jsx`) |
 | Build | `npm run build` — clean, with the known bundle-size warning |
@@ -72,6 +72,7 @@ matters — several defects only appear at realistic scale.
 
 | Area | Version | What was verified |
 |---|---|---|
+| Subscription lifecycle | 2.70.0 | Active, grace and lapsed states rendered and read; a renewal invoice raised at the customer's grandfathered price for the correct next period; a write refused with the real explanation while every read still worked; a downgrade scheduled rather than applied; no horizontal overflow at 375px |
 | Demand consolidation | 2.69.0 | Hold with reason, consolidating two requests into one purchase, the automatic move to Processing, and the link back from the request — end to end |
 | Material Request aging | 2.69.0 | Outstanding filter, aging emphasis, no overflow at 375px |
 | Employee Cases | 2.69.0 | Case list, case record, derived standing, issued SP with validity window |
@@ -91,6 +92,8 @@ Stated plainly because the distinction matters:
 | **MySQL-specific concurrency** | See the SQLite note above |
 | **Email and queue side effects** | Not exercised by the suite |
 | **Live payment flow** | Requires external provider configuration — see [[Known Issues and Limitations]] |
+| **A real Midtrans notification** | Every webhook test signs its own payload with a test server key, so what is verified is that IOMS honours the contract *as documented*. Their actual signature over a live transaction, their full `transaction_status` vocabulary, and their retry timing have never been observed. This is the gap a sandbox transaction against real credentials would close, and it is the one remaining item in the payment path that carries genuine unknown risk — [[Requirements Register]] |
+| **The scheduled run in production** | `subscriptions:lifecycle` is test-covered and was exercised by hand, but no deployment has yet run it from cron over a real period boundary |
 
 ---
 

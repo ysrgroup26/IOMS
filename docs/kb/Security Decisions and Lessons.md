@@ -1,7 +1,7 @@
 ---
 title: Security Decisions and Lessons
 type: reference
-updated: 2026-09-14
+updated: 2026-09-15
 tags: [kb/security]
 ---
 
@@ -92,6 +92,26 @@ of a 404.
 
 **Rule: widening *reach* and tightening *content* belong in the same change.**
 
+### 7. A state machine that reinstates on the wrong signal
+
+Found in v2.70.0's own security review, before the code shipped. `extendPeriod()` force-set a
+subscription's status to `active` on payment — which is right for `trial` and for a lapse, and
+wrong for `suspended`. Combined with the (correct) decision to let a blocked tenant reach the
+billing page so they can see why and pay, it meant **a suspended customer could lift their own
+suspension by raising an invoice and paying it**.
+
+Nothing was bypassed and no boundary leaked; the escalation came from one field being written
+unconditionally in a method whose name suggested it only touched dates.
+
+**Rule: a state machine must only advance on the signal that legitimately causes that transition.**
+Money buys time. Reinstatement is a person's decision, and only that person's signal may write it.
+The period still extends and the payment is still recorded, so nothing is lost when the operator
+does reinstate.
+
+Worth noting how it was found: not by a scanner, but by asking "who can now reach this route that
+could not before, and what is the most valuable thing they could do with it?" after *widening an
+allow-list*. Allow-list changes deserve that question every time.
+
 ---
 
 ## Standing security positions
@@ -101,7 +121,9 @@ of a 404.
 | Tenant isolation is **fail-closed** | `TenantScope` with no resolved tenant returns nothing, not everything |
 | A row nobody owns is visible to nobody | `companyScopeAllowsGlobalRows()` is opt-in for exactly three reference tables |
 | Segregation of duties is config, not code | `config/workflow.php` keeps approve / process / override reviewable in one file |
-| Payment activation is never client-driven | Nothing the browser does can activate a subscription; `PublicReadinessTest` pins it |
+| Payment activation is never client-driven | Nothing the browser does can activate OR EXTEND a subscription; `PublicReadinessTest` and `SubscriptionLifecycleTest` both pin it |
+| A payment buys time, never reinstatement | `suspended`/`cancelled` are an operator's decision; a blocked subscription cannot even invite its own payment. ADR [[033-subscription-lifecycle|033]] |
+| Expiry withdraws writing, never reading | IOMS holds the compliance evidence an organization answers a regulator with. A billing dispute must not become a safety one |
 | The webhook exemption is a single literal path | Never a wildcard, and the provider signature is verified before a field is read |
 | Trusted proxies are opt-in | Hardcoding `*` would let a client spoof its own scheme and host |
 | The Sandbox is a real tenant | Bounded by the same scopes and RBAC as a customer, plus read-mostly — not a separate code path |

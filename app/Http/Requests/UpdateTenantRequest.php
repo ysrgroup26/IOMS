@@ -36,9 +36,7 @@ class UpdateTenantRequest extends FormRequest
             'name' => ['required', 'string', 'max:255'],
             'slug' => ['required', 'string', 'max:255', 'regex:/^[a-z0-9]+(-[a-z0-9]+)*$/', Rule::unique('tenants', 'slug')->ignore($tenant->id)],
             'package_id' => ['required', 'integer', 'exists:packages,id'],
-            'status' => ['required', Rule::in([
-                Tenant::STATUS_TRIAL, Tenant::STATUS_ACTIVE, Tenant::STATUS_SUSPENDED, Tenant::STATUS_EXPIRED,
-            ])],
+            'status' => ['required', Rule::in(Tenant::STATUSES)],
         ];
     }
 

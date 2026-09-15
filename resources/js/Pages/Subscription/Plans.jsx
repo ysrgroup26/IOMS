@@ -1,30 +1,57 @@
-import { Head } from '@inertiajs/react';
+import { Head, useForm } from '@inertiajs/react';
 import { useState } from 'react';
 import AuthenticatedLayout from '@/Layouts/AuthenticatedLayout';
 import PageHeader from '@/Components/shared/PageHeader';
 import { Card, CardContent, CardHeader, CardTitle, CardDescription } from '@/Components/ui/card';
 import { Badge } from '@/Components/ui/badge';
 import { Button } from '@/Components/ui/button';
+import {
+    Dialog, DialogContent, DialogHeader, DialogFooter, DialogTitle, DialogDescription,
+} from '@/Components/ui/dialog';
 import { Check, Sparkles } from 'lucide-react';
 
 /**
  * v2.14.0 (SaaS Productization / Pricing Foundation, Part 8/9). The
  * tenant-facing Plans/pricing comparison page -- entirely data-driven
- * from `PricingService::publicPlans()` (see SettingsController::plans()).
+ * from `PricingService::publicPlans()` (see SubscriptionController::plans()).
  * No amount is ever written into this component; every number/label
  * shown here comes from the `plans`/`currentPlan` props exactly as the
  * backend formatted them, so this page can never drift from what a
  * Platform Admin actually configured in Platform > Plans.
  *
- * Deliberately NO checkout/payment action anywhere on this page (see this
- * phase's own "DO NOT create fake payment buttons" rule) -- the CTA is a
- * plain, honest "Hubungi administrator untuk upgrade" message. Upgrading
- * a tenant's plan remains a Platform Admin action
- * (PlatformController::updateSubscription()) until a later, explicitly
- * separate Checkout/Billing phase.
+ * v2.70.0 -- THE CTA IS NOW A REAL ACTION.
+ *
+ * It used to be a disabled button reading "Hubungi Administrator untuk
+ * Upgrade", which was the honest thing to show while no self-service plan
+ * change existed. One does now, so the button does what it says.
+ *
+ * IT STILL DOES NOT TAKE MONEY. Choosing a plan posts a request; the
+ * server decides whether that is an upgrade (a prorated invoice, applied
+ * when paid) or a downgrade/cycle change (scheduled for the period
+ * boundary, so nobody loses capacity they already paid for and no tenant
+ * is dropped below the seats it is using). The browser never sends an
+ * amount and never confirms a payment.
+ *
+ * An account that cannot manage billing still sees the comparison and is
+ * told plainly who can act on it, rather than a button that would 403.
  */
-export default function SubscriptionPlans({ plans, currentPlan, currentPlanId }) {
-    const [interval, setInterval] = useState('monthly');
+export default function SubscriptionPlans({ plans, currentPlan, currentPlanId, currentCycle, canManageBilling, salesEmail }) {
+    const [interval, setInterval] = useState(currentCycle === 'yearly' ? 'yearly' : 'monthly');
+    const [confirming, setConfirming] = useState(null);
+
+    const form = useForm({ package_id: null, billing_cycle: 'monthly' });
+
+    const submitChange = () => {
+        // `transform()` returns void in Inertia's React adapter, so it
+        // cannot be chained -- doing so throws before the request is ever
+        // made, silently, with the dialog left open as though nothing had
+        // been clicked. Set it, then post.
+        form.transform(() => ({ package_id: confirming.id, billing_cycle: interval }));
+        form.post(route('subscription.plan-change'), {
+            preserveScroll: true,
+            onSuccess: () => setConfirming(null),
+        });
+    };
 
     return (
         <AuthenticatedLayout>
@@ -64,7 +91,12 @@ export default function SubscriptionPlans({ plans, currentPlan, currentPlanId })
             ) : (
                 <div className="grid grid-cols-1 gap-4 md:grid-cols-2 xl:grid-cols-4">
                     {plans.map((plan) => {
-                        const isCurrent = plan.id === currentPlanId;
+                        const isCurrentPlan = plan.id === currentPlanId;
+                        // Same plan on the SAME cycle is where they already
+                        // are. Same plan on a different cycle is a real,
+                        // requestable change, so it must not read as "your
+                        // current plan" and be disabled.
+                        const isCurrent = isCurrentPlan && interval === currentCycle;
                         const price = interval === 'monthly' ? plan.monthly : plan.yearly;
 
                         return (
@@ -121,10 +153,27 @@ export default function SubscriptionPlans({ plans, currentPlan, currentPlanId })
 
                                     <div className="border-t border-graphite-100 pt-3 dark:border-slate-800">
                                         {isCurrent ? (
-                                            <Button className="w-full" variant="outline" disabled>Paket Aktif Anda</Button>
+                                            <Button className="w-full" variant="outline" disabled>Current plan</Button>
+                                        ) : plan.is_custom ? (
+                                            // A custom-priced plan has no figure to
+                                            // invoice, so there is nothing honest for a
+                                            // self-service button to do.
+                                            <Button className="w-full" variant="outline" asChild>
+                                                <a href={`mailto:${salesEmail}`}>Contact sales</a>
+                                            </Button>
+                                        ) : canManageBilling ? (
+                                            <Button
+                                                className="w-full"
+                                                variant={isCurrentPlan ? 'outline' : 'default'}
+                                                onClick={() => setConfirming(plan)}
+                                            >
+                                                {isCurrentPlan
+                                                    ? `Switch to ${interval === 'monthly' ? 'monthly' : 'annual'}`
+                                                    : 'Choose this plan'}
+                                            </Button>
                                         ) : (
-                                            <Button className="w-full" variant="outline" disabled title="Hubungi administrator perusahaan Anda untuk mengubah paket.">
-                                                Hubungi Administrator untuk Upgrade
+                                            <Button className="w-full" variant="outline" disabled title="Hanya Administrator organisasi yang dapat mengubah paket.">
+                                                Administrator only
                                             </Button>
                                         )}
                                     </div>
@@ -134,6 +183,53 @@ export default function SubscriptionPlans({ plans, currentPlan, currentPlanId })
                     })}
                 </div>
             )}
+
+            {/* The confirmation has to be honest about WHEN the change takes
+                effect, because the two answers are genuinely different and
+                the customer is about to commit money to one of them. The
+                page cannot know which it is -- that depends on prices the
+                server holds -- so it explains both rather than guessing and
+                being wrong half the time. */}
+            <Dialog open={confirming !== null} onOpenChange={(open) => !open && setConfirming(null)}>
+                <DialogContent>
+                    <DialogHeader>
+                        <DialogTitle>Change plan</DialogTitle>
+                        <DialogDescription>
+                            Pindah ke <span className="font-semibold">{confirming?.name}</span>{' '}
+                            ({interval === 'monthly' ? 'bulanan' : 'tahunan'}).
+                        </DialogDescription>
+                    </DialogHeader>
+
+                    <ul className="space-y-2 text-sm leading-relaxed text-graphite-600">
+                        <li>
+                            <span className="font-medium text-navy-900">Jika ini peningkatan paket:</span>{' '}
+                            tagihan proporsional untuk sisa masa aktif periode berjalan akan diterbitkan, dan
+                            paket baru berlaku setelah pembayaran terverifikasi.
+                        </li>
+                        <li>
+                            <span className="font-medium text-navy-900">Jika ini penurunan paket atau perubahan siklus:</span>{' '}
+                            perubahan dijadwalkan pada akhir periode yang sudah Anda bayar. Tidak ada tagihan
+                            hari ini, dan tidak ada akses yang berkurang lebih cepat.
+                        </li>
+                        <li>Data operasional Anda tidak terpengaruh oleh perubahan paket.</li>
+                    </ul>
+
+                    {form.errors.package_id && (
+                        <p className="rounded-md border border-danger/25 bg-danger/[0.07] p-3 text-sm leading-relaxed text-red-900">
+                            {form.errors.package_id}
+                        </p>
+                    )}
+
+                    <DialogFooter>
+                        <Button variant="outline" onClick={() => setConfirming(null)} disabled={form.processing}>
+                            Cancel
+                        </Button>
+                        <Button onClick={submitChange} disabled={form.processing}>
+                            {form.processing ? 'Working…' : 'Confirm change'}
+                        </Button>
+                    </DialogFooter>
+                </DialogContent>
+            </Dialog>
         </AuthenticatedLayout>
     );
 }

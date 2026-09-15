@@ -1,7 +1,7 @@
 ---
 title: Decision Register
 type: index
-updated: 2026-09-14
+updated: 2026-09-15
 tags: [kb/decisions]
 ---
 
@@ -53,6 +53,7 @@ Status vocabulary is defined in [[Working with This Knowledge Base]].
 | [[030-material-request-lifecycle-and-demand-consolidation\|030 — MR Lifecycle and Consolidation]] | `consolidating`, aging, and many-MRs-to-one-PR | `#status/verified` (v2.69.0, browser-exercised) |
 | [[031-employee-cases\|031 — Employee Cases]] | Case + actions; standing derived; confidentiality narrower than HR | `#status/implemented` (v2.69.0) |
 | [[032-obsidian-knowledge-base\|032 — Obsidian Knowledge Base]] | This vault: a map over the documentation, never a copy. Vault root = repository root | `#status/implemented` |
+| [[033-subscription-lifecycle\|033 — The Subscription Lifecycle]] | Stored status = what was decided; standing derived from the dates. Expiry is read-only, never a lockout, never destructive. Time is added, never reset. A payment buys time, not reinstatement | `#status/verified` (v2.70.0, browser-exercised) |
 
 ## Incident records
 
@@ -96,7 +97,7 @@ Stated so nobody spends time looking for missing files:
 - **002, 003 and 005 do not exist.** No record explains why; the numbering simply skips them.
 - **029 is used twice** — `029-production-seeding-without-faker` and
   `029-public-html-split-directory-incident` are different decisions sharing a number.
-- The next ADR should be **033** — 032 is [[032-obsidian-knowledge-base|this vault's own decision record]].
+- The next ADR should be **034** — 033 is [[033-subscription-lifecycle|the subscription lifecycle]].
 
 ---
 

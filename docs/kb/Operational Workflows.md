@@ -1,7 +1,7 @@
 ---
 title: Operational Workflows
 type: reference
-updated: 2026-09-14
+updated: 2026-09-15
 tags: [kb/workflow, kb/business-rules]
 ---
 
@@ -137,6 +137,40 @@ open ──> under_review ──┬──> action_issued ──> closed
 - Issuing an action and moving the status happen in **one transaction** — the status is a
   *consequence* of the action existing, so the two can never disagree.
 - Reopening a concluded case is override-only.
+
+---
+
+## Subscription — the one lifecycle that is not a `$transitions` map
+
+Included here because it *is* a lifecycle, and because it is the only one in IOMS whose state is
+partly **derived rather than stored** — so looking for a `$transitions` map on `Subscription` and
+finding none is not an omission.
+
+```
+                      ┌──────────── a verified payment ────────────┐
+                      │                                            │
+   active ──(period ends)──> grace ──(grace ends)──> lapsed ───────┘
+     │         full access     │      full access      read-only
+     │                         │                       (never a lockout)
+     └──── suspended / cancelled ────  an operator's decision; blocked
+```
+
+| Axis | Where it lives | Values |
+|---|---|---|
+| **What was decided** | `subscriptions.status`, stored | `trial` · `active` · `suspended` · `cancelled` |
+| **Where it is in time** | `lifecycleState()`, derived every read | `active` · `grace` · `lapsed` (+ the two blocked states, which win) |
+
+- **`grace` and `lapsed` are never written anywhere.** They are read off `ends_at` plus
+  `saas.grace_days`. `expired` and `grace_period` used to be stored values that nothing wrote.
+- **Lapsing withdraws writing, never reading.** Enforced by `EnforceSubscriptionWriteAccess`.
+  Nothing in the lifecycle deletes tenant data at any point.
+- **A payment buys time, not reinstatement.** Suspension and cancellation are an operator's
+  decision and a payment does not overturn one; `trial` → `active` is the single exception.
+- **Plan changes**: an upgrade invoices prorated and applies when paid; a downgrade or cycle change
+  is scheduled for the period boundary, because the customer paid for the period they are in.
+
+Full reasoning: ADR [[033-subscription-lifecycle|033]]. Commercial detail:
+[[Pricing Plans and Entitlements]].
 
 ---
 

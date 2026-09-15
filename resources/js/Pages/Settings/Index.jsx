@@ -2445,9 +2445,12 @@ function UserRolesDialog({ user, customRoles, onClose }) {
     );
 }
 
+/* v2.70.0: keyed on the DERIVED lifecycle state, not the stored status.
+   `grace_period`/`expired` are gone from the vocabulary entirely -- they
+   were stored values nothing ever wrote. */
 const SUB_STATUS_VARIANT = {
-    active: 'success', trial: 'default', grace_period: 'default',
-    expired: 'destructive', suspended: 'destructive', cancelled: 'secondary',
+    active: 'success', trial: 'default', grace: 'warning',
+    lapsed: 'destructive', suspended: 'destructive', cancelled: 'secondary',
 };
 
 const INVOICE_STATUS_VARIANT = { draft: 'secondary', issued: 'default', paid: 'success', overdue: 'destructive', void: 'secondary' };
@@ -2475,19 +2478,26 @@ function SubscriptionTab({ subscription, invoices }) {
 
     return (
         <div className="space-y-4">
-            {/* v1.11.1, Part 15/16: "degraded" (expired-by-date, not yet
-                explicitly suspended) is shown as a warning here -- access
-                is NOT blocked for this state, only for an explicit
-                suspended/cancelled status (see Subscription::isBlocked()'s
-                own doc comment). */}
-            {subscription.is_degraded && (
-                <div className="rounded-md border border-amber-200 bg-amber-50 p-3 text-sm text-amber-800 dark:border-amber-900 dark:bg-amber-950/30 dark:text-amber-300">
-                    Your subscription/trial period has passed its end date. Access has not been restricted, but please renew soon to avoid interruption -- contact your platform provider.
+            {/* v2.70.0 -- this panel used to say "contact your platform
+                provider", which was accurate while no self-service renewal
+                existed and is not any more. It states the DERIVED lifecycle
+                and sends the customer to the page that can fix it, so this
+                tab and Billing cannot tell them two different things. */}
+            {subscription.lifecycle_state === 'grace' && (
+                <div className="rounded-md border border-amber-200 bg-amber-50 p-3 text-sm leading-relaxed text-amber-800 dark:border-amber-900 dark:bg-amber-950/30 dark:text-amber-300">
+                    Masa aktif langganan telah berakhir. Akses penuh masih berjalan untuk sementara; setelah itu pencatatan data baru dijeda sampai pembayaran diterima.{' '}
+                    <Link href={route('subscription.billing')} className="font-medium underline">Buka Billing</Link>.
+                </div>
+            )}
+            {subscription.lifecycle_state === 'lapsed' && (
+                <div className="rounded-md border border-red-200 bg-red-50 p-3 text-sm leading-relaxed text-red-800 dark:border-red-900 dark:bg-red-950/30 dark:text-red-300">
+                    Masa aktif langganan telah berakhir, sehingga pencatatan data baru dijeda. Seluruh data Anda tetap utuh dan dapat dibuka seperti biasa.{' '}
+                    <Link href={route('subscription.billing')} className="font-medium underline">Buka Billing</Link> untuk melanjutkan langganan.
                 </div>
             )}
             {!subscription.is_usable && (
-                <div className="rounded-md border border-red-200 bg-red-50 p-3 text-sm text-red-800 dark:border-red-900 dark:bg-red-950/30 dark:text-red-300">
-                    Your organization's access has been {subscription.status} by the platform provider. Contact them to restore access.
+                <div className="rounded-md border border-red-200 bg-red-50 p-3 text-sm leading-relaxed text-red-800 dark:border-red-900 dark:bg-red-950/30 dark:text-red-300">
+                    Langganan organisasi Anda berstatus {subscription.status}. Data Anda tidak dihapus dan tetap tersimpan — hubungi penyedia platform Anda untuk mengaktifkan kembali.
                 </div>
             )}
             <Card>
@@ -2506,7 +2516,7 @@ function SubscriptionTab({ subscription, invoices }) {
                     <div className="space-y-3 text-sm">
                         <div className="flex items-center justify-between border-b border-graphite-100 pb-2 dark:border-slate-800"><span className="text-graphite-500">Plan</span><span className="font-medium">{subscription.package_name ?? '—'}</span></div>
                         <div className="flex items-center justify-between border-b border-graphite-100 pb-2 dark:border-slate-800"><span className="text-graphite-500">License Type</span><span className="font-medium capitalize">{subscription.type ?? 'subscription'}</span></div>
-                        <div className="flex items-center justify-between border-b border-graphite-100 pb-2 dark:border-slate-800"><span className="text-graphite-500">Status</span><Badge variant={SUB_STATUS_VARIANT[subscription.status] ?? 'secondary'} className="capitalize">{subscription.status?.replace('_', ' ')}</Badge></div>
+                        <div className="flex items-center justify-between border-b border-graphite-100 pb-2 dark:border-slate-800"><span className="text-graphite-500">Status</span><Badge variant={SUB_STATUS_VARIANT[subscription.lifecycle_state] ?? 'secondary'} className="capitalize">{subscription.lifecycle_state}</Badge></div>
                         <div className="flex items-center justify-between border-b border-graphite-100 pb-2 dark:border-slate-800"><span className="text-graphite-500">Seat Limit</span><span className="font-medium">{subscription.seat_limit ?? 'Unlimited'}</span></div>
                     </div>
                     <div className="space-y-3 text-sm">
@@ -2514,7 +2524,7 @@ function SubscriptionTab({ subscription, invoices }) {
                         {subscription.type === 'lifetime' ? (
                             <div className="flex items-center justify-between border-b border-graphite-100 pb-2 dark:border-slate-800"><span className="text-graphite-500">Expiry</span><Badge variant="success">Lifetime License -- no expiry</Badge></div>
                         ) : (
-                            <div className="flex items-center justify-between border-b border-graphite-100 pb-2 dark:border-slate-800"><span className="text-graphite-500">{subscription.status === 'trial' ? 'Trial Ends' : 'Renewal / Expiry'}</span><span className="font-medium">{formatDate(subscription.status === 'trial' ? subscription.trial_ends_at : subscription.ends_at)}</span></div>
+                            <div className="flex items-center justify-between border-b border-graphite-100 pb-2 dark:border-slate-800"><span className="text-graphite-500">{subscription.status === 'trial' ? 'Trial Ends' : 'Renewal'}</span><span className="font-medium">{formatDate(subscription.status === 'trial' ? subscription.trial_ends_at : subscription.ends_at)}{typeof subscription.days_remaining === 'number' && subscription.days_remaining >= 0 ? <span className="ml-1.5 font-normal text-graphite-400">({subscription.days_remaining} hari)</span> : null}</span></div>
                         )}
                         <div className="flex items-center justify-between border-b border-graphite-100 pb-2 dark:border-slate-800"><span className="text-graphite-500">Billing Cycle</span><span className="font-medium capitalize">{subscription.type === 'lifetime' ? 'N/A' : subscription.billing_cycle}</span></div>
                         <div className="flex items-center justify-between pb-2"><span className="text-graphite-500">Currently Usable</span>{subscription.is_usable ? <Badge variant="success">Yes</Badge> : <Badge variant="destructive">No -- contact your provider</Badge>}</div>

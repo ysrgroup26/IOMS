@@ -80,6 +80,7 @@ use App\Http\Controllers\RosterPatternController;
 use App\Http\Controllers\SafetyObservationController;
 use App\Http\Controllers\SettingsController;
 use App\Http\Controllers\ShiftController;
+use App\Http\Controllers\SubscriptionController;
 use App\Http\Controllers\TaskController;
 use App\Http\Controllers\TbmMeetingController;
 use App\Http\Controllers\VendorController;
@@ -783,16 +784,42 @@ Route::middleware(['auth', 'restrict.platform-admin'])->group(function () {
     // documented, previously-real bug in this codebase -- see
     // docs/CONVENTIONS.md's "Known Pitfalls" -- so this placement was
     // deliberate, not incidental.
-    Route::get('/subscription/plans', [SettingsController::class, 'plans'])->name('subscription.plans');
+    Route::get('/subscription/plans', [SubscriptionController::class, 'plans'])->name('subscription.plans');
     // v2.55.0: invoice PDF. Ownership is checked on the invoice itself --
     // `invoices` has no company_id, so it inherits nothing from Company's
-    // global scopes. See SettingsController::invoicePdf().
-    Route::get('/subscription/invoices/{invoice}/pdf', [SettingsController::class, 'invoicePdf'])->name('subscription.invoices.pdf');
+    // global scopes. See SubscriptionController::invoicePdf().
+    Route::get('/subscription/invoices/{invoice}/pdf', [SubscriptionController::class, 'invoicePdf'])->name('subscription.invoices.pdf');
     // v2.51.0: the tenant own billing area -- plan, cycle, status,
     // renewal, capacity in use, and real invoice/payment history.
     // Super-Admin-only inside the controller (commercial data), unlike
     // the plan catalog above which every tenant user may read.
-    Route::get('/subscription/billing', [SettingsController::class, 'billing'])->name('subscription.billing');
+    Route::get('/subscription/billing', [SubscriptionController::class, 'billing'])->name('subscription.billing');
+
+    /*
+     * v2.70.0 -- THE CUSTOMER CAN NOW ACT ON THEIR OWN SUBSCRIPTION.
+     *
+     * Renewal, payment and plan changes. Every one of these is
+     * Super-Admin-only (asserted in the controller, not by this group, so
+     * the check travels with the method) and none of them can activate or
+     * extend anything: they issue invoices and open payment sessions. A
+     * period moves only in PaymentWebhookController, from a payload the
+     * provider signed and this server verified.
+     *
+     * Deliberately placed OUTSIDE the `role:super_admin` group further
+     * down: these live with the rest of the subscription surface so the
+     * area reads as one thing, and the authorization is inside each
+     * method. The "route accidentally nested in the wrong role group"
+     * shape is a documented, previously-real bug in this codebase -- see
+     * docs/CONVENTIONS.md's Known Pitfalls.
+     *
+     * They are also the routes EnforceSubscriptionWriteAccess keeps
+     * writable while a subscription is lapsed: blocking the page that
+     * fixes the problem would be absurd.
+     */
+    Route::post('/subscription/renew', [SubscriptionController::class, 'renew'])->name('subscription.renew');
+    Route::post('/subscription/plan-change', [SubscriptionController::class, 'changePlan'])->name('subscription.plan-change');
+    Route::delete('/subscription/plan-change', [SubscriptionController::class, 'cancelPlanChange'])->name('subscription.plan-change.cancel');
+    Route::get('/subscription/invoices/{invoice}/pay', [SubscriptionController::class, 'pay'])->name('subscription.pay');
 
     /*
     |--------------------------------------------------------------------------

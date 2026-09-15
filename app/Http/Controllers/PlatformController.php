@@ -22,6 +22,7 @@ use Inertia\Inertia;
 use Inertia\Response;
 use App\Models\TenantRegistration;
 use App\Services\PricingService;
+use App\Services\SubscriptionLifecycleService;
 use App\Services\TenantProvisioningService;
 
 /**
@@ -259,7 +260,7 @@ class PlatformController extends Controller
     public function show(Tenant $tenant): Response
     {
         $tenant->loadCount(['companies' => fn ($q) => $q->withoutGlobalScope(TenantScope::class), 'users'])
-            ->load(['subscription.package']);
+            ->load(['subscription.package', 'subscription.pendingPackage']);
 
         // The tenant's own Administrator -- oldest super_admin account
         // belongs to this tenant is, in practice, the Initial
@@ -289,6 +290,15 @@ class PlatformController extends Controller
                 'trial_ends_at' => $tenant->subscription->trial_ends_at,
                 'notes' => $tenant->subscription->notes,
                 'is_usable' => $tenant->subscription->isUsable(),
+                // v2.70.0: where this subscription sits in time, derived.
+                // A Platform Admin looking at a support ticket needs to see
+                // "in grace until the 14th", not infer it from a date.
+                'lifecycle_state' => $tenant->subscription->lifecycleState(),
+                'period_ends_at' => $tenant->subscription->periodEndsAt()?->toDateString(),
+                'grace_ends_at' => $tenant->subscription->graceEndsAt()?->toDateString(),
+                'days_remaining' => $tenant->subscription->daysUntilPeriodEnd(),
+                'pending_plan_name' => $tenant->subscription->pendingPackage?->name,
+                'pending_billing_cycle' => $tenant->subscription->pending_billing_cycle,
             ] : null,
             'administrator' => $administrator,
             'packages' => Package::active()->orderBy('sort_order')->get(['id', 'name', 'slug']),
@@ -300,12 +310,28 @@ class PlatformController extends Controller
 
     /**
      * v1.11.0 (SaaS Finalization Pass, Part 10). Updates the tenant's
-     * CURRENT (latest) Subscription row in place -- same "edit in place,
-     * only a genuine plan change creates a new history row" convention
-     * updateTenant() already established for package_id. `ends_at`/
-     * `trial_ends_at` are cleared server-side whenever `type` is set to
-     * lifetime, regardless of what the form submitted, so a lifetime
-     * record can never carry a stale/misleading expiry date.
+     * subscription in place. `ends_at`/`trial_ends_at` are cleared
+     * server-side whenever `type` is set to lifetime, regardless of what
+     * the form submitted, so a lifetime record can never carry a
+     * stale/misleading expiry date.
+     *
+     * v2.70.0 -- A PLAN CHANGE HERE NOW ACTUALLY CHANGES THE PLAN.
+     *
+     * Moving a tenant to a different package updated `package_id` and
+     * stopped. It did not re-agree the price -- so a tenant moved from
+     * Starter to Enterprise kept being quoted, and invoiced, the Starter
+     * figure through `agreed_price_*` -- and it did not touch
+     * `tenant_workspaces`/`tenant_modules`, so the tenant was PAYING for
+     * Enterprise while entitled to exactly what Starter grants. Both
+     * halves of a plan change now run through
+     * SubscriptionLifecycleService, the same code path the customer's own
+     * upgrade and a webhook-settled downgrade use, so a plan means the
+     * same thing however it was changed.
+     *
+     * A grant sync REMOVES as well as adds, which is why it is reachable
+     * only from a deliberate plan change and never from
+     * `tenants:sync-grants` (additive by design, so a safety net can
+     * never quietly downgrade anyone).
      */
     public function updateSubscription(Request $request, Tenant $tenant): RedirectResponse
     {
@@ -340,19 +366,53 @@ class PlatformController extends Controller
         }
 
         $subscription = $tenant->subscription;
+        $lifecycle = app(SubscriptionLifecycleService::class);
+
+        // `package_id` is deliberately withheld from the write below and
+        // applied through the lifecycle service instead. The service
+        // compares the package it is given against the one still on the
+        // row to decide whether this is a real plan change -- writing the
+        // new id first would make every change look like a no-op and
+        // silently skip both the re-pricing and the grant sync.
+        $fields = collect($validated)->except('package_id')->all();
 
         if ($subscription) {
-            $subscription->update([...$validated, 'created_by' => $subscription->created_by ?? $request->user()->id]);
+            $subscription->update([...$fields, 'created_by' => $subscription->created_by ?? $request->user()->id]);
         } else {
-            Subscription::create([...$validated, 'tenant_id' => $tenant->id, 'created_by' => $request->user()->id]);
+            $subscription = Subscription::create([
+                ...$fields,
+                'package_id' => $validated['package_id'],
+                'tenant_id' => $tenant->id,
+                'created_by' => $request->user()->id,
+            ]);
         }
+
+        // Re-agrees the price and re-syncs the tenant's grants when the
+        // package actually moved; a no-op otherwise. `extendPeriod: false`
+        // because this is an administrative edit, not a payment -- an
+        // operator correcting a record must never hand out a free period,
+        // and the dates above are whatever they explicitly entered.
+        $lifecycle->applyPlanChange(
+            $subscription,
+            Package::find($validated['package_id']),
+            $validated['billing_cycle'],
+            extendPeriod: false,
+        );
 
         ActivityLog::record('updated', "Tenant \"{$tenant->name}\" subscription/license updated ({$validated['type']}, {$validated['status']}).");
 
         return back()->with('success', 'Subscription updated.');
     }
 
-    /** v1.11.0, Part 16. Manual invoice creation -- no payment gateway exists, this is the admin-recorded billing document itself. */
+    /**
+     * v1.11.0, Part 16. Manual invoice creation -- the billing document an
+     * operator raises directly, for a customer settling by bank transfer
+     * or on terms agreed off-platform.
+     *
+     * v2.70.0: it records its PURPOSE like every other invoice, so paying
+     * it does the same thing a gateway-settled renewal does. An invoice
+     * that did not say what it bought could only ever be a receipt.
+     */
     public function storeInvoice(Request $request, Tenant $tenant): RedirectResponse
     {
         $validated = $request->validate([
@@ -362,13 +422,21 @@ class PlatformController extends Controller
             'currency' => ['required', 'string', 'max:3'],
             'due_date' => ['nullable', 'date'],
             'notes' => ['nullable', 'string', 'max:2000'],
+            // Whether settling this invoice should buy the tenant another
+            // period. An operator raising an ad-hoc charge (a one-off
+            // service, an adjustment) chooses `none`, and paying it then
+            // records the money without touching the subscription.
+            'extends_period' => ['nullable', 'boolean'],
         ]);
 
+        $extends = $request->boolean('extends_period', true) && $tenant->subscription !== null;
+
         Invoice::create([
-            ...$validated,
+            ...collect($validated)->except('extends_period')->all(),
             'invoice_number' => Invoice::generateNumber($tenant->id),
             'tenant_id' => $tenant->id,
-            'subscription_id' => $tenant->subscription?->id,
+            'subscription_id' => $extends ? $tenant->subscription?->id : null,
+            'purpose' => Invoice::PURPOSE_RENEWAL,
             'status' => Invoice::STATUS_ISSUED,
             'created_by' => $request->user()->id,
         ]);
@@ -378,7 +446,27 @@ class PlatformController extends Controller
         return back()->with('success', 'Invoice created.');
     }
 
-    /** v1.11.0, Part 16. The ONLY place `status` can become 'paid' -- always an explicit admin action recording a payment that happened outside this system, never inferred. */
+    /**
+     * v1.11.0, Part 16. Records a payment that happened OUTSIDE the
+     * gateway -- a bank transfer, which is how most Indonesian B2B
+     * customers actually pay.
+     *
+     * v2.70.0 -- AND IT NOW EXTENDS THE SUBSCRIPTION.
+     *
+     * This used to only flip the invoice to `paid`. A customer who
+     * transferred the money for a renewal therefore had a settled invoice
+     * and a subscription that still ran out on its original date, and the
+     * only way to fix it was for an operator to also hand-edit `ends_at`
+     * -- which nothing prompted them to do. Settling a renewal invoice
+     * here now runs the identical lifecycle path a gateway settlement
+     * runs, so the two cannot diverge.
+     *
+     * This is NOT a second payment-confirmation channel for the gateway.
+     * It is a Platform Admin asserting, under their own audited identity,
+     * that money arrived through a channel IOMS cannot observe. A
+     * gateway-initiated payment is still confirmed in exactly one place:
+     * a signature-verified webhook.
+     */
     public function markInvoicePaid(Request $request, Invoice $invoice): RedirectResponse
     {
         $validated = $request->validate([
@@ -386,7 +474,17 @@ class PlatformController extends Controller
             'payment_method' => ['nullable', 'string', 'max:100'],
         ]);
 
-        $invoice->markPaid($validated['payment_reference'] ?? null, $validated['payment_method'] ?? null);
+        if ($invoice->status === Invoice::STATUS_PAID) {
+            return back()->with('info', "Invoice {$invoice->invoice_number} is already marked as paid.");
+        }
+
+        DB::transaction(function () use ($invoice, $validated) {
+            $invoice->markPaid($validated['payment_reference'] ?? null, $validated['payment_method'] ?? 'manual');
+
+            if ($invoice->subscription_id) {
+                app(SubscriptionLifecycleService::class)->applyPaidInvoice($invoice);
+            }
+        });
 
         ActivityLog::record('updated', "Invoice {$invoice->invoice_number} marked paid.");
 
@@ -539,20 +637,29 @@ class PlatformController extends Controller
     }
 
     /**
-     * Suspend/reactivate a tenant -- the coarse platform-level kill switch.
-     * Does NOT touch `companies.tenant_id` or delete any data; a
-     * suspended tenant's users can still authenticate (role/module checks
-     * are unrelated), but nothing currently reads `Tenant::isActive()` to
-     * block access yet -- see the Consequences note this leaves for a
-     * later pass, matching this milestone's "structure now, enforcement
-     * wiring can follow" pattern already used for Package/Subscription.
+     * Suspend/reactivate an organization -- the coarse platform-level kill
+     * switch, for abuse, a legal hold, or a deliberate shutdown. Distinct
+     * from the subscription, which is the commercial arrangement.
+     *
+     * v2.70.0 -- THIS NOW ACTUALLY DOES SOMETHING. Until this release the
+     * control wrote a column nothing read: suspending a customer had no
+     * effect whatsoever. `EntitlementService::tenantIsUsable()` reads
+     * `Tenant::isActive()` on every gated request, so a suspended account
+     * is refused at the route layer.
+     *
+     * `expired` is no longer an option here. Where a subscription sits in
+     * time is derived from its own dates, and a second stored copy of
+     * that on the tenant could only ever disagree with it.
+     *
+     * DESTROYS NOTHING. Suspension does not touch `companies.tenant_id`,
+     * delete a record, or revoke a grant; the account's users can still
+     * authenticate, and reactivating restores access to a system of
+     * record that was never altered.
      */
     public function updateTenantStatus(Request $request, Tenant $tenant): RedirectResponse
     {
         $validated = $request->validate([
-            'status' => ['required', Rule::in([
-                Tenant::STATUS_TRIAL, Tenant::STATUS_ACTIVE, Tenant::STATUS_SUSPENDED, Tenant::STATUS_EXPIRED,
-            ])],
+            'status' => ['required', Rule::in(Tenant::STATUSES)],
         ]);
 
         $tenant->update(['status' => $validated['status']]);

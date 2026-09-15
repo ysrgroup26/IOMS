@@ -70,4 +70,40 @@ return [
      */
     'default_currency' => env('SAAS_DEFAULT_CURRENCY', 'IDR'),
 
+    /*
+    |--------------------------------------------------------------------
+    | Subscription lifecycle (v2.70.0)
+    |--------------------------------------------------------------------
+    | How long after a period ends a customer keeps FULL access before
+    | dropping to read-only. It is a business decision, not a technical
+    | one, so it is configuration rather than a constant.
+    |
+    | Fourteen days is the default because a renewal invoice in Indonesia
+    | routinely crosses a finance department, a bank transfer and a public
+    | holiday. Cutting writes off the morning after a period ends punishes
+    | a customer who is paying, which is the opposite of what the lapse is
+    | for.
+    |
+    | Setting it to 0 makes writes stop the moment the period ends. Reads
+    | are NEVER withdrawn by the passage of time at any setting -- see
+    | docs/ADR/033-subscription-lifecycle.md.
+    */
+    'grace_days' => (int) env('SAAS_GRACE_DAYS', 14),
+
+    /*
+    | How many days before a period ends the renewal invoice is issued.
+    | It has to be long enough for the customer to actually pay it inside
+    | their own process, and short enough that it is obviously about the
+    | period they are in.
+    */
+    'renewal_lead_days' => (int) env('SAAS_RENEWAL_LEAD_DAYS', 14),
+
+    /*
+    | How long an unpaid renewal invoice stays payable before it is
+    | considered overdue. Purely presentational -- nothing voids an
+    | invoice automatically, because an invoice a customer is slowly
+    | getting approved internally is not a mistake to clean up.
+    */
+    'invoice_due_days' => (int) env('SAAS_INVOICE_DUE_DAYS', 14),
+
 ];

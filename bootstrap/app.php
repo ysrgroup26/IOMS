@@ -1,6 +1,7 @@
 <?php
 
 use App\Http\Middleware\CheckRole;
+use App\Http\Middleware\EnforceSubscriptionWriteAccess;
 use App\Http\Middleware\EnforceTenantEntitlement;
 use App\Http\Middleware\HandleInertiaRequests;
 use App\Http\Middleware\IdentifyTenant;
@@ -87,6 +88,16 @@ return Application::configure(basePath: dirname(__DIR__))
             // happens to belong to. Default no-op -- see its own doc
             // comment for the config('saas.enforce_entitlement') gate.
             EnforceTenantEntitlement::class,
+            // v2.70.0: runs immediately AFTER the entitlement block, and
+            // the order is the meaning. EnforceTenantEntitlement refuses a
+            // deliberately suspended or cancelled tenant outright; this
+            // one handles the softer case it leaves through -- a
+            // subscription that simply ran out of time -- by withdrawing
+            // WRITES and nothing else. A lapsed customer keeps every
+            // record and can still read, export and pay. See its own doc
+            // comment for why read-only is the right answer for a safety
+            // system of record.
+            EnforceSubscriptionWriteAccess::class,
             // v2.53.0: the IOMS Sandbox is a REAL tenant, so it is already
             // bounded by TenantScope and RBAC exactly like a customer.
             // This adds the one property a shared demo needs on top --

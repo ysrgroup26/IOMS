@@ -377,11 +377,14 @@ deliberately stays in its safe "no payments configured" state until they do:
 4. The **Payment Notification URL** registered in the Midtrans dashboard, pointing at
    `https://<your-domain>/webhooks/payment/midtrans`. Without this, notifications never arrive and
    **no subscription can ever activate** — activation is webhook-driven by design.
-5. **Subscription/Recurring activated separately** by Midtrans for the merchant, if automatic
-   renewal charging is wanted. It is not available by default. `PAYMENT_RECURRING_ENABLED=false`
-   (the default) means invoice-per-cycle renewal, which is fully implemented and needs nothing
-   beyond ordinary credentials. The tenant subscription model is identical in both modes, so
-   switching the flag later migrates no data.
+5. **A cron entry** running `php artisan schedule:run` every minute (the standard Laravel setup).
+   Without it no renewal invoice is ever issued and no reminder is ever sent. It does **not**
+   affect access: grace and lapse are derived from the subscription's own dates on every read, so
+   a stopped cron delays billing without locking anyone out or letting anyone in.
+
+   IOMS bills **invoice-per-cycle** and has no automatic card charging. Midtrans
+   Subscription/Recurring would be a separate integration requiring merchant-side activation; it is
+   not a configuration flag, and nothing in the product claims otherwise.
 6. A real **SMTP/mail provider** (`MAIL_MAILER`, host, credentials, `MAIL_FROM_ADDRESS`).
    `MAIL_MAILER=log` is the default and writes messages to the log instead of sending them —
    verification, invoice and activation mail is generated correctly but not delivered. Nothing in

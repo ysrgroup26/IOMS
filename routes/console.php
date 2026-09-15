@@ -20,3 +20,17 @@ Schedule::command('approvals:escalate')->hourly();
 // compared with <=, so a schedule never fires twice for one due window
 // regardless of check frequency).
 Schedule::command('reports:dispatch-scheduled')->hourly();
+
+// v2.70.0 (Subscription lifecycle). Issues renewal invoices, sends
+// renewal reminders and applies plan changes scheduled for a period
+// boundary. Daily in the early morning, because everything it acts on is
+// measured in DAYS -- running it hourly would only raise the same
+// invoice-shaped question twenty-four times for the same answer.
+//
+// IT DOES NOT GATE ACCESS. Grace and lapse are derived from the dates on
+// every read, so a customer's access is correct whether this ran last
+// night or has never run at all. A missed cron here delays an invoice and
+// a reminder; it cannot lock anyone out and it cannot let anyone in.
+// Requires the server's cron to call `php artisan schedule:run` every
+// minute (standard Laravel setup).
+Schedule::command('subscriptions:lifecycle')->dailyAt('02:00')->withoutOverlapping();

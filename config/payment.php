@@ -37,20 +37,23 @@ return [
 
     /*
     |--------------------------------------------------------------------
-    | Automatic recurring charging
+    | Renewal model (v2.70.0)
     |--------------------------------------------------------------------
-    | Midtrans Subscription/Recurring is NOT available by default: it needs
-    | supported payment channels and separate merchant-side activation.
-    | IOMS therefore refuses to assume it exists.
+    | IOMS bills INVOICE-PER-CYCLE, and there is no switch here because
+    | there is only one behaviour to describe. A renewal invoice is issued
+    | before the current period ends (`saas.renewal_lead_days`), the
+    | customer pays it exactly as they paid the first one, and a
+    | signature-verified webhook extends the period.
     |
-    | false (the default) = invoice-per-cycle. A renewal invoice is issued
-    | and the customer pays it, exactly like the first one. This is fully
-    | implemented and needs nothing beyond ordinary Midtrans credentials.
+    | A `recurring_enabled` flag used to sit here, promising that setting
+    | it to true would make IOMS use the provider's recurring flow.
+    | Nothing implemented that: the flag changed one paragraph of copy on
+    | the Billing page and nothing else, so turning it on made the product
+    | tell customers their card would be charged automatically when it
+    | never would be. It is removed rather than left as a trap.
     |
-    | true = the merchant has confirmed recurring is activated, and IOMS
-    | may use the provider's recurring flow. The tenant-side subscription
-    | model is identical in both modes -- only who initiates each charge
-    | differs -- so switching this flag never migrates data.
+    | Midtrans Subscription/Recurring needs supported payment channels and
+    | separate merchant-side activation. If IOMS ever adopts it, that is a
+    | real integration with its own webhook handling -- not a boolean.
     */
-    'recurring_enabled' => (bool) env('PAYMENT_RECURRING_ENABLED', false),
 ];

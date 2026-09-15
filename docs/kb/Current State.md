@@ -1,9 +1,9 @@
 ---
 title: Current State
 type: snapshot
-product-version: 2.69.0
+product-version: 2.70.0
 product-stage: Beta
-measured: 2026-09-14
+measured: 2026-09-15
 tags: [kb/state]
 ---
 
@@ -24,8 +24,8 @@ the date in the frontmatter, not remembered.
 | | |
 |---|---|
 | Product | **IOMS — Industrial Operations Platform** |
-| Version | **2.69.0**, stage **Beta**, edition **Enterprise Edition** |
-| Build | `2026.09.14.01`, release date `2026-09-14` |
+| Version | **2.70.0**, stage **Beta**, edition **Enterprise Edition** |
+| Build | `2026.09.15.01`, release date `2026-09-15` |
 | Stack | Laravel 12 · Inertia.js · React 18 · Tailwind · MySQL · Sanctum |
 
 The naming rules are not cosmetic — see [[Product Identity and Principles]].
@@ -35,12 +35,12 @@ The naming rules are not cosmetic — see [[Product Identity and Principles]].
 | Measure | Count |
 |---|---|
 | Eloquent models | 111 |
-| Controllers | 92 |
-| Inertia pages | 164 |
-| Migrations | 174 |
-| Feature test files | 38 |
-| Tests / assertions | **353 / 1563**, all passing |
-| ADRs | 30 files (numbering has known gaps — see [[Decision Register]]) |
+| Controllers | 93 |
+| Inertia pages | 165 |
+| Migrations | 175 |
+| Feature test files | 39 |
+| Tests / assertions | **391 / 1664**, all passing |
+| ADRs | 31 files (numbering has known gaps — see [[Decision Register]]) |
 | Workspaces in the navigation registry | 12 |
 
 ## Workspaces
@@ -79,9 +79,19 @@ has been migrated to it. That is deliberate and recorded — see [[Data Ownershi
 
 ## What shipped most recently
 
-`2.69.0` (2026-09-14) — Employee Cases, Material Request aging, and demand consolidation.
-See [[Release History]] and ADRs [[030-material-request-lifecycle-and-demand-consolidation|030]]
-and [[031-employee-cases|031]].
+`2.70.0` (2026-09-15) — the subscription lifecycle, completed. Renewal invoices, a read-only lapse
+instead of a lockout, self-service plan changes, and five controls that claimed to work and did not.
+See [[Release History]] and ADR [[033-subscription-lifecycle|033]].
+
+> [!important] The one fact to carry forward
+> **Subscription expiry never removes data and never blocks reading.** Fourteen days of full access,
+> then new records are paused and everything already recorded stays readable, searchable and
+> exportable. Subscription state governs *access*; it is not a lifecycle for the customer's system
+> of record. Asserted by test, not assumed.
+
+Where a subscription sits in time (`active` / `grace` / `lapsed`) is **derived on every read**, not
+stored — so a stopped scheduler delays an invoice and cannot lock anyone out. See
+[[Pricing Plans and Entitlements]].
 
 ## What is deliberately not being worked on
 

@@ -1,7 +1,7 @@
 ---
 title: Requirements Register
 type: register
-updated: 2026-09-14
+updated: 2026-09-15
 tags: [kb/requirements]
 ---
 
@@ -39,6 +39,8 @@ These are **not** forgotten. Each has a reason, and a condition that would chang
 
 | Item | Why it matters | Status |
 |---|---|---|
+| **Midtrans production verification** — one real transaction end to end against live credentials | Everything in the payment path is verified against a signed payload this codebase constructs itself. What has **never** been exercised is a genuine Midtrans notification: their real signature, their real `transaction_status` vocabulary, and their retry behaviour. The code is written to their documented contract, not to an observed one. Needs credentials, a registered Payment Notification URL, and a sandbox transaction — all outside this repository. See ADR [[033-subscription-lifecycle\|033]] and [[Verification Status]] | `#status/planned` |
+| **Automatic recurring charging** — card charged at each period end without a customer action | IOMS bills invoice-per-cycle. Midtrans Subscription/Recurring needs supported channels plus separate merchant-side activation, and would be a real integration with its own webhook handling — not the boolean flag v2.70.0 removed for promising exactly this and delivering nothing | `#status/planned` |
 | **Field-level Audit Log** — structured before/after values per field | Explicitly distinct from `ActivityLog`'s free-text description. `ActivityLog.meta` could store it but does not today. Needs its own design pass, not a quick reuse of the existing table. **Verified absent:** no `old_value`/`new_value` columns exist | `#status/planned` |
 | **Release-date test** | 16 releases in `version_history` are dated *after* the current release date, and two pairs are non-monotonic. A test would have caught it. See [[Known Issues and Limitations]] | `#status/planned` |
 | **`CHANGELOG.md` backfill** — 71 releases exist only in `config/ioms.php` | Reconstructing them is its own task and should not be improvised inside an unrelated release. [[Release History]] now indexes both sources so nothing is unreachable in the meantime | `#status/planned` |
@@ -60,6 +62,11 @@ Older completions live in [[Release History]].
 
 | Item | Version | Status | Evidence |
 |---|---|---|---|
+| Subscription lifecycle — renewal, grace, read-only lapse, plan changes | 2.70.0 | `#status/verified` | ADR [[033-subscription-lifecycle\|033]]; `SubscriptionLifecycleTest` (38 tests); browser-exercised across active / grace / lapsed, including a real renewal invoice and a scheduled downgrade |
+| `tenants.status` enforced — the suspend control previously wrote a column nothing read | 2.70.0 | `#status/implemented` | `EntitlementService::tenantIsUsable()`; `SubscriptionLifecycleTest` |
+| Platform plan change re-prices and re-entitles | 2.70.0 | `#status/implemented` | Runs the same `SubscriptionLifecycleService::applyPlanChange()` the customer path uses |
+| Bank-transfer settlement extends the period | 2.70.0 | `#status/implemented` | `PlatformController::markInvoicePaid()`; test-covered |
+| `recurring_enabled` removed — it promised automatic charging nothing implemented | 2.70.0 | `#status/implemented` | `config/payment.php`; the flag, its env var and its UI copy are all gone |
 | Employee Cases — HR employee relations and discipline | 2.69.0 | `#status/implemented` | ADR [[031-employee-cases\|031]]; `EmployeeCaseTest` (14 tests) |
 | Material Request aging and outstanding view | 2.69.0 | `#status/verified` | ADR [[030-material-request-lifecycle-and-demand-consolidation\|030]]; browser-exercised |
 | Demand consolidation, many MRs → one PR | 2.69.0 | `#status/verified` | ADR 030; consolidation of two requests exercised end to end in a browser |

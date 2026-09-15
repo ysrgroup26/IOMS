@@ -13,12 +13,15 @@ import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogFooter } from '
 import EmptyState from '@/Components/shared/EmptyState';
 import { ArrowLeft, Pencil, Settings2, FileText, Plus, CheckCircle2 } from 'lucide-react';
 
+/* v2.70.0: covers both the account status (active/trial/suspended) and
+   the derived subscription lifecycle (grace/lapsed), which are shown
+   side by side on this page because they answer different questions. */
 const STATUS_VARIANT = {
     active: 'success',
     trial: 'default',
-    grace_period: 'default',
+    grace: 'warning',
+    lapsed: 'destructive',
     suspended: 'destructive',
-    expired: 'secondary',
     cancelled: 'secondary',
 };
 
@@ -105,13 +108,45 @@ export default function PlatformTenantDetail({ tenant, subscription, administrat
                             <>
                                 <Row label="Package" value={subscription.package_name ?? '—'} />
                                 <Row label="License Type" value={<span className="capitalize">{subscription.type ?? 'subscription'}</span>} />
+                                {/* v2.70.0 -- two different questions, shown
+                                    separately because conflating them is how
+                                    support ends up suspending a customer who
+                                    had simply not paid yet.
+                                      Status   = what somebody DECIDED.
+                                      Standing = where the dates put them,
+                                                 derived on every read. */}
                                 <Row label="Status" value={<Badge variant={STATUS_VARIANT[subscription.status] ?? 'secondary'}>{subscription.status}</Badge>} />
+                                <Row
+                                    label="Standing"
+                                    value={
+                                        <span className="inline-flex items-center gap-2">
+                                            <Badge variant={STATUS_VARIANT[subscription.lifecycle_state] ?? 'secondary'}>{subscription.lifecycle_state}</Badge>
+                                            {subscription.lifecycle_state === 'grace' && subscription.grace_ends_at && (
+                                                <span className="text-xs text-graphite-500">read-only from {formatDate(subscription.grace_ends_at, false)}</span>
+                                            )}
+                                            {typeof subscription.days_remaining === 'number' && subscription.days_remaining >= 0 && (
+                                                <span className="text-xs text-graphite-500">{subscription.days_remaining} days left</span>
+                                            )}
+                                        </span>
+                                    }
+                                />
                                 {subscription.type !== 'lifetime' && <Row label="Billing Cycle" value={subscription.billing_cycle} />}
                                 <Row label="Starts" value={formatDate(subscription.starts_at, false)} />
                                 {subscription.type === 'lifetime' ? (
                                     <Row label="Expiry" value={<Badge variant="success">Lifetime -- no expiry</Badge>} />
                                 ) : (
-                                    <Row label="Ends / Renewal" value={formatDate(subscription.ends_at, false)} />
+                                    <Row label="Ends / Renewal" value={formatDate(subscription.period_ends_at ?? subscription.ends_at, false)} />
+                                )}
+                                {subscription.pending_plan_name && (
+                                    <Row
+                                        label="Scheduled Change"
+                                        value={
+                                            <span className="text-xs text-graphite-600">
+                                                {subscription.pending_plan_name}
+                                                {subscription.pending_billing_cycle ? ` (${subscription.pending_billing_cycle})` : ''} at period end
+                                            </span>
+                                        }
+                                    />
                                 )}
                                 <Row label="Seat Limit" value={subscription.seat_limit ?? 'Unlimited'} />
                                 {subscription.license_key && <Row label="License Key" value={<code className="text-xs">{subscription.license_key}</code>} />}
@@ -287,6 +322,11 @@ function SubscriptionDialog({ tenant, subscription, packages, types, statuses, o
 function InvoiceDialog({ tenant, onClose }) {
     const { data, setData, post, processing, errors, reset } = useForm({
         period_start: '', period_end: '', amount: '', currency: 'IDR', due_date: '', notes: '',
+        // v2.70.0: what settling this invoice BUYS. Default true, because
+        // an invoice raised against a tenant is overwhelmingly a period of
+        // service -- an adjustment or one-off charge is the exception, and
+        // should be the thing an operator has to tick.
+        extends_period: true,
     });
 
     function submit(e) {
@@ -307,6 +347,25 @@ function InvoiceDialog({ tenant, onClose }) {
                         <div className="space-y-1.5 col-span-2"><Label>Due Date</Label><Input type="date" value={data.due_date} onChange={(e) => setData('due_date', e.target.value)} /></div>
                     </div>
                     <div className="space-y-1.5"><Label>Notes</Label><Textarea rows={2} value={data.notes} onChange={(e) => setData('notes', e.target.value)} /></div>
+                    {/* Marking this invoice paid will extend the tenant's
+                        period, exactly as a gateway settlement does. Untick
+                        for a one-off charge or an adjustment, which records
+                        the money without touching the subscription. */}
+                    <label className="flex items-start gap-2 rounded-md border border-graphite-200 p-3 text-sm">
+                        <input
+                            type="checkbox"
+                            className="mt-0.5"
+                            checked={data.extends_period}
+                            onChange={(e) => setData('extends_period', e.target.checked)}
+                        />
+                        <span>
+                            <span className="font-medium">Extends the subscription period</span>
+                            <span className="block text-xs text-graphite-500">
+                                Marking this invoice paid will move the renewal date forward by one billing cycle.
+                                Untick for a one-off charge or an adjustment.
+                            </span>
+                        </span>
+                    </label>
                     {Object.keys(errors).length > 0 && (
                         <div className="rounded-md border border-red-200 bg-red-50 p-2 text-xs text-red-700">{Object.values(errors).map((m, i) => <p key={i}>{m}</p>)}</div>
                     )}

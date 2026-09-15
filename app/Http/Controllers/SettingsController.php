@@ -17,9 +17,6 @@ use App\Models\Position;
 use App\Models\User;
 use App\Models\Workspace;
 use App\Services\EntitlementService;
-use App\Services\InvoiceDocumentService;
-use App\Services\PdfGeneratorService;
-use App\Services\PricingService;
 use Illuminate\Http\RedirectResponse;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\DB;
@@ -30,8 +27,6 @@ use Inertia\Inertia;
 use Inertia\Response;
 use Spatie\Permission\Models\Role;
 use App\Models\Invoice;
-use App\Models\Subscription;
-use App\Support\CurrentTenant;
 
 /**
  * Settings module. Two permission tiers, enforced both by route middleware
@@ -283,173 +278,16 @@ class SettingsController extends Controller
                     'trial_ends_at' => $subscription->trial_ends_at,
                     'is_usable' => $subscription->isUsable(),
                     'is_degraded' => $subscription->isDegraded(),
+                    // v2.70.0: the derived lifecycle, so this panel and the
+                    // Billing page cannot tell a customer two different
+                    // things about the same subscription.
+                    'lifecycle_state' => $subscription->lifecycleState(),
+                    'days_remaining' => $subscription->daysUntilPeriodEnd(),
                 ];
             })(),
-            'invoices' => \App\Models\Invoice::where('tenant_id', $request->user()->tenant_id)
+            'invoices' => Invoice::where('tenant_id', $request->user()->tenant_id)
                 ->latest()
                 ->get(['id', 'invoice_number', 'amount', 'currency', 'status', 'due_date', 'payment_date']),
-        ]);
-    }
-
-    /**
-     * v2.14.0 (SaaS Productization / Pricing Foundation, Part 8/9). The
-     * tenant-facing Plans/pricing comparison page -- data-driven entirely
-     * from `PricingService`/`Package`, never a hand-maintained UI table,
-     * so it can never drift from what a Platform Admin actually
-     * configured in Platform > Plans. Deliberately open to every
-     * authenticated tenant user (not gated to Super Admin the way
-     * updateCompany()/Company Settings are) -- knowing what plans exist
-     * and what the tenant's own plan includes is not privileged
-     * information, matching Part 8's "tenant-facing subscription
-     * overview" requirement. A Platform Admin has no tenant (see
-     * User::isPlatformAdmin()) and reaches this same information via
-     * Platform > Plans instead -- RestrictPlatformAdminFromTenantRoutes
-     * already keeps them off tenant routes generally.
-     *
-     * No checkout, no payment action here -- see this page's own "Contact
-     * administrator to upgrade" CTA. Upgrading a plan remains a Platform
-     * Admin action via PlatformController::updateSubscription(), exactly
-     * as it already was before this page existed.
-     */
-    /**
-     * v2.51.0 -- the tenant's own Billing page.
-     *
-     * Everything a customer needs to answer "what am I on, until when, and
-     * what have I paid" WITHOUT going through support: current plan and
-     * cycle, subscription status and renewal date, the capacity their plan
-     * actually grants against what they are using, and their real invoice
-     * and payment history.
-     *
-     * Read-only by design. Upgrades, downgrades and cancellations stay a
-     * deliberate action rather than a self-serve button that would need a
-     * gateway operation IOMS cannot guarantee is configured -- the page
-     * says so plainly instead of showing a control that might fail. That
-     * is the whole difference between a coherent domain model and a
-     * half-built feature.
-     *
-     * Restricted to the Super Admin: seat usage, invoices and payment
-     * references are commercial data, unlike the plan CATALOG that
-     * plans() deliberately shows to everyone.
-     */
-    public function billing(Request $request): Response
-    {
-        abort_unless($request->user()->canManageSystemSettings(), 403);
-
-        $tenantId = app(CurrentTenant::class)->id();
-        abort_if($tenantId === null, 404);
-
-        $subscription = Subscription::with('package')
-            ->where('tenant_id', $tenantId)
-            ->latest()
-            ->first();
-
-        $package = $subscription?->package;
-        $pricing = app(PricingService::class);
-
-        // Real usage, counted now -- never a stored figure that could drift
-        // from the seat limit it is being compared against.
-        $userCount = User::where('tenant_id', $tenantId)->count();
-        $ptwUserCount = User::where('tenant_id', $tenantId)->where('ptw_access', true)->count();
-        $companyCount = Company::withoutGlobalScopes()->where('tenant_id', $tenantId)->count();
-
-        $invoices = Invoice::where('tenant_id', $tenantId)
-            ->latest()
-            ->limit(50)
-            ->get(['id', 'invoice_number', 'amount', 'currency', 'status', 'due_date', 'payment_date', 'payment_method', 'payment_reference', 'period_start', 'period_end', 'created_at'])
-            ->map(fn (Invoice $invoice) => [
-                ...$invoice->toArray(),
-                'amount_formatted' => $pricing->format((float) $invoice->amount, $invoice->currency),
-            ]);
-
-        return Inertia::render('Settings/Billing', [
-            'subscription' => $subscription ? [
-                'status' => $subscription->status,
-                'type' => $subscription->type,
-                'billing_cycle' => $subscription->billing_cycle,
-                'starts_at' => $subscription->starts_at,
-                'ends_at' => $subscription->ends_at,
-                'trial_ends_at' => $subscription->trial_ends_at,
-                'cancelled_at' => $subscription->cancelled_at,
-                'is_usable' => $subscription->isUsable(),
-                'is_expired' => $subscription->isExpired(),
-                'plan_name' => $package?->name,
-                // v2.60.0: the price THIS customer agreed to, not whatever
-                // the public catalogue says today. A customer who bought
-                // before a price change must keep seeing what they pay.
-                'price' => ($amount = $subscription->agreedAmountFor()) !== null
-                    ? $pricing->format($amount, $subscription->agreedCurrency())
-                    : null,
-                // True when their agreed price no longer matches the
-                // catalogue, so the page can say so rather than leaving a
-                // customer to notice the discrepancy themselves.
-                'is_legacy_pricing' => $subscription->isOnLegacyPricing(),
-                // The published price of the same plan today. Sent only when
-                // it actually differs, so the page has something concrete to
-                // compare against instead of an unexplained number.
-                'catalogue_price' => $subscription->isOnLegacyPricing() && $package
-                    ? $pricing->format((float) $pricing->amountFor($package, $subscription->billing_cycle), $package->currency)
-                    : null,
-            ] : null,
-            'entitlements' => [
-                'users' => ['used' => $userCount, 'limit' => $subscription?->seatLimit()],
-                // Shown for information -- how many accounts hold PTW Access
-                // -- with no limit, because it is not a purchased capacity.
-                'ptw_users' => ['used' => $ptwUserCount, 'limit' => null],
-                // Capacity is measured in OPERATING UNITS (v2.54.0) -- the
-                // same `max_companies` number, called what it actually is.
-                'operating_units' => ['used' => $companyCount, 'limit' => $package?->max_companies],
-            ],
-            'invoices' => $invoices,
-            // Renewal behaviour is honest about which mode this deployment
-            // is actually in -- automatic recurring charging requires
-            // separate merchant activation and is never assumed.
-            'recurringEnabled' => (bool) config('payment.recurring_enabled'),
-            'billingEmail' => config('ioms.emails.billing'),
-        ]);
-    }
-    /**
-     * v2.55.0 -- the invoice as a downloadable PDF.
-     *
-     * Until now an invoice existed only as a row and an email. Indonesian
-     * B2B customers file invoices, and a subscription product that cannot
-     * produce one is incomplete.
-     *
-     * Built on the EXISTING document architecture -- the same
-     * `pdf.partials.{styles,letterhead,footer}` every operational document
-     * uses -- with `InvoiceDocumentService` supplying the ISSUER identity
-     * rather than DocumentEngine's tenant identity. See that service for
-     * why an invoice is the one document that runs the other way.
-     *
-     * OWNERSHIP IS CHECKED ON THE INVOICE ITSELF. `invoices` carries no
-     * company_id, so it inherits nothing from Company's global scopes:
-     * route-model binding would happily hand over another organization's
-     * invoice on a guessed id. The tenant_id comparison here is the only
-     * thing standing between the two, so it is explicit and it is first.
-     */
-    public function invoicePdf(Request $request, Invoice $invoice, PdfGeneratorService $pdf, InvoiceDocumentService $documents): \Illuminate\Http\Response
-    {
-        abort_unless($request->user()->canManageSystemSettings(), 403);
-        abort_unless($invoice->tenant_id !== null && $invoice->tenant_id === $request->user()->tenant_id, 404);
-
-        $invoice->load('subscription.package', 'registration.package', 'tenant');
-
-        return $pdf->streamInline(
-            'pdf.invoice',
-            $documents->viewData($invoice),
-            $invoice->invoice_number.'.pdf'
-        );
-    }
-
-    public function plans(Request $request): Response
-    {
-        $pricing = app(PricingService::class);
-        $tenant = $request->user()->tenant;
-        $currentPackage = $tenant?->subscription?->package;
-
-        return Inertia::render('Subscription/Plans', [
-            'plans' => $pricing->publicPlans(),
-            'currentPlan' => $currentPackage ? $pricing->summarize($currentPackage) : null,
-            'currentPlanId' => $currentPackage?->id,
         ]);
     }
 

@@ -1,7 +1,7 @@
 ---
 title: Architecture Map
 type: reference
-updated: 2026-09-14
+updated: 2026-09-15
 tags: [kb/architecture]
 ---
 
@@ -75,14 +75,41 @@ Grouped by what they are for rather than alphabetically.
 | Service | Purpose |
 |---|---|
 | `TenantContext` · `TenantProvisioningService` · `TenantReadinessService` | Tenant lifecycle |
-| `EntitlementService` | Plan limits — seats, operating units, workspace grants |
+| `EntitlementService` | Plan limits — seats, operating units, workspace grants — plus the derived lifecycle standing the shell and the route gate both read |
+| `SubscriptionLifecycleService` | **Every subscription state transition, in one place**: renewal-invoice issuance, period extension (always `max(end, now) + cycle`), plan changes, and the one grant sync allowed to *remove*. ADR [[033-subscription-lifecycle\|033]] |
 | `PricingService` | Derives every displayed price and saving from the plan's own two prices |
 | `Payments/` | Gateway integration |
+
+> [!important] Only the webhook may extend a subscription
+> `SubscriptionLifecycleService::applyPaidInvoice()` has exactly two callers:
+> `PaymentWebhookController` (after a verified signature) and `PlatformController::markInvoicePaid()`
+> (a Platform Admin recording a bank transfer under their own identity). Nothing a browser does
+> reaches it.
 
 ### Operations
 
 `DashboardStatsService` (tenant-safe aggregate helper — `resolveCompanyIds()` is the pattern other
 dashboards reuse), `CalendarService`, `StockService`.
+
+---
+
+## Scheduled work — `routes/console.php`
+
+Three commands, all requiring the server's cron to reach `php artisan schedule:run` every minute.
+
+| Command | Cadence | What it does |
+|---|---|---|
+| `approvals:escalate` | Hourly | Escalates approvals past their `escalate_after_hours` |
+| `reports:dispatch-scheduled` | Hourly | Sends due scheduled reports |
+| `subscriptions:lifecycle` | Daily, 02:00 | Issues renewal invoices, sends renewal reminders, applies plan changes waiting on a period boundary |
+
+> [!important] The scheduler never gates access
+> `subscriptions:lifecycle` issues billing documents; it does not decide what a customer may do.
+> Subscription standing is derived from the dates on every read, so a stopped cron delays an invoice
+> and a reminder without locking anyone out — or letting anyone in. ADR
+> [[033-subscription-lifecycle|033]].
+
+---
 
 ## Support — `app/Support/`
 

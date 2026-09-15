@@ -9,16 +9,22 @@ use Illuminate\Support\Facades\DB;
  * v1.11.0 (SaaS Finalization Pass). One row per billing document, raised
  * against a Tenant (never a Company -- billing is a platform/tenant
  * concern, the same boundary `Subscription` already uses). Optionally
- * linked to the Subscription it bills for; nullable because an invoice
- * can legitimately outlive the Subscription row it was raised against
- * (a plan change creates a NEW Subscription row per that table's own
- * "history table" convention).
+ * linked to the Subscription it bills for; nullable because an onboarding
+ * invoice is raised before the subscription exists.
  *
- * No payment gateway integration exists in this codebase.
- * `payment_reference`/`payment_method` are free-text fields a Platform
- * Admin fills in manually after confirming a payment happened outside
- * this system -- `markPaid()` is deliberately the only way `status`
- * becomes 'paid', never inferred or auto-confirmed.
+ * v2.70.0 -- THE INVOICE IS THE CONTRACT A PAYMENT SETTLES.
+ *
+ * A verified payment arrives knowing only an order id. Everything else --
+ * whether it provisions a tenant, buys another period, or moves the
+ * customer to a different plan -- has to be readable from the invoice
+ * itself. `purpose` states it outright, and `target_package_id` /
+ * `target_billing_cycle` carry what a plan change is for, so the webhook
+ * never has to infer intent from which foreign keys happen to be null.
+ *
+ * `status` becomes 'paid' in exactly two places: `markPaid()` called by
+ * PaymentWebhookController after a signature-verified settlement, and a
+ * Platform Admin recording a payment made outside the gateway (bank
+ * transfer). It is never inferred from a browser redirect.
  */
 class Invoice extends Model
 {
@@ -34,8 +40,26 @@ class Invoice extends Model
 
     public const STATUSES = [self::STATUS_DRAFT, self::STATUS_ISSUED, self::STATUS_PAID, self::STATUS_OVERDUE, self::STATUS_VOID];
 
+    /*
+     |-------------------------------------------------------------------
+     | PURPOSE -- what paying this invoice actually buys (v2.70.0)
+     |-------------------------------------------------------------------
+     */
+
+    /** Buys the tenant itself. Paying it provisions. */
+    public const PURPOSE_ONBOARDING = 'onboarding';
+
+    /** Buys the next period of an existing subscription. */
+    public const PURPOSE_RENEWAL = 'renewal';
+
+    /** Buys an upgrade, prorated for the rest of the current period. */
+    public const PURPOSE_PLAN_CHANGE = 'plan_change';
+
+    public const PURPOSES = [self::PURPOSE_ONBOARDING, self::PURPOSE_RENEWAL, self::PURPOSE_PLAN_CHANGE];
+
     protected $fillable = [
         'invoice_number', 'tenant_id', 'registration_id', 'subscription_id', 'period_start', 'period_end',
+        'purpose', 'target_package_id', 'target_billing_cycle',
         'amount', 'currency', 'status', 'due_date', 'payment_date', 'payment_reference',
         'payment_method', 'notes', 'created_by',
     ];
@@ -59,6 +83,28 @@ class Invoice extends Model
     public function subscription()
     {
         return $this->belongsTo(Subscription::class);
+    }
+
+    /** The plan this invoice moves the subscription to once it is paid. */
+    public function targetPackage()
+    {
+        return $this->belongsTo(Package::class, 'target_package_id');
+    }
+
+    /** Still owed: issued or overdue, and never voided. */
+    public function isPayable(): bool
+    {
+        return in_array($this->status, [self::STATUS_ISSUED, self::STATUS_OVERDUE], true);
+    }
+
+    /**
+     * Presentation only. Nothing in IOMS voids or escalates an invoice
+     * because a date passed -- an invoice working its way through a
+     * customer's own finance process is not a mistake to clean up.
+     */
+    public function isOverdue(): bool
+    {
+        return $this->isPayable() && $this->due_date !== null && $this->due_date->isPast();
     }
 
     /**

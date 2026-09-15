@@ -1421,6 +1421,26 @@ did.
 - When a model's own status needs guarded transitions (not just any value settable at any time),
   use the `HasWorkflow` trait rather than hand-rolling `if ($old === 'x' && $new === 'y')` checks
   inline in a controller — see `ARCHITECTURE.md`.
+- **A status value that only TIME can cause must be derived, never stored** (v2.70.0). Two
+  `Subscription` statuses — `expired` and `grace_period` — existed as constants that *nothing in the
+  codebase ever wrote*, so a subscription four months past its end date still reported itself as
+  `active`, and every surface reading `status` repeated that. The test for this is simple and worth
+  applying to any new status value:
+
+  > If the only thing that can move a record into this state is the clock, it does not belong in a
+  > column. Derive it from the date on every read.
+
+  A stored time state is correct on the day a job writes it and wrong the moment the underlying fact
+  changes, *and* it needs that job to keep running. A derived one cannot drift and needs nothing
+  running — which in the subscription case is what makes a stopped cron a delayed invoice rather
+  than a locked-out paying customer. `Subscription::status` now carries only the deliberate axis
+  (what a human or a verified payment decided); `lifecycleState()` derives the rest. Same rule
+  already applied to `Employee::profile_status`, `PurchaseOrderItem::delivered_quantity` and
+  `currentDisciplinaryStanding()`. ADR 033.
+- **Before adding a status constant, grep for a writer.** All five of the dead values found in this
+  codebase (`Subscription::STATUS_EXPIRED`, `STATUS_GRACE_PERIOD`, `Tenant::STATUS_EXPIRED`, and the
+  two UI colour-map keys that shadowed them) were readable, mapped in the frontend, and written by
+  nothing. `grep -rn "STATUS_X" app/` taking under a second would have caught every one.
 
 ## Roles & permissions
 
@@ -1648,6 +1668,38 @@ did.
   shipped: the Super-Admin-only route-group mistake, and the settings cache staleness. Both are
   detailed above specifically so the pattern is recognizable next time, not just the individual
   fixes.
+
+## Known Pitfall (v2.70.0) — Inertia's `useForm().transform()` returns void, so chaining `.post()` off it throws before the request is ever made
+
+Written as:
+
+```jsx
+// WRONG -- throws "Cannot read properties of undefined (reading 'post')"
+form.transform(() => ({ package_id: id, billing_cycle: cycle }))
+    .post(route('subscription.plan-change'));
+```
+
+In `@inertiajs/react`, `transform()` sets the transformer and returns **nothing**. The chain
+therefore calls `.post()` on `undefined`.
+
+What makes this worth recording is the **failure mode**, not the mistake: the exception is thrown
+inside a React event handler, so nothing navigates, nothing errors visibly, and the dialog simply
+sits there as though the click had not registered. There is no failed request in the network panel
+— the request was never made — and no server log line, because the server was never reached. The
+only evidence is one line in the browser console.
+
+```jsx
+// RIGHT
+form.transform(() => ({ package_id: id, billing_cycle: cycle }));
+form.post(route('subscription.plan-change'), { onSuccess: () => setConfirming(null) });
+```
+
+**Feature tests cannot catch this class of bug.** The plan-change endpoint had full coverage —
+upgrade, downgrade, capacity refusal, tenant isolation — and every test passed, because tests POST
+to the route directly and never execute the component that builds the request. It was found by
+clicking the button in a browser and reading the console, which is exactly what
+`LOCAL-VERIFICATION.md` step 4 exists for. A green suite says the endpoint is correct; it says
+nothing about whether anything reaches it.
 
 ## "Verify first" as a default posture
 

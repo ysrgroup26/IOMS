@@ -71,6 +71,16 @@ const STATUS_MAP = {
     under_review: 'warning',
     action_issued: 'destructive',
     dismissed: 'secondary',
+    // v2.70.0 -- subscription lifecycle, derived rather than stored.
+    // `grace` is a warning because there is still time to act; `lapsed` is
+    // destructive because recording has actually stopped. Neither means
+    // data was removed, and the copy beside the badge always says so.
+    trial: 'outline',
+    grace: 'warning',
+    lapsed: 'destructive',
+    suspended: 'destructive',
+    paid: 'success',
+    void: 'secondary',
     // Generic
     active: 'success',
     inactive: 'secondary',

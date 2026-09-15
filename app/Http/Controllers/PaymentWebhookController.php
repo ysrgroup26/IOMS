@@ -8,6 +8,7 @@ use App\Models\PaymentTransaction;
 use App\Models\PaymentWebhookEvent;
 use App\Models\TenantRegistration;
 use App\Services\Payments\MidtransGateway;
+use App\Services\SubscriptionLifecycleService;
 use App\Services\TenantProvisioningService;
 use Illuminate\Http\JsonResponse;
 use Illuminate\Http\Request;
@@ -35,11 +36,22 @@ use Throwable;
  *  4. ALWAYS 200 ON A HANDLED EVENT. Gateways retry non-2xx responses; a
  *     500 for an event we understood but chose not to act on produces a
  *     retry storm rather than a fix.
+ *
+ * v2.70.0 -- this endpoint now settles RENEWALS and PLAN CHANGES too, not
+ * only onboarding. The rule above is unchanged and the reason it matters
+ * has grown: a payment verified here is the only thing in IOMS that can
+ * extend a subscription period or move a customer to a different plan.
+ * What a given payment buys is read from the invoice's own `purpose`, so
+ * the decision is made from server-side state, never from anything the
+ * payer's browser carried back.
  */
 class PaymentWebhookController extends Controller
 {
-    public function midtrans(Request $request, TenantProvisioningService $provisioning): JsonResponse
-    {
+    public function midtrans(
+        Request $request,
+        TenantProvisioningService $provisioning,
+        SubscriptionLifecycleService $lifecycle,
+    ): JsonResponse {
         $payload = $request->all();
         $gateway = app(PaymentGatewayInterface::class);
 
@@ -85,7 +97,7 @@ class PaymentWebhookController extends Controller
 
         try {
             $result = $gateway->handleWebhook($payload);
-            $this->apply($result->gatewayReference, $result->status, $result->amount, $provisioning);
+            $this->apply($result->gatewayReference, $result->status, $result->amount, $provisioning, $lifecycle);
 
             $event->update(['processed' => true, 'processed_at' => now()]);
         } catch (Throwable $e) {
@@ -107,10 +119,15 @@ class PaymentWebhookController extends Controller
      * point so a second gateway adapter reuses the identical state
      * machine rather than writing its own.
      */
-    private function apply(string $gatewayReference, string $status, ?float $amount, TenantProvisioningService $provisioning): void
-    {
+    private function apply(
+        string $gatewayReference,
+        string $status,
+        ?float $amount,
+        TenantProvisioningService $provisioning,
+        SubscriptionLifecycleService $lifecycle,
+    ): void {
         $invoiceId = MidtransGateway::invoiceIdFromOrderId($gatewayReference);
-        $transaction = PaymentTransaction::where('gateway_reference', $gatewayReference)->first();
+        $transaction = PaymentTransaction::with('invoice')->where('gateway_reference', $gatewayReference)->first();
         $invoice = $transaction?->invoice ?? ($invoiceId ? Invoice::find($invoiceId) : null);
 
         if (! $invoice) {
@@ -139,15 +156,32 @@ class PaymentWebhookController extends Controller
             return;
         }
 
-        DB::transaction(function () use ($invoice, $gatewayReference) {
-            if ($invoice->status !== Invoice::STATUS_PAID) {
-                $invoice->markPaid($gatewayReference, MidtransGateway::GATEWAY);
+        DB::transaction(function () use ($invoice, $gatewayReference, $lifecycle) {
+            // THE IDEMPOTENCY BOUNDARY. Everything a payment CHANGES sits
+            // inside this guard, so a redelivered notification that slips
+            // past the event-id unique index still finds a settled invoice
+            // and extends nothing a second time. Settling the invoice and
+            // acting on it are one atomic step: an invoice can never be
+            // paid-but-not-applied, nor applied twice.
+            if ($invoice->status === Invoice::STATUS_PAID) {
+                return;
             }
+
+            $invoice->markPaid($gatewayReference, MidtransGateway::GATEWAY);
 
             if ($invoice->registration_id) {
                 TenantRegistration::whereKey($invoice->registration_id)
                     ->where('status', '!=', TenantRegistration::STATUS_PROVISIONED)
                     ->update(['status' => TenantRegistration::STATUS_PAID, 'paid_at' => now()]);
+
+                return;
+            }
+
+            // An existing customer buying another period, or an upgrade.
+            // The invoice says which; the service does the arithmetic and
+            // re-entitles the tenant if the plan moved.
+            if ($invoice->subscription_id) {
+                $lifecycle->applyPaidInvoice($invoice);
             }
         });
 

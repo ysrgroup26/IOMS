@@ -360,6 +360,45 @@ class HandleInertiaRequests extends Middleware
             'sandbox' => [
                 'active' => app(\App\Support\CurrentTenant::class)->get()?->isDemo() ?? false,
             ],
+            /*
+             * v2.70.0 -- THE SUBSCRIPTION STATE THE SHELL CAN ACT ON.
+             *
+             * A customer must never discover that their subscription
+             * lapsed by having a form refuse to save. The shell warns from
+             * the moment a renewal is near, and keeps warning louder
+             * through grace into lapse, so the 403 this eventually
+             * produces is never the first anyone hears of it.
+             *
+             * Derived on read, so it cannot be stale. Resolved lazily, so
+             * a page that never renders the banner costs one query at
+             * most, and null for a guest or a Platform Admin.
+             */
+            'subscriptionState' => function () use ($user) {
+                if (! $user || $user->tenant_id === null) {
+                    return null;
+                }
+
+                $entitlements = app(EntitlementService::class);
+                $tenant = $user->tenant;
+                $subscription = $tenant?->subscription;
+
+                return [
+                    'state' => $entitlements->tenantLifecycleState($tenant),
+                    'reason' => $entitlements->blockedReason($tenant),
+                    'allows_writes' => $entitlements->tenantAllowsWrites($tenant),
+                    'days_remaining' => $entitlements->daysUntilRenewal($tenant),
+                    // The same window the renewal invoice is raised in, so
+                    // the banner and the invoice appear together rather
+                    // than the shell inventing its own threshold.
+                    'lead_days' => (int) config('saas.renewal_lead_days', 14),
+                    'period_ends_at' => $subscription?->periodEndsAt()?->toDateString(),
+                    'grace_ends_at' => $subscription?->graceEndsAt()?->toDateString(),
+                    // Only an account that can actually act on it is shown
+                    // a call to action; everyone else is told to speak to
+                    // their administrator.
+                    'can_manage' => (bool) $user->canManageSystemSettings(),
+                ];
+            },
             'flash' => [
                 'success' => fn () => $request->session()->get('success'),
                 'error' => fn () => $request->session()->get('error'),

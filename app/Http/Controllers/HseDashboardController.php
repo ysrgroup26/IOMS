@@ -113,7 +113,7 @@ class HseDashboardController extends Controller
                 ->merge(SafetyEquipment::whereIn('company_id', $companyIds)->where('status', 'active')
                     ->whereNotNull('next_inspection_due')->whereDate('next_inspection_due', '<', now())
                     ->limit(5)->get(['id', 'name', 'next_inspection_due'])
-                    ->map(fn (SafetyEquipment $e) => ['type' => 'Equipment Overdue', 'label' => $e->name, 'date' => $e->next_inspection_due, 'href' => route('hse.master').'?tab=equipment']))
+                    ->map(fn (SafetyEquipment $e) => ['type' => 'Equipment Overdue', 'label' => $e->name, 'date' => $e->next_inspection_due, 'href' => route('hse.master').'?tab=register']))
                 ->merge(P3kBox::whereIn('company_id', $companyIds)
                     ->whereNotNull('next_inspection_due')->whereDate('next_inspection_due', '<', now())
                     ->limit(5)->get(['id', 'location', 'next_inspection_due'])
@@ -176,6 +176,11 @@ class HseDashboardController extends Controller
                         ->count(),
                 ];
             })(),
+            // v2.71.0: gates the Overview's own HSE Administration row.
+            // Same capability the destination routes enforce themselves --
+            // this only decides whether the shortcut is worth showing, and
+            // shows nothing an ordinary viewer could act on anyway.
+            'canManageHse' => auth()->user()->canManageHse(),
         ]);
     }
 }

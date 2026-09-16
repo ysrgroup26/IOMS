@@ -1,7 +1,7 @@
 ---
 title: UX and Design Principles
 type: reference
-updated: 2026-09-14
+updated: 2026-09-16
 tags: [kb/ux, kb/design]
 ---
 
@@ -65,6 +65,9 @@ Two principles from that rollout:
 | **Hide-because-duplicated uses the other component's breakpoint** | Dashboard was drawn twice from 640px to 1023px — right reasoning, wrong breakpoint |
 | **A tab/chip row needs `overflow-x-auto` or `flex-wrap`** | Without it, it drags the whole page sideways, not just itself |
 | **`EmployeeSelector` for any employee field** | Ten pages have shipped the entire directory to render one dropdown |
+| **A parent is never smaller or dimmer than its children** | Sidebar group headers rendered at 11px in navy-400 above 13px navy-400 children, so the least prominent row was the one naming the section. A caption convention applied to a *collapsible control* |
+| **Never spend a colour that already has a meaning** | The same rule as the pie chart above, restated for the master-data cue: red means destructive-or-wrong in IOMS, so "this is configuration" got a calm slate chip and the consequence went into words |
+| **`requestAnimationFrame` is for the next frame, not for persistence** | The sidebar's scroll memory wrote through rAF, which does not run in a non-painting tab — the feature was silently dead wherever it mattered most |
 
 ---
 
@@ -102,7 +105,23 @@ measurement would have changed its priority immediately.
 ## Navigation
 
 One declarative registry (`workspaces.js`), permission-gated server-side, with active state derived
-from the route and never persisted. **Navigation only ever hides what the server already refuses.**
+from the route. **Navigation only ever hides what the server already refuses.**
+
+**Two levels, and rank reads top to bottom** (v2.71.0). Every top-level row — plain link *or* group
+header — is 13px/500/navy-300; items inside a group are 13px/400/navy-400. A group header is a
+level-1 row that happens to carry a chevron, not a caption above a list. Dashboard / My Work /
+Overview are separated from the rest by a hairline, derived rather than declared, because they answer
+"where am I" while everything below answers "what do I do".
+
+**The rail keeps its place across navigation.** Every page wraps its own layout, so the rail is
+remounted — and reset to the top — on every link. `navigationMemory.js` restores the offset before
+paint, per department, clamped to the current list. ADR
+[[034-capability-reach-and-navigation-hierarchy|034]].
+
+**A page says which kind it is.** `PageHeader`'s `kind` labels `master`, `monitoring` and
+`administration`; `operational` is the unlabelled default, because it is most of the product and
+badging everything would make the badge furniture. Where one page holds both kinds, the chip follows
+the open tab.
 
 The **two-zone navigation model** — a permanent workspace rail plus a context panel — is designed in
 `UX_ARCHITECTURE_DISCOVERY.md` §4 and **deliberately not built**. It affects the administrator's

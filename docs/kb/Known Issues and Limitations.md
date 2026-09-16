@@ -1,7 +1,7 @@
 ---
 title: Known Issues and Limitations
 type: register
-updated: 2026-09-15
+updated: 2026-09-16
 tags: [kb/issues]
 ---
 
@@ -33,7 +33,7 @@ or waiting on something external.
 | Issue | Detail |
 |---|---|
 | **Release dates are unreliable** | **16 of 82** entries in `version_history` are dated *after* the current release date (2026-09-14), and there are **2 non-monotonic pairs** (v2.12.0 → v2.13.0, and v2.64.0 → v2.65.0 which goes backwards by 20 days). Version *ordering* is correct; the dates are not. A release-date test is `#status/planned` in [[Requirements Register]] |
-| **ADR numbering has gaps and a collision** | 002, 003 and 005 do not exist, and **029 is used twice**. Recorded in [[Decision Register]]; next free number is 034 |
+| **ADR numbering has gaps and a collision** | 002, 003 and 005 do not exist, and **029 is used twice**. Recorded in [[Decision Register]]; next free number is 035 |
 
 ## Product limitations
 

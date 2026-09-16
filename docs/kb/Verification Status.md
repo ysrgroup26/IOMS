@@ -1,7 +1,7 @@
 ---
 title: Verification Status
 type: register
-updated: 2026-09-15
+updated: 2026-09-16
 tags: [kb/verification]
 ---
 
@@ -49,7 +49,7 @@ on every phone width.
 
 | | |
 |---|---|
-| Suite | **391 tests, 1664 assertions — all passing** (2026-09-15) |
+| Suite | **417 tests, 1721 assertions — all passing** (2026-09-16) |
 | Database | In-memory **SQLite**, so no MySQL or external service is needed |
 | Lint | `npm run lint` — 0 errors (4 pre-existing warnings in `GasTestRecords/Index.jsx` and `Settings/Index.jsx`) |
 | Build | `npm run build` — clean, with the known bundle-size warning |
@@ -72,6 +72,11 @@ matters — several defects only appear at realistic scale.
 
 | Area | Version | What was verified |
 |---|---|---|
+| Capability reach | 2.71.0 | Material Request opened from the HSE rail without the sidebar jumping to Logistics; the HSE Administration row rendered on the HSE Overview; the My Work toggle, which previously 403'd for HSE, exercised end to end as the HSE Officer |
+| Sidebar scroll memory | 2.71.0 | Offset restored exactly (240 -> 240) across a real navigation where it previously reset to 0; clamped to the maximum when the stored value exceeded a shorter list; an HSE offset did not leak into the global menu |
+| Sidebar hierarchy | 2.71.0 | **Measured** from the compiled stylesheet: level-1 rows and group headers both 13px/500/navy-300, children 13px/400/navy-400, active 600/white; exactly one entry divider, after Overview |
+| Master vs operational | 2.71.0 | The Master Data chip and its consequence sentence appear on switching to a reference-data tab and disappear on a register tab; chip contrast measured at 11.3:1; at 375px the tab strip scrolls inside its own wrapper and the page does not |
+| Material Request lifecycle | 2.71.0 | The stage sentence rendered for submitted, consolidating and completed -- the last of which previously showed no Progress panel at all; the consolidating tone measured as steel, not a warning |
 | Subscription lifecycle | 2.70.0 | Active, grace and lapsed states rendered and read; a renewal invoice raised at the customer's grandfathered price for the correct next period; a write refused with the real explanation while every read still worked; a downgrade scheduled rather than applied; no horizontal overflow at 375px |
 | Demand consolidation | 2.69.0 | Hold with reason, consolidating two requests into one purchase, the automatic move to Processing, and the link back from the request — end to end |
 | Material Request aging | 2.69.0 | Outstanding filter, aging emphasis, no overflow at 375px |
@@ -94,6 +99,7 @@ Stated plainly because the distinction matters:
 | **Live payment flow** | Requires external provider configuration — see [[Known Issues and Limitations]] |
 | **A real Midtrans notification** | Every webhook test signs its own payload with a test server key, so what is verified is that IOMS honours the contract *as documented*. Their actual signature over a live transaction, their full `transaction_status` vocabulary, and their retry timing have never been observed. This is the gap a sandbox transaction against real credentials would close, and it is the one remaining item in the payment path that carries genuine unknown risk — [[Requirements Register]] |
 | **The scheduled run in production** | `subscriptions:lifecycle` is test-covered and was exercised by hand, but no deployment has yet run it from cron over a real period boundary |
+| **The sidebar scroll WRITE, by a human hand** (v2.71.0) | The restore path was exercised fully (exact restore, clamping, per-department isolation). The write could not be driven by script: the embedded verification browser does not dispatch `scroll` for a programmatic `scrollTop` assignment while the window is not painting — a listener attached by hand in the console never fired either, so this is the tool, not the product. The handler is three lines, attached to the element the restore reads from, and pinned by a test that forbids the rAF regression that actually broke it |
 
 ---
 

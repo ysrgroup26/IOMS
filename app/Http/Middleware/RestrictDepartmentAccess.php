@@ -86,6 +86,41 @@ class RestrictDepartmentAccess
         // `hr`-only entry in config/departments.php, which only supports
         // one owning department per prefix.
         'man-hour',
+        /*
+         * v2.71.0 -- MATERIAL REQUEST IS RAISED BY EVERY DEPARTMENT AND
+         * OWNED BY NONE OF THEM.
+         *
+         * Exactly the divergence 'permits-to-work' above was moved here
+         * to fix, found again in a different module.
+         * `User::canManageMaterialRequests()` is `isSuperAdmin() ||
+         * isHse()` -- the capability has belonged to HSE since the module
+         * shipped -- while `config/departments.php` filed the route
+         * prefix under `logistics`. Two consequences, both confirmed
+         * against the running application rather than reasoned about:
+         *
+         *  1. A Department User in HSE was 403'd here before the request
+         *     ever reached the controller's own permission check.
+         *  2. Worse, `EnforceTenantEntitlement` resolves a route's owning
+         *     WORKSPACE through this same map. Starter sells `['hse']` and
+         *     Professional `['hse','hr']` (config/plans.php) -- neither
+         *     grants `logistics` -- so on the two plans that sell HSE, the
+         *     HSE team could not open the module their own permission says
+         *     they own. A capability the product sells was unreachable for
+         *     the customers it was sold to.
+         *
+         * Requesting materials is a need any department has; fulfilling
+         * the request is the specialised part, and Purchase Requisitions,
+         * RFQs, Purchase Orders and Goods Receipts all stay owned by
+         * procurement/logistics exactly as before.
+         *
+         * NOTHING IS WEAKENED. MaterialRequestController still gates every
+         * write on `canManageMaterialRequests()` / `canConsolidateDemand()`,
+         * and `MaterialRequest::scopeVisibleTo()` still confines every read
+         * to the viewer's own tenant and company. This only stops the
+         * ROUTING layer from second-guessing a capability check that is
+         * already stricter than it is.
+         */
+        'material-requests',
     ];
 
     public function handle(Request $request, Closure $next): Response

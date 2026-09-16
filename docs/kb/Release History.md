@@ -40,7 +40,7 @@ Roughly, the history falls into eras:
 | Tenancy | 2.0 – 2.1x | Milestone 2: Tenant → Company, RBAC infrastructure, Platform Super Admin |
 | Platform engines | 2.1x – 2.3x | Milestone 3: numbering, notifications, search, analytics, reports, documents |
 | Commercial | 2.4x – 2.6x | SaaS productization, pricing, payments, the public site, deployment |
-| Product quality | 2.62 – 2.70 | Structural tenant isolation, language coherence, UX correction, operational lifecycles -- and the commercial lifecycle finally completing its own loop |
+| Product quality | 2.62 – 2.71 | Structural tenant isolation, language coherence, UX correction, operational lifecycles, the commercial lifecycle completing its own loop -- and the navigation and information architecture catching up with all of it |
 
 ---
 
@@ -48,6 +48,7 @@ Roughly, the history falls into eras:
 
 | Version | Date | Headline |
 |---|---|---|
+| `2.71.0` | 2026-09-16 | CAPABILITY REACH, NAVIGATION HIERARCHY, AND THE MASTER/OPERATIONAL DISTINCTION |
 | `2.70.0` | 2026-09-15 | THE SUBSCRIPTION LIFECYCLE, COMPLETED |
 | `2.69.0` | 2026-09-14 | THREE OPERATIONAL GAPS, AND THE ONE SCHEMA LIMIT UNDERNEATH TWO OF THEM |
 | `2.68.0` | 2026-09-10 | ONE PRODUCT, ONE VOCABULARY |

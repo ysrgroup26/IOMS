@@ -1418,6 +1418,14 @@ did.
 - Reuse the shared `StatusBadge` component's canonical color mapping
   (`resources/js/Components/shared/StatusBadge.jsx`) rather than building a new status-to-color map
   per module.
+- **A status the requester has to decode is only half a status** (v2.71.0). `approved`,
+  `consolidating` and `processing` are Procurement's accurate vocabulary, and a requester chasing
+  their own order should not have to learn the fulfilment workflow to find out whether anything is
+  happening. Where a record has an audience beyond the team that operates it, state in one sentence:
+  what has happened, who holds it now, and what happens next — see `RequestStage` in
+  `Pages/MaterialRequests/Show.jsx`. A deliberate hold gets the same calm tone as any other
+  in-progress stage; colouring it as a problem recreates the confusion the state was introduced to
+  remove.
 - When a model's own status needs guarded transitions (not just any value settable at any time),
   use the `HasWorkflow` trait rather than hand-rolling `if ($old === 'x' && $new === 'y')` checks
   inline in a controller — see `ARCHITECTURE.md`.
@@ -1668,6 +1676,90 @@ did.
   shipped: the Super-Admin-only route-group mistake, and the settings cache staleness. Both are
   detailed above specifically so the pattern is recognizable next time, not just the individual
   fixes.
+
+## CRITICAL — Known Pitfall (v2.71.0, found three times): a route prefix filed under ONE department when its capability spans several makes both the routing layer AND the entitlement layer stricter than the permission they defer to
+
+IOMS answers "may this person use this module" in three independent places:
+
+| Source | Question |
+|---|---|
+| `User::canManageX()` | The CAPABILITY. The real gate. |
+| `config/departments.php` | Which DEPARTMENT owns the route prefix. |
+| `config/plans.php` | Which WORKSPACE a plan grants. |
+
+When the first two disagree, `RestrictDepartmentAccess` 403s a user the permission allows. And it
+gets worse than that, because **`EnforceTenantEntitlement` resolves a route's owning workspace
+through the same department map** — so a module filed under a department the customer's plan does
+not include becomes unreachable for *everyone on that plan*.
+
+Found three times, in three modules:
+
+| Prefix | Capability | Filed under | Fixed |
+|---|---|---|---|
+| `permits-to-work` | `canCreatePtw()` — HSE **or** an individually granted `ptw_access` | `hse` | v2.42.0 |
+| `man-hour` | `canManageManHour()` — HR **and** HSE | `hr` | v1.11.15 |
+| `material-requests` | `canManageMaterialRequests()` — Super Admin **or** HSE | `logistics` | v2.71.0 |
+
+The third is the one that shows how expensive this is. Starter sells `['hse']` and Professional
+`['hse','hr']`; neither grants `logistics`. So on **the two plans that sell HSE**, the HSE team could
+not open the module their own permission says they own — a feature unreachable for exactly the
+customers it was sold to, refused by a layer nobody would think to look at.
+
+**The rule.** Before filing a route prefix in `config/departments.php`, read the controller's own
+permission method. If it names more than one department — or is a union with an individually granted
+flag — the prefix belongs in `RestrictDepartmentAccess::UNIVERSAL_PREFIXES`, not in one department's
+list. The map supports exactly one owner per prefix, and the universal list is what "owned by none of
+them" looks like.
+
+This does **not** weaken anything: the controller's own gates and the model's `scopeVisibleTo()` are
+untouched, and they were already stricter than the routing layer. `DepartmentCapabilityReachTest`
+asserts the invariant, so the fourth instance fails in the suite instead of in production.
+
+Note which way round this goes: **raising** a request is cross-department; **fulfilling** it is not.
+`purchase-requisitions`, `rfqs`, `purchase-orders` and `goods-receipts` stay department-owned, and a
+test asserts they stay that way.
+
+## Master data vs operational data: the page says which it is (v2.71.0)
+
+Reported as not being able to tell which screens configure the system and which record daily work.
+`PageHeader` carries an optional `kind`:
+
+| kind | Means | Chip |
+|---|---|---|
+| `master` | Definitions the system is configured with | **Master Data** |
+| `operational` | Records of daily work | **none** — the default |
+| `monitoring` | Reading, not writing | **Monitoring** |
+| `administration` | Users, roles, settings | **Administration** |
+
+Three rules that matter when extending this:
+
+- **Do not label `operational`.** It is most of the product and the state a user is right to assume;
+  badging everything makes the badge furniture. The absence of a chip means ordinary work.
+- **Do not reach for red.** Red already means destructive-or-wrong in this codebase (`text-danger`, a
+  rejected status, a validation error, Delete). Spending it on "this is configuration" teaches two
+  meanings for one colour and makes a real error harder to notice. Master data is *consequential*,
+  not dangerous — say the consequence in the subtitle instead.
+- **On a page that holds both, the chip follows the open tab**, not the page. Safety Equipment &
+  Compliance is the reference implementation: its tab strip is grouped into *Registers* and
+  *Reference Data*, and the header follows the selection. Labelling such a page as entirely one kind
+  would mislabel half of it.
+
+The chip is a LABEL (English); the consequence sentence is PROSE (Indonesian). See ADR 034.
+
+## Known Pitfall (v2.71.0) — `requestAnimationFrame` is the wrong tool for persisting anything
+
+The sidebar's scroll memory originally throttled its `sessionStorage` write through
+`requestAnimationFrame`, which looks like ordinary scroll-handler hygiene. It silently disabled the
+entire feature: **a page that is not painting does not run rAF callbacks**, so a background tab, a
+minimised window, or a scroll immediately followed by a navigation stored nothing at all.
+
+It was caught in browser verification, and only because the stored value came back *absent* rather
+than *wrong* — a plausible-looking wrong number would have been much easier to explain away.
+
+**The rule.** rAF is for work whose only purpose is the next FRAME (measuring layout, driving an
+animation). Persistence has to happen whether or not anything is ever drawn again, so write it
+synchronously. A `sessionStorage` write of one short string is cheap; throttling it is optimising the
+wrong thing.
 
 ## Known Pitfall (v2.70.0) — Inertia's `useForm().transform()` returns void, so chaining `.post()` off it throws before the request is ever made
 

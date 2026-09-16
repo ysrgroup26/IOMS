@@ -259,7 +259,16 @@ class ApplicationShellTest extends TestCase
 
         $this->assertStringContainsString('aria-label="Application"', $layout, 'The header landmark is unnamed.');
         $this->assertStringContainsString('aria-label="Main navigation"', $layout, 'The rail is unnamed.');
-        $this->assertStringContainsString('<nav aria-label="Workspace"', $layout, 'The workspace nav is unnamed.');
+        // v2.71.0: matched by PROPERTY rather than by adjacency. This
+        // asserted the literal `<nav aria-label="Workspace"` and so broke
+        // when a `ref` was added between the two, even though the landmark
+        // was still named -- the test was pinning attribute ORDER, which is
+        // not the accessibility property it exists to protect.
+        $this->assertMatchesRegularExpression(
+            '/<nav[^>]*aria-label="Workspace"/',
+            $layout,
+            'The workspace nav is unnamed.'
+        );
         $this->assertStringContainsString(
             'aria-label="Primary"',
             $this->source('resources/js/Components/shared/MobileBottomNav.jsx')

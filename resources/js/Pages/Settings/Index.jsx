@@ -15,7 +15,7 @@ import { Select, SelectTrigger, SelectValue, SelectContent, SelectItem } from '@
 import { Table, TableHeader, TableBody, TableRow, TableHead, TableCell } from '@/Components/ui/table';
 import { Checkbox } from '@/Components/ui/checkbox';
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogFooter, DialogTrigger } from '@/Components/ui/dialog';
-import { Plus, Trash2, Pencil, Download, Upload, Loader2, Lock, Search, AppWindow, FileSignature, Palette } from 'lucide-react';
+import { Plus, Trash2, Pencil, Download, Upload, Loader2, Lock, Search, AppWindow, FileSignature, Palette, Info } from 'lucide-react';
 import { FormSection, FormField, FormActions, ErrorSummary, SearchableSelect } from '@/Components/shared/form';
 import { useUnsavedChanges } from '@/lib/useUnsavedChanges';
 import { WORKSPACES } from '@/lib/workspaces';
@@ -2051,7 +2051,7 @@ function UsersTab({ users, roles, ptwAccess, canManageUsers, canPtwAccess, canFi
     return (
         <div className="space-y-4">
             {canManageUsers && <UserManagementCard users={users} roles={roles} companies={companies} />}
-            {(canManageUsers || canPtwAccess) && <FieldPtwAccessCard users={users} ptwAccess={ptwAccess} canFieldAccess={canFieldAccess} />}
+            {(canManageUsers || canPtwAccess) && <FieldPtwAccessCard users={users} ptwAccess={ptwAccess} canFieldAccess={canFieldAccess} canManageUsers={canManageUsers} />}
         </div>
     );
 }
@@ -2248,7 +2248,28 @@ function UserOperatingUnitsDialog({ user, companies, onClose }) {
  * already small enough to have been sent whole by SettingsController::
  * index() -- no new endpoint needed for search).
  */
-function FieldPtwAccessCard({ users, ptwAccess, canFieldAccess }) {
+/**
+ * v2.71.0 -- "WHERE DO I MANAGE FIELD PTW USERS?" NOW HAS AN ANSWER ON
+ * THE PAGE.
+ *
+ * Reported as not being able to tell where the email/password/access for
+ * field PTW users is managed. Auditing it, the capability was real but
+ * split across two roles with nothing saying so:
+ *
+ *   creating the account, email, password   Super Admin  (User Management)
+ *   PTW Access + field workspace            Super Admin OR HSE  (this card)
+ *
+ * An HSE administrator opening this tab saw only this card, could grant
+ * PTW Access to people who already had accounts, and had no indication
+ * that new accounts come from somewhere else -- so the natural conclusion
+ * was that the feature was missing.
+ *
+ * The split itself is correct and is NOT being removed: issuing
+ * credentials is an administrative act, and widening it to HSE would be a
+ * real authorization change for a discoverability problem. What was
+ * missing is the product saying so, which is what the note below does.
+ */
+function FieldPtwAccessCard({ users, ptwAccess, canFieldAccess, canManageUsers }) {
     const [search, setSearch] = useState('');
     const used = ptwAccess?.used ?? 0;
     const quota = ptwAccess?.quota ?? null;
@@ -2275,9 +2296,13 @@ function FieldPtwAccessCard({ users, ptwAccess, canFieldAccess }) {
             <CardHeader className="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
                 <div>
                     <CardTitle>Field &amp; PTW Access</CardTitle>
-                    {/* Directive's own exact Indonesian description text --
-                        deliberately verbatim, not paraphrased. */}
-                    <CardDescription>User yang diizinkan membuat pengajuan PTW.</CardDescription>
+                    {/* v2.71.0: says what the two switches actually do. The
+                        previous one line only described PTW Access, so the
+                        field-workspace switch beside it was unexplained. */}
+                    <CardDescription>
+                        PTW Access menentukan siapa yang boleh membuat pengajuan PTW.
+                        My Work menentukan halaman yang dibuka akun tersebut saat masuk.
+                    </CardDescription>
                 </div>
                 {/* v2.53.0: a count, not a quota. PTW Access is a permission
                     granted to existing accounts, not a purchased allowance. */}
@@ -2286,6 +2311,22 @@ function FieldPtwAccessCard({ users, ptwAccess, canFieldAccess }) {
                 </Badge>
             </CardHeader>
             <CardContent className="p-0">
+
+                {/* The one sentence that was missing. An HSE administrator
+                    who cannot find where accounts are created should be told
+                    where they are created, not left to conclude the feature
+                    does not exist. Only shown to someone who cannot do it
+                    themselves -- a Super Admin has the card right above. */}
+                {! canManageUsers && (
+                    <div className="mx-4 mb-3 flex items-start gap-2.5 rounded-lg border border-steel-200 bg-steel-50 p-3 text-xs leading-relaxed text-navy-800 dark:border-slate-700 dark:bg-slate-800/60 dark:text-slate-300">
+                        <Info className="mt-0.5 h-3.5 w-3.5 shrink-0" />
+                        <span>
+                            Akun beserta email dan kata sandinya dibuat oleh Administrator organisasi di
+                            <span className="font-semibold"> Settings &rarr; Users &rarr; User Management</span>.
+                            Setelah akun tersebut ada, Anda mengatur PTW Access dan My Work untuk akun itu di sini.
+                        </span>
+                    </div>
+                )}
 
                 <div className="px-4 pb-3">
                     <div className="relative max-w-sm">

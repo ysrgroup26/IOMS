@@ -1,7 +1,7 @@
 ---
 title: Operational Workflows
 type: reference
-updated: 2026-09-15
+updated: 2026-09-16
 tags: [kb/workflow, kb/business-rules]
 ---
 

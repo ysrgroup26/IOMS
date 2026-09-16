@@ -849,6 +849,24 @@ reasoning across every refinement (v1.8.0 through v1.10.2). This section is the 
   Reports/Administration, reached only through the sidebar's Global navigation state, never the
   selector. An item's `global: true` (only ever the repeated "Dashboard" link back to the Global
   Dashboard) marks it as not owned by whichever department it appears in.
+- **A route prefix may be declared by more than one department** (v2.71.0). Man-Hour is shared
+  HR/HSE data and Material Request is raised by every department; both appear in two menus on
+  purpose. `PREFIX_TO_WORKSPACES` records every owner, and `getWorkspaceKeyForRoute(name,
+  preferredKey)` resolves the tie in favour of the department the user is already working in —
+  previously the last declaration in the file won, so opening Material Request from HSE threw the
+  user into the Logistics sidebar mid-task. Single-owner prefixes, which is nearly all of them, are
+  unaffected.
+- **Two visual levels, and rank reads top to bottom** (v2.71.0). Every top-level row — plain link or
+  collapsible group header — is 13px/500/navy-300; items inside a group are 13px/400/navy-400; the
+  active row in either is 600/white with a surface and a rule. A group header used to render at 11px
+  uppercase in navy-400, *smaller and dimmer than its own children*. Entry items (Dashboard, My Work,
+  Overview) are separated from the rest by a derived hairline rather than a third type size. ADR
+  `034-capability-reach-and-navigation-hierarchy.md`.
+- **The rail keeps its scroll position across navigation** (v2.71.0). Every page wraps its own
+  `<AuthenticatedLayout>` and nothing uses Inertia's persistent-layout pattern, so the rail is
+  remounted — and reset to `scrollTop = 0` — on every link. `lib/navigationMemory.js` restores the
+  offset before paint, keyed per department and clamped to the current list, falling back to
+  revealing the active item.
 - **The Global Dashboard is NOT a department and is not in `WORKSPACES` at all** (v1.10.2). It's a
   permanently pinned link in the topbar, first element before the Department Selector, reachable
   independent of whichever department (if any) is currently active.

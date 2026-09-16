@@ -1,9 +1,9 @@
 ---
 title: Current State
 type: snapshot
-product-version: 2.70.0
+product-version: 2.71.0
 product-stage: Beta
-measured: 2026-09-15
+measured: 2026-09-16
 tags: [kb/state]
 ---
 
@@ -24,8 +24,8 @@ the date in the frontmatter, not remembered.
 | | |
 |---|---|
 | Product | **IOMS — Industrial Operations Platform** |
-| Version | **2.70.0**, stage **Beta**, edition **Enterprise Edition** |
-| Build | `2026.09.15.01`, release date `2026-09-15` |
+| Version | **2.71.0**, stage **Beta**, edition **Enterprise Edition** |
+| Build | `2026.09.16.01`, release date `2026-09-16` |
 | Stack | Laravel 12 · Inertia.js · React 18 · Tailwind · MySQL · Sanctum |
 
 The naming rules are not cosmetic — see [[Product Identity and Principles]].
@@ -38,9 +38,9 @@ The naming rules are not cosmetic — see [[Product Identity and Principles]].
 | Controllers | 93 |
 | Inertia pages | 165 |
 | Migrations | 175 |
-| Feature test files | 39 |
-| Tests / assertions | **391 / 1664**, all passing |
-| ADRs | 31 files (numbering has known gaps — see [[Decision Register]]) |
+| Feature test files | 41 |
+| Tests / assertions | **417 / 1721**, all passing |
+| ADRs | 32 files (numbering has known gaps — see [[Decision Register]]) |
 | Workspaces in the navigation registry | 12 |
 
 ## Workspaces
@@ -78,6 +78,18 @@ has been migrated to it. That is deliberate and recorded — see [[Data Ownershi
 `platform_admin` is not a tenant role at all: it is the IOMS operator, with `tenant_id = null`.
 
 ## What shipped most recently
+
+`2.71.0` (2026-09-16) — capability reach and navigation hierarchy. Material Request was unreachable
+for HSE on the two plans that sell HSE; the sidebar's scroll reset on every navigation and its group
+headers rendered smaller than their own children; and nothing said which screens configure the system
+versus record daily work. ADR [[034-capability-reach-and-navigation-hierarchy|034]].
+
+> [!important] The invariant worth carrying forward
+> **A capability must be reachable by whoever owns it.** IOMS answers "may this person use this
+> module" in three places — `User::canManageX()`, `config/departments.php`, `config/plans.php` — and
+> when they disagree, the routing and entitlement layers become stricter than the permission they
+> defer to. Found three times now (`permits-to-work`, `man-hour`, `material-requests`);
+> `DepartmentCapabilityReachTest` now asserts it.
 
 `2.70.0` (2026-09-15) — the subscription lifecycle, completed. Renewal invoices, a read-only lapse
 instead of a lockout, self-service plan changes, and five controls that claimed to work and did not.

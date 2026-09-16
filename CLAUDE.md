@@ -12,7 +12,7 @@ employee records, PPE (personal protective equipment) lifecycle, KPI tracking an
 project manpower assignment, and an increasingly general-purpose workflow layer (Material Request
 today, more modules planned) built on shared, reusable engines rather than per-module one-offs.
 
-Current version: **2.70.0 Beta**. Check `config/ioms.php` (`version`, `stage`, `build`) for the
+Current version: **2.71.0 Beta**. Check `config/ioms.php` (`version`, `stage`, `build`) for the
 authoritative current number — this document doesn't restate it elsewhere to avoid it going stale
 in two places.
 
@@ -51,7 +51,14 @@ authorization path. See `docs/ADR/008-tenancy-foundation.md` for the reasoning a
 - `resources/js/lib/workspaces.js` — the workspace navigation registry (Workspace → Item), the
   single source of truth for the top workspace switcher and dynamic sidebar. See
   `docs/ARCHITECTURE.md`'s Navigation Architecture section and
-  `docs/ADR/007-workspace-navigation.md`.
+  `docs/ADR/007-workspace-navigation.md`. A route prefix may be declared by **more than one**
+  department when the capability genuinely spans them (Man-Hour, Material Request); the department
+  you are already in wins the tie.
+- `resources/js/lib/navigationMemory.js` — session-scoped navigation memory (v2.71.0): the sidebar's
+  scroll offset and the last active department. It exists because all 144 pages wrap their own
+  `<AuthenticatedLayout>` and nothing uses Inertia's persistent-layout pattern, so the rail is
+  remounted — and reset to the top — on every navigation. See
+  `docs/ADR/034-capability-reach-and-navigation-hierarchy.md`.
 - `config/ioms.php` — app version/branding/changelog-summary metadata (not Laravel framework config).
 - `config/modules.php` — the module toggle registry (Settings → Modules).
 - `config/workflow.php` — role-based permission lists for workflow actions (approve/process/

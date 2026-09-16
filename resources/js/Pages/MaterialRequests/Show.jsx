@@ -211,14 +211,30 @@ export default function MaterialRequestShow({ materialRequest: mr, approval, act
                 The panel a requester needed and never had. It answers three
                 questions the status alone could not: how long has this been
                 waiting, is the wait deliberate, and who is holding it now.
+
+                v2.71.0 -- AND NOW IT ANSWERS THEM IN PLAIN LANGUAGE, FOR
+                EVERY STATUS.
+
+                Two gaps, both reported: the panel rendered only while a
+                request was outstanding or cancelled -- so a COMPLETED
+                request, the one case where a requester most wants
+                confirmation, showed nothing at all -- and even when it did
+                render, it stated the status and expected the reader to
+                already know what `approved` means about who is holding it.
+                A requester should not have to learn the Procurement/Stores
+                workflow to find out whether their gloves are coming.
+
+                The stage line below names, in one sentence: what has
+                happened, who holds it now, and what happens next.
             */}
-            {(mr.is_outstanding || mr.status === 'cancelled') && (
-                <Card className="mt-4">
-                    <CardHeader className="pb-2">
-                        <CardTitle>Progress</CardTitle>
-                        <CardDescription>Posisi permintaan ini pada alur pengadaan.</CardDescription>
-                    </CardHeader>
-                    <CardContent className="space-y-3 text-[13px]">
+            <Card className="mt-4">
+                <CardHeader className="pb-2">
+                    <CardTitle>Progress</CardTitle>
+                    <CardDescription>Posisi permintaan ini pada alur pengadaan.</CardDescription>
+                </CardHeader>
+                <CardContent className="space-y-3 text-[13px]">
+                        <RequestStage status={mr.status} />
+
                         {mr.is_outstanding && (
                             <div className="flex flex-wrap items-center gap-x-2 gap-y-1">
                                 <span className="text-graphite-500">Open for</span>
@@ -285,9 +301,8 @@ export default function MaterialRequestShow({ materialRequest: mr, approval, act
                                 </ul>
                             </div>
                         )}
-                    </CardContent>
-                </Card>
-            )}
+                </CardContent>
+            </Card>
 
             {mr.notes && (
                 <Card className="mt-4">
@@ -365,5 +380,94 @@ export default function MaterialRequestShow({ materialRequest: mr, approval, act
                 </DialogContent>
             </Dialog>
         </AuthenticatedLayout>
+    );
+}
+
+/**
+ * v2.71.0 -- WHERE IS MY REQUEST, IN ONE SENTENCE.
+ *
+ * A requester raises a Material Request and then has to work out what
+ * `approved` versus `processing` versus `consolidating` means about
+ * whether anything is actually happening. Those words are accurate, and
+ * they are Procurement's vocabulary, not the requester's.
+ *
+ * Each entry answers the same three things in order: what has happened,
+ * who is holding it now, and what happens next. English for the stage
+ * NAME and the holder LABEL, Indonesian for the explanation -- the
+ * product's language hierarchy, applied to a single component.
+ *
+ * `consolidating` deliberately gets the same calm steel treatment as an
+ * ordinary in-progress stage, never a warning tone. It is a correct
+ * buying decision, and colouring it as a problem would recreate exactly
+ * the confusion v2.69.0 introduced the state to remove -- the deliberate
+ * hold and the forgotten request must not look alike, in either
+ * direction. What earns emphasis on a held request is its AGE, which the
+ * aging indicator above already supplies.
+ */
+const STAGES = {
+    draft: {
+        holder: 'You',
+        tone: 'neutral',
+        text: 'Masih berupa draf dan belum diajukan. Kirim permintaan ini agar mulai diproses.',
+    },
+    submitted: {
+        holder: 'Approver',
+        tone: 'waiting',
+        text: 'Menunggu keputusan persetujuan. Belum ada pembelian yang dimulai.',
+    },
+    approved: {
+        holder: 'Procurement',
+        tone: 'progress',
+        text: 'Sudah disetujui dan menunggu diambil oleh tim pengadaan.',
+    },
+    consolidating: {
+        holder: 'Procurement',
+        tone: 'progress',
+        text: 'Ditahan sengaja agar dibeli bersama kebutuhan sejenis. Permintaan Anda tetap tercatat dan usianya tetap berjalan.',
+    },
+    processing: {
+        holder: 'Procurement',
+        tone: 'progress',
+        text: 'Sedang dipenuhi, baik dari stok maupun melalui pembelian. Dokumen pengadaan terkait muncul di bawah begitu diterbitkan.',
+    },
+    completed: {
+        holder: null,
+        tone: 'done',
+        text: 'Sudah dipenuhi. Tidak ada tindakan lanjutan yang diperlukan.',
+    },
+    rejected: {
+        holder: 'You',
+        tone: 'stopped',
+        text: 'Ditolak. Permintaan dapat diperbaiki dan diajukan kembali dari draf.',
+    },
+    cancelled: {
+        holder: null,
+        tone: 'stopped',
+        text: 'Dibatalkan. Tidak ada pengadaan yang berjalan untuk permintaan ini.',
+    },
+};
+
+const STAGE_TONE = {
+    neutral: 'border-graphite-200 bg-graphite-50 text-graphite-700 dark:border-slate-800 dark:bg-slate-800/50 dark:text-slate-300',
+    waiting: 'border-warning/25 bg-warning/[0.07] text-amber-900 dark:border-amber-900 dark:bg-amber-950/20 dark:text-amber-200',
+    progress: 'border-steel-200 bg-steel-50 text-navy-800 dark:border-slate-700 dark:bg-slate-800/50 dark:text-slate-300',
+    done: 'border-success/25 bg-success/[0.07] text-emerald-900 dark:border-emerald-900 dark:bg-emerald-950/20 dark:text-emerald-200',
+    stopped: 'border-graphite-200 bg-graphite-50 text-graphite-600 dark:border-slate-800 dark:bg-slate-800/50 dark:text-slate-400',
+};
+
+function RequestStage({ status }) {
+    const stage = STAGES[status];
+
+    if (! stage) return null;
+
+    return (
+        <div className={`rounded-lg border p-3 ${STAGE_TONE[stage.tone]}`}>
+            <p className="leading-relaxed">{stage.text}</p>
+            {stage.holder && (
+                <p className="mt-1.5 text-xs opacity-80">
+                    Saat ini pada: <span className="font-semibold">{stage.holder}</span>
+                </p>
+            )}
+        </div>
     );
 }

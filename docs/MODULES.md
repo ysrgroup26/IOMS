@@ -250,9 +250,23 @@ keeps a locked "HR KPI" placeholder for a genuinely separate, not-yet-built futu
 
 ## Material Request
 
-**Department:** Logistics / PPIC. Pending approvals also surface in **Work Center**
-(`ADR/007`'s v1.8.0 section) for whoever is entitled to decide them, regardless of their own
-department — the module itself still has exactly one implementation, Work Center only links into it.
+**Department:** cross-department since **v2.71.0**. Reachable from both **HSE** and
+**Logistics / PPIC** — one module, one implementation, two doors — and declared in
+`RestrictDepartmentAccess::UNIVERSAL_PREFIXES` rather than owned by either.
+
+> [!important] Why it moved, and what it cost before
+> `User::canManageMaterialRequests()` has been `isSuperAdmin() || isHse()` since the module shipped,
+> while the route prefix was filed under `logistics` in `config/departments.php`. Because
+> `EnforceTenantEntitlement` resolves a route's owning workspace through that same map, and neither
+> Starter (`['hse']`) nor Professional (`['hse','hr']`) grants `logistics`, **the HSE team on the two
+> plans that sell HSE could not open the module their own permission says they manage** — and there
+> was no sidebar entry to try from either. Raising a request is cross-department; *fulfilling* one is
+> not, so Purchase Requisitions, RFQs, Purchase Orders and Goods Receipts stay department-owned. See
+> `ADR/034-capability-reach-and-navigation-hierarchy.md`.
+
+Pending approvals also surface in **Work Center** (`ADR/007`'s v1.8.0 section) for whoever is
+entitled to decide them, regardless of their own department — the module itself still has exactly one
+implementation, Work Center only links into it.
 
 The most complete example of the reusable-engine pattern — read this section together with
 `ARCHITECTURE.md`'s engine descriptions and `ADR/006-material-request-workflow.md`.
@@ -281,6 +295,15 @@ The most complete example of the reusable-engine pattern — read this section t
 - **The requester can see what is happening**: the Show page renders the linked Purchase
   Requisitions and their Purchase Orders. Before v2.69.0 raising a PR from a request changed nothing
   on the request at all, which is why one could sit at "Approved" for months.
+- **...and can read it without knowing the Procurement workflow** (v2.71.0). `RequestStage` states,
+  per status and in one sentence: what has happened, who is holding it now, and what happens next.
+  Two gaps it closed: the Progress panel rendered only while a request was outstanding or cancelled,
+  so a **completed** request — the case where a requester most wants confirmation — showed nothing at
+  all; and even when it did render it stated `approved` / `processing` and left the reader to decode
+  Procurement's vocabulary. `consolidating` gets the same calm steel tone as any other in-progress
+  stage, never a warning: it is a correct buying decision, and colouring it as a problem would
+  recreate the confusion v2.69.0 introduced the state to remove. Its **age** still carries the
+  emphasis, which is the thing that actually deserves it.
 - **"Pending Approval" is not a stored status** — it's how `submitted` is *labeled* in the UI while
   the associated `Approval` record's own status is `pending`. Don't add a literal
   `pending_approval` database value; it would duplicate what `Approval.status` already represents.

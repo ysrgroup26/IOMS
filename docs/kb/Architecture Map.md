@@ -1,7 +1,7 @@
 ---
 title: Architecture Map
 type: reference
-updated: 2026-09-15
+updated: 2026-09-16
 tags: [kb/architecture]
 ---
 
@@ -126,6 +126,8 @@ Three commands, all requiring the server's cron to reach `php artisan schedule:r
 | `Components/shared/form/` | The IOMS Form Experience System — `FormSection`, `FormField`, `FormActions`, `ErrorSummary`, `SearchableSelect` |
 | `Components/shared/` | The components every module is expected to reuse: `StatusBadge`, `PageHeader`, `EmptyState`, `StatCard`, `ApprovalActions`, `ActivityTimeline`, `EmployeeSelector`, `AgingIndicator` |
 | `lib/useFocusTrap.js` · `lib/useMediaQuery.js` | The shell's two behavioural primitives — what makes an overlay a *dialog* rather than a div |
+| `lib/navigationMemory.js` | **v2.71.0** — session-scoped navigation memory: the rail's scroll offset (per department, restored before paint, clamped) and the last active department, which resolves a route owned by several. Exists because every page wraps its own layout, so the rail remounts on every navigation. ADR [[034-capability-reach-and-navigation-hierarchy\|034]] |
+| `Components/shared/PageHeader.jsx` | The module-page surface, and since **v2.71.0** the carrier of a page's `kind` — `master` / `operational` / `monitoring` / `administration`. Only the first, third and fourth are labelled; operational is the unlabelled default |
 
 Rules for using these are in [[UX and Design Principles]].
 

@@ -1,5 +1,5 @@
 import { Link, usePage, router } from '@inertiajs/react';
-import { useEffect, useState } from 'react';
+import { useEffect, useRef, useState } from 'react';
 import {
     LogOut, Menu, X,
     Bell, User as UserIcon, ChevronDown, Sun, Moon, ChevronRight,
@@ -12,6 +12,7 @@ import { useTheme, DARK_MODE_ENABLED } from '@/lib/useTheme';
 import { useFocusTrap } from '@/lib/useFocusTrap';
 import { useMediaQuery } from '@/lib/useMediaQuery';
 import { getSelectableDepartments, getGlobalNavItems, getWorkspaceKeyForRoute, isDepartmentWorkspaceKey } from '@/lib/workspaces';
+import { useScrollMemory, rememberWorkspaceKey, recallWorkspaceKey } from '@/lib/navigationMemory';
 import AboutDialog from '@/Components/shared/AboutDialog';
 import BrandWordmark from '@/Components/shared/BrandWordmark';
 import GlobalSearch from '@/Components/shared/GlobalSearch';
@@ -71,6 +72,52 @@ function firstRealItem(workspace) {
     return workspace?.items.find((item) => item.href && !item.disabled && !item.global) ?? null;
 }
 
+/**
+ * v2.71.0 -- THE SIDEBAR HAS TWO LEVELS, AND USED TO SHOW THREE SIZES.
+ *
+ * Reported as "some hierarchy levels look too similar", and reading the
+ * markup the problem was sharper than that: the hierarchy was INVERTED.
+ * A group header ("Safety Management", "Permit & Work Safety") rendered
+ * at 11px uppercase in `navy-400`, while its own children ("PTW", "Gas
+ * Test") rendered at 13px in the same `navy-400`. The parent was smaller
+ * than, and no brighter than, the things inside it -- so the least
+ * prominent row in the list was the one naming the section.
+ *
+ * That was deliberate once (a v1.11.13 note calls it
+ * "SMALLER-LABELED-parent/LARGER-item"), borrowed from the convention
+ * where a plain text label sits above an ungrouped list. It does not
+ * survive contact with a COLLAPSIBLE group, which is a control, and it is
+ * what made "Overview" and "Permit & Work Safety" read as unrelated
+ * kinds of thing when they are peers.
+ *
+ * Now there are exactly two levels, and rank reads top to bottom:
+ *
+ *   Level 1  every top-level row, leaf or group    13px / medium / navy-300
+ *   Level 2  items inside a group                  13px / normal / navy-400
+ *
+ * A group header is a level-1 row that happens to carry a chevron. It is
+ * not a label, not a caption, and not smaller than its contents.
+ *
+ * ENTRY ITEMS are separated from the rest by a hairline rather than by a
+ * third type size: Dashboard, My Work and Overview answer "where am I",
+ * everything below answers "what do I do". That grouping is derived, so a
+ * new department gets it without declaring anything.
+ */
+function isEntryItem(item) {
+    return !!item.global || !!item.href?.endsWith('.dashboard');
+}
+
+/** Index of the last leading entry item, or -1 when the menu opens straight into content. */
+function entryBoundary(items) {
+    let last = -1;
+    for (let i = 0; i < items.length; i++) {
+        if (!isEntryItem(items[i])) break;
+        last = i;
+    }
+    // A divider is only meaningful when something follows it.
+    return last >= 0 && last < items.length - 1 ? last : -1;
+}
+
 export default function AuthenticatedLayout({ children }) {
     const { auth, company, version, modules, workspace_catalog: workspaceCatalog } = usePage().props;
     const [sidebarOpen, setSidebarOpen] = useState(false);
@@ -105,6 +152,9 @@ export default function AuthenticatedLayout({ children }) {
     const isDesktop = useMediaQuery('(min-width: 1024px)');
     const drawerOpen = sidebarOpen && ! isDesktop;
     const sidebarRef = useFocusTrap(drawerOpen, () => setSidebarOpen(false));
+    // The scrollable <nav> INSIDE the rail -- the rail itself does not
+    // scroll, its nav list does.
+    const navScrollRef = useRef(null);
 
     // Widening past lg reveals the rail anyway. Leaving `sidebarOpen`
     // set would keep dialog semantics on an element that is now simply
@@ -149,12 +199,30 @@ export default function AuthenticatedLayout({ children }) {
     // remembered last choice. This matches the same "route is the only
     // source of truth" principle the rest of this navigation model
     // already follows.
-    const routeWorkspaceKey = getWorkspaceKeyForRoute(route().current());
+    // v2.71.0: a route owned by SEVERAL departments (Man-Hour, Material
+    // Request) resolves in favour of the one the user is already working
+    // in, instead of whichever workspace happened to be declared last in
+    // workspaces.js. Single-owner routes -- almost all of them -- are
+    // unaffected, so "the route is the source of truth" still holds
+    // wherever there is only one truth to have.
+    const routeWorkspaceKey = getWorkspaceKeyForRoute(route().current(), recallWorkspaceKey());
     const routeIsDepartment = isDepartmentWorkspaceKey(routeWorkspaceKey);
 
     const activeWorkspace = isDepartmentUser
         ? selectableDepartments[0]
         : (routeIsDepartment ? selectableDepartments.find((w) => w.key === routeWorkspaceKey) : undefined);
+
+    // Remembered only once a department is genuinely active, so landing on
+    // the Global Dashboard never erases where the user was.
+    useEffect(() => {
+        if (activeWorkspace?.key) rememberWorkspaceKey(activeWorkspace.key);
+    }, [activeWorkspace?.key]);
+
+    // The sidebar's own scroll offset, keyed to the menu being shown --
+    // switching department starts a new memory, because the list is now a
+    // different list. Disabled while the mobile drawer is closed, where the
+    // container is not scrollable and would record a meaningless 0.
+    useScrollMemory(navScrollRef, activeWorkspace?.key ?? 'global', isDesktop || sidebarOpen);
 
     // Department Users always see only their own department's sidebar, on
     // every page -- including the Global Dashboard itself -- never the
@@ -165,6 +233,8 @@ export default function AuthenticatedLayout({ children }) {
     const visibleNav = isDepartmentUser
         ? (selectableDepartments[0]?.items ?? [])
         : (activeWorkspace?.items ?? getGlobalNavItems(auth?.user, enabledModules, workspaceCatalog));
+
+    const navEntryBoundary = entryBoundary(visibleNav);
 
     const activeNavItem = visibleNav.find((item) => isItemActive(item, currentUrl));
     // Only populated for a parent item that actually has children AND one
@@ -340,9 +410,11 @@ export default function AuthenticatedLayout({ children }) {
                     </button>
                 </div>
 
-                <nav aria-label="Workspace" className="flex-1 space-y-0.5 overflow-y-auto px-3 pb-3 pt-1.5">
-                    {visibleNav.map((item) => {
+                <nav ref={navScrollRef} aria-label="Workspace" className="flex-1 space-y-0.5 overflow-y-auto px-3 pb-3 pt-1.5">
+                    {visibleNav.map((item, index) => {
                         const Icon = item.icon;
+                        // Hairline between "where am I" and "what do I do".
+                        const dividerAfter = index === navEntryBoundary;
 
                         // Disabled (v1.9.0): a real department this platform
                         // is heading toward, but no route/controller/page
@@ -389,26 +461,28 @@ export default function AuthenticatedLayout({ children }) {
 
                         if (hasChildren) {
                             return (
-                                <div key={item.name}>
-                                    {/* v1.11.13 (reference-screenshot pass): the spec/reference
-                                        draws a real distinction between "Sidebar Group Label"
-                                        (11px/500) and "Sidebar Menu"/"Nested item" (both 13px/500)
-                                        -- three separate categories, not one flat size. v1.11.11
-                                        had collapsed group header and child down to the same 12px,
-                                        which undid that distinction. Restored here: this group
-                                        TOGGLE button is the "group label" (11px, muted, acts as an
-                                        organizational label first and a button second); children
-                                        below go back up to 13px as "nested item," matching plain
-                                        leaf items' own "main menu" size exactly -- differentiated
-                                        from their parent by being SMALLER-LABELED-parent/LARGER-
-                                        item, not by the reverse. */}
+                                <div key={item.name} className={cn(dividerAfter && 'mb-2 border-b border-white/[0.07] pb-2 dark:border-slate-800')}>
+                                    {/* v2.71.0: a level-1 row, identical in size, weight and ink
+                                        to every other top-level row -- see `isEntryItem` above for
+                                        why the previous 11px/uppercase/muted treatment inverted the
+                                        hierarchy. The chevron is what says "this contains things";
+                                        the type does not have to shrink to say it. `aria-expanded`
+                                        reports the same fact to a screen reader, which the old
+                                        purely-visual rotation never did. */}
                                     <button
                                         type="button"
                                         onClick={() => toggleMenu(item.name)}
-                                        className="flex h-9 w-full items-center gap-2.5 rounded-[10px] px-3 text-[11px] font-medium text-navy-400 transition-all duration-150 hover:bg-white/[0.06] hover:text-white dark:text-slate-400 dark:hover:bg-slate-900 dark:hover:text-slate-100"
+                                        aria-expanded={isExpanded}
+                                        className={cn(
+                                            'flex h-9 w-full items-center gap-2.5 rounded-[10px] px-3 text-[13px] font-medium transition-all duration-150 hover:bg-white/[0.06] hover:text-white dark:hover:bg-slate-900 dark:hover:text-slate-100',
+                                            // A collapsed group holding the active page keeps a
+                                            // trace of it, so closing a section never hides where
+                                            // you are entirely.
+                                            containsActiveChild ? 'text-white dark:text-slate-100' : 'text-navy-300 dark:text-slate-300'
+                                        )}
                                     >
-                                        <Icon className="h-4 w-4 shrink-0 text-navy-400 dark:text-slate-500" />
-                                        <span className="flex-1 text-left uppercase tracking-wide">{item.name}</span>
+                                        <Icon className={cn('h-4 w-4 shrink-0', containsActiveChild ? 'text-steel-300 dark:text-brand-400' : 'text-steel-400 dark:text-slate-500')} />
+                                        <span className="flex-1 truncate text-left">{item.name}</span>
                                         <ChevronDown className={cn('h-3.5 w-3.5 shrink-0 text-navy-400 transition-transform duration-200 dark:text-slate-500', isExpanded && 'rotate-180')} />
                                     </button>
                                     {/* CSS-grid expand/collapse -- same
@@ -442,6 +516,11 @@ export default function AuthenticatedLayout({ children }) {
                                                             // v2.67.0: active state was weight and colour
                                                             // only -- nothing a screen reader could report.
                                                             aria-current={childActive ? 'page' : undefined}
+                                                            // v2.71.0: level 2 -- same size as its
+                                                            // parent but lighter weight and dimmer
+                                                            // ink, which is what makes it read as
+                                                            // subordinate WITHOUT shrinking below a
+                                                            // comfortable scanning size.
                                                             className={cn(
                                                                 'flex h-[34px] items-center gap-2 rounded-lg px-2.5 text-[13px] leading-tight transition-colors duration-150',
                                                                 childActive ? 'font-semibold text-white dark:text-brand-400' : 'font-normal text-navy-400 hover:text-white dark:text-slate-500 dark:hover:text-slate-200'
@@ -469,6 +548,9 @@ export default function AuthenticatedLayout({ children }) {
                                     // v1.11.13: bumped text-xs(12px) -> text-[13px], matching
                                     // this pass's "Main menu text: 13px/500" exactly.
                                     'relative flex h-9 items-center gap-2.5 rounded-[10px] px-3 text-[13px] font-medium transition-all duration-150',
+                                    // v2.71.0: the hairline that separates "where am I"
+                                    // (Dashboard / My Work / Overview) from "what do I do".
+                                    dividerAfter && 'mb-2 after:absolute after:inset-x-0 after:-bottom-2 after:h-px after:bg-white/[0.07] dark:after:bg-slate-800',
                                     // v1.11.12: active text was text-brand-700 (#1D4ED8) --
                                     // spec's exact "Active text: #2563EB" is brand-600, one
                                     // shade lighter. Active background (bg-brand-50 = #EFF6FF)
@@ -476,13 +558,17 @@ export default function AuthenticatedLayout({ children }) {
                                     // below) already matched exactly.
                                     active
                                         ? 'bg-white/[0.10] font-semibold text-white dark:bg-brand-950/40 dark:text-brand-400'
-                                        : 'text-navy-300 hover:bg-white/[0.06] hover:text-white dark:text-slate-400 dark:hover:bg-slate-900 dark:hover:text-slate-100'
+                                        // v2.71.0: the navy scale already separates these --
+                                        // navy-300 for a level-1 row, navy-400 for the
+                                        // children nested under its neighbours. The group
+                                        // header was the one row sitting on the wrong step.
+                                        : 'text-navy-300 hover:bg-white/[0.06] hover:text-white dark:text-slate-300 dark:hover:bg-slate-900 dark:hover:text-slate-100'
                                 )}
                             >
                                 {active && (
                                     <span className="absolute left-0 top-1/2 h-5 w-1 -translate-y-1/2 rounded-r-full bg-steel-400" />
                                 )}
-                                <Icon className={cn('h-4 w-4 shrink-0', active ? 'text-steel-300 dark:text-brand-400' : 'text-navy-400 dark:text-slate-500')} />
+                                <Icon className={cn('h-4 w-4 shrink-0', active ? 'text-steel-300 dark:text-brand-400' : 'text-steel-400 dark:text-slate-500')} />
                                 {item.name}
                             </Link>
                         );

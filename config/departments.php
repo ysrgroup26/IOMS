@@ -89,7 +89,11 @@ return [
     // Logistics (not the separate, still-placeholder 'warehouse' department
     // below), matching `workspaces.js`'s own explicit note.
     'logistics' => [
-        'material-requests', 'goods-receipts', 'logistics',
+        // v2.71.0: 'material-requests' moved OUT of this list -- see
+        // RestrictDepartmentAccess::UNIVERSAL_PREFIXES for why. Raising a
+        // request is cross-department; FULFILLING one is not, so
+        // goods-receipts/items/warehouses/stock stay owned here.
+        'goods-receipts', 'logistics',
         'items', 'warehouses', 'stock',
     ],
     'warehouse' => ['warehouse'],

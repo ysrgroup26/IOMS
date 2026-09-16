@@ -181,7 +181,11 @@ class SettingsController extends Controller
                 'manage_ptw_access' => request()->user()->canManageHse(),
                 // v2.52.0: a workspace preference, not a permission -- so it
                 // is an administrative setting rather than an HSE one.
-                'manage_field_access' => request()->user()->canManageSystemSettings(),
+                // v2.71.0: matches updateFieldAccess()'s own corrected gate.
+                // It previously reported Super-Admin-only while the endpoint's
+                // route admitted HSE, so the toggle was hidden from exactly
+                // the role that needs it to finish setting up a field account.
+                'manage_field_access' => request()->user()->canManageHse(),
             ],
             // Milestone 2 (RBAC UI, Task #45). Tenant-side roles only --
             // Role::where('tenant_id', ...) already excludes the
@@ -1181,13 +1185,33 @@ class SettingsController extends Controller
      *
      * It therefore consumes NO quota and grants NO capability. A field
      * worker normally has this and not PTW Access; a foreman may have
-     * both. Gated to Super Admin because it changes where a colleague's
-     * session lands, which is an administrative decision.
+     * both.
+     *
+     * v2.71.0 -- GATE CORRECTED TO MATCH ITS OWN ROUTE AND ITS OWN UI.
+     *
+     * This required `canManageSystemSettings()` (Super Admin only) while
+     * its route sits in `role:super_admin,hse` and Settings renders the
+     * toggle to HSE. An HSE administrator was shown a control that 403'd
+     * every time they used it -- the exact "dead UI" shape this codebase
+     * has a documented pitfall for.
+     *
+     * Aligned to `canManageHse()`, the same gate `updatePtwAccess()`
+     * beside it already uses, because the two halves only make sense
+     * together: a field PTW user needs BOTH the permission to raise a
+     * permit AND the workspace that shows it to them. Granting HSE one
+     * without the other meant HSE could not actually produce a working
+     * field account at all.
+     *
+     * NOTHING IS WIDENED BEYOND THAT. `is_field_user` chooses a landing
+     * workspace; it grants no data access, no capability and no role.
+     * Account creation, email and password remain Super-Admin-only
+     * (`storeUser`/`updateUser`), and the same-tenant assertion below is
+     * unchanged.
      */
     public function updateFieldAccess(Request $request, User $user): RedirectResponse
     {
         abort_unless($user->tenant_id === $request->user()->tenant_id, 404);
-        abort_unless($request->user()->canManageSystemSettings(), 403);
+        abort_unless($request->user()->canManageHse(), 403);
 
         $validated = $request->validate(['is_field_user' => ['required', 'boolean']]);
 

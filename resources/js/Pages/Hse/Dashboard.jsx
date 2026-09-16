@@ -9,7 +9,7 @@ import ModuleCard from '@/Components/shared/ModuleCard';
 import DepartmentCalendarWidget from '@/Components/shared/DepartmentCalendarWidget';
 import {
     FolderKanban, AlertTriangle, HardHat, History, Eye, Flame, ShieldAlert, ClipboardCheck,
-    ClipboardList, FileWarning, Lock, UsersRound, FlaskConical, UserCheck, FileCheck, FileStack, Recycle, Clock,
+    ClipboardList, FileWarning, Lock, UsersRound, FlaskConical, UserCheck, FileCheck, FileStack, Recycle, Clock, PackageSearch, Users, ShieldCheck,
 } from 'lucide-react';
 
 /* v2.68.0 -- LANGUAGE HIERARCHY (v2.53.0) APPLIED HERE AT LAST.
@@ -41,6 +41,25 @@ const HSE_MODULES = [
     { icon: UserCheck, title: 'Contractor Management', description: 'Register kontraktor, pekerja, dokumen.', href: 'contractors.index' },
     { icon: FileCheck, title: 'Visitor Management', description: 'Register akses lokasi.', href: 'visitors.index' },
     { icon: FileStack, title: 'Document Control', description: 'Dokumen terkendali dengan riwayat versi.', href: 'controlled-documents.index' },
+    // v2.71.0 -- HSE raises material requests and had no entry point here
+    // or in its own sidebar. See RestrictDepartmentAccess::UNIVERSAL_PREFIXES
+    // for why the route was unreachable for HSE on the Starter and
+    // Professional plans until this release.
+    { icon: PackageSearch, title: 'Material Request', description: 'Pengajuan kebutuhan barang dan material HSE.', href: 'material-requests.index' },
+];
+
+/**
+ * v2.71.0 -- the two administrative surfaces HSE owns but could not find.
+ *
+ * Kept OUT of HSE_MODULES above on purpose: that grid is the operational
+ * work an HSE team does, and folding an account-management screen into it
+ * would blur exactly the master/operational distinction this release
+ * exists to sharpen. Rendered as its own small row, only for someone who
+ * can actually act on it.
+ */
+const HSE_ADMIN_LINKS = [
+    { icon: Users, title: 'Field & PTW Access', description: 'Atur siapa yang boleh membuat PTW dan akun mana yang membuka My Work.', href: 'settings.index', params: { tab: 'users' } },
+    { icon: ShieldCheck, title: 'Safety Equipment & Compliance', description: 'Register peralatan keselamatan dan data acuan HSE.', href: 'hse.master' },
 ];
 
 /**
@@ -59,7 +78,7 @@ export default function HseDashboard({
     activeProjectsCount, openIncidentsCount, incidentsBySeverity, ppeAlertCount,
     recentIncidents, recentActivity, openSafetyObservationsCount, recentSafetyObservations,
     openPermitsCount, overdueSafetyEquipmentCount, overdueP3kCount, openCapaCount, actionRequired,
-    manHours, safetyKpi, departmentCalendar, wasteSummary,
+    manHours, safetyKpi, departmentCalendar, wasteSummary, canManageHse,
 }) {
     return (
         <AuthenticatedLayout>
@@ -172,6 +191,24 @@ export default function HseDashboard({
                 <div className="grid grid-cols-2 gap-3 sm:grid-cols-3 lg:grid-cols-6">
                     {HSE_MODULES.map((m) => <ModuleCard key={m.title} {...m} />)}
                 </div>
+
+                {/* v2.71.0 -- the HSE administration row.
+                    Separated from the operational grid above by its own
+                    heading rather than mixed into it: these configure who
+                    can do what and what the system offers, which is a
+                    different kind of screen from "record an incident". It
+                    is also the answer to "where do I manage field PTW
+                    users", which had no signpost outside the sidebar. */}
+                {canManageHse && (
+                    <div>
+                        <p className="mb-2 text-[11px] font-semibold uppercase tracking-wide text-graphite-400 dark:text-slate-500">HSE Administration</p>
+                        <div className="grid grid-cols-1 gap-3 sm:grid-cols-2">
+                            {HSE_ADMIN_LINKS.map((m) => (
+                                <ModuleCard key={m.title} icon={m.icon} title={m.title} description={m.description} href={m.href} queryParams={m.params} />
+                            ))}
+                        </div>
+                    </div>
+                )}
 
                 {/* LEVEL 3 -- HSE activity */}
                 <div className="grid grid-cols-1 gap-3 lg:grid-cols-3">

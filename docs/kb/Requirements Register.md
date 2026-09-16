@@ -1,7 +1,7 @@
 ---
 title: Requirements Register
 type: register
-updated: 2026-09-15
+updated: 2026-09-16
 tags: [kb/requirements]
 ---
 
@@ -62,6 +62,12 @@ Older completions live in [[Release History]].
 
 | Item | Version | Status | Evidence |
 |---|---|---|---|
+| Material Request reachable by HSE — the department whose permission has always owned it | 2.71.0 | `#status/verified` | ADR [[034-capability-reach-and-navigation-hierarchy\|034]]; `DepartmentCapabilityReachTest`; opened from the HSE rail in a browser |
+| Requester-facing Material Request lifecycle — what happened, who holds it, what is next | 2.71.0 | `#status/verified` | `RequestStage` in `Pages/MaterialRequests/Show.jsx`; exercised for submitted / consolidating / completed |
+| Sidebar scroll position survives navigation | 2.71.0 | `#status/verified` | `lib/navigationMemory.js`; `NavigationBehaviourTest`; restore, clamp and per-department isolation measured in a browser |
+| Sidebar hierarchy — two levels, not three type sizes | 2.71.0 | `#status/verified` | Computed styles measured against the compiled stylesheet |
+| Master vs operational distinction — `PageHeader` `kind` | 2.71.0 | `#status/verified` | ADR 034; the chip follows the open tab on Safety Equipment & Compliance |
+| HSE can finish setting up a field PTW account | 2.71.0 | `#status/verified` | `updateFieldAccess` gate corrected; `DepartmentCapabilityReachTest` covers both toggles, tenant isolation and that credentials stay Super-Admin-only |
 | Subscription lifecycle — renewal, grace, read-only lapse, plan changes | 2.70.0 | `#status/verified` | ADR [[033-subscription-lifecycle\|033]]; `SubscriptionLifecycleTest` (38 tests); browser-exercised across active / grace / lapsed, including a real renewal invoice and a scheduled downgrade |
 | `tenants.status` enforced — the suspend control previously wrote a column nothing read | 2.70.0 | `#status/implemented` | `EntitlementService::tenantIsUsable()`; `SubscriptionLifecycleTest` |
 | Platform plan change re-prices and re-entitles | 2.70.0 | `#status/implemented` | Runs the same `SubscriptionLifecycleService::applyPlanChange()` the customer path uses |

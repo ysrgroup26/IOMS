@@ -232,7 +232,16 @@ export const WORKSPACES = [
                     // unchanged by this pass. No new capability, no
                     // authorization change -- a missing signpost to an
                     // existing one.
-                    { name: 'PTW Access', href: 'settings.index', queryParams: { tab: 'users' }, icon: Users },
+                    // v2.71.0: was "PTW Access", which named the permission
+                    // rather than the thing an administrator is looking for.
+                    // Someone hunting for where field workers' accounts are
+                    // managed does not scan for a permission name -- and the
+                    // card this opens is titled "Field & PTW Access", so the
+                    // menu item and its destination now read as the same
+                    // thing, which is the rule the rest of the product
+                    // already follows. Route, queryParams and authorization
+                    // are untouched.
+                    { name: 'Field & PTW Access', href: 'settings.index', queryParams: { tab: 'users' }, icon: Users },
                 ],
             },
             {
@@ -260,6 +269,17 @@ export const WORKSPACES = [
             // HR's own sidebar already links to (`man-hour.index`), no
             // duplicate page/controller/table.
             { name: 'Man-Hour', href: 'man-hour.index', icon: Clock },
+            // v2.71.0 -- HSE RAISES MATERIAL REQUESTS AND HAD NO WAY IN.
+            //
+            // `User::canManageMaterialRequests()` has been
+            // `isSuperAdmin() || isHse()` since the module shipped, and
+            // the sidebar entry existed only under Logistics / PPIC -- so
+            // the department the capability was built for had no path to
+            // it, and on a Starter or Professional plan (neither grants
+            // `logistics`) the route was 403'd outright. Same route, same
+            // controller, same permission as the Logistics entry: one
+            // module with two doors, exactly like Man-Hour above.
+            { name: 'Material Request', href: 'material-requests.index', icon: PackageSearch, moduleKey: 'material_requests' },
             {
                 name: 'HSE Control',
                 icon: ListChecks,
@@ -727,6 +747,15 @@ export function getGlobalNavItems(user, enabledModules, workspaceCatalog) {
 // detection (department switcher, sidebar highlighting, breadcrumb) for
 // every regrouped route. Fixed here rather than only for HSE, so any
 // future workspace that adopts `children` gets this for free.
+/**
+ * v2.71.0: records EVERY owner of a prefix, not just the last one to
+ * declare it. A genuinely shared capability appears in more than one
+ * department's menu on purpose -- Man-Hour is shared HR/HSE data, and
+ * Material Request is raised by every department -- and collapsing that
+ * to one winner meant the sidebar jumped to whichever workspace happened
+ * to be declared last in this file. Single-owner prefixes, which is
+ * almost all of them, behave exactly as before.
+ */
 function registerPrefixes(map, items, workspaceKey) {
     for (const item of items) {
         if (item.children) {
@@ -734,11 +763,18 @@ function registerPrefixes(map, items, workspaceKey) {
             continue;
         }
         if (!item.href || item.global) continue;
-        map[item.href.split('.')[0]] = workspaceKey;
+
+        const prefix = item.href.split('.')[0];
+        const owners = map[prefix] ?? (map[prefix] = []);
+
+        // The same prefix can appear several times within ONE workspace
+        // (Administration declares `settings.index` repeatedly with
+        // different queryParams); that is not shared ownership.
+        if (!owners.includes(workspaceKey)) owners.push(workspaceKey);
     }
 }
 
-const PREFIX_TO_WORKSPACE = WORKSPACES.reduce((map, workspace) => {
+const PREFIX_TO_WORKSPACES = WORKSPACES.reduce((map, workspace) => {
     registerPrefixes(map, workspace.items, workspace.key);
     return map;
 }, {});
@@ -749,10 +785,19 @@ const PREFIX_TO_WORKSPACE = WORKSPACES.reduce((map, workspace) => {
  * (`dashboard` route) and for any route with no owning workspace at all
  * -- both correctly mean "no department is active," which is exactly
  * when the sidebar should fall back to Global navigation.
+ *
+ * `preferredKey` only ever matters for a route owned by more than one
+ * department, where it resolves the tie in favour of the workspace the
+ * user is already working in. Passing it can never move a single-owner
+ * route to a department that does not own it.
  */
-export function getWorkspaceKeyForRoute(routeName) {
+export function getWorkspaceKeyForRoute(routeName, preferredKey = null) {
     if (!routeName) return null;
-    return PREFIX_TO_WORKSPACE[routeName.split('.')[0]] ?? null;
+
+    const owners = PREFIX_TO_WORKSPACES[routeName.split('.')[0]];
+    if (!owners?.length) return null;
+
+    return preferredKey && owners.includes(preferredKey) ? preferredKey : owners[0];
 }
 
 /** Whether a resolved workspace key belongs to a department (as opposed to 'reports'/'administration' or no match at all). */

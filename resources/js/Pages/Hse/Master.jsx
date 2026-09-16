@@ -11,8 +11,9 @@ import { Table, TableHeader, TableBody, TableRow, TableHead, TableCell } from '@
 import { Select, SelectTrigger, SelectValue, SelectContent, SelectItem } from '@/Components/ui/select';
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogFooter } from '@/Components/ui/dialog';
 import { Checkbox } from '@/Components/ui/checkbox';
-import { Plus, Pencil, Trash2, AlertCircle, HardHat, ClipboardList, ShieldAlert, Package , ListChecks } from 'lucide-react';
+import { Plus, Pencil, Trash2, AlertCircle, HardHat, ClipboardList, ShieldAlert, Package, ListChecks, ShieldCheck } from 'lucide-react';
 import { cn } from '@/lib/utils';
+import PageHeader from '@/Components/shared/PageHeader';
 
 /**
  * Milestone 4, Workstream B0 (HSE Foundation/Master Data), IA reworked
@@ -33,9 +34,10 @@ import { cn } from '@/lib/utils';
  * - Hazard Categories: its own tab -- feeds Safety Observations, an
  *   unrelated consumer to both groups above (NOT folded into "risk
  *   references" broadly; it has no relation to RiskAssessment/JSA).
- * - HSE Supplies & Facilities: HSE Materials + P3K Boxes -- both are
- *   stock/facility registers with inspection-due tracking, the closest
- *   in shape to each other of anything left.
+ * - Supplies & First Aid (named "HSE Supplies & Facilities" until
+ *   v2.71.0): HSE Materials + P3K Boxes -- both are stock/facility
+ *   registers with inspection-due tracking, the closest in shape to each
+ *   other of anything left.
  *
  * Client-side, single-route tabs (not `ModuleTabNav`'s route-per-tab
  * pattern -- all 6 sections still share one efficient, N+1-free
@@ -46,19 +48,54 @@ import { cn } from '@/lib/utils';
  * Every section component below is UNCHANGED internally -- this only
  * moves and groups them.
  */
-const TABS = [
-    // v2.53.0 -- MASTER and REGISTER are different questions and get
-    // different tabs. The master defines TYPES (Gas Detector, Fire
-    // Extinguisher) and which lifecycles each one has; the register holds
-    // the actual units the company owns (GD-001, FE-002) with the dates
-    // that apply to them. Stacked on one tab, the type definitions were
-    // something you scrolled past to reach the equipment.
-    { key: 'register', label: 'Equipment Register', icon: HardHat },
-    { key: 'equipment-master', label: 'Equipment Master', icon: ListChecks },
-    { key: 'templates', label: 'Inspection Templates', icon: ClipboardList },
-    { key: 'hazards', label: 'Hazard Categories', icon: ShieldAlert },
-    { key: 'supplies', label: 'HSE Supplies & Facilities', icon: Package },
+/**
+ * v2.71.0 -- THE TABS NOW SAY WHICH KIND OF THING THEY HOLD.
+ *
+ * Five sibling tabs of equal weight, and no way to tell that two of them
+ * hold the equipment the company actually owns while three define what
+ * the system offers to choose from. Reported as the area "feeling rigid"
+ * and as Equipment Register being indistinguishable from Supplies --
+ * which it was, because nothing said they were different KINDS of list.
+ *
+ * They are now grouped under two headings in the tab strip itself, and
+ * the page header's chip follows the ACTIVE tab rather than labelling the
+ * whole page. That is the honest thing to do here: this page genuinely
+ * contains both, and claiming it is entirely one or the other would
+ * mislabel half of it. See PageHeader's own `kind` note for the product-
+ * wide convention.
+ *
+ * Two labels changed, nothing moved:
+ *   "Equipment Master"          -> "Equipment Types"  (it defines types;
+ *                                  "Master" is now carried by the chip)
+ *   "HSE Supplies & Facilities" -> "Supplies & First Aid"
+ * Routes, tab keys, data and every `?tab=` bookmark are unchanged.
+ */
+const TAB_GROUPS = [
+    {
+        // v2.53.0 -- MASTER and REGISTER are different questions and get
+        // different tabs. The master defines TYPES (Gas Detector, Fire
+        // Extinguisher) and which lifecycles each one has; the register
+        // holds the actual units the company owns (GD-001, FE-002) with
+        // the dates that apply to them.
+        label: 'Registers',
+        kind: 'operational',
+        tabs: [
+            { key: 'register', label: 'Equipment Register', icon: HardHat },
+            { key: 'supplies', label: 'Supplies & First Aid', icon: Package },
+        ],
+    },
+    {
+        label: 'Reference Data',
+        kind: 'master',
+        tabs: [
+            { key: 'equipment-master', label: 'Equipment Types', icon: ListChecks },
+            { key: 'templates', label: 'Inspection Templates', icon: ClipboardList },
+            { key: 'hazards', label: 'Hazard Categories', icon: ShieldAlert },
+        ],
+    },
 ];
+
+const TABS = TAB_GROUPS.flatMap((group) => group.tabs.map((tab) => ({ ...tab, kind: group.kind })));
 
 function initialTab() {
     if (typeof window === 'undefined') return TABS[0].key;
@@ -68,6 +105,7 @@ function initialTab() {
 
 export default function HseMaster({ hazardCategories, safetyEquipment, equipmentTypes, hseMaterials, p3kBoxes, checklistTemplates = [], inspectionTypes = [], assets = [], companies, can }) {
     const [activeTab, setActiveTab] = useState(initialTab);
+    const active = TABS.find((t) => t.key === activeTab);
 
     function selectTab(key) {
         setActiveTab(key);
@@ -82,47 +120,54 @@ export default function HseMaster({ hazardCategories, safetyEquipment, equipment
         <AuthenticatedLayout>
             <Head title="Safety Equipment & Compliance" />
 
-            {/* v1.11.7 (Production Readiness Follow-Up, Part 3 -- HSE
-                Master Data clarity). Per explicit user feedback this page
-                was confusing about what belongs here. Structure/routes are
-                UNCHANGED (see the class doc comment above for why the
-                Safety Equipment tab's inline inspection-recording stays --
-                it's a deliberate producer/consumer chain, not
-                accidental); this is a labeling/help-text-only clarification. */}
-            {/* v2.34.0 (Post-Deployment Product Gap pass, Part 5): title
-                matched to the sidebar's own new "Equipment & Master Data"
-                label (see workspaces.js) -- this page is where a user
-                looking for "HSE Inventory" (APAR, P3K/First Aid, HT,
-                safety cones, etc.) actually finds it, under "Safety
-                Equipment Register" below. Subtitle now says so explicitly
-                instead of only the generic "configuration & reference
-                data" framing. */}
-            <div className="mb-4">
-                <h1 className="text-[22px] font-semibold tracking-tight text-navy-900 dark:text-slate-50">Safety Equipment &amp; Compliance</h1>
-                <p className="mt-0.5 text-xs text-graphite-500 dark:text-slate-400">
-                    Equipment Master mendefinisikan JENIS peralatan beserta siklus yang berlaku baginya;
-                    Equipment Register berisi unit yang benar-benar dimiliki perusahaan (GD-001, FE-002)
-                    beserta tanggal inspeksi, kalibrasi, servis, atau kedaluwarsanya. Aktivitas harian
-                    (mencatat insiden, menjalankan inspeksi, mengeluarkan APD) tetap dilakukan di halaman
-                    modulnya masing-masing, bukan di sini.
-                </p>
-            </div>
+            {/* v2.71.0: was a bare <h1>/<p> on the page background while
+                every other module page had moved to the shared PageHeader
+                surface -- which is most of why this area read as a generic
+                admin screen rather than part of IOMS. Same title, same
+                route; it now sits on the product's own module-page
+                surface, carries its icon chip, and states which KIND of
+                data the open tab holds. */}
+            <PageHeader
+                icon={ShieldCheck}
+                title="Safety Equipment & Compliance"
+                kind={active?.kind}
+                subtitle={
+                    active?.kind === 'master'
+                        ? 'Definisi yang dipakai seluruh modul HSE. Mengubahnya mengubah pilihan yang tersedia bagi semua orang berikutnya, dan tidak mengubah data yang sudah tercatat.'
+                        : 'Daftar peralatan dan perlengkapan yang benar-benar dimiliki perusahaan, beserta tanggal inspeksi, kalibrasi, servis, atau kedaluwarsanya.'
+                }
+            />
 
-            <div className="mb-4 flex flex-wrap gap-1 border-b border-graphite-200 dark:border-slate-800">
-                {TABS.map((tab) => (
-                    <button
-                        key={tab.key}
-                        type="button"
-                        onClick={() => selectTab(tab.key)}
-                        className={cn(
-                            'flex items-center gap-1.5 border-b-2 px-3 py-1.5 text-xs font-medium transition-colors',
-                            activeTab === tab.key
-                                ? 'border-brand-600 text-brand-700 dark:text-brand-400'
-                                : 'border-transparent text-graphite-500 hover:border-graphite-300 hover:text-graphite-800 dark:text-slate-400 dark:hover:text-slate-200'
-                        )}
-                    >
-                        <tab.icon className="h-3.5 w-3.5" /> {tab.label}
-                    </button>
+            {/* v2.71.0: the strip is grouped and labelled, so "which of
+                these hold real units and which define the options" is
+                answered before anything is clicked. Scrolls inside its own
+                wrapper -- the page never moves sideways (the same rule
+                ModuleTabNav follows). */}
+            <div className="mb-4 -mx-1 flex items-stretch gap-4 overflow-x-auto border-b border-graphite-200 px-1 dark:border-slate-800">
+                {TAB_GROUPS.map((group) => (
+                    <div key={group.label} className="shrink-0">
+                        <p className="px-1 pt-0.5 text-[10px] font-semibold uppercase tracking-wide text-graphite-400 dark:text-slate-500">
+                            {group.label}
+                        </p>
+                        <div className="flex gap-1">
+                            {group.tabs.map((tab) => (
+                                <button
+                                    key={tab.key}
+                                    type="button"
+                                    onClick={() => selectTab(tab.key)}
+                                    aria-current={activeTab === tab.key ? 'page' : undefined}
+                                    className={cn(
+                                        'flex shrink-0 items-center gap-1.5 whitespace-nowrap border-b-2 px-3 py-1.5 text-xs font-medium transition-colors',
+                                        activeTab === tab.key
+                                            ? 'border-brand-600 text-brand-700 dark:text-brand-400'
+                                            : 'border-transparent text-graphite-500 hover:border-graphite-300 hover:text-graphite-800 dark:text-slate-400 dark:hover:text-slate-200'
+                                    )}
+                                >
+                                    <tab.icon className="h-3.5 w-3.5" /> {tab.label}
+                                </button>
+                            ))}
+                        </div>
+                    </div>
                 ))}
             </div>
 
@@ -202,7 +247,7 @@ function HazardCategoriesSection({ hazardCategories, companies, can }) {
             <CardHeader className="flex flex-row items-center justify-between">
                 <div>
                     <CardTitle>Hazard Categories</CardTitle>
-                    <CardDescription>{hazardCategories.length} configured -- used by Safety Observation</CardDescription>
+                    <CardDescription>{hazardCategories.length} kategori tersedia. Dipakai saat mencatat Safety Observation.</CardDescription>
                 </div>
                 {can.manage && <Button onClick={openCreate}><Plus className="h-4 w-4" /> Add Category</Button>}
             </CardHeader>
@@ -328,10 +373,9 @@ function SafetyEquipmentSection({ safetyEquipment, equipmentTypes, assets = [], 
                 <div>
                     <CardTitle>Safety Equipment Register</CardTitle>
                     <CardDescription>
-                        {safetyEquipment.length} registered -- fire extinguishers, safety showers, emergency facilities.
-                        Registering an item here is configuration; the "Inspect" button below logs a real, dated
-                        operational record, kept on this page only because it belongs directly to the item it's
-                        inspecting -- not because it's configuration too.
+                        {safetyEquipment.length} unit terdaftar -- APAR, safety shower, dan fasilitas darurat lainnya.
+                        Tombol Inspect mencatat hasil inspeksi bertanggal untuk unit tersebut; catatan itu melekat pada
+                        unitnya, sehingga tetap dilakukan dari halaman ini.
                     </CardDescription>
                 </div>
                 {can.manage && <Button onClick={openCreate}><Plus className="h-4 w-4" /> Add Equipment</Button>}
@@ -404,7 +448,7 @@ function SafetyEquipmentSection({ safetyEquipment, equipmentTypes, assets = [], 
                                     {assets.map((a) => <SelectItem key={a.id} value={String(a.id)}>{a.asset_code ? `${a.asset_code} -- ${a.name}` : a.name}</SelectItem>)}
                                 </SelectContent>
                             </Select>
-                            <p className="text-xs text-graphite-400">Only if this equipment is also tracked in the general Asset register (e.g. a capitalized gas detector). Purely optional -- HSE tracking works fully without it.</p>
+                            <p className="text-xs text-graphite-400">Isi hanya jika unit ini juga tercatat di Asset Management (misalnya gas detector yang dikapitalisasi). Bersifat opsional -- pencatatan HSE tetap berjalan penuh tanpa ini.</p>
                         </div>
                         <div className="space-y-1.5">
                             <Label>Status</Label>
@@ -519,7 +563,7 @@ function HseMaterialSection({ hseMaterials, companies, can }) {
     return (
         <Card>
             <CardHeader className="flex flex-row items-center justify-between">
-                <div><CardTitle>HSE Materials &amp; Consumables</CardTitle><CardDescription>{hseMaterials.length} configured -- reordering goes through Material Request</CardDescription></div>
+                <div><CardTitle>HSE Materials &amp; Consumables</CardTitle><CardDescription>{hseMaterials.length} item terdaftar. Permintaan penambahan stok diajukan melalui Material Request.</CardDescription></div>
                 {can.manage && <Button onClick={openCreate}><Plus className="h-4 w-4" /> Add Material</Button>}
             </CardHeader>
             <CardContent>
@@ -610,7 +654,7 @@ function P3kBoxSection({ p3kBoxes, companies, can }) {
     return (
         <Card>
             <CardHeader className="flex flex-row items-center justify-between">
-                <div><CardTitle>P3K / First Aid Stations</CardTitle><CardDescription>{p3kBoxes.length} configured -- operational inspection only, not a medical records system</CardDescription></div>
+                <div><CardTitle>P3K / First Aid Stations</CardTitle><CardDescription>{p3kBoxes.length} titik terdaftar. Hanya untuk inspeksi kelengkapan kotak P3K, bukan rekam medis.</CardDescription></div>
                 {can.manage && <Button onClick={openCreate}><Plus className="h-4 w-4" /> Add P3K Box</Button>}
             </CardHeader>
             <CardContent>
@@ -710,7 +754,7 @@ function EquipmentTypesSection({ equipmentTypes, companies, can }) {
             <CardHeader className="flex flex-row items-center justify-between">
                 <div>
                     <CardTitle>Equipment Types</CardTitle>
-                    <CardDescription>{equipmentTypes.length} configured -- APAR, HT, Gas Detector, Blower, TOA, and any future category. Selectable when registering Safety Equipment below.</CardDescription>
+                    <CardDescription>{equipmentTypes.length} jenis tersedia -- APAR, HT, Gas Detector, Blower, TOA, dan jenis lain yang Anda tambahkan. Jenis di sini menjadi pilihan saat mendaftarkan unit di Equipment Register.</CardDescription>
                 </div>
                 {can.manage && <Button onClick={openCreate}><Plus className="h-4 w-4" /> Add Type</Button>}
             </CardHeader>
@@ -753,7 +797,7 @@ function EquipmentTypesSection({ equipmentTypes, companies, can }) {
                                 <Label>Code</Label>
                                 <Input value={data.code} onChange={(e) => setData('code', e.target.value)} placeholder="e.g. emergency_light" disabled={!!editing} />
                                 {errors.code && <p className="text-xs text-red-600">{errors.code}</p>}
-                                {editing && <p className="text-xs text-graphite-400">Code can't change once equipment may reference it.</p>}
+                                {editing && <p className="text-xs text-graphite-400">Kode tidak dapat diubah setelah ada unit yang memakainya.</p>}
                             </div>
                         </div>
                         <div className="space-y-1.5"><Label>Description (optional)</Label><Textarea value={data.description} onChange={(e) => setData('description', e.target.value)} rows={2} /></div>
@@ -823,7 +867,7 @@ function ChecklistTemplatesSection({ checklistTemplates, inspectionTypes, compan
             <CardHeader className="flex flex-row items-center justify-between">
                 <div>
                     <CardTitle>Checklist Templates</CardTitle>
-                    <CardDescription>{checklistTemplates.length} configured -- reusable item lists for LSA/FFA/PPE and any other inspection category. Selectable via "Load Template" when recording an HSE Inspection.</CardDescription>
+                    <CardDescription>{checklistTemplates.length} template tersedia -- daftar poin yang dapat dipakai ulang untuk LSA, FFA, APD, dan kategori inspeksi lainnya. Dipanggil lewat tombol Load Template saat mengisi HSE Inspection.</CardDescription>
                 </div>
                 {can.manage && <Button onClick={openCreate}><Plus className="h-4 w-4" /> Add Template</Button>}
             </CardHeader>

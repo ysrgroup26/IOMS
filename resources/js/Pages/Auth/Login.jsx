@@ -83,12 +83,12 @@ export default function Login() {
                 />
 
                 <div>
-                    {/* Explicit text-3xl: BrandWordmark suppresses its own default size
-                        whenever className carries any `text-` utility, and this passes
-                        text-white for the navy panel -- without a size the typographic
-                        fallback would inherit the body scale. h-auto is stripped by the
-                        text branch and used by the image branch. */}
-                    <BrandWordmark className="h-auto w-[168px] text-3xl text-white" alt={company?.name || 'IOMS'} />
+                    {/* v2.72.0: the real lockup, in its dark-surface variant --
+                        this panel is navy, where the light-surface wordmark would
+                        be invisible. Sized by height; the 3.85:1 ratio does the
+                        rest. The previous comment here described the typographic
+                        fallback, which no longer exists. */}
+                    <BrandWordmark className="h-10 w-auto" tone="dark" alt={company?.name || 'IOMS'} />
                     <p className="mt-2.5 text-[13px] font-medium uppercase tracking-[0.18em] text-steel-300">
                         {company?.subtitle || 'Industrial Operations Platform'}
                     </p>

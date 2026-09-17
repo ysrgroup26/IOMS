@@ -116,6 +116,12 @@ use Illuminate\Support\Facades\Route;
 | backward-compatibility reason the old redirect route comment gave).
 */
 Route::get('/', [PublicController::class, 'home'])->name('home');
+
+// v2.72.0: search-engine identity. Served as routes rather than static
+// files because the canonical host is only known from the live request --
+// see SiteIdentityController's own note.
+Route::get('/robots.txt', [\App\Http\Controllers\Public\SiteIdentityController::class, 'robots'])->name('robots');
+Route::get('/sitemap.xml', [\App\Http\Controllers\Public\SiteIdentityController::class, 'sitemap'])->name('sitemap');
 // v2.50.0: the public SaaS journey -- landing -> pricing -> get started.
 // Both are guest-reachable by design; `home()` already redirects an
 // authenticated user away from the public site, and these two pages carry

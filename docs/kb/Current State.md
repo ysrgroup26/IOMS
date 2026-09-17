@@ -1,9 +1,9 @@
 ---
 title: Current State
 type: snapshot
-product-version: 2.71.0
+product-version: 2.72.0
 product-stage: Beta
-measured: 2026-09-16
+measured: 2026-09-17
 tags: [kb/state]
 ---
 
@@ -24,8 +24,8 @@ the date in the frontmatter, not remembered.
 | | |
 |---|---|
 | Product | **IOMS — Industrial Operations Platform** |
-| Version | **2.71.0**, stage **Beta**, edition **Enterprise Edition** |
-| Build | `2026.09.16.01`, release date `2026-09-16` |
+| Version | **2.72.0**, stage **Beta**, edition **Enterprise Edition** |
+| Build | `2026.09.17.01`, release date `2026-09-17` |
 | Stack | Laravel 12 · Inertia.js · React 18 · Tailwind · MySQL · Sanctum |
 
 The naming rules are not cosmetic — see [[Product Identity and Principles]].
@@ -38,9 +38,9 @@ The naming rules are not cosmetic — see [[Product Identity and Principles]].
 | Controllers | 93 |
 | Inertia pages | 165 |
 | Migrations | 175 |
-| Feature test files | 41 |
-| Tests / assertions | **417 / 1721**, all passing |
-| ADRs | 32 files (numbering has known gaps — see [[Decision Register]]) |
+| Feature test files | 42 |
+| Tests / assertions | **425 / 1771**, all passing |
+| ADRs | 33 files (numbering has known gaps — see [[Decision Register]]) |
 | Workspaces in the navigation registry | 12 |
 
 ## Workspaces

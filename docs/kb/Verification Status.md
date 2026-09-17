@@ -1,7 +1,7 @@
 ---
 title: Verification Status
 type: register
-updated: 2026-09-16
+updated: 2026-09-17
 tags: [kb/verification]
 ---
 
@@ -49,7 +49,7 @@ on every phone width.
 
 | | |
 |---|---|
-| Suite | **417 tests, 1721 assertions — all passing** (2026-09-16) |
+| Suite | **425 tests, 1771 assertions — all passing** (2026-09-17) |
 | Database | In-memory **SQLite**, so no MySQL or external service is needed |
 | Lint | `npm run lint` — 0 errors (4 pre-existing warnings in `GasTestRecords/Index.jsx` and `Settings/Index.jsx`) |
 | Build | `npm run build` — clean, with the known bundle-size warning |
@@ -72,6 +72,12 @@ matters — several defects only appear at realistic scale.
 
 | Area | Version | What was verified |
 |---|---|---|
+| PTW approval stamp | 2.72.0 | End to end against MySQL: a permit raised through the real `store()` route showed **no** stamp while submitted; approving it as the HSE Officer through the real transition endpoint produced exactly one seal carrying the approver, their role and the moment, on the Show page, the Document view and the generated PDF alike. A seeded permit with status `approved` but no `hse_approver_id` correctly stamps nothing |
+| Screen-vs-PDF agreement | 2.72.0 | **Measured**: stamp reads `17 Sep 2026 15:09` in both renderers, and the validity window `18 Sep 15:00 / 19 Sep 00:00` in both. Before the fix the screen said 16:09 — see the `display_timezone` pitfall in `CONVENTIONS.md` |
+| Brand rollout | 2.72.0 | The official lockup renders and loads on every surface: login (dark variant on navy), the app rail (dark, 123x32), the public header and footer (light, on white and graphite-50), the About dialog (**both**, switched by the `dark` class). Favicon, apple-touch-icon, canonical, og:image and Organization JSON-LD read back correctly from the live `<head>`; `robots.txt` and `sitemap.xml` served with 11 correct absolute URLs |
+| Operational form identity | 2.72.0 | `FormDocumentHeader` rendered on PTW (`PTW-2026-00001`, Draft, Requester, Permit Type, workflow line) and on Material Request (`MR-2026-00001`, Draft, Requested By, Items). `/ppe/master` confirmed to carry **no** document header — the master/operational distinction holds |
+| Field & PTW Access | 2.72.0 | The PTW flow block and the per-account outcome sentence render; toggling My Work for an account left its PTW Access untouched in the database (`field=1 ptw=0`), which is the independence claim, exercised rather than asserted. Test state reverted afterwards |
+| Responsive | 2.72.0 | **Measured** `scrollWidth` vs `clientWidth` at 375 / 768 / 1280 on the PTW form, PTW Show, PTW Document, Material Request form, Settings and the public home page: **no horizontal overflow anywhere**. The About dialog was found overflowing 406px inside a 334px panel at 375 and fixed |
 | Capability reach | 2.71.0 | Material Request opened from the HSE rail without the sidebar jumping to Logistics; the HSE Administration row rendered on the HSE Overview; the My Work toggle, which previously 403'd for HSE, exercised end to end as the HSE Officer |
 | Sidebar scroll memory | 2.71.0 | Offset restored exactly (240 -> 240) across a real navigation where it previously reset to 0; clamped to the maximum when the stored value exceeded a shorter list; an HSE offset did not leak into the global menu |
 | Sidebar hierarchy | 2.71.0 | **Measured** from the compiled stylesheet: level-1 rows and group headers both 13px/500/navy-300, children 13px/400/navy-400, active 600/white; exactly one entry divider, after Overview |

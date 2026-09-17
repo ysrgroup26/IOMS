@@ -133,6 +133,38 @@ class PermitToWork extends Model
         return $this->belongsTo(User::class, 'hse_approver_id');
     }
 
+    /**
+     * v2.72.0 -- HAS THIS PERMIT ACTUALLY BEEN AUTHORISED BY HSE?
+     *
+     * The single predicate behind the approval stamp on the screen, the
+     * document view and the PDF. It exists as a model method precisely so
+     * those three cannot disagree: a controlled document that says
+     * APPROVED in one renderer and not in another is worse than one that
+     * says nothing.
+     *
+     * DERIVED FROM PERSISTED STATE ONLY. Both halves are required -- a
+     * status alone is not authorisation, because `hse_approver_id` is
+     * what records WHO exercised it. Neither is settable from a form;
+     * `hse_approver_id` is written server-side in
+     * PermitToWorkController::transition(), gated on canManageHse().
+     *
+     * WHY `active` AND `closed` COUNT. Approval is a fact about the
+     * permit's history, not its current step: a permit that was approved
+     * and is now being worked, or has since been closed out, WAS
+     * authorised, and its record must keep saying so. That is the whole
+     * point of a controlled document.
+     *
+     * WHY `cancelled` DOES NOT. A cancelled permit is void. Stamping a
+     * void instrument APPROVED would be the one genuinely dangerous thing
+     * this feature could do -- it is the state most likely to be waved at
+     * somebody on site as authorisation to proceed.
+     */
+    public function isAuthorised(): bool
+    {
+        return $this->hse_approver_id !== null
+            && in_array($this->status, [self::STATUS_APPROVED, self::STATUS_ACTIVE, self::STATUS_CLOSED], true);
+    }
+
     public function closer()
     {
         return $this->belongsTo(User::class, 'closed_by');

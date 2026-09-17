@@ -1,11 +1,11 @@
 import { useRef } from 'react';
-import { Head, Link, useForm, router } from '@inertiajs/react';
+import { Head, Link, useForm, router, usePage } from '@inertiajs/react';
 import AuthenticatedLayout from '@/Layouts/AuthenticatedLayout';
 import { Button } from '@/Components/ui/button';
 import { Input } from '@/Components/ui/input';
 import { Label } from '@/Components/ui/label';
 import { Textarea } from '@/Components/ui/textarea';
-import { FormSection, FormField, FormActions, ErrorSummary, SearchableSelect } from '@/Components/shared/form';
+import { FormDocumentHeader, FormSection, FormField, FormActions, ErrorSummary, SearchableSelect } from '@/Components/shared/form';
 import { useUnsavedChanges } from '@/lib/useUnsavedChanges';
 import { ArrowLeft, Plus, Trash2, ImagePlus, ClipboardList, Boxes } from 'lucide-react';
 
@@ -45,6 +45,23 @@ function emptyItem() {
  * same `items[]` shape, same `_method` spoofing, same status override on
  * submit, same routes. The approval chain, `MaterialRequestController`
  * and its FormRequest are untouched.
+ *
+ * v2.72.0 -- THE SECOND OPERATIONAL FORM TO CARRY A DOCUMENT IDENTITY.
+ *
+ * v2.65.0 fixed the inside of this form and the end of it; what was still
+ * missing was the top. The request number -- reserved server-side before
+ * the form is even rendered, and the thing a storekeeper actually quotes
+ * back -- was grey caption type beneath a heading that said the same
+ * words as the browser tab. Who was accountable for the request was
+ * nowhere, and what would happen after Submit was stated only at the
+ * bottom, after the decision had effectively been made.
+ *
+ * It uses the SAME FormDocumentHeader as PTW, deliberately: a material
+ * request and a permit to work are different documents but the same KIND
+ * of thing -- an operational record somebody else acts on. They should be
+ * recognisably siblings. Master-data forms keep PageHeader kind="master"
+ * and get none of this, which is the distinction the header exists to
+ * make legible rather than blur.
  */
 
 const ERROR_LABELS = {
@@ -57,6 +74,7 @@ const ERROR_LABELS = {
 export default function MaterialRequestForm({ materialRequest, companies, departments, projects, requestNumber }) {
     const isEdit = !!materialRequest;
     const initial = useRef(null);
+    const { auth } = usePage().props;
 
     const { data, setData, post, transform, processing, errors } = useForm({
         request_date: materialRequest?.request_date?.slice(0, 10) || new Date().toISOString().slice(0, 10),
@@ -129,12 +147,23 @@ export default function MaterialRequestForm({ materialRequest, companies, depart
                 <ArrowLeft className="h-4 w-4" /> Back to Material Requests
             </Link>
 
-            <div className="mb-6">
-                <h1 className="text-[22px] font-semibold tracking-tight text-navy-900 dark:text-slate-100">
-                    {isEdit ? 'Edit Material Request' : 'New Material Request'}
-                </h1>
-                <p className="mt-0.5 font-mono text-xs text-graphite-500">{requestNumber}</p>
-            </div>
+            {/* The number is the identity and is shown as such. `state`
+                distinguishes writing a new request from revising one that
+                already exists -- which the previous heading said in prose
+                and is now a state, consistent with every other operational
+                form. */}
+            <FormDocumentHeader
+                icon={ClipboardList}
+                documentType="Material Request"
+                reference={requestNumber}
+                state={isEdit ? 'editing' : 'draft'}
+                meta={[
+                    { label: 'Requested By', value: auth?.user?.name },
+                    { label: 'Items', value: String(data.items.length) },
+                ]}
+                workflow="Setelah diajukan, permintaan ini masuk ke antrean persetujuan. Draft hanya terlihat oleh Anda dan masih dapat diubah."
+                className="mb-6"
+            />
 
             <form onSubmit={(e) => submit(e, 'submitted')} className="max-w-4xl space-y-6">
                 <ErrorSummary errors={errors} labels={ERROR_LABELS} />

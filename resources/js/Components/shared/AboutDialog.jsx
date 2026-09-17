@@ -30,10 +30,24 @@ export default function AboutDialog({ open, onOpenChange }) {
 
     return (
         <Dialog open={open} onOpenChange={onOpenChange}>
-            <DialogContent className="max-h-[85vh] max-w-md overflow-y-auto">
+            {/* v2.72.0 -- `grid-cols-1`, and it is the whole fix.
+                DialogContent is a grid whose single column is implicit,
+                so it is sized to MAX-CONTENT: one wide child (here the
+                three-across version strip) set the column to 366px inside
+                a 334px dialog, and every sibling -- plain paragraphs
+                included -- stretched to match and scrolled sideways.
+                `grid-cols-1` is `minmax(0, 1fr)`, which lets the column
+                shrink to the dialog and the content wrap instead.
+                Measured at 375px: 406px of scroll width before, none
+                after. Scoped to this dialog rather than to every dialog
+                in the product. */}
+            <DialogContent className="max-h-[85vh] max-w-md grid-cols-1 overflow-y-auto">
                 <DialogHeader className="items-center text-center">
                     <BrandIcon className="h-14 w-14" />
-                    <BrandWordmark className="mt-3 h-8 w-auto" />
+                    {/* v2.72.0: adaptive -- this dialog is white in light
+                        mode and slate-900 in dark, and the navy lockup
+                        disappears on the latter. */}
+                    <BrandWordmark className="mt-3 h-8 w-auto" tone="adaptive" />
                     <DialogTitle className="mt-3 text-sm font-medium text-graphite-600 dark:text-slate-300">
                         IOMS &mdash; Industrial Operations Platform
                     </DialogTitle>
@@ -43,19 +57,22 @@ export default function AboutDialog({ open, onOpenChange }) {
                 </DialogHeader>
 
                 <div className="space-y-4">
-                    <div className="flex items-center justify-center gap-4 rounded-xl border border-graphite-100 bg-graphite-50/60 py-3 dark:border-slate-700 dark:bg-slate-800/60">
+                    {/* v2.72.0: wraps below ~360px rather than scrolling the
+                        dialog sideways. The dividers are hidden once it wraps,
+                        because a vertical rule between stacked rows is noise. */}
+                    <div className="flex flex-wrap items-center justify-center gap-x-4 gap-y-2 rounded-xl border border-graphite-100 bg-graphite-50/60 px-3 py-3 dark:border-slate-700 dark:bg-slate-800/60">
                         <div className="text-center">
                             <p className="text-[11px] uppercase tracking-wide text-graphite-400 dark:text-slate-500">Version</p>
                             <p className="text-sm font-semibold text-graphite-800 dark:text-slate-100">
                                 v{version?.number}{version?.stage && <span className="ml-1 text-xs font-medium text-brand-600 dark:text-brand-400">{version.stage}</span>}
                             </p>
                         </div>
-                        <div className="h-8 w-px bg-graphite-200 dark:bg-slate-700" />
+                        <div className="hidden h-8 w-px bg-graphite-200 min-[360px]:block dark:bg-slate-700" />
                         <div className="text-center">
                             <p className="text-[11px] uppercase tracking-wide text-graphite-400 dark:text-slate-500">Build</p>
                             <p className="text-sm font-semibold text-graphite-800 dark:text-slate-100">{version?.build}</p>
                         </div>
-                        <div className="h-8 w-px bg-graphite-200 dark:bg-slate-700" />
+                        <div className="hidden h-8 w-px bg-graphite-200 min-[360px]:block dark:bg-slate-700" />
                         <div className="text-center">
                             <p className="flex items-center justify-center gap-1 text-[11px] uppercase tracking-wide text-graphite-400 dark:text-slate-500">
                                 <Calendar className="h-3 w-3" /> Released
@@ -130,12 +147,16 @@ export default function AboutDialog({ open, onOpenChange }) {
 
 function Row({ icon: Icon, label, value }) {
     return (
-        <div className="flex items-center justify-between px-4 py-2.5 text-sm">
-            <dt className="flex items-center gap-1.5 text-graphite-500 dark:text-slate-400">
+        // v2.72.0: label and value sit side by side where there is room
+        // and stack where there is not. Squeezing them onto one line at
+        // 375px broke "YSR Systems" across a line mid-word, which reads
+        // worse than the overflow it was fixing.
+        <div className="flex flex-col gap-y-0.5 px-4 py-2.5 text-sm min-[400px]:flex-row min-[400px]:items-start min-[400px]:justify-between min-[400px]:gap-x-4">
+            <dt className="flex items-center gap-1.5 text-graphite-500 min-[400px]:shrink-0 dark:text-slate-400">
                 {Icon && <Icon className="h-3.5 w-3.5" />}
                 {label}
             </dt>
-            <dd className="font-medium text-graphite-800 dark:text-slate-200">{value}</dd>
+            <dd className="min-w-0 font-medium text-graphite-800 min-[400px]:text-right dark:text-slate-200">{value}</dd>
         </div>
     );
 }

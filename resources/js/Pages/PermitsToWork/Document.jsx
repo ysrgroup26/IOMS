@@ -2,6 +2,7 @@ import { Head, Link, usePage } from '@inertiajs/react';
 import AuthenticatedLayout from '@/Layouts/AuthenticatedLayout';
 import { Button } from '@/Components/ui/button';
 import StatusBadge from '@/Components/shared/StatusBadge';
+import ApprovalStamp from '@/Components/shared/ApprovalStamp';
 import PersonChip from '@/Components/shared/PersonChip';
 import { ArrowLeft, Printer, Download, FlaskConical, Users, ShieldCheck, FileCheck2, Gavel } from 'lucide-react';
 
@@ -64,7 +65,7 @@ import { ArrowLeft, Printer, Download, FlaskConical, Users, ShieldCheck, FileChe
  * reusing the exact same PdfGeneratorService/DocumentEngine route this
  * codebase already had before this pass.
  */
-export default function PermitToWorkDocument({ permit: p, company, documentTemplate, branding, rejectionReason }) {
+export default function PermitToWorkDocument({ permit: p, company, documentTemplate, branding, rejectionReason, authorization }) {
     // v2.37.0 (Master Audit): one shared display timezone for every
     // rendered instant on this page, matching the PDF exactly.
     const displayTimeZone = usePage().props.display_timezone;
@@ -328,7 +329,16 @@ export default function PermitToWorkDocument({ permit: p, company, documentTempl
                         for an unwired field, not a bug to fix here. */}
                     <div data-print-section className="mt-5 grid grid-cols-1 gap-6 border-t border-graphite-200 pt-4 dark:border-slate-700 sm:grid-cols-3">
                         <SignatureBlock role="Applicant" name={p.requester?.name} />
-                        <SignatureBlock role="HSE Approver" name={p.hse_approver?.name} />
+                        {/* v2.72.0 -- the seal, in the signature row and
+                            ONLY there. The HSE Approver block is where a
+                            reader looks for the authorising mark, and one
+                            seal per document is the point: a mark that
+                            appears twice on a page reads as decoration.
+                            Renders only from a real server-side approval
+                            record -- ApprovalStamp returns null when there
+                            is none, so no state can assert an approval the
+                            permit has not got. */}
+                        <SignatureBlock role="HSE Approver" name={p.hse_approver?.name} authorization={authorization} />
                         <SignatureBlock role="Area Authority" name={p.area_authority?.name} />
                     </div>
                 </div>
@@ -394,10 +404,20 @@ function Field({ label, value }) {
     );
 }
 
-function SignatureBlock({ role, name }) {
+function SignatureBlock({ role, name, authorization }) {
     return (
         <div className="text-center">
-            <div className="h-8" />
+            {/* The blank is a fixed 32px rule-to-name gap. The seal is
+                taller than that, so it sets its own height with the same
+                minimum rather than being clipped by it -- `h-8` here
+                would crop the approver's name and time off the bottom. */}
+            {authorization ? (
+                <div className="flex min-h-8 items-end justify-center pb-1">
+                    <ApprovalStamp authorization={authorization} compact />
+                </div>
+            ) : (
+                <div className="h-8" />
+            )}
             <p className="border-t border-graphite-400 pt-1.5 text-sm font-medium text-graphite-900 dark:border-slate-600 dark:text-slate-100">{name || ' '}</p>
             <p className="text-[10px] uppercase tracking-wide text-graphite-400">{role}</p>
         </div>

@@ -1746,6 +1746,100 @@ Three rules that matter when extending this:
 
 The chip is a LABEL (English); the consequence sentence is PROSE (Indonesian). See ADR 034.
 
+## CRITICAL — Known Pitfall (v2.72.0) — a large array literal passed inline to a Blade directive is silently TRUNCATED, and `app.blade.php` takes the whole product down with it
+
+Written as:
+
+```blade
+{{-- WRONG -- compiles to unbalanced PHP, with no warning at any stage --}}
+<script type="application/ld+json">
+    @json([
+        '@context' => 'https://schema.org',
+        '@type' => 'Organization',
+        'name' => $brandName,
+        'alternateName' => $brandName.' — '.$brandDescriptor,
+        ... eight more keys ...
+    ], JSON_UNESCAPED_SLASHES)
+</script>
+```
+
+Blade matches a directive's argument with a **recursive PCRE pattern**. A long enough argument
+exhausts it, and the match does not fail loudly — it stops early. The compiled view came out as
+`json_encode([ '@context' => '...', '@type' => '...', 'name' => $brandName)`: an unclosed `[`
+closed by a `)`.
+
+**The severity is entirely about the file it was in.** Every Inertia page in IOMS renders through
+`resources/views/app.blade.php`, so a template that cannot compile is not a broken page — it is a
+product that returns nothing at all. The whole suite went from 418 passing to **88 failing**, and
+every one of those failures pointed at the assertion in the test rather than at the layout.
+
+**The rule.** Build any non-trivial array in an `@php` block and pass the directive a **variable**:
+
+```blade
+@php
+    $organizationLd = ['@context' => 'https://schema.org', /* ... */];
+@endphp
+
+<script type="application/ld+json">
+    @json($organizationLd, JSON_UNESCAPED_SLASHES | JSON_UNESCAPED_UNICODE)
+</script>
+```
+
+A one-token argument cannot hit the limit. This is also easier to read, which is the usual sign that
+the workaround was the right structure anyway.
+
+> [!warning] `npm run build` would never have caught this
+> It is PHP, not JavaScript. Nothing short of rendering a page — a test, a browser, `view()->render()`
+> — sees it at all. Add `php artisan test` to "did my change work", not just the frontend build.
+
+## CRITICAL — Known Pitfall (v2.72.0) — a test that pins ONE of two renderers reports a half-shipped fix as a finished one
+
+v2.37.0 fixed a reported PDF-vs-screen timezone mismatch on a Permit to Work by resolving **both**
+renderers against `config('ioms.display_timezone')`. `PermitToWorkDocumentTimezoneTest` pinned the PDF
+half, passed, and the release shipped.
+
+The browser half read `usePage().props.display_timezone`. **Nothing in PHP ever shared that prop.**
+`Document.jsx`'s own doc comment asserted that it did.
+
+Two things kept it hidden for a year:
+
+- the frontend formatter falls back to the device timezone when the prop is absent, so it never
+  failed — it just quietly rendered a *different correct-looking* time;
+- everyone who would have checked has a machine set to Asia/Jakarta, which is the configured display
+  timezone, so the fallback produced the right answer by coincidence.
+
+It surfaced only in v2.72.0, when the approval stamp put a second rendering of the same instant on a
+page next to the PDF's and they disagreed by an hour.
+
+**The rules.**
+
+1. **A fix that spans two renderers needs a test per renderer.** One green test over half a fix is
+   worse than no test, because it converts "unverified" into "verified".
+2. **Pin the wiring, not just the formatting.** The assertion that was missing is trivial —
+   `assertInertia(fn ($page) => $page->where('display_timezone', 'Asia/Makassar'))` — and it is the
+   only one that would have failed.
+3. **A silent fallback deserves a test more than a hard failure does.** Code that throws when
+   mis-wired announces itself. Code that degrades to a plausible default does not, and on a
+   controlled safety document "plausible" is the whole problem.
+
+## Known Pitfall (v2.72.0) — `roleLabel()` returns `''`, not an error, for a relation loaded without its `role` column
+
+`PermitToWorkController::show()` eager-loads `'hseApprover:id,name'`. `User::roleLabel()` ends in
+`default => ucfirst($this->role)`, which for an unselected column is `ucfirst(null)` — the empty
+string. The approval stamp therefore rendered an approver with no role, and nothing anywhere said
+why.
+
+**Two lessons, and the second is the general one.**
+
+- When you add a field to a payload, check the **eager-load column list** of every caller. A
+  constrained `relation:id,name` is an allow-list, and it is easy to miss because it looks like an
+  optimisation rather than a contract.
+- `match` with a `default` arm that formats its input **cannot distinguish "unknown value" from "no
+  value"**. Where the difference matters, guard the caller on the column
+  (`$approver?->role ? $approver->roleLabel() : null`) so a missing fact stays missing instead of
+  becoming an empty one. On the approval stamp this is the same rule the whole feature runs on:
+  omit, never invent.
+
 ## Known Pitfall (v2.71.0) — `requestAnimationFrame` is the wrong tool for persisting anything
 
 The sidebar's scroll memory originally throttled its `sessionStorage` write through

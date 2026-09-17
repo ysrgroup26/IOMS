@@ -9,11 +9,12 @@ import { Select, SelectTrigger, SelectValue, SelectContent, SelectItem } from '@
 import { Table, TableHeader, TableBody, TableRow, TableHead, TableCell } from '@/Components/ui/table';
 import ActivityTimeline from '@/Components/shared/ActivityTimeline';
 import StatusBadge from '@/Components/shared/StatusBadge';
+import ApprovalStamp from '@/Components/shared/ApprovalStamp';
 import EmptyState from '@/Components/shared/EmptyState';
 import PersonChip from '@/Components/shared/PersonChip';
 import { ArrowLeft, Send, CheckCircle2, XCircle, PlayCircle, FlaskConical, Wind, Download, Printer, FileText, RotateCcw } from 'lucide-react';
 
-export default function PermitToWorkShow({ permit: p, activities, canManage, rejectionReason }) {
+export default function PermitToWorkShow({ permit: p, activities, canManage, rejectionReason, authorization }) {
     const [gasTestOpen, setGasTestOpen] = useState(false);
     // v1.10.9: location pre-filled from this permit's own p.location (the
     // scope a PTW is raised for) but independently editable -- a gas
@@ -174,7 +175,17 @@ export default function PermitToWorkShow({ permit: p, activities, canManage, rej
                             {p.required_qualification && <div><span className="text-xs uppercase text-graphite-400">Required Qualification</span><p>{p.required_qualification}</p></div>}
                             <div className="grid grid-cols-1 gap-3 sm:grid-cols-3">
                                 <div><span className="text-xs uppercase text-graphite-400">Requested By</span><p>{p.requester?.name}</p></div>
-                                <div><span className="text-xs uppercase text-graphite-400">HSE Approver</span><p>{p.hse_approver?.name || '-'}</p></div>
+                                <div>
+                                    <span className="text-xs uppercase text-graphite-400">HSE Approver</span>
+                                    {/* v2.72.0: once the permit is genuinely
+                                        authorised the approver is shown as the
+                                        seal rather than as a name in a field --
+                                        the same record, read the way a permit
+                                        is actually read. */}
+                                    {authorization
+                                        ? <div className="mt-1"><ApprovalStamp authorization={authorization} compact /></div>
+                                        : <p>{p.hse_approver?.name || '-'}</p>}
+                                </div>
                                 <div><span className="text-xs uppercase text-graphite-400">Closed By</span><p>{p.closer?.name || '-'}</p></div>
                             </div>
                             {/* v2.17.0 (PTW Field Workflow Foundation, Part 8/9/14):

@@ -7,8 +7,9 @@ import { Label } from '@/Components/ui/label';
 import { Textarea } from '@/Components/ui/textarea';
 import { Select, SelectTrigger, SelectValue, SelectContent, SelectItem } from '@/Components/ui/select';
 import CollapsibleSection from '@/Components/shared/CollapsibleSection';
+import { FormDocumentHeader, FormActions } from '@/Components/shared/form';
 import EmployeeSelector from '@/Components/shared/EmployeeSelector';
-import { ArrowLeft, ShieldCheck, Users } from 'lucide-react';
+import { ArrowLeft, ShieldCheck, Users, Flame } from 'lucide-react';
 
 /**
  * v2.4.0 (PTW UX + Field Operations pass, Phase 1). Was previously one
@@ -92,6 +93,13 @@ export default function PermitToWorkForm({ companies, projects, riskAssessments,
         personnel_ids: [],
     });
 
+    // The chosen permit type, shown in the document header so the
+    // identity block reflects what is actually being raised as it is
+    // filled in. Display only -- `permit_type` is validated server-side.
+    const typeLabel = data.permit_type
+        ? data.permit_type.replace(/_/g, ' ').replace(/\b\w/g, (c) => c.toUpperCase())
+        : null;
+
     function submit(e) {
         e.preventDefault();
         post(route('permits-to-work.store'));
@@ -106,9 +114,37 @@ export default function PermitToWorkForm({ companies, projects, riskAssessments,
         <AuthenticatedLayout>
             <Head title="New Permit To Work" />
 
-            <div className="mb-4 flex items-center gap-2">
+            <div className="mb-3 flex items-center gap-2">
                 <Button variant="ghost" size="sm" asChild><Link href={route('permits-to-work.index')}><ArrowLeft className="h-4 w-4" /> Back</Link></Button>
             </div>
+
+            {/* v2.72.0 -- THE DOCUMENT, NOT THE FORM.
+
+                A permit authorises dangerous work to begin. Raising one
+                used to open on a Back link and a card whose title was the
+                same weight as every other card on the page, with the
+                reserved permit number tucked into that title and the
+                requester as grey caption text. Nothing said this was a
+                controlled document, and nothing said what would happen to
+                it once submitted -- so the answer to "who sees this next"
+                was learned by submitting and finding out.
+
+                The number is the identity, the requester is the
+                accountable party, and the workflow line is the part a
+                Foreman actually needs: HSE reviews it, and work does not
+                start until they authorise it. */}
+            <FormDocumentHeader
+                icon={Flame}
+                documentType="Permit To Work"
+                reference={ptwNumber}
+                state="draft"
+                meta={[
+                    { label: 'Requester', value: auth?.user?.name },
+                    { label: 'Permit Type', value: typeLabel },
+                ]}
+                workflow="Setelah diajukan, PTW ini ditinjau dan diverifikasi oleh HSE. Pekerjaan baru boleh dimulai setelah HSE menyetujui dan permit berstatus Active."
+                className="mb-4"
+            />
 
             {/* v2.53.0: was max-w-xl -- one control per row down a narrow
                 column, which is what made this form read as mostly empty
@@ -124,18 +160,14 @@ export default function PermitToWorkForm({ companies, projects, riskAssessments,
                             Safety -> Optional -> Submit), not one long
                             undifferentiated form. */}
                         <CardTitle className="flex items-center gap-2">
-                            <StepBadge>01</StepBadge> New Permit To Work -- {ptwNumber}
+                            <StepBadge>01</StepBadge> Work Details
                         </CardTitle>
-                        <CardDescription>Isi data pekerjaan yang akan dilakukan.</CardDescription>
-                        {/* v2.17.0 (PTW Field Workflow Foundation, Part
-                            2/12): Requester is informational only, never
-                            an input -- the backend derives it from the
-                            authenticated session regardless of what (if
-                            anything) is rendered here. */}
-                        <div className="mt-1 flex items-center gap-1.5 text-xs text-graphite-500 dark:text-slate-400">
-                            <span>Requester:</span>
-                            <span className="font-medium text-graphite-800 dark:text-slate-200">{auth?.user?.name}</span>
-                        </div>
+                        <CardDescription>Pekerjaan apa yang akan dilakukan, di mana, dan kapan.</CardDescription>
+                        {/* v2.17.0: Requester is informational only, never an
+                            input -- the backend derives it from the
+                            authenticated session. v2.72.0 moved it up into
+                            FormDocumentHeader, where accountability belongs,
+                            rather than repeating it here. */}
                     </CardHeader>
                     <CardContent className="space-y-4">
                         {companies.length > 1 && (
@@ -326,7 +358,16 @@ export default function PermitToWorkForm({ companies, projects, riskAssessments,
                     </div>
                 </CollapsibleSection>
 
-                <Button type="submit" disabled={processing} className="w-full" size="lg">Submit PTW</Button>
+                {/* v2.72.0: the shared action bar -- sticky on a phone,
+                    which is where a Foreman fills this in. The note is the
+                    same promise the header makes, restated at the moment of
+                    commitment. */}
+                <FormActions
+                    submitLabel="Submit PTW"
+                    processing={processing}
+                    cancelHref={route('permits-to-work.index')}
+                    note="PTW akan berstatus Submitted dan menunggu tinjauan HSE. Pekerjaan belum boleh dimulai sampai disetujui."
+                />
             </form>
         </AuthenticatedLayout>
     );

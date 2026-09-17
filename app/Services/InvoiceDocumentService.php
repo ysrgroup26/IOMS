@@ -38,7 +38,24 @@ class InvoiceDocumentService
             'name' => config('app.name', 'IOMS'),
             // Only when an operator has actually been configured.
             'legal_name' => $legal['entity_name'] ?: null,
-            'logo_url' => null,
+            /*
+             * v2.72.0 -- the IOMS mark, on the one document IOMS ISSUES.
+             *
+             * This was null because no usable mark existed. It is the
+             * right place for the product's own logo and the only one in
+             * the PDF layer: an invoice is raised BY IOMS, so IOMS is the
+             * letterhead. Every operational document (permits, material
+             * requests, inspections) keeps the CUSTOMER's logo, because
+             * those are the customer's records -- see DocumentEngine,
+             * deliberately untouched.
+             *
+             * An absolute path, and the light-surface variant: dompdf
+             * renders onto white paper, where the near-white wordmark
+             * would be invisible. dompdf's SVG support is adequate for
+             * flat paths like these, and the raster twin exists if a
+             * future renderer disagrees.
+             */
+            'logo_url' => public_path(ltrim(config('branding.assets.logo'), '/')),
             'address' => $legal['address'] ?: null,
             'locality' => null,
             'country' => null,

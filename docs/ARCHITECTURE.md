@@ -964,6 +964,22 @@ v1.9.0 sections for the full reasoning.
   new status badge, tab nav, empty state, or workflow action UI. `StatusBadge` in particular has a
   single canonical status-to-color mapping meant to cover every module's statuses in one place;
   extend it, don't create a parallel one.
+- **`FormDocumentHeader`** (v2.72.0, `Components/shared/form/`) — the top of an OPERATIONAL form:
+  what document is being created, its reserved reference number, its state (Draft / Editing), who is
+  accountable, and what happens after submission. Consumers: `PermitsToWork/Form.jsx` (the reference
+  implementation) and `MaterialRequests/Form.jsx`. **Deliberately not for master data** — a reference
+  record has no number, no owner and no downstream workflow, and giving it the furniture of a
+  controlled document would say something false about it; master data keeps `PageHeader kind="master"`.
+  That is the v2.71.0 distinction (ADR 034) applied to forms.
+- **`ApprovalStamp`** (v2.72.0) — the digital approval seal on a controlled document. **It takes the
+  authorization RECORD, not a boolean, and returns null when there is not one**, so "show the stamp"
+  is not a decision a page can make. For PTW the record is built by
+  `PermitToWorkController::authorizationFor()`, which returns null unless `PermitToWork::isAuthorised()`
+  is true (an approved-or-later status AND a persisted `hse_approver_id`, which only a
+  `canManageHse()` user can cause to be written; a cancelled permit never qualifies). There is
+  deliberately **no variant for any other state** — a stamp that can render in more than one colour
+  is a status badge in costume. Reuse this shape for any other controlled document that gains an
+  authorising signature; do not add a second approval mechanism.
 - **`CollapsibleSection`** (v2.4.0, PTW UX + Field Operations pass) — the progressive-disclosure
   primitive: a labeled, collapsed-by-default section for optional/advanced form fields, so a form
   can show the minimum required fields first without a second bespoke show/hide implementation per

@@ -40,9 +40,15 @@ authorization path. See `docs/ADR/008-tenancy-foundation.md` for the reasoning a
   `FormField`, `FormActions`, `ErrorSummary`, `SearchableSelect`, plus `lib/useUnsavedChanges`. Every
   new or edited form should use these rather than hand-rolling labels, error markup or action bars.
   See `Pages/Employees/Form.jsx` for the reference implementation.
+  `FormDocumentHeader` (v2.72.0) is the top of an **operational** form — document type, reference
+  number, state, who is accountable, what happens next. `Pages/PermitsToWork/Form.jsx` is its
+  reference implementation. Master-data forms deliberately do **not** get one.
 - `resources/js/Components/shared/` — the reusable frontend components every module is expected to
   use rather than reinvent: `StatusBadge`, `ApprovalActions`, `ActivityTimeline`, `ModuleTabNav`,
-  `PageHeader`, `EmptyState`, `LoadingState`, `StatCard`, `EmployeeImportDialog`, and others.
+  `PageHeader`, `EmptyState`, `LoadingState`, `StatCard`, `EmployeeImportDialog`, `ApprovalStamp`
+  (v2.72.0 — the digital approval seal; takes the server-side authorization record, never a boolean,
+  and renders nothing without one), `BrandWordmark` (the one place the IOMS logo is referenced —
+  `tone` picks the official light/dark lockup per surface), and others.
 - `resources/js/lib/useFocusTrap.js`, `resources/js/lib/useMediaQuery.js` — the shell's two behavioural
   primitives (v2.67.0). `useFocusTrap` is what makes an overlay a *dialog* rather than a div on top:
   focus enters, Tab cycles, Escape closes, focus returns to the opener. `useMediaQuery` exists

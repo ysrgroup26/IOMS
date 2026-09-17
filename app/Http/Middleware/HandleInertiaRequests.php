@@ -119,18 +119,52 @@ class HandleInertiaRequests extends Middleware
             'readiness' => ($user && ! $user->isPlatformAdmin())
                 ? ['is_operational' => app(TenantReadinessService::class)->isOperational()]
                 : null,
+            /*
+             * v2.72.0 -- THE PROP v2.37.0 SAID IT SHARED, AND DID NOT.
+             *
+             * v2.37.0 (Master Audit) fixed a reported PDF-vs-screen
+             * mismatch on a permit's validity window by resolving both
+             * renderers against one configured display timezone. The PDF
+             * half landed and is covered by
+             * PermitToWorkDocumentTimezoneTest. The BROWSER half reads
+             * `usePage().props.display_timezone` -- and nothing ever put
+             * it there. Document.jsx's own doc comment states it is
+             * "shared to Inertia as display_timezone"; it was not.
+             *
+             * Because that reader falls back to the device timezone when
+             * the prop is absent, the bug was invisible to anyone whose
+             * machine happened to be set to Asia/Jakarta, which is
+             * everyone who would have checked. It surfaced only when the
+             * approval stamp put a second rendering of the same instant
+             * on the same page as the PDF's, an hour apart.
+             *
+             * Shared globally rather than per-page: it is a property of
+             * the deployment, every document surface needs it, and a
+             * per-page prop is precisely how the first half went missing.
+             */
+            'display_timezone' => config('ioms.display_timezone'),
             'branding' => [
                 // v2.38.0: whether the tenant uploaded its OWN wordmark.
-                // The shipped default asset is not a usable IOMS mark (it
-                // reads "icms"), so BrandWordmark falls back to a
-                // typographic wordmark instead of the wrong brand.
+                //
+                // v2.72.0: the official IOMS artwork now exists, so this
+                // no longer decides between "a tenant's mark" and "a
+                // typographic stand-in" -- it decides between a tenant's
+                // mark and the REAL product mark. The typographic
+                // fallback is gone from BrandWordmark with it.
                 'has_custom_wordmark' => (bool) CompanySetting::get('brand_wordmark_path'),
                 'wordmark_url' => CompanySetting::get('brand_wordmark_path')
                     ? asset('storage/'.CompanySetting::get('brand_wordmark_path'))
-                    : asset(config('branding.default_wordmark_path')),
+                    : asset(config('branding.assets.logo')),
+                // The same lockup drawn for a dark ground. A tenant that
+                // uploaded one mark gets that mark on both surfaces --
+                // IOMS has two official variants; a customer's logo is
+                // whatever they gave us.
+                'wordmark_dark_url' => CompanySetting::get('brand_wordmark_path')
+                    ? asset('storage/'.CompanySetting::get('brand_wordmark_path'))
+                    : asset(config('branding.assets.logo_dark')),
                 'icon_url' => CompanySetting::get('brand_icon_path')
                     ? asset('storage/'.CompanySetting::get('brand_icon_path'))
-                    : asset(config('branding.default_icon_path')),
+                    : asset(config('branding.assets.icon')),
                 'watermark_enabled' => (bool) CompanySetting::get('watermark_enabled', config('branding.watermark_enabled')),
                 'dashboard_watermark_enabled' => (bool) CompanySetting::get('dashboard_watermark_enabled', config('branding.dashboard_watermark_enabled')),
                 'login_watermark_enabled' => (bool) CompanySetting::get('login_watermark_enabled', config('branding.login_watermark_enabled')),

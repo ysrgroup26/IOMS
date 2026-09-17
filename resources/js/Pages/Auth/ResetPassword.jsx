@@ -44,7 +44,7 @@ export default function ResetPassword({ token, email }) {
 
             <div className="relative w-full max-w-sm">
                 <div className="mb-10 flex flex-col items-center text-center">
-                    <BrandWordmark className="h-[70px] w-auto" />
+                    <BrandWordmark className="h-9 w-auto" />
                     <p className="mt-[16px] text-sm text-graphite-500">{company?.subtitle || 'Industrial Operations Platform'}</p>
                 </div>
 

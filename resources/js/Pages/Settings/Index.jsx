@@ -335,8 +335,8 @@ function BrandingTab({ company }) {
                     />
                     {/* v2.41.0 -- the wordmark/icon keys HandleInertiaRequests has
                         read since v1.5.3 but nothing could write. Both are genuine
-                        optional overrides: with no wordmark, BrandWordmark renders a
-                        typographic IOMS mark rather than a wrong image. */}
+                        optional overrides: with no upload, BrandWordmark renders the
+                        official IOMS lockup (v2.72.0). */}
                     <ImageUploadField
                         label="Wordmark (horizontal logotype)"
                         existingUrl={data.remove_wordmark ? null : company.wordmark_url}
@@ -2299,24 +2299,59 @@ function FieldPtwAccessCard({ users, ptwAccess, canFieldAccess, canManageUsers }
                     {/* v2.71.0: says what the two switches actually do. The
                         previous one line only described PTW Access, so the
                         field-workspace switch beside it was unexplained. */}
+                    {/* v2.72.0 -- TWO CAPABILITIES, NOT TWO CHECKBOXES.
+
+                        Reported as confusing, and reading the markup the
+                        reason was structural rather than verbal: the two
+                        switches sat side by side with nothing saying they
+                        answer different questions, so they read as a pair of
+                        related settings where one probably implies the other.
+                        They do not, and conflating them produces a field
+                        account that cannot actually do its job. */}
                     <CardDescription>
-                        PTW Access menentukan siapa yang boleh membuat pengajuan PTW.
-                        My Work menentukan halaman yang dibuka akun tersebut saat masuk.
+                        Dua izin yang berbeda dan berdiri sendiri. My Work menentukan RUANG KERJA
+                        yang dibuka akun tersebut; PTW Access menentukan WEWENANG membuat dan
+                        mengajukan Permit To Work. Keduanya dapat diberikan terpisah.
                     </CardDescription>
                 </div>
                 {/* v2.53.0: a count, not a quota. PTW Access is a permission
                     granted to existing accounts, not a purchased allowance. */}
                 <Badge variant="outline" className="w-fit shrink-0">
-                    PTW Access · {used} {used === 1 ? 'account' : 'accounts'}
+                    PTW Access &middot; {used} {used === 1 ? 'account' : 'accounts'}
                 </Badge>
             </CardHeader>
             <CardContent className="p-0">
 
-                {/* The one sentence that was missing. An HSE administrator
-                    who cannot find where accounts are created should be told
-                    where they are created, not left to conclude the feature
-                    does not exist. Only shown to someone who cannot do it
-                    themselves -- a Super Admin has the card right above. */}
+                {/* WHY an administrator would enable either -- the operating
+                    model, stated once, where the decision is actually made.
+                    Without it "PTW Access" is a permission name with no
+                    context, and the commonest mistake is assuming HSE is the
+                    role that raises permits. HSE reviews and authorises; the
+                    person who raises one is whoever is responsible for the
+                    work. */}
+                <div className="mx-4 mb-3 rounded-lg border border-graphite-200 bg-graphite-50/70 p-3 dark:border-slate-800 dark:bg-slate-800/40">
+                    <p className="text-[11px] font-semibold uppercase tracking-wide text-graphite-500 dark:text-slate-400">
+                        Alur Permit To Work
+                    </p>
+                    <ol className="mt-2 flex flex-col gap-2 text-xs leading-relaxed text-graphite-600 sm:flex-row dark:text-slate-300">
+                        <li className="flex-1 rounded-md border border-steel-200 bg-white px-2.5 py-2 dark:border-slate-700 dark:bg-slate-900">
+                            <span className="block font-semibold text-navy-900 dark:text-slate-100">Foreman / PIC</span>
+                            Membuat dan mengajukan PTW untuk pekerjaan yang menjadi tanggung jawabnya.
+                            <span className="mt-1 block text-[11px] text-graphite-500 dark:text-slate-400">Perlu PTW Access &mdash; biasanya juga My Work.</span>
+                        </li>
+                        <li className="flex-1 rounded-md border border-steel-200 bg-white px-2.5 py-2 dark:border-slate-700 dark:bg-slate-900">
+                            <span className="block font-semibold text-navy-900 dark:text-slate-100">HSE</span>
+                            Meninjau, memverifikasi, lalu menyetujui atau mengembalikan pengajuan tersebut.
+                            <span className="mt-1 block text-[11px] text-graphite-500 dark:text-slate-400">Sudah melekat pada peran HSE &mdash; tidak perlu diaktifkan di sini.</span>
+                        </li>
+                    </ol>
+                </div>
+
+                {/* An HSE administrator who cannot find where accounts are
+                    created should be told where they are created, not left to
+                    conclude the feature is missing. Shown only to someone who
+                    cannot do it themselves -- a Super Admin has the User
+                    Management card directly above. */}
                 {! canManageUsers && (
                     <div className="mx-4 mb-3 flex items-start gap-2.5 rounded-lg border border-steel-200 bg-steel-50 p-3 text-xs leading-relaxed text-navy-800 dark:border-slate-700 dark:bg-slate-800/60 dark:text-slate-300">
                         <Info className="mt-0.5 h-3.5 w-3.5 shrink-0" />
@@ -2334,42 +2369,80 @@ function FieldPtwAccessCard({ users, ptwAccess, canFieldAccess, canManageUsers }
                         <Input className="pl-8" placeholder="Search users..." value={search} onChange={(e) => setSearch(e.target.value)} />
                     </div>
                 </div>
+
+                {/* Column headers, so the switches read as a capability matrix
+                    rather than two loose settings per row. Hidden below sm,
+                    where each row stacks and carries its own labels. */}
+                <div className="hidden items-center gap-4 border-y border-graphite-100 bg-graphite-50/60 px-4 py-2 sm:flex dark:border-slate-800 dark:bg-slate-800/30">
+                    <span className="min-w-0 flex-1 text-[11px] font-semibold uppercase tracking-wide text-graphite-500 dark:text-slate-400">Account</span>
+                    <span className="w-[104px] shrink-0 text-center text-[11px] font-semibold uppercase tracking-wide text-graphite-500 dark:text-slate-400">
+                        My Work
+                        <span className="block text-[10px] font-normal normal-case tracking-normal text-graphite-400">Workspace</span>
+                    </span>
+                    <span className="w-[104px] shrink-0 text-center text-[11px] font-semibold uppercase tracking-wide text-graphite-500 dark:text-slate-400">
+                        PTW Access
+                        <span className="block text-[10px] font-normal normal-case tracking-normal text-graphite-400">Capability</span>
+                    </span>
+                </div>
+
                 <div className="divide-y divide-graphite-100 dark:divide-slate-800">
                     {filtered.length === 0 ? (
-                        <p className="px-4 pb-4 text-sm text-graphite-400">No users match your search.</p>
+                        <p className="px-4 py-4 text-sm text-graphite-400">No users match your search.</p>
                     ) : (
                         filtered.map((u) => {
                             const deptLabel = DEPARTMENT_OPTIONS.find((d) => d.key === u.department_key)?.label;
+
+                            /* What the account can actually do, in one line.
+                               The switches describe INPUTS; this describes the
+                               OUTCOME, which is what an administrator is
+                               really deciding about. */
+                            const effect = u.ptw_access && u.is_field_user
+                                ? 'Membuka My Work dan dapat mengajukan PTW'
+                                : u.ptw_access
+                                    ? 'Dapat mengajukan PTW, membuka Dashboard biasa'
+                                    : u.is_field_user
+                                        ? 'Membuka My Work, tanpa wewenang membuat PTW'
+                                        : null;
+
                             return (
-                                <div
-                                    key={u.id}
-                                    className="flex flex-wrap items-center justify-between gap-x-4 gap-y-1.5 px-4 py-3"
-                                >
+                                <div key={u.id} className="flex flex-col gap-2 px-4 py-3 sm:flex-row sm:items-center sm:gap-4">
                                     <div className="min-w-0 flex-1">
                                         <p className="truncate text-[13px] font-medium text-graphite-900 dark:text-slate-100">{u.name}</p>
                                         <p className="truncate text-[11px] font-medium uppercase tracking-wide text-graphite-400 dark:text-slate-500">
                                             {deptLabel || 'Administrator (all)'}
                                         </p>
+                                        {effect && (
+                                            <p className="mt-0.5 truncate text-[11px] text-graphite-500 dark:text-slate-400">{effect}</p>
+                                        )}
                                     </div>
-                                    {/* v2.52.0 -- TWO DIFFERENT THINGS, side by side so the
-                                        difference is visible rather than assumed.
-                                        My Work decides which WORKSPACE the account lands
-                                        in; PTW Access decides whether it may CREATE a
-                                        Permit To Work. A field worker normally has the
-                                        first and not the second; a foreman may have both. */}
-                                    <div className="flex shrink-0 items-center gap-5">
-                                        {canFieldAccess && (
-                                            <label className="flex items-center gap-2">
+
+                                    {/* v2.52.0 -- TWO DIFFERENT THINGS, and since
+                                        v2.72.0 under their own headed columns.
+                                        My Work decides which WORKSPACE the account
+                                        lands in; PTW Access decides whether it may
+                                        CREATE a Permit To Work. A field worker
+                                        normally has the first and not the second; a
+                                        foreman responsible for the work has both. */}
+                                    <div className="flex items-center gap-4">
+                                        {canFieldAccess ? (
+                                            <label className="flex items-center gap-2 sm:w-[104px] sm:justify-center">
                                                 <Checkbox
                                                     checked={!!u.is_field_user}
                                                     onCheckedChange={(v) => toggleField(u, Boolean(v))}
+                                                    aria-label={`My Work workspace for ${u.name}`}
                                                 />
-                                                <span className="text-xs font-medium text-graphite-500 dark:text-slate-400">My Work</span>
+                                                <span className="text-xs font-medium text-graphite-500 sm:hidden dark:text-slate-400">My Work</span>
                                             </label>
+                                        ) : (
+                                            <span className="hidden sm:block sm:w-[104px]" />
                                         )}
-                                        <label className="flex items-center gap-2">
-                                            <Checkbox checked={!!u.ptw_access} onCheckedChange={(v) => toggle(u, Boolean(v))} />
-                                            <span className="text-xs font-medium text-graphite-500 dark:text-slate-400">PTW Access</span>
+                                        <label className="flex items-center gap-2 sm:w-[104px] sm:justify-center">
+                                            <Checkbox
+                                                checked={!!u.ptw_access}
+                                                onCheckedChange={(v) => toggle(u, Boolean(v))}
+                                                aria-label={`PTW Access for ${u.name}`}
+                                            />
+                                            <span className="text-xs font-medium text-graphite-500 sm:hidden dark:text-slate-400">PTW Access</span>
                                         </label>
                                     </div>
                                 </div>

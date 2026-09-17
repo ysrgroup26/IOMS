@@ -223,7 +223,12 @@ class PermitToWorkController extends Controller
         $this->assertInCurrentTenant($permitToWork);
         $permitToWork->load(
             'company:id,name', 'project:id,name', 'riskAssessment:id,ra_number', 'jsa:id,jsa_number',
-            'requester:id,name', 'areaAuthority:id,name', 'hseApprover:id,name', 'closer:id,name',
+            // v2.72.0: `role` on hseApprover, because the approval stamp
+            // names the authority the permit was signed under, not just a
+            // person. Browser-verified: without it roleLabel() returned an
+            // empty string rather than failing, so the seal rendered a
+            // person with no role and nothing anywhere said why.
+            'requester:id,name', 'areaAuthority:id,name', 'hseApprover:id,name,role', 'closer:id,name',
             'gasTests.tester:id,name', 'lotoRecords',
             // v2.17.0 (PTW Field Workflow Foundation, Part 8/9/14/15).
             'pic:id,full_name', 'personnel:id,full_name'
@@ -247,6 +252,8 @@ class PermitToWorkController extends Controller
             // the separate Document view. Same lookup `document()`
             // already does, reused rather than duplicated logic.
             'rejectionReason' => $this->rejectionReasonFor($permitToWork),
+            // v2.72.0: null unless the permit is genuinely authorised.
+            'authorization' => $this->authorizationFor($permitToWork),
         ]);
     }
 
@@ -336,6 +343,8 @@ class PermitToWorkController extends Controller
             // already uses (added in Phase 3B), reused here rather than
             // a third copy of the lookup.
             'rejectionReason' => $this->rejectionReasonFor($permitToWork),
+            // v2.72.0: null unless the permit is genuinely authorised.
+            'authorization' => $this->authorizationFor($permitToWork),
         ], "{$permitToWork->ptw_number}.pdf");
     }
 
@@ -370,7 +379,55 @@ class PermitToWorkController extends Controller
             'documentTemplate' => $documents->resolveTemplate('permit_to_work', $permitToWork->company_id),
             'branding' => $documents->branding(),
             'rejectionReason' => $this->rejectionReasonFor($permitToWork),
+            // v2.72.0: null unless the permit is genuinely authorised.
+            'authorization' => $this->authorizationFor($permitToWork),
         ]);
+    }
+
+    /**
+     * v2.72.0 -- THE APPROVAL RECORD BEHIND THE STAMP.
+     *
+     * Returns null unless the permit has genuinely been authorised (see
+     * `PermitToWork::isAuthorised()`), so a caller cannot render a stamp
+     * for a permit that has not got one -- the absence of data is the
+     * guard, not a flag the view is trusted to check.
+     *
+     * WHERE THE TIMESTAMP COMES FROM. There is no `approved_at` column,
+     * and this deliberately does not add one: the moment of approval is
+     * already recorded, by the same `transitionTo()` call that performs
+     * it, in the ActivityLog -- which is the audit trail of record for
+     * every workflow in this product. Reading it here reuses that
+     * evidence rather than creating a second, separately-maintained copy
+     * of the same fact that could drift from it. Same technique, and the
+     * same reasoning, as `rejectionReasonFor()` below.
+     *
+     * A permit approved before the ActivityLog carried this action still
+     * stamps correctly and simply shows no time, rather than showing a
+     * fabricated one.
+     */
+    private function authorizationFor(PermitToWork $permitToWork): ?array
+    {
+        if (! $permitToWork->isAuthorised()) {
+            return null;
+        }
+
+        $approver = $permitToWork->hseApprover;
+
+        return [
+            'approver' => $approver?->name,
+            // Guarded on the column rather than calling roleLabel()
+            // blind: that method's `default` arm is ucfirst($this->role),
+            // which returns '' for a relation loaded without the column
+            // instead of failing. A caller that constrains this relation
+            // therefore gets no role line -- a fact omitted, never one
+            // invented, which is the rule the whole stamp is built on.
+            'role' => $approver?->role ? $approver->roleLabel() : null,
+            'at' => ActivityLog::where('subject_type', PermitToWork::class)
+                ->where('subject_id', $permitToWork->id)
+                ->where('action', PermitToWork::STATUS_APPROVED)
+                ->latest()
+                ->value('created_at'),
+        ];
     }
 
     /**

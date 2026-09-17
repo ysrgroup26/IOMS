@@ -370,17 +370,14 @@ export default function AuthenticatedLayout({ children }) {
                 )}
             >
                 {/* Logo/title: clickable to open the About dialog.
-                    v1.6.7 Beta final balancing: the wordmark box (was
-                    96px) has substantial internal vertical padding around
-                    the visible "icms" ink -- the same asset property
-                    already measured and compensated for horizontally
-                    (see the note on the negative margin below). A smaller
-                    box means proportionally less empty space to traverse
-                    before the eye reaches actual content, which is what
-                    "wordmark sits too low" / "block too tall" actually
-                    described. Reduced to 72px and tightened container
-                    padding on top of that, rather than only adjusting
-                    padding around an unnecessarily large box. */}
+                    v2.72.0: the official lockup, dark-surface variant, on
+                    the navy rail. The sizing gymnastics that used to live
+                    here -- a 72px box and a -22px left margin -- were
+                    compensating for the old asset's own internal padding
+                    and for a typographic fallback that could not use
+                    image-oriented utilities. Neither exists now: the SVG
+                    is cropped to its own artwork, so `h-8 w-auto` means
+                    what it says. */}
                 {/* v2.67.0 -- these were NESTED: the close control was a
                     <span onClick> inside the About button. Interactive
                     content inside a button is invalid, and the practical
@@ -396,7 +393,7 @@ export default function AuthenticatedLayout({ children }) {
                         title="About IOMS"
                     >
                         <div className="min-w-0 flex-1 overflow-visible">
-                            <BrandWordmark className="h-[72px] w-auto max-w-full -ml-[22px] object-contain text-3xl text-white" />
+                            <BrandWordmark className="h-8 w-auto max-w-full object-contain" tone="dark" />
                             <p className="mt-0.5 text-[10px] font-medium uppercase leading-snug tracking-wide text-steel-300 dark:text-slate-500">{company?.subtitle || 'Industrial Operations Platform'}</p>
                         </div>
                     </button>

@@ -6,6 +6,7 @@
  * fight, so this stops at the smallest set that closes the gaps the
  * audit actually measured across all 27 module forms.
  *
+ *   FormDocumentHeader  what am I creating, and what happens to it
  *   FormSection       a group that explains what it is asking for
  *   FormField         label, requiredness, hint, error -- wired for a11y
  *   FormActions       a save you can always reach; destructive separated
@@ -27,6 +28,16 @@
  *   PAGE   FormSection + FormField + FormActions + ErrorSummary
  *   DIALOG FormField only
  *
+ * OPERATIONAL FORMS vs MASTER DATA (v2.72.0). A form that creates a
+ * record somebody else will act on -- a permit, a material request --
+ * also gets FormDocumentHeader: its reference number, who is responsible
+ * and what happens after submission. A master-data form does NOT. There
+ * is no reference number for an equipment type, nobody is accountable for
+ * it, and nothing happens downstream when it is saved; dressing it as a
+ * controlled document would say something false about it. Master data
+ * keeps PageHeader kind="master", which is the v2.71.0 distinction this
+ * deliberately reinforces rather than blurs.
+ *
  * Putting FormActions inside a dialog gives it two action bars; putting an
  * ErrorSummary above five visible fields restates what is already on
  * screen. The field contract is the part that generalises to both, which
@@ -37,6 +48,7 @@
  * Pages/Employees/Form.jsx for the page reference, and Pages/Ppe/Master.jsx
  * for the dialog reference.
  */
+export { default as FormDocumentHeader } from './FormDocumentHeader';
 export { default as FormSection } from './FormSection';
 export { default as FormField } from './FormField';
 export { default as FormActions } from './FormActions';

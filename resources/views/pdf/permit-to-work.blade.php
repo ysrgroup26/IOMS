@@ -108,6 +108,18 @@
         /* Bordered authorisation boxes -- an auditable signing area rather
            than three floating rules. */
         table.signatures td { border: 1px solid #cbd5e1; }
+
+        /* v2.72.0 -- the approval seal, on paper.
+           dompdf supports neither flexbox nor CSS variables, so this is
+           deliberately plain: a double-ruled block in the product's own
+           success green. It renders ONLY from $authorization, which the
+           controller returns as null unless the permit is genuinely
+           authorised -- the template has no boolean it could get wrong. */
+        .stamp { border: 1.5px solid #059669; background: #ECFDF5; padding: 4px 8px; text-align: center; }
+        .stamp .stamp-word { font-size: 10px; font-weight: bold; color: #047857; letter-spacing: 2px; text-transform: uppercase; }
+        .stamp .stamp-rule { border-top: 1px solid #A7F3D0; margin: 3px 0; }
+        .stamp .stamp-who { font-size: 8.5px; font-weight: bold; color: #065F46; }
+        .stamp .stamp-meta { font-size: 7.5px; color: #047857; }
         .sig-head { background-color: #f1f5f9; border-bottom: 1px solid #cbd5e1; padding: 2.5px 6px; font-size: 7px; text-transform: uppercase; letter-spacing: 0.8px; color: #475569; font-weight: bold; text-align: left; }
         .sig-body { padding: 4px 6px 3px 6px; text-align: left; }
         .sig-name { font-size: 9.5px; font-weight: bold; color: #0f172a; min-height: 11px; }
@@ -368,16 +380,31 @@
             <td>
                 <div class="sig-head">HSE Approver</div>
                 <div class="sig-body">
-                    <div class="sig-name">{{ $permit->hseApprover->name ?? '' }}</div>
-                    <div class="sig-when">
-                        @if($permit->hseApprover)
-                            Authorised
-                        @elseif($permit->status === 'submitted')
-                            Pending
+                    @if($authorization ?? null)
+                        {{-- v2.72.0: an authorised permit shows the seal where the
+                             blank signature rule would otherwise be -- the same
+                             seal, in the same place, as the on-screen document,
+                             so paper and screen can never disagree about whether
+                             the work was authorised. An unauthorised permit is
+                             unchanged: still an empty box, never a pre-filled
+                             name. --}}
+                        <div class="stamp">
+                        <div class="stamp-word">Approved</div>
+                        <div class="stamp-rule"></div>
+                        <div class="stamp-who">{{ $authorization['approver'] }}</div>
+                        @if($authorization['role'])
+                            <div class="stamp-meta">{{ $authorization['role'] }}</div>
                         @endif
-                    </div>
-                    <div class="sig-space"></div>
-                    <div class="sig-rule">Signature</div>
+                        @if($authorization['at'])
+                            <div class="stamp-meta">{{ \Illuminate\Support\Carbon::parse($authorization['at'])->timezone(config('ioms.display_timezone'))->format('d M Y H:i') }}</div>
+                        @endif
+                        </div>
+                    @else
+                        <div class="sig-name">{{ $permit->hseApprover->name ?? '' }}</div>
+                        <div class="sig-when">@if($permit->status === 'submitted')Pending @endif</div>
+                        <div class="sig-space"></div>
+                        <div class="sig-rule">Signature</div>
+                    @endif
                 </div>
             </td>
             <td>

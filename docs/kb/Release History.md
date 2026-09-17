@@ -1,7 +1,7 @@
 ---
 title: Release History
 type: index
-updated: 2026-09-14
+updated: 2026-09-17
 tags: [kb/releases]
 ---
 
@@ -48,6 +48,7 @@ Roughly, the history falls into eras:
 
 | Version | Date | Headline |
 |---|---|---|
+| `2.72.0` | 2026-09-17 | THE BRAND, THE SEAL, AND THE DOCUMENT FORM |
 | `2.71.0` | 2026-09-16 | CAPABILITY REACH, NAVIGATION HIERARCHY, AND THE MASTER/OPERATIONAL DISTINCTION |
 | `2.70.0` | 2026-09-15 | THE SUBSCRIPTION LIFECYCLE, COMPLETED |
 | `2.69.0` | 2026-09-14 | THREE OPERATIONAL GAPS, AND THE ONE SCHEMA LIMIT UNDERNEATH TWO OF THEM |

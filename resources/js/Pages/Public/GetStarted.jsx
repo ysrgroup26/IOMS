@@ -30,12 +30,42 @@ import { cn } from '@/lib/utils';
  * them; splitting eight fields across four screens adds ceremony, not
  * clarity. Sections give it structure instead.
  */
-export default function GetStarted({ plans = [], selectedPlan, billingCycle, industries = [], contactEmail }) {
+
+/**
+ * v2.74.0 -- ONE SETUP UI, TWO ENTRY POINTS.
+ *
+ * This page is unchanged in structure, styling and behaviour. It still
+ * reads Your account -> Your company -> Your plan -> Continue to payment,
+ * with the same plan cards, the same billing toggle and the same order
+ * summary.
+ *
+ * What v2.74.0 added is a second way IN. `account` is non-null when a
+ * signed-in IOMS account opened this page from its own Account area, and
+ * exactly two things change:
+ *
+ *   1. "Your account" STATES the name and email instead of collecting
+ *      them, and the password fields disappear -- that credential already
+ *      exists on the users row. Nothing else about the section moves.
+ *   2. The form posts to the authenticated endpoint, which attaches the
+ *      resulting order to that account.
+ *
+ * Everything below that -- company, plan, terms, payment -- is identical
+ * for both, which is the point. A second subscription form would be a
+ * second thing to keep in step with this one, and they would drift.
+ */
+export default function GetStarted({ plans = [], selectedPlan, billingCycle, industries = [], contactEmail, account = null }) {
     const [yearly, setYearly] = useState(billingCycle !== 'monthly');
 
+    // Signed in: the identity is known and must not be asked for again.
+    const isAuthenticated = Boolean(account);
+
     const { data, setData, post, processing, errors } = useForm({
-        contact_name: '',
-        contact_email: '',
+        // Pre-filled from the account when there is one. Sent anyway so the
+        // public flow is untouched; the authenticated endpoint ignores both
+        // and reads the session instead, so a tampered field cannot raise
+        // an order in somebody else's name.
+        contact_name: account?.name || '',
+        contact_email: account?.email || '',
         contact_phone: '',
         password: '',
         password_confirmation: '',
@@ -72,27 +102,44 @@ export default function GetStarted({ plans = [], selectedPlan, billingCycle, ind
 
     const submit = (e) => {
         e.preventDefault();
-        post(route('register.store'), { forceFormData: true, preserveScroll: true });
+        // Same form, same payload shape; the endpoint differs only in
+        // whether it has an account to attach the order to.
+        post(isAuthenticated ? route('subscribe.store') : route('register.store'), {
+            forceFormData: true,
+            preserveScroll: true,
+        });
     };
 
     // Each step says plainly what happens and who does it. Step 04 is the
     // one that matters: activation follows a verified payment, not a
     // browser landing on a success page.
     const steps = [
-        { icon: Mail, title: 'Confirm your email', body: 'We send a confirmation link to the address you register. It becomes both your administrator contact and your billing contact.' },
+        // An account that is already confirmed has nothing to confirm, so
+        // step 01 states what is true for it instead of describing an email
+        // that will never arrive.
+        isAuthenticated
+            ? { icon: Mail, title: 'Your account is ready', body: 'You are signed in as ' + account.email + '. This account becomes the administrator of the workspace created below.' }
+            : { icon: Mail, title: 'Confirm your email', body: 'We send a confirmation link to the address you register. It becomes both your administrator contact and your billing contact.' },
         { icon: CreditCard, title: 'Pay for your plan', body: 'An invoice is issued for the cycle you choose and paid through our payment provider. Your card details never reach IOMS.' },
         { icon: Building2, title: 'Your workspace is created', body: 'Your organization, first operating unit, administrator account and permissions are set up — with your own company identity on them.' },
-        { icon: KeyRound, title: 'Sign in to IOMS', body: 'Use the password you set here. IOMS never sends a password by email.' },
+        // Same correction at the other end: there is no password to set
+        // on this page when an account is already signed in, and telling
+        // somebody to use one would send them looking for it.
+        isAuthenticated
+            ? { icon: KeyRound, title: 'Sign in to IOMS', body: 'Use the account you are signed in with now. It becomes the administrator of the new workspace.' }
+            : { icon: KeyRound, title: 'Sign in to IOMS', body: 'Use the password you set here. IOMS never sends a password by email.' },
     ];
 
     return (
         <PublicLayout>
-            <Head title="Get Started" />
+            <Head title={isAuthenticated ? 'Set Up Your Subscription' : 'Get Started'} />
 
             <PublicPageHero
-                eyebrow="Get Started"
+                eyebrow={isAuthenticated ? 'Set up your subscription' : 'Get Started'}
                 title="Set IOMS up for your operation."
-                subtitle="Create your account and company, choose a plan, then complete payment. Your workspace is prepared as soon as the payment is confirmed."
+                subtitle={isAuthenticated
+                    ? 'Add your company details and choose a plan. Your workspace is prepared as soon as the payment is confirmed.'
+                    : 'Create your account and company, choose a plan, then complete payment. Your workspace is prepared as soon as the payment is confirmed.'}
                 size="sm"
             />
 
@@ -116,21 +163,43 @@ export default function GetStarted({ plans = [], selectedPlan, billingCycle, ind
                             title="Your account"
                             hint="This account becomes the administrator of your IOMS workspace."
                         >
-                            <Field label="Full name" required error={errors.contact_name} className="sm:col-span-2">
-                                <Input value={data.contact_name} onChange={(e) => setData('contact_name', e.target.value)} autoComplete="name" />
-                            </Field>
-                            <Field label="Work email" required error={errors.contact_email}>
-                                <Input type="email" value={data.contact_email} onChange={(e) => setData('contact_email', e.target.value)} autoComplete="email" />
-                            </Field>
-                            <Field label="Phone number" error={errors.contact_phone}>
-                                <Input value={data.contact_phone} onChange={(e) => setData('contact_phone', e.target.value)} autoComplete="tel" />
-                            </Field>
-                            <Field label="Password" required error={errors.password} hint="At least 8 characters.">
-                                <PasswordInput value={data.password} onChange={(e) => setData('password', e.target.value)} autoComplete="new-password" />
-                            </Field>
-                            <Field label="Confirm password" required>
-                                <PasswordInput value={data.password_confirmation} onChange={(e) => setData('password_confirmation', e.target.value)} autoComplete="new-password" />
-                            </Field>
+                            {isAuthenticated ? (
+                                /* Already known. Stated as facts in the same
+                                   field rhythm as the inputs around them, so
+                                   the section keeps its shape -- but read-only,
+                                   because an editable name here would let an
+                                   order be raised against somebody else, and
+                                   the server ignores these fields anyway. */
+                                <>
+                                    <Field label="Full name" className="sm:col-span-2">
+                                        <ReadOnlyValue value={account.name} />
+                                    </Field>
+                                    <Field label="Your email" className="sm:col-span-2">
+                                        <ReadOnlyValue value={account.email} verified={account.email_verified} />
+                                    </Field>
+                                    <Field label="Phone number" error={errors.contact_phone} className="sm:col-span-2">
+                                        <Input value={data.contact_phone} onChange={(e) => setData('contact_phone', e.target.value)} autoComplete="tel" />
+                                    </Field>
+                                </>
+                            ) : (
+                                <>
+                                    <Field label="Full name" required error={errors.contact_name} className="sm:col-span-2">
+                                        <Input value={data.contact_name} onChange={(e) => setData('contact_name', e.target.value)} autoComplete="name" />
+                                    </Field>
+                                    <Field label="Your email" required error={errors.contact_email}>
+                                        <Input type="email" value={data.contact_email} onChange={(e) => setData('contact_email', e.target.value)} autoComplete="email" />
+                                    </Field>
+                                    <Field label="Phone number" error={errors.contact_phone}>
+                                        <Input value={data.contact_phone} onChange={(e) => setData('contact_phone', e.target.value)} autoComplete="tel" />
+                                    </Field>
+                                    <Field label="Password" required error={errors.password} hint="At least 8 characters.">
+                                        <PasswordInput value={data.password} onChange={(e) => setData('password', e.target.value)} autoComplete="new-password" />
+                                    </Field>
+                                    <Field label="Confirm password" required>
+                                        <PasswordInput value={data.password_confirmation} onChange={(e) => setData('password_confirmation', e.target.value)} autoComplete="new-password" />
+                                    </Field>
+                                </>
+                            )}
                         </FormSection>
 
                         <FormSection
@@ -382,13 +451,27 @@ export default function GetStarted({ plans = [], selectedPlan, billingCycle, ind
                             </ol>
 
                             <div className="mt-6 rounded-lg border border-steel-100 bg-white p-3.5">
-                                <p className="text-xs leading-relaxed text-graphite-600">
-                                    <span className="font-semibold text-navy-800">Already an IOMS customer?</span>{' '}
-                                    <Link href={route('login')} className="font-medium text-brand-700 hover:underline">Sign in here</Link>
-                                    {' '}— or{' '}
-                                    <Link href={route('pricing')} className="font-medium text-brand-700 hover:underline">compare plans</Link>
-                                    {' '}first.
-                                </p>
+                                {isAuthenticated ? (
+                                    /* Signed in, so "sign in here" would be
+                                       nonsense. The useful exit is back to the
+                                       account -- setting up is not compulsory
+                                       and leaving must stay easy. */
+                                    <p className="text-xs leading-relaxed text-graphite-600">
+                                        <span className="font-semibold text-navy-800">Not ready yet?</span>{' '}
+                                        <Link href={route('account.overview')} className="font-medium text-brand-700 hover:underline">Back to your account</Link>
+                                        {' '}— or{' '}
+                                        <Link href={route('pricing')} className="font-medium text-brand-700 hover:underline">compare plans</Link>
+                                        {' '}first. Nothing here is saved until you continue to payment.
+                                    </p>
+                                ) : (
+                                    <p className="text-xs leading-relaxed text-graphite-600">
+                                        <span className="font-semibold text-navy-800">Already an IOMS customer?</span>{' '}
+                                        <Link href={route('login')} className="font-medium text-brand-700 hover:underline">Sign in here</Link>
+                                        {' '}— or{' '}
+                                        <Link href={route('pricing')} className="font-medium text-brand-700 hover:underline">compare plans</Link>
+                                        {' '}first.
+                                    </p>
+                                )}
                             </div>
                         </div>
 
@@ -409,6 +492,29 @@ export default function GetStarted({ plans = [], selectedPlan, billingCycle, ind
 /* Local form primitives -- kept here because they exist to give ONE   */
 /* long public form structure, not to become a second design system.   */
 /* ------------------------------------------------------------------ */
+
+/**
+ * v2.74.0. A known fact, sitting where an input would.
+ *
+ * Deliberately NOT a disabled <Input>: a greyed-out box reads as "you may
+ * not edit this yet", which invites people to look for the thing that
+ * unlocks it. This reads as "this is already settled", which is what is
+ * actually true -- the value comes from the signed-in account and the
+ * server does not accept it from the form at all.
+ */
+function ReadOnlyValue({ value, verified }) {
+    return (
+        <div className="flex h-9 items-center gap-2 rounded-md border border-steel-100 bg-steel-50/70 px-3">
+            <span className="min-w-0 flex-1 truncate text-sm text-navy-900">{value}</span>
+            {verified && (
+                <span className="inline-flex shrink-0 items-center gap-1 text-[11px] font-medium text-success">
+                    <Check className="h-3 w-3" aria-hidden="true" /> Confirmed
+                </span>
+            )}
+        </div>
+    );
+}
+
 function FormSection({ title, hint, children }) {
     return (
         <div className="rounded-xl border border-steel-200/70 bg-white p-6 shadow-panel">

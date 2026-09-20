@@ -379,10 +379,25 @@ email and keeps `password = null`. Not configured on a deployment ⇒ button hid
 **Email verification** gates exactly one thing: the subscribe flow. Not sign-in, not the Account
 area, not existing tenant users.
 
-**The subscribe flow** (`SubscribeController`) is Plan → Organization → Order Summary, then hands off
-to the **existing, unchanged** `register.checkout` → `register.pay` → webhook → provisioning path.
-It creates an order, never a tenant. `tenant_registrations.user_id`, set at creation, is what tells
-provisioning to ATTACH the existing account instead of creating a second user.
+**Registration ends on a fork**, `register.welcome` (`Pages/Auth/AccountCreated.jsx`): *Continue
+setup* or *Maybe later*, both real buttons. Not a redirect into either branch — see ADR 038.
+
+**The subscribe flow is one page, and it is a page that already existed.** `GET /subscribe`
+(`SubscribeController@setup`) renders `Pages/Public/GetStarted.jsx` — the **same** component
+`/get-started` renders — with an extra `account` prop. The page then states the signed-in name and
+email instead of collecting them, drops the password fields, and posts to `POST /subscribe` instead
+of `register.store`. Nothing else differs.
+
+**Do not add a second subscription form.** One was added in the first cut of v2.74.0 and removed in
+the same release; the reasoning is in ADR 038 § *One setup form, two entry points*, and
+`SubscribeFlowTest::test_the_subscribe_page_is_the_same_form_as_get_started` will fail if one
+returns.
+
+`POST /subscribe` creates an order and hands off to the **existing, unchanged** `register.status` →
+`register.checkout` → `register.pay` → webhook → provisioning path. It creates an order, never a
+tenant. `tenant_registrations.user_id`, set at creation, is what tells provisioning to ATTACH the
+existing account instead of creating a second user. Identity comes from the session; the `contact_*`
+fields the form sends are not validated and not read.
 
 ## Incident Management
 

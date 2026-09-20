@@ -200,7 +200,7 @@ function NoSubscriptionPanel({ plans, pendingOrder, canSubscribe }) {
 
                 <div className="flex flex-col gap-2 sm:flex-row">
                     <Button asChild disabled={!canSubscribe} className="sm:w-auto">
-                        <Link href={route('subscribe.plans')}>Choose a plan <ArrowRight className="h-4 w-4" /></Link>
+                        <Link href={route('subscribe.setup')}>Choose a plan <ArrowRight className="h-4 w-4" /></Link>
                     </Button>
                     <Button variant="outline" asChild className="sm:w-auto">
                         <a href={route('pricing')}>Compare plans <ExternalLink className="h-3.5 w-3.5" /></a>

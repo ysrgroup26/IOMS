@@ -80,7 +80,7 @@ export default function Register() {
                 </div>
 
                 <div className="space-y-1.5">
-                    <Label htmlFor="email">Work email</Label>
+                    <Label htmlFor="email">Your email</Label>
                     <Input
                         id="email"
                         type="email"

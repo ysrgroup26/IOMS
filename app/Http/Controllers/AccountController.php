@@ -85,7 +85,8 @@ class AccountController extends Controller
                 'status' => $pendingOrder->status,
                 'plan' => $pendingOrder->package?->name,
                 'organization' => $pendingOrder->displayName(),
-                'resume_url' => route('subscribe.summary', $pendingOrder->token),
+                // The existing order page -- the same one the public flow ends on.
+                'resume_url' => route('register.status', $pendingOrder->token),
             ] : null,
             // A teaser of the catalogue, so "choose a plan" is a decision
             // they can start making here rather than a leap into a pricing

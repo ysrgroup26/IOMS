@@ -14,9 +14,13 @@ use Tests\TestCase;
 /**
  * v2.74.0 -- AN EXISTING ACCOUNT ACQUIRES AN ORGANIZATION.
  *
- *   Account -> Choose Plan -> Organization -> Order -> Payment -> Active
+ *   Account -> Set up subscription -> Order -> Payment -> Active
  *
- * Two properties matter most here and both are easy to break silently:
+ * The setup form is the SAME page /get-started renders; only the entry
+ * point differs. That is pinned below, because "just add a second form
+ * for the signed-in case" is the obvious shortcut and the two would drift.
+ *
+ * Three properties matter most here and all are easy to break silently:
  *
  *   1. THE FLOW NEVER RE-ASKS FOR IDENTITY. The order takes its contact
  *      name and email from the signed-in account, not from the request --
@@ -52,6 +56,7 @@ class SubscribeFlowTest extends TestCase
     private function organizationPayload(array $overrides = []): array
     {
         return array_merge([
+            'plan' => $this->plan()->slug,
             'company_legal_name' => 'PT Contoh Industri Nusantara',
             'company_display_name' => 'Contoh Industri',
             'company_address' => 'Jl. Bawal Kav. 12',
@@ -68,7 +73,7 @@ class SubscribeFlowTest extends TestCase
         $plan = $this->plan();
 
         $this->actingAs($user)
-            ->post("/subscribe/{$plan->slug}/organization", $this->organizationPayload([
+            ->post('/subscribe', $this->organizationPayload([
                 // A hostile form could try to raise an order against
                 // somebody else. These keys are not in the rules and must
                 // be ignored entirely.
@@ -95,7 +100,7 @@ class SubscribeFlowTest extends TestCase
         $user = $this->verifiedAccount();
         $plan = $this->plan();
 
-        $this->actingAs($user)->post("/subscribe/{$plan->slug}/organization", $this->organizationPayload());
+        $this->actingAs($user)->post('/subscribe', $this->organizationPayload());
 
         $order = TenantRegistration::latest('id')->firstOrFail();
 
@@ -110,7 +115,7 @@ class SubscribeFlowTest extends TestCase
         $plan = $this->plan();
         $subscriptionsBefore = Subscription::withoutGlobalScopes()->count();
 
-        $this->actingAs($user)->post("/subscribe/{$plan->slug}/organization", $this->organizationPayload());
+        $this->actingAs($user)->post('/subscribe', $this->organizationPayload());
 
         $this->assertSame($subscriptionsBefore, Subscription::withoutGlobalScopes()->count());
         $this->assertNull($user->fresh()->tenant_id);
@@ -123,8 +128,8 @@ class SubscribeFlowTest extends TestCase
         $user = $this->verifiedAccount();
         $plan = $this->plan();
 
-        $this->actingAs($user)->post("/subscribe/{$plan->slug}/organization", $this->organizationPayload());
-        $this->actingAs($user)->post("/subscribe/{$plan->slug}/organization", $this->organizationPayload([
+        $this->actingAs($user)->post('/subscribe', $this->organizationPayload());
+        $this->actingAs($user)->post('/subscribe', $this->organizationPayload([
             'company_display_name' => 'Contoh Industri Revised',
         ]));
 
@@ -146,7 +151,7 @@ class SubscribeFlowTest extends TestCase
         $user = $this->verifiedAccount();
         $plan = $this->plan();
 
-        $this->actingAs($user)->post("/subscribe/{$plan->slug}/organization", $this->organizationPayload());
+        $this->actingAs($user)->post('/subscribe', $this->organizationPayload());
 
         $order = TenantRegistration::latest('id')->firstOrFail();
         $order->update(['status' => TenantRegistration::STATUS_PAID, 'paid_at' => now()]);
@@ -219,22 +224,95 @@ class SubscribeFlowTest extends TestCase
         $this->assertNotNull($admin->email_verified_at, 'A provisioned tenant admin verified their address before paying.');
     }
 
-    /** An order belongs to the account that raised it, and to nobody else. */
-    public function test_another_account_cannot_open_someone_elses_order(): void
+    /**
+     * ONE SETUP FORM, TWO ENTRY POINTS.
+     *
+     * The signed-in subscribe page must render the SAME Inertia component
+     * the public /get-started page renders -- not a second form that
+     * happens to look like it. This assertion exists because the first
+     * implementation of this flow DID build a parallel four-step wizard,
+     * and two forms selling one product drift: a field is added to one, a
+     * price format corrected in the other, and what a customer sees
+     * depends on which door they came through.
+     *
+     * The only difference is the `account` prop, which is what makes the
+     * page state the identity instead of collecting it.
+     */
+    public function test_the_subscribe_page_is_the_same_form_as_get_started(): void
     {
-        $owner = $this->verifiedAccount();
-        $plan = $this->plan();
+        $user = $this->verifiedAccount();
 
-        $this->actingAs($owner)->post("/subscribe/{$plan->slug}/organization", $this->organizationPayload());
-        $order = TenantRegistration::latest('id')->firstOrFail();
+        $this->actingAs($user)->get('/subscribe')
+            ->assertOk()
+            ->assertInertia(fn ($page) => $page
+                ->component('Public/GetStarted')
+                ->where('account.name', 'Rina Kusuma')
+                ->where('account.email', 'rina@contoh.test')
+                ->where('account.email_verified', true)
+                ->has('plans')
+                ->has('industries'));
+    }
 
-        $intruder = User::create([
-            'name' => 'Intruder', 'email' => 'intruder@contoh.test', 'password' => bcrypt('x'),
-            'role' => User::ROLE_ACCOUNT, 'tenant_id' => null, 'is_active' => true,
-            'email_verified_at' => now(),
-        ]);
+    /**
+     * The other half of the same property: the PUBLIC door opens the same
+     * page with no `account`, which is what keeps the password fields and
+     * the email field in the pay-first flow.
+     *
+     * Its own test because /get-started redirects a signed-in visitor, so
+     * it cannot share a session with the one above.
+     */
+    public function test_the_public_door_opens_the_same_form_without_an_account(): void
+    {
+        $this->get('/get-started')
+            ->assertOk()
+            ->assertInertia(fn ($page) => $page->component('Public/GetStarted')->missing('account'));
+    }
 
-        // 404 rather than 403 -- a 403 would confirm the order exists.
-        $this->actingAs($intruder)->get("/subscribe/order/{$order->token}")->assertNotFound();
+    /**
+     * An unverified account cannot buy. The invoice and the activation
+     * notice would go to an address nobody has confirmed.
+     */
+    public function test_an_unverified_account_cannot_reach_subscription_setup(): void
+    {
+        $user = $this->verifiedAccount();
+        $user->forceFill(['email_verified_at' => null])->save();
+
+        $this->actingAs($user)->get('/subscribe')->assertRedirect(route('account.overview'));
+        $this->actingAs($user)->post('/subscribe', $this->organizationPayload())
+            ->assertRedirect(route('account.overview'));
+
+        $this->assertSame(0, TenantRegistration::where('user_id', $user->id)->count());
+    }
+
+    /**
+     * Registration ends on the FORK, not in either branch of it.
+     *
+     * "Maybe later" has to be a real option, so the redirect after sign-up
+     * must not be plan selection -- and it must not be the empty account
+     * area either, which reads as broken to somebody who has just arrived.
+     */
+    public function test_registration_ends_on_the_setup_fork(): void
+    {
+        Mail::fake();
+
+        $this->post('/register', [
+            'name' => 'Baru Sekali',
+            'email' => 'baru@contoh.test',
+            // Deliberately not a common password: the rule set includes
+            // Laravel's uncompromised() check against Have I Been Pwned.
+            'password' => 'Perancah2026kuat',
+            'password_confirmation' => 'Perancah2026kuat',
+            'terms' => true,
+        ])->assertRedirect(route('register.welcome'));
+
+        $account = User::withoutGlobalScopes()->where('email', 'baru@contoh.test')->firstOrFail();
+
+        $this->actingAs($account)->get('/register/welcome')
+            ->assertOk()
+            ->assertInertia(fn ($page) => $page->component('Auth/AccountCreated'));
+
+        // The fork itself created nothing commercial.
+        $this->assertNull($account->tenant_id);
+        $this->assertSame(0, TenantRegistration::where('user_id', $account->id)->count());
     }
 }

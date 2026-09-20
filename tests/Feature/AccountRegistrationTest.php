@@ -48,7 +48,9 @@ class AccountRegistrationTest extends TestCase
         $tenantsBefore = Tenant::count();
         $companiesBefore = Company::withoutGlobalScopes()->count();
 
-        $this->post('/register', $this->payload())->assertRedirect('/account');
+        // The fork, not the account area and not plan selection. See
+        // SubscribeFlowTest::test_registration_ends_on_the_setup_fork.
+        $this->post('/register', $this->payload())->assertRedirect('/register/welcome');
 
         $user = User::withoutGlobalScopes()->where('email', 'rina@contoh.test')->firstOrFail();
 

@@ -166,7 +166,7 @@ class RegistrationController extends Controller
             'company_city' => $validated['company_city'],
             'company_province' => $validated['company_province'],
             'company_postal_code' => $validated['company_postal_code'] ?? null,
-            'company_country' => $validated['company_country'] ?: 'Indonesia',
+            'company_country' => ($validated['company_country'] ?? null) ?: 'Indonesia',
             'company_phone' => $validated['company_phone'] ?? null,
             'company_email' => $validated['company_email'] ?? null,
             'company_tax_id' => $validated['company_tax_id'] ?? null,

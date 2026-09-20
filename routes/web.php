@@ -284,6 +284,17 @@ Route::middleware('auth')->group(function () {
     Route::post('/email/verification-notification', [EmailVerificationController::class, 'resend'])
         ->middleware('throttle:6,1')->name('verification.send');
 
+    /*
+     * The fork immediately after an account is created: set a subscription
+     * up now, or not.
+     *
+     * Its own route rather than a flash message on the account page, so it
+     * survives a refresh and so the choice is a page the account actually
+     * sees -- a redirect straight into either branch would be IOMS deciding
+     * for them, which is the thing v2.74.0 exists to stop doing.
+     */
+    Route::get('/register/welcome', [RegisteredUserController::class, 'welcome'])->name('register.welcome');
+
     // The account's own area: identity, security, commercial state.
     Route::get('/account', [AccountController::class, 'overview'])->name('account.overview');
     Route::put('/account/profile', [AccountController::class, 'updateProfile'])->name('account.profile.update');
@@ -293,18 +304,20 @@ Route::middleware('auth')->group(function () {
 
     /*
      * Acquiring an organization:
-     *   Choose Plan -> Organization Details -> Order Summary -> Payment
+     *   Account -> Set up subscription -> Payment
      *
-     * The final step hands off to the EXISTING register.checkout /
-     * register.pay path, which is unchanged -- activation still happens
-     * only in PaymentWebhookController from a signed, server-verified
-     * payload. See SubscribeController.
+     * ONE route, because there is ONE subscription setup form: the page
+     * /get-started already renders. This is that same page opened by a
+     * signed-in account, which is why it collects a company and a plan but
+     * not a name, an email or a password -- see SubscribeController.
+     *
+     * It hands off to the EXISTING register.status -> register.checkout ->
+     * register.pay path, which is unchanged: activation still happens only
+     * in PaymentWebhookController, from a signed, server-verified payload.
      */
-    Route::get('/subscribe', [SubscribeController::class, 'plans'])->name('subscribe.plans');
-    Route::get('/subscribe/{plan}/organization', [SubscribeController::class, 'organization'])->name('subscribe.organization');
-    Route::post('/subscribe/{plan}/organization', [SubscribeController::class, 'storeOrganization'])
-        ->middleware('throttle:20,1')->name('subscribe.organization.store');
-    Route::get('/subscribe/order/{token}', [SubscribeController::class, 'summary'])->name('subscribe.summary');
+    Route::get('/subscribe', [SubscribeController::class, 'setup'])->name('subscribe.setup');
+    Route::post('/subscribe', [SubscribeController::class, 'store'])
+        ->middleware('throttle:20,1')->name('subscribe.store');
 });
 
 /*

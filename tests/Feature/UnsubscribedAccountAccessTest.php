@@ -126,8 +126,10 @@ class UnsubscribedAccountAccessTest extends TestCase
         $user->forceFill(['email_verified_at' => null])->save();
 
         $this->actingAs($user)->get('/subscribe')->assertRedirect('/account');
+
+        // The form is one page, so the POST is the other half of the gate.
         $this->actingAs($user)
-            ->get('/subscribe/professional/organization')
+            ->post('/subscribe', ['company_legal_name' => 'PT Apa Pun'])
             ->assertRedirect('/account');
     }
 

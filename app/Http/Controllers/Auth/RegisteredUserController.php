@@ -30,11 +30,17 @@ use Inertia\Response;
  *   - no Subscription
  *   - no payment
  *
- * The account lands in its own Account area, NOT on plan selection. That
- * is a deliberate product decision, not an oversight: pushing a brand-new
- * account straight into a pricing table is the software equivalent of
- * asking for a credit card at the door. They choose a plan when they
- * decide to, from a page that is always one click away.
+ * The account then lands on a FORK -- set a subscription up now, or not
+ * yet -- and neither branch is taken for them. That is a deliberate
+ * product decision, not an oversight: dropping a brand-new account
+ * straight into a pricing table is the software equivalent of asking for
+ * a credit card at the door, and dropping it into an empty account area
+ * with no stated next step is the opposite mistake. Offering the choice
+ * costs one screen and answers the only question they have.
+ *
+ * "Continue setup" opens the subscription setup form -- the SAME page
+ * /get-started renders, opened by an account rather than by a stranger.
+ * "Maybe later" goes to the Account area and creates nothing.
  *
  * See `docs/ADR/038-account-organization-subscription.md`.
  *
@@ -123,6 +129,30 @@ class RegisteredUserController extends Controller
         Auth::login($user);
         $request->session()->regenerate();
 
-        return redirect()->route('account.overview');
+        return redirect()->route('register.welcome');
+    }
+
+    /**
+     * The fork: "Continue setup" or "Maybe later".
+     *
+     * Its own URL rather than only a redirect target, so a refresh does not
+     * lose it. An account that already has an organization has nothing to
+     * choose here and is sent to its product.
+     */
+    public function welcome(Request $request): Response|RedirectResponse
+    {
+        $user = $request->user();
+
+        if (! $user->hasNoOrganization()) {
+            return redirect()->route($user->landingRouteName());
+        }
+
+        return Inertia::render('Auth/AccountCreated', [
+            'account' => [
+                'name' => $user->name,
+                'email' => $user->email,
+                'email_verified' => $user->hasVerifiedEmail(),
+            ],
+        ]);
     }
 }

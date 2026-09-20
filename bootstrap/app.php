@@ -5,6 +5,7 @@ use App\Http\Middleware\EnforceSubscriptionWriteAccess;
 use App\Http\Middleware\EnforceTenantEntitlement;
 use App\Http\Middleware\HandleInertiaRequests;
 use App\Http\Middleware\IdentifyTenant;
+use App\Http\Middleware\RequireOrganization;
 use App\Http\Middleware\ResolveTenant;
 use App\Http\Middleware\RestrictDemoTenant;
 use App\Http\Middleware\RestrictDepartmentAccess;
@@ -81,6 +82,16 @@ return Application::configure(basePath: dirname(__DIR__))
             SubstituteBindings::class,
             HandleInertiaRequests::class,
             IdentifyTenant::class,
+            // v2.74.0: an account can now exist without an organization,
+            // so something has to decide where one may go. Placed BEFORE
+            // the entitlement middleware on purpose -- that one explicitly
+            // lets a null-tenant user straight through (it was written
+            // when null tenant meant "platform operator"), so without this
+            // an unsubscribed account would sail past every commercial
+            // check into the operational product. Fail-closed allow-list;
+            // see its own doc comment for why it is here and not on a
+            // route group.
+            RequireOrganization::class,
             // v1.11.0: entitlement (does the tenant's subscription allow
             // using the product at all) checked before department scope
             // (which department can THIS user reach) -- a tenant-wide

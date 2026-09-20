@@ -1746,6 +1746,79 @@ Three rules that matter when extending this:
 
 The chip is a LABEL (English); the consequence sentence is PROSE (Indonesian). See ADR 034.
 
+## CRITICAL — Known Pitfall (v2.74.0) — `tenant_id IS NULL` used to MEAN "platform operator", and anything that creates a tenant-less user inherits that meaning
+
+`User::isPlatformAdmin()` was `is_null($this->tenant_id)`. That was correct for as long as the only
+way to have no tenant was to be the platform operator.
+
+v2.74.0 introduced accounts that exist before they have an organization — which is to say,
+tenant-less users. Under the old definition **every new signup would have been a Platform Super
+Admin with cross-tenant reach**, and nothing in the registration code mentions platform admin at
+all, so there is no line anybody would have thought to read.
+
+The fix is to ask the question a different way (`role === ROLE_PLATFORM_ADMIN`), and the discipline
+around it is the part worth copying:
+
+1. **Check the data first.** Every null-tenant user already carried the role and no tenant user did,
+   so the switch was provably behaviour-preserving rather than hopefully so.
+2. **Back the invariant with a migration**, so it holds on every deployment and not just the one
+   that was inspected.
+3. **Pin it with a test** (`AccountRegistrationTest::test_a_new_account_is_not_a_platform_admin`),
+   because the old definition is the one somebody will reach for again.
+
+**The general rule.** Before adding a record in a state no record has been in before — a user with
+no tenant, an order with no customer, a document with no owner — search for predicates that infer
+meaning from the ABSENCE of that relationship. `is_null(...)` in an authorization method is the
+shape to grep for.
+
+## Known Pitfall (v2.74.0) — a nullable validated field is ABSENT from `$validated`, not present-and-empty
+
+```php
+// WRONG -- "Undefined array key" the moment the field is simply not sent
+'company_country' => $validated['company_country'] ?: 'Indonesia',
+
+// RIGHT
+'company_country' => ($validated['company_country'] ?? null) ?: 'Indonesia',
+```
+
+`?:` reads like a null-safe default and is not one. A `nullable` rule means the key may not be in the
+array at all, which is different from being there and empty — and the difference only shows when a
+user leaves an optional field blank, which is the normal case, not the edge case.
+
+Found by a test that filled in only the required fields.
+
+## Known Pitfall (v2.74.0) — a column missing from `$fillable` is dropped SILENTLY by `create()`
+
+`User::create([... 'email_verified_at' => now(), 'google_id' => $sub])` produced an account that was
+neither verified nor linked, with no error anywhere. Mass assignment discards unknown keys quietly by
+design.
+
+The damage was specific: the Google account would then have failed to match on `google_id` at the
+next sign-in and created a duplicate, which the unique index on `email` would have rejected — a
+sign-in that works once and then breaks forever.
+
+**The rules.**
+
+- After adding a column, decide explicitly whether it is fillable, and say so in the same change.
+- **Authentication-bearing columns must NOT be fillable.** `google_id` is written only through
+  `linkGoogleIdentity()` and one explicit `forceFill`, because a fillable identity column is one
+  careless `update($request->all())` away from account takeover.
+- Assert the persisted row in a test, not the call. `create()` returning a model proves nothing
+  about what was stored.
+
+## Known Pitfall (v2.74.0) — a per-tenant number series must be counted by SERIES, not by current owner
+
+`Invoice::generateNumber(null)` counted `whereNull('tenant_id')` for the onboarding series. But
+`TenantProvisioningService` ATTACHES a paid onboarding invoice to the tenant it just created, so the
+invoice leaves the null-tenant bucket, the count falls back to zero, and the next onboarding invoice
+regenerates `INV-YYYY-NEW-00001` — colliding with the one that still carries it.
+
+It only bites on the **second** self-service signup of a year, which is exactly why it survived: the
+first one always works.
+
+**The rule.** Count a number series by a discriminator that does not change for the life of the
+record (`registration_id` here), never by a field the record's own lifecycle rewrites.
+
 ## CRITICAL — Known Pitfall (v2.73.0) — Blade compiles directives BEFORE it strips comments, so naming a directive inside a comment executes it
 
 A section of the PTW PDF silently vanished. The template read perfectly; the rendered document

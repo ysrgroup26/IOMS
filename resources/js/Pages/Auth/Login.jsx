@@ -1,49 +1,38 @@
-import { useForm, Head, usePage, Link } from '@inertiajs/react';
+import { useForm, usePage, Link } from '@inertiajs/react';
 import { useState } from 'react';
-import { Loader2, Eye, EyeOff, ShieldCheck, ArrowRight } from 'lucide-react';
+import { Loader2, Eye, EyeOff, ArrowRight } from 'lucide-react';
 import { Button } from '@/Components/ui/button';
 import { Input } from '@/Components/ui/input';
 import { Label } from '@/Components/ui/label';
-import BrandWordmark from '@/Components/shared/BrandWordmark';
+import AuthLayout from '@/Layouts/AuthLayout';
+import GoogleSignInButton from '@/Components/shared/GoogleSignInButton';
 
 /**
- * v2.42.0 -- "Premium Enterprise Gateway".
+ * v2.42.0 -- "Premium Enterprise Gateway". The two-panel shell moved to
+ * `Layouts/AuthLayout` in v2.74.0 when Sign Up needed the same surface;
+ * its design reasoning lives there now.
  *
- * WHAT WAS WRONG: the previous login was a single centred card floating on a
- * near-white page dressed with decorative blobs, a pulsing glow, a rotated
- * empty square and a masked grid. Five ambient decorations carrying no
- * information, on a surface with no structure -- which is exactly the
- * "too white, too flat, generic" reading. A sign-in screen is the first
- * impression of an industrial operations platform; it should feel built,
- * not floated.
+ * v2.74.0 -- TWO WAYS IN, PRESENTED AS A CHOICE.
  *
- * THE STRUCTURE: a two-panel gateway. The left panel is a deep navy brand
- * surface that establishes what this product IS; the right is a clean white
- * working surface where credentials are entered. That split is the whole
- * design -- weight and hierarchy come from the two real surfaces meeting,
- * not from decoration layered onto one.
+ * Google first, then a labelled divider, then email and password. That
+ * order is deliberate: Google is one tap and cannot be mistyped, so it
+ * belongs where the eye lands. The divider is what stops the two reading
+ * as one form -- without it, "Continue with Google" above an email field
+ * looks like a step in a sequence rather than an alternative to it.
  *
- * White is kept deliberately, on the half where it belongs: the form. Data
- * entry wants maximum contrast and zero atmosphere.
- *
- * EVERY WORD ON THE NAVY PANEL IS REAL. The product name, descriptor,
- * positioning line and target industries are the brand's own established
- * copy; edition/version come from live props. There are no invented
- * customer counts, uptime figures, testimonials or logos -- a login screen
- * is the easiest place to fabricate credibility and the worst place to be
- * caught doing it.
- *
- * On mobile the navy panel collapses to a compact identity band above the
- * form rather than being hidden, so the brand still frames the page at
- * 320px without pushing the form below the fold.
+ * The Google option renders only where the deployment has credentials
+ * configured. An install without them shows a plain email/password form
+ * with no gap where a button used to be.
  */
 export default function Login() {
-    const { version, company } = usePage().props;
+    const { googleEnabled } = usePage().props;
+
     const { data, setData, post, processing, errors } = useForm({
         email: '',
         password: '',
         remember: false,
     });
+
     // Local UI toggle on the input's `type` only -- never touches the
     // submitted value or any authentication behaviour.
     const [showPassword, setShowPassword] = useState(false);
@@ -53,177 +42,113 @@ export default function Login() {
         post(route('login'));
     }
 
-    const industries = ['Shipyards', 'Construction', 'Manufacturing', 'Heavy Industry'];
-
     return (
-        <div className="min-h-screen bg-white lg:grid lg:grid-cols-[minmax(0,1fr)_minmax(0,1.1fr)] xl:grid-cols-[minmax(0,1fr)_minmax(0,1fr)]">
-            <Head title="Sign in" />
-
-            {/* ---------------------------------------------------------------
-                BRAND PANEL. Deep navy, full height on desktop, a compact band
-                on mobile. The only texture is a fine technical grid at very
-                low opacity -- an industrial reference, not a gradient light
-                show, and it costs nothing at 320px.
-            --------------------------------------------------------------- */}
-            <aside className="relative isolate overflow-hidden bg-navy-900 px-6 py-8 text-white sm:px-10 lg:flex lg:flex-col lg:justify-between lg:py-14 xl:px-16">
-                <div
-                    className="pointer-events-none absolute inset-0 -z-10 opacity-[0.18]"
-                    aria-hidden="true"
-                    style={{
-                        backgroundImage:
-                            'linear-gradient(to right, rgba(255,255,255,0.10) 1px, transparent 1px), linear-gradient(to bottom, rgba(255,255,255,0.10) 1px, transparent 1px)',
-                        backgroundSize: '56px 56px',
-                    }}
-                />
-                {/* One soft steel wash so the navy reads as depth rather than
-                    a flat fill. Deliberately a single layer. */}
-                <div
-                    className="pointer-events-none absolute -right-32 -top-32 -z-10 h-[34rem] w-[34rem] rounded-full bg-steel-500 opacity-[0.16] blur-3xl"
-                    aria-hidden="true"
-                />
-
-                <div>
-                    {/* v2.72.0: the real lockup, in its dark-surface variant --
-                        this panel is navy, where the light-surface wordmark would
-                        be invisible. Sized by height; the 3.85:1 ratio does the
-                        rest. The previous comment here described the typographic
-                        fallback, which no longer exists. */}
-                    <BrandWordmark className="h-10 w-auto" tone="dark" alt={company?.name || 'IOMS'} />
-                    <p className="mt-2.5 text-[13px] font-medium uppercase tracking-[0.18em] text-steel-300">
-                        {company?.subtitle || 'Industrial Operations Platform'}
+        <AuthLayout
+            title="Sign in"
+            heading="Sign in"
+            subheading="Gunakan akun Anda untuk melanjutkan."
+            footer={
+                /* v2.50.0: the login page previously offered a visitor with no
+                   IOMS account no way forward at all -- it could only reject
+                   them. v2.74.0 points at Sign Up rather than at the pay-first
+                   onboarding: creating an account is now free and takes a
+                   minute, and choosing a plan is a decision for later. */
+                <div className="mt-6 rounded-lg border border-steel-200/70 bg-steel-50/70 px-3.5 py-3 text-center">
+                    <p className="text-xs leading-relaxed text-graphite-600">
+                        Don&apos;t have an IOMS account?{' '}
+                        <Link href={route('register')} className="font-semibold text-brand-700 hover:underline">Sign up</Link>
+                        {' '}or{' '}
+                        <Link href={route('pricing')} className="font-semibold text-brand-700 hover:underline">view plans</Link>.
                     </p>
                 </div>
+            }
+        >
+            {googleEnabled && (
+                <>
+                    <GoogleSignInButton label="Continue with Google" />
+                    <AuthDivider />
+                </>
+            )}
 
-                {/* Desktop-only positioning block. Hidden on mobile so the
-                    form stays above the fold on a phone. */}
-                <div className="hidden lg:block">
-                    <h1 className="max-w-md text-[28px] font-semibold leading-tight tracking-tight xl:text-[32px]">
-                        Built for industrial operations.
-                    </h1>
-                    <p className="mt-3 max-w-md text-sm leading-relaxed text-navy-300">
-                        One platform for HSE, workforce, projects, maintenance and the documents
-                        that have to stand up to an audit.
-                    </p>
-
-                    <ul className="mt-7 flex flex-wrap gap-x-2.5 gap-y-2" aria-label="Target industries">
-                        {industries.map((industry) => (
-                            <li
-                                key={industry}
-                                className="rounded-md border border-white/10 bg-white/[0.06] px-2.5 py-1 text-xs font-medium text-steel-100"
-                            >
-                                {industry}
-                            </li>
-                        ))}
-                    </ul>
+            <form onSubmit={submit} className="space-y-4">
+                <div className="space-y-1.5">
+                    <Label htmlFor="email">Email</Label>
+                    <Input
+                        id="email"
+                        type="email"
+                        autoFocus
+                        autoComplete="username"
+                        value={data.email}
+                        onChange={(e) => setData('email', e.target.value)}
+                        placeholder="nama@perusahaan.com"
+                        aria-invalid={Boolean(errors.email)}
+                    />
+                    {errors.email && <p className="text-xs text-red-600">{errors.email}</p>}
                 </div>
 
-                <div className="hidden items-center gap-2 text-xs text-navy-300 lg:flex">
-                    <ShieldCheck className="h-3.5 w-3.5 shrink-0 text-steel-400" />
-                    <span>{version?.edition} &middot; v{version?.number}</span>
+                <div className="space-y-1.5">
+                    <Label htmlFor="password">Password</Label>
+                    <div className="relative">
+                        <Input
+                            id="password"
+                            type={showPassword ? 'text' : 'password'}
+                            autoComplete="current-password"
+                            value={data.password}
+                            onChange={(e) => setData('password', e.target.value)}
+                            placeholder="••••••••"
+                            className="pr-10"
+                            aria-invalid={Boolean(errors.password)}
+                        />
+                        <button
+                            type="button"
+                            onClick={() => setShowPassword((v) => !v)}
+                            className="absolute right-0 top-0 flex h-9 w-9 items-center justify-center text-graphite-400 transition-colors hover:text-graphite-700"
+                            aria-label={showPassword ? 'Hide password' : 'Show password'}
+                            aria-pressed={showPassword}
+                        >
+                            {showPassword ? <EyeOff className="h-4 w-4" /> : <Eye className="h-4 w-4" />}
+                        </button>
+                    </div>
+                    {errors.password && <p className="text-xs text-red-600">{errors.password}</p>}
                 </div>
-            </aside>
 
-            {/* ---------------------------------------------------------------
-                WORKING SURFACE. White, high contrast, no ambient decoration --
-                everything here is either a control or a label.
-            --------------------------------------------------------------- */}
-            <main className="flex items-center justify-center px-5 py-10 sm:px-8 lg:py-14">
-                <div className="w-full max-w-[380px]">
-                    <div className="mb-7">
-                        <h2 className="text-[22px] font-semibold tracking-tight text-navy-900">Sign in</h2>
-                        <p className="mt-1 text-sm text-graphite-500">Gunakan akun Anda untuk melanjutkan.</p>
-                    </div>
-
-                    <form onSubmit={submit} className="space-y-4">
-                        <div className="space-y-1.5">
-                            <Label htmlFor="email">Email</Label>
-                            <Input
-                                id="email"
-                                type="email"
-                                autoFocus
-                                autoComplete="username"
-                                value={data.email}
-                                onChange={(e) => setData('email', e.target.value)}
-                                placeholder="nama@perusahaan.com"
-                                aria-invalid={Boolean(errors.email)}
-                            />
-                            {errors.email && <p className="text-xs text-red-600">{errors.email}</p>}
-                        </div>
-
-                        <div className="space-y-1.5">
-                            <Label htmlFor="password">Password</Label>
-                            <div className="relative">
-                                <Input
-                                    id="password"
-                                    type={showPassword ? 'text' : 'password'}
-                                    autoComplete="current-password"
-                                    value={data.password}
-                                    onChange={(e) => setData('password', e.target.value)}
-                                    placeholder="••••••••"
-                                    className="pr-10"
-                                    aria-invalid={Boolean(errors.password)}
-                                />
-                                <button
-                                    type="button"
-                                    onClick={() => setShowPassword((v) => !v)}
-                                    className="absolute right-0 top-0 flex h-9 w-9 items-center justify-center text-graphite-400 transition-colors hover:text-graphite-700"
-                                    aria-label={showPassword ? 'Hide password' : 'Show password'}
-                                    aria-pressed={showPassword}
-                                >
-                                    {showPassword ? <EyeOff className="h-4 w-4" /> : <Eye className="h-4 w-4" />}
-                                </button>
-                            </div>
-                            {errors.password && <p className="text-xs text-red-600">{errors.password}</p>}
-                        </div>
-
-                        <div className="flex items-center justify-between pt-0.5">
-                            <label className="flex cursor-pointer items-center gap-2 text-sm text-graphite-600">
-                                <input
-                                    type="checkbox"
-                                    checked={data.remember}
-                                    onChange={(e) => setData('remember', e.target.checked)}
-                                    className="rounded border-graphite-300 text-brand-600 focus:ring-brand-500"
-                                />
-                                Remember me
-                            </label>
-                            <Link href={route('password.request')} className="text-sm font-medium text-brand-600 hover:underline">
-                                Forgot password?
-                            </Link>
-                        </div>
-
-                        <Button type="submit" className="group w-full" disabled={processing}>
-                            {processing
-                                ? <Loader2 className="h-4 w-4 animate-spin" />
-                                : <ArrowRight className="h-4 w-4 transition-transform duration-200 motion-safe:group-hover:translate-x-0.5" />}
-                            Sign in
-                        </Button>
-                    </form>
-
-                    {/* v2.50.0: the login page previously offered a visitor with no
-                        IOMS account no way forward at all -- it could only reject
-                        them. Sign-in and acquisition are different journeys and both
-                        need a visible door. */}
-                    <div className="mt-6 rounded-lg border border-steel-200/70 bg-steel-50/70 px-3.5 py-3 text-center">
-                        <p className="text-xs leading-relaxed text-graphite-600">
-                            Don&apos;t have an IOMS account?{' '}
-                            <Link href={route('get-started')} className="font-semibold text-brand-700 hover:underline">Get started</Link>
-                            {' '}or{' '}
-                            <Link href={route('pricing')} className="font-semibold text-brand-700 hover:underline">view plans</Link>.
-                        </p>
-                    </div>
-
-                    <div className="mt-6 border-t border-graphite-100 pt-5 text-xs leading-relaxed text-graphite-400">
-                        {/* Edition/version already sit on the navy panel at lg+;
-                            repeated here only where that panel is collapsed. */}
-                        <p className="lg:hidden">{version?.edition} &middot; v{version?.number}</p>
-                        <p>
-                            Designed &amp; Developed by{' '}
-                            <span className="font-medium text-graphite-500">{version?.company}</span>
-                        </p>
-                        <p>&copy; {version?.copyright_year} All Rights Reserved.</p>
-                    </div>
+                <div className="flex items-center justify-between pt-0.5">
+                    <label className="flex cursor-pointer items-center gap-2 text-sm text-graphite-600">
+                        <input
+                            type="checkbox"
+                            checked={data.remember}
+                            onChange={(e) => setData('remember', e.target.checked)}
+                            className="rounded border-graphite-300 text-brand-600 focus:ring-brand-500"
+                        />
+                        Remember me
+                    </label>
+                    <Link href={route('password.request')} className="text-sm font-medium text-brand-600 hover:underline">
+                        Forgot password?
+                    </Link>
                 </div>
-            </main>
+
+                <Button type="submit" className="group w-full" disabled={processing}>
+                    {processing
+                        ? <Loader2 className="h-4 w-4 animate-spin" />
+                        : <ArrowRight className="h-4 w-4 transition-transform duration-200 motion-safe:group-hover:translate-x-0.5" />}
+                    Sign in
+                </Button>
+            </form>
+        </AuthLayout>
+    );
+}
+
+/**
+ * The labelled rule between the two authentication paths. Small, but it
+ * is the element doing the work: it is what makes Google an ALTERNATIVE
+ * to the form below rather than a step above it.
+ */
+export function AuthDivider({ label = 'or' }) {
+    return (
+        <div className="my-5 flex items-center gap-3" aria-hidden="true">
+            <span className="h-px flex-1 bg-graphite-200" />
+            <span className="text-[11px] font-medium uppercase tracking-wide text-graphite-400">{label}</span>
+            <span className="h-px flex-1 bg-graphite-200" />
         </div>
     );
 }

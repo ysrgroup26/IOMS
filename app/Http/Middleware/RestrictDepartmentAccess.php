@@ -55,6 +55,24 @@ class RestrictDepartmentAccess
         // task list, owned by no department.
         'my-work',
         'search', 'logout', 'login', 'password',
+        /*
+         * v2.74.0 -- ACCOUNT, AUTHENTICATION AND SUBSCRIPTION ACQUISITION.
+         *
+         * None of these belong to a department, and two of them are the
+         * ONLY places an account without an organization is allowed to be
+         * (see RequireOrganization). Found the way this class of mistake
+         * is always found here: signing up returned "This page belongs to
+         * a different department" -- a 403 from the routing layer, on the
+         * sign-up page, for a prefix that simply was not in the map.
+         *
+         *   account       the person's own area: identity, security
+         *   subscribe     Plan -> Organization -> Order -> Payment
+         *   register      creating an IOMS account
+         *   verification  confirming the email address on one
+         *   auth          the Google OAuth redirect and callback
+         *   get-started   the legacy public onboarding, same reasoning
+         */
+        'account', 'subscribe', 'register', 'verification', 'auth', 'get-started',
         // v2.42.0: PTW is a genuinely cross-department CAPABILITY, not an
         // HSE-department-owned page -- User::canCreatePtw() is deliberately
         // a UNION of canManageHse() and an individually-granted `ptw_access`

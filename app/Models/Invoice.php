@@ -144,10 +144,33 @@ class Invoice extends Model
             // exists -- a customer's first invoice is INV-YYYY-<id>-00001
             // either way, and pre-tenant invoices never consume a number
             // from a tenant that has not been created.
-            $query = static::whereYear('created_at', $year);
+            $query = static::withoutGlobalScopes()->whereYear('created_at', $year);
+
+            /*
+             * v2.74.0 -- COUNT THE SERIES, NOT THE CURRENT OWNER.
+             *
+             * This used to count `whereNull('tenant_id')` for the
+             * onboarding series, and that was a real duplicate-key bug:
+             * TenantProvisioningService ATTACHES a paid onboarding invoice
+             * to the tenant it just created, so the invoice leaves the
+             * null-tenant bucket. The count then falls back to zero and
+             * the next onboarding invoice regenerates INV-YYYY-NEW-00001 --
+             * colliding with the one that still carries that number.
+             *
+             * It only bites on the SECOND self-service signup of a year,
+             * which is why it survived: the first one always works.
+             * Reproduced by running the v2.74.0 subscribe flow against a
+             * database that already had one provisioned tenant, and the
+             * checkout 500'd on the unique index.
+             *
+             * `registration_id` is the stable discriminator -- it is set
+             * when the invoice is raised and never cleared, so an invoice
+             * stays in the series it was issued in for the rest of its
+             * life, whatever happens to its tenant.
+             */
             $query = $tenantId === null
-                ? $query->whereNull('tenant_id')
-                : $query->where('tenant_id', $tenantId);
+                ? $query->whereNotNull('registration_id')
+                : $query->where('tenant_id', $tenantId)->whereNull('registration_id');
 
             $count = $query->lockForUpdate()->count();
 

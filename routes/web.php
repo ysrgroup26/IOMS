@@ -5,7 +5,12 @@ use App\Http\Controllers\AnalyticsController;
 use App\Http\Controllers\ApprovalController;
 use App\Http\Controllers\AssetController;
 use App\Http\Controllers\AssetDashboardController;
+use App\Http\Controllers\AccountController;
 use App\Http\Controllers\Auth\AuthenticatedSessionController;
+use App\Http\Controllers\Auth\EmailVerificationController;
+use App\Http\Controllers\Auth\GoogleAuthController;
+use App\Http\Controllers\Auth\RegisteredUserController;
+use App\Http\Controllers\SubscribeController;
 use App\Http\Controllers\Auth\NewPasswordController;
 use App\Http\Controllers\Auth\PasswordResetLinkController;
 use App\Http\Controllers\ComingSoonController;
@@ -220,6 +225,30 @@ Route::middleware('guest')->group(function () {
     // session handling, or any authorization boundary.
     Route::post('/login', [AuthenticatedSessionController::class, 'store'])->middleware('throttle:6,1');
 
+    /*
+     * v2.74.0 -- CREATE AN IOMS ACCOUNT.
+     *
+     * Identity only: no organization, no company, no subscription, no
+     * payment. Distinct from `/get-started`, which is the legacy
+     * pay-first onboarding for a visitor with no account at all and which
+     * remains in place. See docs/ADR/038.
+     *
+     * Throttled like every other credential endpoint in this group.
+     */
+    Route::get('/register', [RegisteredUserController::class, 'create'])->name('register');
+    Route::post('/register', [RegisteredUserController::class, 'store'])
+        ->middleware('throttle:6,1')->name('register.account');
+
+    /*
+     * Continue with Google. Both routes 404 when the deployment has no
+     * Google credentials configured, so an unconfigured install never
+     * presents a broken button -- the login page hides it for the same
+     * reason. No secret is ever in the URL: the authorization code is
+     * exchanged for tokens server-to-server by Socialite.
+     */
+    Route::get('/auth/google/redirect', [GoogleAuthController::class, 'redirect'])->name('auth.google.redirect');
+    Route::get('/auth/google/callback', [GoogleAuthController::class, 'callback'])->name('auth.google.callback');
+
     Route::get('/forgot-password', [PasswordResetLinkController::class, 'create'])->name('password.request');
     // Same reasoning as /login above -- an unthrottled password-reset
     // request endpoint is a real spam/enumeration-abuse vector.
@@ -231,6 +260,52 @@ Route::middleware('guest')->group(function () {
 Route::post('/logout', [AuthenticatedSessionController::class, 'destroy'])
     ->middleware('auth')
     ->name('logout');
+
+/*
+|--------------------------------------------------------------------------
+| Account and subscription acquisition (v2.74.0)
+|--------------------------------------------------------------------------
+|
+| Reachable by ANY signed-in account, including one with no organization
+| -- both prefixes are on RequireOrganization's allow-list, because this
+| is where such an account is supposed to be.
+|
+| Deliberately NOT inside the 'restrict.platform-admin' group below: that
+| group is the operational tenant product, and these routes are neither
+| tenant-scoped nor operational. A platform admin has their own console
+| and is redirected there by their own landing route.
+*/
+Route::middleware('auth')->group(function () {
+    // Email confirmation. 'signed' is what makes the link tamper-proof;
+    // Laravel's EmailVerificationRequest additionally binds it to this
+    // user and this address.
+    Route::get('/email/verify/{id}/{hash}', [EmailVerificationController::class, 'verify'])
+        ->middleware(['signed', 'throttle:6,1'])->name('verification.verify');
+    Route::post('/email/verification-notification', [EmailVerificationController::class, 'resend'])
+        ->middleware('throttle:6,1')->name('verification.send');
+
+    // The account's own area: identity, security, commercial state.
+    Route::get('/account', [AccountController::class, 'overview'])->name('account.overview');
+    Route::put('/account/profile', [AccountController::class, 'updateProfile'])->name('account.profile.update');
+    Route::put('/account/password', [AccountController::class, 'updatePassword'])
+        ->middleware('throttle:6,1')->name('account.password.update');
+    Route::delete('/account/google', [AccountController::class, 'unlinkGoogle'])->name('account.google.unlink');
+
+    /*
+     * Acquiring an organization:
+     *   Choose Plan -> Organization Details -> Order Summary -> Payment
+     *
+     * The final step hands off to the EXISTING register.checkout /
+     * register.pay path, which is unchanged -- activation still happens
+     * only in PaymentWebhookController from a signed, server-verified
+     * payload. See SubscribeController.
+     */
+    Route::get('/subscribe', [SubscribeController::class, 'plans'])->name('subscribe.plans');
+    Route::get('/subscribe/{plan}/organization', [SubscribeController::class, 'organization'])->name('subscribe.organization');
+    Route::post('/subscribe/{plan}/organization', [SubscribeController::class, 'storeOrganization'])
+        ->middleware('throttle:20,1')->name('subscribe.organization.store');
+    Route::get('/subscribe/order/{token}', [SubscribeController::class, 'summary'])->name('subscribe.summary');
+});
 
 /*
 |--------------------------------------------------------------------------

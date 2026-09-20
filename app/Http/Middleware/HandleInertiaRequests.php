@@ -143,6 +143,21 @@ class HandleInertiaRequests extends Middleware
              * per-page prop is precisely how the first half went missing.
              */
             'display_timezone' => config('ioms.display_timezone'),
+
+            /*
+             * v2.74.0 -- is "Continue with Google" available on THIS
+             * deployment?
+             *
+             * Shared globally rather than passed from the two auth
+             * controllers, because the login page, the sign-up page and
+             * the account security panel all need the same answer and a
+             * per-page prop is how they end up disagreeing -- exactly the
+             * failure the display timezone prop above was added to fix.
+             *
+             * Carries no secret: it is a boolean derived from whether the
+             * credentials are configured, never the credentials.
+             */
+            'googleEnabled' => \App\Http\Controllers\Auth\GoogleAuthController::configured(),
             'branding' => [
                 // v2.38.0: whether the tenant uploaded its OWN wordmark.
                 //

@@ -3,12 +3,13 @@
 namespace App\Models;
 
 use App\Models\Scopes\UserTenantScope;
+use Illuminate\Contracts\Auth\MustVerifyEmail;
 use Illuminate\Foundation\Auth\User as Authenticatable;
 use Illuminate\Notifications\Notifiable;
 use Laravel\Sanctum\HasApiTokens;
 use Spatie\Permission\Traits\HasRoles;
 
-class User extends Authenticatable
+class User extends Authenticatable implements MustVerifyEmail
 {
     // HasRoles (Milestone 2, RBAC foundation) added now so
     // $user->assignRole()/->can() are available to build on -- the
@@ -66,6 +67,26 @@ class User extends Authenticatable
      */
     public const ROLE_PLATFORM_ADMIN = 'platform_admin';
 
+    /**
+     * v2.74.0 -- A REGISTERED IDENTITY THAT OWNS NOTHING YET.
+     *
+     * What a brand-new signup is given, before they have an organization.
+     * It deliberately grants NOTHING: no `isX()` predicate returns true
+     * for it and no `canX()` method admits it, so an account holding this
+     * role cannot reach a single operational capability even if a route
+     * were left unguarded.
+     *
+     * It is NOT a permission level in the tenant hierarchy -- it is the
+     * absence of one. When the account subscribes,
+     * TenantProvisioningService promotes it to `super_admin` of the tenant
+     * it just paid for, and this role is never seen again on that account.
+     *
+     * Kept as a real role rather than a null, because `users.role` is NOT
+     * NULL and because "account" is a state a human should be able to read
+     * in the database without knowing a convention.
+     */
+    public const ROLE_ACCOUNT = 'account';
+
     protected $fillable = [
         'name',
         'email',
@@ -88,7 +109,34 @@ class User extends Authenticatable
         // migration doc comment.
         'ptw_access',
         'is_field_user',
+
+        /*
+         * v2.74.0. Needed by TenantProvisioningService (which marks a
+         * paid registration's user verified) and by the Google path
+         * (where Google has already proved control of the address).
+         *
+         * Safe to mass-assign here for the same reason `role` and
+         * `tenant_id` already are: every controller that creates a user
+         * passes VALIDATED input, and none of them validate this key, so
+         * no request can reach it. `google_id` deliberately does NOT
+         * join this list -- see below.
+         */
+        'email_verified_at',
     ];
+
+    /*
+     * v2.74.0 -- `google_id` and `google_linked_at` are deliberately NOT
+     * mass-assignable.
+     *
+     * Linking a Google identity is an authentication decision, not a
+     * profile field. If it were fillable, any future controller that
+     * passed request data to User::create()/update() without thinking
+     * would let a caller claim somebody else's Google subject id and take
+     * over their sign-in. Both are written only through
+     * `linkGoogleIdentity()` and the explicit forceFill in
+     * GoogleAuthController, where a Google-verified `sub` is the only
+     * possible source.
+     */
 
     protected $hidden = [
         'password',
@@ -157,9 +205,115 @@ class User extends Authenticatable
         return $this->belongsTo(Tenant::class);
     }
 
+    /**
+     * v2.74.0 -- READS THE ROLE, NOT THE ABSENCE OF A TENANT.
+     *
+     * This was `is_null($this->tenant_id)`, and that definition had to
+     * change before an account could exist without an organization.
+     * Otherwise every newly registered, unsubscribed account -- which by
+     * design has no tenant -- would have been a Platform Super Admin with
+     * cross-tenant reach. It is the single most dangerous thing the
+     * account/organization split could have done, and it is the reason
+     * that split needed a keystone rather than just a new form.
+     *
+     * THE SWITCH IS BEHAVIOUR-PRESERVING. Checked against live data
+     * before it was made: every null-tenant user already carried
+     * `role = 'platform_admin'`, and no tenant user carried it, so the
+     * two definitions agreed exactly. The owning migration also backfills
+     * the role for any null-tenant user that somehow lacked it, so this
+     * holds on every deployment rather than just the inspected one.
+     *
+     * A platform admin still has no tenant -- `tenant_id` stays null for
+     * them, and ResolveTenant/TenantScope still behave exactly as before.
+     * What changed is only how the question is ASKED.
+     */
     public function isPlatformAdmin(): bool
     {
-        return is_null($this->tenant_id);
+        return $this->role === self::ROLE_PLATFORM_ADMIN;
+    }
+
+    /**
+     * v2.74.0 -- a registered identity with no organization yet.
+     *
+     * The state a person is in between creating an account and
+     * subscribing. It is a deliberate product state, not an error and not
+     * a half-provisioned tenant: they can sign in, manage their account,
+     * read the public product information, and choose a plan when they are
+     * ready.
+     *
+     * Deliberately expressed as "has no tenant AND is not the platform
+     * operator" rather than as a role check, so it stays true for any
+     * future role that finds itself without an organization. The role
+     * below is what a fresh signup is GIVEN; this is what being without a
+     * tenant MEANS.
+     */
+    public function hasNoOrganization(): bool
+    {
+        return $this->tenant_id === null && ! $this->isPlatformAdmin();
+    }
+
+    /**
+     * Does this account sign in with an IOMS password at all?
+     *
+     * False for a Google-only account, whose `password` is genuinely null
+     * rather than a placeholder hash -- see the owning migration on why
+     * inventing one would have been a lie. The login and password-reset
+     * paths both branch on this.
+     */
+    public function hasPassword(): bool
+    {
+        return filled($this->password);
+    }
+
+    /**
+     * v2.74.0 -- IOMS sends its own verification email, not Laravel's.
+     *
+     * The framework default is a plain English notification with generic
+     * branding. Overriding the hook (rather than replacing the routing,
+     * the signing, or the expiry) keeps every security property Laravel
+     * already provides -- the URL is still signed with the app key, still
+     * expires, still binds to this user's id and email hash -- and
+     * changes only what the recipient reads.
+     *
+     * `temporarySignedRoute` is generated here rather than inside the
+     * Mailable so the Mailable stays a dumb renderer, the same shape as
+     * every other IOMS mail class.
+     */
+    public function sendEmailVerificationNotification(): void
+    {
+        $minutes = (int) config('auth.verification.expire', 60);
+
+        $url = \Illuminate\Support\Facades\URL::temporarySignedRoute(
+            'verification.verify',
+            \Illuminate\Support\Carbon::now()->addMinutes($minutes),
+            ['id' => $this->getKey(), 'hash' => sha1($this->getEmailForVerification())],
+        );
+
+        \Illuminate\Support\Facades\Mail::to($this->email)
+            ->send(new \App\Mail\VerifyAccountEmail($this, $url, $minutes));
+    }
+
+    /**
+     * v2.74.0 -- LINK A GOOGLE IDENTITY TO THIS ACCOUNT.
+     *
+     * Verifying the email as a side effect is correct and deliberate:
+     * Google has already proved control of the address through the OAuth
+     * flow, and asking IOMS to send its own confirmation to an address
+     * Google just authenticated is theatre. It is also the reason this
+     * lives on the model rather than in the controller -- the
+     * email-verification consequence is a property of what linking MEANS,
+     * not of one code path.
+     *
+     * Only ever called with a `sub` that came back from Google's token
+     * endpoint on a server-to-server exchange. Never from a request body.
+     */
+    public function linkGoogleIdentity(string $googleId): void
+    {
+        $this->forceFill([
+            'google_id' => $googleId,
+            'google_linked_at' => now(),
+            'email_verified_at' => $this->email_verified_at ?? now(),
+        ])->save();
     }
 
     /**
@@ -510,6 +664,9 @@ class User extends Authenticatable
             self::ROLE_MANAGER => 'Manager',
             self::ROLE_WAREHOUSE => 'Warehouse',
             self::ROLE_PLATFORM_ADMIN => 'Master',
+            // v2.74.0. "Account" rather than a rank: this person holds an
+            // identity and nothing else yet.
+            self::ROLE_ACCOUNT => 'Account',
             default => ucfirst($this->role),
         };
     }
@@ -572,6 +729,15 @@ class User extends Authenticatable
 
     public function landingRouteName(): string
     {
+        // v2.74.0: an account with no organization has no operational
+        // workspace to land in. It lands in its own Account area, which is
+        // a real destination rather than a holding page -- see
+        // AccountController. Checked FIRST, because every branch below
+        // assumes a tenant.
+        if ($this->hasNoOrganization()) {
+            return 'account.overview';
+        }
+
         return $this->isFieldUser() ? 'my-work' : 'dashboard';
     }
 

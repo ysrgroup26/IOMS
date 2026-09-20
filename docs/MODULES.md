@@ -345,6 +345,45 @@ warehouse-style hand-off, it's simply granted) and no line items. Creation/editi
 on behalf of" pattern, since there's no employee self-service login in this app. Numbered
 `LR-{year}-{00001}`, same convention as `MR-`/`TSK-`/`INC-`/`GR-`.
 
+## Account, Authentication and Subscription Acquisition
+
+**Department:** none — these are pre-organization surfaces. Route prefixes `account`, `subscribe`,
+`register`, `verification` and `auth` are listed in `RestrictDepartmentAccess::UNIVERSAL_PREFIXES`,
+not in `config/departments.php`.
+
+**v2.74.0.** Three things that used to be one record are now three:
+
+| Concept | Model | Created by |
+|---|---|---|
+| Account | `users` | `/register` or Google sign-in |
+| Organization | `tenants` + `companies` | `TenantProvisioningService`, after a verified payment |
+| Subscription | `subscriptions` | the same, in the same transaction |
+
+Full reasoning: `docs/ADR/038-account-organization-subscription.md`.
+
+**Registration** (`Auth\RegisteredUserController`) creates ONLY a person: `role = ROLE_ACCOUNT`,
+`tenant_id = null`, `company_id = null`. It does not create or attach a tenant, company, operating
+unit or subscription, and it does **not** redirect to plan selection.
+
+**`User::isPlatformAdmin()` reads the ROLE**, not the absence of a tenant — the keystone of the whole
+release. See the pitfall in `docs/CONVENTIONS.md` before touching it.
+
+**`RequireOrganization`** (global `web` stack, before `EnforceTenantEntitlement`) redirects any
+account with `hasNoOrganization()` to `/account`. Fail-closed allow-list; a new operational route is
+protected the moment it is written.
+
+**Google sign-in** (`Auth\GoogleAuthController`, `laravel/socialite`) links on Google's `sub`, and on
+a matching email only when Google reports it verified. A Google account needs no IOMS verification
+email and keeps `password = null`. Not configured on a deployment ⇒ button hidden, routes 404.
+
+**Email verification** gates exactly one thing: the subscribe flow. Not sign-in, not the Account
+area, not existing tenant users.
+
+**The subscribe flow** (`SubscribeController`) is Plan → Organization → Order Summary, then hands off
+to the **existing, unchanged** `register.checkout` → `register.pay` → webhook → provisioning path.
+It creates an order, never a tenant. `tenant_registrations.user_id`, set at creation, is what tells
+provisioning to ATTACH the existing account instead of creating a second user.
+
 ## Incident Management
 
 **Department:** HSE (v1.10.0).

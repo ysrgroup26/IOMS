@@ -49,7 +49,7 @@ on every phone width.
 
 | | |
 |---|---|
-| Suite | **440 tests, 1846 assertions — all passing** (2026-09-20) |
+| Suite | **460 tests, 1939 assertions — all passing** (2026-09-20) |
 | Database | In-memory **SQLite**, so no MySQL or external service is needed |
 | Lint | `npm run lint` — 0 errors (4 pre-existing warnings in `GasTestRecords/Index.jsx` and `Settings/Index.jsx`) |
 | Build | `npm run build` — clean, with the known bundle-size warning |
@@ -72,6 +72,8 @@ matters — several defects only appear at realistic scale.
 
 | Area | Version | What was verified |
 |---|---|---|
+| Account → Subscription, end to end | 2.74.0 | Against MySQL: registered through `/register`; confirmed the account carried `role=account`, null tenant/company, **`isPlatformAdmin()` false**, and that no tenant, company or subscription row was created; read the verification email out of the mail log and followed its signed link; raised an order through Choose Plan → Organization (identity taken from the account, never re-asked) → Order Summary; drove checkout, which honestly parked at `awaiting_payment` with a real invoice because no gateway is configured; then activated through `TenantProvisioningService` — the same entry point the verified webhook uses — and confirmed the **user count did not change**, the account was promoted to `super_admin` on the new tenant, and an active subscription with agreed pricing was created |
+| Unsubscribed access boundary | 2.74.0 | **Measured**: every one of `/dashboard`, `/incidents`, `/investigations`, `/permits-to-work`, `/employees`, `/settings`, `/my-work`, `/work-center`, `/subscription/billing` redirected to `/account`; `/platform` 404'd. No tenant data reachable |
 | Incident → Investigation → CAPA | 2.73.0 | End to end against MySQL: a 5W1H initial report filed through the real endpoint (injury, treatment, facility, chronology, witnesses, claim reference all persisted; an empty witness row correctly dropped); an investigation opened from it, which moved the incident to `investigating`; the analysis, an interview and a corrective action saved; the workflow driven draft → in progress → under review → completed → closed, with an **illegal jump back to draft correctly refused** by the state machine; reviewer and closer stamps written server-side; closing the investigation closed the incident; the full audit trail read back |
 | Record chain | 2.73.0 | Rendered from BOTH ends and confirmed to agree — the incident shows INC (current) → INV → CAPA, the investigation shows the same chain looking back |
 | PTW required vs confirmed PPE | 2.73.0 | A permit raised with three required PPE types from the existing master plus one free-text item and two hazards; approved confirming only two, and the **Harness correctly surfaced as unconfirmed** on the Show page, the document view and the generated PDF alike |
@@ -110,6 +112,7 @@ Stated plainly because the distinction matters:
 | **MySQL-specific concurrency** | See the SQLite note above |
 | **Email and queue side effects** | Not exercised by the suite |
 | **Live payment flow** | Requires external provider configuration — see [[Known Issues and Limitations]] |
+| **Google OAuth (v2.74.0)** | Architecturally complete and **never executed**. No `GOOGLE_CLIENT_ID`/`GOOGLE_CLIENT_SECRET` exists in this environment, so the consent screen, the `state` check, the token exchange and the three linking branches have not been exercised against Google. What IS verified: the button is hidden and both routes 404 when unconfigured, and the linking logic's inputs (`sub`, `email_verified`) are read only from Socialite's server-to-server response. See `docs/ADR/038` for the exact configuration a deployment needs |
 | **A real Midtrans notification** | Every webhook test signs its own payload with a test server key, so what is verified is that IOMS honours the contract *as documented*. Their actual signature over a live transaction, their full `transaction_status` vocabulary, and their retry timing have never been observed. This is the gap a sandbox transaction against real credentials would close, and it is the one remaining item in the payment path that carries genuine unknown risk — [[Requirements Register]] |
 | **The scheduled run in production** | `subscriptions:lifecycle` is test-covered and was exercised by hand, but no deployment has yet run it from cron over a real period boundary |
 | **The sidebar scroll WRITE, by a human hand** (v2.71.0) | The restore path was exercised fully (exact restore, clamping, per-department isolation). The write could not be driven by script: the embedded verification browser does not dispatch `scroll` for a programmatic `scrollTop` assignment while the window is not painting — a listener attached by hand in the console never fired either, so this is the tool, not the product. The handler is three lines, attached to the element the restore reads from, and pinned by a test that forbids the rAF regression that actually broke it |

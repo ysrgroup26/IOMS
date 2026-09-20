@@ -132,17 +132,68 @@ class TenantProvisioningService
         $tenant->workspaces()->sync(Workspace::whereIn('key', $package->defaultWorkspaceKeys())->pluck('id'));
         $tenant->modules()->sync(Module::whereIn('key', $package->defaultModuleKeys())->pluck('id'));
 
-        $admin = User::create([
-            'name' => $registration->contact_name,
-            'email' => $registration->contact_email,
-            // Already hashed at registration time -- the plaintext never
-            // reached the database and IOMS never emails a credential.
-            'password' => $registration->password,
-            'role' => User::ROLE_SUPER_ADMIN,
-            'tenant_id' => $tenant->id,
-            'company_id' => $company->id,
-            'is_active' => true,
-        ]);
+        /*
+         * v2.74.0 -- ATTACH AN EXISTING ACCOUNT, OR CREATE ONE.
+         *
+         * The two onboarding flows converge here, and `user_id` is what
+         * distinguishes them:
+         *
+         *   SET   the order was raised by an account that already exists
+         *         (Account -> Choose Plan -> Organization -> Payment).
+         *         That person is promoted to Super Admin of the tenant
+         *         they just paid for. Creating a second user would
+         *         duplicate their identity and, because `users.email` is
+         *         unique, fail outright.
+         *
+         *   NULL  the legacy public flow, where there is no account until
+         *         payment clears. Unchanged: the user is created here from
+         *         the credential captured at registration.
+         *
+         * Both paths end with exactly one Super Admin attached to exactly
+         * one tenant, which is what the rest of the system assumes.
+         */
+        $admin = $registration->user_id
+            ? User::withoutGlobalScopes()->find($registration->user_id)
+            : null;
+
+        if ($admin) {
+            /*
+             * Promotion, not creation. `forceFill` because `tenant_id`
+             * and `role` are not mass-assignable on User -- correctly, as
+             * they are exactly the fields a request must never set.
+             *
+             * The email is marked verified if it somehow was not: this
+             * account paid, and `SubscribeController` required a confirmed
+             * address before it could reach checkout, so an unverified one
+             * here would be an inconsistency rather than a state to
+             * preserve.
+             */
+            $admin->forceFill([
+                'role' => User::ROLE_SUPER_ADMIN,
+                'tenant_id' => $tenant->id,
+                'company_id' => $company->id,
+                'is_active' => true,
+                'email_verified_at' => $admin->email_verified_at ?? now(),
+            ])->save();
+        } else {
+            $admin = User::create([
+                'name' => $registration->contact_name,
+                'email' => $registration->contact_email,
+                // Already hashed at registration time -- the plaintext never
+                // reached the database and IOMS never emails a credential.
+                'password' => $registration->password,
+                'role' => User::ROLE_SUPER_ADMIN,
+                'tenant_id' => $tenant->id,
+                'company_id' => $company->id,
+                'is_active' => true,
+                // v2.74.0: the registration's address WAS confirmed before
+                // payment was accepted, so the resulting user is verified.
+                // Previously this column was left null on every
+                // self-service tenant, which was harmless only because
+                // nothing read it.
+                'email_verified_at' => $registration->email_verified_at ?? now(),
+            ]);
+        }
 
         $this->writeCompanyIdentity($tenant, $registration);
 

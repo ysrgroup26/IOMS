@@ -613,12 +613,21 @@ class PublicReadinessTest extends TestCase
         $this->assertStringNotContainsString('opacity-0', $reveal, 'A reveal that starts at opacity 0 can strand content.');
     }
 
-    public function test_get_started_is_an_onboarding_flow_and_not_a_login_redirect(): void
+    /**
+     * v2.74.2 -- Get Started creates an ACCOUNT.
+     *
+     * It used to be the whole pay-first onboarding form. It is now the
+     * account form, which is still a real destination and still not a
+     * bounce to the login screen.
+     */
+    public function test_get_started_is_account_registration_and_not_a_login_redirect(): void
     {
         $this->package();
 
-        $this->get(route('get-started'))
+        $this->get(route('get-started'))->assertRedirect(route('register'));
+
+        $this->get(route('register'))
             ->assertOk()
-            ->assertInertia(fn ($page) => $page->component('Public/GetStarted')->has('plans'));
+            ->assertInertia(fn ($page) => $page->component('Auth/Register'));
     }
 }

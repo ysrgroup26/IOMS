@@ -379,14 +379,22 @@ email and keeps `password = null`. Not configured on a deployment ⇒ button hid
 **Email verification** gates exactly one thing: the subscribe flow. Not sign-in, not the Account
 area, not existing tenant users.
 
+**Get Started is account registration** (v2.74.2). `GET /get-started` redirects to `/register`
+(`Pages/Auth/Register.jsx`), which asks for full name, email, password and consent, and offers
+*Continue with Google* when the deployment is configured for it. It shows **no** company fields, no
+plan cards, no billing toggle and no payment. A `?plan=`/`?cycle=` arriving from a plan card is
+validated against the catalogue and remembered in the session for subscription setup to read later.
+
+`POST /get-started` (`register.store`) is **removed**. Orders are raised at `POST /subscribe` by a
+signed-in, verified account, and nowhere else.
+
 **Registration ends on a fork**, `register.welcome` (`Pages/Auth/AccountCreated.jsx`): *Continue
 setup* or *Maybe later*, both real buttons. Not a redirect into either branch — see ADR 038.
 
-**The subscribe flow is one page, and it is a page that already existed.** `GET /subscribe`
-(`SubscribeController@setup`) renders `Pages/Public/GetStarted.jsx` — the **same** component
-`/get-started` renders — with an extra `account` prop. The page then states the signed-in name and
-email instead of collecting them, drops the password fields, and posts to `POST /subscribe` instead
-of `register.store`. Nothing else differs.
+**The subscribe flow is one page.** `GET /subscribe` (`SubscribeController@setup`) renders
+`Pages/Public/GetStarted.jsx` — a file name that is now historical; it is **not** the Get Started
+page. It states the signed-in name and email rather than collecting them, has no password fields,
+and posts to `POST /subscribe`. `account` is required; the page is never rendered to a stranger.
 
 **Do not add a second subscription form.** One was added in the first cut of v2.74.0 and removed in
 the same release; the reasoning is in ADR 038 § *One setup form, two entry points*, and

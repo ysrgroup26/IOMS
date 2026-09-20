@@ -8,7 +8,6 @@ use App\Mail\VerifyRegistrationEmail;
 use App\Models\Invoice;
 use App\Models\PaymentTransaction;
 use App\Models\TenantRegistration;
-use App\Models\User;
 use App\Services\InvoiceDocumentService;
 use App\Services\PdfGeneratorService;
 use App\Services\PricingService;
@@ -17,22 +16,36 @@ use App\Contracts\PaymentGatewayInterface;
 use Illuminate\Http\RedirectResponse;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\DB;
-use Illuminate\Support\Facades\Hash;
 use Illuminate\Support\Facades\Log;
 use Illuminate\Support\Facades\Mail;
-use Illuminate\Validation\Rule;
 use Inertia\Inertia;
 use Inertia\Response;
 use Throwable;
 
 /**
  * v2.51.0 -- self-service IOMS onboarding.
+ * v2.74.2 -- the pay-first HALF of it is gone; the order half remains.
  *
  * REPLACES the mailto handoff. Asking a prospect to open a desktop mail
  * client is not an acquisition flow; it is a dead end wearing a button.
  *
- * The journey: choose a plan -> create the account and company -> verify
- * the email -> review the plan -> pay -> (webhook) -> provisioned.
+ * WHAT CHANGED IN v2.74.2. The original journey was: choose a plan ->
+ * create the account and company in one form -> verify the email -> pay
+ * -> (webhook) -> provisioned. There was no account until the payment
+ * cleared, so identity, company, plan and password all had to be
+ * collected up front by a stranger who could not sign in.
+ *
+ * Since v2.74.0 an account can exist on its own, so that form no longer
+ * has a reason to exist: Get Started creates an ACCOUNT, and the account
+ * sets a subscription up afterwards from one page it can return to. The
+ * pay-first `create`-form and its `store` endpoint are removed, and
+ * `create()` now sends visitors to the account form.
+ *
+ * WHAT REMAINS HERE, and why: verify, resend, status, invoice, pay and
+ * checkout. They are the ORDER half of the flow, still reached by every
+ * order (`SubscribeController` hands off to `status`), and still the only
+ * way an order raised before this release can be completed. Deleting them
+ * would strand any in-flight registration.
  *
  * THE ORDERING RULE, which every method here obeys: nothing that grants
  * access happens before a payment IOMS verified server-side. A prospect
@@ -46,30 +59,47 @@ class RegistrationController extends Controller
 {
     public function __construct(private readonly PricingService $pricing) {}
 
-    /** Step 1 -- the Get Started page: plan selection plus the onboarding form. */
+    /**
+     * Get Started -- which is now ACCOUNT REGISTRATION, and nothing else.
+     *
+     * A redirect rather than a second copy of the account form, so there
+     * is exactly one account registration page and one canonical URL for
+     * it. Every public "Get Started" call to action keeps working.
+     *
+     * A visitor who arrives from a plan card carries `?plan=` and
+     * `?cycle=`. That intent is remembered in the SESSION rather than
+     * pushed through the account form, because it is not an account
+     * field -- the account form asks for four things and must not grow a
+     * fifth. `SubscribeController::setup()` reads it back when the
+     * account opens subscription setup, so clicking "Choose Starter" on
+     * Pricing still lands on Starter three screens later.
+     */
     public function create(Request $request): Response|RedirectResponse
     {
-        // An authenticated tenant user has no business creating a second
-        // company registration by accident. Send them where they can
-        // actually act instead of showing them a signup form.
-        if ($request->user()) {
-            return $request->user()->isPlatformAdmin()
-                ? redirect()->route('platform.dashboard')
-                : redirect()->route('dashboard');
+        /*
+         * Somebody already signed in does not need a signup page. Sent to
+         * their OWN landing route rather than hard-coded to the dashboard:
+         * an account with no organization has no dashboard to go to, and
+         * this route is public, so it is reachable by exactly that account.
+         */
+        if ($user = $request->user()) {
+            return redirect()->route($user->landingRouteName());
         }
 
         $plans = $this->pricing->publicPlans();
-        $requested = (string) $request->query('plan', '');
 
-        return Inertia::render('Public/GetStarted', [
-            'plans' => $plans,
-            // Validated against the real catalog so an arbitrary slug is
-            // never echoed back into the page.
-            'selectedPlan' => $plans->firstWhere('slug', $requested)['slug'] ?? null,
-            'billingCycle' => $this->pricing->normalizeCycle($request->query('cycle')),
-            'industries' => self::INDUSTRIES,
-            'contactEmail' => config('ioms.emails.hello'),
-        ]);
+        // Validated against the real catalog, so an arbitrary slug is never
+        // remembered and never echoed back into a later page.
+        $plan = $plans->firstWhere('slug', (string) $request->query('plan', ''))['slug'] ?? null;
+
+        if ($plan) {
+            $request->session()->put('intended_plan', [
+                'plan' => $plan,
+                'cycle' => $this->pricing->normalizeCycle($request->query('cycle')),
+            ]);
+        }
+
+        return redirect()->route('register');
     }
 
     /** Industries IOMS actually serves. A list, not free text, so Master Admin reporting stays consistent. */
@@ -86,108 +116,29 @@ class RegistrationController extends Controller
         'Other',
     ];
 
-    /** Step 2 -- create the pending registration. Creates NO tenant, NO company and NO user account. */
-    public function store(Request $request): RedirectResponse
-    {
-        $validated = $request->validate([
-            'contact_name' => ['required', 'string', 'max:255'],
-            'contact_email' => ['required', 'email', 'max:255'],
-            'contact_phone' => ['nullable', 'string', 'max:50'],
-            'password' => ['required', 'string', 'min:8', 'confirmed'],
-
-            'company_legal_name' => ['required', 'string', 'max:255'],
-            'company_display_name' => ['nullable', 'string', 'max:255'],
-            'company_industry' => ['nullable', Rule::in(self::INDUSTRIES)],
-            'company_address' => ['required', 'string', 'max:500'],
-            'company_city' => ['required', 'string', 'max:120'],
-            'company_province' => ['required', 'string', 'max:120'],
-            'company_postal_code' => ['nullable', 'string', 'max:20'],
-            'company_country' => ['nullable', 'string', 'max:100'],
-            'company_phone' => ['nullable', 'string', 'max:50'],
-            'company_email' => ['nullable', 'email', 'max:255'],
-            'company_tax_id' => ['nullable', 'string', 'max:50'],
-            'company_business_id' => ['nullable', 'string', 'max:50'],
-            'billing_email' => ['nullable', 'email', 'max:255'],
-            'logo' => ['nullable', 'mimes:jpg,jpeg,png,svg,webp', 'max:2048'],
-
-            'plan' => ['required', 'string'],
-            'billing_cycle' => ['required', Rule::in(['monthly', 'yearly'])],
-            'terms' => ['accepted'],
-        ]);
-
-        // The plan and its price are resolved server-side from the real
-        // catalog. Nothing about the money comes from the request.
-        $package = $this->pricing->resolvePublicPackage($validated['plan']);
-
-        if (! $package) {
-            return back()->withErrors(['plan' => 'Please choose one of the available IOMS plans.'])->withInput();
-        }
-
-        $cycle = $this->pricing->normalizeCycle($validated['billing_cycle']);
-        $email = mb_strtolower(trim($validated['contact_email']));
-
-        // Duplicate identity checks, in both directions: an existing IOMS
-        // user, and an open registration for the same address. Both return
-        // the SAME message and point at sign-in, so this endpoint cannot be
-        // used to enumerate which companies already use IOMS.
-        $alreadyKnown = User::where('email', $email)->exists()
-            || TenantRegistration::where('contact_email', $email)
-                ->whereIn('status', TenantRegistration::OPEN_STATUSES)
-                ->where(fn ($q) => $q->whereNull('expires_at')->orWhere('expires_at', '>', now()))
-                ->exists();
-
-        if ($alreadyKnown) {
-            return back()->withErrors([
-                'contact_email' => 'This email address is already registered with IOMS. Please sign in, or use a different address.',
-            ])->withInput();
-        }
-
-        $logoPath = $request->hasFile('logo')
-            ? $request->file('logo')->store('uploads/company', 'public')
-            : null;
-
-        $registration = TenantRegistration::create([
-            'token' => TenantRegistration::newToken(),
-            'reference' => TenantRegistration::newReference(),
-            'status' => TenantRegistration::STATUS_PENDING_VERIFICATION,
-
-            'contact_name' => $validated['contact_name'],
-            'contact_email' => $email,
-            'contact_phone' => $validated['contact_phone'] ?? null,
-            // Hashed here. The plaintext never touches the database and is
-            // never emailed -- the administrator signs in with the password
-            // they just chose.
-            'password' => Hash::make($validated['password']),
-
-            'company_legal_name' => $validated['company_legal_name'],
-            'company_display_name' => $validated['company_display_name'] ?? null,
-            'company_industry' => $validated['company_industry'] ?? null,
-            'company_address' => $validated['company_address'],
-            'company_city' => $validated['company_city'],
-            'company_province' => $validated['company_province'],
-            'company_postal_code' => $validated['company_postal_code'] ?? null,
-            'company_country' => ($validated['company_country'] ?? null) ?: 'Indonesia',
-            'company_phone' => $validated['company_phone'] ?? null,
-            'company_email' => $validated['company_email'] ?? null,
-            'company_tax_id' => $validated['company_tax_id'] ?? null,
-            'company_business_id' => $validated['company_business_id'] ?? null,
-            'company_logo_path' => $logoPath,
-            'billing_email' => $validated['billing_email'] ?? null,
-
-            'package_id' => $package->id,
-            'billing_cycle' => $cycle,
-            'amount' => $this->pricing->amountFor($package, $cycle),
-            'currency' => $package->currency,
-
-            // An abandoned checkout stops holding the email address.
-            'expires_at' => now()->addDays(7),
-            'ip_address' => $request->ip(),
-        ]);
-
-        $this->sendVerificationEmail($registration);
-
-        return redirect()->route('register.status', $registration->token);
-    }
+    /*
+     * v2.74.2 -- `store()` REMOVED, along with POST /get-started.
+     *
+     * It created a `TenantRegistration` carrying a hashed password and
+     * no `users` row: the pay-first model, where identity, company,
+     * plan and password were collected in one form from a stranger who
+     * could not sign in until a payment cleared.
+     *
+     * Nothing renders that form any more, and an endpoint that creates
+     * accounts and orders with no page able to reach it is a surface
+     * with no purpose. Orders are now raised at POST /subscribe by a
+     * signed-in, verified account, and nowhere else.
+     *
+     * What moved, and where it lives now:
+     *   - duplicate-address handling  -> Auth\RegisteredUserController
+     *   - server-derived pricing      -> SubscribeController::store()
+     *   - plan-slug validation        -> SubscribeController::store()
+     *   - email verification          -> the ACCOUNT's own verification
+     *
+     * Provisioning still supports a null `user_id` (see
+     * TenantProvisioningService), because registrations raised before
+     * this release must still be able to complete.
+     */
 
     /**
      * Step 3 -- email verification. A signed, single-purpose URL; the token

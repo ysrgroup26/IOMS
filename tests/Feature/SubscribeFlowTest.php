@@ -16,9 +16,9 @@ use Tests\TestCase;
  *
  *   Account -> Set up subscription -> Order -> Payment -> Active
  *
- * The setup form is the SAME page /get-started renders; only the entry
- * point differs. That is pinned below, because "just add a second form
- * for the signed-in case" is the obvious shortcut and the two would drift.
+ * There is ONE subscription setup form and one way to reach it: this
+ * controller. It is pinned below, because "just add a second form for
+ * this case" is the obvious shortcut and the two would drift.
  *
  * Three properties matter most here and all are easy to break silently:
  *
@@ -225,20 +225,19 @@ class SubscribeFlowTest extends TestCase
     }
 
     /**
-     * ONE SETUP FORM, TWO ENTRY POINTS.
+     * ONE SETUP FORM, AND IT ALWAYS KNOWS WHO IS BUYING.
      *
-     * The signed-in subscribe page must render the SAME Inertia component
-     * the public /get-started page renders -- not a second form that
-     * happens to look like it. This assertion exists because the first
-     * implementation of this flow DID build a parallel four-step wizard,
-     * and two forms selling one product drift: a field is added to one, a
-     * price format corrected in the other, and what a customer sees
-     * depends on which door they came through.
+     * `account` is not optional. The page states the identity rather than
+     * collecting it, and it is never rendered to a stranger -- /get-started
+     * is account registration since v2.74.2 and renders a different
+     * component entirely (see GetStartedIsAccountRegistrationTest).
      *
-     * The only difference is the `account` prop, which is what makes the
-     * page state the identity instead of collecting it.
+     * This assertion exists because the first implementation of this flow
+     * built a parallel four-step wizard, and two forms selling one product
+     * drift: a field is added to one, a price format corrected in the
+     * other, and what a customer sees depends on which door they used.
      */
-    public function test_the_subscribe_page_is_the_same_form_as_get_started(): void
+    public function test_subscription_setup_is_one_form_that_states_the_account(): void
     {
         $user = $this->verifiedAccount();
 
@@ -254,18 +253,23 @@ class SubscribeFlowTest extends TestCase
     }
 
     /**
-     * The other half of the same property: the PUBLIC door opens the same
-     * page with no `account`, which is what keeps the password fields and
-     * the email field in the pay-first flow.
+     * The plan a visitor picked on Pricing survives registration.
      *
-     * Its own test because /get-started redirects a signed-in visitor, so
-     * it cannot share a session with the one above.
+     * They click "Choose Professional" before they have an account at all,
+     * so the slug cannot travel on the account form -- it waits in the
+     * session until setup opens. Losing it would silently drop the one
+     * decision the customer had already made.
      */
-    public function test_the_public_door_opens_the_same_form_without_an_account(): void
+    public function test_a_plan_chosen_before_registering_is_preselected_at_setup(): void
     {
-        $this->get('/get-started')
+        $this->get('/get-started?plan=professional&cycle=monthly')
+            ->assertRedirect(route('register'));
+
+        $this->actingAs($this->verifiedAccount())->get('/subscribe')
             ->assertOk()
-            ->assertInertia(fn ($page) => $page->component('Public/GetStarted')->missing('account'));
+            ->assertInertia(fn ($page) => $page
+                ->where('selectedPlan', 'professional')
+                ->where('billingCycle', 'monthly'));
     }
 
     /**
@@ -295,7 +299,7 @@ class SubscribeFlowTest extends TestCase
     {
         Mail::fake();
 
-        $this->post('/register', [
+        $this->post(route('register.account'), [
             'name' => 'Baru Sekali',
             'email' => 'baru@contoh.test',
             // Deliberately not a common password: the rule set includes

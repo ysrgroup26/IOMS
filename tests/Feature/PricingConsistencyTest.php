@@ -5,6 +5,7 @@ namespace Tests\Feature;
 use App\Models\Invoice;
 use App\Models\Package;
 use App\Models\TenantRegistration;
+use App\Models\User;
 use App\Services\PricingService;
 use Illuminate\Foundation\Testing\RefreshDatabase;
 use Tests\Support\ApprovedCatalogue;
@@ -13,10 +14,15 @@ use Tests\TestCase;
 /**
  * v2.56.0 -- ONE PRICE, EVERY SURFACE.
  *
- * The acquisition journey shows a price five times: landing, Pricing, Get
- * Started, the checkout order summary, and the invoice. They must all be
- * the same number, and they must all come from the `packages` table rather
- * than from a constant somebody typed twice.
+ * The acquisition journey shows a price five times: landing, Pricing,
+ * subscription setup, the checkout order summary, and the invoice. They
+ * must all be the same number, and they must all come from the `packages`
+ * table rather than from a constant somebody typed twice.
+ *
+ * v2.74.2: the third surface used to be the public Get Started page. Get
+ * Started is now account registration and quotes nothing, so the price is
+ * read from the page that actually takes the money -- the subscription
+ * setup page an account opens at /subscribe.
  *
  * These tests also pin the approved commercial figures. IOMS has changed
  * its pricing several times during development and older numbers keep
@@ -175,15 +181,30 @@ class PricingConsistencyTest extends TestCase
      * 3. THE SAME NUMBER REACHES EVERY SURFACE
      * ================================================================ */
 
-    public function test_landing_pricing_and_get_started_quote_the_same_amounts(): void
+    public function test_landing_pricing_and_subscription_setup_quote_the_same_amounts(): void
     {
         $fromPricing = collect($this->get(route('pricing'))->viewData('page')['props']['plans'])->keyBy('slug');
         $fromLanding = collect($this->get(route('home'))->viewData('page')['props']['plans'])->keyBy('slug');
-        $fromGetStarted = collect($this->get(route('get-started'))->viewData('page')['props']['plans'])->keyBy('slug');
+
+        // The page that takes the money. It needs a signed-in, verified
+        // account to open at all, which is the point of v2.74.2.
+        $account = User::create([
+            'name' => 'Calon Pelanggan',
+            'email' => 'calon@contoh.test',
+            'password' => bcrypt('x'),
+            'role' => User::ROLE_ACCOUNT,
+            'tenant_id' => null,
+            'is_active' => true,
+            'email_verified_at' => now(),
+        ]);
+
+        $fromSetup = collect(
+            $this->actingAs($account)->get(route('subscribe.setup'))->viewData('page')['props']['plans']
+        )->keyBy('slug');
 
         foreach (ApprovedCatalogue::slugs() as $slug) {
             $this->assertArrayHasKey($slug, $fromLanding, "The landing page does not offer {$slug}.");
-            $this->assertArrayHasKey($slug, $fromGetStarted, "Get Started does not offer {$slug}.");
+            $this->assertArrayHasKey($slug, $fromSetup, "Subscription setup does not offer {$slug}.");
 
             $this->assertSame(
                 $fromPricing[$slug]['monthly']['formatted'],
@@ -192,13 +213,13 @@ class PricingConsistencyTest extends TestCase
             );
             $this->assertSame(
                 $fromPricing[$slug]['yearly']['formatted'],
-                $fromGetStarted[$slug]['yearly']['formatted'],
-                "$slug annual price differs between Pricing and Get Started."
+                $fromSetup[$slug]['yearly']['formatted'],
+                "$slug annual price differs between Pricing and subscription setup."
             );
             $this->assertSame(
                 $fromPricing[$slug]['annual_saving'],
-                $fromGetStarted[$slug]['annual_saving'],
-                "$slug annual saving differs between Pricing and Get Started."
+                $fromSetup[$slug]['annual_saving'],
+                "$slug annual saving differs between Pricing and subscription setup."
             );
         }
     }

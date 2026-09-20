@@ -19,26 +19,30 @@ use Inertia\Response;
  *           -> (verified webhook) -> Subscription Active
  *
  * ---------------------------------------------------------------------
- * THIS CONTROLLER RENDERS THE PAGE `/get-started` ALREADY RENDERS
+ * THE SUBSCRIPTION SETUP FORM LIVES HERE, AND ONLY HERE
  * ---------------------------------------------------------------------
  *
  * `Public/GetStarted` is the subscription setup form: Your account, Your
- * company, Your plan, Continue to payment. It is the only one, and this
- * controller uses it rather than owning a second one.
+ * company, Your plan, Continue to payment. It is the only one.
  *
- * The first implementation of this flow did build a parallel form -- a
- * four-step wizard with its own plan cards, its own company fields and
- * its own order summary. That was the wrong instinct. Two forms selling
- * the same product drift: a field gets added to one, a price format is
- * corrected in the other, and the version a customer sees depends on
- * which door they came through. The correct change was never to the form
- * at all. It was to the ENTRY POINT.
+ * ITS NAME IS HISTORICAL. It was the `/get-started` page, back when the
+ * only way to buy IOMS was to hand over identity, company, plan and a
+ * password in one form and wait for a payment to clear. Since v2.74.2
+ * `/get-started` is account registration and renders none of that; this
+ * controller is the ONLY thing that renders the setup form, through two
+ * entry points that are the same screen:
  *
- * So the difference between the two doors is one prop. `account` is
- * non-null here and null on `/get-started`, and the page responds by
- * stating the signed-in name and email instead of collecting them, and
- * by posting here instead of to `register.store`. Everything after that
- * -- company, plan, cycle, terms, price, payment -- is the same code.
+ *   "Continue setup"  -- straight after an account is created
+ *   "Choose a plan"   -- from the Account area, whenever they decide
+ *
+ * The page keeps the file name because that is what everyone involved
+ * still calls it, and because moving it would churn a route, a test and
+ * a component string to fix a word.
+ *
+ * An earlier cut of this flow built a parallel four-step wizard instead
+ * of reusing the form. Two forms selling one product drift: a field gets
+ * added to one, a price format corrected in the other, and the version a
+ * customer sees depends on which door they came through. There is one.
  *
  * ---------------------------------------------------------------------
  * WHAT THIS CONTROLLER DELIBERATELY DOES NOT DO
@@ -85,7 +89,7 @@ class SubscribeController extends Controller
     public function __construct(private readonly PricingService $pricing) {}
 
     /**
-     * The subscription setup page -- the SAME page `/get-started` renders.
+     * The subscription setup page.
      *
      * Reached from "Choose a plan" in the Account area, and from "Continue
      * setup" immediately after an account is created. Both arrive here,
@@ -101,10 +105,24 @@ class SubscribeController extends Controller
         $plans = $this->pricing->publicPlans();
         $open = $this->openOrder($user);
 
-        // A plan asked for in the URL wins; otherwise fall back to the one
-        // an unfinished order already chose, so coming back here does not
-        // silently reset a decision the customer already made.
-        $requested = (string) $request->query('plan', $open?->package?->slug ?? '');
+        /*
+         * Which plan to show selected, most specific first:
+         *
+         *   1. asked for in this URL
+         *   2. already chosen by an unfinished order -- coming back here
+         *      must not silently reset a decision already made
+         *   3. remembered from the plan card the visitor clicked on
+         *      Pricing before they had an account at all
+         *
+         * (3) is what makes "Choose Starter" on the public site survive
+         * registration; RegistrationController::create() puts it there.
+         */
+        $intended = $request->session()->get('intended_plan');
+
+        $requested = (string) $request->query(
+            'plan',
+            $open?->package?->slug ?? ($intended['plan'] ?? '')
+        );
 
         return Inertia::render('Public/GetStarted', [
             'plans' => $plans,
@@ -112,13 +130,14 @@ class SubscribeController extends Controller
             // never echoed back into the page.
             'selectedPlan' => $plans->firstWhere('slug', $requested)['slug'] ?? null,
             'billingCycle' => $this->pricing->normalizeCycle(
-                $request->query('cycle', $open?->billing_cycle)
+                $request->query('cycle', $open?->billing_cycle ?: ($intended['cycle'] ?? null))
             ),
             'industries' => self::INDUSTRIES,
             'contactEmail' => config('ioms.emails.hello'),
 
-            // The prop that makes this the authenticated door. Its presence
-            // is the entire behavioural difference.
+            // The signed-in identity, STATED by the page rather than
+            // collected. Always present: this form is never rendered to
+            // a stranger any more.
             'account' => $this->accountSummary($user),
         ]);
     }
@@ -141,9 +160,8 @@ class SubscribeController extends Controller
             /*
              * Note what is NOT here: contact_name, contact_email, password.
              *
-             * The page does send the first two -- it pre-fills them so the
-             * public flow's form shape is untouched -- and they are ignored
-             * on purpose. Identity comes from the session below. A validated
+             * The page does send the first two and they are IGNORED on
+             * purpose -- identity comes from the session below. A validated
              * identity field would be a field somebody can edit, and editing
              * it would raise an order in another person's name.
              */
@@ -252,6 +270,9 @@ class SubscribeController extends Controller
             "Subscription order {$registration->reference} raised for {$registration->displayName()}.",
             $registration
         );
+
+        // The remembered plan card has done its job.
+        $request->session()->forget('intended_plan');
 
         /*
          * Handed to the EXISTING order page, which states what is being

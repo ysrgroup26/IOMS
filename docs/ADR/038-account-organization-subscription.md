@@ -1,9 +1,10 @@
 # ADR 038 — Account, Organization and Subscription are three things
 
-**Status:** Accepted and implemented (v2.74.0).
+**Status:** Accepted and implemented (v2.74.0; public entry points finalised in v2.74.2).
 **Date:** 2026-09-20
 **Amends:** ADR 008 (Tenancy Foundation) — specifically, what `tenant_id IS NULL` means.
-**Related:** the v2.51.0 self-service onboarding flow, which remains in place unchanged.
+**Supersedes:** the v2.51.0 pay-first onboarding form, **removed** in v2.74.2. Its payment, webhook
+and provisioning half is untouched and still runs every order.
 
 ---
 
@@ -20,25 +21,67 @@ operating unit, no subscription, no payment. The account lands in its own Accoun
 plan if and when it wants to.
 
 ```
-Landing → Sign Up → Account created → "Continue setup" or "Maybe later"
+GET STARTED = ACCOUNT REGISTRATION
+Landing → Get Started → Create account → "Continue setup" or "Maybe later"
         ├─ Maybe later     → Account area. Nothing else is created.
         └─ Continue setup  → Subscription setup → Payment
                            → (verified webhook) → Subscription Active
 
-Later:  Login → Account area → "Choose a plan" → the SAME setup page
+CONTINUE SETUP / CHOOSE A PLAN = ACCOUNT + COMPANY + PLAN
+Login   → subscribed account   → the full product
+        → unsubscribed account → Account area → "Choose a plan"
+                               → the SAME subscription setup page
 ```
 
-## One setup form, two entry points
+**The distinction, in one line each:**
 
-**There is exactly one subscription setup UI: the page `/get-started`
-renders** — Your account, Your company, Your plan, Continue to payment. `/subscribe`
-renders that same page.
+| | Asks for | Creates |
+|---|---|---|
+| **Get Started** | full name, email, password, consent (or Google) | a person |
+| **Continue setup / Choose a plan** | *account stated*, company, plan, cycle | an order |
 
-The first implementation of this release did not do that. It built a parallel
-four-step wizard under `Pages/Subscribe/` — its own plan cards, its own company
-fields, its own order summary — for the signed-in case. That was the wrong
-instinct, and the corrected design is worth stating explicitly because the
-shortcut is so easy to reach for.
+## Get Started creates an account, and nothing else
+
+`/get-started` collects **four things** — full name, email, password, consent — plus *Continue with
+Google* where the deployment has credentials for it. No company fields, no plan cards, no billing
+toggle, no prices, no payment. It redirects to `/register`, so there is one account form at one
+canonical URL rather than two copies drifting apart.
+
+This is the half v2.74.0 left undone. It separated the three concepts in the data model and in the
+middleware, and then left the public page still asking a stranger for their company's legal name,
+full postal address and billing cycle before they had an account at all — which is precisely the
+thing the release existed to stop doing.
+
+A visitor who arrives from a plan card carries `?plan=` and `?cycle=`. That is remembered in the
+**session**, not pushed through the account form: it is not an account field, and a form that asks
+for four things must not quietly grow a fifth. `SubscribeController::setup()` reads it back, so
+"Choose Starter" on Pricing still lands on Starter three screens later.
+
+`GetStartedIsAccountRegistrationTest` pins this. It asserts absence at **two** levels — the props
+the server sends, and the component source — because either alone is escapable: a props assertion
+passes on fields hard-coded into the markup, and a source assertion passes if some other component
+starts being rendered.
+
+### The pay-first endpoint is gone, not merely unlinked
+
+`POST /get-started` (`register.store`) created a `TenantRegistration` carrying a hashed password
+and no `users` row. Nothing renders that form any more, and a public endpoint that creates accounts
+and orders with no page able to reach it is a surface nobody looks at. It is deleted, and a test
+asserts the route name no longer resolves.
+
+Provisioning still supports a null `user_id`, because an order raised before this release must
+still be able to complete. So do `verify`, `resend`, `status`, `invoice`, `pay` and `checkout` —
+they are the ORDER half of the flow, shared by both eras, and every order still ends on them.
+
+## One setup form, and one way to reach it
+
+**There is exactly one subscription setup UI** — Your account, Your company, Your plan, Continue to
+payment. `SubscribeController` renders it, from two entry points that are the same screen:
+*Continue setup* straight after registration, and *Choose a plan* from the Account area later.
+
+An earlier cut of this flow built a parallel four-step wizard under `Pages/Subscribe/` instead —
+its own plan cards, its own company fields, its own order summary. That was the wrong instinct, and
+the corrected design is worth stating explicitly because the shortcut is so easy to reach for.
 
 Two forms selling the same product drift. A field gets added to one, a price
 format corrected in the other, a required rule relaxed in a third place, and
@@ -46,24 +89,21 @@ which version a customer sees depends on which door they came through. There is
 no mechanism that keeps them honest, and no test that fails when they diverge —
 only a bug report months later from the half nobody exercises.
 
-**The difference between the doors is one prop.** `account` is non-null when a
-signed-in account opens the page, and the page responds by doing exactly two
-things differently:
+**`account` is not optional.** "Your account" **states** the name and email rather than collecting
+them, and there are no password fields — that credential already exists on the `users` row. The
+anonymous variant of that section was **deleted** along with the endpoint it posted to, rather than
+left unreachable: dead form fields are the ones that come back.
 
-| | Public (`/get-started`) | Account (`/subscribe`) |
-|---|---|---|
-| Your account | collects name, email, password | **states** name and email; no password |
-| Submits to | `register.store` | `subscribe.store` |
+`SubscribeFlowTest::test_subscription_setup_is_one_form_that_states_the_account` pins it, so a
+future "quick parallel page" fails the suite rather than shipping.
 
-Everything after that — company fields, industry list, plan cards, billing
-toggle, terms, price, order page, checkout — is the same code running twice.
-`SubscribeFlowTest::test_the_subscribe_page_is_the_same_form_as_get_started`
-pins it by asserting the component name, so a future "quick parallel page" fails
-the suite rather than shipping.
+The component still lives at `Pages/Public/GetStarted.jsx` and **is no longer the Get Started
+page**. It keeps the file name because that is what everyone involved still calls this screen, and
+because renaming it would churn a component string, a route and a test to fix a word.
 
-The account's name and email are **read-only on the page and ignored by the
-server**, which is the same property stated twice on purpose: the page pre-fills
-them so the form shape is unchanged, and `SubscribeController::store()` does not
+The account's name and email are read-only on the page **and** ignored by the
+server — the same property stated twice on purpose: the page sends them because
+the order record carries them, and `SubscribeController::store()` does not
 validate or read them at all. A tampered field cannot raise an order in somebody
 else's name.
 
@@ -74,7 +114,7 @@ or **Maybe later**, with both as real buttons.
 
 Neither redirect alone is right. Straight to plan selection is the credit-card-at-
 the-door mistake this whole release exists to stop making. Straight to the Account
-area — which is what the first cut did — is the opposite failure: an account that
+area — which is what v2.74.0 did — is the opposite failure: an account that
 has just been created has no organization, no data and no subscription, so the page
 it lands on is almost entirely empty. Nothing is broken, but it reads as though
 something is, and the new account has no idea what to do next.
@@ -200,10 +240,11 @@ never from the request, so a form field cannot raise an order in somebody else's
 
 ## Consequences
 
-- `/get-started` (pay-first, no account) is untouched and still works. Two doors, one form, one
-  destination.
+- `/get-started` is account registration. If it ever shows a price again, something has gone
+  wrong — `GetStartedIsAccountRegistrationTest` should have failed first.
 - `Pages/Subscribe/` does not exist. If it reappears, something has gone wrong — see *One setup
-  form, two entry points* above.
+  form, and one way to reach it* above.
+- The pay-first flow cannot be started. Orders raised before v2.74.2 still complete normally.
 - The Account area is deliberately **not** inside `AuthenticatedLayout`: the workspace switcher and
   department rail are meaningless without a tenant, and rendering them around an empty product is
   exactly the "looks broken" failure the page exists to avoid.

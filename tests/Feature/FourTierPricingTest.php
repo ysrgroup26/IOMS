@@ -194,7 +194,7 @@ class FourTierPricingTest extends TestCase
     /** All four tiers reach the public pages, not just the three that used to exist. */
     public function test_all_four_tiers_reach_the_public_pricing_surfaces(): void
     {
-        foreach (['home', 'pricing', 'get-started'] as $routeName) {
+        foreach (['home', 'pricing'] as $routeName) {
             $slugs = collect($this->get(route($routeName))->viewData('page')['props']['plans'])
                 ->pluck('slug')->all();
 

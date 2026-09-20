@@ -39,8 +39,11 @@ class PublicSaasJourneyTest extends TestCase
         $this->get(route('pricing'))->assertOk()
             ->assertInertia(fn ($p) => $p->component('Public/Pricing')->has('plans'));
 
-        $this->get(route('get-started'))->assertOk()
-            ->assertInertia(fn ($p) => $p->component('Public/GetStarted')->has('plans'));
+        // v2.74.2: Get Started is account registration, so it hands over to
+        // the one account form rather than rendering a second copy of it.
+        $this->get(route('get-started'))->assertRedirect(route('register'));
+        $this->get(route('register'))->assertOk()
+            ->assertInertia(fn ($p) => $p->component('Auth/Register'));
     }
 
     /** The standardized commercial model, asserted against the real catalog. */
@@ -124,9 +127,12 @@ class PublicSaasJourneyTest extends TestCase
     {
         $this->seedPlans();
 
-        foreach (['platform-overview', 'solutions', 'how-it-works', 'faq', 'pricing', 'get-started'] as $name) {
+        foreach (['platform-overview', 'solutions', 'how-it-works', 'faq', 'pricing'] as $name) {
             $this->get(route($name))->assertOk();
         }
+
+        // Get Started is a redirect into account registration, not a page.
+        $this->get(route('get-started'))->assertRedirect(route('register'));
     }
     /** Annual must be genuinely cheaper per month, or presenting it as better value is a lie. */
     public function test_annual_billing_is_actually_better_value(): void
@@ -159,23 +165,30 @@ class PublicSaasJourneyTest extends TestCase
         Company::withoutGlobalScopes()->create(['name' => 'ACME Shipyard', 'tenant_id' => $tenant->id]);
         app(CurrentTenant::class)->set(null);
 
-        foreach ([route('pricing'), route('get-started'), route('home')] as $url) {
+        foreach ([route('pricing'), route('register'), route('home')] as $url) {
             $this->get($url)->assertOk()->assertDontSee('ACME Shipyard');
         }
     }
 
-    /** An unknown ?plan= must not be echoed back; it is validated against the catalog. */
+    /**
+     * An unknown ?plan= must not be remembered; it is validated against the
+     * catalog before it goes anywhere.
+     *
+     * v2.74.2: the slug no longer lands on a page that can echo it, it
+     * lands in the session for the subscription setup page to read after
+     * the account exists. Same rule, one step further along.
+     */
     public function test_get_started_rejects_an_unknown_plan_slug(): void
     {
         $this->seedPlans();
 
         $this->get(route('get-started', ['plan' => 'not-a-real-plan']))
-            ->assertOk()
-            ->assertInertia(fn ($p) => $p->where('selectedPlan', null));
+            ->assertRedirect(route('register'))
+            ->assertSessionMissing('intended_plan');
 
         $this->get(route('get-started', ['plan' => 'professional']))
-            ->assertOk()
-            ->assertInertia(fn ($p) => $p->where('selectedPlan', 'professional'));
+            ->assertRedirect(route('register'))
+            ->assertSessionHas('intended_plan', fn ($v) => $v['plan'] === 'professional');
     }
 
     /** An authenticated user has no business on the acquisition funnel's landing page. */

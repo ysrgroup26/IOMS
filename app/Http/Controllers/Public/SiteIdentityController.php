@@ -45,7 +45,10 @@ class SiteIdentityController extends Controller
         ['pricing', '0.9', 'weekly'],
         ['faq', '0.7', 'monthly'],
         ['contact', '0.6', 'yearly'],
-        ['get-started', '0.8', 'monthly'],
+        // v2.74.2: /get-started now redirects into account registration,
+        // and a sitemap that lists a redirect wastes the crawl on a hop.
+        // The destination is the page worth indexing.
+        ['register', '0.8', 'monthly'],
         ['legal.privacy', '0.3', 'yearly'],
         ['legal.terms', '0.3', 'yearly'],
         ['legal.refunds', '0.3', 'yearly'],

@@ -24,6 +24,21 @@ use Tests\TestCase;
  * The rule every test here defends: NOTHING that grants access happens
  * before a payment the server itself verified. A registration is a
  * prospect, not a tenant. Reaching a success URL proves nothing.
+ *
+ * v2.74.2 -- WHAT THESE TESTS COVER NOW.
+ *
+ * The public POST that created a registration is gone; orders are raised
+ * by a signed-in account at POST /subscribe (see SubscribeFlowTest). What
+ * remains here is everything AFTER an order exists -- verification,
+ * checkout, invoicing, the payment webhook and provisioning -- which is
+ * unchanged, shared by both eras, and by far the more dangerous half.
+ *
+ * So the registration is now built directly by `pendingRegistration()`
+ * rather than posted through a form. That is not a weaker test: the rule
+ * above is about what happens to a registration once it exists, and
+ * building the row makes it possible to put it in states the current
+ * flow cannot produce -- including the unverified one, which an order
+ * raised before this release can still be sitting in.
  */
 class SelfServiceOnboardingTest extends TestCase
 {
@@ -50,116 +65,81 @@ class SelfServiceOnboardingTest extends TestCase
         $this->seed(\Database\Seeders\PackageSeeder::class);
     }
 
-    private function validPayload(array $overrides = []): array
+    /**
+     * An order, in whatever state the test needs.
+     *
+     * Built directly rather than posted, because the endpoint that used to
+     * build it is gone (v2.74.2) -- and because several tests below need a
+     * registration in a state the current flow never produces, such as
+     * unverified or already paid.
+     *
+     * The amount is read from the catalog exactly as both controllers do,
+     * so a repricing does not silently make these assertions meaningless.
+     */
+    private function pendingRegistration(array $overrides = []): TenantRegistration
     {
-        return array_merge([
+        $package = Package::where('slug', 'professional')->firstOrFail();
+
+        return TenantRegistration::create(array_merge([
+            'token' => TenantRegistration::newToken(),
+            'reference' => TenantRegistration::newReference(),
+            'status' => TenantRegistration::STATUS_PENDING_VERIFICATION,
+
             'contact_name' => 'Budi Santoso',
             'contact_email' => 'budi@contoh.test',
             'contact_phone' => '+62 811 0000 0000',
-            'password' => 'rahasia-kuat-123',
-            'password_confirmation' => 'rahasia-kuat-123',
+            'password' => Hash::make('rahasia-kuat-123'),
+
             'company_legal_name' => 'PT Contoh Industri Nusantara',
             'company_display_name' => 'Contoh Industri',
             'company_address' => 'Jl. Industri No. 1',
             'company_city' => 'Batam',
             'company_province' => 'Kepulauan Riau',
             'company_country' => 'Indonesia',
-            'plan' => 'professional',
+
+            'package_id' => $package->id,
             'billing_cycle' => 'yearly',
-            'terms' => true,
-        ], $overrides);
+            'amount' => $package->price_yearly,
+            'currency' => $package->currency,
+
+            'expires_at' => now()->addDays(7),
+        ], $overrides));
     }
 
-    /** Registering creates a PROSPECT. No tenant, no company, no user account exists yet. */
-    public function test_registration_creates_no_tenant_and_no_user(): void
+    /** An order is a PROSPECT. No tenant, no company, no user account exists yet. */
+    public function test_an_order_provisions_no_tenant_and_no_user(): void
     {
         Mail::fake();
         $this->seedPlans();
 
-        $this->post(route('register.store'), $this->validPayload())->assertRedirect();
-
-        $registration = TenantRegistration::firstOrFail();
+        $registration = $this->pendingRegistration();
 
         $this->assertSame(TenantRegistration::STATUS_PENDING_VERIFICATION, $registration->status);
         $this->assertNull($registration->tenant_id);
-        $this->assertNull($registration->user_id);
 
         // The critical assertion: there is nothing to log in with.
         $this->assertNoWorkspaceProvisioned();
         $this->assertSame(0, User::where('email', 'budi@contoh.test')->count());
 
-        // The password was hashed before it touched the database.
+        // A pay-first order stored a hashed password, never the plaintext.
+        // (An account-raised order stores none at all -- SubscribeFlowTest.)
         $this->assertNotSame('rahasia-kuat-123', $registration->password);
         $this->assertTrue(Hash::check('rahasia-kuat-123', $registration->password));
     }
 
-    /** The price is taken from the catalog, never from the request. */
-    public function test_the_amount_is_derived_server_side_and_client_input_is_ignored(): void
-    {
-        Mail::fake();
-        $this->seedPlans();
-
-        $this->post(route('register.store'), $this->validPayload([
-            'amount' => 1,
-            'price' => 1,
-            'currency' => 'USD',
-        ]))->assertRedirect();
-
-        $registration = TenantRegistration::firstOrFail();
-        $professional = Package::where('slug', 'professional')->firstOrFail();
-
-        $this->assertEquals((float) $professional->price_yearly, (float) $registration->amount);
-        $this->assertSame('IDR', $registration->currency);
-    }
-
-    /** An unknown or non-public plan slug cannot enter checkout. */
-    public function test_an_unknown_plan_is_rejected(): void
-    {
-        Mail::fake();
-        $this->seedPlans();
-
-        $this->post(route('register.store'), $this->validPayload(['plan' => 'platinum-unlimited']))
-            ->assertSessionHasErrors('plan');
-
-        $this->assertDatabaseCount('tenant_registrations', 0);
-    }
-
-    /** Registering twice with one email does not create a second live registration. */
-    public function test_a_duplicate_email_is_refused(): void
-    {
-        Mail::fake();
-        $this->seedPlans();
-
-        $this->post(route('register.store'), $this->validPayload())->assertRedirect();
-        $this->post(route('register.store'), $this->validPayload())->assertSessionHasErrors('contact_email');
-
-        $this->assertDatabaseCount('tenant_registrations', 1);
-    }
-
-    /** An address already belonging to an IOMS user is refused too. */
-    public function test_an_existing_user_email_is_refused(): void
-    {
-        Mail::fake();
-        $this->seedPlans();
-
-        $tenant = Tenant::create(['name' => 'ACME', 'slug' => 'acme']);
-        User::create([
-            'name' => 'Existing', 'email' => 'budi@contoh.test', 'password' => bcrypt('x'),
-            'role' => 'super_admin', 'tenant_id' => $tenant->id, 'is_active' => true,
-        ]);
-
-        $this->post(route('register.store'), $this->validPayload())->assertSessionHasErrors('contact_email');
-        $this->assertDatabaseCount('tenant_registrations', 0);
-    }
-
-    /** Checkout is refused until the email is confirmed. */
+    /**
+     * Checkout is refused until the email is confirmed.
+     *
+     * An account-raised order is verified from the outset, so the only way
+     * to reach this guard now is an order raised before v2.74.2 -- which is
+     * exactly why the guard has to stay.
+     */
     public function test_checkout_requires_a_verified_email(): void
     {
         Mail::fake();
         $this->seedPlans();
 
-        $this->post(route('register.store'), $this->validPayload())->assertRedirect();
-        $registration = TenantRegistration::firstOrFail();
+        $registration = $this->pendingRegistration();
 
         $this->post(route('register.checkout', $registration->token))
             ->assertSessionHasErrors('payment');
@@ -173,8 +153,7 @@ class SelfServiceOnboardingTest extends TestCase
         Mail::fake();
         $this->seedPlans();
 
-        $this->post(route('register.store'), $this->validPayload())->assertRedirect();
-        $registration = TenantRegistration::firstOrFail();
+        $registration = $this->pendingRegistration();
 
         $this->get(route('register.verify', $registration->token))->assertRedirect();
         $this->assertNotNull($registration->fresh()->email_verified_at);
@@ -199,8 +178,7 @@ class SelfServiceOnboardingTest extends TestCase
         Mail::fake();
         $this->seedPlans();
 
-        $this->post(route('register.store'), $this->validPayload())->assertRedirect();
-        $registration = TenantRegistration::firstOrFail();
+        $registration = $this->pendingRegistration();
         $this->get(route('register.verify', $registration->token));
         $this->post(route('register.checkout', $registration->token));
 
@@ -219,8 +197,7 @@ class SelfServiceOnboardingTest extends TestCase
         Mail::fake();
         $this->seedPlans();
 
-        $this->post(route('register.store'), $this->validPayload())->assertRedirect();
-        $registration = TenantRegistration::firstOrFail();
+        $registration = $this->pendingRegistration();
 
         $this->get(route('register.status', $registration->token))
             ->assertOk()

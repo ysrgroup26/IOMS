@@ -172,9 +172,24 @@ Route::post('/sandbox', [SandboxController::class, 'enter'])
 | group activates a tenant -- only a server-verified payment webhook does
 | that (see PaymentWebhookController).
 */
+/*
+ * v2.74.2 -- GET STARTED IS ACCOUNT REGISTRATION.
+ *
+ * It renders no company fields, no plan cards, no billing toggle and no
+ * payment. It redirects to /register, which is the one account form, and
+ * carries any ?plan=/?cycle= the visitor arrived with so the setup page
+ * can pre-select it after the account exists.
+ *
+ * The POST that used to live here -- the pay-first flow that created a
+ * pending registration with a hashed password and no user row -- is GONE.
+ * A public endpoint that creates accounts and orders, with no page able to
+ * reach it, is a surface with no purpose. Orders are raised at
+ * POST /subscribe by a signed-in, verified account, and nowhere else.
+ *
+ * The routes BELOW this line stay, so a registration raised before this
+ * release can still be verified, invoiced, paid and provisioned.
+ */
 Route::get('/get-started', [RegistrationController::class, 'create'])->name('get-started');
-Route::post('/get-started', [RegistrationController::class, 'store'])
-    ->middleware('throttle:10,1')->name('register.store');
 Route::get('/get-started/verify/{token}', [RegistrationController::class, 'verify'])->name('register.verify');
 Route::post('/get-started/{token}/resend', [RegistrationController::class, 'resendVerification'])
     ->middleware('throttle:5,1')->name('register.resend');

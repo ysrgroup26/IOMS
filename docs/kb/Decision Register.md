@@ -56,6 +56,8 @@ Status vocabulary is defined in [[Working with This Knowledge Base]].
 | [[033-subscription-lifecycle\|033 — The Subscription Lifecycle]] | Stored status = what was decided; standing derived from the dates. Expiry is read-only, never a lockout, never destructive. Time is added, never reset. A payment buys time, not reinstatement | `#status/verified` (v2.70.0, browser-exercised) |
 | [[034-capability-reach-and-navigation-hierarchy\|034 — Capability Reach and Navigation Hierarchy]] | A capability must be reachable by whoever owns it; two navigation levels, not three type sizes; page KIND (master / operational / monitoring / administration) carried by the shared header | `#status/verified` (v2.71.0, browser-exercised) |
 | [[035-application-language-system-feasibility\|035 — Application Language System: Feasibility]] | A real English / Bahasa Indonesia switch is **~3,900 string sites across 190 files** with no translation layer at all (3 `__()` calls, no `lang/` dir). Three real blockers: status labels are DERIVED from stored enum values rather than written anywhere, 151 locale-formatting call sites are hardcoded, and [[Verification Status\|the language-hierarchy test]] would keep passing while protecting nothing. The first deliverable is a PRODUCT decision about which slots are translatable — quite possibly only the explanatory layer. **Deliberately not started**: no `lang/` dir, no unused dependency, no placeholder switch | `#status/investigated` (v2.72.0, measured from the tree; nothing implemented) |
+| [[036-incident-report-versus-investigation\|036 — Initial Report vs HSE Investigation]] | Two records, two workspaces, two numbers, two workflows. The report is filed in minutes by whoever was there (5W1H, four required fields) and is NOT editable from the investigation, because it is the source of fact. The investigation carries its own number, team, interviews, three-layer causal analysis, review and closure. Analysis methodologies (5 Why, Fishbone, SCAT, RCA) are optional instruments, explicitly NOT legal requirements | `#status/verified` (v2.73.0, full lifecycle browser-exercised) |
+| [[037-pwa-installability-without-caching-tenant-data\|037 — Installable, Without Caching Tenant Data]] | A service worker exists ONLY so browsers will offer to install IOMS. It caches two public prefixes (`/build/`, `/branding/`) as an allow-list and nothing else: a SW cache is keyed by URL and has no concept of identity, so caching an authenticated page would serve one tenant's data to the next person signing in on a shared terminal — bypassing every server-side scope at once. No offline mode, no navigation fallback | `#status/verified` (v2.73.0, cache contents measured after six authenticated pages and a PDF) |
 
 ## Incident records
 
@@ -99,7 +101,7 @@ Stated so nobody spends time looking for missing files:
 - **002, 003 and 005 do not exist.** No record explains why; the numbering simply skips them.
 - **029 is used twice** — `029-production-seeding-without-faker` and
   `029-public-html-split-directory-incident` are different decisions sharing a number.
-- The next ADR should be **036** — 035 is [[035-application-language-system-feasibility|capability reach and navigation hierarchy]].
+- The next ADR should be **038** — 037 is [[037-pwa-installability-without-caching-tenant-data|capability reach and navigation hierarchy]].
 
 ---
 

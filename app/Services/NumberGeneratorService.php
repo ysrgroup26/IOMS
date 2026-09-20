@@ -37,6 +37,12 @@ class NumberGeneratorService
     public const DEFAULTS = [
         'material_request' => ['prefix' => 'MR', 'pattern' => '{PREFIX}-{YEAR}-{SEQ}', 'seq_padding' => 5, 'reset_period' => 'yearly'],
         'incident' => ['prefix' => 'INC', 'pattern' => '{PREFIX}-{YEAR}-{SEQ}', 'seq_padding' => 5, 'reset_period' => 'yearly'],
+        // v2.73.0 -- the HSE Investigation now has an identity of its own.
+        // `INV` and not `INC-INV`: an investigation gets referred to on its
+        // own in a way the old sub-record never was, and a number that
+        // reads as a variant of the incident's number is exactly the
+        // framing this release is correcting.
+        'incident_investigation' => ['prefix' => 'INV', 'pattern' => '{PREFIX}-{YEAR}-{SEQ}', 'seq_padding' => 5, 'reset_period' => 'yearly'],
         'leave_request' => ['prefix' => 'LR', 'pattern' => '{PREFIX}-{YEAR}-{SEQ}', 'seq_padding' => 5, 'reset_period' => 'yearly'],
         // v2.69.0 -- Employee Case. `EC` rather than a derived `EMP`,
         // which the fallback would have produced and which reads as an

@@ -8,6 +8,11 @@ import {
     FlaskConical, Recycle,
     Scale,
     FileSignature,
+    // v2.73.0 -- HSE Investigation. A magnifier, not another shield:
+    // every other Safety Management item is already a warning glyph, and
+    // the thing that distinguishes this one is that somebody is looking
+    // into it.
+    SearchCheck,
 } from 'lucide-react';
 
 /**
@@ -194,6 +199,13 @@ export const WORKSPACES = [
                 icon: ShieldAlert,
                 children: [
                     { name: 'Incident Management', href: 'incidents.index', icon: AlertTriangle },
+                    // v2.73.0 -- a SEPARATE entry, because it is a separate
+                    // workspace. An investigation is started deliberately by
+                    // HSE, worked over days by named people, and answers a
+                    // question the incident list cannot: what are we still
+                    // investigating. Hiding it inside Incident Management is
+                    // what kept it a form. See docs/ADR/036.
+                    { name: 'HSE Investigation', href: 'investigations.index', icon: SearchCheck },
                     { name: 'Safety Observation', href: 'safety-observations.index', icon: Eye },
                     // v2.34.0 (Post-Deployment Product Gap pass, Part 6):
                     // was "Inspection" -- the exact same feature/route as

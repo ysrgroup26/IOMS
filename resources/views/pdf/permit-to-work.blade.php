@@ -120,6 +120,16 @@
         .stamp .stamp-rule { border-top: 1px solid #A7F3D0; margin: 3px 0; }
         .stamp .stamp-who { font-size: 8.5px; font-weight: bold; color: #065F46; }
         .stamp .stamp-meta { font-size: 7.5px; color: #047857; }
+
+        /* v2.73.0 -- PPE confirmation marks, drawn with borders instead of
+           glyphs. A tick and a ballot box are non-Latin-1 characters, and
+           using them made dompdf embed a whole font subset: the permit PDF
+           measured 886 KB instead of 8 KB. Filled vs outlined says the same
+           thing, costs nothing, and photocopies better. */
+        .ppe-mark { display: inline-block; width: 6px; height: 6px; border: 1px solid #94a3b8; margin-right: 4px; }
+        .ppe-mark-on { border-color: #047857; background-color: #047857; }
+        .ppe-row { font-size: 8.5px; padding: 1px 0; color: #0f172a; }
+        .ppe-legend { font-size: 7px; color: #64748b; margin-top: 3px; }
         .sig-head { background-color: #f1f5f9; border-bottom: 1px solid #cbd5e1; padding: 2.5px 6px; font-size: 7px; text-transform: uppercase; letter-spacing: 0.8px; color: #475569; font-weight: bold; text-align: left; }
         .sig-body { padding: 4px 6px 3px 6px; text-align: left; }
         .sig-name { font-size: 9.5px; font-weight: bold; color: #0f172a; min-height: 11px; }
@@ -287,11 +297,89 @@
         </div>
     </div>
 
+    {{-- v2.73.0 -- HAZARDS AND REQUIRED PPE, ON PAPER.
+
+         A printed permit authorises hazardous work at a gate, in poor
+         light, often photocopied. Before this release it named neither the
+         hazards nor the protection: both were inside one free-text
+         "precautions" line, which cannot be checked item by item.
+
+         THE CONFIRMED MARK IS A CHARACTER, NOT A COLOUR. A green tick
+         survives neither a mono photocopier nor a phone photo of a page
+         taped to a bulkhead; a tick and an empty box survive both. Colour
+         is layered on top for a screen-read PDF, never relied on.
+
+         Rendered only from \$ppe, which the controller resolves from the
+         ids this permit actually stored -- never from the live PPE master,
+         so deactivating a type next year cannot rewrite what this permit
+         said. --}}
+    {{-- Block form, not the single-expression directive form:
+         this Blade version compiles that one to an unterminated PHP open
+         tag, which swallows every directive after it and took PDF
+         generation down with a 500.
+
+         AND NOTE, FOR ANYONE EDITING A COMMENT IN A BLADE FILE: Blade
+         compiles directives BEFORE it strips comments, so writing a
+         directive name with its leading at-sign inside a comment causes
+         that directive to be COMPILED -- turning the comment into real
+         PHP and silently deleting everything after it. This section
+         disappeared from the PDF exactly that way once already, while
+         the template itself read perfectly. Describe directives in
+         words here; never spell one out. --}}
+    @php
+        $ptwPpe = $ppe ?? null;
+    @endphp
+    @if(($ptwPpe['required'] ?? []) || ($ptwPpe['additional'] ?? []) || ($permit->hazards ?? []))
+        <div class="section">
+            <div class="section-head"><span class="idx">03</span>Hazards &amp; Required PPE</div>
+            <div class="section-body">
+                @if($permit->hazards ?? [])
+                    <table class="meta-table">
+                        <tr>
+                            <td class="meta-label">Hazards</td><td class="meta-colon"></td>
+                            <td>{{ implode(' · ', $permit->hazards) }}</td>
+                        </tr>
+                    </table>
+                @endif
+
+                <table style="width:100%; margin-top:4px;">
+                    <tr>
+                        @php
+                            $confirmedIds = collect($ptwPpe['confirmed'] ?? [])->pluck('id')->all();
+                            $ppeRows = collect($ptwPpe['required'] ?? [])
+                                ->map(fn ($t) => ['name' => $t['name'], 'confirmed' => in_array($t['id'], $confirmedIds, true)])
+                                ->concat(collect($ptwPpe['additional'] ?? [])->map(fn ($n) => ['name' => $n, 'confirmed' => false]))
+                                ->values();
+                            // Two columns, split down the middle rather than
+                            // alternating, so the list reads top-to-bottom in
+                            // each column the way a checklist is read.
+                            $half = (int) ceil($ppeRows->count() / 2);
+                        @endphp
+                        @foreach([$ppeRows->slice(0, $half), $ppeRows->slice($half)] as $column)
+                            <td style="width:50%; vertical-align:top;">
+                                @foreach($column as $row)
+                                    <div class="ppe-row">
+                                        <span class="ppe-mark {{ $row['confirmed'] ? 'ppe-mark-on' : '' }}"></span>{{ $row['name'] }}
+                                    </div>
+                                @endforeach
+                            </td>
+                        @endforeach
+                    </tr>
+                </table>
+
+                <div class="ppe-legend">
+                    <span class="ppe-mark ppe-mark-on"></span>dikonfirmasi tersedia saat persetujuan HSE
+                    &nbsp;&nbsp;<span class="ppe-mark"></span>belum dikonfirmasi
+                </div>
+            </div>
+        </div>
+    @endif
+
     {{-- 03 -- Workforce (v2.17.0 data, v2.20.0 presentation) -- same
          real Employee/User references the browser Document view shows,
          never fabricated. --}}
     <div class="section">
-        <div class="section-head"><span class="idx">03</span>Workforce</div>
+        <div class="section-head"><span class="idx">04</span>Workforce</div>
         <div class="section-body">
             <table class="meta-table">
                 <tr>
@@ -310,7 +398,7 @@
 
     {{-- 04 -- Authorization --}}
     <div class="section">
-        <div class="section-head"><span class="idx">04</span>Authorization</div>
+        <div class="section-head"><span class="idx">05</span>Authorization</div>
         <div class="section-body">
             <table class="meta-table">
                 <tr>
@@ -340,7 +428,7 @@
          linked document actually exists, same as the browser view. --}}
     @if($permit->riskAssessment || $permit->jsa)
         <div class="section">
-            <div class="section-head"><span class="idx">05</span>Supporting Documents</div>
+            <div class="section-head"><span class="idx">06</span>Supporting Documents</div>
             <div class="section-body">
                 @if($permit->riskAssessment)
                     <div class="doc-ref-box">

@@ -16,6 +16,7 @@ import { useScrollMemory, rememberWorkspaceKey, recallWorkspaceKey } from '@/lib
 import AboutDialog from '@/Components/shared/AboutDialog';
 import BrandWordmark from '@/Components/shared/BrandWordmark';
 import GlobalSearch from '@/Components/shared/GlobalSearch';
+import InstallAppAction from '@/Components/shared/InstallAppAction';
 import MobileBottomNav from '@/Components/shared/MobileBottomNav';
 import {
     DropdownMenu, DropdownMenuTrigger, DropdownMenuContent,
@@ -778,6 +779,12 @@ function TopBar({ onOpenSidebar, sidebarOpen, isDepartmentUser, departments, act
                 </button>
             )}
 
+            {/* v2.73.0: offers the BROWSER'S own install flow, and only
+                when one is actually available. Renders nothing once IOMS is
+                installed, and nothing on a browser that cannot install it --
+                except iOS Safari, where it explains the Share-sheet route
+                because Apple exposes no API to call. */}
+            <InstallAppAction />
             <WorkCenterMenu />
             <NotificationsMenu />
 

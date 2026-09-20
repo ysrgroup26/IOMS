@@ -32,6 +32,7 @@ use App\Http\Controllers\HrDashboardController;
 use App\Http\Controllers\HseDashboardController;
 use App\Http\Controllers\HseInspectionController;
 use App\Http\Controllers\IncidentController;
+use App\Http\Controllers\IncidentInvestigationController;
 use App\Http\Controllers\InspectionRequestController;
 use App\Http\Controllers\ItemController;
 use App\Http\Controllers\JobSafetyAnalysisController;
@@ -121,6 +122,12 @@ Route::get('/', [PublicController::class, 'home'])->name('home');
 // files because the canonical host is only known from the live request --
 // see SiteIdentityController's own note.
 Route::get('/robots.txt', [\App\Http\Controllers\Public\SiteIdentityController::class, 'robots'])->name('robots');
+
+// v2.73.0: the web app manifest. A route rather than a static file for the
+// same reason robots/sitemap are -- start_url and scope are only knowable
+// from the live request behind the hosting proxy. Public and unauthenticated
+// by design: it names the app and its icons, and carries no tenant data.
+Route::get('/manifest.webmanifest', \App\Http\Controllers\Public\WebAppManifestController::class)->name('manifest');
 Route::get('/sitemap.xml', [\App\Http\Controllers\Public\SiteIdentityController::class, 'sitemap'])->name('sitemap');
 // v2.50.0: the public SaaS journey -- landing -> pricing -> get started.
 // Both are guest-reachable by design; `home()` already redirects an
@@ -993,8 +1000,35 @@ Route::middleware(['auth', 'restrict.platform-admin'])->group(function () {
     Route::post('/incidents', [IncidentController::class, 'store'])->name('incidents.store');
     Route::get('/incidents/{incident}', [IncidentController::class, 'show'])->name('incidents.show');
     Route::post('/incidents/{incident}/transition', [IncidentController::class, 'transition'])->name('incidents.transition');
-    Route::post('/incidents/{incident}/investigation', [IncidentController::class, 'storeInvestigation'])->name('incidents.investigation.store');
     Route::post('/incidents/{incident}/raise-finding', [IncidentController::class, 'raiseFinding'])->name('incidents.raise-finding');
+
+    /*
+     * v2.73.0 -- HSE INVESTIGATION, ITS OWN WORKSPACE.
+     *
+     * Registered beside Incidents rather than nested under
+     * `/incidents/{incident}/...` on purpose. A nested URL says an
+     * investigation is a detail of a report; it is a separate piece of
+     * work with its own number, lifecycle and index, and the address bar
+     * is the first place that either reads true or does not. See
+     * docs/ADR/036.
+     *
+     * The ONE nested route is `store` -- opening an investigation is an
+     * act performed ON a specific incident, and the incident is the only
+     * thing it needs to know.
+     *
+     * Deliberately NOT wrapped in a `role:` group, matching every other
+     * module in this group: v1.9.x shipped a real outage by nesting
+     * Material Request inside `role:super_admin`. Authorization is
+     * `canManageIncidents()` inside the controller, per action.
+     */
+    Route::get('/investigations', [IncidentInvestigationController::class, 'index'])->name('investigations.index');
+    Route::post('/incidents/{incident}/investigations', [IncidentInvestigationController::class, 'store'])->name('investigations.store');
+    Route::get('/investigations/{investigation}', [IncidentInvestigationController::class, 'show'])->name('investigations.show');
+    Route::put('/investigations/{investigation}', [IncidentInvestigationController::class, 'update'])->name('investigations.update');
+    Route::post('/investigations/{investigation}/transition', [IncidentInvestigationController::class, 'transition'])->name('investigations.transition');
+    Route::post('/investigations/{investigation}/interviews', [IncidentInvestigationController::class, 'storeInterview'])->name('investigations.interviews.store');
+    Route::delete('/investigations/{investigation}/interviews/{interview}', [IncidentInvestigationController::class, 'destroyInterview'])->name('investigations.interviews.destroy');
+    Route::post('/investigations/{investigation}/actions', [IncidentInvestigationController::class, 'raiseAction'])->name('investigations.actions.store');
 
     Route::get('/project-management/dashboard', [ProjectManagementDashboardController::class, 'index'])->name('project-management.dashboard');
     Route::get('/milestones', [MilestoneController::class, 'index'])->name('milestones.index');

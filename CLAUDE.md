@@ -45,7 +45,10 @@ authorization path. See `docs/ADR/008-tenancy-foundation.md` for the reasoning a
   reference implementation. Master-data forms deliberately do **not** get one.
 - `resources/js/Components/shared/` — the reusable frontend components every module is expected to
   use rather than reinvent: `StatusBadge`, `ApprovalActions`, `ActivityTimeline`, `ModuleTabNav`,
-  `PageHeader`, `EmptyState`, `LoadingState`, `StatCard`, `EmployeeImportDialog`, `ApprovalStamp`
+  `PageHeader`, `EmptyState`, `LoadingState`, `StatCard`, `EmployeeImportDialog`,
+  `RecordChain` (v2.73.0 — a record's INC → INV → CAPA lineage, rendered identically from both
+  ends), `DetailFields` (`FieldGrid`/`Field`/`DetailSection` — facts set as a record rather than as
+  prose), `ChipSelect` and `TagInput` (v2.73.0), `ApprovalStamp`
   (v2.72.0 — the digital approval seal; takes the server-side authorization record, never a boolean,
   and renders nothing without one), `BrandWordmark` (the one place the IOMS logo is referenced —
   `tone` picks the official light/dark lockup per surface), and others.
@@ -98,7 +101,7 @@ not happen — `CHANGELOG.md` fell 71 releases behind exactly that way.
 | **CLAUDE.md** (this file) | Where to start, how the pieces fit together at a glance. |
 | `docs/kb/` | Current product state, tracked work, decisions, terminology, release history. |
 | `docs/ARCHITECTURE.md` | How the reusable engines work (Approval, Workflow, Timeline, Import, PDF, Report Export), the multi-tenant/company-scoping model, and the authorization approach. Read before building anything that might duplicate an existing engine. |
-| `docs/MODULES.md` | What a specific module (Employees, PPE, Material Request, Projects, KPI, Tasks, Settings) actually does, its key files, and its module-specific business rules. Read before touching a module you haven't worked in yet. |
+| `docs/MODULES.md` | What a specific module (Employees, PPE, Material Request, Projects, KPI, Tasks, Settings) actually does, its key files, and its module-specific business rules. Read before touching a module you haven't worked in yet. **Incident Management is the INITIAL REPORT; HSE Investigation is a separate workspace** — see ADR 036 before assuming either owns the other's fields. |
 | `docs/CONVENTIONS.md` | The house style: migration patterns, naming, status-enum conventions, verification habits, things that have caused real bugs before and how they were fixed. Read before writing a migration, adding a role check, or touching anything cache-related. |
 | `docs/ADR/*.md` | The *reasoning* behind a handful of specific, larger decisions (why the Approval Engine is shaped the way it is, why "Pending Approval" isn't a stored status, why Tenancy/RBAC/Platform Super Admin are shaped the way they are in `008`). Read the relevant one before revisiting a decision it documents, so you don't re-litigate something that was already deliberately decided with tradeoffs in mind. |
 

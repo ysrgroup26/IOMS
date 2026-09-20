@@ -5,6 +5,11 @@ import { createRoot } from 'react-dom/client';
 import { createInertiaApp, router } from '@inertiajs/react';
 import { resolvePageComponent } from 'laravel-vite-plugin/inertia-helpers';
 
+// v2.73.0 -- PWA. Called at module scope, before React mounts, because
+// Chromium fires `beforeinstallprompt` once and early: a component that
+// mounts later has already missed it. See lib/pwa.js.
+import { initPwa } from './lib/pwa';
+
 // The browser tab title suffix must reflect the LIVE Branding Setting
 // (Settings > Branding > Application Name), not a build-time env var --
 // VITE_APP_NAME is baked into the compiled bundle at `npm run build` and
@@ -21,6 +26,8 @@ router.on('navigate', (event) => {
     const name = event.detail?.page?.props?.company?.name;
     if (name) liveCompanyName = name;
 });
+
+initPwa();
 
 createInertiaApp({
     title: (title) => (title ? `${title} - ${liveCompanyName}` : liveCompanyName),

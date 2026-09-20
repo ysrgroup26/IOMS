@@ -82,6 +82,26 @@ return [
         // Social preview. Scrapers do not accept SVG, so this one must be
         // raster.
         'social' => '/branding/ioms-og.png',
+
+        /*
+        | v2.73.0 -- PWA INSTALL ICONS.
+        |
+        | Rasterised from the official icon SVGs; no path was redrawn.
+        | A manifest needs PNG at fixed sizes -- no browser will install an
+        | app from an SVG icon alone.
+        |
+        | `any` and `maskable` ARE TWO DIFFERENT DRAWINGS, not one image
+        | labelled twice. A maskable icon keeps its artwork inside the
+        | middle ~80% so Android's circular and squircle crops cannot cut
+        | the mark, and its brand ground fills the bleed. Using that padded
+        | drawing as `any` would render the mark needlessly small on every
+        | platform that does not crop, which is what declaring a single
+        | icon "any maskable" forces. IOMS ships both.
+        */
+        'icon_192' => '/branding/ioms-icon-192.png',
+        'icon_512' => '/branding/ioms-icon-512.png',
+        'maskable_192' => '/branding/ioms-maskable-192.png',
+        'maskable_512' => '/branding/ioms-maskable-512.png',
     ],
 
     /*

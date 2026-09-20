@@ -6,6 +6,7 @@ use App\Models\ActivityLog;
 use App\Models\Notification;
 use App\Models\User;
 use App\Services\NotificationService;
+use Illuminate\Support\Str;
 use Illuminate\Validation\ValidationException;
 
 /**
@@ -58,9 +59,17 @@ trait HasWorkflow
 
         $this->update(['status' => $newStatus]);
 
+        // v2.73.0: `Str::headline()` rather than `ucfirst()`. Every status
+        // in this product used to be a single word, so ucfirst was
+        // indistinguishable from correct; the investigation workflow
+        // introduced `in_progress` and `under_review`, and the audit trail
+        // started reading "moved from In_progress to Under_review". The
+        // audit trail is the record of record for every workflow here, so
+        // it should be legible. Behaviour is otherwise identical --
+        // single-word statuses render exactly as they did.
         ActivityLog::record(
             $newStatus,
-            $description ?? (class_basename($this).' moved from '.ucfirst($current).' to '.ucfirst($newStatus).'.'),
+            $description ?? (class_basename($this).' moved from '.Str::headline($current).' to '.Str::headline($newStatus).'.'),
             $this,
             $meta
         );

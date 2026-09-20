@@ -65,7 +65,7 @@ import { ArrowLeft, Printer, Download, FlaskConical, Users, ShieldCheck, FileChe
  * reusing the exact same PdfGeneratorService/DocumentEngine route this
  * codebase already had before this pass.
  */
-export default function PermitToWorkDocument({ permit: p, company, documentTemplate, branding, rejectionReason, authorization }) {
+export default function PermitToWorkDocument({ permit: p, company, documentTemplate, branding, rejectionReason, authorization, ppe }) {
     // v2.37.0 (Master Audit): one shared display timezone for every
     // rendered instant on this page, matching the PDF exactly.
     const displayTimeZone = usePage().props.display_timezone;
@@ -239,7 +239,59 @@ export default function PermitToWorkDocument({ permit: p, company, documentTempl
                         name or count. PersonChip is the same shared
                         component used anywhere else IOMS shows a real
                         Employee/User reference. */}
-                    <DocSection index="03" title="Workforce" icon={Users}>
+                    {/* v2.73.0 -- Hazards and PPE. A controlled document
+                        that authorises hazardous work has to state what the
+                        hazards are and what protection the work requires;
+                        before this release the printed permit said neither,
+                        because both lived inside one free-text
+                        "precautions" line. */}
+                    {((ppe?.required?.length ?? 0) > 0 || (ppe?.additional?.length ?? 0) > 0 || (p.hazards?.length ?? 0) > 0) && (
+                        <DocSection index="03" title="Hazards & Required PPE" icon={ShieldCheck}>
+                            {p.hazards?.length > 0 && (
+                                <div className="mb-3">
+                                    <span className="text-[10px] font-semibold uppercase tracking-wide text-graphite-400">Hazards</span>
+                                    <p className="mt-1 text-sm text-graphite-800 dark:text-slate-200">{p.hazards.join(' · ')}</p>
+                                </div>
+                            )}
+                            <div>
+                                <span className="text-[10px] font-semibold uppercase tracking-wide text-graphite-400">Required PPE</span>
+                                <ul className="mt-1 grid grid-cols-1 gap-1 sm:grid-cols-2">
+                                    {(ppe?.required || []).map((t) => {
+                                        const confirmed = (ppe?.confirmed || []).some((c) => c.id === t.id);
+                                        return (
+                                            <li key={t.id} className="flex items-center gap-1.5 text-sm text-graphite-800 dark:text-slate-200">
+                                                {/* The same mark the PDF draws: filled when
+                                                    confirmed, outlined when not. A square built
+                                                    from borders rather than a tick glyph, because
+                                                    a tick costs the PDF a full font embed (886 KB
+                                                    against 8 KB, measured) and the two renderers
+                                                    have to show the same document. */}
+                                                <span
+                                                    aria-hidden="true"
+                                                    className={confirmed
+                                                        ? 'inline-block h-1.5 w-1.5 shrink-0 border border-success bg-success'
+                                                        : 'inline-block h-1.5 w-1.5 shrink-0 border border-graphite-400'}
+                                                />
+                                                {t.name}
+                                            </li>
+                                        );
+                                    })}
+                                    {(ppe?.additional || []).map((name, i) => (
+                                        <li key={`add-${i}`} className="flex items-center gap-1.5 text-sm text-graphite-800 dark:text-slate-200">
+                                            <span aria-hidden="true" className="inline-block h-1.5 w-1.5 shrink-0 border border-graphite-400" />
+                                            {name}
+                                        </li>
+                                    ))}
+                                </ul>
+                                <p className="mt-2 text-[11px] text-graphite-500 dark:text-slate-400">
+                                    Kotak terisi = dikonfirmasi tersedia saat persetujuan HSE.
+                                    Kotak kosong = belum dikonfirmasi.
+                                </p>
+                            </div>
+                        </DocSection>
+                    )}
+
+                    <DocSection index="04" title="Workforce" icon={Users}>
                         <div className="grid grid-cols-1 gap-3 sm:grid-cols-2">
                             <div>
                                 <FieldLabel>Penanggung Jawab Pekerjaan</FieldLabel>
@@ -278,7 +330,7 @@ export default function PermitToWorkDocument({ permit: p, company, documentTempl
 
                     {/* 04 -- Authorization -- reflects the ACTUAL workflow
                         state, never a fabricated approval. */}
-                    <DocSection index="04" title="Authorization" icon={Gavel}>
+                    <DocSection index="05" title="Authorization" icon={Gavel}>
                         <FieldGrid>
                             <Field label="Requester" value={p.requester?.name} />
                             <Field
@@ -298,7 +350,7 @@ export default function PermitToWorkDocument({ permit: p, company, documentTempl
                     {/* 05 -- Supporting Documents -- only rendered when at
                         least one linked document actually exists. */}
                     {hasSupportingDocs && (
-                        <DocSection index="05" title="Supporting Documents" icon={FileCheck2}>
+                        <DocSection index="06" title="Supporting Documents" icon={FileCheck2}>
                             <div className="space-y-2">
                                 {p.risk_assessment && (
                                     <div className="flex items-center justify-between gap-3 rounded-lg border border-graphite-200 px-3 py-2.5 dark:border-slate-700">

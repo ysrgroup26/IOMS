@@ -1,7 +1,7 @@
 ---
 title: Release History
 type: index
-updated: 2026-09-17
+updated: 2026-09-20
 tags: [kb/releases]
 ---
 
@@ -48,6 +48,7 @@ Roughly, the history falls into eras:
 
 | Version | Date | Headline |
 |---|---|---|
+| `2.73.0` | 2026-09-20 | HSE REASSESSMENT: THE REPORT, THE INVESTIGATION, THE PERMIT, AND AN INSTALLABLE APP |
 | `2.72.0` | 2026-09-17 | THE BRAND, THE SEAL, AND THE DOCUMENT FORM |
 | `2.71.0` | 2026-09-16 | CAPABILITY REACH, NAVIGATION HIERARCHY, AND THE MASTER/OPERATIONAL DISTINCTION |
 | `2.70.0` | 2026-09-15 | THE SUBSCRIPTION LIFECYCLE, COMPLETED |

@@ -366,6 +366,75 @@ consolidated from 7 equal-weight columns to 4 identity-first cells (Incident = n
 Category + date; Reported By; Severity/Status), same pattern `PermitsToWork/Index.jsx` established —
 no data dropped. Filter bar unboxed from its `Card`.
 
+### v2.73.0 — this module is the INITIAL ACCIDENT REPORT, and only that
+
+The record is filed in the minutes after an event by whoever was there. Its job is 5W1H — what
+happened, who was hurt, when, where, how, and what was known at the time — plus the immediate
+response and whatever evidence could be captured on the spot.
+
+Fields added: `incident_time`, `work_area`, the injured party (`injured_employee_id` for the
+workforce, `injured_person_name`/`_type`/`_job_title`/`_id_number` for contractors, visitors and the
+public), the injury (`injury_type`, `body_part`, `injury_severity`, `people_injured`), the immediate
+response (`immediate_treatment`, `medical_facility`, `referred_to_facility`), the account
+(`chronology`, `initial_circumstances`, `immediate_actions`), `witnesses` and `evidence_paths` as
+JSON, and the reporting facts (`reported_at`, `work_related`, `reportable_to_authority`,
+`employment_injury_reference`).
+
+**Only four fields are required** — title, date, severity, category. Everything else is nullable and
+sections 03–06 of the form are collapsed by default: a report filed while an ambulance is still on
+site has to take thirty seconds, and a form that refuses to save without the medical facility is a
+form that gets filled in tomorrow from memory.
+
+**It deliberately carries no root cause, methodology, corrective action or effectiveness
+verification.** Those belong to HSE Investigation — see that module below and `docs/ADR/036`.
+
+`reported_at` is taken from the server clock, never the client: the gap between event and report is
+itself a reportable fact and must not be something a form can understate.
+
+On employment-injury reporting, IOMS records the structured facts a submission asks for and a claim
+reference so the incident can be found from it. **It does not generate, submit or track a claim**,
+and no copy in the product says it does.
+
+## HSE Investigation
+
+**Department:** HSE (v2.73.0). Route prefix `investigations`, registered in `config/departments.php`
+in the same change — see `docs/CONVENTIONS.md` for why that is a three-edit checklist.
+
+A **separate workspace**, not a section of the incident page. Full reasoning in
+`docs/ADR/036-incident-report-versus-investigation.md`.
+
+`IncidentInvestigation` (`app/Models/IncidentInvestigation.php`): its own number
+(`INV-{year}-{00001}`), its own Workflow Engine lifecycle
+(`draft → in_progress → under_review → completed → closed`, plus `cancelled`), a named lead
+investigator and `team`, `scope`, `started_at`/`target_completion_date`, a three-layer causal
+analysis (`immediate_causes` → `basic_causes` → `root_cause`, plus `contributing_factors`),
+`detailed_chronology`, `evidence_paths`, `findings`, `recommendations`, `conclusion`, and
+reviewer/closer stamps written server-side.
+
+`InvestigationInterview` (`investigation_interviews`): one interview per row — the person, why they
+were spoken to (`relationship`), the date, who conducted it, the `statement`, and the investigator's
+own reading of it kept in a separate field. Rows rather than JSON because an interview is added to
+over days and "who have we still not spoken to" is a real question; the initial report's witnesses
+stay JSON because there a witness is a name written down once at the scene.
+
+**Key rules:**
+
+- **The report is not editable from here.** An investigator revising the source record destroys the
+  thing they are working from; disagreements go in `detailed_chronology` and `findings`, where they
+  are attributable.
+- **the methodology field is an optional analysis framework** (`none`, `5_why`, `fishbone`, `scat`, `rca`,
+  `other`). These are **methodologies, not legal requirements** — no Indonesian regulation names any
+  of them. `none` is a legitimate answer.
+- **`completed` and `closed` are different states.** Findings can be settled while the corrective
+  actions they generated are not. `canBeClosedCleanly()` is **advisory**, not enforced.
+- **No new permission**: authorization reuses `canManageIncidents()`.
+- **No second CAPA system**: corrective actions use the same polymorphic `CorrectiveAction` entity.
+- Opening an investigation moves a `reported` incident to `investigating`; closing it closes the
+  incident.
+
+The INC → INV → CAPA lineage is rendered by the shared `RecordChain` component from **both** ends,
+from the same facts, so the two pages cannot disagree.
+
 ## HSE Master Data (Hazard Category)
 
 **Department:** HSE (Milestone 4, Workstream B0).

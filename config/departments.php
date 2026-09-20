@@ -37,6 +37,14 @@ return [
         // v2.52.0: Regulations & Standards Register.
         'hse-regulations',
         'ppe', 'ppe-types', 'incidents', 'kpi-input', 'kpi-records', 'hse',
+        // v2.73.0 -- HSE Investigation, registered in the SAME change that
+        // introduced the route prefix, which is the rule this file's own
+        // pitfall note exists for. Verified the hard way here too: the
+        // route worked for a Super Admin and 403'd a department-scoped HSE
+        // user, before the controller's canManageIncidents() check could
+        // run. Same department as 'incidents' -- an investigation is HSE's
+        // own work on HSE's own record, and there is no second owner.
+        'investigations',
         'safety-observations', 'hse-inspections', 'risk-assessments',
         // v2.42.0: 'permits-to-work' moved to RestrictDepartmentAccess's
         // UNIVERSAL_PREFIXES -- PTW authoring is a cross-department

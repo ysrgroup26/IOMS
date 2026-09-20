@@ -964,6 +964,33 @@ v1.9.0 sections for the full reasoning.
   new status badge, tab nav, empty state, or workflow action UI. `StatusBadge` in particular has a
   single canonical status-to-color mapping meant to cover every module's statuses in one place;
   extend it, don't create a parallel one.
+- **`RecordChain`** (v2.73.0) — the lineage of a record, drawn as a chain:
+  `INC-2026-00003 → INV-2026-00001 → 3 corrective actions`. Exists as a component because it is
+  rendered from **both ends** — the incident looking forward, the investigation looking back — and
+  the two must agree; a chain that renders differently depending on which link you are standing on
+  makes people doubt the numbers. It shows records that EXIST and renders an absence as a plain
+  "Not started" with an explanation, never as a greyed-out ghost of a record implying one is on its
+  way. Reuse it for any other record with a real downstream lineage.
+- **`DetailFields`** (v2.73.0) — `FieldGrid` / `Field` / `DetailSection`, for HSE-style detail
+  pages. Replaces the `<span>LABEL</span><p>value</p>` column that every detail page had drifted
+  into, which reads as a printed document pasted into a browser: every fact the same size, the same
+  weight and the same distance from its neighbour, so nothing tells you which of twenty things
+  matters. Adds `emphasis` (the injury outcome is not a peer of "operating unit"), `span` (a
+  chronology needs the width a date does not), and a deliberate empty rendering. Semantic
+  `<dl>/<dt>/<dd>`. **Not a card** — wrap it in the page's own section pattern.
+- **`ChipSelect`** (v2.73.0) — pick several from a short known list (PPE on a permit: 8–12 items,
+  chosen on a phone, possibly wearing gloves). All options and the selection are visible at once,
+  which a multi-select dropdown hides behind two interactions. **Not for lists past ~20** — use
+  `SearchableSelect` there; that boundary is why this is a separate component.
+- **`TagInput`** (v2.73.0) — a short list of free-text entries committed one at a time, on Enter or
+  blur. Replaces the comma-separated-string pattern (`value.split(',')`) that JSA still uses for
+  `required_ppe`, whose failure modes are exactly what you would expect: a trailing comma makes an
+  empty entry, an item containing a comma splits in two, and nothing shows the user what they have
+  until they save.
+- **`InstallAppAction`** (v2.73.0) — offers the **browser's own** install flow, and renders nothing
+  unless one is genuinely available. On iOS Safari, where Apple exposes no installation API, it
+  names the Share-sheet steps instead. It never fakes an installer or disguises a bookmark. See
+  `docs/ADR/037`.
 - **`FormDocumentHeader`** (v2.72.0, `Components/shared/form/`) — the top of an OPERATIONAL form:
   what document is being created, its reserved reference number, its state (Draft / Editing), who is
   accountable, and what happens after submission. Consumers: `PermitsToWork/Form.jsx` (the reference

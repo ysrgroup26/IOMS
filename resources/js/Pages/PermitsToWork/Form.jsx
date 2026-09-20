@@ -9,6 +9,8 @@ import { Select, SelectTrigger, SelectValue, SelectContent, SelectItem } from '@
 import CollapsibleSection from '@/Components/shared/CollapsibleSection';
 import { FormDocumentHeader, FormActions } from '@/Components/shared/form';
 import EmployeeSelector from '@/Components/shared/EmployeeSelector';
+import ChipSelect from '@/Components/shared/ChipSelect';
+import TagInput from '@/Components/shared/TagInput';
 import { ArrowLeft, ShieldCheck, Users, Flame } from 'lucide-react';
 
 /**
@@ -68,7 +70,7 @@ function defaultEnd() {
     return toLocalInput(end);
 }
 
-export default function PermitToWorkForm({ companies, projects, riskAssessments, jsas, ptwNumber, types }) {
+export default function PermitToWorkForm({ ppeTypes = [], companies, projects, riskAssessments, jsas, ptwNumber, types }) {
     const { auth } = usePage().props;
     const { data, setData, post, processing, errors } = useForm({
         company_id: companies[0]?.id ? String(companies[0].id) : '',
@@ -91,6 +93,13 @@ export default function PermitToWorkForm({ companies, projects, riskAssessments,
         // backend still validates every id with `InCurrentTenant`.
         pic_employee_id: '',
         personnel_ids: [],
+        // v2.73.0 -- PPE from the existing master, plus the hazards it is
+        // protecting against. `confirmed_ppe_ids` is deliberately absent:
+        // what was actually verified present is recorded at authorisation
+        // by the person authorising, never asserted by the requester.
+        required_ppe_ids: [],
+        additional_ppe: [],
+        hazards: [],
     });
 
     // The chosen permit type, shown in the document header so the
@@ -327,11 +336,59 @@ export default function PermitToWorkForm({ companies, projects, riskAssessments,
 
                 <Card>
                     <CardHeader>
-                        <CardTitle className="flex items-center gap-2 text-sm"><StepBadge>03</StepBadge><ShieldCheck className="h-4 w-4 text-graphite-400" /> Safety Controls</CardTitle>
-                        <CardDescription>Apa langkah pengamanan yang diperlukan untuk pekerjaan ini?</CardDescription>
+                        <CardTitle className="flex items-center gap-2 text-sm"><StepBadge>03</StepBadge><ShieldCheck className="h-4 w-4 text-graphite-400" /> Hazards & Controls</CardTitle>
+                        <CardDescription>Bahaya apa yang ada, APD apa yang wajib dipakai, dan pengamanan apa yang disiapkan.</CardDescription>
                     </CardHeader>
-                    <CardContent>
-                        <Textarea value={data.precautions} onChange={(e) => setData('precautions', e.target.value)} rows={3} placeholder="Contoh: pasang fire watch, siapkan APAR, isolasi area kerja" />
+                    <CardContent className="space-y-5">
+                        {/* v2.73.0: the hazards this permit controls. The
+                            precautions box below said what to do about them
+                            without ever naming them, which makes a permit
+                            impossible to check against its own JSA. */}
+                        <div className="space-y-2">
+                            <Label>Hazards</Label>
+                            <TagInput
+                                value={data.hazards}
+                                onChange={(v) => setData('hazards', v)}
+                                placeholder="Contoh: percikan api, ruang terbatas, bekerja di ketinggian"
+                                ariaLabel="Hazards"
+                            />
+                        </div>
+
+                        {/* v2.73.0 -- REQUIRED PPE, FROM THE EXISTING MASTER.
+                            Not a new list of equipment names: `ppe_types` is
+                            the tenant's own master and is what PPE issue
+                            records already point at, so a permit and an issue
+                            record naming the same protection are the same row
+                            rather than two spellings. */}
+                        <div className="space-y-2">
+                            <Label>Required PPE</Label>
+                            <ChipSelect
+                                options={ppeTypes}
+                                value={data.required_ppe_ids}
+                                onChange={(v) => setData('required_ppe_ids', v)}
+                                ariaLabel="Required PPE"
+                                emptyLabel="Belum ada PPE Master. Tambahkan di Settings sebelum memilih di sini."
+                            />
+                            <p className="text-xs text-graphite-500 dark:text-slate-400">
+                                Yang dipilih di sini adalah APD yang <strong>diwajibkan</strong> pekerjaan ini.
+                                Konfirmasi APD benar-benar tersedia dicatat oleh HSE saat permit disetujui.
+                            </p>
+                        </div>
+
+                        <div className="space-y-2">
+                            <Label>Additional PPE (not in master)</Label>
+                            <TagInput
+                                value={data.additional_ppe}
+                                onChange={(v) => setData('additional_ppe', v)}
+                                placeholder="APD khusus yang belum terdaftar di master"
+                                ariaLabel="Additional PPE"
+                            />
+                        </div>
+
+                        <div className="space-y-2">
+                            <Label>Precautions</Label>
+                            <Textarea value={data.precautions} onChange={(e) => setData('precautions', e.target.value)} rows={3} placeholder="Contoh: pasang fire watch, siapkan APAR, isolasi area kerja" />
+                        </div>
                     </CardContent>
                 </Card>
 

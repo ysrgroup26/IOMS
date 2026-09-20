@@ -8,6 +8,7 @@ use App\Models\Company;
 use App\Models\Employee;
 use App\Models\JobSafetyAnalysis;
 use App\Models\PermitToWork;
+use App\Models\PpeType;
 use App\Models\Project;
 use App\Models\RiskAssessment;
 use App\Services\DocumentEngine;
@@ -155,6 +156,11 @@ class PermitToWorkController extends Controller
             'jsas' => JobSafetyAnalysis::whereIn('company_id', $tenantCompanyIds)->where('status', JobSafetyAnalysis::STATUS_APPROVED)->get(['id', 'jsa_number', 'job_title']),
             'ptwNumber' => PermitToWork::generateNumber(),
             'types' => PermitToWork::TYPES,
+            // v2.73.0 -- the EXISTING PPE master, not a new one.
+            // `ppe_types` is installation-wide reference data with no
+            // company_id (see PpeType's own doc comment), so there is no
+            // tenant filter to apply -- active types are the whole list.
+            'ppeTypes' => PpeType::active()->get(['id', 'name']),
             // v2.38.0: the `employees` prop is GONE. It used to ship this
             // tenant's entire active employee directory into the page
             // payload just to populate two <select> elements -- fine for
@@ -254,6 +260,8 @@ class PermitToWorkController extends Controller
             'rejectionReason' => $this->rejectionReasonFor($permitToWork),
             // v2.72.0: null unless the permit is genuinely authorised.
             'authorization' => $this->authorizationFor($permitToWork),
+            // v2.73.0 -- resolved names for the ids this permit stored.
+            'ppe' => $this->ppeFor($permitToWork),
         ]);
     }
 
@@ -288,11 +296,38 @@ class PermitToWorkController extends Controller
             // body, so a rejected requester's notification now actually
             // says why, not just "PermitToWork X is now Rejected".
             'reason' => ['required_if:status,'.PermitToWork::STATUS_REJECTED, 'nullable', 'string', 'max:500'],
+            // v2.73.0 -- only meaningful on approval; ignored otherwise.
+            'confirmed_ppe_ids' => ['nullable', 'array', 'max:40'],
+            'confirmed_ppe_ids.*' => [Rule::in(PpeType::pluck('id'))],
         ]);
 
         try {
             if ($data['status'] === PermitToWork::STATUS_APPROVED) {
                 $permitToWork->hse_approver_id = $request->user()->id;
+
+                /*
+                 * v2.73.0 -- CONFIRMED PPE IS WRITTEN AT AUTHORISATION,
+                 * BY THE PERSON AUTHORISING.
+                 *
+                 * This is the only place `confirmed_ppe_ids` is ever
+                 * written, and it is deliberately not accepted on the
+                 * create request: a requester asserting their own PPE
+                 * compliance is exactly what the required/confirmed split
+                 * exists to prevent. Same discipline as
+                 * `hse_approver_id` directly above -- server-side, gated
+                 * on canManageHse(), never settable from a form the
+                 * requester controls.
+                 *
+                 * Defaults to the required list when the approver did not
+                 * narrow it, because approving a permit without saying
+                 * otherwise IS the statement that its stated PPE is in
+                 * place. An approver who checked and found something
+                 * missing posts the shorter list.
+                 */
+                $permitToWork->confirmed_ppe_ids = $data['confirmed_ppe_ids']
+                    ?? $permitToWork->required_ppe_ids
+                    ?? [];
+
                 $permitToWork->save();
             }
             if ($data['status'] === PermitToWork::STATUS_CLOSED) {
@@ -345,6 +380,7 @@ class PermitToWorkController extends Controller
             'rejectionReason' => $this->rejectionReasonFor($permitToWork),
             // v2.72.0: null unless the permit is genuinely authorised.
             'authorization' => $this->authorizationFor($permitToWork),
+            'ppe' => $this->ppeFor($permitToWork),
         ], "{$permitToWork->ptw_number}.pdf");
     }
 
@@ -381,7 +417,44 @@ class PermitToWorkController extends Controller
             'rejectionReason' => $this->rejectionReasonFor($permitToWork),
             // v2.72.0: null unless the permit is genuinely authorised.
             'authorization' => $this->authorizationFor($permitToWork),
+            'ppe' => $this->ppeFor($permitToWork),
         ]);
+    }
+
+    /**
+     * v2.73.0 -- RESOLVE THIS PERMIT'S PPE IDS TO NAMES, ONCE.
+     *
+     * Shared by the Show page, the Document view and the PDF so all three
+     * describe the same equipment -- the same reason `authorizationFor()`
+     * exists rather than three copies of one lookup.
+     *
+     * Returns `required`, `confirmed` and `unconfirmed` as resolved
+     * lists. The third is computed here rather than left to each renderer
+     * to diff two arrays by eye, because the gap between what a permit
+     * requires and what somebody verified is the single most important
+     * thing on it.
+     */
+    private function ppeFor(PermitToWork $permitToWork): array
+    {
+        $ids = collect($permitToWork->required_ppe_ids ?? [])
+            ->merge($permitToWork->confirmed_ppe_ids ?? [])
+            ->map(fn ($id) => (int) $id)
+            ->unique();
+
+        // One query for every id either list mentions, including types
+        // that have since been deactivated -- a permit must keep naming
+        // what it named, and filtering to active types here would make
+        // last year's permit quietly lose an item.
+        $types = $ids->isEmpty()
+            ? collect()
+            : PpeType::whereIn('id', $ids)->get(['id', 'name']);
+
+        return [
+            'required' => $permitToWork->resolvePpe($permitToWork->required_ppe_ids ?? [], $types),
+            'confirmed' => $permitToWork->resolvePpe($permitToWork->confirmed_ppe_ids ?? [], $types),
+            'unconfirmed' => $permitToWork->resolvePpe($permitToWork->unconfirmedPpeIds(), $types),
+            'additional' => $permitToWork->additional_ppe ?? [],
+        ];
     }
 
     /**

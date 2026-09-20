@@ -61,6 +61,10 @@ class PermitToWork extends Model
         // column's own migration doc comment).
         'pic_employee_id',
         'hse_approver_id', 'closed_by', 'closed_at', 'status',
+        // v2.73.0 -- PPE and the hazards it protects against. See the
+        // owning migration for why these are JSON snapshots of `ppe_types`
+        // ids rather than a pivot table.
+        'required_ppe_ids', 'confirmed_ppe_ids', 'additional_ppe', 'hazards',
     ];
 
     protected function casts(): array
@@ -69,7 +73,49 @@ class PermitToWork extends Model
             'start_datetime' => 'datetime',
             'end_datetime' => 'datetime',
             'closed_at' => 'datetime',
+            'required_ppe_ids' => 'array',
+            'confirmed_ppe_ids' => 'array',
+            'additional_ppe' => 'array',
+            'hazards' => 'array',
         ];
+    }
+
+    /**
+     * v2.73.0 -- PPE REQUIRED BY THIS PERMIT, RESOLVED FROM THE MASTER.
+     *
+     * Not an Eloquent relation, deliberately. `required_ppe_ids` is a
+     * SNAPSHOT of what this permit called for at the time it was raised:
+     * deactivating a PPE type next year must not silently rewrite what
+     * last year's permit said, and a `belongsToMany` would make exactly
+     * that happen. Resolving names for display is a lookup, not a join.
+     *
+     * An id whose type has since been deleted resolves to nothing and is
+     * simply absent from the list -- which is honest. It is never rendered
+     * as a fabricated placeholder.
+     */
+    public function resolvePpe(array $ids, \Illuminate\Support\Collection $types): array
+    {
+        return collect($ids)
+            ->map(fn ($id) => $types->firstWhere('id', (int) $id))
+            ->filter()
+            ->values()
+            ->all();
+    }
+
+    /**
+     * Was the PPE this permit requires actually confirmed present?
+     *
+     * The difference between `required` and `confirmed` is the only thing
+     * a permit is for -- what should be true versus what somebody checked
+     * -- so the gap is computed rather than left for a reader to diff two
+     * lists by eye.
+     */
+    public function unconfirmedPpeIds(): array
+    {
+        $required = collect($this->required_ppe_ids ?? [])->map(fn ($id) => (int) $id);
+        $confirmed = collect($this->confirmed_ppe_ids ?? [])->map(fn ($id) => (int) $id);
+
+        return $required->diff($confirmed)->values()->all();
     }
 
     public function company()

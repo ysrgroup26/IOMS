@@ -1746,6 +1746,95 @@ Three rules that matter when extending this:
 
 The chip is a LABEL (English); the consequence sentence is PROSE (Indonesian). See ADR 034.
 
+## CRITICAL — Known Pitfall (v2.73.0) — Blade compiles directives BEFORE it strips comments, so naming a directive inside a comment executes it
+
+A section of the PTW PDF silently vanished. The template read perfectly; the rendered document
+simply did not contain it. The cause was a comment *explaining* the code beneath it:
+
+```blade
+{{-- Block form, not the inline @php(...) form, which this Blade version
+     compiles to an unterminated PHP open tag. --}}
+@php
+    $ptwPpe = $ppe ?? null;
+@endphp
+```
+
+Blade runs `compileStatements()` **before** `compileComments()`. The `@php` *inside the comment* was
+therefore compiled into a real PHP open tag, the comment stopped being a comment, and every
+directive after it in the file stopped being Blade. No error, no warning — the section was just
+absent, and the template still looked correct.
+
+The same trap catches a literal PHP open tag written in a comment, for a different reason: Blade
+tokenises the whole template with `token_get_all()`, so the tokenizer opens PHP on it regardless of
+the comment around it.
+
+**The rules.**
+
+1. **Never write a directive's name with its leading at-sign inside a Blade comment.** Describe it
+   in words — "the inline single-expression form" — or the comment will be compiled.
+2. **Never write a literal PHP open tag in a Blade file**, not even inside a comment.
+3. **Prefer the block `@php … @endphp` form over the single-expression one.** The inline form
+   compiled to `<?php(...` — an unterminated open tag — on this Laravel version, which is the bug
+   the comment above was documenting when it caused the same class of failure a second time.
+
+> [!warning] Nothing static catches this
+> `php -l` passes, the Blade file looks right, and the page renders — just without that section.
+> The only thing that found it was generating the PDF and reading what came out. Compile the
+> template and grep the output when a Blade section does not appear.
+
+## CRITICAL — Known Pitfall (v2.73.0) — a new route prefix must be added to `config/departments.php` in the same change, and this has now cost a 403 three times
+
+Registering `/investigations` and opening it as a department-scoped HSE user returned **403**, before
+the controller's own `canManageIncidents()` check could run. `RestrictDepartmentAccess` resolves a
+route's owning department from `config/departments.php`, and a prefix that is not listed belongs to
+nobody.
+
+This is already written up for v1.11.2 and again for v2.71.0. It has now happened a third time,
+which says the rule needs restating as a checklist item rather than a story:
+
+**Adding a route prefix is three edits, not one:**
+
+1. `routes/web.php` — the routes themselves.
+2. `config/departments.php` — the owning department (or `UNIVERSAL_PREFIXES` when the capability
+   genuinely spans departments, as PTW does).
+3. `resources/js/lib/workspaces.js` — the sidebar entry.
+
+Miss (2) and the feature 403s for exactly the users it was built for, while working perfectly for a
+Super Admin — which is who tests it.
+
+## Known Pitfall (v2.73.0) — MySQL rejects an index name over 64 characters, and SQLite does not
+
+`$table->index(['company_id', 'incident_investigation_id'])` derives the name
+`investigation_interviews_company_id_incident_investigation_id_index` — 66 characters. MySQL refuses
+it; **SQLite, which the suite runs on, accepts it silently.** So the test suite passed and only a
+real migration against MySQL failed.
+
+Worse, the failure left a **partially-created table**: `Schema::create()` runs the table, its foreign
+keys and its indexes as separate statements, so the table existed while the migration was recorded
+as not run. The retry then failed with "table already exists" — the same shape as the v1.11.2
+incident already documented above. Recovery is to drop the orphan and re-run, not to reach for
+`createIfMissing()`, which would skip completing it.
+
+**The rule.** Name any composite index explicitly when the derived name would approach 64 characters
+— long table names plus long foreign-key columns get there quickly — and run migrations against
+**MySQL**, not just the suite, before calling them done. Roll them back and re-apply too: this pass
+also found a `down()` that could not drop its own index because InnoDB had adopted it to satisfy a
+foreign key.
+
+## Known Pitfall (v2.73.0) — a non-Latin-1 character in a dompdf template embeds a whole font
+
+The PTW PDF used ✓ and ☐ to mark confirmed PPE. Both are outside Latin-1, so dompdf embedded a
+DejaVu Sans subset to draw them and **the permit PDF went from 8 KB to 886 KB** — a hundredfold, for
+two glyphs, on a document that is generated on demand and emailed.
+
+The fix carries the same information without a font: a small square drawn from CSS borders, filled
+when confirmed and outlined when not. It also survives a mono photocopy and a phone photo of a page
+taped to a bulkhead better than a tick does, which matters more on a printed permit than on a screen.
+
+**The rule.** In `resources/views/pdf/*`, stay within Latin-1. Where a mark is needed, draw it with
+borders and background colour rather than reaching for a symbol character — and **measure the
+generated file**, because nothing else reports this.
+
 ## CRITICAL — Known Pitfall (v2.72.0) — a large array literal passed inline to a Blade directive is silently TRUNCATED, and `app.blade.php` takes the whole product down with it
 
 Written as:

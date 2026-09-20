@@ -1,7 +1,7 @@
 ---
 title: Verification Status
 type: register
-updated: 2026-09-17
+updated: 2026-09-20
 tags: [kb/verification]
 ---
 
@@ -49,7 +49,7 @@ on every phone width.
 
 | | |
 |---|---|
-| Suite | **425 tests, 1771 assertions — all passing** (2026-09-17) |
+| Suite | **440 tests, 1846 assertions — all passing** (2026-09-20) |
 | Database | In-memory **SQLite**, so no MySQL or external service is needed |
 | Lint | `npm run lint` — 0 errors (4 pre-existing warnings in `GasTestRecords/Index.jsx` and `Settings/Index.jsx`) |
 | Build | `npm run build` — clean, with the known bundle-size warning |
@@ -72,6 +72,13 @@ matters — several defects only appear at realistic scale.
 
 | Area | Version | What was verified |
 |---|---|---|
+| Incident → Investigation → CAPA | 2.73.0 | End to end against MySQL: a 5W1H initial report filed through the real endpoint (injury, treatment, facility, chronology, witnesses, claim reference all persisted; an empty witness row correctly dropped); an investigation opened from it, which moved the incident to `investigating`; the analysis, an interview and a corrective action saved; the workflow driven draft → in progress → under review → completed → closed, with an **illegal jump back to draft correctly refused** by the state machine; reviewer and closer stamps written server-side; closing the investigation closed the incident; the full audit trail read back |
+| Record chain | 2.73.0 | Rendered from BOTH ends and confirmed to agree — the incident shows INC (current) → INV → CAPA, the investigation shows the same chain looking back |
+| PTW required vs confirmed PPE | 2.73.0 | A permit raised with three required PPE types from the existing master plus one free-text item and two hazards; approved confirming only two, and the **Harness correctly surfaced as unconfirmed** on the Show page, the document view and the generated PDF alike |
+| PWA installability | 2.73.0 | Manifest served and valid (name, short_name, standalone, start_url, 192+512 icons in both `any` and `maskable`); service worker registered and active at origin scope |
+| **PWA cache safety** | 2.73.0 | **Measured**: after signing in and visiting /dashboard, /incidents, /investigations, a permit, /settings and downloading a PDF, the cache held **3 entries — 2 build assets and 1 brand asset, zero authenticated responses**. This is the assertion ADR 037 exists for |
+| PDF weight | 2.73.0 | **Measured**: the PPE tick/box glyphs embedded a DejaVu subset and took the permit PDF from 8 KB to 886 KB. Replaced with CSS-drawn marks; back to 9 KB |
+| Migrations | 2.73.0 | All four rolled back and re-applied against **MySQL**, not just the suite — which is how the over-length index name and an undroppable FK-backing index were both found |
 | PTW approval stamp | 2.72.0 | End to end against MySQL: a permit raised through the real `store()` route showed **no** stamp while submitted; approving it as the HSE Officer through the real transition endpoint produced exactly one seal carrying the approver, their role and the moment, on the Show page, the Document view and the generated PDF alike. A seeded permit with status `approved` but no `hse_approver_id` correctly stamps nothing |
 | Screen-vs-PDF agreement | 2.72.0 | **Measured**: stamp reads `17 Sep 2026 15:09` in both renderers, and the validity window `18 Sep 15:00 / 19 Sep 00:00` in both. Before the fix the screen said 16:09 — see the `display_timezone` pitfall in `CONVENTIONS.md` |
 | Brand rollout | 2.72.0 | The official lockup renders and loads on every surface: login (dark variant on navy), the app rail (dark, 123x32), the public header and footer (light, on white and graphite-50), the About dialog (**both**, switched by the `dark` class). Favicon, apple-touch-icon, canonical, og:image and Organization JSON-LD read back correctly from the live `<head>`; `robots.txt` and `sitemap.xml` served with 11 correct absolute URLs |

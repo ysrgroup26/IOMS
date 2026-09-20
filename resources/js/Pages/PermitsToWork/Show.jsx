@@ -14,7 +14,83 @@ import EmptyState from '@/Components/shared/EmptyState';
 import PersonChip from '@/Components/shared/PersonChip';
 import { ArrowLeft, Send, CheckCircle2, XCircle, PlayCircle, FlaskConical, Wind, Download, Printer, FileText, RotateCcw } from 'lucide-react';
 
-export default function PermitToWorkShow({ permit: p, activities, canManage, rejectionReason, authorization }) {
+/**
+ * v2.73.0. Renders nothing at all when a permit carries no PPE -- an
+ * empty "Required PPE: —" block on every pre-v2.73.0 permit would be
+ * noise, and a permit that predates the field never claimed anything
+ * about PPE either way.
+ *
+ * `unconfirmed` is computed server-side (PermitToWorkController::ppeFor)
+ * rather than diffed here, so the screen, the document view and the PDF
+ * cannot disagree about which items are outstanding.
+ */
+function PpePanel({ ppe, hazards, status }) {
+    const required = ppe?.required || [];
+    const confirmed = ppe?.confirmed || [];
+    const unconfirmed = ppe?.unconfirmed || [];
+    const additional = ppe?.additional || [];
+    const hazardList = hazards || [];
+
+    if (required.length === 0 && additional.length === 0 && hazardList.length === 0) {
+        return null;
+    }
+
+    // Before authorisation nothing has been confirmed yet, and saying so
+    // is different from saying items are MISSING.
+    const isAuthorised = ['approved', 'active', 'closed'].includes(status);
+
+    return (
+        <div className="space-y-3 rounded-lg border border-graphite-100 p-3 dark:border-slate-800">
+            {hazardList.length > 0 && (
+                <div>
+                    <span className="text-xs uppercase text-graphite-400">Hazards</span>
+                    <div className="mt-1 flex flex-wrap gap-1.5">
+                        {hazardList.map((h, i) => (
+                            <span key={i} className="rounded-full border border-amber-200 bg-amber-50 px-2 py-0.5 text-[11px] text-amber-800 dark:border-amber-900 dark:bg-amber-950/30 dark:text-amber-300">{h}</span>
+                        ))}
+                    </div>
+                </div>
+            )}
+
+            {(required.length > 0 || additional.length > 0) && (
+                <div>
+                    <span className="text-xs uppercase text-graphite-400">Required PPE</span>
+                    <div className="mt-1 flex flex-wrap gap-1.5">
+                        {required.map((t) => {
+                            const isConfirmed = confirmed.some((c) => c.id === t.id);
+                            return (
+                                <span
+                                    key={t.id}
+                                    className={
+                                        isConfirmed
+                                            ? 'inline-flex items-center gap-1 rounded-full border border-success/50 bg-success/[0.08] px-2 py-0.5 text-[11px] font-medium text-success'
+                                            : 'inline-flex items-center gap-1 rounded-full border border-graphite-200 bg-white px-2 py-0.5 text-[11px] text-graphite-700 dark:border-slate-700 dark:bg-slate-900 dark:text-slate-300'
+                                    }
+                                >
+                                    {isConfirmed && <CheckCircle2 className="h-3 w-3" aria-hidden="true" />}
+                                    {t.name}
+                                </span>
+                            );
+                        })}
+                        {additional.map((name, i) => (
+                            <span key={`add-${i}`} className="rounded-full border border-dashed border-graphite-300 bg-white px-2 py-0.5 text-[11px] text-graphite-600 dark:border-slate-600 dark:bg-slate-900 dark:text-slate-400">{name}</span>
+                        ))}
+                    </div>
+
+                    <p className="mt-1.5 text-[11px] text-graphite-500 dark:text-slate-400">
+                        {!isAuthorised
+                            ? 'Konfirmasi ketersediaan APD dicatat oleh HSE saat permit disetujui.'
+                            : unconfirmed.length === 0
+                                ? 'Seluruh APD yang diwajibkan telah dikonfirmasi tersedia saat persetujuan.'
+                                : `${unconfirmed.length} APD belum dikonfirmasi: ${unconfirmed.map((t) => t.name).join(', ')}.`}
+                    </p>
+                </div>
+            )}
+        </div>
+    );
+}
+
+export default function PermitToWorkShow({ permit: p, activities, canManage, rejectionReason, authorization, ppe }) {
     const [gasTestOpen, setGasTestOpen] = useState(false);
     // v1.10.9: location pre-filled from this permit's own p.location (the
     // scope a PTW is raised for) but independently editable -- a gas
@@ -173,6 +249,12 @@ export default function PermitToWorkShow({ permit: p, activities, canManage, rej
                             <div><span className="text-xs uppercase text-graphite-400">Work Description</span><p className="whitespace-pre-wrap">{p.work_description}</p></div>
                             {p.precautions && <div><span className="text-xs uppercase text-graphite-400">Precautions</span><p className="whitespace-pre-wrap">{p.precautions}</p></div>}
                             {p.required_qualification && <div><span className="text-xs uppercase text-graphite-400">Required Qualification</span><p>{p.required_qualification}</p></div>}
+
+                            {/* v2.73.0 -- PPE, as required vs confirmed.
+                                The gap between the two is the only thing a
+                                permit is for: what the work calls for, and
+                                what somebody actually verified was there. */}
+                            <PpePanel ppe={ppe} hazards={p.hazards} status={p.status} />
                             <div className="grid grid-cols-1 gap-3 sm:grid-cols-3">
                                 <div><span className="text-xs uppercase text-graphite-400">Requested By</span><p>{p.requester?.name}</p></div>
                                 <div>

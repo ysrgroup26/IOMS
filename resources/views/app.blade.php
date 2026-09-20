@@ -23,6 +23,29 @@
     <link rel="apple-touch-icon" href="{{ asset(config('branding.assets.apple_touch_icon')) }}">
     <meta name="theme-color" content="#00004f">
 
+    {{-- v2.73.0 -- INSTALLABILITY.
+
+         The manifest is what lets a browser offer to install IOMS as an
+         application rather than bookmark it. Served from a route because
+         start_url and scope depend on the deployed host, which is only
+         known from the live request behind the hosting proxy.
+
+         `apple-mobile-web-app-capable` is the iOS equivalent of the
+         manifest's display:standalone -- Safari reads neither the manifest
+         nor beforeinstallprompt, so the standalone behaviour and the
+         status-bar style have to be declared here as well.
+
+         NOTE: none of this makes IOMS work offline, and the service worker
+         deliberately caches almost nothing. Caching an authenticated,
+         multi-tenant operations platform would let one tenant's cached
+         page be served to the next person who signs in on that device --
+         see public/service-worker.js for the full reasoning. --}}
+    <link rel="manifest" href="{{ route('manifest') }}">
+    <meta name="apple-mobile-web-app-capable" content="yes">
+    <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
+    <meta name="apple-mobile-web-app-title" content="{{ config('ioms.name', 'IOMS') }}">
+    <meta name="mobile-web-app-capable" content="yes">
+
     {{-- Applies the saved theme (or OS preference) before first paint, so
          there's no flash of the wrong theme while React hydrates. Kept as
          a tiny inline script (not bundled JS) specifically so it runs

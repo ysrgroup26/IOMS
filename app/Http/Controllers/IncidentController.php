@@ -5,8 +5,8 @@ namespace App\Http\Controllers;
 use App\Models\ActivityLog;
 use App\Models\Company;
 use App\Models\CorrectiveAction;
+use App\Models\Employee;
 use App\Models\Incident;
-use App\Models\IncidentInvestigation;
 use App\Models\Project;
 use App\Models\User;
 use App\Support\CurrentTenant;
@@ -61,6 +61,17 @@ class IncidentController extends Controller
             'incidentNumber' => Incident::generateIncidentNumber(),
             'severities' => Incident::SEVERITIES,
             'categories' => Incident::CATEGORIES,
+            // v2.73.0 -- the initial report's own vocabularies.
+            'personTypes' => Incident::PERSON_TYPES,
+            'injurySeverities' => Incident::INJURY_SEVERITIES,
+            'injurySeverityLabels' => Incident::INJURY_SEVERITY_LABELS,
+            // So the reporter can name the injured person from the
+            // workforce rather than retyping them, which is both faster
+            // and the only way the record links to an employee file.
+            'employees' => Employee::whereIn('company_id', $tenantCompanyIds)
+                ->active()
+                ->orderBy('full_name')
+                ->get(['id', 'full_name', 'company_id']),
         ]);
     }
 
@@ -76,22 +87,88 @@ class IncidentController extends Controller
         $tenantCompanyIds = Company::query()->pluck('id');
         $tenantProjectIds = Project::whereIn('company_id', $tenantCompanyIds)->pluck('id');
 
+        // v2.73.0: the injured party, where they are on the workforce.
+        // Rule::in over this tenant's own employee ids -- IDOR-safe by
+        // construction, same technique as the company/project rules above.
+        $tenantEmployeeIds = Employee::whereIn('company_id', $tenantCompanyIds)->pluck('id');
+
+        /*
+         * WHAT IS REQUIRED HERE IS THE POINT OF THE WHOLE FORM.
+         *
+         * Only title, date, severity and category are mandatory -- the
+         * four things somebody genuinely knows in the first minute. Every
+         * 5W1H field below is nullable, deliberately: an initial report is
+         * filed while an ambulance is still on site, and a form that
+         * refuses to save until the medical facility is known is a form
+         * that gets filled in tomorrow from memory, which defeats its
+         * entire purpose.
+         *
+         * The form ASKS for all of it. The schema does not insist.
+         */
         $data = $request->validate([
             'title' => ['required', 'string', 'max:255'],
             'description' => ['nullable', 'string', 'max:2000'],
             'incident_date' => ['required', 'date'],
+            'incident_time' => ['nullable', 'date_format:H:i'],
             'location' => ['nullable', 'string', 'max:255'],
+            'work_area' => ['nullable', 'string', 'max:255'],
             'severity' => ['required', 'in:'.implode(',', Incident::SEVERITIES)],
             'category' => ['required', 'in:'.implode(',', Incident::CATEGORIES)],
             'company_id' => ['nullable', Rule::in($tenantCompanyIds)],
             'project_id' => ['nullable', Rule::in($tenantProjectIds)],
+
+            // WHO
+            'injured_employee_id' => ['nullable', Rule::in($tenantEmployeeIds)],
+            'injured_person_name' => ['nullable', 'string', 'max:255'],
+            'injured_person_type' => ['nullable', Rule::in(Incident::PERSON_TYPES)],
+            'injured_person_job_title' => ['nullable', 'string', 'max:255'],
+            'injured_person_id_number' => ['nullable', 'string', 'max:100'],
+
+            // WHAT (the injury)
+            'injury_type' => ['nullable', 'string', 'max:255'],
+            'body_part' => ['nullable', 'string', 'max:255'],
+            'injury_severity' => ['nullable', Rule::in(Incident::INJURY_SEVERITIES)],
+            'people_injured' => ['nullable', 'integer', 'min:0', 'max:9999'],
+
+            // The immediate response
+            'immediate_treatment' => ['nullable', 'string', 'max:2000'],
+            'medical_facility' => ['nullable', 'string', 'max:255'],
+            'referred_to_facility' => ['nullable', 'boolean'],
+
+            // HOW / WHY, as known at the time
+            'chronology' => ['nullable', 'string', 'max:5000'],
+            'initial_circumstances' => ['nullable', 'string', 'max:2000'],
+            'immediate_actions' => ['nullable', 'string', 'max:2000'],
+
+            'witnesses' => ['nullable', 'array', 'max:20'],
+            'witnesses.*.name' => ['nullable', 'string', 'max:255'],
+            'witnesses.*.contact' => ['nullable', 'string', 'max:255'],
+            'witnesses.*.note' => ['nullable', 'string', 'max:500'],
+
+            // Employment-injury documentation. A flag and a reference:
+            // IOMS records THAT a claim is in play so the incident can be
+            // found from it. It does not generate or submit one.
+            'work_related' => ['nullable', 'boolean'],
+            'reportable_to_authority' => ['nullable', 'boolean'],
+            'employment_injury_reference' => ['nullable', 'string', 'max:100'],
         ]);
 
         $incident = Incident::create([
             ...$data,
+            // Dropped rather than persisted when the reporter left them
+            // blank: an empty witness row is not a witness.
+            'witnesses' => collect($data['witnesses'] ?? [])
+                ->filter(fn ($w) => filled($w['name'] ?? null))
+                ->values()
+                ->all() ?: null,
             'incident_number' => Incident::generateIncidentNumber(),
             'status' => Incident::STATUS_REPORTED,
             'reported_by' => $request->user()->id,
+            // WHEN IT WAS REPORTED, which is not when it happened. Taken
+            // from the server clock, never from the client: the gap
+            // between event and report is itself a reportable fact and
+            // must not be something a form can understate.
+            'reported_at' => now(),
         ]);
 
         ActivityLog::record('created', "Reported Incident {$incident->incident_number}.", $incident);
@@ -102,7 +179,17 @@ class IncidentController extends Controller
     public function show(Incident $incident, Request $request): Response
     {
         $this->assertInCurrentTenant($incident);
-        $incident->load('company:id,name', 'project:id,name', 'reporter:id,name', 'investigation.investigator:id,name', 'correctiveActions.assignee:id,name');
+        $incident->load(
+            'company:id,name', 'project:id,name', 'reporter:id,name',
+            'injuredEmployee:id,full_name',
+            // Loaded to LINK to, not to edit. Since v2.73.0 the
+            // investigation is worked on its own page; this page shows
+            // that one exists, what state it is in, and offers a way
+            // through to it.
+            'investigation:id,incident_id,investigation_number,status,investigator_id,started_at',
+            'investigation.investigator:id,name',
+            'correctiveActions.assignee:id,name'
+        );
 
         $activities = ActivityLog::where('subject_type', Incident::class)
             ->where('subject_id', $incident->id)
@@ -116,8 +203,11 @@ class IncidentController extends Controller
             'incident' => $incident,
             'activities' => $activities,
             'canManage' => $request->user()->canManageIncidents(),
-            'users' => User::when($tenantId, fn ($q) => $q->where('tenant_id', $tenantId))->orderBy('name')->get(['id', 'name']),
-            'investigationMethods' => IncidentInvestigation::METHODS,
+            'users' => User::when($tenantId, fn ($q) => $q->where('tenant_id', $tenantId))
+                ->where('is_active', true)
+                ->orderBy('name')
+                ->get(['id', 'name']),
+            'injurySeverityLabels' => Incident::INJURY_SEVERITY_LABELS,
         ]);
     }
 
@@ -139,29 +229,26 @@ class IncidentController extends Controller
         return back()->with('flash', ['success' => 'Incident '.$data['status'].'.']);
     }
 
-    /** Milestone 4, Workstream B14 -- Investigation. Create-or-update, single record per incident. */
-    public function storeInvestigation(Request $request, Incident $incident): RedirectResponse
-    {
-        abort_unless($request->user()->canManageIncidents(), 403);
-        $this->assertInCurrentTenant($incident);
-
-        $data = $request->validate([
-            'method' => ['required', Rule::in(IncidentInvestigation::METHODS)],
-            'root_cause' => ['nullable', 'string', 'max:2000'],
-            'findings' => ['nullable', 'string', 'max:2000'],
-            'recommendations' => ['nullable', 'string', 'max:2000'],
-            'investigated_at' => ['nullable', 'date'],
-        ]);
-
-        $incident->investigation()->updateOrCreate(
-            ['incident_id' => $incident->id],
-            [...$data, 'company_id' => $incident->company_id, 'investigator_id' => $request->user()->id]
-        );
-
-        ActivityLog::record('updated', "Investigation recorded for {$incident->incident_number}.", $incident);
-
-        return back()->with('success', 'Investigation saved.');
-    }
+    /*
+     * v2.73.0 -- `storeInvestigation()` WAS REMOVED, not deprecated.
+     *
+     * It was a create-or-update that wrote root cause, findings and
+     * recommendations straight onto an incident from a card on the
+     * incident page. That endpoint IS the architecture this release
+     * corrects: it let an investigation be filed as a by-product of
+     * reading a report, by whoever happened to be looking at it, with no
+     * state, no team, no evidence and no review.
+     *
+     * Its replacement is IncidentInvestigationController -- a workspace
+     * with its own routes. Opening one is
+     * POST /incidents/{incident}/investigations; everything after that
+     * happens on the investigation's own page.
+     *
+     * Leaving a redirecting shim here was considered and rejected: the
+     * old endpoint's whole payload (a root cause, typed once, with no
+     * analysis behind it) has nowhere sensible to land in the new model,
+     * and silently accepting it would reintroduce exactly the shortcut.
+     */
 
     /** Milestone 4, Workstream B14/B15 -- reuses the existing polymorphic CorrectiveAction entity, same as HseInspection::raiseFinding(). */
     public function raiseFinding(Request $request, Incident $incident): RedirectResponse

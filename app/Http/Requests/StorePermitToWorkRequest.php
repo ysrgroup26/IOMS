@@ -6,6 +6,7 @@ use App\Models\Company;
 use App\Models\Employee;
 use App\Models\JobSafetyAnalysis;
 use App\Models\PermitToWork;
+use App\Models\PpeType;
 use App\Models\Project;
 use App\Models\RiskAssessment;
 use Illuminate\Foundation\Http\FormRequest;
@@ -71,6 +72,30 @@ class StorePermitToWorkRequest extends FormRequest
             // active employees.
             'personnel_ids' => ['nullable', 'array'],
             'personnel_ids.*' => [Rule::in($tenantActiveEmployeeIds)],
+
+            /*
+             * v2.73.0 -- PPE, FROM THE EXISTING MASTER.
+             *
+             * `ppe_types` is installation-wide reference data with no
+             * `company_id` (see PpeType's own doc comment on why that is
+             * deliberate), so unlike every other id list on this request
+             * there is no tenant to scope it to -- the allow-list is the
+             * active types themselves. Still Rule::in rather than
+             * `exists`, so an inactive or deleted type cannot be posted.
+             *
+             * `confirmed_ppe_ids` is NOT accepted here. What PPE was
+             * actually verified present is recorded at authorisation, by
+             * the person doing the verifying -- accepting it on the
+             * create request would let the requester assert their own
+             * compliance, which is the one thing the required/confirmed
+             * split exists to prevent.
+             */
+            'required_ppe_ids' => ['nullable', 'array', 'max:40'],
+            'required_ppe_ids.*' => [Rule::in(PpeType::where('is_active', true)->pluck('id'))],
+            'additional_ppe' => ['nullable', 'array', 'max:20'],
+            'additional_ppe.*' => ['string', 'max:120'],
+            'hazards' => ['nullable', 'array', 'max:30'],
+            'hazards.*' => ['string', 'max:160'],
         ];
     }
 }

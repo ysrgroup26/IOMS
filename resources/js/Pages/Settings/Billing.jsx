@@ -1,4 +1,4 @@
-import { Head, Link, router, useForm } from '@inertiajs/react';
+import { Head, Link, router, useForm, usePage } from '@inertiajs/react';
 import { CreditCard, Users, Building2, ShieldCheck, CalendarClock, Receipt, AlertTriangle, FileDown, ArrowUpRight, Clock3, CheckCircle2, Lock } from 'lucide-react';
 import AuthenticatedLayout from '@/Layouts/AuthenticatedLayout';
 import PageHeader from '@/Components/shared/PageHeader';
@@ -41,6 +41,16 @@ import { cn } from '@/lib/utils';
  * records will escalate to a lawyer, not to billing.
  */
 const LIFECYCLE = {
+    // v2.77.0: inside the renewal window the page no longer says only
+    // "Active" in green while the shell's banner is already warning.
+    expiring: {
+        tone: 'warn',
+        icon: Clock3,
+        label: 'Renewal due soon',
+        body: (s) =>
+            `Langganan Anda aktif hingga ${fmtDate(s.period_ends_at)} (${s.days_remaining} hari lagi). `
+            + 'Perpanjang sekarang: masa aktif baru ditambahkan setelah periode yang sedang berjalan, bukan mulai hari ini.',
+    },
     active: {
         tone: 'ok',
         icon: CheckCircle2,
@@ -99,8 +109,23 @@ export default function Billing({
 }) {
     const renew = useForm({});
 
-    const state = subscription?.is_lifetime ? 'active' : subscription?.lifecycle_state;
+    // The same window the shell banner and the renewal invoice use, read
+    // from the server rather than invented here.
+    const leadDays = usePage().props.subscriptionState?.lead_days ?? 14;
+
+    const baseState = subscription?.is_lifetime ? 'active' : subscription?.lifecycle_state;
+    const expiring = baseState === 'active'
+        && subscription?.status !== 'trial'
+        && typeof subscription?.days_remaining === 'number'
+        && subscription.days_remaining >= 0
+        && subscription.days_remaining <= leadDays;
+    const state = expiring ? 'expiring' : baseState;
     const notice = state ? LIFECYCLE[state] : null;
+
+    // Where renewal is the answer, the action sits WITH the message rather
+    // than at the bottom of the next card. Suspended and cancelled are
+    // excluded: a payment does not lift an operator's decision (ADR 033 §8).
+    const renewalRelevant = !subscription?.is_lifetime && ['expiring', 'grace', 'lapsed'].includes(state);
     const NoticeIcon = notice?.icon ?? AlertTriangle;
 
     const cancelPendingChange = () => {
@@ -132,6 +157,36 @@ export default function Billing({
                                 ? 'Lisensi organisasi Anda berlaku selamanya dan tidak memerlukan perpanjangan.'
                                 : notice.body(subscription)}
                         </p>
+                        {renewalRelevant && (
+                            <div className="mt-3 flex flex-wrap items-center gap-2">
+                                {outstandingInvoice ? (
+                                    onlinePaymentEnabled ? (
+                                        <Button size="sm" asChild>
+                                            <Link href={route('subscription.pay', outstandingInvoice.id)}>
+                                                Pay renewal invoice
+                                            </Link>
+                                        </Button>
+                                    ) : (
+                                        <span className="text-xs">
+                                            Tagihan {outstandingInvoice.invoice_number} menunggu pembayaran melalui transfer bank — hubungi {billingEmail}.
+                                        </span>
+                                    )
+                                ) : (
+                                    <Button
+                                        size="sm"
+                                        onClick={() => renew.post(route('subscription.renew'), { preserveScroll: true })}
+                                        disabled={renew.processing}
+                                    >
+                                        {renew.processing ? 'Preparing…' : 'Renew subscription'}
+                                    </Button>
+                                )}
+                                {state === 'lapsed' && (
+                                    <span className="text-xs opacity-90">
+                                        Pencatatan aktif kembali segera setelah pembayaran terverifikasi.
+                                    </span>
+                                )}
+                            </div>
+                        )}
                         {(state === 'suspended' || state === 'cancelled') && billingEmail && (
                             <p className="mt-1.5">
                                 Hubungi{' '}
@@ -238,7 +293,13 @@ export default function Billing({
                                         {subscription.billing_cycle === 'monthly' ? 'Monthly' : 'Annual'}
                                     </Row>
                                     <Row label="Started">{fmtDate(subscription.starts_at)}</Row>
-                                    <Row label={subscription.status === 'trial' ? 'Trial ends' : 'Renews'}>
+                                    {/* v2.77.0: once the period has ended this row
+                                        used to read "Renews <a past date>". */}
+                                    <Row label={
+                                        subscription.status === 'trial'
+                                            ? 'Trial ends'
+                                            : ['grace', 'lapsed'].includes(baseState) ? 'Period ended' : 'Renews'
+                                    }>
                                         {subscription.is_lifetime ? 'Lifetime' : fmtDate(subscription.period_ends_at)}
                                         {typeof subscription.days_remaining === 'number' && subscription.days_remaining >= 0 && (
                                             <span className="ml-1.5 text-[11px] text-graphite-400">
@@ -246,6 +307,11 @@ export default function Billing({
                                             </span>
                                         )}
                                     </Row>
+                                    {!subscription.is_lifetime && subscription.grace_ends_at && ['grace', 'lapsed'].includes(baseState) && (
+                                        <Row label={baseState === 'lapsed' ? 'Read-only since' : 'Read-only from'}>
+                                            {fmtDate(subscription.grace_ends_at)}
+                                        </Row>
+                                    )}
                                 </dl>
 
                                 {/* A downgrade or cycle change the customer already
@@ -281,7 +347,10 @@ export default function Billing({
                                         {/* Renewing early is allowed and costs the customer
                                             nothing: the new period is added to the end of
                                             the one they already paid for, never from today. */}
-                                        {!outstandingInvoice && (
+                                        {/* Shown here only when the notice above is not
+                                            already offering it -- one renewal button per
+                                            screen, not two. */}
+                                        {!outstandingInvoice && !renewalRelevant && (
                                             <Button
                                                 onClick={() => renew.post(route('subscription.renew'), { preserveScroll: true })}
                                                 disabled={renew.processing}

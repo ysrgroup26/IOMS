@@ -1821,14 +1821,60 @@ Calendar; HR/HSE/Project Management/Logistics/Procurement Overview pages each sh
 shared `DepartmentCalendarWidget` component. Both are narrower views over the same aggregation the
 full `Calendar/Index.jsx` page uses — not duplicate calendar systems.
 
-## Man-Power / Man-Hour (v1.11.1)
+## Man-Hour — the authoritative model (current as of v2.77.0)
 
-Audited first: no attendance/timesheet/clock-in table exists anywhere in this codebase, so actual
-**worked man-hours cannot be reliably computed** and were NOT fabricated. What genuinely exists and
-is shown on the Main Dashboard instead: `active_employees` (real headcount) and `on_shift_today`
-(real count of `EmployeeShiftAssignment` rows currently in effect). Building true man-hour tracking
-would require a new attendance/timesheet source — explicitly flagged as future work, not attempted
-this pass.
+> This replaces the v1.11.1 note that man-hours "cannot be reliably computed". That was true until
+> v1.11.6 added `ManHourLog`; it has not been true since.
+
+**Source of truth: `man_hour_logs` (`ManHourLog`), and nothing else.** There is no attendance,
+timesheet or clock-in model in IOMS. `EmployeeShiftAssignment` and `Shift` record who is
+**scheduled**, never hours **worked**, so they are deliberately not a source. Man-hours are never
+derived from headcount × a standard day.
+
+| Concept | Definition |
+|---|---|
+| One record | one employee, one work date. The unique index on `(employee_id, work_date)` enforces it. |
+| Row hours | `regular_hours + overtime_hours`, both entered explicitly. `total_hours` is an accessor, never stored. |
+| **Man-hours** (period) | `SUM(regular + overtime)` over the period, i.e. headcount × hours each person actually worked |
+| Headcount | distinct employees with at least one record in the period |
+| Work days | distinct dates with at least one record |
+| Context | `company_id` (Operating Unit, taken from the employee), department (via the employee), and an optional `project_id` |
+
+**Rules:**
+- A day cannot exceed 24 hours; regular and overtime are validated together.
+- A record with zero hours is refused.
+- Saving the same employee and date again **replaces** that day's hours, and the message says so.
+- `recorded_by` is kept and shown for audit.
+- The period filter is validated; a reversed range is an error, not an empty result.
+
+**Aggregation lives in one place: `ManHourController::summarize()`.** It aggregates in the
+database over the whole filtered period, and returns totals, regular/overtime split, headcount, work
+days, record count and a per-project breakdown ("No project" is its own line, so the breakdown sums
+to the total). The table, the headline figures and the breakdown all read one filtered query, so they
+cannot disagree.
+
+Dashboards use `DashboardStatsService::sumManHours()`, the same `SUM(regular + overtime)`. It returns
+`null` rather than `0` for a period with no records, so an empty log never reads as "zero hours".
+
+**Tenant boundary:**
+- Every query is scoped by `CompanyOwnedScope` on the fully qualified `man_hour_logs.company_id`.
+- `employee_id` and `project_id` are validated with `InCurrentTenant`.
+- Deletes are authorized by `ManHourLogPolicy`.
+- Asking for another tenant's `company_id` returns this tenant's figures, never theirs.
+
+**Fixed in v2.77.0:**
+1. **The headline total was summed from the 30 rows on the current page of the table**, so any period
+   with more records reported a wrong figure, and a different wrong figure on each page.
+2. **`work_date` was stored as `YYYY-MM-DD 00:00:00`** through the `date` cast. On a store that keeps
+   the string, the last day of a period was excluded, and re-saving a day hit the unique index instead
+   of replacing the row. It is now normalised to `YYYY-MM-DD` on write (see
+   `docs/CONVENTIONS.md`). MySQL's DATE column had been truncating it silently.
+
+**HSE KPI foundation.** Man-hours are the denominator of LTIFR and TRIR. Those rates are still **not**
+computed: `Incident` does not yet capture lost-time days or recordability. The inputs must exist
+before the formulas do.
+
+Tests: `ManHourTest`.
 
 ## Overview ModuleCard rollout (v1.11.2, Final Completion Pass Part 1)
 

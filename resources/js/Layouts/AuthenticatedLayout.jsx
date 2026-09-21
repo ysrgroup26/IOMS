@@ -939,21 +939,38 @@ function SubscriptionBanner() {
         return null;
     }
 
+    /*
+     * v2.77.0 -- EVERY STATE SAYS WHEN, AND WHAT TO DO.
+     *
+     * The grace copy used to say full access continued "for a while": the
+     * server already sent the exact date recording pauses (grace_ends_at)
+     * and nothing showed it. The expiring copy read "berakhir dalam 0 hari"
+     * on the final day. And the action was "Go to Billing" in every state,
+     * including the three where the one useful thing to do is renew.
+     */
+    const fmt = (d) => (d ? new Date(d).toLocaleDateString('en-US', { day: 'numeric', month: 'long', year: 'numeric' }) : '');
+    const when = state.days_remaining === 0
+        ? 'hari ini'
+        : state.days_remaining === 1 ? 'besok' : `dalam ${state.days_remaining} hari`;
+
     const COPY = {
         active: {
             tone: 'bg-amber-50 border-amber-200 text-amber-900',
             label: 'Renewal due soon',
-            body: `Masa aktif langganan berakhir dalam ${state.days_remaining} hari.`,
+            body: `Masa aktif langganan berakhir ${when} (${fmt(state.period_ends_at)}). Perpanjang lebih awal tidak mengurangi sisa masa aktif Anda.`,
+            action: 'Renew subscription',
         },
         grace: {
             tone: 'bg-amber-50 border-amber-200 text-amber-900',
             label: 'Renewal overdue',
-            body: 'Masa aktif langganan telah berakhir. Akses penuh masih berjalan untuk sementara; setelah itu pencatatan data baru dijeda.',
+            body: `Masa aktif langganan berakhir pada ${fmt(state.period_ends_at)}. Akses penuh tetap berjalan hingga ${fmt(state.grace_ends_at)}; setelah itu pencatatan data baru dijeda. Data Anda tidak terpengaruh.`,
+            action: 'Renew subscription',
         },
         lapsed: {
             tone: 'bg-red-50 border-red-200 text-red-900',
-            label: 'Recording paused',
-            body: 'Masa aktif langganan telah berakhir, sehingga pencatatan data baru dijeda. Seluruh data Anda tetap utuh dan dapat dibuka seperti biasa.',
+            label: 'Read-only',
+            body: 'Masa aktif langganan telah berakhir, sehingga pencatatan data baru dijeda. Seluruh data Anda tetap utuh dan dapat dibuka seperti biasa. Perpanjang langganan untuk memulihkan pencatatan.',
+            action: 'Renew subscription',
         },
         suspended: {
             tone: 'bg-red-50 border-red-200 text-red-900',
@@ -986,11 +1003,14 @@ function SubscriptionBanner() {
                 </span>
             </span>
             {state.can_manage ? (
+                // Suspension and cancellation are operator decisions a
+                // payment does not lift (ADR 033 §8), so those states link
+                // to Billing to read, not to a renewal they cannot make.
                 <Link
                     href={route('subscription.billing')}
                     className="shrink-0 rounded-md bg-black/[0.07] px-2.5 py-1 font-medium transition-colors hover:bg-black/[0.12]"
                 >
-                    Go to Billing
+                    {copy.action ?? 'View billing'}
                 </Link>
             ) : (
                 <span className="shrink-0 opacity-80">Hubungi Administrator organisasi Anda.</span>

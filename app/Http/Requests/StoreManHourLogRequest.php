@@ -23,4 +23,26 @@ class StoreManHourLogRequest extends FormRequest
             'notes' => ['nullable', 'string', 'max:1000'],
         ];
     }
+
+    /**
+     * v2.77.0 -- a day has 24 hours. Each field was capped at 24 on its
+     * own, so 24 regular + 24 overtime (48h in one day) was accepted and
+     * went straight into every total built on this table.
+     */
+    public function after(): array
+    {
+        return [
+            function (\Illuminate\Validation\Validator $validator) {
+                $total = (float) $this->input('regular_hours', 0) + (float) $this->input('overtime_hours', 0);
+
+                if ($total > 24) {
+                    $validator->errors()->add('overtime_hours', 'Regular and overtime hours together cannot exceed 24 hours in one day.');
+                }
+
+                if ($total <= 0 && ! $validator->errors()->has('regular_hours')) {
+                    $validator->errors()->add('regular_hours', 'Enter the hours actually worked. A day with no hours is not a man-hour record.');
+                }
+            },
+        ];
+    }
 }

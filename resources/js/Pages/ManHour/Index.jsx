@@ -12,7 +12,10 @@ import { Label } from '@/Components/ui/label';
 import { Select, SelectTrigger, SelectValue, SelectContent, SelectItem } from '@/Components/ui/select';
 import { Table, TableHeader, TableBody, TableRow, TableHead, TableCell } from '@/Components/ui/table';
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogFooter } from '@/Components/ui/dialog';
-import { Clock, Plus, Trash2, ChevronLeft, ChevronRight, ClipboardList } from 'lucide-react';
+import { Clock, Plus, Trash2, ChevronLeft, ChevronRight, Users, TimerReset, CalendarDays, FolderKanban } from 'lucide-react';
+
+const fmtHours = (n) => Number(n || 0).toLocaleString('en-US', { maximumFractionDigits: 1, minimumFractionDigits: 1 });
+const fmtDate = (d) => new Date(d).toLocaleDateString('en-US', { day: 'numeric', month: 'short', year: 'numeric' });
 
 /**
  * Man-Hour (v1.11.6, Production Readiness pass, Part 4). A minimal
@@ -37,7 +40,7 @@ export default function ManHourIndex({ logs, employees, projects, companies, fil
     return (
         <AuthenticatedLayout>
             <Head title="Man-Hour" />
-            <PageHeader title="Man-Hour" subtitle="Actual worked hours per employee -- regular + overtime, entered explicitly, never assumed." />
+            <PageHeader title="Man-Hour" subtitle="Jam kerja aktual per karyawan per hari — jam reguler ditambah lembur, dicatat langsung, tidak pernah diasumsikan." />
 
             <div className="mb-4 flex flex-wrap items-center justify-between gap-3">
                 <div className="flex flex-wrap gap-2">
@@ -48,6 +51,16 @@ export default function ManHourIndex({ logs, employees, projects, companies, fil
                         <SelectContent>
                             <SelectItem value="all">All Operating Units</SelectItem>
                             {companies.map((c) => <SelectItem key={c.id} value={String(c.id)}>{c.name}</SelectItem>)}
+                        </SelectContent>
+                    </Select>
+                    {/* v2.77.0: project context was recorded on every row and
+                        could not be filtered on. */}
+                    <Select value={filters.project_id ? String(filters.project_id) : 'all'} onValueChange={(v) => applyFilters({ project_id: v === 'all' ? null : v })}>
+                        <SelectTrigger className="w-44"><SelectValue placeholder="Project" /></SelectTrigger>
+                        <SelectContent>
+                            <SelectItem value="all">All Projects</SelectItem>
+                            <SelectItem value="none">No Project</SelectItem>
+                            {projects.map((p) => <SelectItem key={p.id} value={String(p.id)}>{p.name}</SelectItem>)}
                         </SelectContent>
                     </Select>
                 </div>
@@ -61,15 +74,55 @@ export default function ManHourIndex({ logs, employees, projects, companies, fil
                 family. Reused StatCard (same "TOTAL HOURS / period
                 context" concept this pass's own directive suggested,
                 built only because the backend already supplies it). */}
-            <div className="mb-4 grid grid-cols-2 gap-3 sm:grid-cols-4">
-                <StatCard icon={Clock} value={summary.total_hours.toFixed(1)} label="Total Hours" hint="periode saat ini" />
-                <StatCard icon={ClipboardList} value={summary.record_count} label="Records in Range" hint="periode saat ini" />
+            {/* v2.77.0: every figure below is one database aggregate over
+                the WHOLE filtered period (ManHourController::summarize()).
+                Before, "Total Hours" summed only the 30 rows on the current
+                page of the table. */}
+            <div className="mb-3 grid grid-cols-2 gap-3 lg:grid-cols-4">
+                <StatCard icon={Clock} value={fmtHours(summary.total_hours)} label="Total Man-Hours" hint={`${fmtDate(filters.from)} – ${fmtDate(filters.to)}`} />
+                <StatCard icon={Users} value={summary.headcount} label="Headcount" hint="karyawan dengan jam tercatat" />
+                <StatCard icon={TimerReset} value={fmtHours(summary.overtime_hours)} label="Overtime Hours" hint={`reguler ${fmtHours(summary.regular_hours)} jam`} />
+                <StatCard icon={CalendarDays} value={summary.work_days} label="Work Days Recorded" hint={`${summary.record_count} catatan`} />
             </div>
+
+            {/* The calculation, stated where the number is. */}
+            <p className="mb-4 text-xs leading-relaxed text-graphite-500">
+                Man-hour = jumlah (jam reguler + lembur) setiap karyawan per hari dalam periode ini, yaitu jumlah
+                orang × jam yang benar-benar mereka kerjakan. Satu karyawan memiliki paling banyak satu catatan per tanggal.
+            </p>
+
+            {summary.by_project.length > 1 && (
+                <Card className="mb-4">
+                    <CardContent className="p-4">
+                        <p className="mb-3 flex items-center gap-2 text-sm font-semibold text-graphite-900">
+                            <FolderKanban className="h-4 w-4 text-graphite-400" /> Man-Hours by Project
+                        </p>
+                        <ul className="space-y-2">
+                            {summary.by_project.map((row) => (
+                                <li key={row.project_id ?? 'none'} className="flex items-center gap-3 text-sm">
+                                    <span className="w-44 shrink-0 truncate text-graphite-700 sm:w-56">{row.name ?? 'No Project'}</span>
+                                    <span className="relative h-1.5 flex-1 overflow-hidden rounded-full bg-graphite-100" aria-hidden="true">
+                                        <span className="absolute inset-y-0 left-0 rounded-full bg-brand-500" style={{ width: `${summary.total_hours ? (row.hours / summary.total_hours) * 100 : 0}%` }} />
+                                    </span>
+                                    <span className="w-20 shrink-0 text-right tabular-nums text-graphite-900">{fmtHours(row.hours)}</span>
+                                    <span className="hidden w-20 shrink-0 text-right text-xs text-graphite-500 sm:inline">{row.headcount} orang</span>
+                                </li>
+                            ))}
+                        </ul>
+                    </CardContent>
+                </Card>
+            )}
 
             <Card>
                 <CardContent className="p-0">
                     {logs.data.length === 0 ? (
-                        <EmptyState icon={Clock} title="No man-hour records in this range" description="Add the first record using the button above." />
+                        <EmptyState
+                            icon={Clock}
+                            title="No man-hour records in this period"
+                            description={can.manage
+                                ? 'Belum ada jam kerja tercatat untuk periode dan filter ini. Tambahkan catatan dengan tombol Add Record.'
+                                : 'Belum ada jam kerja tercatat untuk periode dan filter ini.'}
+                        />
                     ) : (
                         <>
                             {/* v2.32.0: this numeric/tabular dataset stays a
@@ -106,6 +159,7 @@ export default function ManHourIndex({ logs, employees, projects, companies, fil
                                         <TableHead className="text-right">Regular</TableHead>
                                         <TableHead className="text-right">Overtime</TableHead>
                                         <TableHead className="text-right">Total</TableHead>
+                                        <TableHead>Recorded By</TableHead>
                                         {can.manage && <TableHead />}
                                     </TableRow>
                                 </TableHeader>
@@ -118,6 +172,7 @@ export default function ManHourIndex({ logs, employees, projects, companies, fil
                                             <TableCell className="text-right tabular-nums">{Number(l.regular_hours).toFixed(1)}</TableCell>
                                             <TableCell className="text-right tabular-nums">{Number(l.overtime_hours).toFixed(1)}</TableCell>
                                             <TableCell className="text-right font-semibold tabular-nums">{(Number(l.regular_hours) + Number(l.overtime_hours)).toFixed(1)}</TableCell>
+                                            <TableCell className="text-xs text-graphite-500">{l.recorded_by?.name ?? '—'}</TableCell>
                                             {can.manage && (
                                                 <TableCell>
                                                     <Button variant="ghost" size="icon" onClick={() => destroy(l.id)}><Trash2 className="h-4 w-4 text-red-500" /></Button>
@@ -190,6 +245,9 @@ function AddRecordDialog({ open, onOpenChange, employees, projects }) {
                         <Input type="date" value={data.work_date} onChange={(e) => setData('work_date', e.target.value)} />
                         {errors.work_date && <p className="text-xs text-red-600">{errors.work_date}</p>}
                     </div>
+                    <p className="text-xs text-graphite-500">
+                        Satu catatan per karyawan per tanggal. Menyimpan tanggal yang sudah tercatat akan menggantikan jam hari itu.
+                    </p>
                     <div className="grid grid-cols-2 gap-3">
                         <div className="space-y-1.5">
                             <Label>Regular Hours</Label>

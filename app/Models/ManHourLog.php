@@ -58,6 +58,30 @@ class ManHourLog extends Model
         return $this->belongsTo(User::class, 'recorded_by');
     }
 
+    /**
+     * v2.77.0 -- A WORK DATE IS A DATE, SO IT IS STORED AS ONE.
+     *
+     * The `date` cast serializes through the model's datetime format, so it
+     * wrote "2026-09-30 00:00:00". A MySQL DATE column quietly truncates
+     * that, which is why production never showed it; any store that keeps
+     * the string does not, and there two things broke:
+     *
+     *   - a period ending 2026-09-30 excluded that day's hours, because
+     *     "2026-09-30 00:00:00" sorts after "2026-09-30";
+     *   - saving the same person and date again missed the existing row and
+     *     hit the unique index instead of replacing the day's hours.
+     *
+     * Normalising on write fixes both at the source, for every driver,
+     * rather than asking every query to remember whereDate(). Reading is
+     * unchanged: the cast still returns a Carbon date.
+     */
+    public function setWorkDateAttribute($value): void
+    {
+        $this->attributes['work_date'] = $value === null
+            ? null
+            : \Illuminate\Support\Carbon::parse($value)->toDateString();
+    }
+
     public function getTotalHoursAttribute(): float
     {
         return (float) $this->regular_hours + (float) $this->overtime_hours;

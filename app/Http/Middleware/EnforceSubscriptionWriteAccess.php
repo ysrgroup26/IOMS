@@ -64,6 +64,14 @@ class EnforceSubscriptionWriteAccess
         'logout', 'login', 'password.',
         // Marking one's own notification read is a write only incidentally.
         'notifications.',
+        // v2.77.0 -- a person's OWN account: profile, password, Google link,
+        // verification email. The docblock above has promised that "a
+        // user's own profile" stays writable since v2.70.0, but no prefix
+        // implemented it, so a lapsed tenant user could not even change
+        // their own password. These write only to that user's own row;
+        // none of them touches tenant operational data.
+        'account.',
+        'verification.',
     ];
 
     public function __construct(private readonly EntitlementService $entitlements) {}

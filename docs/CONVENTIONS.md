@@ -1746,6 +1746,28 @@ Three rules that matter when extending this:
 
 The chip is a LABEL (English); the consequence sentence is PROSE (Indonesian). See ADR 034.
 
+## Known Pitfall (v2.77.0) — the `date` cast STORES a time, and MySQL hides it
+
+A `'work_date' => 'date'` cast serializes through the model's datetime format, so Eloquent writes
+`2026-09-30 00:00:00`. A MySQL `DATE` column truncates that silently, which is why production never
+showed a problem. Any store that keeps the string (SQLite, which the test suite uses) does not, and
+two things broke in `ManHourLog`:
+
+- `whereBetween('work_date', ['2026-09-01', '2026-09-30'])` dropped the 30th, because
+  `"2026-09-30 00:00:00"` sorts after `"2026-09-30"`.
+- `updateOrCreate(['work_date' => '2026-09-30'])` missed the existing row, then hit the unique index
+  and returned a 500 instead of replacing the row.
+
+**The rule:** for a column that is a calendar date, normalise it to `Y-m-d` on write, with a
+`set…Attribute` mutator that takes precedence over the cast. Do not ask every query to remember
+`whereDate()`. Only the tests caught this; do not rely on MySQL's forgiveness.
+
+## Known Pitfall (v2.77.0) — a total computed from a paginated collection is a total of one page
+
+`$logs->getCollection()->sum(...)` after `paginate(30)` sums **30 rows**, not the period. Aggregate
+headline figures in the database, from the same filtered query the table uses (clone it before
+paginating). The Man-Hour page reported wrong totals for every period with more than 30 records.
+
 ## Known Pitfall (v2.75.0) — `config('x.'.$routeName)` breaks on route names that contain a dot
 
 `config('seo.pages.legal.privacy')` is read as `seo → pages → legal → privacy`, not as the key

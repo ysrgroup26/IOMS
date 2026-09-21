@@ -180,6 +180,56 @@ disagree with.
 - A downgrade that a tenant's current usage will not fit is refused rather than queued. The customer
   reduces usage first, which is the only outcome that does not strand data.
 
+## v2.77.0 — what the customer sees, and proof that read-only holds
+
+### The lifecycle, as communicated
+The state machine is unchanged. What changed is that every state now says **when**, and offers the
+**one action that helps**. It is said in two places that agree: the shell banner
+(`AuthenticatedLayout` `SubscriptionBanner`, fed by the shared `subscriptionState` prop) and the
+Billing page notice (`Settings/Billing.jsx`).
+
+| State | Banner | Billing page | Action |
+|---|---|---|---|
+| Active, outside the renewal window | none | "Active", renews on date | Renew now (in the card) |
+| **Expiring** (active, ≤ `renewal_lead_days` left) | *Renewal due soon*: ends today / tomorrow / in N days, plus the date | *Renewal due soon* (amber); renewing early keeps the remaining time | Renew subscription |
+| **Grace** | *Renewal overdue*: period end date and the exact date recording pauses (`grace_ends_at`) | same, plus rows *Period ended* and *Read-only from* | Renew subscription |
+| **Lapsed** | *Read-only*: data intact; renew to restore recording | same, plus *Read-only since* | Renew subscription |
+| Suspended / cancelled | explains, data not deleted | contact billing | View billing (no renewal: §8) |
+
+When a renewal invoice is already outstanding, the notice offers **Pay renewal invoice**, or states
+the bank-transfer instruction when online payment is not configured, instead of raising a second
+invoice. There is one renewal button per screen.
+
+Things that were wrong before v2.77.0:
+- The grace banner said access continued "for a while", although the date was already sent to the
+  browser.
+- The last-day copy read "berakhir dalam 0 hari".
+- Every state's action was "Go to Billing".
+- After the period ended, the Billing row still read "Renews <a past date>".
+
+### Renewal and reactivation
+Renewal and reactivation use the existing path, unchanged:
+1. `subscription.renew` issues a renewal invoice on the **same** subscription.
+2. Payment is confirmed server-side, by the signed webhook or an audited manual settlement.
+3. `applyPaidInvoice()` → `extendPeriod()` extends the **same** row, as `max(end, now) + cycle`.
+
+No tenant, company, account or subscription is ever created by renewing.
+`SubscriptionReadOnlyEnforcementTest` asserts that end to end through the real Midtrans webhook.
+
+### Read-only, verified rather than assumed
+- **The sweep.** `SubscriptionReadOnlyEnforcementTest::test_no_state_changing_route_escapes_read_only`
+  calls **every** POST/PUT/PATCH/DELETE route in the product (over 200) as a lapsed tenant's Super
+  Admin. It requires a 403 or 404 from each, and requires the row count of every table to be
+  unchanged.
+  - A 404 is accepted: route-model binding runs before the guard, so a made-up id is refused before
+    any write.
+  - Real-record create, edit and delete are tested separately.
+- **No bypasses found.** There are no state-changing GET routes, no separate API routes, and the
+  guard is in the global web stack.
+- **Fixed:** the guard's docblock had promised since v2.70.0 that "a user's own profile" stays
+  writable, but no prefix implemented it. A lapsed tenant user could not change their own password.
+  `account.` and `verification.` are now allowed; they write only to the user's own row.
+
 ## Notes
 
 - Grace, renewal lead time and invoice due days are configuration (`config/saas.php`), because they

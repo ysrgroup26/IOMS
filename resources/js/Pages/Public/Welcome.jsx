@@ -6,7 +6,8 @@ import BlueprintBackdrop from '@/Components/public/BlueprintBackdrop';
 import PlatformShowcase from '@/Components/public/PlatformShowcase';
 import ConnectedOperations from '@/Components/public/ConnectedOperations';
 import FragmentedToConnected from '@/Components/public/FragmentedToConnected';
-import DepartmentGrid from '@/Components/public/DepartmentGrid';
+import StorySection from '@/Components/public/StorySection';
+import { DOMAIN_STORIES } from '@/Components/public/domainStories';
 import OperatingLoop from '@/Components/public/OperatingLoop';
 import { Button } from '@/Components/ui/button';
 import {
@@ -44,12 +45,13 @@ export default function PublicWelcome({ plans, steps = [], faqs = [], contactEma
                 Management Platform") alongside the canonical "Industrial
                 Operations Platform". The title here is now just the
                 descriptor -- app.jsx supplies the product name. */}
-            <Head title="Industrial Operations Platform">
-                <meta name="description" content="Connect field operations, HSE, workforce, and operational data in one platform." />
-                <meta property="og:title" content="IOMS — Industrial Operations Platform" />
-                <meta property="og:description" content="Connect field operations, HSE, workforce, and operational data in one platform." />
-                <meta property="og:type" content="website" />
-            </Head>
+            {/* v2.76.0: this <Head> used to carry its own description and
+                og:* tags. Inertia appends those after hydration, so the page
+                ended up with TWO meta descriptions and two og:titles that
+                disagreed with the server-rendered ones in app.blade.php.
+                All search and social metadata now comes from config/seo.php
+                via the server; the tab title comes from `seoTitle`. */}
+            <Head title="Industrial Operations Platform" />
 
             <Hero />
             <TrustStatement />
@@ -70,7 +72,7 @@ export default function PublicWelcome({ plans, steps = [], faqs = [], contactEma
 /* ------------------------------------------------------------------ */
 /* Section: Hero                                                       */
 /* ------------------------------------------------------------------ */
-const INDUSTRIES_STRIP = ['Shipyard', 'Construction', 'Manufacturing', 'Mining & Energy'];
+const INDUSTRIES_STRIP = ['Shipyards', 'Construction', 'Manufacturing', 'Mining', 'Energy & Marine'];
 
 /**
  * v2.45.0 -- the hero moves onto a deep navy atmospheric surface, the same
@@ -98,11 +100,18 @@ function Hero() {
 
             <div className="relative mx-auto max-w-7xl px-4 py-20 sm:px-6 sm:py-28 lg:px-8">
                 <div className="mx-auto max-w-3xl text-center">
+                    {/* v2.76.0 -- THE PRODUCT DEFINITION IS VISIBLE TEXT.
+                        The eyebrow names the product and its category; the
+                        H1 says what it is for; the paragraph below names the
+                        domains and the industries. Together they are the
+                        sentence a search engine -- or a person skimming --
+                        should come away with, so it lives in the HTML, not
+                        only in metadata or structured data. */}
                     <p className="text-xs font-semibold uppercase tracking-[0.2em] text-steel-300">
-                        Industrial Operations Platform
+                        IOMS · Industrial Operations Platform
                     </p>
                     <h1 className="mt-4 text-4xl font-semibold leading-[1.08] tracking-tight text-white sm:text-5xl lg:text-6xl">
-                        One platform for how your<br className="hidden sm:block" /> whole operation actually runs.
+                        One platform for complex<br className="hidden sm:block" /> industrial operations.
                     </h1>
 
                     <div className="mx-auto mt-6 inline-flex flex-wrap items-center justify-center gap-x-2 gap-y-1 rounded-full border border-white/10 bg-white/[0.06] px-4 py-2 text-[11px] font-semibold uppercase tracking-wide text-steel-200 sm:text-xs">
@@ -116,9 +125,9 @@ function Hero() {
                     </div>
 
                     <p className="mx-auto mt-6 max-w-2xl text-base leading-relaxed text-navy-300 sm:text-lg">
-                        Projects, people, work, materials and approvals all run in one connected platform — so what
-                        happens on site reaches management as data, not as a stack of spreadsheets that no longer agree
-                        with each other.
+                        IOMS connects management, HSE, people, field operations, projects, procurement, warehouse and
+                        logistics for shipyards, construction, manufacturing, mining, energy and marine operations — so
+                        what happens on site reaches management as data, not as spreadsheets that no longer agree.
                     </p>
 
                     {/* One unmistakable primary, one quiet secondary. The
@@ -196,15 +205,32 @@ function PlatformOverview() {
                 <SectionHeading
                     eyebrow="Platform"
                     title="One platform, every operational domain"
-                    subtitle="Every workspace below runs in IOMS today — not a roadmap. They share one set of master data, one approval layer and one reporting layer."
+                    subtitle="Every domain below runs in IOMS today — not a roadmap. They share one set of master data, one approval layer and one reporting layer."
                 />
 
-                {/* v2.61.0: the cards moved into DepartmentGrid, which also
-                    corrects two names this section had wrong -- see that
-                    component for what "Operations" and "Procurement &
-                    Warehouse" were actually describing. */}
-                <div className="mt-12">
-                    <DepartmentGrid />
+                {/* v2.76.0: domain by domain, as stories rather than a grid
+                    of eight cards. Content and capability list live in
+                    domainStories.js; the pattern is StorySection, which is
+                    the one future domain sections reuse. Rows alternate
+                    sides so the sequence reads as a sequence. */}
+                <div className="mx-auto mt-6 max-w-6xl divide-y divide-graphite-100">
+                    {DOMAIN_STORIES.map((story, i) => (
+                        <StorySection
+                            key={story.key}
+                            eyebrow={story.eyebrow}
+                            title={story.title}
+                            icon={story.icon}
+                            items={story.items}
+                            image={story.image}
+                            cta={story.cta && {
+                                label: story.cta.label,
+                                href: story.cta.route ? route(story.cta.route) : story.cta.anchor,
+                            }}
+                            reverse={i % 2 === 1}
+                        >
+                            <p>{story.body}</p>
+                        </StorySection>
+                    ))}
                 </div>
             </div>
         </section>
@@ -288,7 +314,7 @@ function PtwHseStory() {
 /* ------------------------------------------------------------------ */
 function FieldExperience() {
     return (
-        <section className="border-b border-graphite-100 bg-white py-20">
+        <section id="field" className="scroll-mt-20 border-b border-graphite-100 bg-white py-20">
             <div className="mx-auto max-w-7xl px-4 sm:px-6 lg:px-8">
                 <div className="grid grid-cols-1 items-center gap-10 lg:grid-cols-2">
                     <div>
@@ -413,7 +439,14 @@ function Industries() {
     return (
         <section className="border-b border-graphite-100 bg-gradient-to-b from-brand-50/50 to-brand-50/20 py-16">
             <div className="mx-auto max-w-7xl px-4 sm:px-6 lg:px-8">
+                {/* v2.76.0: "Built For" was an eyebrow with no heading under
+                    it -- the one section on the page whose subject was not
+                    stated as a heading. The industries are what IOMS is FOR,
+                    so they now have one. */}
                 <p className="text-center text-xs font-semibold uppercase tracking-[0.2em] text-graphite-400">Built For</p>
+                <h2 className="mt-3 text-center text-2xl font-semibold tracking-tight text-graphite-900 sm:text-3xl">
+                    Complex industrial operations
+                </h2>
                 <div className="mt-8 flex flex-wrap items-center justify-center gap-3">
                     {industries.map((ind) => (
                         <div key={ind.label} className="flex items-center gap-2 rounded-full border border-graphite-200 bg-white px-4 py-2 text-sm text-graphite-600 shadow-card">

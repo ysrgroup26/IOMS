@@ -30,6 +30,31 @@ generated customer documents whenever a tenant had not set its own company name.
 Former names, which appear in older documents and commit history: *Shipyard Management System*,
 and before that *SAFETY LOG*.
 
+### What IOMS is, in one line (v2.76.0)
+
+> **IOMS — Industrial Operations Platform.** One platform for complex industrial operations:
+> management, HSE, people, field operations, projects, procurement, warehouse and logistics, for
+> shipyards, construction, manufacturing, mining, energy and marine.
+
+That sentence is the positioning, and it is written into the product in exactly three places, which
+must be changed together:
+
+| Where | What it carries |
+|---|---|
+| Landing hero (`Pages/Public/Welcome.jsx`) | eyebrow *IOMS · Industrial Operations Platform*; H1 *One platform for complex industrial operations.*; the paragraph naming the domains and the industries |
+| `config/seo.php` → `home` | the search title and meta description |
+| `app.blade.php` structured data | Organization `slogan` *Built for Industrial Operations*; SoftwareApplication `applicationSubCategory` and a `featureList` worded as the eight story headings |
+
+**IOMS is not an HSE product.** HSE is one domain of eight. The page leads with the operation, and HSE
+appears where it belongs in the sequence — see [[UX and Design Principles#Landing page storytelling]].
+
+**No claim without a menu item.** Every capability the public site names exists in
+`resources/js/lib/workspaces.js`; `LandingPositioningTest` checks the list against it.
+
+**Search and AI summaries are an outcome, not a target.** There is no `llms.txt`, no text written for
+machines, and nothing that tries to steer AI Overview wording. The work is to make the page itself say
+clearly what IOMS is. Details and the no-JavaScript caveat: [[039-public-search-identity]].
+
 > [!tip] Treat it like a vendor name
 > `CONVENTIONS.md` (v2.22.0) says it plainly: IOMS is treated like SAP/Workday/ServiceNow, not like
 > its own full expansion.

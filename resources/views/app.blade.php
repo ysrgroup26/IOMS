@@ -34,6 +34,12 @@
          SVG. All three are the icon-only mark on its own brand ground --
          the one place the compact square identity is genuinely required,
          rather than the full lockup. --}}
+    {{-- v2.76.0: the .ico first for clients that take the first match,
+         then 48px (Google's preferred minimum), SVG and the 32px PNG.
+         Every one is the same official mark on its navy square -- see
+         config/branding.php for why the favicon has a solid ground. --}}
+    <link rel="icon" href="{{ asset(config('branding.assets.favicon_ico')) }}" sizes="16x16 32x32 48x48">
+    <link rel="icon" type="image/png" sizes="48x48" href="{{ asset(config('branding.assets.favicon_48')) }}">
     <link rel="icon" type="image/svg+xml" href="{{ asset(config('branding.assets.favicon')) }}">
     <link rel="icon" type="image/png" sizes="32x32" href="{{ asset(config('branding.assets.favicon_png')) }}">
     <link rel="apple-touch-icon" href="{{ asset(config('branding.assets.apple_touch_icon')) }}">
@@ -163,6 +169,7 @@
                 'logo' => $search->assetUrl(config('branding.assets.logo_png')),
                 'image' => $socialImage,
                 'description' => config('seo.pages.home.description'),
+                'slogan' => 'Built for Industrial Operations',
                 'email' => config('ioms.emails.hello'),
             ]];
 
@@ -182,6 +189,15 @@
                     'name' => $brandName,
                     'description' => config('seo.pages.home.description'),
                     'applicationCategory' => 'BusinessApplication',
+                    'applicationSubCategory' => $brandDescriptor,
+                    // v2.76.0 -- the operational domains, worded exactly as
+                    // the home page's visible story headings name them, so
+                    // the markup restates the page rather than adding claims
+                    // the page does not make.
+                    'featureList' => [
+                        'Industrial Operations', 'HSE & Safety', 'People & Workforce', 'Field Operations',
+                        'Projects & Execution', 'Procurement & Warehouse', 'Logistics / PPIC', 'Management Visibility',
+                    ],
                     'operatingSystem' => 'Web browser',
                     'url' => $homeUrl,
                     'publisher' => ['@id' => $organizationId],
@@ -244,6 +260,32 @@
     @inertiaHead
 </head>
 <body class="h-full font-sans">
+    {{-- v2.76.0 -- THE DEFINITION, IN THE HTML THE SERVER SENDS.
+
+         Inertia SSR is off (config/inertia.php) and needs a Node process the
+         current shared hosting does not run, so every page body is drawn in
+         the browser. Google renders JavaScript and reads the full page; a
+         crawler or reader that does not gets only the head. This gives
+         those clients what this page is -- its title and the one-sentence
+         summary from config/seo.php -- and links to the rest of the public
+         site, and nothing else. It is never shown to a browser with
+         JavaScript on, and it makes no claim the page itself does not. --}}
+    @if ($seoPage)
+        <noscript>
+            <header>
+                <p>{{ config('ioms.name', 'IOMS') }} — {{ config('ioms.descriptor', 'Industrial Operations Platform') }}</p>
+                <h1>{{ $seoPage['title'] }}</h1>
+                <p>{{ $seoPage['description'] }}</p>
+            </header>
+            <nav aria-label="IOMS">
+                <ul>
+                    @foreach ($search->pages() as $navRoute => $navPage)
+                        <li><a href="{{ route($navRoute) }}">{{ $navPage['title'] }}</a></li>
+                    @endforeach
+                </ul>
+            </nav>
+        </noscript>
+    @endif
     @inertia
 </body>
 </html>

@@ -84,7 +84,25 @@ return [
         // The mark on its own brand ground -- a favicon needs a
         // background of its own to stay legible against light and dark
         // browser chrome alike.
+        //
+        // v2.76.0 -- THE FAVICON IS ITS OWN ASSET, NOT A SHRUNKEN LOGO.
+        // It is the official mark alone (no wordmark -- unreadable at
+        // 16px), cyan on a SOLID navy square. That ground is deliberate:
+        // Google shows favicons on a light surface, where the white-and-
+        // cyan dark lockup would lose its wordmark and a transparent mark
+        // would float. Navy-on-light and cyan-on-navy both hold at 16px.
+        //
+        //   favicon_ico  /favicon.ico, 16+32+48 in one file. Crawlers and
+        //                older clients request this path without reading
+        //                any <link>; it was a 404 until v2.76.0.
+        //   favicon      SVG, for browsers that take it.
+        //   favicon_48   Google's preferred minimum (multiples of 48px).
+        //   favicon_png  32px fallback.
+        //
+        // All derived from the official art; no path was redrawn.
         'favicon' => '/branding/ioms-favicon.svg',
+        'favicon_ico' => '/favicon.ico',
+        'favicon_48' => '/branding/ioms-favicon-48.png',
         'favicon_png' => '/branding/ioms-favicon-32.png',
         'apple_touch_icon' => '/branding/ioms-apple-touch-icon.png',
 

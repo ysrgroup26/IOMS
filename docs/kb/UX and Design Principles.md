@@ -27,6 +27,48 @@ which is why the rest of that pass could stay restrained.
 **The goal is a cohesive, premium industrial SaaS product — not a generic admin dashboard.** Do not
 recolour things to look different; change them when they fail to communicate.
 
+### Brand asset hierarchy (v2.76.0)
+
+The official IOMS master logo is never redrawn. Every asset below is derived from the designer's
+files; `config/branding.php` is the single registry, and `BrandWordmark` is the one React component
+that draws the lockup.
+
+| Asset | Key in `config/branding.php` | Use |
+|---|---|---|
+| Primary lockup, light surfaces | `logo`, `logo_png` | public site, auth, PDFs; `logo_png` is also the schema.org Organization `logo` (search engines composite it onto white) |
+| Light lockup, dark surfaces | `logo_dark`, `logo_dark_png` | app rail, navy headers |
+| Email header | `logo_email_png` | the dark lockup flattened onto navy #0f2747 (ADR 039) |
+| Mark alone, transparent | `icon` | in-UI mark only |
+| **Favicon family** | `favicon_ico` (/favicon.ico, 16/32/48), `favicon_48`, `favicon` (SVG), `favicon_png` (32) | browser tabs and search results |
+| Apple touch | `apple_touch_icon` (180) | iOS home screen |
+| PWA | `icon_192/512` (any) and `maskable_192/512` | manifest |
+| Social | `social` (1200×630) | Open Graph and Twitter cards |
+
+**The favicon is a small-format asset, not a shrunken logo.** It is the mark alone, in cyan on a
+**solid navy square**. The wordmark is unreadable at 16px. A transparent mark would float on Google's
+light result surface, and the white-and-cyan dark lockup would lose its wordmark there. Navy on light
+and cyan on navy both hold at 16px, so no lighter container was needed.
+
+Every favicon, touch and PWA raster is square and opaque, which `BrandIconsTest` pins. The
+pre-rebrand `branding/icon.png` and `wordmark.png` (a 2 MB photograph of a neon "icms" sign) are
+gone from every head reference.
+
+### Landing page storytelling
+
+Each operational domain is told as **visual → domain → heading → explanation → optional CTA**
+(`Components/public/StorySection.jsx`), with the content in `Components/public/domainStories.js`.
+The sequence follows how a reader meets an operation: the operation as a whole, HSE, people, the
+field, projects, procurement and warehouse, logistics, and finally what management sees.
+
+- **The text is always HTML.** Imagery goes into the `image` slot and carries only the visual story.
+- **Until real IOMS imagery exists**, `StoryVisual` draws a restrained panel in the product's own
+  language: a navy header, the domain icon, and that domain's real capabilities. It states something
+  true, so the page reads as finished today.
+- **Rows alternate sides.** There is one brand accent and no colour per domain. This replaced the
+  eight-card `DepartmentGrid`, which was deleted rather than left unused.
+- **To add a photograph:** put `{ src, alt }` on the story entry. Nothing else changes. Use only real
+  IOMS imagery; never stock photography or competitor assets.
+
 ---
 
 ## The Form Experience System

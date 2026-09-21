@@ -36,7 +36,7 @@ return [
     'pages' => [
         'home' => [
             'title' => 'IOMS — Industrial Operations Platform',
-            'description' => 'IOMS brings safety, permits, people, assets and procurement into one platform for shipyards, construction, manufacturing, mining, marine and energy operations.',
+            'description' => 'IOMS connects management, HSE, people, field work, projects, procurement and logistics for shipyards, construction, manufacturing, mining, energy and marine.',
             'priority' => '1.0',
             'changefreq' => 'weekly',
         ],

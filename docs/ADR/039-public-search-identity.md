@@ -1,6 +1,6 @@
 # ADR 039 — Public search identity, and the email logo
 
-**Status:** Accepted and implemented (v2.75.0).
+**Status:** Accepted and implemented (v2.75.0); positioning, content and favicon added in v2.76.0.
 **Date:** 2026-09-21
 **Builds on:** the v2.72.0 site identity (favicons, robots.txt, sitemap, Organization markup).
 **Related:** ADR 038 (why /login, /register, /account and /subscribe are not public pages).
@@ -118,6 +118,60 @@ page.
 
 **Headings.** Checked, not changed. Every public page already has exactly one `<h1>`, through
 `PublicPageHero` or its own hero.
+
+## v2.76.0: positioning, content and the favicon
+
+### The definition is visible content
+The landing page H1 said *"One platform for how your whole operation actually runs"*. It never said
+what kind of operation, and no domain or industry appeared above the fold.
+
+It now reads:
+- eyebrow: **IOMS · Industrial Operations Platform**
+- H1: **One platform for complex industrial operations.**
+- a paragraph naming the eight domains and six industries
+- eight domain stories, each with an `<h3>`
+
+The Industries band had an eyebrow and no heading. It now has one (*Complex industrial operations*),
+so every section's subject is stated as a heading. The home meta description and the
+SoftwareApplication `featureList` restate the same content. They add nothing the page does not say.
+
+### Duplicate metadata removed
+`Welcome.jsx` rendered its own `<meta name="description">` and `og:*` tags inside `<Head>`. Inertia
+appends those after hydration, so the live DOM carried **two** meta descriptions and two `og:title`
+tags, and the pairs disagreed. Removed. The server's `config/seo.php` metadata is the only source,
+and `LandingPositioningTest` fails on any page-level `<meta>`. Checked in the browser after
+hydration: one of each.
+
+### No server-side rendering, and what that means
+Inertia SSR is off. It needs a persistent Node process, which the current shared hosting does not run,
+so page bodies are drawn by JavaScript:
+- **Google** renders JavaScript and indexes the full page.
+- **Non-JavaScript clients** receive the head: title, description, canonical, Open Graph and JSON-LD.
+
+For those clients, public pages also carry a server-rendered `<noscript>` block containing:
+- the page title as `<h1>`
+- its one-sentence summary
+- links to every public page
+
+The block is never shown with JavaScript on and makes no claim the page does not.
+
+If IOMS moves to hosting that can run the SSR process, enabling it in `config/inertia.php` supersedes
+the `<noscript>` block.
+
+### No AI-specific content
+There is no `llms.txt`, no hidden text and no copy written for machines. How Google and its AI
+summaries describe IOMS follows from the page being clear; it is not configured.
+
+### Favicon
+The favicon family is described in [[UX and Design Principles#Brand asset hierarchy (v2.76.0)]].
+Two SEO-relevant gaps were closed:
+
+- `/favicon.ico` did not exist. Crawlers and older clients request it without reading any `<link>`.
+  It is now a real 16/32/48 icon.
+- There was no favicon of at least 48px, the minimum Google prefers. `ioms-favicon-48.png` now exists.
+
+Both are derived from the official art without redrawing it. The favicon stays the cyan mark on a
+solid navy square: it is high-contrast on light search surfaces, so no lighter container was needed.
 
 ## Bug found while building this
 

@@ -69,6 +69,15 @@ return [
         'logo_png' => '/branding/ioms-logo.png',
         'logo_dark_png' => '/branding/ioms-logo-dark.png',
 
+        // v2.75.0 -- the dark lockup FLATTENED onto the email header navy
+        // (#0f2747), derived from logo_dark_png without touching a path.
+        // The near-white wordmark on a transparent PNG depends on the client
+        // keeping the header's background colour; several webmail clients
+        // and dark-mode rewriters do not, and the logo then renders as an
+        // empty box. Opaque, it looks identical where the navy survives and
+        // still reads where it does not.
+        'logo_email_png' => '/branding/ioms-logo-email.png',
+
         // The mark alone, transparent.
         'icon' => '/branding/ioms-icon.svg',
 

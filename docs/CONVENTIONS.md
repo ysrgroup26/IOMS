@@ -1746,6 +1746,19 @@ Three rules that matter when extending this:
 
 The chip is a LABEL (English); the consequence sentence is PROSE (Indonesian). See ADR 034.
 
+## Known Pitfall (v2.75.0) — `config('x.'.$routeName)` breaks on route names that contain a dot
+
+`config('seo.pages.legal.privacy')` is read as `seo → pages → legal → privacy`, not as the key
+`legal.privacy`, and returns null — silently. Every legal page counted as "not public" until a test
+rendered one. When a config array is keyed by route names (or anything else that may contain a dot),
+read the array and index it: `(config('seo.pages') ?? [])[$routeName] ?? null`.
+
+## Known Pitfall (v2.75.0) — never build an email image URL from `asset()`
+
+`asset()` uses `APP_URL` of whichever host SENDS the mail — `localhost` from a dev machine. Mail
+providers fetch images through their own proxy. Use `config('ioms.public_url')`, and use an opaque
+image: a light logo on transparency disappears when a client drops the cell background. See ADR 039.
+
 ## CRITICAL — Known Pitfall (v2.74.0) — `tenant_id IS NULL` used to MEAN "platform operator", and anything that creates a tenant-less user inherits that meaning
 
 `User::isPlatformAdmin()` was `is_null($this->tenant_id)`. That was correct for as long as the only

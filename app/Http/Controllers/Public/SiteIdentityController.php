@@ -3,6 +3,7 @@
 namespace App\Http\Controllers\Public;
 
 use App\Http\Controllers\Controller;
+use App\Services\SearchIdentity;
 use Illuminate\Http\Response;
 
 /**
@@ -14,8 +15,18 @@ use Illuminate\Http\Response;
  * home page -- which works, eventually, and is not what a product that
  * wants its brand recognised should rely on.
  *
- * SERVED AS ROUTES, NOT STATIC FILES, for one reason: the canonical host
- * is not known at build time. IOMS is deployed on shared hosting behind a
+ * SERVED AS ROUTES, NOT STATIC FILES, because their content depends on
+ * the environment (a non-production copy must say "Disallow: /").
+ *
+ * v2.75.0 -- the page list and every absolute URL now come from
+ * App\Services\SearchIdentity: the pages from config/seo.php (the same
+ * allow-list the noindex middleware and the layout use, so the sitemap
+ * cannot list a page that is sent noindex), and the host from
+ * config('ioms.public_url'), so the sitemap names https://iomsuite.com
+ * whichever host -- legacy, proxy-internal or local -- served it.
+ *
+ * (Historical note from v2.72.0: the canonical host is not known at build
+ * time. IOMS is deployed on shared hosting behind a
  * proxy (see bootstrap/app.php's TRUSTED_PROXIES note), so the absolute
  * URLs here have to be generated from the live request rather than baked
  * into a committed file that would be wrong on every other environment.
@@ -27,67 +38,71 @@ use Illuminate\Http\Response;
  */
 class SiteIdentityController extends Controller
 {
-    /**
-     * The public marketing surface, in the order a reader would meet it.
-     *
-     * Deliberately hand-listed rather than derived from the router: most
-     * routes in this application are NOT for crawlers (the authenticated
-     * app, the platform console, every token-scoped onboarding URL), and
-     * a sitemap generated from "all GET routes" would leak exactly those.
-     * An allow-list is the safe default here, the same reasoning
-     * RestrictDemoTenant uses for its own.
-     */
-    private const PUBLIC_ROUTES = [
-        ['home', '1.0', 'weekly'],
-        ['platform-overview', '0.9', 'monthly'],
-        ['solutions', '0.9', 'monthly'],
-        ['how-it-works', '0.8', 'monthly'],
-        ['pricing', '0.9', 'weekly'],
-        ['faq', '0.7', 'monthly'],
-        ['contact', '0.6', 'yearly'],
-        // v2.74.2: /get-started now redirects into account registration,
-        // and a sitemap that lists a redirect wastes the crawl on a hop.
-        // The destination is the page worth indexing.
-        ['register', '0.8', 'monthly'],
-        ['legal.privacy', '0.3', 'yearly'],
-        ['legal.terms', '0.3', 'yearly'],
-        ['legal.refunds', '0.3', 'yearly'],
-    ];
+    public function __construct(private readonly SearchIdentity $search) {}
 
+    /**
+     * robots.txt.
+     *
+     * Deliberately does NOT disallow /login or /register: those are sent
+     * `noindex`, and a crawler can only obey a noindex it is allowed to
+     * fetch. A disallowed URL can still be indexed from links alone, as a
+     * bare address with no description -- the opposite of the intent.
+     *
+     * The private prefixes below ARE disallowed: they redirect a crawler
+     * to sign-in anyway, so there is nothing to read, and saying so saves
+     * the crawl. The real protection is the noindex default, not this list.
+     */
     public function robots(): Response
     {
+        // A staging or development copy must never be crawled at all.
+        if (! app()->isProduction()) {
+            return $this->text(implode("\n", [
+                'User-agent: *',
+                '# Not the production site. See https://iomsuite.com.',
+                'Disallow: /',
+                '',
+            ]));
+        }
+
         $lines = [
             'User-agent: *',
+            'Allow: /',
             '',
-            '# The authenticated product, the platform console and every',
-            '# token-scoped onboarding URL. None of these are public pages,',
-            '# and all of them sit behind authentication or an unguessable',
-            '# token -- this states the intent rather than relying on it.',
+            '# The authenticated product, the platform console, the account',
+            '# area and every token-scoped order URL. None are public pages;',
+            '# every response from them is also sent X-Robots-Tag: noindex.',
             'Disallow: /dashboard',
             'Disallow: /settings',
             'Disallow: /platform',
             'Disallow: /subscription',
+            'Disallow: /subscribe',
+            'Disallow: /account',
             'Disallow: /my-work',
+            'Disallow: /email/',
             'Disallow: /get-started/',
             'Disallow: /webhooks/',
             '',
-            'Sitemap: '.route('sitemap'),
+            'Sitemap: '.$this->search->assetUrl('sitemap.xml'),
             '',
         ];
 
-        return response(implode("\n", $lines), 200, ['Content-Type' => 'text/plain; charset=UTF-8']);
+        return $this->text(implode("\n", $lines));
     }
 
+    /**
+     * sitemap.xml -- exactly the pages in config/seo.php, at their canonical
+     * https://iomsuite.com addresses, and nothing else.
+     */
     public function sitemap(): Response
     {
         $urls = '';
 
-        foreach (self::PUBLIC_ROUTES as [$name, $priority, $frequency]) {
+        foreach ($this->search->pages() as $routeName => $page) {
             $urls .= sprintf(
                 "    <url>\n        <loc>%s</loc>\n        <changefreq>%s</changefreq>\n        <priority>%s</priority>\n    </url>\n",
-                htmlspecialchars(route($name), ENT_XML1),
-                $frequency,
-                $priority
+                htmlspecialchars($this->search->canonicalUrl($routeName), ENT_XML1),
+                $page['changefreq'] ?? 'monthly',
+                $page['priority'] ?? '0.5'
             );
         }
 
@@ -97,5 +112,10 @@ class SiteIdentityController extends Controller
             ."</urlset>\n";
 
         return response($xml, 200, ['Content-Type' => 'application/xml; charset=UTF-8']);
+    }
+
+    private function text(string $body): Response
+    {
+        return response($body, 200, ['Content-Type' => 'text/plain; charset=UTF-8']);
     }
 }

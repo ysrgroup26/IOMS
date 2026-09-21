@@ -40,6 +40,12 @@ class HandleInertiaRequests extends Middleware
 
         return [
             ...parent::share($request),
+
+            // v2.75.0 -- a public page's full search title (config/seo.php),
+            // null everywhere else. app.jsx uses it so the browser tab says
+            // exactly what the server-rendered <title> said.
+            'seoTitle' => app(\App\Services\SearchIdentity::class)->page($request->route()?->getName())['title'] ?? null,
+
             'auth' => [
                 'user' => $user ? [
                     'id' => $user->id,

@@ -1,5 +1,21 @@
 <!DOCTYPE html>
-<html lang="en" class="h-full">
+@php
+    /*
+     * v2.75.0 -- search identity is resolved ONCE, here, from
+     * App\Services\SearchIdentity and config/seo.php. $seoPage is null for
+     * every route that is not a public page, which is what switches all of
+     * the public metadata below off for the authenticated product.
+     */
+    $search = app(\App\Services\SearchIdentity::class);
+    $seoRoute = request()->route()?->getName();
+    $seoPage = $search->page($seoRoute);
+    $seoIndexable = $search->isIndexable(request());
+
+    // Legal documents are written in Indonesian; everything else is English
+    // per the language hierarchy (docs/CONVENTIONS.md).
+    $htmlLang = $seoPage['lang'] ?? 'en';
+@endphp
+<html lang="{{ $htmlLang }}" class="h-full">
 <head>
     <meta charset="utf-8">
     <meta name="viewport" content="width=device-width, initial-scale=1">
@@ -75,7 +91,10 @@
          product (every browser tab), so it's the highest-value place to
          fix first. The full expansion remains available (About dialog,
          internal docs) but no longer dominates here. --}}
-    <title inertia>{{ config('app.name', 'IOMS') }}</title>
+    {{-- v2.75.0: a public page's full search title is rendered by the
+         server, so crawlers and link previews that do not run JavaScript
+         see it; app.jsx keeps the browser tab identical afterwards. --}}
+    <title inertia>{{ $seoPage['title'] ?? config('app.name', 'IOMS') }}</title>
 
     {{-- v2.72.0 -- SEARCH AND SOCIAL IDENTITY.
 
@@ -92,65 +111,126 @@
          This makes the site technically ELIGIBLE for a search engine to
          pick up the brand. It does not make it happen, and nothing here
          should be read as a promise about what Google will show or when. --}}
-    @if (auth()->guest())
+    {{-- v2.75.0 -- PER-PAGE, CANONICAL, AND OFF BY DEFAULT.
+
+         Until v2.75.0 every public page shared one description and one
+         social title, the canonical URL was whatever host served the
+         request (so the legacy domain or a proxy-internal host could be
+         named canonical), and a guest on /login received the same
+         Organization markup as the home page.
+
+         Now: only routes listed in config/seo.php get any of this, each
+         with its own title and description; canonical, og:url and every
+         structured-data URL are built from config('ioms.public_url'); and
+         anything not indexable says so, here and in an X-Robots-Tag header
+         (App\Http\Middleware\SetRobotsHeader). --}}
+    @unless ($seoIndexable)
+        <meta name="robots" content="noindex, nofollow">
+    @endunless
+
+    @if ($seoPage)
         @php
             $brandName = config('ioms.name', 'IOMS');
             $brandDescriptor = config('ioms.descriptor', 'Industrial Operations Platform');
-            $brandDescription = $brandName.' is an '.$brandDescriptor.' for shipyards, construction, '
-                .'manufacturing, mining, oil and gas, energy, marine and heavy industry -- HSE, permits to work, '
-                .'people, assets, maintenance and procurement in one standardised enterprise platform.';
-            $socialImage = asset(config('branding.assets.social'));
+            $canonical = $search->canonicalUrl($seoRoute);
+            $homeUrl = $search->canonicalUrl('home');
+            $socialImage = $search->assetUrl(config('branding.assets.social'));
 
             /*
-             * Built here rather than inline in the directive below.
-             * Blade's directive-argument scanner is a PCRE recursive
-             * pattern, and a literal array this size passed straight to
-             * @json() exceeds what it will match: it silently TRUNCATES
-             * the argument mid-array and emits unbalanced PHP, which
-             * fails to compile. Because every page in the product renders
-             * through this one layout, that took the whole application
-             * down -- caught by the suite, which could not render a
-             * single response. A directive whose argument is one short
-             * variable cannot hit that limit.
+             * Structured data, built as one @graph here and passed to the
+             * directive below as ONE short variable. Blade's directive-
+             * argument scanner is a recursive PCRE pattern, and a literal
+             * array this size passed straight to @json() is silently
+             * TRUNCATED mid-array -- which in v2.72.0 took every page of
+             * the product down at once. See docs/CONVENTIONS.md.
+             *
+             * Organization on every public page: it is who publishes the
+             * site. WebSite and SoftwareApplication on the home page only,
+             * where they describe what that page is -- repeating them on
+             * every page adds nothing a crawler uses. No BreadcrumbList:
+             * every public page is one level below home, and a two-item
+             * trail describes no hierarchy that exists.
              */
-            $organizationLd = [
-                '@context' => 'https://schema.org',
+            $organizationId = $homeUrl.'#organization';
+            $graph = [[
                 '@type' => 'Organization',
+                '@id' => $organizationId,
                 'name' => $brandName,
-                'alternateName' => $brandName.' — '.$brandDescriptor,
-                'url' => url('/'),
-                'logo' => asset(config('branding.assets.logo_png')),
+                'url' => $homeUrl,
+                // The LIGHT-surface raster lockup: a search engine composites
+                // it onto its own white ground, where the near-white dark
+                // variant would vanish.
+                'logo' => $search->assetUrl(config('branding.assets.logo_png')),
                 'image' => $socialImage,
-                'description' => $brandDescription,
+                'description' => config('seo.pages.home.description'),
                 'email' => config('ioms.emails.hello'),
-            ];
+            ]];
+
+            if ($seoRoute === 'home') {
+                $graph[] = [
+                    '@type' => 'WebSite',
+                    '@id' => $homeUrl.'#website',
+                    'name' => $brandName,
+                    'alternateName' => $brandName.' — '.$brandDescriptor,
+                    'url' => $homeUrl,
+                    'inLanguage' => 'en',
+                    'publisher' => ['@id' => $organizationId],
+                ];
+
+                $software = [
+                    '@type' => 'SoftwareApplication',
+                    'name' => $brandName,
+                    'description' => config('seo.pages.home.description'),
+                    'applicationCategory' => 'BusinessApplication',
+                    'operatingSystem' => 'Web browser',
+                    'url' => $homeUrl,
+                    'publisher' => ['@id' => $organizationId],
+                ];
+
+                // Published prices only, straight from the catalogue the
+                // Pricing page reads. A custom plan has no amount and is
+                // left out rather than quoted as zero.
+                $amounts = collect(app(\App\Services\PricingService::class)->publicPlans())
+                    ->pluck('monthly.amount')->filter(fn ($a) => is_numeric($a) && $a > 0);
+
+                if ($amounts->isNotEmpty()) {
+                    $software['offers'] = [
+                        '@type' => 'AggregateOffer',
+                        'priceCurrency' => 'IDR',
+                        'lowPrice' => (string) $amounts->min(),
+                        'highPrice' => (string) $amounts->max(),
+                        'offerCount' => $amounts->count(),
+                        'url' => $search->canonicalUrl('pricing'),
+                    ];
+                }
+
+                $graph[] = $software;
+            }
+
+            $structuredData = ['@context' => 'https://schema.org', '@graph' => $graph];
         @endphp
 
-        <link rel="canonical" href="{{ url()->current() }}">
-        <meta name="description" content="{{ $brandDescription }}">
+        <link rel="canonical" href="{{ $canonical }}">
+        <meta name="description" content="{{ $seoPage['description'] }}">
 
         <meta property="og:type" content="website">
         <meta property="og:site_name" content="{{ $brandName }}">
-        <meta property="og:title" content="{{ $brandName }} — {{ $brandDescriptor }}">
-        <meta property="og:description" content="{{ $brandDescription }}">
-        <meta property="og:url" content="{{ url()->current() }}">
+        <meta property="og:locale" content="{{ $htmlLang === 'id' ? 'id_ID' : 'en_US' }}">
+        <meta property="og:title" content="{{ $seoPage['title'] }}">
+        <meta property="og:description" content="{{ $seoPage['description'] }}">
+        <meta property="og:url" content="{{ $canonical }}">
         <meta property="og:image" content="{{ $socialImage }}">
         <meta property="og:image:width" content="1200">
         <meta property="og:image:height" content="630">
+        <meta property="og:image:alt" content="{{ $brandName }} — {{ $brandDescriptor }}">
 
         <meta name="twitter:card" content="summary_large_image">
-        <meta name="twitter:title" content="{{ $brandName }} — {{ $brandDescriptor }}">
-        <meta name="twitter:description" content="{{ $brandDescription }}">
+        <meta name="twitter:title" content="{{ $seoPage['title'] }}">
+        <meta name="twitter:description" content="{{ $seoPage['description'] }}">
         <meta name="twitter:image" content="{{ $socialImage }}">
 
-        {{-- `logo` is the property a search engine reads to associate a
-             mark with an organisation. It wants a raster image, so this
-             is the PNG rather than the SVG -- and specifically the
-             LIGHT-surface lockup, because the image is composited onto
-             the engine's own white surface where the near-white wordmark
-             would vanish and leave the icon standing alone. --}}
         <script type="application/ld+json">
-            @json($organizationLd, JSON_UNESCAPED_SLASHES | JSON_UNESCAPED_UNICODE)
+            @json($structuredData, JSON_UNESCAPED_SLASHES | JSON_UNESCAPED_UNICODE)
         </script>
     @endif
 

@@ -29,8 +29,17 @@ router.on('navigate', (event) => {
 
 initPwa();
 
+// v2.75.0 -- A public page's search title (config/seo.php, shared as
+// `seoTitle`) is used verbatim, so the tab matches the <title> the server
+// rendered for crawlers. Read from router.page, which Inertia updates BEFORE
+// it renders the next page -- a value cached from the 'navigate' event would
+// arrive one page late. router.page does not exist until the first render
+// has happened, so the initial page's value is seeded in setup().
+let initialSeoTitle = null;
+const currentSeoTitle = () => (router.page ? router.page.props?.seoTitle : initialSeoTitle);
+
 createInertiaApp({
-    title: (title) => (title ? `${title} - ${liveCompanyName}` : liveCompanyName),
+    title: (title) => currentSeoTitle() || (title ? `${title} - ${liveCompanyName}` : liveCompanyName),
     resolve: (name) =>
         // Root cause of the white-flash-on-first-navigation bug (v1.6.5 QA):
         // `import.meta.glob` defaults to LAZY mode, meaning every page is
@@ -51,6 +60,7 @@ createInertiaApp({
         // in some Inertia versions -- this covers the initial hard load.
         const initialName = props?.initialPage?.props?.company?.name;
         if (initialName) liveCompanyName = initialName;
+        initialSeoTitle = props?.initialPage?.props?.seoTitle ?? null;
 
         const root = createRoot(el);
         root.render(<App {...props} />);

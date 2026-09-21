@@ -36,11 +36,35 @@
          "IOMS -- Industrial Operations Platform" rather than as a broken
          icon.
 
+    v2.75.0 -- THE LOGO RENDERED AS AN EMPTY BOX IN WEBMAIL. Two causes,
+    both fixed here without changing the design:
+
+      a. The URL came from asset(), i.e. from APP_URL of whichever host
+         SENT the mail. From a dev machine that is http://localhost:8000;
+         from the legacy host it is ioms.web.id. A mail provider fetches
+         images through its own proxy, which cannot reach the first and
+         should not depend on the second. It is now built from
+         config(ioms.public_url) -- https://iomsuite.com -- so the image
+         address is the production one no matter who sent the message.
+         (Only the image. Verification and other working links still come
+         from APP_URL and are deliberately untouched.)
+
+      b. The dark lockup is a near-white wordmark on TRANSPARENCY. Any
+         client that drops the header background -- several webmails and
+         dark-mode rewriters do -- shows white-on-white: an empty box. The
+         email now uses logo_email_png, the same official artwork flattened
+         onto the header navy, which looks identical where the navy
+         survives and still reads where it does not.
+
+    Not a data: URI (Gmail and Outlook block those) and not a CID
+    attachment (it shows up as a paperclip and in some clients as a
+    downloadable file). An absolute HTTPS URL is the portable choice.
+
     Expects: $onDark (bool) -- the mark sits on the navy header band.
 --}}
 @php
     $onDark = $onDark ?? true;
-    $logoUrl = asset(config('branding.assets.logo_dark_png'));
+    $logoUrl = config('ioms.public_url').config('branding.assets.logo_email_png');
 @endphp
 
 {{-- Width and height are attributes, not CSS: Outlook ignores the CSS

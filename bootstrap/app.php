@@ -51,6 +51,11 @@ return Application::configure(basePath: dirname(__DIR__))
             );
         }
 
+        // v2.75.0 -- noindex BY DEFAULT. Global, so it covers every
+        // response including downloads and errors; it only adds a header.
+        // See App\Http\Middleware\SetRobotsHeader and config/seo.php.
+        $middleware->append(\App\Http\Middleware\SetRobotsHeader::class);
+
         // v2.62.0 -- RESOLVETENANT MUST PRECEDE ROUTE MODEL BINDING.
         //
         // The comment below used to say "ResolveTenant runs FIRST". It did

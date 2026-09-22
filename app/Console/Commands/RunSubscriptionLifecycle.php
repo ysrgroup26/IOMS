@@ -3,6 +3,7 @@
 namespace App\Console\Commands;
 
 use App\Mail\InvoiceIssued;
+use App\Mail\SubscriptionLifecycleNotice;
 use App\Models\Invoice;
 use App\Models\Notification;
 use App\Models\Subscription;
@@ -64,7 +65,7 @@ class RunSubscriptionLifecycle extends Command
             ->whereIn('status', [Subscription::STATUS_ACTIVE, Subscription::STATUS_TRIAL])
             ->get();
 
-        $issued = $applied = $reminded = 0;
+        $issued = $applied = $reminded = $emailed = 0;
 
         foreach ($subscriptions as $subscription) {
             $tenant = $subscription->tenant;
@@ -117,6 +118,22 @@ class RunSubscriptionLifecycle extends Command
                     }
                 }
 
+                /*
+                 * v2.78.0 -- entering grace, and entering lapse, are each
+                 * emailed ONCE per period. The daily in-app reminder below
+                 * keeps nudging inside the product; the inbox gets one
+                 * message per change of state, which is what makes it worth
+                 * reading.
+                 */
+                if ($event = $this->lifecycleEmailDue($subscription)) {
+                    if (! $dryRun) {
+                        $this->emailLifecycle($subscription, $event);
+                        $subscription->forceFill(['lifecycle_notified' => $this->noticeKey($subscription, $event)])->save();
+                    }
+                    $this->line("Emailed \"{$tenant->name}\" ({$event}).");
+                    $emailed++;
+                }
+
                 if ($this->shouldRemind($subscription)) {
                     if (! $dryRun) {
                         $this->remind($subscription, $notifications);
@@ -138,7 +155,7 @@ class RunSubscriptionLifecycle extends Command
             }
         }
 
-        $this->info("Invoices issued: {$issued}. Plan changes applied: {$applied}. Reminders sent: {$reminded}.");
+        $this->info("Invoices issued: {$issued}. Plan changes applied: {$applied}. Reminders sent: {$reminded}. Lifecycle emails: {$emailed}.");
 
         if ($dryRun) {
             $this->comment('Dry run -- nothing was written.');
@@ -155,6 +172,58 @@ class RunSubscriptionLifecycle extends Command
      * page and every write, so a daily email after that point is noise
      * rather than news.
      */
+    /**
+     * v2.78.0 -- which lifecycle email, if any, this subscription is owed.
+     *
+     * ONCE PER STATE PER PERIOD. The key is "<state>:<period end>", so a
+     * payment -- which moves the period end -- re-arms the notices for the
+     * next period without anything having to reset them.
+     *
+     * A LAPSE THAT IS OLD NEWS IS NOT ANNOUNCED. The first run after this
+     * shipped would otherwise email every organization that lapsed months
+     * ago. Only a lapse that began inside the last week is emailed; the
+     * banner and the in-app notice cover the rest.
+     */
+    private function lifecycleEmailDue(Subscription $subscription): ?string
+    {
+        $state = $subscription->lifecycleState();
+
+        $event = match ($state) {
+            Subscription::LIFECYCLE_GRACE => SubscriptionLifecycleNotice::EVENT_GRACE,
+            Subscription::LIFECYCLE_LAPSED => SubscriptionLifecycleNotice::EVENT_LAPSED,
+            default => null,
+        };
+
+        if ($event === null) {
+            return null;
+        }
+
+        if ($event === SubscriptionLifecycleNotice::EVENT_LAPSED
+            && $subscription->graceEndsAt()?->lt(now()->subDays(7))) {
+            return null;
+        }
+
+        return $subscription->lifecycle_notified === $this->noticeKey($subscription, $event) ? null : $event;
+    }
+
+    private function noticeKey(Subscription $subscription, string $event): string
+    {
+        return $event.':'.$subscription->periodEndsAt()?->toDateString();
+    }
+
+    private function emailLifecycle(Subscription $subscription, string $event): void
+    {
+        foreach ($this->administrators($subscription) as $user) {
+            try {
+                Mail::to($user->email)->send(
+                    new SubscriptionLifecycleNotice($subscription, $event, route('subscription.billing'))
+                );
+            } catch (Throwable $e) {
+                Log::error('Subscription lifecycle email failed.', ['to' => $user->email, 'event' => $event, 'error' => $e->getMessage()]);
+            }
+        }
+    }
+
     private function shouldRemind(Subscription $subscription): bool
     {
         if ($subscription->lifecycleState() !== Subscription::LIFECYCLE_GRACE) {

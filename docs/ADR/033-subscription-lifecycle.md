@@ -230,6 +230,45 @@ No tenant, company, account or subscription is ever created by renewing.
   writable, but no prefix implemented it. A lapsed tenant user could not change their own password.
   `account.` and `verification.` are now allowed; they write only to the user's own row.
 
+## v2.78.0 — the lifecycle by email
+
+Before v2.78.0, the only lifecycle **email** was the renewal invoice. Entering grace produced a daily
+**in-app** notice and nothing in the inbox. Lapse and a successful renewal produced nothing at all.
+The existing email system now covers all four events: the same layout, the same sender
+(`noreply@iomsuite.com` as "IOMS", replies to billing), and the same Super Admin recipients as the
+invoice email.
+
+| Event | Email | When | How often |
+|---|---|---|---|
+| **Upcoming expiry** | the renewal invoice (`InvoiceIssued`) | when the invoice is issued, `renewal_lead_days` before the period ends | once; the invoice is idempotent |
+| **Grace** | `SubscriptionLifecycleNotice` *grace* | first nightly run after the period ends | **once per period** |
+| **Lapsed** | `SubscriptionLifecycleNotice` *lapsed* | first nightly run after grace ends | **once per period**, and only if the lapse began within the last 7 days |
+| **Renewed** | `SubscriptionLifecycleNotice` *renewed* | when a renewal invoice is applied | once per payment |
+
+**Decisions:**
+- **No separate "expiring soon" email.** The renewal invoice already arrives inside the lead window,
+  with the amount and a pay link. A second message about the same thing would be noise. The invoice
+  email had been reusing onboarding copy ("your workspace activates once this payment is confirmed").
+  For a renewal it now states when the current period ends, what grace means, and that no data is
+  ever deleted. Plan-change invoices have their own copy.
+- **Deduplication.** `subscriptions.lifecycle_notified` holds `"<state>:<period end>"`. A payment
+  moves the period end, which re-arms the next period's notices without any reset step. The daily
+  in-app reminder during grace is unchanged.
+- **Old lapses are not announced.** Without the 7-day window, the first run after deployment would
+  email every organization that lapsed months ago.
+- **"Renewed" cannot announce a payment that did not happen.** It is sent only from
+  `applyPaidInvoice()`, whose only callers are the signature-verified webhook and an audited
+  Platform Admin bank-transfer entry.
+  - It is sent **after commit** (`DB::afterCommit`), so a settlement that rolls back sends nothing.
+  - A replayed webhook returns before reaching it.
+  - It is not sent to a suspended or cancelled subscription (§8): the period extends there, but access
+    does not return.
+  - When the tenant had been read-only, the email says recording is back.
+- **A mail failure is logged, never thrown.** A verified payment is never unwound because an email
+  could not be sent.
+
+Tests: `SubscriptionLifecycleEmailTest`.
+
 ## Notes
 
 - Grace, renewal lead time and invoice due days are configuration (`config/saas.php`), because they

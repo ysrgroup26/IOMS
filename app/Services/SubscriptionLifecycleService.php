@@ -196,8 +196,64 @@ class SubscriptionLifecycleService
         // A renewal. Extend first, then apply whatever plan the invoice
         // was raised for -- a downgrade or cycle switch rides along on the
         // renewal it was scheduled against.
+        $wasReadOnly = $subscription->lifecycleState() === Subscription::LIFECYCLE_LAPSED;
+
         $this->extendPeriod($subscription, $cycle);
         $this->applyPlanChange($subscription, $package, $cycle, extendPeriod: false);
+
+        $this->announceRenewal($subscription->fresh(['tenant', 'package']), $wasReadOnly);
+    }
+
+    /**
+     * v2.78.0 -- "YOUR SUBSCRIPTION HAS BEEN RENEWED", AND ONLY WHEN IT HAS.
+     *
+     * Reached only from applyPaidInvoice(), whose two callers are the
+     * signature-verified payment webhook and a Platform Admin recording a
+     * bank transfer under their own audited identity. Nothing a browser
+     * does can reach it, so this email cannot announce a payment that did
+     * not happen.
+     *
+     * AFTER COMMIT. Both callers wrap settlement in a transaction; sending
+     * inside it would mail a "renewed" message for a payment whose write
+     * could still roll back. DB::afterCommit() runs immediately when there
+     * is no transaction. A replayed webhook never gets here -- the caller
+     * returns early for an invoice already marked paid -- so it cannot be
+     * sent twice.
+     *
+     * Not sent to a suspended or cancelled subscription: the period
+     * extends (ADR 033 §8) but access does not return, and an email saying
+     * "renewed" would say otherwise.
+     */
+    private function announceRenewal(Subscription $subscription, bool $writesRestored): void
+    {
+        if ($subscription->isBlocked() || ! $subscription->tenant_id) {
+            return;
+        }
+
+        \Illuminate\Support\Facades\DB::afterCommit(function () use ($subscription, $writesRestored) {
+            $administrators = \App\Models\User::withoutGlobalScope(\App\Models\Scopes\UserTenantScope::class)
+                ->where('tenant_id', $subscription->tenant_id)
+                ->where('is_active', true)
+                ->where('role', \App\Models\User::ROLE_SUPER_ADMIN)
+                ->get();
+
+            foreach ($administrators as $user) {
+                try {
+                    \Illuminate\Support\Facades\Mail::to($user->email)->send(new \App\Mail\SubscriptionLifecycleNotice(
+                        $subscription,
+                        \App\Mail\SubscriptionLifecycleNotice::EVENT_RENEWED,
+                        route('subscription.billing'),
+                        $writesRestored,
+                    ));
+                } catch (\Throwable $e) {
+                    // A mail failure must never unwind a payment that was
+                    // verified and applied. Logged, not thrown.
+                    \Illuminate\Support\Facades\Log::error('Renewal confirmation email failed.', [
+                        'to' => $user->email, 'error' => $e->getMessage(),
+                    ]);
+                }
+            }
+        });
     }
 
     /**

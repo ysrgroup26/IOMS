@@ -44,6 +44,18 @@ that draws the lockup.
 | PWA | `icon_192/512` (any) and `maskable_192/512` | manifest |
 | Social | `social` (1200×630) | Open Graph and Twitter cards |
 
+**Re-verified in v2.78.0 and kept as is.** Contrast was measured, not eyeballed:
+
+| Pair | Contrast |
+|---|---|
+| navy tile on a white results page | 18.9:1 |
+| navy tile on Google's grey `#f1f3f4` | 17.0:1 |
+| cyan mark on its navy ground | 8.9:1 |
+| the cyan mark alone on white (a transparent variant) | **2.1:1** |
+
+A lighter or transparent treatment would therefore be weaker, not cleaner. The navy ground is what
+carries the mark on light surfaces. Do not "lighten" it without a new measurement.
+
 **The favicon is a small-format asset, not a shrunken logo.** It is the mark alone, in cyan on a
 **solid navy square**. The wordmark is unreadable at 16px. A transparent mark would float on Google's
 light result surface, and the white-and-cyan dark lockup would lose its wordmark there. Navy on light

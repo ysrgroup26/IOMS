@@ -100,6 +100,13 @@ class LandingPositioningTest extends TestCase
         $this->assertStringContainsString('<h3', $story);
         $this->assertStringContainsString('loading="lazy"', $story);
         $this->assertStringContainsString("alt={image.alt ?? ''}", $story);
+
+        // v2.78.0: and the landing page passes each story's image through, so
+        // adding real IOMS imagery later is ONE field on a domainStories.js
+        // entry -- { src, alt } -- with no change to either component.
+        $welcome = $this->source('Pages/Public/Welcome.jsx');
+        $this->assertStringContainsString('image={story.image}', $welcome);
+        $this->assertStringContainsString('{ src, alt }', $this->source('Components/public/domainStories.js'));
     }
 
     /** The one part of the definition a non-JavaScript crawler receives. */

@@ -269,6 +269,41 @@ invoice email.
 
 Tests: `SubscriptionLifecycleEmailTest`.
 
+## v2.78.1 — an upgrade that changes cycle is two changes
+
+Found while preparing the payment-provider review, by reading the plan-change dialog of a monthly
+Starter customer. Choosing **Professional, yearly** was one request, and `requestPlanChange()`
+prorated it in **yearly** prices over the **monthly** period that was left:
+
+- It billed (yearly Professional − yearly Starter) × the fraction remaining, which came to
+  **Rp5.000.000 for the last month**.
+- The period still ended where it did, because a plan change buys capability, not time.
+- The customer was charged about twelve times too much, for a month.
+
+§7 already said what each half should do, so each half now does it:
+
+- **The plan upgrade** is prorated in the **current** cycle and applied on verified payment (here
+  Rp500.000).
+- **The cycle switch** is scheduled for the period boundary (`pending_billing_cycle`), like any other
+  cycle change.
+- Paying the upgrade invoice **keeps** that scheduled switch. `applyPlanChange()` clears pending
+  fields, so `applyPaidInvoice()` now restores a cycle switch that was requested with the upgrade.
+  Without that, a customer who asked for yearly billing would silently stay monthly.
+
+Same-cycle upgrades, downgrades and cycle-only changes are unaffected.
+
+**The dialog now states one outcome.** It previously explained both possibilities ("*if* this is an
+upgrade… *if* this is a downgrade…") because only the server held the prices that decide it. Now
+`SubscriptionController::changePreview()` supplies, per plan and per cycle, the result of the **same**
+`isUpgrade()` / `upgradeProration()` calls `requestPlanChange()` makes:
+- for an upgrade, the exact prorated amount, plus when a cycle switch starts;
+- for a scheduled change, the effective date.
+
+A test asserts that the previewed amount equals the issued invoice to the rupiah.
+
+Tests: `SubscriptionLifecycleTest::test_a_cross_cycle_upgrade_*`,
+`ReviewerJourneyTest::test_the_plan_change_preview_matches_what_the_server_then_does`.
+
 ## Notes
 
 - Grace, renewal lead time and invoice due days are configuration (`config/saas.php`), because they

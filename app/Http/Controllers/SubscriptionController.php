@@ -228,7 +228,81 @@ class SubscriptionController extends Controller
             // A custom-priced plan has no figure to invoice, so its CTA is a
             // conversation rather than a button.
             'salesEmail' => config('ioms.emails.hello'),
+            'changePreview' => $this->changePreview($request, $subscription),
         ]);
+    }
+
+    /**
+     * v2.78.1 -- WHAT CONFIRMING A PLAN CHANGE WILL ACTUALLY DO.
+     *
+     * The confirmation dialog used to explain both outcomes ("if this is an
+     * upgrade ... if this is a downgrade ...") because, as its own comment
+     * said, only the server holds the prices that decide it. So the server
+     * now decides it, per plan and per cycle, using the SAME two calls
+     * requestPlanChange() uses -- isUpgrade() and upgradeProration() -- so
+     * the preview and the outcome cannot disagree.
+     *
+     *   upgrade    → the exact prorated amount, invoiced now, applied on
+     *                verified payment
+     *   scheduled  → the date the change takes effect; nothing billed today
+     *
+     * Read-only: nothing is issued, stored or scheduled by computing this.
+     * Custom-priced plans are omitted -- they have no figure to preview and
+     * their action is a conversation, not a button.
+     *
+     * @return array<int, array<string, array>> package_id → cycle → preview
+     */
+    private function changePreview(Request $request, ?Subscription $subscription): array
+    {
+        if (! $subscription || $subscription->isLifetime() || ! $request->user()->canManageSystemSettings()) {
+            return [];
+        }
+
+        $preview = [];
+        $periodEnd = $subscription->periodEndsAt()?->toDateString();
+
+        foreach (Package::query()->active()->public()->get() as $package) {
+            foreach ([Subscription::CYCLE_MONTHLY, Subscription::CYCLE_YEARLY] as $cycle) {
+                $price = $cycle === Subscription::CYCLE_MONTHLY ? $package->price_monthly : $package->price_yearly;
+
+                if ($price === null) {
+                    continue;
+                }
+
+                if ((int) $package->id === (int) $subscription->package_id && $cycle === $subscription->billing_cycle) {
+                    $preview[$package->id][$cycle] = ['kind' => 'current'];
+
+                    continue;
+                }
+
+                // Decided in the CURRENT cycle, exactly as requestPlanChange()
+                // decides it: the plan upgrade is prorated now, and a cycle
+                // switch requested with it takes effect at the period end.
+                $currentCycle = $subscription->billing_cycle ?: Subscription::CYCLE_MONTHLY;
+
+                if ($this->lifecycle->isUpgrade($subscription, $package, $currentCycle)) {
+                    $amount = $this->lifecycle->upgradeProration($subscription, $package, $currentCycle);
+
+                    $preview[$package->id][$cycle] = [
+                        'kind' => 'upgrade',
+                        'amount_formatted' => $this->pricing->format($amount, $package->currency ?: 'IDR'),
+                        'period_ends_at' => $periodEnd,
+                        // The cycle switch, when there is one, and when.
+                        'cycle_change_at' => $cycle !== $currentCycle ? $periodEnd : null,
+                        'cycle' => $cycle,
+                    ];
+
+                    continue;
+                }
+
+                $preview[$package->id][$cycle] = [
+                    'kind' => 'scheduled',
+                    'effective_at' => $periodEnd,
+                ];
+            }
+        }
+
+        return $preview;
     }
 
     /**

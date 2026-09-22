@@ -188,7 +188,21 @@ class SubscriptionLifecycleService
         $cycle = $invoice->target_billing_cycle ?: $subscription->billing_cycle;
 
         if ($invoice->purpose === Invoice::PURPOSE_PLAN_CHANGE) {
+            // applyPlanChange() clears anything scheduled. A cycle switch
+            // requested together with this upgrade (see requestPlanChange)
+            // must survive the upgrade being paid, or the customer who asked
+            // for yearly billing silently stays monthly.
+            $scheduledCycle = $subscription->pending_billing_cycle;
+
             $this->applyPlanChange($subscription, $package, $cycle, extendPeriod: false);
+
+            if ($scheduledCycle && $scheduledCycle !== $cycle) {
+                $subscription->forceFill([
+                    'pending_package_id' => $package->id,
+                    'pending_billing_cycle' => $scheduledCycle,
+                    'pending_requested_at' => now(),
+                ])->save();
+            }
 
             return;
         }
@@ -348,8 +362,34 @@ class SubscriptionLifecycleService
             throw new RuntimeException('A subscription with no tenant cannot change plan.');
         }
 
-        if ($this->isUpgrade($subscription, $target, $cycle)) {
-            return $this->issueUpgradeInvoice($subscription, $target, $cycle);
+        /*
+         * v2.78.1 -- AN UPGRADE THAT ALSO CHANGES CYCLE IS TWO CHANGES.
+         *
+         * It used to be prorated as one, in the TARGET cycle's prices: a
+         * monthly Starter customer moving to yearly Professional was billed
+         * (yearly Professional - yearly Starter) x the fraction of the
+         * MONTHLY period left -- Rp5.000.000 for the last thirty days --
+         * and the period still ended where it did. Roughly twelve times too
+         * much, for a month.
+         *
+         * §7 of ADR 033 already says what each half should do, so each half
+         * now does it: the PLAN upgrade is prorated now, in the cycle the
+         * customer is actually paying on, and the CYCLE switch is scheduled
+         * for the period boundary like any other cycle change. A same-cycle
+         * upgrade is unaffected.
+         */
+        $currentCycle = $subscription->billing_cycle ?: Subscription::CYCLE_MONTHLY;
+
+        if ($this->isUpgrade($subscription, $target, $currentCycle)) {
+            if ($cycle !== $currentCycle) {
+                $subscription->forceFill([
+                    'pending_package_id' => $target->id,
+                    'pending_billing_cycle' => $cycle,
+                    'pending_requested_at' => now(),
+                ])->save();
+            }
+
+            return $this->issueUpgradeInvoice($subscription, $target, $currentCycle);
         }
 
         $subscription->forceFill([

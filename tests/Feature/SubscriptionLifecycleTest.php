@@ -479,6 +479,59 @@ class SubscriptionLifecycleTest extends TestCase
         $this->assertSame($expected, $actual, 'A paid plan change must re-entitle the tenant.');
     }
 
+    /**
+     * v2.78.1 -- an upgrade that also switches monthly → yearly is two
+     * changes. It used to be prorated in YEARLY prices over the MONTHLY
+     * period that was left: (30,000,000 - 10,000,000) × ½ = 10,000,000 for
+     * fifteen days, with the period end unchanged. Now the plan upgrade is
+     * prorated in the current cycle and the cycle switch waits for the
+     * boundary (ADR 033 §7).
+     */
+    public function test_a_cross_cycle_upgrade_bills_the_plan_now_and_schedules_the_cycle(): void
+    {
+        $tenant = $this->subscribedTenant([
+            'starts_at' => now()->subDays(15), 'ends_at' => now()->addDays(15),
+        ]);
+        $subscription = $tenant->subscription;
+        $target = $this->plan('professional', ['price_monthly' => 3000000, 'price_yearly' => 30000000]);
+
+        $invoice = $this->lifecycle()->requestPlanChange($subscription, $target, Subscription::CYCLE_YEARLY);
+
+        // Half a month of the MONTHLY difference -- not of the yearly one.
+        $this->assertEqualsWithDelta(1000000.0, (float) $invoice->amount, 50000.0);
+        $this->assertSame(Subscription::CYCLE_MONTHLY, $invoice->target_billing_cycle);
+
+        $subscription = $subscription->fresh();
+        $this->assertSame(Subscription::CYCLE_YEARLY, $subscription->pending_billing_cycle, 'The cycle switch is scheduled.');
+        $this->assertSame(Subscription::CYCLE_MONTHLY, $subscription->billing_cycle, 'Not applied mid-period.');
+    }
+
+    /** Paying the upgrade must not silently drop the yearly switch the customer asked for. */
+    public function test_paying_a_cross_cycle_upgrade_keeps_the_scheduled_cycle_switch(): void
+    {
+        Mail::fake();
+        $tenant = $this->subscribedTenant([
+            'starts_at' => now()->subDays(15), 'ends_at' => now()->addDays(15),
+        ]);
+        $subscription = $tenant->subscription;
+        $target = $this->plan('professional', ['price_monthly' => 3000000, 'price_yearly' => 30000000]);
+        $endBefore = $subscription->ends_at->copy();
+
+        $invoice = $this->lifecycle()->requestPlanChange($subscription, $target, Subscription::CYCLE_YEARLY);
+        $this->settle($invoice)->assertOk();
+
+        $subscription = $subscription->fresh();
+        $this->assertSame($target->id, $subscription->package_id, 'The plan applies on payment.');
+        $this->assertSame(Subscription::CYCLE_MONTHLY, $subscription->billing_cycle);
+        $this->assertTrue($subscription->ends_at->isSameDay($endBefore), 'A plan change buys capability, not time.');
+        $this->assertSame(Subscription::CYCLE_YEARLY, $subscription->pending_billing_cycle, 'The yearly switch survives payment.');
+
+        // And the next renewal bills the new plan on the new cycle.
+        [$cycle, $package] = $this->lifecycle()->nextPeriodPlan($subscription);
+        $this->assertSame(Subscription::CYCLE_YEARLY, $cycle);
+        $this->assertSame($target->id, $package->id);
+    }
+
     /** A downgrade is scheduled, never applied mid-period, and costs nothing today. */
     public function test_a_downgrade_is_deferred_to_the_period_boundary(): void
     {

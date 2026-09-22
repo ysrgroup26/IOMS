@@ -269,6 +269,70 @@ end to end** — see `docs/kb/Verification Status`.
 
 `laravel/socialite` is a new Composer dependency; a deployment must run `composer install`.
 
+## Payment-provider review (v2.78.1)
+
+Midtrans reviews the website's **usage and transaction flow** with a dummy account. They confirmed
+this needs **no** Sandbox or Production integration. The review is served entirely by the existing
+product: there is no reviewer mode, no special role, and no payment that succeeds.
+
+### Setup (owner and operator, outside the repository)
+
+1. **The owner** creates a mailbox the reviewer can read, for example on the iomsuite.com domain.
+   No credential for it is ever committed.
+2. **The operator** creates the reviewer's organization through the ordinary form, **Platform →
+   Tenants → Add Tenant**:
+   - name, for example "Midtrans Review", on the **Starter** plan, so that an upgrade has somewhere to
+     go;
+   - administrator = that mailbox, with a strong password shared with Midtrans **out of band**.
+
+   This form creates an isolated tenant, an active one-month subscription at published prices, and
+   its administrator. It creates no invoice and marks nothing paid.
+
+**What the reviewer's role is, and is not.** The administrator is `User::ROLE_SUPER_ADMIN`. Despite
+the name, this is the **per-organization** administrator role: every paying customer's first user
+holds it. It is not the platform operator (`ROLE_PLATFORM_ADMIN`), and `isPlatformAdmin()` is false
+for it (see *The keystone* above). `ReviewerJourneyTest` pins that it:
+- gets 403 from `/platform`;
+- cannot open another customer's invoice (404);
+- sees none of another customer's data.
+
+Billing, renewal and plan changes are available only to an organization administrator by design, so
+this is the correct role, not a privileged one.
+
+### The review flow to send to Midtrans
+
+**A. New customer, up to payment** (the reviewer can do this with any second address):
+1. **Get Started**: register with name, email and password, then confirm the email.
+2. **Account created**, then **Continue setup**.
+3. Fill in company details, choose a plan and cycle, then **Continue to payment**.
+4. The **order summary**, then **Issue my invoice / Pay**. With Midtrans configured, the payment
+   window opens.
+
+Nothing is provisioned until Midtrans sends a **signed** notification, so the reviewer should close
+the window rather than pay.
+
+**B. Existing customer billing** (sign in with the reviewer tenant's administrator):
+1. **Billing** shows the plan, status, cycle, period and renewal date.
+2. **Renew now** raises a renewal invoice for the **next** period, then **Pay now** opens the payment
+   window.
+3. **Change plan** (Plans):
+   - choose a higher plan: the dialog shows the exact prorated amount, then **Continue to payment**;
+   - choose a different cycle: the dialog shows the date it takes effect, with no charge today.
+4. What happens before payment confirmation: nothing changes. The period, the plan and access stay as
+   they are until a verified payment is applied. An unpaid invoice stays open, and nothing voids it.
+
+**C. Product usage.** `/sandbox` is a read-only demonstration organization with data in every
+module. The reviewer tenant itself shows the Starter plan's HSE workspace. Modules outside the plan
+answer "not available on your plan", which is also what makes the upgrade flow meaningful.
+
+### Housekeeping after the review
+- The operator **suspends** the reviewer tenant under Platform → Tenants. This blocks access (ADR 033
+  §9), and the lifecycle command then stops invoicing it.
+- Open invoices from the review cannot provision or extend anything, so they are harmless.
+- A pending self-service order from flow A expires after 7 days.
+- **If a reviewer does complete a real payment**, it is a real transaction, processed exactly like a
+  customer's. Refund it through Midtrans.
+
 ## What would make this ADR wrong
 
 If IOMS later needs one person to hold accounts in several organizations, the `users.tenant_id`

@@ -35,9 +35,14 @@ import { Check, Sparkles } from 'lucide-react';
  * An account that cannot manage billing still sees the comparison and is
  * told plainly who can act on it, rather than a button that would 403.
  */
-export default function SubscriptionPlans({ plans, currentPlan, currentPlanId, currentCycle, canManageBilling, salesEmail }) {
+export default function SubscriptionPlans({ plans, currentPlan, currentPlanId, currentCycle, canManageBilling, salesEmail, changePreview = {} }) {
     const [interval, setInterval] = useState(currentCycle === 'yearly' ? 'yearly' : 'monthly');
     const [confirming, setConfirming] = useState(null);
+
+    // What confirming will actually do, for the plan and cycle in question
+    // -- decided by the server (SubscriptionController::changePreview()).
+    const preview = confirming ? changePreview?.[confirming.id]?.[interval] : null;
+    const fmtDate = (d) => (d ? new Date(d).toLocaleDateString('en-US', { day: 'numeric', month: 'long', year: 'numeric' }) : '—');
 
     const form = useForm({ package_id: null, billing_cycle: 'monthly' });
 
@@ -186,10 +191,14 @@ export default function SubscriptionPlans({ plans, currentPlan, currentPlanId, c
 
             {/* The confirmation has to be honest about WHEN the change takes
                 effect, because the two answers are genuinely different and
-                the customer is about to commit money to one of them. The
-                page cannot know which it is -- that depends on prices the
-                server holds -- so it explains both rather than guessing and
-                being wrong half the time. */}
+                the customer is about to commit money to one of them.
+
+                v2.78.1: the server now says which it is (changePreview,
+                computed by the same calls that act on the change), so the
+                dialog states ONE outcome -- with the exact prorated amount
+                for an upgrade, or the effective date for a scheduled change.
+                The two-outcome explanation remains only as a fallback for a
+                plan the server could not preview. */}
             <Dialog open={confirming !== null} onOpenChange={(open) => !open && setConfirming(null)}>
                 <DialogContent>
                     <DialogHeader>
@@ -200,19 +209,52 @@ export default function SubscriptionPlans({ plans, currentPlan, currentPlanId, c
                         </DialogDescription>
                     </DialogHeader>
 
-                    <ul className="space-y-2 text-sm leading-relaxed text-graphite-600">
-                        <li>
-                            <span className="font-medium text-navy-900">Jika ini peningkatan paket:</span>{' '}
-                            tagihan proporsional untuk sisa masa aktif periode berjalan akan diterbitkan, dan
-                            paket baru berlaku setelah pembayaran terverifikasi.
-                        </li>
-                        <li>
-                            <span className="font-medium text-navy-900">Jika ini penurunan paket atau perubahan siklus:</span>{' '}
-                            perubahan dijadwalkan pada akhir periode yang sudah Anda bayar. Tidak ada tagihan
-                            hari ini, dan tidak ada akses yang berkurang lebih cepat.
-                        </li>
-                        <li>Data operasional Anda tidak terpengaruh oleh perubahan paket.</li>
-                    </ul>
+                    {preview?.kind === 'upgrade' ? (
+                        <div className="space-y-2 text-sm leading-relaxed text-graphite-600">
+                            <div className="flex items-baseline justify-between gap-3 rounded-lg border border-brand-200 bg-brand-50/50 p-3">
+                                <span className="font-medium text-navy-900">Upgrade — prorated invoice</span>
+                                <span className="text-base font-semibold tabular-nums text-navy-900">{preview.amount_formatted}</span>
+                            </div>
+                            <p>
+                                Tagihan ini untuk sisa masa aktif hingga {fmtDate(preview.period_ends_at)}. Paket{' '}
+                                {confirming?.name} berlaku segera setelah pembayaran terverifikasi; sampai saat itu paket
+                                Anda saat ini tetap berjalan seperti biasa.
+                            </p>
+                            {preview.cycle_change_at && (
+                                <p>
+                                    Penagihan {preview.cycle === 'yearly' ? 'tahunan' : 'bulanan'} dimulai pada{' '}
+                                    {fmtDate(preview.cycle_change_at)}, saat periode berjalan berakhir.
+                                </p>
+                            )}
+                            <p>Data operasional Anda tidak terpengaruh oleh perubahan paket.</p>
+                        </div>
+                    ) : preview?.kind === 'scheduled' ? (
+                        <div className="space-y-2 text-sm leading-relaxed text-graphite-600">
+                            <div className="flex items-baseline justify-between gap-3 rounded-lg border border-steel-200 bg-steel-50/60 p-3">
+                                <span className="font-medium text-navy-900">Scheduled change</span>
+                                <span className="font-semibold text-navy-900">{fmtDate(preview.effective_at)}</span>
+                            </div>
+                            <p>
+                                Perubahan berlaku pada akhir periode yang sudah Anda bayar. Tidak ada tagihan hari ini, dan
+                                tidak ada akses yang berkurang lebih cepat. Perubahan ini dapat dibatalkan dari halaman Billing.
+                            </p>
+                            <p>Data operasional Anda tidak terpengaruh oleh perubahan paket.</p>
+                        </div>
+                    ) : (
+                        <ul className="space-y-2 text-sm leading-relaxed text-graphite-600">
+                            <li>
+                                <span className="font-medium text-navy-900">Jika ini peningkatan paket:</span>{' '}
+                                tagihan proporsional untuk sisa masa aktif periode berjalan akan diterbitkan, dan
+                                paket baru berlaku setelah pembayaran terverifikasi.
+                            </li>
+                            <li>
+                                <span className="font-medium text-navy-900">Jika ini penurunan paket atau perubahan siklus:</span>{' '}
+                                perubahan dijadwalkan pada akhir periode yang sudah Anda bayar. Tidak ada tagihan
+                                hari ini, dan tidak ada akses yang berkurang lebih cepat.
+                            </li>
+                            <li>Data operasional Anda tidak terpengaruh oleh perubahan paket.</li>
+                        </ul>
+                    )}
 
                     {form.errors.package_id && (
                         <p className="rounded-md border border-danger/25 bg-danger/[0.07] p-3 text-sm leading-relaxed text-red-900">
@@ -225,7 +267,11 @@ export default function SubscriptionPlans({ plans, currentPlan, currentPlanId, c
                             Cancel
                         </Button>
                         <Button onClick={submitChange} disabled={form.processing}>
-                            {form.processing ? 'Working…' : 'Confirm change'}
+                            {form.processing
+                                ? 'Working…'
+                                : preview?.kind === 'upgrade'
+                                    ? 'Continue to payment'
+                                    : preview?.kind === 'scheduled' ? 'Schedule change' : 'Confirm change'}
                         </Button>
                     </DialogFooter>
                 </DialogContent>

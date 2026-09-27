@@ -75,7 +75,7 @@ class PlatformOperationsTest extends TestCase
     public function test_subscription_health_is_derived_from_dates(): void
     {
         $this->tenantWith(['ends_at' => now()->addMonths(2)], 'Healthy');
-        $this->tenantWith(['ends_at' => now()->addDays(5)], 'Expiring');       // inside the 14-day lead window
+        $this->tenantWith(['ends_at' => now()->addDays(5)], 'Expiring');       // inside the renewal lead window
         $this->tenantWith(['ends_at' => now()->subDays(3)], 'In Grace');
         $this->tenantWith(['ends_at' => now()->subDays(40)], 'Lapsed');
         $this->tenantWith(['status' => Subscription::STATUS_SUSPENDED], 'Suspended');
@@ -201,7 +201,8 @@ class PlatformOperationsTest extends TestCase
 
         $this->assertCount(1, $titles->filter(fn ($t) => str_contains($t, 'Masa tenggang dimulai')));
 
-        $this->travel(13)->days();
+        // Past the configured grace window, while the lapse is still fresh.
+        $this->travel(Subscription::graceDays() + 1)->days();
         $this->artisan('subscriptions:lifecycle');
         $this->artisan('subscriptions:lifecycle');
 

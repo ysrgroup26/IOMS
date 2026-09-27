@@ -25,21 +25,21 @@ export default function Registrations({ registrations = [] }) {
     const stuck = registrations.filter((r) => r.status === 'paid' && !r.provisioned_at);
 
     const fmt = (v) =>
-        v ? new Date(v).toLocaleDateString('en-US', { day: 'numeric', month: 'short', year: 'numeric' }) : '—';
+        v ? new Date(v).toLocaleDateString('id-ID', { day: 'numeric', month: 'short', year: 'numeric' }) : '—';
 
     const provision = (r) => {
-        if (! confirm(`Re-run provisioning for ${r.reference}? This only works for a registration whose payment is already confirmed.`)) return;
+        if (! confirm(`Jalankan ulang provisioning untuk ${r.reference}? Hanya berlaku untuk pendaftaran yang pembayarannya sudah terkonfirmasi.`)) return;
         router.post(route('platform.registrations.provision', r.id), {}, { preserveScroll: true });
     };
 
     return (
         <PlatformLayout>
-            <Head title="Registrations" />
+            <Head title="Pendaftaran" />
 
             <PageHeader
                 icon={UserPlus}
-                title="Registrations"
-                subtitle="Self-service signups in flight. A registration holds no application access until a verified payment provisions it."
+                title="Pendaftaran"
+                subtitle="Pendaftaran mandiri yang sedang berjalan. Sebuah pendaftaran belum memberi akses apa pun sampai pembayaran terverifikasi memprovisikannya."
             />
 
             {flash.success && (
@@ -53,8 +53,8 @@ export default function Registrations({ registrations = [] }) {
                 <div className="mb-4 flex items-start gap-2.5 rounded-lg border border-warning/25 bg-warning/[0.07] p-4 text-sm leading-relaxed text-amber-900">
                     <AlertTriangle className="mt-0.5 h-4 w-4 shrink-0" />
                     <span>
-                        <strong>{stuck.length}</strong> registration{stuck.length === 1 ? ' has' : 's have'} a confirmed
-                        payment but no workspace yet. Use Provision on those rows to complete setup.
+                        <strong>{stuck.length}</strong> pendaftaran sudah terbayar tetapi belum memiliki workspace.
+                        Gunakan tombol Provisioning pada baris tersebut untuk menyelesaikan penyiapan.
                     </span>
                 </div>
             )}
@@ -65,8 +65,8 @@ export default function Registrations({ registrations = [] }) {
                         <div className="p-6">
                             <EmptyState
                                 icon={UserPlus}
-                                title="No registrations yet"
-                                description="Self-service signups from the public site appear here."
+                                title="Belum ada pendaftaran"
+                                description="Pendaftaran mandiri dari situs publik akan muncul di sini."
                             />
                         </div>
                     ) : (
@@ -74,15 +74,15 @@ export default function Registrations({ registrations = [] }) {
                             <Table>
                                 <TableHeader>
                                     <TableRow>
-                                        <TableHead>Reference</TableHead>
-                                        <TableHead>Company</TableHead>
-                                        <TableHead>Contact</TableHead>
-                                        <TableHead>Plan</TableHead>
+                                        <TableHead>Referensi</TableHead>
+                                        <TableHead>Perusahaan</TableHead>
+                                        <TableHead>Kontak</TableHead>
+                                        <TableHead>Paket</TableHead>
                                         <TableHead>Status</TableHead>
-                                        <TableHead>Verified</TableHead>
-                                        <TableHead>Paid</TableHead>
+                                        <TableHead>Terverifikasi</TableHead>
+                                        <TableHead>Dibayar</TableHead>
                                         <TableHead>Tenant</TableHead>
-                                        <TableHead className="text-right">Action</TableHead>
+                                        <TableHead className="text-right">Tindakan</TableHead>
                                     </TableRow>
                                 </TableHeader>
                                 <TableBody>
@@ -103,12 +103,12 @@ export default function Registrations({ registrations = [] }) {
                                             <TableCell className="whitespace-nowrap">
                                                 {r.plan || '—'}
                                                 <span className="block text-[11px] text-graphite-400">
-                                                    {r.billing_cycle === 'monthly' ? 'Monthly' : 'Annual'} · {r.amount}
+                                                    {r.billing_cycle === 'monthly' ? 'Bulanan' : 'Tahunan'} · {r.amount}
                                                 </span>
                                             </TableCell>
                                             <TableCell>
                                                 <StatusBadge value={r.status} />
-                                                {r.is_expired && <span className="block text-[11px] text-graphite-400">expired</span>}
+                                                {r.is_expired && <span className="block text-[11px] text-graphite-400">kedaluwarsa</span>}
                                             </TableCell>
                                             <TableCell className="whitespace-nowrap text-graphite-500">{fmt(r.email_verified_at)}</TableCell>
                                             <TableCell className="whitespace-nowrap text-graphite-500">
@@ -127,7 +127,7 @@ export default function Registrations({ registrations = [] }) {
                                             <TableCell className="text-right">
                                                 {r.status === 'paid' && !r.provisioned_at && (
                                                     <Button size="sm" variant="outline" onClick={() => provision(r)}>
-                                                        <PlayCircle className="h-4 w-4" /> Provision
+                                                        <PlayCircle className="h-4 w-4" /> Provisioning
                                                     </Button>
                                                 )}
                                             </TableCell>

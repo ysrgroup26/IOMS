@@ -19,6 +19,24 @@ const STATUS_VARIANT = {
     suspended: 'destructive',
 };
 
+/* Bahasa Indonesia -- this is the internal console (ADR 040). */
+const STATUS_LABEL = { active: 'Aktif', trial: 'Uji coba', suspended: 'Ditangguhkan' };
+
+/*
+ * v2.80.0 -- the DERIVED subscription lifecycle, which this list did not
+ * show at all. It showed the tenant ACCOUNT status, so a customer whose
+ * subscription lapsed weeks ago still read Aktif to the operator while
+ * their own Billing page said read-only. Account state and subscription
+ * state are different questions, and both are now on the row.
+ */
+const LIFECYCLE = {
+    active: { label: 'Aktif', variant: 'success' },
+    grace: { label: 'Masa tenggang', variant: 'warning' },
+    lapsed: { label: 'Read-only', variant: 'destructive' },
+    suspended: { label: 'Ditangguhkan', variant: 'destructive' },
+    cancelled: { label: 'Dibatalkan', variant: 'secondary' },
+};
+
 // Mirrors the server-side regex in Store/UpdateTenantRequest -- lowercase
 // letters, numbers, and hyphens only. Purely a typing convenience (the
 // server is still the source of truth for validation); a Master can
@@ -97,28 +115,29 @@ export default function PlatformTenants({ tenants, packages }) {
 
     return (
         <PlatformLayout>
-            <Head title="Tenants" />
+            <Head title="Tenant" />
 
-            <PageHeader title="Tenants" subtitle="Every paying customer organization on this platform. Suspending a tenant is the coarse platform-level kill switch -- it does not delete any of that tenant's data.">
-                <Button onClick={openCreate}><Plus className="h-4 w-4" /> Add Tenant</Button>
+            <PageHeader title="Tenant" subtitle="Seluruh organisasi pelanggan di platform ini. Menangguhkan tenant adalah sakelar tingkat platform -- tidak ada data tenant yang dihapus karenanya.">
+                <Button onClick={openCreate}><Plus className="h-4 w-4" /> Tambah Tenant</Button>
             </PageHeader>
 
             <Card>
                 <CardHeader>
-                    <CardTitle>All Tenants</CardTitle>
-                    <CardDescription>{tenants?.length ?? 0} total -- click a tenant's name to view its details</CardDescription>
+                    <CardTitle>Semua Tenant</CardTitle>
+                    <CardDescription>{tenants?.length ?? 0} tenant -- klik nama tenant untuk melihat detailnya</CardDescription>
                 </CardHeader>
                 <CardContent>
                     <div className="overflow-x-auto">
                         <Table>
                             <TableHeader>
                                 <TableRow>
-                                    <TableHead>Name</TableHead>
+                                    <TableHead>Nama</TableHead>
                                     <TableHead>Slug</TableHead>
-                                    <TableHead>Companies</TableHead>
-                                    <TableHead>Users</TableHead>
-                                    <TableHead>Package</TableHead>
-                                    <TableHead>Status</TableHead>
+                                    <TableHead>Perusahaan</TableHead>
+                                    <TableHead>Pengguna</TableHead>
+                                    <TableHead>Paket</TableHead>
+                                    <TableHead>Langganan</TableHead>
+                                    <TableHead>Akun</TableHead>
                                     <TableHead />
                                 </TableRow>
                             </TableHeader>
@@ -137,27 +156,48 @@ export default function PlatformTenants({ tenants, packages }) {
                                         <TableCell>{tenant.companies_count}</TableCell>
                                         <TableCell>{tenant.users_count}</TableCell>
                                         <TableCell>{tenant.subscription?.package?.name ?? '—'}</TableCell>
+                                        {/* Dihitung dari tanggal periode, bukan dari kolom status. */}
+                                        <TableCell>
+                                            {tenant.lifecycle ? (
+                                                <div>
+                                                    <Badge variant={LIFECYCLE[tenant.lifecycle.lifecycle_state]?.variant ?? 'secondary'}>
+                                                        {LIFECYCLE[tenant.lifecycle.lifecycle_state]?.label ?? tenant.lifecycle.lifecycle_state}
+                                                    </Badge>
+                                                    <p className="mt-1 text-[11px] text-graphite-400">
+                                                        {tenant.lifecycle.is_lifetime
+                                                            ? 'Tanpa batas waktu'
+                                                            : tenant.lifecycle.period_ends_at
+                                                                ? 's.d. ' + tenant.lifecycle.period_ends_at
+                                                                : 'Tanggal belum diatur'}
+                                                        {tenant.lifecycle.billing_mode === 'complimentary' ? ' · gratis' : ''}
+                                                        {tenant.lifecycle.billing_mode === 'manual' ? ' · manual' : ''}
+                                                    </p>
+                                                </div>
+                                            ) : (
+                                                <span className="text-xs text-graphite-400">Tanpa langganan</span>
+                                            )}
+                                        </TableCell>
                                         <TableCell>
                                             <Select value={tenant.status} onValueChange={(value) => changeStatus(tenant, value)}>
                                                 <SelectTrigger className="w-32">
                                                     <SelectValue>
-                                                        <Badge variant={STATUS_VARIANT[tenant.status] ?? 'secondary'}>{tenant.status}</Badge>
+                                                        <Badge variant={STATUS_VARIANT[tenant.status] ?? 'secondary'}>{STATUS_LABEL[tenant.status] ?? tenant.status}</Badge>
                                                     </SelectValue>
                                                 </SelectTrigger>
                                                 <SelectContent>
-                                                    <SelectItem value="trial">Trial</SelectItem>
-                                                    <SelectItem value="active">Active</SelectItem>
-                                                    <SelectItem value="suspended">Suspended</SelectItem>
+                                                    <SelectItem value="trial">Uji coba</SelectItem>
+                                                    <SelectItem value="active">Aktif</SelectItem>
+                                                    <SelectItem value="suspended">Ditangguhkan</SelectItem>
                                                 </SelectContent>
                                             </Select>
                                         </TableCell>
                                         <TableCell className="flex gap-1">
                                             <Button variant="outline" size="sm" onClick={() => openEdit(tenant)}>
-                                                <Pencil className="h-3.5 w-3.5" /> Edit
+                                                <Pencil className="h-3.5 w-3.5" /> Ubah
                                             </Button>
                                             <Button variant="outline" size="sm" asChild>
                                                 <Link href={route('platform.tenants.grants', tenant.id)}>
-                                                    <Settings2 className="h-3.5 w-3.5" /> Grants
+                                                    <Settings2 className="h-3.5 w-3.5" /> Hak akses
                                                 </Link>
                                             </Button>
                                         </TableCell>
@@ -171,11 +211,11 @@ export default function PlatformTenants({ tenants, packages }) {
 
             <Dialog open={open} onOpenChange={setOpen}>
                 <DialogContent className="max-w-xl">
-                    <DialogHeader><DialogTitle>{editing ? 'Edit Tenant' : 'Add Tenant'}</DialogTitle></DialogHeader>
+                    <DialogHeader><DialogTitle>{editing ? 'Ubah Tenant' : 'Tambah Tenant'}</DialogTitle></DialogHeader>
                     <form onSubmit={submit} className="max-h-[70vh] space-y-5 overflow-y-auto pr-1">
                         <div className="space-y-4">
                             <div className="space-y-1.5">
-                                <Label>Tenant Name</Label>
+                                <Label>Nama tenant</Label>
                                 <Input
                                     value={data.name}
                                     onChange={(e) => onNameChange(e.target.value)}
@@ -193,10 +233,10 @@ export default function PlatformTenants({ tenants, packages }) {
                                 {errors.slug && <p className="text-xs text-red-600">{errors.slug}</p>}
                             </div>
                             <div className="space-y-1.5">
-                                <Label>Package</Label>
+                                <Label>Paket</Label>
                                 <Select value={data.package_id ? String(data.package_id) : ''} onValueChange={(v) => setData('package_id', v)}>
                                     <SelectTrigger>
-                                        <SelectValue placeholder="Select a package" />
+                                        <SelectValue placeholder="Pilih paket" />
                                     </SelectTrigger>
                                     <SelectContent>
                                         {(packages ?? []).map((pkg) => (
@@ -213,9 +253,9 @@ export default function PlatformTenants({ tenants, packages }) {
                                         <SelectValue />
                                     </SelectTrigger>
                                     <SelectContent>
-                                        <SelectItem value="trial">Trial</SelectItem>
-                                        <SelectItem value="active">Active</SelectItem>
-                                        <SelectItem value="suspended">Suspended</SelectItem>
+                                        <SelectItem value="trial">Uji coba</SelectItem>
+                                        <SelectItem value="active">Aktif</SelectItem>
+                                        <SelectItem value="suspended">Ditangguhkan</SelectItem>
                                     </SelectContent>
                                 </Select>
                                 {errors.status && <p className="text-xs text-red-600">{errors.status}</p>}
@@ -228,11 +268,11 @@ export default function PlatformTenants({ tenants, packages }) {
                         {!editing && (
                             <div className="space-y-4 border-t border-graphite-200 pt-4 dark:border-slate-700">
                                 <div>
-                                    <h3 className="text-sm font-semibold text-graphite-800 dark:text-slate-100">Initial Administrator</h3>
-                                    <p className="text-xs text-graphite-500">This tenant's first login -- created with the Super Admin role.</p>
+                                    <h3 className="text-sm font-semibold text-graphite-800 dark:text-slate-100">Administrator pertama</h3>
+                                    <p className="text-xs text-graphite-500">Login pertama tenant ini -- dibuat dengan peran Super Admin.</p>
                                 </div>
                                 <div className="space-y-1.5">
-                                    <Label>Full Name</Label>
+                                    <Label>Nama lengkap</Label>
                                     <Input
                                         value={data.admin_name}
                                         onChange={(e) => setData('admin_name', e.target.value)}
@@ -251,16 +291,16 @@ export default function PlatformTenants({ tenants, packages }) {
                                     {errors.admin_email && <p className="text-xs text-red-600">{errors.admin_email}</p>}
                                 </div>
                                 <div className="space-y-1.5">
-                                    <Label>Password</Label>
+                                    <Label>Kata sandi</Label>
                                     <PasswordInput
                                         value={data.admin_password}
                                         onChange={(e) => setData('admin_password', e.target.value)}
-                                        placeholder="At least 8 characters"
+                                        placeholder="Minimal 8 karakter"
                                     />
                                     {errors.admin_password && <p className="text-xs text-red-600">{errors.admin_password}</p>}
                                 </div>
                                 <div className="space-y-1.5">
-                                    <Label>Confirm Password</Label>
+                                    <Label>Konfirmasi kata sandi</Label>
                                     <PasswordInput
                                         value={data.admin_password_confirmation}
                                         onChange={(e) => setData('admin_password_confirmation', e.target.value)}
@@ -270,8 +310,8 @@ export default function PlatformTenants({ tenants, packages }) {
                         )}
 
                         <DialogFooter>
-                            <Button type="button" variant="outline" onClick={() => setOpen(false)}>Cancel</Button>
-                            <Button type="submit" disabled={processing}>Save</Button>
+                            <Button type="button" variant="outline" onClick={() => setOpen(false)}>Batal</Button>
+                            <Button type="submit" disabled={processing}>Simpan</Button>
                         </DialogFooter>
                     </form>
                 </DialogContent>

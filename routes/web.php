@@ -67,6 +67,7 @@ use App\Http\Controllers\RiskAssessmentController;
 use App\Http\Controllers\SafetyEquipmentController;
 use App\Http\Controllers\NotificationController;
 use App\Http\Controllers\PlatformController;
+use App\Http\Controllers\PlatformSupportController;
 use App\Http\Controllers\PpeController;
 use App\Http\Controllers\PaymentWebhookController;
 use App\Http\Controllers\Public\RegistrationController;
@@ -1207,6 +1208,23 @@ Route::middleware(['auth', 'role:platform_admin'])->prefix('platform')->name('pl
     Route::put('/tenants/{tenant}/subscription', [PlatformController::class, 'updateSubscription'])->name('tenants.subscription.update');
     Route::post('/tenants/{tenant}/invoices', [PlatformController::class, 'storeInvoice'])->name('tenants.invoices.store');
     Route::put('/invoices/{invoice}/mark-paid', [PlatformController::class, 'markInvoicePaid'])->name('invoices.mark-paid');
+    // v2.80.0: the payment ledger. The direction support needs -- from a
+    // payment reference back to the subscription it settled and the tenant
+    // that owns it. Read-only; settling is still the webhook's job.
+    Route::get('/payments', [PlatformController::class, 'payments'])->name('payments');
+    /*
+     * v2.80.0 -- the support queue. A work list, not a mailbox: see
+     * PlatformSupportController. Role-gated by the group above, which is the
+     * whole of its access control because support tickets are
+     * platform-owned rather than tenant-scoped.
+     */
+    Route::get('/support', [PlatformSupportController::class, 'index'])->name('support');
+    Route::post('/support', [PlatformSupportController::class, 'store'])->name('support.store');
+    Route::get('/support/{ticket}', [PlatformSupportController::class, 'show'])->name('support.show');
+    Route::post('/support/{ticket}/reply', [PlatformSupportController::class, 'reply'])->name('support.reply');
+    Route::put('/support/{ticket}', [PlatformSupportController::class, 'update'])->name('support.update');
+    Route::put('/support/{ticket}/associate', [PlatformSupportController::class, 'associate'])->name('support.associate');
+
     Route::get('/plans', [PlatformController::class, 'plans'])->name('plans');
     Route::post('/plans', [PlatformController::class, 'storePlan'])->name('plans.store');
     Route::put('/plans/{plan}', [PlatformController::class, 'updatePlan'])->name('plans.update');

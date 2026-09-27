@@ -2523,3 +2523,44 @@ layer.
 
 These aren't a "module" with their own page — they're cross-cutting infrastructure consumed by the
 modules above. Fully described in `ARCHITECTURE.md`, not repeated here.
+
+## Master Admin — Support (v2.80.0)
+
+**Not a tenant module.** It lives at `/platform/support`, is reachable only by a Platform Operator
+(`role:platform_admin`), and no tenant-side surface reads it. It is listed here so nobody looks for a
+Support module inside a workspace.
+
+**What it does.** Turns a customer question into a piece of work: five states (`open`, `in_progress`,
+`waiting_customer`, `resolved`, `closed`), priority, assignment to an operator, a conversation
+history, and the requester's commercial context beside the question — organization, derived
+subscription state, recent invoices.
+
+**Key files**
+
+| File | Role |
+|---|---|
+| `app/Models/SupportTicket.php` | The state machine. The two automatic transitions live here, not in the controller |
+| `app/Models/SupportTicketMessage.php` | One message; `direction` is a column because it is what moves the status |
+| `app/Services/SupportTicketIntake.php` | The single entry point: identification and threading. The seam mail ingestion will call |
+| `app/Http/Controllers/PlatformSupportController.php` | Queue, ticket, reply, status/priority/assignment, association |
+| `app/Mail/SupportTicketReply.php` + `resources/views/emails/support-reply.blade.php` | The one mailable sent from `support@`, not noreply |
+| `resources/js/Pages/Platform/Support/` | `Index` (the queue) and `Show` (one conversation) |
+
+**Module-specific rules**
+
+- A **customer** message returns a ticket to `open`, even from `resolved` or `closed`. A **support**
+  reply moves it to `waiting_customer`. Neither is a manual step.
+- The default queue is what **owes somebody an answer**, ordered by how long they have waited —
+  oldest first, priority only breaking ties.
+- **Ticket age is derived** from the last customer message and is null once the ticket owes nobody
+  anything.
+- The sender is identified by **exact email match** against user accounts. Never by mail domain.
+  An unidentified sender is queued for manual association, not guessed.
+- Replies are **recorded before they are emailed**. An unsent reply shows as *belum terkirim* rather
+  than counting as an answer.
+- **Inbound mail ingestion does not exist** and is BLOCKED on a transport decision. An operator logs
+  incoming messages, and the page says so.
+- The console is in **Bahasa Indonesia** (ADR 040); the customer-facing reply email follows the
+  normal language hierarchy.
+
+Reasoning: `docs/ADR/042-support-queue-is-not-an-inbox.md`.

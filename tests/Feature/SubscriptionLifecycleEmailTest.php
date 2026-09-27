@@ -96,8 +96,11 @@ class SubscriptionLifecycleEmailTest extends TestCase
     public function test_entering_lapse_is_emailed_once(): void
     {
         Mail::fake();
-        // Grace ended three days ago: a fresh lapse.
-        $this->subscribed(['ends_at' => now()->subDays(17)]);
+        // Grace ended three days ago: a fresh lapse. Expressed relative to
+        // the CONFIGURED grace window, because the window is a commercial
+        // decision that has already changed once (14 -> 7 in v2.80.0) and a
+        // magic number here silently stops testing what it names.
+        $this->subscribed(['ends_at' => now()->subDays(Subscription::graceDays() + 3)]);
 
         $this->artisan('subscriptions:lifecycle');
         $this->artisan('subscriptions:lifecycle');
@@ -124,7 +127,9 @@ class SubscriptionLifecycleEmailTest extends TestCase
         $subscription = $this->subscribed(['ends_at' => now()->subDays(2)]);
 
         $this->artisan('subscriptions:lifecycle');
-        $this->travel(13)->days();
+        // Far enough to be past grace, close enough that the lapse is still
+        // fresh -- an old lapse is deliberately not announced.
+        $this->travel(Subscription::graceDays() + 1)->days();
         $this->artisan('subscriptions:lifecycle');
         $this->artisan('subscriptions:lifecycle');
 

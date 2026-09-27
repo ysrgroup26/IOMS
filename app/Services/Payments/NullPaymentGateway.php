@@ -46,6 +46,29 @@ class NullPaymentGateway implements PaymentGatewayInterface
         throw new RuntimeException('No payment gateway is configured.');
     }
 
+    /**
+     * v2.80.0 -- the three contract calls that must answer rather than throw.
+     *
+     * They are asked BEFORE a payment is attempted, to decide whether to
+     * offer one at all. Throwing here would turn "no gateway configured"
+     * into a 500 on the billing page, when the correct behaviour is the page
+     * saying plainly that online payment is not enabled.
+     */
+    public function isConfigured(): bool
+    {
+        return false;
+    }
+
+    public function clientConfig(): array
+    {
+        return [];
+    }
+
+    public function invoiceIdFromReference(string $gatewayReference): ?int
+    {
+        return null;
+    }
+
     public function refund(string $gatewayReference, ?float $amount = null): bool
     {
         throw new RuntimeException('No payment gateway is configured.');

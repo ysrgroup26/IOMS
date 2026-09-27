@@ -39,28 +39,32 @@ Full definitions and the update loop: [[Working with This Knowledge Base]].
 
 | Work | Where it stands | Next |
 |---|---|---|
-| [[Master Admin Operations Center]] | v2.79.0 shipped the operations view (derived lifecycle counts, work queue, payment activity) and platform notifications | Organizations / Subscriptions / Payments information architecture; header split once Support exists; finish the Indonesian sweep |
+| [[Support Inbox]] | v2.80.0 shipped the whole ticket domain, the queue, the five states, assignment, ageing, sender identification and outgoing replies from `support@`. **Inbound mail ingestion is BLOCKED** (see below) and the queue page says so on screen | Build the ingestion adapter once the transport is chosen. Everything else is done |
 
 ## BLOCKED
 
 | Work | Blocked on | Who can unblock |
 |---|---|---|
-| [[Subscription Lifecycle Finalisation]] — grace window and reminder timing | The backlog asks for a **7-day** grace and an **H-7** reminder; both ship today as **14** by deliberate decision (ADR 033). Changing them is a commercial decision, not a code change — they are already configuration | Owner |
-| [[iPaymu Payment Provider]] | Sandbox credentials and the current official iPaymu API documentation. Neither exists in this environment | Owner |
-| [[Support Inbox]] | How mail for `support@iomsuite.com` reaches the application (IMAP polling, a forwarding webhook, or a provider's inbound API). The answer decides the whole ingestion design | Owner |
+| [[iPaymu Payment Provider]] — the adapter itself | Sandbox credentials and the **current official** iPaymu API documentation: the signature scheme, the callback payload and the status vocabulary. Neither exists in this environment, and writing them from memory would produce code that looks finished and fails on first contact | Owner |
+| [[Support Inbox]] — inbound mail ingestion only | How mail for `support@iomsuite.com` reaches the application: IMAP polling, an inbound-mail webhook (Mailgun / Postmark / SES), or forwarding to an application address. The answer decides the whole ingestion design; everything downstream of it is already built | Owner |
 
 ## FUTURE
 
 | Work | Why it matters |
 |---|---|
-| [[Support Inbox]] | Customer email is not represented in the product at all today. Everything else about support depends on ingestion being decided first |
-| [[iPaymu Payment Provider]] | A second provider behind the existing abstraction, so payments do not depend on one gateway |
-| [[Billing Modes and Complimentary Tenants]] | The *migration* already works — an existing tenant can pay without being recreated (v2.78.1). What is missing is the product being able to **say** whether a tenant is complimentary, manual or paying |
+| [[iPaymu Payment Provider]] — the adapter | A second provider behind the existing abstraction, so payments do not depend on one gateway. The **seam** it drops into is finished and pinned (v2.80.0); only the provider-specific class waits on the dependencies above |
+| Master Admin information architecture | With Tenant, Pembayaran and Dukungan now separate destinations, the remaining question is whether Organizations / Subscriptions deserve their own screens rather than living inside Tenant detail. Not urgent, and not worth guessing before the console has been used for a while |
 
 ## COMPLETED (recent, and the evidence)
 
 | Work | Shipped | Verified by |
 |---|---|---|
+| [[Subscription Lifecycle Finalisation]] — **timing decided**: 7-day grace, H-7 reminder | v2.80.0 | `SubscriptionStateParityTest` (boundary asserted at day 7 and day 8), browser against MySQL |
+| **One lifecycle truth on both sides** — `Subscription::stateSnapshot()`, spread by every customer and operator surface | v2.80.0 | `SubscriptionStateParityTest` (10): identical payloads across active, grace, lapsed, suspended, cancelled, renewed |
+| [[Billing Modes and Complimentary Tenants]] — paid / manual / complimentary, and what it may never change | v2.80.0 | `BillingModeTest` (12), ADR [[041-billing-mode-is-not-entitlement\|041]] |
+| [[Support Inbox]] — ticket domain, queue, states, ageing, identification, replies from `support@` | v2.80.0 | `SupportTicketQueueTest` (16), browser: a real reply sent and threaded, ADR [[042-support-queue-is-not-an-inbox\|042]] |
+| Payment traceability both ways, and a provider-agnostic seam | v2.80.0 | `PaymentProviderAbstractionTest` (6): no domain file names a provider |
+| [[Master Admin Operations Center]] — operations view, notifications, **and the console finished in Bahasa Indonesia** | v2.79.0 – v2.80.0 | `PlatformOperationsTest`, `LanguageHierarchyTest`, browser against MySQL |
 | [[Subscription Lifecycle Finalisation]] — state machine, grace, read-only, renewal date rule, duplicate-webhook safety | v2.70.0 | `SubscriptionLifecycleTest`, `SubscriptionReadOnlyEnforcementTest` |
 | Lifecycle customer UX — banners and Billing page state, dates, one renewal action | v2.77.0 | browser against MySQL, [[Verification Status]] |
 | Lifecycle emails — grace, lapsed, renewed, and the renewal invoice reworded | v2.78.0 | `SubscriptionLifecycleEmailTest` |

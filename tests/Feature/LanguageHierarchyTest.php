@@ -194,7 +194,20 @@ class LanguageHierarchyTest extends TestCase
         );
     }
 
-    /** Every .jsx under resources/js. */
+    /**
+     * Every .jsx under resources/js, EXCEPT Master Admin.
+     *
+     * v2.80.0 -- the language hierarchy governs what CUSTOMERS read. Master
+     * Admin is an internal console operated by the IOMS team in Indonesia
+     * and is written in Indonesian throughout, deliberately and on the
+     * record (docs/ADR/040-master-admin-is-an-operations-console.md). The
+     * rendered-props half of this test already excluded the `platform`
+     * route for exactly that reason; the JSX half did not, which is the kind
+     * of half-applied exemption that ends up enforced by accident.
+     *
+     * Narrow on purpose: only /platform. Every other page, public or
+     * tenant-side, is still scanned.
+     */
     private function componentFiles(): array
     {
         $files = [];
@@ -203,9 +216,17 @@ class LanguageHierarchyTest extends TestCase
         );
 
         foreach ($iterator as $file) {
-            if ($file->isFile() && $file->getExtension() === 'jsx') {
-                $files[] = $file->getPathname();
+            if (! $file->isFile() || $file->getExtension() !== 'jsx') {
+                continue;
             }
+
+            $path = str_replace('\\', '/', $file->getPathname());
+
+            if (str_contains($path, '/Pages/Platform/') || str_contains($path, '/Layouts/PlatformLayout.jsx')) {
+                continue;
+            }
+
+            $files[] = $file->getPathname();
         }
 
         sort($files);

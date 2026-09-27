@@ -1,9 +1,9 @@
 ---
 title: Subscription Lifecycle Finalisation
 type: backlog
-status: partly completed, partly blocked
+status: COMPLETED (v2.80.0)
 updated: 2026-09-27
-tags: [kb/backlog, status/implemented, status/blocked]
+tags: [kb/backlog, status/verified]
 ---
 
 # Subscription Lifecycle Finalisation
@@ -34,26 +34,44 @@ Audited against the code, not assumed. All of this shipped between v2.70.0 and v
 
 **Nothing in §1–§3 requires new code.** The lifecycle is finished.
 
-## What is genuinely open — `#status/blocked`
+## The timing was decided — `#status/verified` (v2.80.0)
 
-Two numbers, and both are already configuration, not code:
+The two numbers that were blocked on a commercial decision have been decided by the owner:
+**7-day grace, H-7 reminder.** They now read as one policy — told a week before, a week after.
 
 | Asked | Ships as | Setting |
 |---|---|---|
-| **7-day** grace | **14 days** | `SAAS_GRACE_DAYS` |
-| **H-7** reminder | **H-14** (the renewal invoice is raised in the lead window) | `SAAS_RENEWAL_LEAD_DAYS` |
+| **7-day** grace | **7 days** | `SAAS_GRACE_DAYS` |
+| **H-7** reminder | **H-7** | `SAAS_RENEWAL_LEAD_DAYS` |
 
-ADR 033 chose 14 deliberately: *"a renewal invoice in Indonesia routinely crosses a finance
-department, a bank transfer and a public holiday."* Halving both shortens the window a paying
-customer has before their operation goes read-only.
+They remain configuration, because they are commercial decisions and because lifecycle position
+is derived on every read: changing the number takes effect immediately and retroactively, with
+nothing to migrate and no job to re-run. Reasoning and the boundary assertions are in the ADR 033
+v2.80.0 addendum.
 
-That is a commercial decision, so it is not being made in code. **To change it, set the two
-environment variables** — no deployment of new logic is needed, and the banner, the emails, the
-Billing page and the operations console all read them.
+Found while changing it: two test fixtures had the 14-day window baked in as magic numbers and
+broke. They now express their dates relative to `Subscription::graceDays()`, so a test that names
+the grace window keeps testing it after the next decision.
 
-> [!question] Decision needed from the owner
-> Keep 14/14 (current, documented), or move to 7/7 as the backlog asks, or split them
-> (for example a 7-day grace with an H-14 first reminder)?
+## And one answer on both sides — `#status/verified` (v2.80.0)
+
+The prompt's hardest requirement was not a state but an *agreement*: Master Admin must never show
+`Active` for a subscription the customer's own Billing page calls read-only.
+
+Both sides already called `lifecycleState()`, so the calculation was never duplicated — but each
+assembled its own surrounding facts, which is how two screens start disagreeing about one
+subscription. `Subscription::stateSnapshot()` is now the only place a lifecycle fact is assembled,
+and every surface spreads it (customer Billing, the Settings panel, Master Admin tenant list and
+detail, the payment ledger, the support ticket context).
+
+`SubscriptionStateParityTest` compares the two **rendered payloads** across active, grace, lapsed,
+suspended, cancelled and renewed. Verified in a browser too: one tenant three days past its period
+end read *Masa tenggang · read-only mulai 1 Okt 2026* to the operator and *Grace · READ-ONLY FROM
+October 1, 2026* to the customer.
+
+## Nothing in this note is open
+
+This item is **COMPLETED**. Later subscription work belongs in its own note.
 
 ## Related
 

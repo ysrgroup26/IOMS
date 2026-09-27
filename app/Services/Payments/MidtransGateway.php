@@ -78,6 +78,22 @@ class MidtransGateway implements PaymentGatewayInterface
     }
 
     /**
+     * v2.80.0 -- the contract version of the static above, so domain code
+     * asks the CONFIGURED provider rather than naming this one. The static
+     * stays because this class builds the reference itself.
+     */
+    public function invoiceIdFromReference(string $gatewayReference): ?int
+    {
+        return self::invoiceIdFromOrderId($gatewayReference);
+    }
+
+    /** Both keys present, or this deployment cannot take a payment. */
+    public function isConfigured(): bool
+    {
+        return filled($this->serverKey) && filled($this->clientKey);
+    }
+
+    /**
      * What the browser needs to open Snap in place: the CLIENT key (public
      * by design -- it identifies the merchant to Snap and authorises
      * nothing) and which Snap script to load.

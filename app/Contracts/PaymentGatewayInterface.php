@@ -43,4 +43,38 @@ interface PaymentGatewayInterface
     public function handleWebhook(array $payload): PaymentWebhookResult;
 
     public function refund(string $gatewayReference, ?float $amount = null): bool;
+
+    /**
+     * v2.80.0 -- THE THREE CALLS THAT WERE MISSING, AND WHY THEY MATTER.
+     *
+     * The contract described how to take a payment but not the three things
+     * the rest of the application needed from a provider anyway -- so those
+     * were reached for concretely instead: two controllers did
+     * `$gateway instanceof MidtransGateway ? $gateway->clientConfig() : []`,
+     * and the shared verified-payment path called a STATIC on MidtransGateway
+     * to work out which invoice a reference belonged to.
+     *
+     * That is the leak this closes. A second provider would have had to be
+     * added to an instanceof chain and to a static call inside domain code,
+     * which is exactly the "provider-specific logic scattered through
+     * subscription code" this abstraction exists to prevent.
+     */
+
+    /** Whether this deployment can actually take a payment: named provider AND credentials present. */
+    public function isConfigured(): bool;
+
+    /**
+     * What the BROWSER may know about this provider -- a public/client key,
+     * a script URL, a sandbox flag. Never a server key or secret. Empty for
+     * a provider with no in-page component (a plain redirect flow).
+     */
+    public function clientConfig(): array;
+
+    /**
+     * Which invoice a provider reference belongs to, or null when it cannot
+     * be determined. The reference format is the provider adapter's business
+     * -- Midtrans needs a unique order id per attempt, another provider may
+     * not -- so reading it back has to be the adapter's job too.
+     */
+    public function invoiceIdFromReference(string $gatewayReference): ?int;
 }

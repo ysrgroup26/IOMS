@@ -1,9 +1,9 @@
 ---
 title: Billing Modes and Complimentary Tenants
 type: backlog
-status: migration already works; the labelling does not exist
+status: COMPLETED (v2.80.0)
 updated: 2026-09-27
-tags: [kb/backlog, status/planned]
+tags: [kb/backlog, status/verified]
 ---
 
 # Billing Modes and Complimentary Tenants
@@ -36,9 +36,14 @@ This was audited against the code, and the worry behind it does not apply to IOM
 
 **No migration tooling is needed, and no destructive migration exists to avoid.**
 
-## What is genuinely missing — `#status/planned`
+## Built in v2.80.0 — `#status/verified`
 
-The product cannot **say** how a tenant is billed. There is no field distinguishing:
+`subscriptions.billing_mode` — `paid` / `manual` / `complimentary`, defaulting to `paid` so every
+pre-existing row behaves exactly as it did. Set from Master Admin, named in the activity log, and
+carried in the shared lifecycle snapshot so the customer and the operator cannot read different
+answers about how one subscription is billed.
+
+The three arrangements this note said were indistinguishable:
 
 | Mode | Meaning | How it looks today |
 |---|---|---|
@@ -46,21 +51,30 @@ The product cannot **say** how a tenant is billed. There is no field distinguish
 | **MANUAL** | Real money, settled by bank transfer and recorded by an operator | Invoices marked paid manually |
 | **PAID** | Settled through a gateway | Invoices with payment transactions |
 
-Consequences worth fixing:
-- The operations console counts a complimentary tenant as revenue-bearing workload.
-- The nightly lifecycle job will invoice a complimentary tenant and, after grace, take it read-only.
-  (Only the **demo** tenant is excluded today.)
-- Nobody can answer "how many organizations actually pay us?" without inspecting invoices.
+The three consequences this note listed are fixed:
+- The operations console now separates paying from complimentary (*Komposisi Penagihan*), and a
+  complimentary subscription never enters the *Perlu Perhatian* work queue — there is nothing to
+  chase.
+- The nightly lifecycle job **skips invoicing** a complimentary subscription, in the same place and
+  for the same reason the demo tenant is skipped.
+- "How many organizations actually pay us?" is answered on the dashboard.
 
-## Shape of the work, when it is picked up
+## The one place the plan changed, and why it matters
 
-- One column on `subscriptions` (for example `billing_mode`), defaulting to the paid behaviour so
-  nothing changes for existing rows.
-- The lifecycle command skips invoicing and lapsing for complimentary subscriptions — the same
-  treatment `isDemo()` already gets, and the same place in the code.
-- Master Admin can set it, and the operations console separates paying from complimentary.
-- **Do not** let billing mode become a second entitlement system: what a tenant may *use* stays the
-  plan's grants. Billing mode says only how it is *paid for*.
+This note said the lifecycle command should skip *invoicing and lapsing* for complimentary
+subscriptions. It skips invoicing. It deliberately does **not** skip lapsing.
+
+Skipping lapsing would mean billing mode could keep a tenant writable past its period end — a
+**second source of truth** for "may this customer write today", which is exactly what the derived
+lifecycle exists to prevent. A stored flag that overrides the dates is the same mistake as a stored
+`status` column that disagrees with them.
+
+A free account meant to run indefinitely is expressed with the mechanism that already exists and is
+honest about itself: **`type = lifetime`**, which has no period end to run out. `BillingModeTest`
+asserts both halves — complimentary does not extend access; lifetime does.
+
+Full reasoning: ADR [[041-billing-mode-is-not-entitlement\|041]]. Verified by `BillingModeTest`
+(12 tests) and in a browser against MySQL.
 
 ## Related
 

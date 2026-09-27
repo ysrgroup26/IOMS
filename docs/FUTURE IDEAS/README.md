@@ -27,11 +27,11 @@ docs/kb/Project Board.md    ← one screen: FUTURE / IN PROGRESS / COMPLETED / B
 
 | Source | Tracked as |
 |---|---|
-| `PROMPT 1.md` §1–§3 — subscription lifecycle, reminders | [[Subscription Lifecycle Finalisation]] — mostly **COMPLETED**; two timing numbers **BLOCKED** on your decision |
-| `PROMPT 1.md` §4–§6, §12–§13, §16 — Master Admin as an operations console | [[Master Admin Operations Center]] — **IN PROGRESS** |
-| `PROMPT 1.md` §7–§12 — support ticketing | [[Support Inbox]] — **FUTURE**, blocked on how mail gets in |
-| `PROMPT 2.md` §6–§10 — iPaymu | [[iPaymu Payment Provider]] — **FUTURE**, blocked on credentials and current API docs |
-| `PROMPT 2.md` §2–§5, §11 — existing tenant becomes paid | [[Billing Modes and Complimentary Tenants]] — the migration requirement is **already satisfied**; the labelling is **FUTURE** |
+| `PROMPT 1.md` §1–§3 — subscription lifecycle, reminders | [[Subscription Lifecycle Finalisation]] — **COMPLETED** (v2.80.0: timing decided at 7/H-7, and one shared lifecycle truth) |
+| `PROMPT 1.md` §4–§6, §12–§13, §16 — Master Admin as an operations console | [[Master Admin Operations Center]] — **COMPLETED** (v2.80.0) |
+| `PROMPT 1.md` §7–§12 — support ticketing | [[Support Inbox]] — **IN PROGRESS**: the queue is built and verified; only inbound mail ingestion is **BLOCKED** |
+| `PROMPT 2.md` §6–§10 — iPaymu | [[iPaymu Payment Provider]] — **BLOCKED** on sandbox credentials and current API docs. The seam it drops into is finished and pinned |
+| `PROMPT 2.md` §2–§5, §11 — existing tenant becomes paid | [[Billing Modes and Complimentary Tenants]] — **COMPLETED** (v2.80.0) |
 
 ## The source prompts are kept
 

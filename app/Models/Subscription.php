@@ -82,6 +82,40 @@ class Subscription extends Model
 
     public const LIFECYCLE_CANCELLED = 'cancelled';
 
+    /*
+     |-------------------------------------------------------------------
+     | BILLING MODE -- how this subscription is paid for (v2.80.0)
+     |-------------------------------------------------------------------
+     | Stored, because it is a commercial fact somebody decided, not
+     | something derivable from the data: an unpaid invoice looks the same
+     | whether the customer is slow or was never going to be charged.
+     |
+     | It answers ONLY "who takes the money". It never answers "what may
+     | this tenant use" (that is the plan's grants) and never answers
+     | "may they write today" (that is lifecycleState()). Keeping those
+     | three questions apart is the whole point -- see ADR 041.
+     */
+
+    /** Settled through a payment gateway. The default, and every pre-v2.80.0 row. */
+    public const BILLING_MODE_PAID = 'paid';
+
+    /** Real money, settled out of band and recorded by an operator. */
+    public const BILLING_MODE_MANUAL = 'manual';
+
+    /** Free by decision -- a pilot, an internal account. Never invoiced. */
+    public const BILLING_MODE_COMPLIMENTARY = 'complimentary';
+
+    public const BILLING_MODES = [
+        self::BILLING_MODE_PAID, self::BILLING_MODE_MANUAL, self::BILLING_MODE_COMPLIMENTARY,
+    ];
+
+    /** Indonesian, because the only surface that sets this is Master Admin (ADR 040). */
+    public const BILLING_MODE_LABELS = [
+        self::BILLING_MODE_PAID => 'Berbayar (gateway)',
+        self::BILLING_MODE_MANUAL => 'Manual (transfer)',
+        self::BILLING_MODE_COMPLIMENTARY => 'Gratis / internal',
+    ];
+
     public const CYCLE_MONTHLY = 'monthly';
     public const CYCLE_YEARLY = 'yearly';
 
@@ -113,6 +147,8 @@ class Subscription extends Model
         'type',
         'status',
         'billing_cycle',
+        // v2.80.0 -- paid / manual / complimentary. See BILLING_MODES.
+        'billing_mode',
         // v2.60.0 -- the price this customer actually agreed to. See
         // agreedAmountFor(); null means "follow the catalogue".
         'agreed_price_monthly',
@@ -199,6 +235,40 @@ class Subscription extends Model
         return $end?->copy()->addDays(self::graceDays());
     }
 
+    /* ==================================================================
+     * Billing mode (v2.80.0)
+     * ================================================================== */
+
+    public function billingMode(): string
+    {
+        return in_array($this->billing_mode, self::BILLING_MODES, true)
+            ? $this->billing_mode
+            // An unrecognised value falls back to the BILLED behaviour on
+            // purpose. A typo must not silently make a paying customer free.
+            : self::BILLING_MODE_PAID;
+    }
+
+    /** Free by decision. The only mode that is never invoiced. */
+    public function isComplimentary(): bool
+    {
+        return $this->billingMode() === self::BILLING_MODE_COMPLIMENTARY;
+    }
+
+    /**
+     * Whether money is expected for this subscription at all. Both paid and
+     * manual are billable -- the difference between them is who takes the
+     * payment, not whether there is one.
+     */
+    public function isBillable(): bool
+    {
+        return ! $this->isComplimentary();
+    }
+
+    public function billingModeLabel(): string
+    {
+        return self::BILLING_MODE_LABELS[$this->billingMode()];
+    }
+
     public static function graceDays(): int
     {
         return max(0, (int) config('saas.grace_days', 14));
@@ -269,6 +339,54 @@ class Subscription extends Model
         }
 
         return (int) now()->startOfDay()->diffInDays($end->copy()->startOfDay(), false);
+    }
+
+    /**
+     * v2.80.0 -- THE ONE ANSWER BOTH SIDES SHOW.
+     *
+     * Where this subscription sits, as the customer's Billing page and the
+     * Master Admin operations console must BOTH describe it. Both already
+     * called lifecycleState(), so the calculation was never duplicated --
+     * but each assembled its own set of surrounding facts, and that is how
+     * two screens start disagreeing about the same subscription without
+     * either of them being wrong about the state itself.
+     *
+     * Every lifecycle fact a UI is allowed to render comes from here. A
+     * surface may add commercial detail around it (a price, an invoice, a
+     * tenant name); it may not compute a lifecycle fact of its own, and it
+     * must never re-derive one from `status`. `SubscriptionStateParityTest`
+     * asserts the customer payload and the platform payload are identical
+     * across active, grace, lapsed, suspended, cancelled and renewed.
+     */
+    public function stateSnapshot(): array
+    {
+        return [
+            // The stored, deliberate axis -- what an operator decided.
+            'status' => $this->status,
+            'type' => $this->type,
+            'billing_cycle' => $this->billing_cycle,
+            // The derived axis -- where the dates put it, today.
+            'lifecycle_state' => $this->lifecycleState(),
+            'period_ends_at' => $this->periodEndsAt()?->toDateString(),
+            'grace_ends_at' => $this->graceEndsAt()?->toDateString(),
+            'grace_days' => self::graceDays(),
+            'days_remaining' => $this->daysUntilPeriodEnd(),
+            // What that position MEANS for access. Read from the same
+            // methods EnforceSubscriptionWriteAccess enforces with, so the
+            // page cannot promise access the middleware refuses.
+            'allows_writes' => $this->allowsWrites(),
+            'allows_reads' => $this->allowsReads(),
+            'is_lifetime' => $this->isLifetime(),
+            'is_usable' => $this->isUsable(),
+            'is_degraded' => $this->isDegraded(),
+            'plan_name' => $this->package?->name,
+            // v2.80.0: how it is paid for. Part of the shared snapshot so
+            // one screen can never bill a tenant another screen shows as
+            // complimentary.
+            'billing_mode' => $this->billingMode(),
+            'billing_mode_label' => $this->billingModeLabel(),
+            'is_billable' => $this->isBillable(),
+        ];
     }
 
     /**

@@ -396,6 +396,16 @@ class TransitiveTenantIsolationTest extends TestCase
             // The tenant itself, and its settings, which have their own
             // two-tier scope (CompanySettingScope).
             'Tenant', 'CompanySetting',
+            // v2.80.0 -- the support queue, which is PLATFORM-owned and read
+            // only by /platform (role:platform_admin). It cannot be scoped:
+            // `tenant_id` is nullable because a message from an unrecognised
+            // address has no tenant yet, and a scope would hide precisely the
+            // rows that need a human. The operator who works the queue has no
+            // tenant of their own either, so the scope would fail closed and
+            // show them nothing. Access is enforced by ROLE at the route and
+            // asserted in SupportTicketQueueTest, which proves a tenant
+            // administrator is refused both the queue and a single ticket.
+            'SupportTicket', 'SupportTicketMessage',
         ];
 
         $unprotected = [];

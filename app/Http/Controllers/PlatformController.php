@@ -9,6 +9,7 @@ use App\Models\Invoice;
 use App\Models\Module;
 use App\Models\Notification;
 use App\Models\Package;
+use App\Models\PaymentTransaction;
 use App\Models\Scopes\TenantScope;
 use App\Models\Subscription;
 use App\Services\PlatformOperationsService;
@@ -142,6 +143,75 @@ class PlatformController extends Controller
     }
 
     /**
+     * v2.80.0 -- THE PAYMENT LEDGER, AND THE OTHER DIRECTION OF THE CHAIN.
+     *
+     * Master Admin could already walk tenant -> subscription -> invoices.
+     * It could not walk back: given a payment a provider reported, there
+     * was no screen that said which subscription it settled and whose it
+     * was. That is the direction support actually needs, because a
+     * customer quotes a payment reference, not a tenant id.
+     *
+     * Every attempt is listed, not only the successful ones. A failed or
+     * expired attempt is the evidence behind "we tried to pay".
+     *
+     * PROVIDER-AGNOSTIC: the provider is a column, so a second gateway
+     * appears here with no change (docs/kb/backlog/iPaymu Payment Provider).
+     */
+    public function payments(Request $request): Response
+    {
+        $status = $request->string('status')->toString();
+
+        $transactions = PaymentTransaction::query()
+            ->with(['invoice' => fn ($q) => $q->withoutGlobalScopes()
+                ->with(['tenant:id,name', 'subscription:id,package_id,status,ends_at,trial_ends_at,type,billing_cycle,billing_mode', 'subscription.package:id,name'])])
+            ->when(in_array($status, [
+                PaymentTransaction::STATUS_PENDING, PaymentTransaction::STATUS_PAID,
+                PaymentTransaction::STATUS_FAILED, PaymentTransaction::STATUS_EXPIRED,
+                PaymentTransaction::STATUS_REFUNDED,
+            ], true), fn ($q) => $q->where('status', $status))
+            ->latest('updated_at')
+            ->limit(200)
+            ->get()
+            ->map(fn (PaymentTransaction $t) => [
+                'id' => $t->id,
+                'gateway' => $t->gateway,
+                'reference' => $t->gateway_reference,
+                'status' => $t->status,
+                'amount' => $t->amount,
+                'currency' => $t->currency,
+                'created_at' => $t->created_at,
+                'updated_at' => $t->updated_at,
+                // The chain, walkable from here.
+                'invoice' => $t->invoice ? [
+                    'id' => $t->invoice->id,
+                    'number' => $t->invoice->invoice_number,
+                    'status' => $t->invoice->status,
+                    'purpose' => $t->invoice->purpose,
+                    'period_end' => $t->invoice->period_end?->toDateString(),
+                ] : null,
+                'tenant' => $t->invoice?->tenant ? [
+                    'id' => $t->invoice->tenant->id,
+                    'name' => $t->invoice->tenant->name,
+                ] : null,
+                // The subscription state as the customer sees it today --
+                // the SAME snapshot, so this ledger cannot describe a
+                // subscription differently from the tenant page it links to.
+                'subscription' => $t->invoice?->subscription?->stateSnapshot(),
+            ]);
+
+        return Inertia::render('Platform/Payments', [
+            'transactions' => $transactions,
+            'filter' => $status ?: 'all',
+            'statuses' => [
+                PaymentTransaction::STATUS_PAID, PaymentTransaction::STATUS_PENDING,
+                PaymentTransaction::STATUS_FAILED, PaymentTransaction::STATUS_EXPIRED,
+                PaymentTransaction::STATUS_REFUNDED,
+            ],
+            'gateway' => config('payment.gateway') ?: null,
+        ]);
+    }
+
+    /**
      * v2.51.0 -- re-run provisioning for a registration whose payment IS
      * already confirmed.
      *
@@ -173,7 +243,17 @@ class PlatformController extends Controller
             'tenants' => Tenant::withCount(['companies' => fn ($q) => $q->withoutGlobalScope(TenantScope::class), 'users'])
                 ->with(['subscription.package:id,name'])
                 ->orderBy('name')
-                ->get(['id', 'name', 'slug', 'status', 'trial_ends_at', 'created_at']),
+                ->get(['id', 'name', 'slug', 'status', 'trial_ends_at', 'created_at'])
+                ->map(function (Tenant $tenant) {
+                    // v2.80.0: the LIST needed the derived lifecycle too. It
+                    // showed only the account status column, so a tenant whose
+                    // subscription had lapsed weeks ago still read "active"
+                    // here while the customer's own Billing page said
+                    // read-only. Same snapshot, same answer, every screen.
+                    $tenant->setAttribute('lifecycle', $tenant->subscription?->stateSnapshot());
+
+                    return $tenant;
+                }),
             'packages' => Package::active()->orderBy('sort_order')->get(['id', 'name', 'slug']),
         ]);
     }
@@ -296,12 +376,14 @@ class PlatformController extends Controller
         return Inertia::render('Platform/TenantDetail', [
             'tenant' => $tenant->only(['id', 'name', 'slug', 'status', 'trial_ends_at', 'created_at', 'updated_at', 'companies_count', 'users_count']),
             'subscription' => $tenant->subscription ? [
+                // v2.80.0: the SAME snapshot the customer's Billing page
+                // renders. An operator and a customer looking at one
+                // subscription now read one answer by construction, not by
+                // two payloads happening to agree -- SubscriptionStateParityTest.
+                ...$tenant->subscription->stateSnapshot(),
                 'id' => $tenant->subscription->id,
                 'package_id' => $tenant->subscription->package_id,
                 'package_name' => $tenant->subscription->package?->name,
-                'type' => $tenant->subscription->type,
-                'status' => $tenant->subscription->status,
-                'billing_cycle' => $tenant->subscription->billing_cycle,
                 'seat_limit' => $tenant->subscription->seatLimit(),
                 'license_key' => $tenant->subscription->license_key,
                 'billing_reference' => $tenant->subscription->billing_reference,
@@ -309,14 +391,6 @@ class PlatformController extends Controller
                 'ends_at' => $tenant->subscription->ends_at,
                 'trial_ends_at' => $tenant->subscription->trial_ends_at,
                 'notes' => $tenant->subscription->notes,
-                'is_usable' => $tenant->subscription->isUsable(),
-                // v2.70.0: where this subscription sits in time, derived.
-                // A Platform Admin looking at a support ticket needs to see
-                // "in grace until the 14th", not infer it from a date.
-                'lifecycle_state' => $tenant->subscription->lifecycleState(),
-                'period_ends_at' => $tenant->subscription->periodEndsAt()?->toDateString(),
-                'grace_ends_at' => $tenant->subscription->graceEndsAt()?->toDateString(),
-                'days_remaining' => $tenant->subscription->daysUntilPeriodEnd(),
                 'pending_plan_name' => $tenant->subscription->pendingPackage?->name,
                 'pending_billing_cycle' => $tenant->subscription->pending_billing_cycle,
             ] : null,
@@ -324,7 +398,16 @@ class PlatformController extends Controller
             'packages' => Package::active()->orderBy('sort_order')->get(['id', 'name', 'slug']),
             'subscriptionTypes' => Subscription::TYPES,
             'subscriptionStatuses' => Subscription::STATUSES,
-            'invoices' => Invoice::where('tenant_id', $tenant->id)->latest()->get(['id', 'invoice_number', 'amount', 'currency', 'status', 'due_date', 'payment_date', 'created_at']),
+            'billingModes' => Subscription::BILLING_MODE_LABELS,
+            // v2.80.0: each invoice carries its payment ATTEMPTS, so the
+            // chain is walkable in this direction too -- tenant to
+            // subscription to invoice to what the provider actually said.
+            // Failed attempts are included deliberately: they are the
+            // evidence behind "we tried to pay".
+            'invoices' => Invoice::where('tenant_id', $tenant->id)
+                ->with('transactions:id,invoice_id,gateway,gateway_reference,status,amount,currency,updated_at')
+                ->latest()
+                ->get(['id', 'invoice_number', 'amount', 'currency', 'status', 'due_date', 'payment_date', 'purpose', 'period_end', 'created_at']),
         ]);
     }
 
@@ -360,6 +443,9 @@ class PlatformController extends Controller
             'type' => ['required', Rule::in(Subscription::TYPES)],
             'status' => ['required', Rule::in(Subscription::STATUSES)],
             'billing_cycle' => ['required', Rule::in([Subscription::CYCLE_MONTHLY, Subscription::CYCLE_YEARLY])],
+            // v2.80.0: how this subscription is paid for. It changes what is
+            // INVOICED, never what is granted -- see ADR 041.
+            'billing_mode' => ['sometimes', 'required', Rule::in(Subscription::BILLING_MODES)],
             'seat_limit' => ['nullable', 'integer', 'min:1'],
             'license_key' => ['nullable', 'string', 'max:255'],
             'billing_reference' => ['nullable', 'string', 'max:255'],
@@ -419,7 +505,10 @@ class PlatformController extends Controller
             extendPeriod: false,
         );
 
-        ActivityLog::record('updated', "Tenant \"{$tenant->name}\" subscription/license updated ({$validated['type']}, {$validated['status']}).");
+        // The billing mode is named in the audit line because turning a
+        // paying customer complimentary (or back) is a commercial decision
+        // somebody must be able to account for later.
+        ActivityLog::record('updated', "Tenant \"{$tenant->name}\" subscription/license updated ({$validated['type']}, {$validated['status']}, billing: " . ($validated['billing_mode'] ?? $subscription->billingMode()) . ").");
 
         return back()->with('success', 'Subscription updated.');
     }

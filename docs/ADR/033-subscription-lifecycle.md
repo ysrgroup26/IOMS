@@ -304,11 +304,73 @@ A test asserts that the previewed amount equals the issued invoice to the rupiah
 Tests: `SubscriptionLifecycleTest::test_a_cross_cycle_upgrade_*`,
 `ReviewerJourneyTest::test_the_plan_change_preview_matches_what_the_server_then_does`.
 
+## v2.80.0 addendum — the timing was decided, and both sides now render one answer
+
+### The two numbers are no longer placeholders
+
+Grace and renewal lead time were both 14 days *because nothing had been decided*. The product
+owner has now decided: **seven days each**, and they read as one policy — the customer is reminded
+a week before the period ends, and keeps full write access for a week after it.
+
+Seven is long enough to cross a weekend, a bank transfer and one internal approval step, and short
+enough that a lapse still means something. They remain configuration
+(`SAAS_GRACE_DAYS`, `SAAS_RENEWAL_LEAD_DAYS`), because they are commercial decisions and because
+lifecycle position is derived on every read — changing the number takes effect immediately and
+retroactively, with nothing to migrate and no job to re-run.
+
+Two existing test fixtures had the old window baked in as magic numbers and broke on the change.
+They now express their dates relative to `Subscription::graceDays()`, so a test that names the
+grace window keeps testing it after the next decision.
+
+### One snapshot, rendered by the customer AND the operator
+
+The failure this closes is not a wrong state — it is **two** states: a customer whose Billing page
+says *read-only, renew to continue* while Master Admin shows the same subscription as *Active*, so
+support argues with the customer about their own account.
+
+Both sides already called `lifecycleState()`, so the calculation was never duplicated. But each
+**assembled its own set of surrounding facts** — one sent `grace_ends_at`, another did not, a third
+sent `is_usable` where a fourth sent `allows_writes` — and that is how two screens begin disagreeing
+about one subscription without either being wrong about the state itself.
+
+`Subscription::stateSnapshot()` is now the only place a lifecycle fact is assembled, and every
+surface spreads it:
+
+| Surface | Reads |
+|---|---|
+| Customer → Settings → Billing | `stateSnapshot()` |
+| Customer → Settings → Subscription panel | `stateSnapshot()` |
+| Master Admin → Tenant detail | `stateSnapshot()` |
+| Master Admin → Tenant list | `stateSnapshot()` |
+| Master Admin → Payment ledger | `stateSnapshot()` |
+| Master Admin → Support ticket context | `stateSnapshot()` |
+| Write enforcement (`EnforceSubscriptionWriteAccess`) | `allowsWrites()`, which the snapshot reports |
+
+A surface may add commercial detail around it (a price, an invoice, a tenant name). It may not
+compute a lifecycle fact of its own, and it must never re-derive one from `status`.
+
+`SubscriptionStateParityTest` asserts the customer payload and the platform payload are **identical**
+on every lifecycle key across active, grace, lapsed, suspended, cancelled and renewed — comparing
+the rendered props of two real HTTP requests, not the model, because testing the model would prove
+only that one method agrees with itself.
+
+**Verified in a browser** against MySQL: one tenant put three days past its period end read
+*Masa tenggang · read-only mulai 1 Okt 2026* in Master Admin and *Grace · READ-ONLY FROM October 1,
+2026* on the customer's own Billing page, with the customer copy stating the seven-day window it
+reads from configuration.
+
+### Billing mode does not join this axis
+
+How a tenant is paid for (`paid` / `manual` / `complimentary`, v2.80.0) deliberately does not affect
+where a subscription sits in time. See ADR [[041-billing-mode-is-not-entitlement|041]].
+
 ## Notes
 
 - Grace, renewal lead time and invoice due days are configuration (`config/saas.php`), because they
-  are business decisions rather than technical ones. 14 days is the default for each: a renewal
-  invoice in Indonesia routinely crosses a finance department, a bank transfer and a public holiday.
+  are business decisions rather than technical ones. Since v2.80.0 grace and renewal lead are **7
+  days** each (decided; see the addendum above) and invoice due days remains 14 — a renewal invoice in
+  Indonesia routinely crosses a finance department, a bank transfer and a public holiday, and staying
+  payable is a different question from keeping access.
 - Related: [[008-tenancy-foundation]] (the isolation boundary billing is raised against),
   [[030-material-request-lifecycle-and-demand-consolidation]] and [[031-employee-cases]] (the same
   derive-don't-store rule, applied elsewhere).

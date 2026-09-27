@@ -30,4 +30,23 @@ class PaymentTransaction extends Model
     {
         return $this->belongsTo(Invoice::class);
     }
+
+    /**
+     * v2.80.0 -- the other direction. A payment is traceable to the
+     * subscription it settled and the tenant that owns it THROUGH the
+     * invoice, which is the contract a payment settles (ADR 033 section 5).
+     * There is deliberately no tenant_id column here: a second copy of the
+     * owner could disagree with the invoice about who paid.
+     */
+    public function subscription()
+    {
+        return $this->hasOneThrough(
+            Subscription::class,
+            Invoice::class,
+            'id',              // invoices.id
+            'id',              // subscriptions.id
+            'invoice_id',      // payment_transactions.invoice_id
+            'subscription_id', // invoices.subscription_id
+        );
+    }
 }

@@ -12,7 +12,6 @@ use App\Models\Subscription;
 use App\Models\User;
 use App\Services\EntitlementService;
 use App\Services\InvoiceDocumentService;
-use App\Services\Payments\MidtransGateway;
 use App\Services\PdfGeneratorService;
 use App\Services\PricingService;
 use App\Services\SubscriptionLifecycleService;
@@ -129,9 +128,10 @@ class SubscriptionController extends Controller
 
         return Inertia::render('Settings/Billing', [
             'subscription' => $subscription ? [
-                'status' => $subscription->status,
-                'type' => $subscription->type,
-                'billing_cycle' => $subscription->billing_cycle,
+                // v2.80.0: every lifecycle fact comes from the ONE snapshot
+                // Master Admin also renders. Do not add a lifecycle key
+                // below it -- add it to Subscription::stateSnapshot().
+                ...$subscription->stateSnapshot(),
                 'starts_at' => $subscription->starts_at,
                 'ends_at' => $subscription->ends_at,
                 'trial_ends_at' => $subscription->trial_ends_at,
@@ -139,14 +139,6 @@ class SubscriptionController extends Controller
                 // v2.70.0: the DERIVED lifecycle, which is what the page
                 // actually needs to decide what to say. `status` alone
                 // never told a customer whether their period had ended.
-                'lifecycle_state' => $subscription->lifecycleState(),
-                'period_ends_at' => $subscription->periodEndsAt()?->toDateString(),
-                'grace_ends_at' => $subscription->graceEndsAt()?->toDateString(),
-                'days_remaining' => $subscription->daysUntilPeriodEnd(),
-                'allows_writes' => $subscription->allowsWrites(),
-                'is_lifetime' => $subscription->isLifetime(),
-                'is_usable' => $subscription->isUsable(),
-                'plan_name' => $package?->name,
                 'package_id' => $package?->id,
                 // v2.60.0: the price THIS customer agreed to, not whatever
                 // the public catalogue says today. A customer who bought
@@ -508,7 +500,9 @@ class SubscriptionController extends Controller
             'payment' => [
                 // Snap's own client-side configuration. The client key is
                 // public by design; the server key is not sent.
-                ...($gateway instanceof MidtransGateway ? $gateway->clientConfig() : []),
+                // v2.80.0: asked through the CONTRACT, not an instanceof chain a
+                // second provider would have to be added to.
+                ...$gateway->clientConfig(),
                 'snap_token' => $transaction->checkout_token,
                 // The provider's hosted page, kept as the fallback for a
                 // browser where the Snap script cannot load.
@@ -643,9 +637,10 @@ class SubscriptionController extends Controller
     /** A gateway counts as configured only when it is both named AND holds credentials. */
     private function paymentConfigured(): bool
     {
-        return config('payment.gateway') === MidtransGateway::GATEWAY
-            && filled(config('payment.midtrans.server_key'))
-            && filled(config('payment.midtrans.client_key'));
+        // v2.80.0: "can this deployment take a payment" is the provider's own
+        // question. Naming Midtrans here meant a second gateway would be
+        // configured, bound, and still reported as no payments available.
+        return app(PaymentGatewayInterface::class)->isConfigured();
     }
 
     /**

@@ -86,6 +86,17 @@ class Invoice extends Model
     }
 
     /** The plan this invoice moves the subscription to once it is paid. */
+    /**
+     * v2.80.0 -- every payment ATTEMPT against this invoice, not just the
+     * one that worked. The failed and expired rows are the point: an
+     * operator answering "the customer says they paid" needs to see the
+     * attempt and what the provider said about it.
+     */
+    public function transactions()
+    {
+        return $this->hasMany(PaymentTransaction::class);
+    }
+
     public function targetPackage()
     {
         return $this->belongsTo(Package::class, 'target_package_id');

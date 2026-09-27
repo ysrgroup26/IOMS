@@ -272,21 +272,15 @@ class SettingsController extends Controller
                 }
 
                 return [
+                    // v2.80.0: the shared snapshot, so this panel, the
+                    // Billing page and Master Admin cannot tell three
+                    // different stories about one subscription.
+                    ...$subscription->stateSnapshot(),
                     'package_name' => $subscription->package?->name,
-                    'type' => $subscription->type,
-                    'status' => $subscription->status,
-                    'billing_cycle' => $subscription->billing_cycle,
                     'seat_limit' => $subscription->seatLimit(),
                     'starts_at' => $subscription->starts_at,
                     'ends_at' => $subscription->ends_at,
                     'trial_ends_at' => $subscription->trial_ends_at,
-                    'is_usable' => $subscription->isUsable(),
-                    'is_degraded' => $subscription->isDegraded(),
-                    // v2.70.0: the derived lifecycle, so this panel and the
-                    // Billing page cannot tell a customer two different
-                    // things about the same subscription.
-                    'lifecycle_state' => $subscription->lifecycleState(),
-                    'days_remaining' => $subscription->daysUntilPeriodEnd(),
                 ];
             })(),
             'invoices' => Invoice::where('tenant_id', $request->user()->tenant_id)

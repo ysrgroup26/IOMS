@@ -81,6 +81,20 @@ class RunSubscriptionLifecycle extends Command
                 continue;
             }
 
+            // v2.80.0: a complimentary subscription is free BY DECISION, so
+            // there is nothing to invoice and nobody to chase. Skipped in
+            // exactly the same place and for the same reason as the demo
+            // tenant, rather than through a second mechanism.
+            //
+            // Note what this does NOT do: it does not change where the
+            // subscription sits in time. If an operator gives a free account
+            // an end date, that date still ends the period -- billing mode
+            // must not become a second way to grant access (ADR 041). A
+            // free account meant to run indefinitely is type `lifetime`.
+            if ($subscription->isComplimentary()) {
+                continue;
+            }
+
             if ($subscription->isLifetime()) {
                 continue;
             }

@@ -1,7 +1,7 @@
 ---
 title: Current State
 type: snapshot
-product-version: 2.79.0
+product-version: 2.80.0
 product-stage: Beta
 measured: 2026-09-27
 tags: [kb/state]
@@ -24,8 +24,8 @@ the date in the frontmatter, not remembered.
 | | |
 |---|---|
 | Product | **IOMS — Industrial Operations Platform** |
-| Version | **2.79.0**, stage **Beta**, edition **Enterprise Edition** |
-| Build | `2026.09.27.02`, release date `2026-09-27` |
+| Version | **2.80.0**, stage **Beta**, edition **Enterprise Edition** |
+| Build | `2026.09.27.03`, release date `2026-09-27` |
 | Stack | Laravel 12 · Inertia.js · React 18 · Tailwind · MySQL · Sanctum |
 
 The naming rules are not cosmetic — see [[Product Identity and Principles]].
@@ -34,13 +34,13 @@ The naming rules are not cosmetic — see [[Product Identity and Principles]].
 
 | Measure | Count |
 |---|---|
-| Eloquent models | 112 |
+| Eloquent models | 114 |
 | Controllers | 105 |
 | Inertia pages | 170 |
-| Migrations | 181 |
-| Feature test files | 58 |
-| Tests / assertions | **538 / 2794**, all passing |
-| ADRs | 38 files (numbering has known gaps — see [[Decision Register]]) |
+| Migrations | 183 |
+| Feature test files | 62 |
+| Tests / assertions | **582 / 3283**, all passing |
+| ADRs | 40 files (numbering has known gaps — see [[Decision Register]]) |
 | Workspaces in the navigation registry | 12 |
 
 ## Workspaces
@@ -81,6 +81,18 @@ before it has an organization, so `isPlatformAdmin()` reads the role. See ADR
 [[038-account-organization-subscription|038]].
 
 ## What shipped most recently
+
+`2.80.0` (2026-09-27) — five backlog tasks, worked by dependency. The grace window and renewal
+reminder were **decided** (7 days and H-7, one policy in two numbers). `stateSnapshot()` became the
+one place a lifecycle fact is assembled, so the customer and the operator cannot read two answers
+about one subscription — the tenant *list* had been showing only the account status column, so a
+lapsed customer still read Aktif to support. Billing modes (paid / manual / complimentary) let the
+product say who actually pays, without becoming a second entitlement system. Support became a queue
+rather than somebody's inbox. And the payment abstraction was audited for a second provider, which
+found three real leaks including one in the shared verified-payment path. Master Admin is now
+wholly in Bahasa Indonesia. ADRs [[041-billing-mode-is-not-entitlement|041]],
+[[042-support-queue-is-not-an-inbox|042]], and the [[033-subscription-lifecycle|033]] addendum ·
+[[Project Board]].
 
 `2.79.0` (2026-09-27) — Master Admin became an operations console, and the backlog became a board.
 The platform dashboard had been reading the stored `status` column, where lifecycle position is

@@ -29,26 +29,26 @@ export default function PlatformTenantGrants({ tenant, modules, workspaces }) {
 
     return (
         <PlatformLayout>
-            <Head title={`${tenant.name} -- Grants`} />
+            <Head title={`${tenant.name} -- Hak Akses`} />
 
             <Link href={route('platform.tenants')} className="mb-4 inline-flex items-center gap-1.5 text-sm text-graphite-500 hover:text-graphite-700">
-                <ArrowLeft className="h-4 w-4" /> Back to Tenants
+                <ArrowLeft className="h-4 w-4" /> Kembali ke daftar tenant
             </Link>
 
             <div className="mb-6">
-                <h1 className="text-[22px] font-semibold tracking-tight text-navy-900">{tenant.name} -- Module &amp; Workspace Grants</h1>
+                <h1 className="text-[22px] font-semibold tracking-tight text-navy-900">{tenant.name} -- Hak Akses Modul &amp; Departemen</h1>
                 <p className="mt-1 text-sm text-graphite-500">
-                    Only modules and workspaces checked here can be enabled by this tenant's own Administrator
-                    (Settings &rarr; Module Visibility / Department Navigation). Unchecking one here immediately
-                    hides it from that tenant, even if their Administrator had it turned on.
+                    Hanya modul dan departemen yang dicentang di sini yang boleh diaktifkan oleh Administrator tenant
+                    ini sendiri (Settings &rarr; Module Visibility / Department Navigation). Melepas centang langsung
+                    menyembunyikannya dari tenant tersebut, meskipun Administrator mereka sudah mengaktifkannya.
                 </p>
             </div>
 
             <form onSubmit={submit} className="space-y-4">
                 <Card>
                     <CardHeader>
-                        <CardTitle>Modules</CardTitle>
-                        <CardDescription>{data.module_ids.length} of {modules.length} granted</CardDescription>
+                        <CardTitle>Modul</CardTitle>
+                        <CardDescription>{data.module_ids.length} dari {modules.length} diberikan</CardDescription>
                     </CardHeader>
                     <CardContent className="grid grid-cols-2 gap-2 sm:grid-cols-3">
                         {modules.map((m) => (
@@ -62,8 +62,8 @@ export default function PlatformTenantGrants({ tenant, modules, workspaces }) {
 
                 <Card>
                     <CardHeader>
-                        <CardTitle>Workspaces (Departments)</CardTitle>
-                        <CardDescription>{data.workspace_ids.length} of {workspaces.length} granted</CardDescription>
+                        <CardTitle>Departemen</CardTitle>
+                        <CardDescription>{data.workspace_ids.length} dari {workspaces.length} diberikan</CardDescription>
                     </CardHeader>
                     <CardContent className="grid grid-cols-2 gap-2 sm:grid-cols-3">
                         {workspaces.map((w) => (
@@ -76,7 +76,7 @@ export default function PlatformTenantGrants({ tenant, modules, workspaces }) {
                 </Card>
 
                 <Button type="submit" disabled={processing}>
-                    {processing && <Loader2 className="h-4 w-4 animate-spin" />} Save Grants
+                    {processing && <Loader2 className="h-4 w-4 animate-spin" />} Simpan hak akses
                 </Button>
             </form>
         </PlatformLayout>

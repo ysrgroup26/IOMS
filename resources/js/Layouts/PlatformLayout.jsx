@@ -1,5 +1,5 @@
 import { Link, usePage, router } from '@inertiajs/react';
-import { LayoutDashboard, Building2, LogOut, Tag , UserPlus} from 'lucide-react';
+import { LayoutDashboard, Building2, LogOut, Tag, UserPlus, CreditCard, LifeBuoy } from 'lucide-react';
 import BrandWordmark from '@/Components/shared/BrandWordmark';
 
 const NAV_CLASS = 'flex items-center gap-2 rounded-md px-3 py-2 text-sm font-medium transition-colors';
@@ -22,13 +22,25 @@ export default function PlatformLayout({ children }) {
         router.post(route('logout'));
     }
 
+    /*
+     * v2.80.0: Bahasa Indonesia, like the rest of this console (ADR 040),
+     * and ordered as the operator's day runs -- what is happening now, who
+     * it is happening to, money, who is arriving, what is for sale.
+     */
     const navItems = [
-        { name: 'Dashboard', href: route('platform.dashboard'), icon: LayoutDashboard, active: currentUrl === '/platform' },
-        { name: 'Tenants', href: route('platform.tenants'), icon: Building2, active: currentUrl.startsWith('/platform/tenants') },
+        { name: 'Ringkasan', href: route('platform.dashboard'), icon: LayoutDashboard, active: currentUrl === '/platform' },
+        { name: 'Tenant', href: route('platform.tenants'), icon: Building2, active: currentUrl.startsWith('/platform/tenants') },
+        // v2.80.0: the payment ledger, beside Tenant because a payment is
+        // only ever meaningful as somebody's payment.
+        { name: 'Pembayaran', href: route('platform.payments'), icon: CreditCard, active: currentUrl.startsWith('/platform/payments') },
         // v2.51.0: the onboarding pipeline sits beside Tenants because a
         // registration is what becomes a tenant.
-        { name: 'Registrations', href: route('platform.registrations'), icon: UserPlus, active: currentUrl.startsWith('/platform/registrations') },
-        { name: 'Plans', href: route('platform.plans'), icon: Tag, active: currentUrl.startsWith('/platform/plans') },
+        { name: 'Pendaftaran', href: route('platform.registrations'), icon: UserPlus, active: currentUrl.startsWith('/platform/registrations') },
+        // v2.80.0: the support queue. Deliberately its own destination and NOT
+        // merged with notifications -- a notification is something IOMS tells
+        // its operator, a ticket is somebody waiting for an answer (ADR 042).
+        { name: 'Dukungan', href: route('platform.support'), icon: LifeBuoy, active: currentUrl.startsWith('/platform/support') },
+        { name: 'Paket', href: route('platform.plans'), icon: Tag, active: currentUrl.startsWith('/platform/plans') },
     ];
 
     return (
@@ -65,7 +77,7 @@ export default function PlatformLayout({ children }) {
                             onClick={logout}
                             className="flex items-center gap-1.5 rounded-md px-2.5 py-1.5 text-sm text-graphite-500 hover:bg-graphite-100"
                         >
-                            <LogOut className="h-4 w-4" /> Sign out
+                            <LogOut className="h-4 w-4" /> Keluar
                         </button>
                     </div>
                 </div>
@@ -74,7 +86,7 @@ export default function PlatformLayout({ children }) {
             <main className="mx-auto max-w-6xl px-4 py-8">{children}</main>
 
             <footer className="mx-auto max-w-6xl px-4 pb-8 text-center text-xs text-graphite-400">
-                {version?.edition} &middot; v{version?.number} -- Platform Operator Console
+                {version?.edition} &middot; v{version?.number} -- Konsol Operator Platform
             </footer>
         </div>
     );

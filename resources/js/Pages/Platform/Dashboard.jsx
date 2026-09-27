@@ -5,13 +5,20 @@ import { Card, CardContent, CardHeader, CardTitle } from '@/Components/ui/card';
 import { Badge } from '@/Components/ui/badge';
 
 const STAT_CARDS = [
-    { key: 'tenants_total', label: 'Total Tenants', icon: Building2 },
-    { key: 'tenants_active', label: 'Active', icon: CheckCircle2 },
-    { key: 'tenants_trial', label: 'Trial', icon: Clock },
-    { key: 'tenants_suspended', label: 'Suspended', icon: PauseCircle },
-    { key: 'packages_total', label: 'Packages', icon: Package },
-    { key: 'subscriptions_active', label: 'Active Subscriptions', icon: CheckCircle2 },
+    { key: 'tenants_total', label: 'Total tenant', icon: Building2 },
+    { key: 'tenants_active', label: 'Aktif', icon: CheckCircle2 },
+    { key: 'tenants_trial', label: 'Uji coba', icon: Clock },
+    { key: 'tenants_suspended', label: 'Ditangguhkan', icon: PauseCircle },
+    { key: 'packages_total', label: 'Paket', icon: Package },
+    { key: 'subscriptions_active', label: 'Langganan aktif', icon: CheckCircle2 },
 ];
+
+/* How the book is made up -- who actually pays (v2.80.0, ADR 041). */
+const BILLING_MODE_LABELS = {
+    paid: 'Berbayar (gateway)',
+    manual: 'Manual (transfer)',
+    complimentary: 'Gratis / internal',
+};
 
 /*
  * v2.79.0 -- THE OPERATIONS SECTION, IN BAHASA INDONESIA.
@@ -34,6 +41,9 @@ const LIFECYCLE_CARDS = [
     { key: 'active', label: 'Aktif', icon: CheckCircle2, tone: 'text-emerald-600' },
 ];
 
+/* Status AKUN tenant -- pertanyaan yang berbeda dari posisi langganan. */
+const ACCOUNT_LABEL = { active: 'Aktif', trial: 'Uji coba', suspended: 'Ditangguhkan' };
+
 const STATE_LABEL = { grace: 'Masa tenggang', lapsed: 'Read-only', active: 'Aktif' };
 
 const rupiah = (n) => 'Rp' + Math.round(Number(n || 0)).toLocaleString('id-ID');
@@ -43,14 +53,15 @@ export default function PlatformDashboard({ stats, recent_tenants: recentTenants
     const lifecycle = operations?.subscriptions?.counts ?? {};
     const attention = operations?.subscriptions?.attention ?? [];
     const payments = operations?.payments ?? {};
+    const billingModes = operations?.subscriptions?.billing_modes ?? null;
     return (
         <PlatformLayout>
-            <Head title="Platform Dashboard" />
+            <Head title="Ringkasan Platform" />
 
             <div className="mb-6">
-                <h1 className="text-[22px] font-semibold tracking-tight text-navy-900">Platform Dashboard</h1>
+                <h1 className="text-[22px] font-semibold tracking-tight text-navy-900">Ringkasan Platform</h1>
                 <p className="mt-1 text-sm text-graphite-500">
-                    Cross-tenant overview -- Tenants, Packages, and Subscriptions across the whole platform.
+                    Kondisi operasional seluruh platform: tenant, paket, langganan, dan pembayaran lintas tenant.
                 </p>
             </div>
 
@@ -72,6 +83,9 @@ export default function PlatformDashboard({ stats, recent_tenants: recentTenants
                     <h2 className="text-base font-semibold tracking-tight text-navy-900">Operasi Langganan</h2>
                     <p className="text-xs text-graphite-500">
                         Status dihitung dari tanggal periode, bukan dari status tersimpan.
+                        {typeof operations?.subscriptions?.grace_days === 'number'
+                            ? ` Pengingat H-${operations.subscriptions.lead_days}, tenggang ${operations.subscriptions.grace_days} hari.`
+                            : ''}
                     </p>
                 </div>
 
@@ -191,9 +205,31 @@ export default function PlatformDashboard({ stats, recent_tenants: recentTenants
                 </CardContent>
             </Card>
 
+            {/* Siapa yang benar-benar membayar. Langganan gratis dan langganan
+                berbayar yang sehat sama-sama "aktif" di atas. */}
+            {billingModes && (
+                <Card className="mt-6">
+                    <CardHeader><CardTitle>Komposisi Penagihan</CardTitle></CardHeader>
+                    <CardContent>
+                        <div className="grid grid-cols-1 gap-3 sm:grid-cols-3">
+                            {Object.entries(BILLING_MODE_LABELS).map(([mode, label]) => (
+                                <div key={mode} className="rounded-md border border-graphite-100 px-3 py-2.5">
+                                    <p className="text-xl font-bold text-graphite-900">{billingModes[mode] ?? 0}</p>
+                                    <p className="text-xs text-graphite-500">{label}</p>
+                                </div>
+                            ))}
+                        </div>
+                        <p className="mt-3 text-xs text-graphite-400">
+                            Langganan gratis tidak ditagih dan tidak masuk daftar Perlu Perhatian. Mode penagihan tidak
+                            memengaruhi hak akses -- akses tetap mengikuti periode langganan.
+                        </p>
+                    </CardContent>
+                </Card>
+            )}
+
             <Card className="mt-6">
                 <CardHeader>
-                    <CardTitle>Recent Tenants</CardTitle>
+                    <CardTitle>Tenant Terbaru</CardTitle>
                 </CardHeader>
                 <CardContent>
                     {recentTenants?.length ? (
@@ -203,18 +239,18 @@ export default function PlatformDashboard({ stats, recent_tenants: recentTenants
                                     <div>
                                         <p className="text-sm font-medium text-graphite-800">{tenant.name}</p>
                                         <p className="text-xs text-graphite-400">
-                                            {tenant.companies_count} companies &middot; {tenant.users_count} users
+                                            {tenant.companies_count} perusahaan &middot; {tenant.users_count} pengguna
                                         </p>
                                     </div>
-                                    <Badge variant={tenant.status === 'active' ? 'success' : 'secondary'}>{tenant.status}</Badge>
+                                    <Badge variant={tenant.status === 'active' ? 'success' : 'secondary'}>{ACCOUNT_LABEL[tenant.status] ?? tenant.status}</Badge>
                                 </div>
                             ))}
                         </div>
                     ) : (
-                        <p className="text-sm text-graphite-400">No tenants yet.</p>
+                        <p className="text-sm text-graphite-400">Belum ada tenant.</p>
                     )}
                     <Link href={route('platform.tenants')} className="mt-4 inline-block text-sm font-medium text-brand-600 hover:underline">
-                        View all tenants &rarr;
+                        Lihat semua tenant &rarr;
                     </Link>
                 </CardContent>
             </Card>

@@ -11,7 +11,6 @@ use App\Models\TenantRegistration;
 use App\Services\InvoiceDocumentService;
 use App\Services\PdfGeneratorService;
 use App\Services\PricingService;
-use App\Services\Payments\MidtransGateway;
 use App\Contracts\PaymentGatewayInterface;
 use Illuminate\Http\RedirectResponse;
 use Illuminate\Http\Request;
@@ -406,7 +405,9 @@ class RegistrationController extends Controller
             'payment' => [
                 // Snap's own client-side configuration. The client key is
                 // public by design; the server key is not sent.
-                ...($gateway instanceof MidtransGateway ? $gateway->clientConfig() : []),
+                // v2.80.0: asked through the CONTRACT, not an instanceof chain a
+                // second provider would have to be added to.
+                ...$gateway->clientConfig(),
                 'snap_token' => $transaction->checkout_token,
                 // The provider's hosted page, kept as the fallback for a
                 // browser where the Snap script cannot load.
@@ -452,9 +453,8 @@ class RegistrationController extends Controller
     /** A gateway counts as configured only when it is both named AND holds credentials. */
     private function paymentConfigured(): bool
     {
-        return config('payment.gateway') === MidtransGateway::GATEWAY
-            && filled(config('payment.midtrans.server_key'))
-            && filled(config('payment.midtrans.client_key'));
+        // v2.80.0: through the contract -- see SubscriptionController.
+        return app(PaymentGatewayInterface::class)->isConfigured();
     }
 
     private function findOpen(string $token): TenantRegistration

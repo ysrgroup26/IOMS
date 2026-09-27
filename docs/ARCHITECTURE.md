@@ -260,6 +260,63 @@ moves only on a verified webhook, and `SubscriptionLifecycleTest` pins that alon
 transfer under their own audited identity, which runs the identical lifecycle code so the two paths
 cannot diverge.
 
+### One lifecycle snapshot, rendered by every side (v2.80.0)
+
+Where a subscription sits in time is derived on every read (`Subscription::lifecycleState()`, ADR
+033). That was never duplicated — but the FACTS AROUND IT were assembled separately by each
+surface, and that is how two screens begin disagreeing about one subscription without either being
+wrong about the state itself: one sent `grace_ends_at`, another did not; one sent `is_usable`, the
+next sent `allows_writes`.
+
+`Subscription::stateSnapshot()` is now the **only** place a lifecycle fact is assembled. It carries
+the stored axis (`status`, `type`, `billing_cycle`), the derived axis (`lifecycle_state`,
+`period_ends_at`, `grace_ends_at`, `grace_days`, `days_remaining`), what that position means for
+access (`allows_writes`, `allows_reads`, `is_usable`, `is_degraded`), and how it is paid for
+(`billing_mode`, ADR 041).
+
+Every surface spreads it and adds only commercial detail around it — a price, an invoice, a tenant
+name:
+
+| Surface | Controller |
+|---|---|
+| Customer → Billing | `SubscriptionController::billing()` |
+| Customer → Settings → Subscription | `SettingsController` |
+| Master Admin → Tenant list and detail | `PlatformController` |
+| Master Admin → Payment ledger | `PlatformController::payments()` |
+| Master Admin → Support ticket context | `PlatformSupportController::show()` |
+
+**A surface may never compute a lifecycle fact of its own, and never re-derive one from `status`.**
+`SubscriptionStateParityTest` asserts the customer payload and the platform payload are identical on
+every lifecycle key across active, grace, lapsed, suspended, cancelled and renewed — comparing two
+real rendered payloads, because testing the model would prove only that one method agrees with
+itself.
+
+### Adding a payment provider is a class, not a branch (v2.80.0)
+
+`PaymentGatewayInterface` described how to TAKE a payment but not the three things the rest of the
+application needed from a provider anyway — so those were reached for concretely instead, and an
+audit for a second provider found all three:
+
+- two checkout controllers doing `$gateway instanceof MidtransGateway ? $gateway->clientConfig() : []`;
+- `"can this deployment take a payment"` written as a Midtrans config check in both;
+- worst, the **shared** verified-payment path calling `MidtransGateway::invoiceIdFromOrderId()` —
+  so a second gateway could have been configured, bound, signature-verified, and then silently
+  failed to find its own invoices.
+
+The contract now also declares `isConfigured()`, `clientConfig()` and `invoiceIdFromReference()`.
+`PaymentProviderAbstractionTest` pins the property that follows: **no domain file names a provider**
+(comments excluded — this codebase documents its own history in them). Adding iPaymu is one adapter
+class, one webhook route and configuration, with nothing to change in subscription, invoice,
+entitlement or reporting code.
+
+### The support queue (v2.80.0)
+
+Platform-owned, not tenant-scoped, and deliberately separate from notifications. A ticket is a state
+machine with a conversation attached; two transitions are automatic (a customer message reopens, a
+support reply hands the ball back) and live on the model rather than in the controller, because a
+second entry point — mail ingestion, when it exists — must not reimplement them. Intake goes through
+`SupportTicketIntake`, which is the seam that adapter will call. Full reasoning: ADR 042.
+
 ### The organizational model (v2.54.0)
 
 ```

@@ -48,6 +48,17 @@ class PlatformOperationsService
             'lifetime' => 0,
         ];
 
+        // v2.80.0: how the book is made up, which the lifecycle counts
+        // above cannot show. A complimentary pilot in perfect health and a
+        // paying customer in perfect health are both `active`, and an
+        // operator asking "how many organizations actually pay us?" needs
+        // them apart.
+        $modes = [
+            Subscription::BILLING_MODE_PAID => 0,
+            Subscription::BILLING_MODE_MANUAL => 0,
+            Subscription::BILLING_MODE_COMPLIMENTARY => 0,
+        ];
+
         $subscriptions = Subscription::query()
             ->withoutGlobalScopes()
             ->whereNotNull('tenant_id')
@@ -66,6 +77,8 @@ class PlatformOperationsService
             if ($subscription->tenant?->isDemo()) {
                 continue;
             }
+
+            $modes[$subscription->billingMode()]++;
 
             if ($subscription->isLifetime()) {
                 $counts['lifetime']++;
@@ -87,12 +100,19 @@ class PlatformOperationsService
 
             // The working list: everything an operator might have to chase,
             // soonest first. Healthy subscriptions are not in it.
+            // A complimentary subscription is never chased for money, so it
+            // is not operational work even when its dates look overdue.
+            if ($subscription->isComplimentary()) {
+                continue;
+            }
+
             if (in_array($state, [Subscription::LIFECYCLE_GRACE, Subscription::LIFECYCLE_LAPSED], true)
                 || (is_int($daysLeft) && $daysLeft >= 0 && $daysLeft <= $leadDays)) {
                 $attention[] = [
                     'tenant_id' => $subscription->tenant_id,
                     'tenant' => $subscription->tenant?->name,
                     'state' => $state,
+                    'billing_mode' => $subscription->billingMode(),
                     'days_left' => $daysLeft,
                     'period_ends_at' => $subscription->periodEndsAt()?->toDateString(),
                     'grace_ends_at' => $subscription->graceEndsAt()?->toDateString(),
@@ -102,7 +122,13 @@ class PlatformOperationsService
 
         usort($attention, fn ($a, $b) => ($a['days_left'] ?? PHP_INT_MAX) <=> ($b['days_left'] ?? PHP_INT_MAX));
 
-        return ['counts' => $counts, 'attention' => array_slice($attention, 0, 8), 'lead_days' => $leadDays];
+        return [
+            'counts' => $counts,
+            'billing_modes' => $modes,
+            'attention' => array_slice($attention, 0, 8),
+            'lead_days' => $leadDays,
+            'grace_days' => Subscription::graceDays(),
+        ];
     }
 
     /** Money in, and money still owed, across every tenant and every provider. */

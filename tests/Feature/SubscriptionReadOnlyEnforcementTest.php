@@ -70,7 +70,7 @@ class SubscriptionReadOnlyEnforcementTest extends TestCase
             'tenant_id' => $this->tenant->id, 'package_id' => $package->id,
             'status' => Subscription::STATUS_ACTIVE, 'type' => 'subscription',
             'billing_cycle' => Subscription::CYCLE_MONTHLY,
-            // Ended 40 days ago: past the 14-day grace, so LAPSED.
+            // Ended 40 days ago: past the grace window, so LAPSED.
             'starts_at' => now()->subMonths(3), 'ends_at' => now()->subDays(40),
             'agreed_price_monthly' => 1000000, 'agreed_price_yearly' => 10000000, 'agreed_currency' => 'IDR',
         ]);

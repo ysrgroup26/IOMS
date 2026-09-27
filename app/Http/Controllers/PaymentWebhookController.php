@@ -97,7 +97,7 @@ class PaymentWebhookController extends Controller
 
         try {
             $result = $gateway->handleWebhook($payload);
-            $this->apply($result->gatewayReference, $result->status, $result->amount, $provisioning, $lifecycle);
+            $this->apply($gateway, $result->gatewayReference, $result->status, $result->amount, $provisioning, $lifecycle);
 
             $event->update(['processed' => true, 'processed_at' => now()]);
         } catch (Throwable $e) {
@@ -120,13 +120,19 @@ class PaymentWebhookController extends Controller
      * machine rather than writing its own.
      */
     private function apply(
+        PaymentGatewayInterface $gateway,
         string $gatewayReference,
         string $status,
         ?float $amount,
         TenantProvisioningService $provisioning,
         SubscriptionLifecycleService $lifecycle,
     ): void {
-        $invoiceId = MidtransGateway::invoiceIdFromOrderId($gatewayReference);
+        // v2.80.0: which invoice a reference belongs to is the ADAPTER'S
+        // knowledge, because the reference format is. This is the shared
+        // verified-payment path, so naming one provider here was the single
+        // worst place for provider-specific logic to sit -- a second gateway
+        // would have silently failed to find its own invoices.
+        $invoiceId = $gateway->invoiceIdFromReference($gatewayReference);
         $transaction = PaymentTransaction::with('invoice')->where('gateway_reference', $gatewayReference)->first();
         $invoice = $transaction?->invoice ?? ($invoiceId ? Invoice::find($invoiceId) : null);
 

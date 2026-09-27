@@ -78,25 +78,28 @@ return [
     | dropping to read-only. It is a business decision, not a technical
     | one, so it is configuration rather than a constant.
     |
-    | Fourteen days is the default because a renewal invoice in Indonesia
-    | routinely crosses a finance department, a bank transfer and a public
-    | holiday. Cutting writes off the morning after a period ends punishes
-    | a customer who is paying, which is the opposite of what the lapse is
-    | for.
+    | SEVEN DAYS, decided by the product owner in v2.80.0. Fourteen was a
+    | placeholder chosen when nothing had been decided; seven is long
+    | enough to cross a weekend, a bank transfer and one internal approval
+    | step, and short enough that a lapse still means something. Cutting
+    | writes off the morning after a period ends would punish a customer
+    | who is paying, which is the opposite of what the lapse is for.
     |
     | Setting it to 0 makes writes stop the moment the period ends. Reads
     | are NEVER withdrawn by the passage of time at any setting -- see
     | docs/ADR/033-subscription-lifecycle.md.
     */
-    'grace_days' => (int) env('SAAS_GRACE_DAYS', 14),
+    'grace_days' => (int) env('SAAS_GRACE_DAYS', 7),
 
     /*
-    | How many days before a period ends the renewal invoice is issued.
-    | It has to be long enough for the customer to actually pay it inside
-    | their own process, and short enough that it is obviously about the
-    | period they are in.
+    | How many days before a period ends the renewal invoice is issued --
+    | the reminder the customer receives. SEVEN (H-7), decided alongside
+    | the grace window above so the two numbers read as one policy: the
+    | customer is told a week before, and has a week afterwards. Long
+    | enough to pay inside their own process, short enough that it is
+    | obviously about the period they are in.
     */
-    'renewal_lead_days' => (int) env('SAAS_RENEWAL_LEAD_DAYS', 14),
+    'renewal_lead_days' => (int) env('SAAS_RENEWAL_LEAD_DAYS', 7),
 
     /*
     | How long an unpaid renewal invoice stays payable before it is

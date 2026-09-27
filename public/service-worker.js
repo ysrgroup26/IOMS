@@ -74,19 +74,55 @@
 
 // Bumped when the cached-asset policy changes. Not a release version --
 // changing it evicts the whole store on the next activate.
-const CACHE_NAME = 'ioms-static-v1';
+//
+// v2.78.2 -- v1 -> v2 EVICTS THE STALE BRAND ASSETS THIS WORKER PINNED.
+// See the two-policy note below for what went wrong and why bumping this
+// alone would not have been enough.
+const CACHE_NAME = 'ioms-static-v2';
 
-// The only two prefixes this worker will ever read from or write to the
-// cache. Kept as an explicit allow-list: a deny-list would be one new
-// route away from leaking.
-const CACHEABLE_PREFIXES = ['/build/', '/branding/'];
+/*
+ * TWO POLICIES, BECAUSE THE TWO PREFIXES DIFFER IN ONE DECISIVE WAY.
+ *
+ * v2.73.0 cached both of these cache-first and never revalidated, which
+ * is correct for exactly one of them:
+ *
+ *   /build/     Vite content-hashes every filename. New build, new URL,
+ *               so a cached entry can never be stale -- it is simply
+ *               never asked for again. Cache-first is ideal.
+ *
+ *   /branding/  STABLE filenames. ioms-logo-dark.svg is that name
+ *               forever, and its BYTES change when the brand does.
+ *               Cache-first with no revalidation therefore pinned the
+ *               old logo and the old favicon in every returning
+ *               visitor's browser: redeploying the file changed nothing
+ *               for them, and it was never browser cache, so clearing
+ *               that did not help either. Only a cache-name bump could
+ *               shift it -- once, manually, per brand change.
+ *
+ * Brand assets are now stale-while-revalidate: the cached copy is served
+ * immediately (so the rail and the tab icon still paint instantly and
+ * still work offline), and the network copy is fetched in the background
+ * and written over it. A changed asset therefore appears on the visit
+ * after it ships, with no cache-name bump and nothing for anyone to
+ * clear.
+ *
+ * The allow-list itself is unchanged, and so is everything it protects:
+ * same-origin only, these two prefixes only, nothing authenticated.
+ */
+const IMMUTABLE_PREFIXES = ['/build/'];
+const REVALIDATE_PREFIXES = ['/branding/'];
 
 function isCacheableAsset(url) {
     // Same-origin only. A cross-origin font or CDN script is not ours to
     // cache and is already handled by ordinary HTTP caching.
     if (url.origin !== self.location.origin) return false;
 
-    return CACHEABLE_PREFIXES.some((prefix) => url.pathname.startsWith(prefix));
+    return [...IMMUTABLE_PREFIXES, ...REVALIDATE_PREFIXES]
+        .some((prefix) => url.pathname.startsWith(prefix));
+}
+
+function shouldRevalidate(url) {
+    return REVALIDATE_PREFIXES.some((prefix) => url.pathname.startsWith(prefix));
 }
 
 self.addEventListener('install', (event) => {
@@ -140,7 +176,27 @@ self.addEventListener('fetch', (event) => {
         (async () => {
             const cache = await caches.open(CACHE_NAME);
             const cached = await cache.match(request);
-            if (cached) return cached;
+
+            if (cached) {
+                // A brand asset keeps its filename when its artwork
+                // changes, so the cached copy is served now and refreshed
+                // behind it. waitUntil keeps the worker alive for the
+                // write; a failed refresh is ignored, leaving the cached
+                // copy exactly as it was.
+                if (shouldRevalidate(url)) {
+                    event.waitUntil(
+                        fetch(request)
+                            .then((fresh) => {
+                                if (fresh && fresh.status === 200 && fresh.type === 'basic') {
+                                    return cache.put(request, fresh.clone());
+                                }
+                            })
+                            .catch(() => {})
+                    );
+                }
+
+                return cached;
+            }
 
             const response = await fetch(request);
 

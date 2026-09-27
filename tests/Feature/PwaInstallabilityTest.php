@@ -94,11 +94,20 @@ class PwaInstallabilityTest extends TestCase
 
         $this->assertNotFalse($source, 'public/service-worker.js is missing; the app is no longer installable.');
 
-        preg_match('/const CACHEABLE_PREFIXES = \[(.*?)\];/s', $source, $matches);
+        /*
+         * v2.78.2: the one allow-list became two, because the two prefixes
+         * need different freshness policies -- hashed build files are
+         * immutable, stable brand filenames are not (see the worker).
+         * WHAT THIS TEST GUARDS IS UNCHANGED: taken together they must
+         * still be exactly those two public prefixes.
+         */
+        preg_match('/const IMMUTABLE_PREFIXES = \[(.*?)\];/s', $source, $immutable);
+        preg_match('/const REVALIDATE_PREFIXES = \[(.*?)\];/s', $source, $revalidate);
 
-        $this->assertNotEmpty($matches, 'CACHEABLE_PREFIXES could not be found -- the caching allow-list has been restructured.');
+        $this->assertNotEmpty($immutable, 'IMMUTABLE_PREFIXES could not be found -- the caching allow-list has been restructured.');
+        $this->assertNotEmpty($revalidate, 'REVALIDATE_PREFIXES could not be found -- the caching allow-list has been restructured.');
 
-        preg_match_all("/'([^']+)'/", $matches[1], $prefixes);
+        preg_match_all("/'([^']+)'/", $immutable[1].$revalidate[1], $prefixes);
 
         $this->assertEqualsCanonicalizing(
             ['/build/', '/branding/'],
@@ -106,6 +115,9 @@ class PwaInstallabilityTest extends TestCase
             'The service worker may only cache public build artefacts and brand assets. '
             .'Anything else is authenticated, tenant-scoped, or both -- see the file header and docs/ADR/037.'
         );
+
+        // Both lists feed the one gate every cached request passes through.
+        $this->assertStringContainsString('[...IMMUTABLE_PREFIXES, ...REVALIDATE_PREFIXES]', $source);
     }
 
     /**

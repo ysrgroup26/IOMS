@@ -106,6 +106,25 @@ It needs a design, not a cache setting: per-identity cache names keyed to the au
 user is known to be entitled to, and a product decision about what a stale permit on a phone at a
 gate is allowed to claim. That is its own ADR.
 
+## v2.78.2 — freshness, without widening what is cached
+
+The allow-list is unchanged: same origin, `/build/` and `/branding/`, nothing authenticated, no
+navigation fallback. What changed is the freshness policy, because the two prefixes differ in one
+decisive way.
+
+`/build/` filenames are content-hashed, so cache-first is correct and stays. `/branding/`
+filenames are stable while their artwork changes, and cache-first pinned the pre-rebrand logo and
+favicon in returning browsers — the app's own cache, so clearing the browser's did nothing. Brand
+assets are now **stale-while-revalidate**: the cached copy paints immediately (offline behaviour
+unchanged), the network copy is written behind it, and the next visit shows the new asset.
+
+`CACHE_NAME` moved `v1 → v2`, which evicts the stores still holding the old artwork.
+
+Verified in the browser: with the worker active, changing a brand file on disk served the cached
+copy once, then the refreshed bytes on the next request. Pinned by
+`BrandIconsTest::test_the_service_worker_revalidates_brand_assets`; the allow-list assertion in
+`PwaInstallabilityTest` now reads both constants and still requires exactly those two prefixes.
+
 ## What would make this ADR wrong
 
 If IOMS ever needs genuine offline field capture — a permit raised in a hold with no signal — this

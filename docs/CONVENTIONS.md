@@ -1746,6 +1746,25 @@ Three rules that matter when extending this:
 
 The chip is a LABEL (English); the consequence sentence is PROSE (Indonesian). See ADR 034.
 
+## Known Pitfall (v2.78.2) — a service worker caching STABLE filenames pins them forever
+
+`/build/` is content-hashed by Vite: a new build is a new URL, so cache-first can never be stale.
+`/branding/` is not. `ioms-logo-dark.svg` keeps that name while its BYTES change, so caching it
+cache-first with no revalidation pinned the old logo and the old favicon in every returning
+visitor's browser. Redeploying the file changed nothing for them, and because it was the app's own
+Cache Storage rather than HTTP cache, clearing the browser cache did not help either — the only
+escape was bumping `CACHE_NAME`, by hand, for every brand change.
+
+**The rule.** Match the policy to the URL, not to the folder:
+
+| URL shape | Policy |
+|---|---|
+| content-hashed (`app-BQx1.js`) | cache-first; it cannot go stale |
+| stable name, changing bytes (`ioms-logo.svg`) | **stale-while-revalidate** |
+
+Bumping the cache name fixes today's stale copies. Only revalidation stops it recurring; v2.78.2 did
+both. Before caching anything by a stable name, ask what happens on the day its contents change.
+
 ## Known Pitfall (v2.77.0) — the `date` cast STORES a time, and MySQL hides it
 
 A `'work_date' => 'date'` cast serializes through the model's datetime format, so Eloquent writes

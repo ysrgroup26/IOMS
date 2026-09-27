@@ -132,16 +132,18 @@ return [
     ],
 
     /*
-    | Fallbacks for a tenant that has not uploaded its own mark. These now
-    | point at the real IOMS artwork; before v2.72.0 they pointed at
-    | `wordmark.png`/`icon.png`, which were a 2 MB photograph of a neon
-    | sign reading "icms" -- the pre-rebrand name -- and were rendering on
-    | the login screen, the public site and every PDF header. Those files
-    | are deleted, not merely unreferenced.
+    | v2.78.2 -- `default_wordmark_path` and `default_icon_path` lived here and
+    | were read by NOTHING. They were a second declaration of assets that
+    | `assets.logo` and `assets.icon` already own: a tenant that has not
+    | uploaded a mark falls back to those in HandleInertiaRequests, and the
+    | PDF letterhead simply renders no logo. Two keys naming one file is how
+    | one of them ends up stale, so the unread pair is gone.
+    |
+    | The fallback itself is unchanged and still points at the official
+    | artwork -- see `assets` above. Before v2.72.0 these pointed at
+    | wordmark.png / icon.png, a 2 MB photograph of a neon sign reading
+    | "icms"; those files are deleted, not merely unreferenced.
     */
-    'default_wordmark_path' => '/branding/ioms-logo.svg',
-
-    'default_icon_path' => '/branding/ioms-icon.svg',
 
     /*
     |--------------------------------------------------------------------------

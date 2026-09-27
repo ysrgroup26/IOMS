@@ -59,6 +59,7 @@ Full definitions and the update loop: [[Working with This Knowledge Base]].
 
 | Work | Shipped | Verified by |
 |---|---|---|
+| [[Website and Brand Consistency]] — invoice redesign, `www` → canonical redirect, official mark audited and resized | v2.81.0 | `InvoiceDocumentTest` (12), `CanonicalHostRedirectTest` (10), browser at desktop and 375px. **Hosting-level `www` redirect and a Google re-crawl remain manual** |
 | [[Subscription Lifecycle Finalisation]] — **timing decided**: 7-day grace, H-7 reminder | v2.80.0 | `SubscriptionStateParityTest` (boundary asserted at day 7 and day 8), browser against MySQL |
 | **One lifecycle truth on both sides** — `Subscription::stateSnapshot()`, spread by every customer and operator surface | v2.80.0 | `SubscriptionStateParityTest` (10): identical payloads across active, grace, lapsed, suspended, cancelled, renewed |
 | [[Billing Modes and Complimentary Tenants]] — paid / manual / complimentary, and what it may never change | v2.80.0 | `BillingModeTest` (12), ADR [[041-billing-mode-is-not-entitlement\|041]] |
@@ -81,6 +82,16 @@ decomposition, the workflow form pass, RBAC migration, bundle size, the attachme
 import engine. Each carries its reason and the trigger that would change the answer.
 
 ---
+
+## Waiting on the owner, outside the code
+
+Not BLOCKED work — these are finished pieces whose last step is not in the repository.
+
+| Item | What remains | Where it is written down |
+|---|---|---|
+| `www` → non-www | Confirm in cPanel that `www.iomsuite.com` routes to the same document root, and preferably add the redirect at the web-server level too. The application half is done and tested | ADR [[039-public-search-identity\|039]] § Manual steps, items 8–9 |
+| The logo in Google results | Request re-indexing in Search Console. Every asset and every piece of metadata in the repository already points at the current mark; what a result shows is what Google last crawled | ADR 039 § Manual steps, item 10 |
+| Lifecycle timing, if it is ever revisited | `SAAS_GRACE_DAYS` / `SAAS_RENEWAL_LEAD_DAYS` — configuration, no deployment of logic needed | [[Subscription Lifecycle Finalisation]] |
 
 ## How work enters this board
 

@@ -33,6 +33,27 @@
 
 return [
 
+    /*
+    |----------------------------------------------------------------------
+    | www -> non-www (v2.81.0)
+    |----------------------------------------------------------------------
+    |
+    | `https://iomsuite.com` is the canonical origin. When true, a GET or
+    | HEAD request arriving on `www.iomsuite.com` is 301-redirected to the
+    | same path on the canonical host, in production only.
+    |
+    | Only that one alias: not "every host that is not canonical", which
+    | would bounce a health check by IP, an internal hostname and the legacy
+    | domain. Unsafe methods are never redirected -- a 301 on a POST may be
+    | converted to a GET with the body dropped, which would discard a
+    | payment webhook. See App\Http\Middleware\RedirectToCanonicalHost.
+    |
+    | Set to false only if the www host is genuinely needed as its own
+    | address, which would then have to be made consistent rather than
+    | redirected.
+    */
+    'redirect_www' => (bool) env('SEO_REDIRECT_WWW', true),
+
     'pages' => [
         'home' => [
             'title' => 'IOMS — Industrial Operations Platform',

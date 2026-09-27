@@ -1,7 +1,7 @@
 ---
 title: Current State
 type: snapshot
-product-version: 2.80.0
+product-version: 2.81.0
 product-stage: Beta
 measured: 2026-09-27
 tags: [kb/state]
@@ -24,8 +24,8 @@ the date in the frontmatter, not remembered.
 | | |
 |---|---|
 | Product | **IOMS — Industrial Operations Platform** |
-| Version | **2.80.0**, stage **Beta**, edition **Enterprise Edition** |
-| Build | `2026.09.27.03`, release date `2026-09-27` |
+| Version | **2.81.0**, stage **Beta**, edition **Enterprise Edition** |
+| Build | `2026.09.27.04`, release date `2026-09-27` |
 | Stack | Laravel 12 · Inertia.js · React 18 · Tailwind · MySQL · Sanctum |
 
 The naming rules are not cosmetic — see [[Product Identity and Principles]].
@@ -38,8 +38,8 @@ The naming rules are not cosmetic — see [[Product Identity and Principles]].
 | Controllers | 105 |
 | Inertia pages | 170 |
 | Migrations | 183 |
-| Feature test files | 62 |
-| Tests / assertions | **582 / 3283**, all passing |
+| Feature test files | 64 |
+| Tests / assertions | **604 / 3341**, all passing |
 | ADRs | 40 files (numbering has known gaps — see [[Decision Register]]) |
 | Workspaces in the navigation registry | 12 |
 
@@ -81,6 +81,15 @@ before it has an organization, so `isPlatformAdmin()` reads the role. See ADR
 [[038-account-organization-subscription|038]].
 
 ## What shipped most recently
+
+`2.81.0` (2026-09-27) — the invoice, one address, and the mark. The subscription invoice rendered
+through the shared **tenant** letterhead, so it drew the IOMS lockup beside the word IOMS and said
+its own name twice; it now has its own header on the navy band customers know from IOMS email, with
+the shared partial left untouched because every tenant document depends on it. `www.iomsuite.com`
+is 301-redirected to the canonical origin for GET and HEAD — never for a POST, because a redirected
+webhook would silently discard a payment. And the official mark was audited against the designer's
+master (byte-identical paths, no background) and given the navbar size it was missing.
+ADR [[039-public-search-identity|039]] v2.81.0 addendum.
 
 `2.80.0` (2026-09-27) — five backlog tasks, worked by dependency. The grace window and renewal
 reminder were **decided** (7 days and H-7, one policy in two numbers). `stateSnapshot()` became the

@@ -48,8 +48,16 @@ export default function PublicLayout({ children }) {
 
             <header className="sticky top-0 z-50 border-b border-graphite-100 bg-white/90 backdrop-blur-sm">
                 <div className="mx-auto flex h-16 max-w-7xl items-center justify-between gap-4 px-4 sm:px-6 lg:px-8">
+                    {/* v2.81.0 -- h-8, not h-6. The lockup is a fixed
+                        3.85:1, so height alone sizes it and `w-auto`
+                        keeps the ratio exact -- it is never cropped and
+                        never stretched. At h-6 it rendered 92x24 inside a
+                        64px header: correct in shape, but small enough
+                        beside 14px nav type to read as an afterthought.
+                        h-8 gives 123x32, half the header height, which is
+                        where a primary mark sits. */}
                     <Link href="/" className="flex shrink-0 items-center gap-2">
-                        <BrandWordmark className="h-6 w-auto" />
+                        <BrandWordmark className="h-8 w-auto" />
                     </Link>
 
                     <nav className="hidden items-center gap-7 lg:flex" aria-label="Primary">

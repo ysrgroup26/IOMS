@@ -179,6 +179,77 @@ Route names such as `legal.privacy` contain a dot. `config('seo.pages.legal.priv
 as nesting and returns null, so every legal page silently counted as "not public". The lookups index
 the array instead, and `PublicSearchIdentityTest` would catch a regression.
 
+## v2.81.0 addendum — www, and the invoice that said its own name twice
+
+### One address, and the request that must not be moved
+
+Everything that *describes* the site already named the canonical origin: canonical tags, the
+sitemap, Open Graph, Twitter cards and structured data are built from `config('ioms.public_url')`
+rather than from the request, and `SearchIdentity::isCanonicalHost()` already marked any other host
+`noindex`.
+
+What was missing was the **redirect**. A visitor or a crawler arriving on `www.iomsuite.com` was
+served the page, saw a canonical tag pointing somewhere else, and stayed on the wrong address —
+which splits links, makes analytics read as two sites, and leaves a second host that must be kept
+identical forever.
+
+`App\Http\Middleware\RedirectToCanonicalHost` now answers it: **301, GET/HEAD only, production
+only**, path and query preserved.
+
+Four decisions worth keeping:
+
+| Decision | Why |
+|---|---|
+| **Only `www.` + the canonical host** is moved | Not "any host that is not canonical" — that would bounce a health check by IP, an internal hostname, a preview domain and the legacy `ioms.web.id`, which is a separate decision with its own consequences and is deliberately left alone (it already serves, and is already noindex with a canonical pointing here) |
+| **Unsafe methods pass straight through** | This is the dangerous half. A client is permitted to convert a 301 on a POST into a GET and drop the body, so a payment provider posting a webhook to the www host would have its settlement notification silently discarded and IOMS would never learn the payment succeeded. `CanonicalHostRedirectTest` asserts the webhook POST reaches verification and is rejected there, rather than being bounced |
+| **Production only** | A redirect in development would send a developer to the live site |
+| **Prepended** to the global stack | It answers before session, tenant resolution or entitlement do work a redirect throws away |
+
+Switchable with `SEO_REDIRECT_WWW=false` if the www host is ever genuinely needed as its own
+address — which would then have to be made *consistent* rather than redirected.
+
+> [!warning] This is the half that lives in the repository
+> It only fires for requests the hosting layer actually routes to this application. A DNS or
+> vhost level redirect is still the right place for the rest, and remains a manual production
+> step — see below. Nothing here has been applied to production.
+
+### The invoice header
+
+Not search identity, but the same brand-consistency question and worth recording beside it: the
+subscription invoice rendered through `pdf/partials/letterhead.blade.php`, which is built to print
+a **tenant's** identity. Fed the issuer identity it drew the IOMS lockup — artwork that already
+reads "IOMS" — directly beside the text "IOMS", so the document announced itself twice.
+
+The shared letterhead is deliberately **unchanged**, because every tenant document depends on it.
+The invoice carries its own header instead, matching the identity customers already know from IOMS
+email: navy band, the mark **alone**, `IOMS` as type with `INDUSTRIAL OPERATIONS PLATFORM` beneath
+it, and a cyan rule under the band. The issuer block prints only when a registered identity is
+actually configured — with none, it would have been a third repetition of the name in a box whose
+whole purpose is registered detail.
+
+### The logo asset
+
+Audited against the designer's master (`SVG_Icon 1.svg`): the shipped `ioms-icon.svg` already
+carries the six official paths **byte-identical**, with the master's full-bleed `#f7fafc` rect
+removed and the viewBox cropped to the artwork's own bounds — the v2.72.0 derivation, still
+correct. One dead `.st1 { fill: #f7fafc }` rule was left behind by that removal and is now gone;
+it styled nothing.
+
+The `#00004f` rect in `ioms-favicon.svg` and `ioms-og.svg` is **not** that background: it is the
+brand ground those two assets deliberately need (a favicon must stay legible against light and
+dark browser chrome; an OG card is composited onto an unknown surface). Left as designed.
+
+The public navbar was rendering the lockup at `h-6` — 92×24 in a 64px header. Correct in shape
+and proportion, but small enough beside 14px nav type to read as an afterthought. Now `h-8`
+(123×32, half the header height). Measured in the browser at desktop and 375px: ratio 3.853
+against the artwork's own 3.846, so it is neither cropped nor stretched.
+
+> [!important] Google shows what it last crawled
+> Every asset and every piece of metadata in the repository now points at the current mark. A
+> search result still showing an older logo is a **crawl** state, not a repository state, and
+> changes only when Google re-crawls and re-indexes. Nothing here can make that happen, and this
+> release does not claim it has.
+
 ## Manual steps that remain (owner, outside the repository)
 
 Nothing here has been submitted to Google, and nothing here makes Google index anything. It makes
@@ -205,3 +276,18 @@ the site eligible and correctly described.
    for public pages. Until then, the legacy host is noindex with a canonical pointing at iomsuite.com.
 7. **Later:** use Search Console's Page indexing report to confirm that /login and /register show as
    "Excluded by noindex". That is the expected result, not an error.
+
+### Added in v2.81.0
+
+8. **`www` at the hosting layer.** The application now 301s `www.iomsuite.com` → `iomsuite.com` for
+   GET/HEAD, but only for requests cPanel actually routes to it. Confirm in cPanel that the `www`
+   subdomain resolves to the same document root (otherwise it never reaches PHP), and preferably
+   add the redirect at the web-server level too so it costs no PHP boot. **Not done by this
+   release — nothing touched cPanel.**
+9. **Verify once deployed:** `curl -I https://www.iomsuite.com/pricing` should answer
+   `301` with `Location: https://iomsuite.com/pricing`, and
+   `curl -I https://iomsuite.com/pricing` should answer `200`.
+10. **Re-crawl for the logo.** After deploying, use Search Console → URL Inspection → Request
+    indexing for `/` so the Organization `logo` and the OG image are re-fetched. Until Google
+    re-crawls, an older mark can still appear in results; that is expected and is not a fault in
+    the site.

@@ -51,6 +51,17 @@ return Application::configure(basePath: dirname(__DIR__))
             );
         }
 
+        // v2.81.0 -- ONE ADDRESS. www.iomsuite.com -> iomsuite.com, 301,
+        // GET/HEAD only, production only. PREPENDED so it answers before
+        // anything does work that a redirect would throw away -- session,
+        // tenant resolution, entitlement. A visitor on the wrong host is
+        // moved before the application decides who they are.
+        //
+        // Unsafe methods pass straight through: a 301 on a POST may be
+        // converted to a GET with the body dropped, which would silently
+        // discard a payment webhook. See the middleware.
+        $middleware->prepend(\App\Http\Middleware\RedirectToCanonicalHost::class);
+
         // v2.75.0 -- noindex BY DEFAULT. Global, so it covers every
         // response including downloads and errors; it only adds a header.
         // See App\Http\Middleware\SetRobotsHeader and config/seo.php.

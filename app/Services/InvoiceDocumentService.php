@@ -56,6 +56,24 @@ class InvoiceDocumentService
              * future renderer disagrees.
              */
             'logo_url' => public_path(ltrim(config('branding.assets.logo'), '/')),
+
+            /*
+             * v2.81.0 -- THE MARK ALONE, for the invoice header bar.
+             *
+             * `logo_url` above is the full lockup: the icon AND the word
+             * IOMS drawn as artwork. The header printed that beside
+             * `name`, which is also "IOMS" -- so the document said its own
+             * name twice, once as a picture and once as type.
+             *
+             * The redesigned header prints the name as TYPE (with the
+             * descriptor under it, exactly as the email header does) and
+             * needs the icon without the wordmark beside it. Same official
+             * artwork, same file the favicon and app icon are cut from;
+             * nothing redrawn, recoloured or reproportioned.
+             *
+             * Transparent cyan, so it reads on the navy header band.
+             */
+            'mark_url' => public_path(ltrim(config('branding.assets.icon'), '/')),
             'address' => $legal['address'] ?: null,
             'locality' => null,
             'country' => null,

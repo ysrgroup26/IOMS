@@ -215,6 +215,16 @@ class TenantProvisioningService
 
         ActivityLog::record('created', "Tenant \"{$tenant->name}\" was provisioned from self-service registration {$registration->reference}.");
 
+        // v2.79.0: the platform operator learns that a customer bought
+        // something, on the operator's own notification surface.
+        app(\App\Services\NotificationService::class)->notifyPlatformAdmins(
+            \App\Models\Notification::CATEGORY_INFORMATION,
+            'Langganan baru: '.$tenant->name,
+            'Organisasi baru aktif dari pendaftaran mandiri '.$registration->reference.'.',
+            route('platform.tenants.show', $tenant),
+            $tenant,
+        );
+
         return $tenant;
     }
 

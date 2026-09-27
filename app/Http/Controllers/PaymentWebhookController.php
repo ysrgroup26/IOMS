@@ -142,6 +142,21 @@ class PaymentWebhookController extends Controller
             // Failed / expired / still pending. The registration stays
             // where it is: a failed payment must never activate anything,
             // and the customer can retry checkout.
+            //
+            // v2.79.0: a failed attempt is recorded on the platform
+            // operator's feed, because it is the other thing they get asked
+            // about. Nothing about the subscription changes, which is the
+            // point -- this is visibility, not a state transition.
+            if ($status === 'failed') {
+                app(\App\Services\NotificationService::class)->notifyPlatformAdmins(
+                    \App\Models\Notification::CATEGORY_WARNING,
+                    'Pembayaran gagal: '.($invoice->tenant?->name ?? $invoice->invoice_number),
+                    'Tagihan '.$invoice->invoice_number.' belum lunas. Tidak ada akses yang berubah.',
+                    $invoice->tenant_id ? route('platform.tenants.show', $invoice->tenant_id) : null,
+                    $invoice,
+                );
+            }
+
             return;
         }
 

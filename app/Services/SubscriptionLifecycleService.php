@@ -204,6 +204,12 @@ class SubscriptionLifecycleService
                 ])->save();
             }
 
+            $this->notifyPlatform(
+                $subscription,
+                'Paket diubah: '.($subscription->tenant?->name ?? 'Tenant'),
+                'Paket berpindah ke '.($package?->name ?? '-').' setelah pembayaran terverifikasi.',
+            );
+
             return;
         }
 
@@ -215,7 +221,41 @@ class SubscriptionLifecycleService
         $this->extendPeriod($subscription, $cycle);
         $this->applyPlanChange($subscription, $package, $cycle, extendPeriod: false);
 
+        $this->notifyPlatform(
+            $subscription->fresh('tenant'),
+            ($wasReadOnly ? 'Langganan diaktifkan kembali: ' : 'Perpanjangan diterima: ')
+                .($subscription->tenant?->name ?? 'Tenant'),
+            'Masa aktif berlaku sampai '.optional($subscription->fresh()->periodEndsAt())->toDateString().'.',
+        );
+
         $this->announceRenewal($subscription->fresh(['tenant', 'package']), $wasReadOnly);
+    }
+
+    /**
+     * v2.79.0 -- the platform operator's own feed of commercial events.
+     *
+     * Called only from paths a VERIFIED payment or a deliberate operator
+     * action reached, so it can never announce money that did not arrive.
+     * Failures here are swallowed: a notification must not unwind a
+     * settlement (the same rule announceRenewal() follows).
+     */
+    private function notifyPlatform(Subscription $subscription, string $title, ?string $body = null): void
+    {
+        if (! $subscription->tenant_id) {
+            return;
+        }
+
+        try {
+            app(\App\Services\NotificationService::class)->notifyPlatformAdmins(
+                \App\Models\Notification::CATEGORY_INFORMATION,
+                $title,
+                $body,
+                route('platform.tenants.show', $subscription->tenant_id),
+                $subscription,
+            );
+        } catch (\Throwable $e) {
+            \Illuminate\Support\Facades\Log::error('Platform notification failed.', ['error' => $e->getMessage()]);
+        }
     }
 
     /**

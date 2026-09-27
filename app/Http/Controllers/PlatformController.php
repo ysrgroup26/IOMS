@@ -7,9 +7,11 @@ use App\Http\Requests\UpdateTenantRequest;
 use App\Models\ActivityLog;
 use App\Models\Invoice;
 use App\Models\Module;
+use App\Models\Notification;
 use App\Models\Package;
 use App\Models\Scopes\TenantScope;
 use App\Models\Subscription;
+use App\Services\PlatformOperationsService;
 use App\Models\Tenant;
 use App\Models\User;
 use App\Models\Workspace;
@@ -48,7 +50,7 @@ class PlatformController extends Controller
      * this same milestone's own verification pass, see
      * docs/ADR/008-tenancy-foundation.md.
      */
-    public function dashboard(): Response
+    public function dashboard(PlatformOperationsService $operations): Response
     {
         return Inertia::render('Platform/Dashboard', [
             'stats' => [
@@ -73,6 +75,24 @@ class PlatformController extends Controller
                 ->latest()
                 ->take(5)
                 ->get(['id', 'name', 'slug', 'status', 'created_at']),
+
+            /*
+             * v2.79.0 -- the operations half of this screen.
+             *
+             * The counters above read STORED status, which cannot say where
+             * a subscription sits in time: one whose period ended six weeks
+             * ago still stores "active" (ADR 033 §1). Expiring, grace and
+             * lapsed -- the three states an operator acts on -- are derived,
+             * so they come from the service that derives them.
+             */
+            'operations' => [
+                'subscriptions' => $operations->subscriptionHealth(),
+                'payments' => $operations->paymentActivity(),
+            ],
+            'platform_events' => Notification::where('user_id', request()->user()->id)
+                ->latest()
+                ->take(8)
+                ->get(['id', 'category', 'title', 'body', 'url', 'read_at', 'created_at']),
         ]);
     }
 

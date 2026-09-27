@@ -92,6 +92,42 @@ class NotificationService
         return $count;
     }
 
+    /**
+     * v2.79.0 -- NOTIFY THE PLATFORM OPERATORS.
+     *
+     * notifyRole() cannot reach them: `User` carries a tenant global scope,
+     * so inside a tenant request that query returns nobody with
+     * `tenant_id = null`, and the notification is silently dropped. The
+     * scope is lifted here deliberately and ONLY to find platform
+     * administrators by role.
+     *
+     * These are PLATFORM events -- a subscription began, a payment failed,
+     * a tenant went read-only. They are business notifications about the
+     * operator's own product, never a tenant's operational data, and they
+     * are never delivered to a tenant user.
+     */
+    public function notifyPlatformAdmins(
+        string $category,
+        string $title,
+        ?string $body = null,
+        ?string $url = null,
+        ?Model $subject = null,
+        array $meta = []
+    ): int {
+        $count = 0;
+
+        User::withoutGlobalScope(\App\Models\Scopes\UserTenantScope::class)
+            ->whereNull('tenant_id')
+            ->where('role', User::ROLE_PLATFORM_ADMIN)
+            ->where('is_active', true)
+            ->each(function (User $user) use (&$count, $category, $title, $body, $url, $subject, $meta) {
+                $this->notify($user, $category, $title, $body, $url, $subject, $meta);
+                $count++;
+            });
+
+        return $count;
+    }
+
     public function markRead(Notification $notification): void
     {
         if (! $notification->isRead()) {

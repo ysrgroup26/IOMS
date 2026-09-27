@@ -129,6 +129,23 @@ class RunSubscriptionLifecycle extends Command
                     if (! $dryRun) {
                         $this->emailLifecycle($subscription, $event);
                         $subscription->forceFill(['lifecycle_notified' => $this->noticeKey($subscription, $event)])->save();
+
+                        // v2.79.0: the same transition, on the platform
+                        // operator's feed. Once per state per period, because
+                        // it rides the same key the email does.
+                        $notifications->notifyPlatformAdmins(
+                            $event === SubscriptionLifecycleNotice::EVENT_LAPSED
+                                ? Notification::CATEGORY_WARNING
+                                : Notification::CATEGORY_REMINDER,
+                            ($event === SubscriptionLifecycleNotice::EVENT_LAPSED
+                                ? 'Tenant menjadi read-only: '
+                                : 'Masa tenggang dimulai: ').$tenant->name,
+                            $event === SubscriptionLifecycleNotice::EVENT_LAPSED
+                                ? 'Masa tenggang berakhir, sehingga pencatatan data baru dijeda sampai pembayaran diterima.'
+                                : 'Masa aktif berakhir. Akses penuh masih berjalan sampai '.optional($subscription->graceEndsAt())->toDateString().'.',
+                            route('platform.tenants.show', $tenant),
+                            $subscription,
+                        );
                     }
                     $this->line("Emailed \"{$tenant->name}\" ({$event}).");
                     $emailed++;

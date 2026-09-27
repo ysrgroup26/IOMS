@@ -15,6 +15,11 @@ resolution.
 Status vocabulary: [[Working with This Knowledge Base]]. Update the row in the same session you do
 the work.
 
+> [!tip] Major work lives on the board
+> [[Project Board]] carries the large, named pieces of work and the backlog derived from
+> `docs/FUTURE IDEAS/`. This register carries the long tail. A work item belongs in one of them,
+> not both.
+
 > [!warning] `ROADMAP.md`'s "Near-term" sections are partly stale
 > Several items listed there as deferred have since shipped — see [[#Resolved against the code]] at
 > the bottom. Do not read that file as a to-do list without checking here first.

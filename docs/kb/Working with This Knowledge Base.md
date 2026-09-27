@@ -22,6 +22,7 @@ once (`tag:#status/deferred`), and they mean exactly this:
 | `#status/in-progress` | Actively being built right now. | — |
 | `#status/implemented` | The code exists and the suite passes. | Version + commit |
 | `#status/verified` | Additionally exercised in a **running application**, or pinned by a test that would fail if it regressed. | Version + commit + how it was verified |
+| `#status/blocked` | Cannot proceed until something **outside the code** is decided or supplied — a commercial decision, credentials, an external API contract. | What it waits on, and who can unblock it |
 | `#status/deferred` | Deliberately not being done, with a reason. Not the same as forgotten. | The reason, and what would change the answer |
 | `#status/superseded` | Was true, has been replaced. Kept so nobody re-litigates it. | What replaced it |
 
@@ -30,6 +31,13 @@ once (`tag:#status/deferred`), and they mean exactly this:
 > project's history *nothing* was confirmed by running the application, and a single 30-minute
 > browser session then found four defects that months of code review had missed. Marking something
 > `#status/verified` is a claim that somebody ran it. Do not promote a row without that.
+
+> [!tip] The five words used on the board
+> [[Project Board]] speaks in FUTURE / IN PROGRESS / COMPLETED / BLOCKED / DEFERRED, because that is
+> how the work is discussed. They are the same states as the tags above:
+> `planned` → FUTURE, `in-progress` → IN PROGRESS, `implemented`/`verified` → COMPLETED,
+> `blocked` → BLOCKED, `deferred` → DEFERRED. One vocabulary, two registers: the board carries
+> major work, [[Requirements Register]] carries the long tail.
 > See [[Verification Status]].
 
 ---

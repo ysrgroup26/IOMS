@@ -49,3 +49,8 @@ database/database.sqlite
 /.obsidian/hotkeys.json
 /.obsidian/graph.json
 /.obsidian/cache
+
+# v2.79.0: opening docs/ directly in Obsidian creates a SECOND vault there.
+# The canonical vault is the repository ROOT (ADR 032) and it is the only one
+# whose config is shared, so this stray one stays local.
+/docs/.obsidian/

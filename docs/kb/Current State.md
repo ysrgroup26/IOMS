@@ -1,9 +1,9 @@
 ---
 title: Current State
 type: snapshot
-product-version: 2.74.0
+product-version: 2.79.0
 product-stage: Beta
-measured: 2026-09-20
+measured: 2026-09-27
 tags: [kb/state]
 ---
 
@@ -24,8 +24,8 @@ the date in the frontmatter, not remembered.
 | | |
 |---|---|
 | Product | **IOMS — Industrial Operations Platform** |
-| Version | **2.74.0**, stage **Beta**, edition **Enterprise Edition** |
-| Build | `2026.09.20.02`, release date `2026-09-20` |
+| Version | **2.79.0**, stage **Beta**, edition **Enterprise Edition** |
+| Build | `2026.09.27.02`, release date `2026-09-27` |
 | Stack | Laravel 12 · Inertia.js · React 18 · Tailwind · MySQL · Sanctum |
 
 The naming rules are not cosmetic — see [[Product Identity and Principles]].
@@ -36,11 +36,11 @@ The naming rules are not cosmetic — see [[Product Identity and Principles]].
 |---|---|
 | Eloquent models | 112 |
 | Controllers | 105 |
-| Inertia pages | 173 |
-| Migrations | 180 |
-| Feature test files | 48 |
-| Tests / assertions | **460 / 1939**, all passing |
-| ADRs | 36 files (numbering has known gaps — see [[Decision Register]]) |
+| Inertia pages | 170 |
+| Migrations | 181 |
+| Feature test files | 58 |
+| Tests / assertions | **538 / 2794**, all passing |
+| ADRs | 38 files (numbering has known gaps — see [[Decision Register]]) |
 | Workspaces in the navigation registry | 12 |
 
 ## Workspaces
@@ -75,9 +75,20 @@ has been migrated to it. That is deliberate and recorded — see [[Data Ownershi
 
 `super_admin` · `hse` · `hrd` · `manager` · `warehouse` · `platform_admin`
 
-`platform_admin` is not a tenant role at all: it is the IOMS operator, with `tenant_id = null`.
+`platform_admin` is not a tenant role at all: it is the IOMS operator. It is the **role** that makes
+someone a platform operator, not a null `tenant_id` — since v2.74.0 an ordinary account can exist
+before it has an organization, so `isPlatformAdmin()` reads the role. See ADR
+[[038-account-organization-subscription|038]].
 
 ## What shipped most recently
+
+`2.79.0` (2026-09-27) — Master Admin became an operations console, and the backlog became a board.
+The platform dashboard had been reading the stored `status` column, where lifecycle position is
+**derived** on every read, so a subscription whose period ended weeks ago still showed as active and
+the one screen meant to surface operational trouble surfaced none of it. Expiring, grace and
+read-only now come from the same `lifecycleState()` the customer's Billing page uses, beside payment
+activity read provider-agnostically from the data, and operators get a notification feed of their own
+business. ADR [[040-master-admin-is-an-operations-console|040]] · [[Project Board]].
 
 `2.71.0` (2026-09-16) — capability reach and navigation hierarchy. Material Request was unreachable
 for HSE on the two plans that sell HSE; the sidebar's scroll reset on every navigation and its group

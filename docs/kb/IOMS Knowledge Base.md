@@ -28,7 +28,9 @@ Read in this order. Four notes are usually enough to act safely:
 
 1. **[[Product Identity and Principles]]** — what this product is, what it is called, and the rules that constrain every change.
 2. **[[Current State]]** — the version, what exists, what is in flight, what is deliberately not being done.
-3. **[[Requirements Register]]** — the tracked work items and their status.
+3. **[[Project Board]]** — what is being worked on, what is blocked, what is done, and the backlog
+   derived from `docs/FUTURE IDEAS/`.
+4. **[[Requirements Register]]** — the tracked work items and their status.
 4. **[[Working with This Knowledge Base]]** — how to record what you did when you are finished.
 
 Then go deep only where your task touches:
@@ -77,6 +79,7 @@ Then go deep only where your task touches:
 
 | Note | Answers |
 |---|---|
+| [[Project Board]] | **Start here for status.** Every major piece of work: FUTURE / IN PROGRESS / COMPLETED / BLOCKED / DEFERRED |
 | [[Requirements Register]] | Planned / in progress / implemented / verified / deferred / superseded |
 | [[Known Issues and Limitations]] | What is currently wrong or bounded, stated plainly |
 | [[Verification Status]] | What was actually run, versus what was carefully reasoned |

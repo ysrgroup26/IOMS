@@ -385,6 +385,11 @@ class PlatformController extends Controller
                 'package_id' => $tenant->subscription->package_id,
                 'package_name' => $tenant->subscription->package?->name,
                 'seat_limit' => $tenant->subscription->seatLimit(),
+                // v2.82.0 -- capacity as three facts, plus what is actually
+                // in use. An operator answering "can they add somebody?"
+                // needs the allowance, the purchase and the usage, not one
+                // conflated number.
+                'active_users' => app(\App\Services\EntitlementService::class)->usersUsedCount($tenant),
                 'license_key' => $tenant->subscription->license_key,
                 'billing_reference' => $tenant->subscription->billing_reference,
                 'starts_at' => $tenant->subscription->starts_at,
@@ -447,6 +452,8 @@ class PlatformController extends Controller
             // INVOICED, never what is granted -- see ADR 041.
             'billing_mode' => ['sometimes', 'required', Rule::in(Subscription::BILLING_MODES)],
             'seat_limit' => ['nullable', 'integer', 'min:1'],
+            // v2.82.0 -- paid capacity beyond the plan allowance.
+            'additional_users' => ['sometimes', 'nullable', 'integer', 'min:0', 'max:1000'],
             'license_key' => ['nullable', 'string', 'max:255'],
             'billing_reference' => ['nullable', 'string', 'max:255'],
             'starts_at' => ['nullable', 'date'],

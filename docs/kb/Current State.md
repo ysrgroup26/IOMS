@@ -1,9 +1,9 @@
 ---
 title: Current State
 type: snapshot
-product-version: 2.81.0
+product-version: 2.82.0
 product-stage: Beta
-measured: 2026-09-27
+measured: 2026-09-28
 tags: [kb/state]
 ---
 
@@ -24,8 +24,8 @@ the date in the frontmatter, not remembered.
 | | |
 |---|---|
 | Product | **IOMS — Industrial Operations Platform** |
-| Version | **2.81.0**, stage **Beta**, edition **Enterprise Edition** |
-| Build | `2026.09.27.04`, release date `2026-09-27` |
+| Version | **2.82.0**, stage **Beta**, edition **Enterprise Edition** |
+| Build | `2026.09.28.01`, release date `2026-09-28` |
 | Stack | Laravel 12 · Inertia.js · React 18 · Tailwind · MySQL · Sanctum |
 
 The naming rules are not cosmetic — see [[Product Identity and Principles]].
@@ -39,7 +39,7 @@ The naming rules are not cosmetic — see [[Product Identity and Principles]].
 | Inertia pages | 170 |
 | Migrations | 183 |
 | Feature test files | 64 |
-| Tests / assertions | **604 / 3341**, all passing |
+| Tests / assertions | **632 / 3379**, all passing |
 | ADRs | 40 files (numbering has known gaps — see [[Decision Register]]) |
 | Workspaces in the navigation registry | 12 |
 
@@ -81,6 +81,15 @@ before it has an organization, so `isPlatformAdmin()` reads the role. See ADR
 [[038-account-organization-subscription|038]].
 
 ## What shipped most recently
+
+`2.82.0` (2026-09-28) — the pricing revamp. Three tiers replace four, each carrying a small
+**included** active-user allowance instead of a large hard cap, with extra active users purchasable
+at Rp50.000 each per month on every plan. A user is now an **active login account** — not a device,
+not an employee record, and not a deactivated account, all three of which are asserted. The annual
+offer stopped being one rule: Starter pays 12 for 12, Professional pays 11 for 12 (a discount) and
+Business pays 12 for **14** (extra service, which lives in the period because there is no price
+saving to derive). Enterprise is retired from sale, not deleted.
+ADR [[043-pricing-included-users-and-add-ons|043]].
 
 `2.81.0` (2026-09-27) — the invoice, one address, and the mark. The subscription invoice rendered
 through the shared **tenant** letterhead, so it drew the IOMS lockup beside the word IOMS and said

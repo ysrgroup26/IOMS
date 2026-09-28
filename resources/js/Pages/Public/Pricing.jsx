@@ -82,7 +82,7 @@ export default function Pricing({ plans = [], contactEmail }) {
                         <p className="text-center text-sm text-graphite-500">Plan information is not available right now.</p>
                     ) : (
                         // v2.60.0: four tiers -- two-up from md, four-up only at xl.
-                        <div className="grid grid-cols-1 gap-5 md:grid-cols-2 xl:grid-cols-4">
+                        <div className="mx-auto grid max-w-5xl grid-cols-1 gap-5 md:grid-cols-3">
                             {plans.map((plan) => {
                                 const price = yearly ? plan.yearly : plan.monthly;
                                 // v2.56.0: derived ONCE, server-side, from the plan's own two
@@ -92,6 +92,15 @@ export default function Pricing({ plans = [], contactEmail }) {
                                 // no sign it was already discounted, and any surface that wanted
                                 // the number had to copy the arithmetic.
                                 const saving = yearly ? plan.annual_saving : null;
+                                // v2.82.0: the annual OFFER, which is no longer one rule
+                                // across the ladder -- Starter pays twelve for twelve,
+                                // Professional pays eleven for twelve (a discount), and
+                                // Business pays twelve for FOURTEEN (extra service, not a
+                                // discount). Derived server-side in PricingService so no
+                                // page writes the sentence itself, and so Business is never
+                                // described as "2 months off" -- which would be an offer
+                                // IOMS is not making.
+                                const terms = yearly ? plan.annual_terms : null;
                                 // v2.61.0: a tier is described against the one
                                 // below it, not as a flat list -- see
                                 // PricingService::withLadderScope(). Business
@@ -133,14 +142,20 @@ export default function Pricing({ plans = [], contactEmail }) {
                                             </p>
                                             <p className="mt-1.5 text-[11px] uppercase tracking-wide text-graphite-400">
                                                 per {yearly ? 'year' : 'month'}
-                                                {saving && <span className="ml-1 font-semibold text-success">· {saving.percent}% less than monthly</span>}
+                                                {terms?.benefit && (
+                                                    <span className="ml-1 font-semibold text-success">· {terms.benefit}</span>
+                                                )}
                                             </p>
-                                            {/* The rupiah figure beside the percentage: a buyer
-                                                comparing cycles wants the amount, not a rate. */}
+                                            {/* Both halves of the annual offer, in Indonesian,
+                                                because this is the explanatory line under a
+                                                price rather than a label. */}
+                                            {terms && (
+                                                <p className="mt-1 text-[11px] text-graphite-500">{terms.label}</p>
+                                            )}
                                             {saving && (
-                                                <p className="mt-1 text-[11px] text-graphite-500">
+                                                <p className="mt-0.5 text-[11px] text-graphite-500">
                                                     <span className="line-through">{saving.monthly_equivalent_formatted}</span>
-                                                    {' '}if paid monthly · save {saving.formatted}
+                                                    {' '}jika dibayar bulanan
                                                 </p>
                                             )}
                                         </div>
@@ -155,9 +170,24 @@ export default function Pricing({ plans = [], contactEmail }) {
                                                 had to reconcile against the first ("10 users and 5
                                                 PTW Access -- is that fifteen?"). It is not sold any
                                                 more; it is an internal permission. */}
+                                            {/* v2.82.0: the included ALLOWANCE, said as an
+                                                allowance. Printing it as a bare number read as a
+                                                ceiling, and a buyer comparing "3 users" against a
+                                                team of six concluded the product did not fit --
+                                                when the answer is Rp50.000 each. The add-on price
+                                                is therefore on the same line, not in a footnote. */}
                                             <li className="flex items-start gap-2 text-xs text-graphite-600">
                                                 <Check className="mt-0.5 h-3.5 w-3.5 shrink-0 text-success" />
-                                                <span>{plan.max_users ? `${plan.max_users} user accounts` : 'Highest standardized user capacity'}</span>
+                                                <span>
+                                                    {plan.included_users
+                                                        ? `${plan.included_users} pengguna aktif termasuk`
+                                                        : 'Kapasitas pengguna tanpa batas'}
+                                                    {plan.included_users && plan.additional_user && (
+                                                        <span className="mt-0.5 block text-[11px] text-graphite-500">
+                                                            Tambahan {plan.additional_user.formatted}/pengguna/bulan
+                                                        </span>
+                                                    )}
+                                                </span>
                                             </li>
                                             <li className="flex items-start gap-2 text-xs text-graphite-600">
                                                 <Check className="mt-0.5 h-3.5 w-3.5 shrink-0 text-success" />
@@ -211,8 +241,13 @@ export default function Pricing({ plans = [], contactEmail }) {
                         <p className="text-xs leading-relaxed text-graphite-600">
                             Every plan is the same standardized IOMS platform. We build once and improve it for
                             everyone — no per-customer custom development, and no lifetime plan.
-                            <strong className="text-navy-800"> Users</strong> is the number of login accounts included.
-                            Permissions such as PTW Access are granted to those accounts inside IOMS at no extra cost.
+                            {/* v2.82.0: says exactly what is counted, because three plausible
+                                readings are all wrong -- a device, an employee record, and an
+                                admin "seat". Stated here once rather than argued about later. */}
+                            <strong className="text-navy-800"> Pengguna aktif</strong> adalah akun login yang aktif —
+                            satu akun boleh dipakai di beberapa perangkat, dan karyawan tanpa akun login tidak dihitung.
+                            Akun yang dinonaktifkan membebaskan kembali slotnya. Izin seperti PTW Access diberikan
+                            kepada akun yang sudah ada, tanpa biaya tambahan.
                             {/* v2.54.0: says plainly what an Operating Unit is, so nobody reads
                                 "2 Operating Units" as "two companies you may bill separately". */}
                             <strong className="text-navy-800"> Operating Units</strong> are yards, sites or divisions

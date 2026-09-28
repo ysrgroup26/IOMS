@@ -50,10 +50,23 @@ return [
     | tier `department`. Enterprise is resolved dynamically so a newly
     | added department is included without editing this file.
     */
+    /*
+    | v2.82.0 -- THE APPROVED THREE-TIER SCOPE.
+    |
+    | Business narrows: Project Management and Procurement leave the sold
+    | scope, and Warehouse joins Logistics so the tier is described the
+    | way it is sold -- "Logistics / Warehouse", one operational domain.
+    | Warehouse is therefore no longer a shell (see `shells` below).
+    |
+    | Enterprise keeps its entry because tenants are still subscribed to
+    | it. It is retired from SALE (`is_public = false`), not deleted --
+    | removing it here would strip the departments those customers
+    | already have.
+    */
     'workspaces' => [
         'starter' => ['hse'],
         'professional' => ['hse', 'hr'],
-        'business' => ['hse', 'hr', 'project-management', 'logistics', 'procurement'],
+        'business' => ['hse', 'hr', 'logistics', 'warehouse'],
         // Every department that exists, resolved at call time.
         'enterprise' => '*',
     ],
@@ -70,7 +83,9 @@ return [
     'modules' => [
         'starter' => ['employees', 'ppe', 'kpi_input', 'reports'],
         'professional' => ['employees', 'ppe', 'kpi_input', 'reports'],
-        'business' => ['employees', 'ppe', 'kpi_input', 'reports', 'projects', 'daily_reports', 'material_requests'],
+        // Material Request spans Logistics and Warehouse, so it stays.
+        // `projects` and `daily_reports` leave with Project Management.
+        'business' => ['employees', 'ppe', 'kpi_input', 'reports', 'material_requests'],
         'enterprise' => '*',
     ],
 
@@ -105,8 +120,14 @@ return [
     |
     | When one of these grows into a real workspace, delete it from this
     | list -- nothing else has to change.
+    |
+    | v2.82.0: `warehouse` is no longer listed here. Business sells
+    | "Logistics / Warehouse" as ONE domain, so naming Warehouse in the
+    | card describes what the customer buys rather than advertising an
+    | empty room -- the stock, goods-receipt and movement capability it
+    | fronts is granted with it.
     */
-    'shells' => ['warehouse', 'finance'],
+    'shells' => ['finance'],
 
     /*
     |--------------------------------------------------------------------
@@ -120,8 +141,24 @@ return [
     'positioning' => [
         'starter' => 'Digitalize HSE',
         'professional' => 'HSE + Workforce',
-        'business' => 'Cross-functional operational visibility',
+        'business' => 'Operations end to end',
         'enterprise' => 'Full IOMS',
+    ],
+
+    /*
+    |--------------------------------------------------------------------
+    | Included active users, for the PRICING COPY only (v2.82.0)
+    |--------------------------------------------------------------------
+    | The authoritative allowance is `packages.max_users`, which the
+    | entitlement layer reads and an operator can override per tenant.
+    | This list exists so a pricing surface can state the allowance for a
+    | tier it is describing without a database row -- and a test asserts
+    | the two agree, so it cannot become a second answer.
+    */
+    'included_users' => [
+        'starter' => 3,
+        'professional' => 10,
+        'business' => 25,
     ],
 
     /*

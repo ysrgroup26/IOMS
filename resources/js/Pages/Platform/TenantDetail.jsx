@@ -230,7 +230,33 @@ export default function PlatformTenantDetail({ tenant, subscription, administrat
                                         }
                                     />
                                 )}
-                                <Row label="Batas pengguna" value={subscription.seat_limit ?? 'Tanpa batas'} />
+                                {/* v2.82.0 -- the allowance, the purchase and the usage,
+                                    kept apart. "Batas pengguna: 25" alone hid whether a
+                                    tenant was at capacity or had bought their way past it. */}
+                                <Row
+                                    label="Pengguna aktif"
+                                    value={subscription.included_users === null || subscription.included_users === undefined
+                                        ? `${tenant.users_count} (tanpa batas)`
+                                        : `${subscription.active_users ?? tenant.users_count} / ${subscription.seat_limit}`}
+                                />
+                                <Row
+                                    label="Termasuk paket"
+                                    value={subscription.included_users ?? 'Tanpa batas'}
+                                />
+                                <Row
+                                    label="Pengguna tambahan"
+                                    value={
+                                        (subscription.additional_users ?? 0) > 0 ? (
+                                            <span className="inline-flex flex-wrap items-center justify-end gap-2">
+                                                <span>{subscription.additional_users}</span>
+                                                <span className="text-xs text-graphite-500">
+                                                    {new Intl.NumberFormat('id-ID', { style: 'currency', currency: 'IDR', maximumFractionDigits: 0 })
+                                                        .format(subscription.additional_user_charge ?? 0)} / periode
+                                                </span>
+                                            </span>
+                                        ) : 'Tidak ada'
+                                    }
+                                />
                                 {subscription.license_key && <Row label="Kunci lisensi" value={<code className="text-xs">{subscription.license_key}</code>} />}
                             </>
                         ) : (
@@ -377,6 +403,7 @@ function SubscriptionDialog({ tenant, subscription, packages, types, statuses, b
         billing_cycle: subscription?.billing_cycle || 'monthly',
         billing_mode: subscription?.billing_mode || 'paid',
         seat_limit: subscription?.seat_limit || '',
+        additional_users: subscription?.additional_users ?? 0,
         license_key: subscription?.license_key || '',
         billing_reference: subscription?.billing_reference || '',
         starts_at: subscription?.starts_at ? subscription.starts_at.slice(0, 10) : '',
@@ -445,6 +472,10 @@ function SubscriptionDialog({ tenant, subscription, packages, types, statuses, b
                             </p>
                         </div>
                         <div className="space-y-1.5"><Label>Batas pengguna (kosong = ikut paket)</Label><Input type="number" min="1" value={data.seat_limit} onChange={(e) => setData('seat_limit', e.target.value)} /></div>
+                        {/* v2.82.0 -- paid capacity beyond the plan. An operator sets
+                            it for a negotiated arrangement; the customer sets it
+                            themselves from Billing. Both write the same column. */}
+                        <div className="space-y-1.5"><Label>Pengguna tambahan (berbayar)</Label><Input type="number" min="0" value={data.additional_users} onChange={(e) => setData('additional_users', e.target.value)} /></div>
                         <div className="space-y-1.5"><Label>Kunci lisensi</Label><Input value={data.license_key} onChange={(e) => setData('license_key', e.target.value)} /></div>
                         <div className="space-y-1.5"><Label>Mulai</Label><Input type="date" value={data.starts_at} onChange={(e) => setData('starts_at', e.target.value)} /></div>
                         {data.type !== 'lifetime' && (

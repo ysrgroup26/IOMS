@@ -4,6 +4,7 @@ namespace App\Http\Controllers;
 
 use App\Contracts\PaymentGatewayInterface;
 use App\Mail\InvoiceIssued;
+use App\Models\ActivityLog;
 use App\Models\Company;
 use App\Models\Invoice;
 use App\Models\Package;
@@ -97,7 +98,11 @@ class SubscriptionController extends Controller
 
         // Real usage, counted now -- never a stored figure that could drift
         // from the seat limit it is being compared against.
-        $userCount = User::where('tenant_id', $tenantId)->count();
+        // v2.82.0: ACTIVE accounts only, and through the entitlement service
+        // rather than a second query -- what this page SHOWS and what the
+        // server ENFORCES must be one count, or a customer is told they have
+        // room they do not have.
+        $userCount = app(EntitlementService::class)->usersUsedCount($request->user()->tenant);
         $ptwUserCount = User::where('tenant_id', $tenantId)->where('ptw_access', true)->count();
         $companyCount = Company::withoutGlobalScopes()->where('tenant_id', $tenantId)->count();
 
@@ -177,7 +182,22 @@ class SubscriptionController extends Controller
                 'is_overdue' => $outstanding->isOverdue(),
             ] : null,
             'entitlements' => [
-                'users' => ['used' => $userCount, 'limit' => $subscription?->seatLimit()],
+                // v2.82.0 -- capacity is an ALLOWANCE plus purchased extras,
+                // so the page states all four numbers rather than a bare
+                // "used of limit": a customer at 25/25 has to be able to see
+                // that 25 is what the plan carries and not where the product
+                // stops. `used` counts ACTIVE login accounts only.
+                'users' => [
+                    'used' => $userCount,
+                    'limit' => $subscription?->seatLimit(),
+                    'included' => $subscription?->includedUsers(),
+                    'additional' => $subscription?->additionalUsers() ?? 0,
+                    'additional_price' => (float) config('saas.additional_user_price', 0),
+                    'additional_price_formatted' => $this->pricing->format((float) config('saas.additional_user_price', 0)),
+                    'additional_charge_formatted' => $subscription
+                        ? $this->pricing->format($subscription->additionalUserCharge())
+                        : null,
+                ],
                 // Shown for information -- how many accounts hold PTW Access
                 // -- with no limit, because it is not a purchased capacity.
                 'ptw_users' => ['used' => $ptwUserCount, 'limit' => null],
@@ -364,6 +384,90 @@ class SubscriptionController extends Controller
         $this->sendInvoiceEmail($request, $invoice);
 
         return redirect()->route('subscription.pay', $invoice);
+    }
+
+    /**
+     * v2.82.0 -- BUY OR RELEASE ADDITIONAL ACTIVE-USER CAPACITY.
+     *
+     * The included allowance belongs to the plan; this is what the customer
+     * holds on top of it, and it is a RECURRING charge -- Rp50.000 per
+     * additional active user per month, on every plan, for as long as it is
+     * held. It is not a one-off purchase, so nothing is invoiced at the
+     * moment of the change: the new quantity is priced into the next
+     * renewal invoice, which is the same document, the same lifecycle and
+     * the same verified-payment path everything else already uses.
+     *
+     * WHY NOT AN IMMEDIATE PRORATED INVOICE. A plan upgrade issues one,
+     * because it changes what the product IS mid-period. Capacity does not:
+     * the customer is buying room in a period they have already paid for,
+     * and charging for a partial month of a Rp50.000 line would produce
+     * invoices for a few thousand rupiah that cost more to settle than they
+     * collect. The quantity is therefore live immediately and billed from
+     * the next period -- stated plainly on the page, not implied.
+     *
+     * RELEASING IS FREE AND IMMEDIATE, but cannot strand accounts: capacity
+     * may never be reduced below the accounts currently ACTIVE. The customer
+     * deactivates accounts first, which frees the slots, and is the same
+     * rule a downgrade already follows. Nothing here ever deactivates a user
+     * on the customer's behalf.
+     *
+     * THE QUANTITY IS THE ONLY THING THE BROWSER SENDS. Every price is
+     * recomputed here from configuration and the tenant's own subscription,
+     * so a crafted form can change how much capacity is asked for and never
+     * what it costs.
+     */
+    public function updateAdditionalUsers(Request $request): RedirectResponse
+    {
+        $subscription = $this->currentSubscription($request);
+
+        // Capacity is a commercial change, so it is the same authority that
+        // manages the plan -- not every administrator, and never an
+        // ordinary member of the organization.
+        abort_unless($request->user()->canManageSystemSettings(), 403);
+
+        $validated = $request->validate([
+            'additional_users' => ['required', 'integer', 'min:0', 'max:1000'],
+        ]);
+
+        $requested = (int) $validated['additional_users'];
+        $tenant = $request->user()->tenant;
+        $entitlements = app(EntitlementService::class);
+
+        if ($subscription->includedUsers() === null) {
+            return back()->with('info', 'Paket organisasi Anda tidak memiliki batas pengguna, sehingga tidak perlu menambah kapasitas.');
+        }
+
+        // The floor: what is already in use. Releasing below it would leave
+        // active accounts over the limit, which is the one outcome this
+        // whole entitlement exists to prevent.
+        $minimum = $entitlements->additionalUsersRequiredFor($tenant, $entitlements->usersUsedCount($tenant));
+
+        if ($requested < $minimum) {
+            return back()->with('error',
+                "Organisasi Anda sedang menggunakan {$entitlements->usersUsedCount($tenant)} pengguna aktif, "
+                ."sehingga kapasitas tambahan tidak dapat dikurangi di bawah {$minimum}. "
+                .'Nonaktifkan akun yang tidak terpakai terlebih dahulu.');
+        }
+
+        if ($requested === $subscription->additionalUsers()) {
+            return back()->with('info', 'Jumlah pengguna tambahan tidak berubah.');
+        }
+
+        $before = $subscription->additionalUsers();
+
+        $subscription->forceFill(['additional_users' => $requested])->save();
+
+        ActivityLog::record(
+            'updated',
+            "Additional active-user capacity changed from {$before} to {$requested}.",
+            $subscription
+        );
+
+        $charge = $this->pricing->format($subscription->fresh()->additionalUserCharge());
+
+        return back()->with('success', $requested > $before
+            ? "Kapasitas ditambah menjadi {$requested} pengguna tambahan. Biaya {$charge} per periode akan masuk pada tagihan perpanjangan berikutnya."
+            : "Kapasitas tambahan diperbarui menjadi {$requested} pengguna. Perubahan biaya berlaku pada tagihan perpanjangan berikutnya.");
     }
 
     /**
@@ -617,13 +721,39 @@ class SubscriptionController extends Controller
     {
         $entitlements = app(EntitlementService::class);
         $tenant = $request->user()->tenant;
+        $subscription = $tenant?->subscription;
 
-        $seats = $target->max_users;
         $units = $target->max_companies;
 
+        /*
+         * v2.82.0 -- CAPACITY ON THE TARGET PLAN INCLUDES WHAT WAS BOUGHT.
+         *
+         * `max_users` is the INCLUDED allowance now, not a ceiling, and
+         * purchased additional users belong to the subscription rather than
+         * to the plan -- so they survive a plan change and count towards
+         * the limit on the new plan too.
+         *
+         * Comparing active users against the bare allowance would block a
+         * downgrade the customer has already paid to make possible: a
+         * Business tenant with 25 included and 10 purchased holds 35 active
+         * accounts legitimately, and moving to Professional (10 included +
+         * the same 10 purchased = 20) must be refused for the right reason
+         * and with the right number.
+         *
+         * Nothing is deactivated on the customer's behalf either way. They
+         * are told exactly what to reduce.
+         */
+        $included = $target->includedUsers();
+        $seats = $included === null ? null : $included + ($subscription?->additionalUsers() ?? 0);
+
         if ($seats !== null && ($used = $entitlements->usersUsedCount($tenant)) > $seats) {
-            return "Paket {$target->name} mencakup {$seats} akun, sedangkan organisasi Anda saat ini memiliki {$used} akun. "
-                .'Kurangi jumlah akun terlebih dahulu sebelum berpindah paket.';
+            $extra = $subscription?->additionalUsers() ?? 0;
+            $capacity = $extra > 0
+                ? "{$included} pengguna termasuk paket ditambah {$extra} pengguna tambahan ({$seats} total)"
+                : "{$seats} pengguna";
+
+            return "Paket {$target->name} mencakup {$capacity}, sedangkan organisasi Anda saat ini memiliki {$used} pengguna aktif. "
+                .'Nonaktifkan akun yang tidak terpakai, atau tambah kapasitas, sebelum berpindah paket.';
         }
 
         if ($units !== null && ($used = $entitlements->operatingUnitsUsedCount($tenant)) > $units) {

@@ -15,7 +15,12 @@ use Tests\Support\ApprovedCatalogue;
 use Tests\TestCase;
 
 /**
- * v2.60.0 -- THE FOUR-TIER MODEL.
+ * v2.60.0 -- THE PLAN CATALOGUE (four tiers then; three since v2.82.0,
+ * with Enterprise retired from sale rather than deleted).
+ *
+ * The figures moved to Tests\Support\ApprovedCatalogue after v2.60.0
+ * broke three files at once by transcribing them; assertions here read
+ * from it rather than naming a price, so a repricing updates one place.
  *
  * Three things this release had to get right, each of which has a way of
  * being wrong silently:
@@ -245,7 +250,7 @@ class FourTierPricingTest extends TestCase
         $subscription = $this->subscriptionOn('business');
 
         $this->assertNull($subscription->agreed_price_yearly, 'Precondition: no snapshot on this row.');
-        $this->assertSame(14990000.0, $subscription->agreedAmountFor(Subscription::CYCLE_YEARLY));
+        $this->assertSame(ApprovedCatalogue::PLANS['business'][1], $subscription->agreedAmountFor(Subscription::CYCLE_YEARLY));
         $this->assertSame('IDR', $subscription->agreedCurrency());
         $this->assertFalse($subscription->isOnLegacyPricing(), 'Matching the catalogue is not legacy pricing.');
     }
@@ -284,7 +289,7 @@ class FourTierPricingTest extends TestCase
 
         $package->update(['price_yearly' => 99000000]);
 
-        $this->assertSame(14990000.0, $subscription->fresh()->agreedAmountFor());
+        $this->assertSame(ApprovedCatalogue::PLANS['business'][1], $subscription->fresh()->agreedAmountFor());
     }
 
     /** Repricing an existing customer is a deliberate act, and it moves them off legacy pricing. */
@@ -294,9 +299,14 @@ class FourTierPricingTest extends TestCase
             'agreed_price_monthly' => 999000, 'agreed_price_yearly' => 9990000, 'agreed_currency' => 'IDR',
         ]);
 
-        $subscription->repriceTo(799000, 7990000);
+        // Repriced ONTO the current catalogue, which is what takes a
+        // customer off legacy pricing -- so the figures come from the
+        // approved catalogue rather than being typed in.
+        [$monthly, $yearly] = ApprovedCatalogue::PLANS['professional'];
 
-        $this->assertSame(7990000.0, $subscription->fresh()->agreedAmountFor());
+        $subscription->repriceTo($monthly, $yearly);
+
+        $this->assertSame($yearly, $subscription->fresh()->agreedAmountFor());
         $this->assertFalse($subscription->fresh()->isOnLegacyPricing());
     }
 
@@ -334,7 +344,11 @@ class FourTierPricingTest extends TestCase
         $expected = collect($package->defaultWorkspaceKeys())->sort()->values()->all();
 
         $this->assertSame($expected, $granted);
-        $this->assertContains('procurement', $granted);
-        $this->assertNotContains('warehouse', $granted);
+        // v2.82.0: Business sells HSE + People + Logistics / Warehouse.
+        // Project Management and Procurement left the sold scope.
+        $this->assertContains('logistics', $granted);
+        $this->assertContains('warehouse', $granted);
+        $this->assertNotContains('procurement', $granted);
+        $this->assertNotContains('project-management', $granted);
     }
 }

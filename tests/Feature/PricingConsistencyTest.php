@@ -109,42 +109,94 @@ class PricingConsistencyTest extends TestCase
      * ================================================================ */
 
     /**
-     * The worked example, in full: Professional at Rp799.000/month is
-     * Rp9.588.000 over twelve months against an annual price of
-     * Rp7.990.000 — a saving of Rp1.598.000, which is 16.67% and shown as
-     * 17%.
+     * v2.82.0 -- THE ANNUAL OFFER IS NOT ONE RULE ANY MORE.
+     *
+     * Until this release every tier was monthly x 10 and therefore the same
+     * 17%, which a single assertion could cover. The approved model has
+     * three different offers on one ladder, and only two of them are
+     * discounts:
+     *
+     *   Starter       pay 12, get 12   no annual benefit at all
+     *   Professional  pay 11, get 12   a price discount
+     *   Business      pay 12, get 14   extra SERVICE at the same price
+     *
+     * Business is why `annual_saving` alone is no longer enough to describe
+     * the catalogue: its annual price IS twelve monthly payments, so there
+     * is correctly no saving to report -- and a surface reading only that
+     * would present the strongest offer in the catalogue as having no annual
+     * benefit. The terms are published beside it and asserted here.
      */
-    public function test_the_annual_saving_matches_the_plans_own_two_prices(): void
+    public function test_each_tier_states_its_own_annual_terms(): void
     {
         $plans = app(PricingService::class)->publicPlans()->keyBy('slug');
 
-        $professional = $plans['professional']['annual_saving'];
+        foreach (ApprovedCatalogue::ANNUAL as $slug => [$paidMonths, $serviceMonths]) {
+            $plan = $plans[$slug] ?? null;
+            $this->assertNotNull($plan, "$slug is missing from the public catalogue.");
 
-        $this->assertEquals(9588000.0, $professional['monthly_equivalent']);
-        $this->assertEquals(1598000.0, $professional['amount']);
-        $this->assertSame(17, $professional['percent']);
-        $this->assertSame('Rp9.588.000', $professional['monthly_equivalent_formatted']);
-        $this->assertSame('Rp1.598.000', $professional['formatted']);
+            $terms = $plan['annual_terms'];
+            $this->assertNotNull($terms, "$slug must state its annual terms.");
 
-        // The same arithmetic must hold for every plan, not just the one
-        // in the worked example. Annual is monthly x 10 on every tier, so
-        // every tier lands on the same 17%.
-        foreach ($plans as $slug => $plan) {
-            $saving = $plan['annual_saving'];
+            $this->assertSame($paidMonths, $terms['paid_months'], "$slug bills the wrong number of months.");
+            $this->assertSame($serviceMonths, $terms['service_months'], "$slug grants the wrong service period.");
 
-            $this->assertNotNull($saving, "$slug should present an annual saving.");
-            $this->assertSame(17, $saving['percent'], "$slug should save the same 17% as every other tier.");
+            // The annual price is exactly the monthly price times the months
+            // billed -- never a rounded-off figure nobody can reproduce.
             $this->assertEquals(
-                $plan['monthly']['amount'] * 12,
-                $saving['monthly_equivalent'],
-                "$slug monthly equivalent is not twelve monthly payments."
+                $plan['monthly']['amount'] * $paidMonths,
+                $plan['yearly']['amount'],
+                "$slug annual price is not {$paidMonths} monthly payments."
             );
-            $this->assertEquals(
-                $saving['monthly_equivalent'] - $plan['yearly']['amount'],
-                $saving['amount'],
-                "$slug saving is not the difference between the two prices."
-            );
+
+            // And the sentence a customer reads says both halves.
+            $this->assertSame("Bayar {$paidMonths} bulan, akses {$serviceMonths} bulan", $terms['label']);
         }
+    }
+
+    /** A month of service beyond a normal year is a BONUS, never a discount. */
+    public function test_business_annual_is_extra_service_and_not_a_discount(): void
+    {
+        $plans = app(PricingService::class)->publicPlans()->keyBy('slug');
+        $business = $plans['business'];
+
+        // Twelve monthly payments: correctly, there is no price saving.
+        $this->assertNull(
+            $business['annual_saving'],
+            'Business pays twelve months, so presenting a price saving would be a claim IOMS is not making.'
+        );
+
+        $this->assertSame(2, $business['annual_terms']['bonus_months']);
+        $this->assertSame(0, $business['annual_terms']['discount_months']);
+        $this->assertSame('Tambahan 2 bulan akses', $business['annual_terms']['benefit']);
+    }
+
+    /** Professional is the opposite shape: a real discount, no bonus period. */
+    public function test_professional_annual_is_a_discount_and_not_bonus_access(): void
+    {
+        $plans = app(PricingService::class)->publicPlans()->keyBy('slug');
+        $professional = $plans['professional'];
+
+        $saving = $professional['annual_saving'];
+        $this->assertNotNull($saving);
+
+        // One month off twelve.
+        $this->assertEquals($professional['monthly']['amount'], $saving['amount']);
+        $this->assertEquals($professional['monthly']['amount'] * 12, $saving['monthly_equivalent']);
+
+        $this->assertSame(1, $professional['annual_terms']['discount_months']);
+        $this->assertSame(0, $professional['annual_terms']['bonus_months']);
+        $this->assertSame('Hemat 1 bulan', $professional['annual_terms']['benefit']);
+    }
+
+    /** Starter sells no annual benefit, and must not imply one. */
+    public function test_starter_annual_carries_no_benefit(): void
+    {
+        $starter = app(PricingService::class)->publicPlans()->keyBy('slug')['starter'];
+
+        $this->assertNull($starter['annual_saving']);
+        $this->assertNull($starter['annual_terms']['benefit']);
+        $this->assertSame(12, $starter['annual_terms']['paid_months']);
+        $this->assertSame(12, $starter['annual_terms']['service_months']);
     }
 
     /**
@@ -252,7 +304,7 @@ class PricingConsistencyTest extends TestCase
 
         $invoice = Invoice::where('registration_id', $registration->id)->firstOrFail();
 
-        $this->assertEquals(14990000.0, (float) $invoice->amount);
+        $this->assertEquals(ApprovedCatalogue::PLANS['business'][1], (float) $invoice->amount);
         $this->assertEquals((float) $package->price_yearly, (float) $invoice->amount);
         $this->assertSame('IDR', $invoice->currency);
     }

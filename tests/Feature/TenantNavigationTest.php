@@ -202,14 +202,15 @@ class TenantNavigationTest extends TestCase
             ->get(route('dashboard'))
             ->viewData('page')['props']['workspace_catalog'];
 
-        foreach (['hse', 'hr', 'project-management', 'logistics', 'procurement'] as $key) {
+        // v2.82.0: Business is HSE + People + Logistics / Warehouse.
+        foreach (['hse', 'hr', 'logistics', 'warehouse'] as $key) {
             $this->assertTrue((bool) $catalog[$key]['is_active'], "Business must receive {$key}.");
         }
 
-        // `warehouse` is a shell workspace granted only at Enterprise --
-        // Business buys the real capability under Logistics / PPIC, which
-        // is why the two must not be confused for each other.
-        $this->assertFalse((bool) $catalog['warehouse']['is_active'], 'Business must not receive Warehouse.');
+        // Project Management and Procurement left the sold scope, and must
+        // not be granted by a plan that no longer includes them.
+        $this->assertFalse((bool) $catalog['project-management']['is_active'], 'Business must not receive Project Management.');
+        $this->assertFalse((bool) $catalog['procurement']['is_active'], 'Business must not receive Procurement.');
         $this->assertFalse((bool) $catalog['finance']['is_active'], 'Business must not receive Finance.');
     }
 

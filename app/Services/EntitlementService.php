@@ -299,15 +299,32 @@ class EntitlementService
     }
 
     /**
-     * Every account belonging to this tenant, active or not.
+     * v2.82.0 -- ACTIVE LOGIN ACCOUNTS. The decision this method has been
+     * waiting for has been made.
      *
-     * NOTE (commercial semantics, deliberately conservative): a
-     * deactivated user still consumes a seat under this definition. That
-     * matches "50 total accounts maximum" as written, and mirrors
-     * `ptwUsersUsedCount()`, which likewise ignores `is_active`. If the
+     * It used to count every account, active or not, and said so: "if the
      * business would rather free a seat on deactivation, this one method
-     * is the only place that has to change -- flagged in the report
-     * rather than decided unilaterally, since it is a pricing decision.
+     * is the only place that has to change". The approved model is
+     * ACTIVE users, so a deactivated account no longer consumes capacity
+     * and no longer costs anything.
+     *
+     * WHAT A USER IS, precisely, because three plausible answers are all
+     * wrong:
+     *
+     *   NOT a device. One account may sign in from a phone, a tablet and
+     *   a site terminal; that is one user. There are deliberately no
+     *   device seats anywhere in IOMS.
+     *
+     *   NOT an employee record. Most employees in a yard never log in.
+     *   `employees` and `users` stay separate tables for exactly this
+     *   reason, and nothing here counts the former.
+     *
+     *   NOT a role. A Tenant Admin is a capability on an account, not a
+     *   second kind of seat, and is counted once like anybody else.
+     *
+     * Deactivating an account is therefore the supported way to release
+     * capacity without deleting a person's history -- which is what a
+     * system of record for safety compliance has to allow.
      */
     public function usersUsedCount(?Tenant $tenant): int
     {
@@ -315,7 +332,47 @@ class EntitlementService
             return 0;
         }
 
-        return User::where('tenant_id', $tenant->id)->count();
+        return User::where('tenant_id', $tenant->id)
+            ->where('is_active', true)
+            ->count();
+    }
+
+    /** The plan allowance alone, before anything the tenant purchased. */
+    public function includedUserAllowance(?Tenant $tenant): ?int
+    {
+        return $tenant?->subscription?->includedUsers();
+    }
+
+    /** Paid capacity beyond the plan. */
+    public function additionalUsersPurchased(?Tenant $tenant): int
+    {
+        return $tenant?->subscription?->additionalUsers() ?? 0;
+    }
+
+    /**
+     * How many more ACTIVE accounts this tenant may create before they
+     * have to buy capacity. Null means unlimited.
+     */
+    public function remainingUserSlots(?Tenant $tenant): ?int
+    {
+        $limit = $this->userSeatLimit($tenant);
+
+        return $limit === null ? null : max(0, $limit - $this->usersUsedCount($tenant));
+    }
+
+    /**
+     * How many additional users a tenant would have to BUY to hold this
+     * many active accounts. Zero when the allowance already covers it.
+     *
+     * Server-side, from the tenant's own subscription -- never from a
+     * quantity a browser submitted, which is the whole point of computing
+     * it here rather than in the page that shows the price.
+     */
+    public function additionalUsersRequiredFor(?Tenant $tenant, int $activeUsers): int
+    {
+        $included = $this->includedUserAllowance($tenant);
+
+        return $included === null ? 0 : max(0, $activeUsers - $included);
     }
 
     /**

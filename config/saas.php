@@ -92,6 +92,30 @@ return [
     'grace_days' => (int) env('SAAS_GRACE_DAYS', 7),
 
     /*
+    |--------------------------------------------------------------------
+    | Additional active users (v2.82.0)
+    |--------------------------------------------------------------------
+    | Rp50.000 per additional ACTIVE user per month, and deliberately
+    | ONE price for every plan.
+    |
+    | Per-plan add-on pricing was considered and rejected: an extra
+    | account is the same thing on Starter as on Business, and charging
+    | more for it at the top would make an upgrade read as a penalty for
+    | the customers who had grown.
+    |
+    | It lives here rather than on `packages` for the same reason: a
+    | column would invite four different answers to a question that has
+    | one. If that decision is ever reversed, the column is the change --
+    | not a second config key beside this one.
+    |
+    | A USER is an active login account. Not a device (one account may
+    | sign in from several), and not an employee record (an employee
+    | without a login is not a user). A deactivated account frees its
+    | slot. See App\Services\EntitlementService::usersUsedCount().
+    */
+    'additional_user_price' => (float) env('SAAS_ADDITIONAL_USER_PRICE', 50000),
+
+    /*
     | How many days before a period ends the renewal invoice is issued --
     | the reminder the customer receives. SEVEN (H-7), decided alongside
     | the grace window above so the two numbers read as one policy: the

@@ -9,6 +9,7 @@ use App\Models\PaymentTransaction;
 use App\Models\Tenant;
 use App\Models\TenantRegistration;
 use App\Models\User;
+use App\Models\Workspace;
 use App\Services\PricingService;
 use App\Support\CurrentTenant;
 use App\Support\LegalDocuments;
@@ -323,6 +324,18 @@ class PublicReadinessTest extends TestCase
             'checkout_token' => 'snap-token-testonly',
         ]);
 
+        /*
+         * v2.82.0 -- the annual figures are DERIVED from the plan under
+         * test rather than transcribed. They were written out literally,
+         * so repricing broke this test for a reason that had nothing to do
+         * with what it checks: that the checkout page restates the annual
+         * offer from the same server-side derivation the pricing page uses.
+         */
+        $package = $this->package();
+        $pricing = app(PricingService::class);
+        $equivalent = (float) $package->price_monthly * 12;
+        $saved = $equivalent - (float) $package->price_yearly;
+
         $response = $this->get(route('register.pay', $registration->token));
 
         $response->assertOk()->assertInertia(fn ($page) => $page
@@ -334,14 +347,18 @@ class PublicReadinessTest extends TestCase
             // v2.56.0: an annual order restates the discount at the moment
             // of payment, from the same server-side derivation the Pricing
             // page and Get Started use.
-            ->where('order.annual_saving.monthly_equivalent_formatted', 'Rp9.588.000')
-            ->where('order.annual_saving.formatted', 'Rp1.598.000')
-            ->where('order.annual_saving.percent', 17)
+            // v2.82.0: Professional pays eleven months for twelve, so the
+            // saving is exactly one monthly payment against a twelve-month
+            // equivalent. Read from the approved catalogue rather than
+            // transcribed, which is how three files broke at once in v2.60.0.
+            ->where('order.annual_saving.monthly_equivalent_formatted', $pricing->format($equivalent))
+            ->where('order.annual_saving.formatted', $pricing->format($saved))
+            ->where('order.annual_saving.percent', (int) round(($saved / $equivalent) * 100))
             ->etc()
         );
 
         // The rendered page carries the amounts, not just the props.
-        $response->assertSee('Rp9.588.000')->assertSee('Rp1.598.000');
+        $response->assertSee($pricing->format($equivalent))->assertSee($pricing->format($saved));
 
         // The server key signs webhooks. It must never reach a browser.
         $response->assertDontSee('SB-Mid-server-TESTONLY');
@@ -443,7 +460,11 @@ class PublicReadinessTest extends TestCase
         // label resolves to an empty string and this passes vacuously.
         $this->seed(WorkspaceSeeder::class);
 
-        $this->assertSame(['warehouse', 'finance'], config('plans.shells'));
+        // v2.82.0: `warehouse` left this list. Business sells
+        // "Logistics / Warehouse" as one domain, so naming Warehouse on a
+        // card describes what is bought rather than advertising an empty
+        // room. Finance is still a Dashboard and an Overview.
+        $this->assertSame(['finance'], config('plans.shells'));
 
         $showcaseTabs = [];
         preg_match_all(
@@ -452,14 +473,30 @@ class PublicReadinessTest extends TestCase
             $showcaseTabs
         );
 
+        /*
+         * v2.82.0 -- the shell LIST is read from config rather than typed
+         * out here. It was transcribed, so removing `warehouse` from the
+         * list (it is a real part of Business now) left this test still
+         * asserting the old answer -- a test that names what it is checking
+         * instead of asking is a test that goes stale silently.
+         */
+        $shellLabels = Workspace::whereIn('key', config('plans.shells', []))
+            ->pluck('label')
+            ->all();
+
+        $this->assertNotEmpty($shellLabels, 'Precondition: the shell workspaces must resolve to labels.');
+
         foreach ($showcaseTabs[1] as $label) {
-            $this->assertNotSame('Warehouse', $label, 'Warehouse is a shell workspace and must not be a showcase tab.');
-            $this->assertNotSame('Finance', $label, 'Finance is a shell workspace and must not be a showcase tab.');
+            $this->assertNotContains(
+                $label,
+                $shellLabels,
+                "{$label} is a shell workspace and must not be a showcase tab."
+            );
         }
 
         // And no public plan may name one as something the tier adds.
         foreach (app(PricingService::class)->publicPlans() as $plan) {
-            foreach (['Warehouse', 'Finance'] as $shell) {
+            foreach ($shellLabels as $shell) {
                 $this->assertNotContains(
                     $shell,
                     $plan['scope']['added'],
@@ -490,16 +527,19 @@ class PublicReadinessTest extends TestCase
         $this->assertSame('Starter', $plans['professional']['scope']['inherits_from']);
         $this->assertSame(['Human Resources'], $plans['professional']['scope']['added']);
 
-        // The headline claim of the four-tier model: Business is
-        // Professional PLUS THREE OPERATIONAL DOMAINS, not five departments.
+        // v2.82.0: Business is Professional plus the movement of materials
+        // -- Logistics / PPIC and the Warehouse it feeds. Project
+        // Management and Procurement left the sold scope.
         $this->assertSame('Professional', $plans['business']['scope']['inherits_from']);
         $this->assertSame(
-            ['Project Management', 'Logistics / PPIC', 'Procurement'],
+            ['Logistics / PPIC', 'Warehouse'],
             $plans['business']['scope']['added']
         );
 
-        $this->assertSame('Business', $plans['enterprise']['scope']['inherits_from']);
-        $this->assertTrue($plans['enterprise']['scope']['covers_everything']);
+        // v2.82.0: Enterprise is retired from SALE -- the row and its
+        // grants stay for the tenants subscribed to it, but it must not
+        // appear in the public catalogue any more.
+        $this->assertArrayNotHasKey('enterprise', $plans->all(), 'A retired plan must not be sold.');
         $this->assertFalse($plans['business']['scope']['covers_everything']);
     }
 

@@ -18,6 +18,9 @@ class Package extends Model
         'description',
         'price_monthly',
         'price_yearly',
+        // v2.82.0 -- how many MONTHS OF SERVICE a yearly payment buys.
+        // See includedUsers()/annualMonths() and the owning migration.
+        'annual_months',
         'currency',
         'trial_days',
         'max_users',
@@ -35,11 +38,71 @@ class Package extends Model
             'price_monthly' => 'decimal:2',
             'price_yearly' => 'decimal:2',
             'trial_days' => 'integer',
+            'annual_months' => 'integer',
+            'max_users' => 'integer',
             'max_ptw_users' => 'integer',
             'is_active' => 'boolean',
             'is_public' => 'boolean',
             'is_custom' => 'boolean',
         ];
+    }
+
+    /*
+     |-------------------------------------------------------------------
+     | CAPACITY AND TERM (v2.82.0)
+     |-------------------------------------------------------------------
+     | `max_users` is the INCLUDED active-user allowance, not a ceiling.
+     | A tenant may buy more (subscriptions.additional_users), so the
+     | effective limit is the plan allowance plus what was purchased --
+     | resolved by Subscription::seatLimit(), which is the only place
+     | that answers "how many accounts may this tenant have".
+     |
+     | The column is reused rather than renamed: it has always meant
+     | "how many login accounts this plan carries". What changed is that
+     | exceeding it is now a purchase instead of a wall.
+     */
+
+    /** The active-user allowance included in this plan. Null means unlimited. */
+    public function includedUsers(): ?int
+    {
+        return $this->max_users;
+    }
+
+    /**
+     * How many MONTHS OF SERVICE one yearly payment buys.
+     *
+     * Not always twelve, and that is the whole point: Business is sold
+     * as twelve months paid for fourteen months of access. That is extra
+     * SERVICE, not a discount -- its annual price is exactly twelve
+     * monthly payments, so there is nothing to derive from the prices,
+     * and presenting it as "two months free" would describe a different
+     * offer from the one approved.
+     *
+     * Falls back to 12 so a plan created without an opinion behaves as a
+     * plain year.
+     */
+    public function annualMonths(): int
+    {
+        $months = (int) ($this->annual_months ?? 12);
+
+        return $months > 0 ? $months : 12;
+    }
+
+    /**
+     * How many months a yearly payment is PRICED at, derived from the
+     * plan's own two prices. Professional bills eleven; the others bill
+     * twelve. Null when either price is missing or the plan is custom.
+     */
+    public function annualPaidMonths(): ?float
+    {
+        $monthly = (float) ($this->price_monthly ?? 0);
+        $yearly = (float) ($this->price_yearly ?? 0);
+
+        if ($this->is_custom || $monthly <= 0 || $yearly <= 0) {
+            return null;
+        }
+
+        return round($yearly / $monthly, 2);
     }
 
     public function subscriptions()

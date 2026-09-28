@@ -22,17 +22,47 @@ namespace Tests\Support;
 final class ApprovedCatalogue
 {
     /**
-     * slug => [monthly, yearly, max_users, max_companies]
+     * slug => [monthly, yearly, included_users, max_companies]
+     *
+     * v2.82.0 -- THE APPROVED THREE-TIER MODEL. `included_users` is the
+     * allowance the plan carries, NOT a ceiling: more active users are
+     * purchasable at ADDITIONAL_USER_PRICE each per month, on every tier.
      *
      * `null` on either capacity column is this schema's "unlimited".
-     * Annual is monthly x 10 on every tier (~16.67%, shown as 17%).
+     *
+     * The annual figures are not one rule -- see ANNUAL below, which is
+     * the reason this could not stay a two-price table.
      */
     public const PLANS = [
-        'starter' => [299000.0, 2990000.0, 10, 1],
-        'professional' => [799000.0, 7990000.0, 50, 2],
-        'business' => [1499000.0, 14990000.0, 150, 4],
-        'enterprise' => [2499000.0, 24990000.0, null, null],
+        'starter' => [189000.0, 2268000.0, 3, 1],
+        'professional' => [555000.0, 6105000.0, 10, 2],
+        'business' => [1249000.0, 14988000.0, 25, 4],
     ];
+
+    /**
+     * slug => [paid months, service months]
+     *
+     * Starter pays twelve and gets twelve. Professional pays ELEVEN and
+     * gets twelve -- a price discount. Business pays twelve and gets
+     * FOURTEEN -- extra service, not a discount, which is why the service
+     * figure has to be written down separately: it cannot be derived from
+     * the two prices, because Business has no price saving at all.
+     */
+    public const ANNUAL = [
+        'starter' => [12, 12],
+        'professional' => [11, 12],
+        'business' => [12, 14],
+    ];
+
+    /** Rp per additional ACTIVE user per month. One price, every plan. */
+    public const ADDITIONAL_USER_PRICE = 50000.0;
+
+    /**
+     * Enterprise is RETIRED FROM SALE, not deleted: tenants are still
+     * subscribed to it, so the row, its price and its grants stay. It must
+     * not appear in the public catalogue.
+     */
+    public const RETIRED = ['enterprise'];
 
     /**
      * The DEPARTMENT workspaces each tier grants -- the sellable scope,
@@ -42,8 +72,7 @@ final class ApprovedCatalogue
     public const SCOPE = [
         'starter' => ['hse'],
         'professional' => ['hse', 'hr'],
-        'business' => ['hse', 'hr', 'project-management', 'logistics', 'procurement'],
-        'enterprise' => '*',
+        'business' => ['hse', 'hr', 'logistics', 'warehouse'],
     ];
 
     /** The tier presented as recommended. Exactly one, or none. */

@@ -934,6 +934,10 @@ Route::middleware(['auth', 'restrict.platform-admin'])->group(function () {
      * fixes the problem would be absurd.
      */
     Route::post('/subscription/renew', [SubscriptionController::class, 'renew'])->name('subscription.renew');
+    // v2.82.0: additional ACTIVE-USER capacity. A recurring subscription
+    // charge, priced server-side from config -- the browser sends only a
+    // quantity. See SubscriptionController::updateAdditionalUsers().
+    Route::put('/subscription/additional-users', [SubscriptionController::class, 'updateAdditionalUsers'])->name('subscription.additional-users');
     Route::post('/subscription/plan-change', [SubscriptionController::class, 'changePlan'])->name('subscription.plan-change');
     Route::delete('/subscription/plan-change', [SubscriptionController::class, 'cancelPlanChange'])->name('subscription.plan-change.cancel');
     Route::get('/subscription/invoices/{invoice}/pay', [SubscriptionController::class, 'pay'])->name('subscription.pay');

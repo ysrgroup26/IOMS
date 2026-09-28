@@ -111,11 +111,15 @@ class PackageSeeder extends Seeder
                 'name' => 'Starter',
                 'slug' => 'starter',
                 'description' => 'Digitalize Health, Safety & Environment for one operating unit — incidents, observations, inspections, PPE, Permit To Work, CAPA and every other HSE module.',
-                'price_monthly' => 299000,
-                'price_yearly' => 2990000,
+                'price_monthly' => 189000,
+                'price_yearly' => 2268000,
+                // 12 x 189.000, twelve months access -- no annual benefit.
+                'annual_months' => 12,
                 'currency' => 'IDR',
                 'trial_days' => null,
-                'max_users' => 10,
+                // The INCLUDED allowance, not a ceiling: more active users
+                // are purchasable at Rp50.000 each per month.
+                'max_users' => 3,
                 'max_companies' => 1,
                 // v2.53.0: PTW Access is no longer a sold capacity. Null
                 // means the entitlement layer applies no ceiling; the
@@ -133,11 +137,13 @@ class PackageSeeder extends Seeder
                 // v2.60.0: 999.000 -> 799.000. Professional cost 3.3x
                 // Starter and added ONE department while Enterprise added
                 // eight for 2x -- the expensive step was the small one.
-                'price_monthly' => 799000,
-                'price_yearly' => 7990000,
+                'price_monthly' => 555000,
+                'price_yearly' => 6105000,
+                // 11 x 555.000 for twelve months access -- one month off.
+                'annual_months' => 12,
                 'currency' => 'IDR',
                 'trial_days' => null,
-                'max_users' => 50,
+                'max_users' => 10,
                 'max_companies' => 2,
                 'max_ptw_users' => null,
                 'is_public' => true,
@@ -147,15 +153,18 @@ class PackageSeeder extends Seeder
             [
                 'name' => 'Business',
                 'slug' => 'business',
-                'description' => 'Cross-functional operational visibility: Health, Safety & Environment and People, plus Project Management, Logistics / PPIC and Procurement — so work, materials and approvals stop living in separate systems.',
+                'description' => 'Health, Safety & Environment and People, plus Logistics / PPIC and Warehouse — so work, materials and stock stop living in separate systems.',
                 // The bridge tier, and the largest scope jump in the ladder:
                 // three departments at the middle price. That is what earns
                 // it "Most Popular" rather than a badge chosen for effect.
-                'price_monthly' => 1499000,
-                'price_yearly' => 14990000,
+                'price_monthly' => 1249000,
+                'price_yearly' => 14988000,
+                // 12 x 1.249.000 for FOURTEEN months access. Extra service,
+                // not a discount -- see Package::annualMonths().
+                'annual_months' => 14,
                 'currency' => 'IDR',
                 'trial_days' => null,
-                'max_users' => 150,
+                'max_users' => 25,
                 'max_companies' => 4,
                 'max_ptw_users' => null,
                 'is_public' => true,

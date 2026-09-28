@@ -118,6 +118,13 @@ class PricingService
             'is_public' => $package->is_public,
             'trial_days' => $package->trial_days,
             'max_users' => $package->max_users,
+            // v2.82.0 -- capacity is an ALLOWANCE plus purchasable extras,
+            // so a pricing card has two numbers to state and must not
+            // present the first as a ceiling. See annualTerms() for why the
+            // annual benefit is not derivable from the two prices.
+            'included_users' => $package->includedUsers(),
+            'additional_user' => $this->additionalUserPrice($package),
+            'annual_terms' => $this->annualTerms($package),
             'max_companies' => $package->max_companies,
             // v2.53.0: `max_ptw_users` is no longer sent. PTW Access is not
             // a purchasable capacity any more, so a pricing surface has
@@ -148,6 +155,91 @@ class PricingService
             // not have to test for two different shapes.
             'scope' => null,
             'modules' => $this->labelsFor(Module::class, $package->defaultModuleKeys()),
+        ];
+    }
+
+    /**
+     * v2.82.0 -- WHAT AN EXTRA ACTIVE USER COSTS.
+     *
+     * One price for every plan, from config, so no card can quote a
+     * different figure from the one the billing layer charges. Null for a
+     * custom plan, which is negotiated as a whole.
+     */
+    private function additionalUserPrice(Package $package): ?array
+    {
+        if ($package->is_custom) {
+            return null;
+        }
+
+        $price = (float) config('saas.additional_user_price', 0);
+
+        if ($price <= 0) {
+            return null;
+        }
+
+        return [
+            'amount' => $price,
+            'currency' => $package->currency,
+            'formatted' => $this->format($price, $package->currency),
+        ];
+    }
+
+    /**
+     * v2.82.0 -- THE ANNUAL OFFER, STATED RATHER THAN INFERRED.
+     *
+     * Three different offers sit on one ladder, and only two of them are
+     * discounts:
+     *
+     *   Starter       pay 12, get 12   nothing to say
+     *   Professional  pay 11, get 12   a price discount
+     *   Business      pay 12, get 14   extra SERVICE at the same price
+     *
+     * Business is why this method exists. Its annual price is exactly
+     * twelve monthly payments, so `annualSaving()` correctly finds no
+     * saving and returns null -- and a surface reading only that would
+     * show the strongest offer in the catalogue as having no annual
+     * benefit at all. Worse, describing it as "2 months free" would
+     * present a discount that is not being given.
+     *
+     * So both halves are published: how many months are PAID for, and how
+     * many months of service are RECEIVED. Every surface renders the
+     * sentence from those two numbers instead of keeping its own copy.
+     */
+    private function annualTerms(Package $package): ?array
+    {
+        if ($package->is_custom) {
+            return null;
+        }
+
+        $paid = $package->annualPaidMonths();
+        $service = $package->annualMonths();
+
+        if ($paid === null) {
+            return null;
+        }
+
+        $paidMonths = (int) round($paid);
+        // Bonus is service beyond a NORMAL YEAR, not beyond what was paid.
+        // Professional pays 11 for 12: that is a discount on a normal year,
+        // not a bonus month -- measuring it against the payment would
+        // describe the same offer two different ways on two tiers.
+        $bonusMonths = max(0, $service - 12);
+        $discountMonths = max(0, 12 - $paidMonths);
+
+        return [
+            'paid_months' => $paidMonths,
+            'service_months' => $service,
+            // Months not charged for inside a normal twelve: a DISCOUNT.
+            'discount_months' => $discountMonths,
+            // Months of service beyond what was paid for: extra SERVICE.
+            'bonus_months' => $bonusMonths,
+            // The sentence itself, built once so no page writes its own.
+            'label' => "Bayar {$paidMonths} bulan, akses {$service} bulan",
+            'benefit' => match (true) {
+                $bonusMonths > 0 => "Tambahan {$bonusMonths} bulan akses",
+                $discountMonths > 0 => "Hemat {$discountMonths} bulan",
+                default => null,
+            },
         ];
     }
 

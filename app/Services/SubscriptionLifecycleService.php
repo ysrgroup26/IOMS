@@ -348,7 +348,9 @@ class SubscriptionLifecycleService
         $subscription->forceFill([
             'status' => $wasBlocked ? $subscription->status : Subscription::STATUS_ACTIVE,
             'billing_cycle' => $cycle,
-            'ends_at' => $this->addCycle($from, $cycle),
+            // v2.82.0: the PLAN decides the term. A Business annual
+            // payment buys fourteen months of service, not twelve.
+            'ends_at' => $this->addCycle($from, $cycle, $subscription->package),
             'starts_at' => $subscription->starts_at ?? now(),
             // Only cleared alongside a status that is actually leaving
             // cancellation -- never while the row stays cancelled.
@@ -617,7 +619,11 @@ class SubscriptionLifecycleService
             ? $subscription->ends_at->copy()
             : now();
 
-        return [$start, $this->addCycle($start->copy(), $cycle)];
+        // The plan being RENEWED INTO decides the length: a renewal that
+        // carries a scheduled plan change buys the new plan's term.
+        [, $package] = $this->nextPeriodPlan($subscription);
+
+        return [$start, $this->addCycle($start->copy(), $cycle, $package ?? $subscription->package)];
     }
 
     /**
@@ -625,7 +631,25 @@ class SubscriptionLifecycleService
      * whatever the catalogue says today — unless the renewal also carries
      * a plan change, which re-agrees the price by definition.
      */
+    /**
+     * What a renewal costs: the price this customer agreed to, not
+     * whatever the catalogue says today — unless the renewal also carries
+     * a plan change, which re-agrees the price by definition.
+     *
+     * v2.82.0 -- PLUS THE ADDITIONAL USERS THEY BOUGHT. Extra capacity is
+     * a recurring subscription charge, not a one-off purchase, so it is
+     * part of every renewal for as long as it is held. Releasing it costs
+     * nothing and stops the charge at the next renewal, which is what
+     * makes deactivating an account a real lever rather than a gesture.
+     */
     public function renewalAmount(Subscription $subscription, ?Package $package, string $cycle): float
+    {
+        return $this->planAmount($subscription, $package, $cycle)
+            + $subscription->additionalUserCharge($cycle);
+    }
+
+    /** The plan half of a renewal, without add-ons. */
+    public function planAmount(Subscription $subscription, ?Package $package, string $cycle): float
     {
         $movingPlan = $package && (int) $package->id !== (int) $subscription->package_id;
 
@@ -637,8 +661,30 @@ class SubscriptionLifecycleService
             ?? ($package ? $this->pricing->amountFor($package, $cycle) : 0));
     }
 
-    private function addCycle(Carbon $from, ?string $cycle): Carbon
+    /**
+     * v2.82.0 -- HOW LONG A PERIOD IS, which is no longer a property of
+     * the CYCLE alone.
+     *
+     * A yearly payment buys the plan's `annual_months` of service, which
+     * is twelve for most tiers and FOURTEEN for Business -- sold as twelve
+     * months paid for fourteen months of access. That benefit is extra
+     * SERVICE, not a discount: Business's annual price is exactly twelve
+     * monthly payments, so there is nothing in the prices to derive it
+     * from and the period is the only place it can live.
+     *
+     * Every period calculation in IOMS goes through here -- renewal
+     * windows, extendPeriod(), scheduled cycle changes -- so the benefit
+     * applies once, consistently, and cannot be granted twice.
+     *
+     * The package is optional because a subscription can outlive its plan
+     * row; twelve months is the honest fallback.
+     */
+    private function addCycle(Carbon $from, ?string $cycle, ?Package $package = null): Carbon
     {
-        return $cycle === Subscription::CYCLE_MONTHLY ? $from->addMonth() : $from->addYear();
+        if ($cycle === Subscription::CYCLE_MONTHLY) {
+            return $from->addMonth();
+        }
+
+        return $from->addMonths($package?->annualMonths() ?? 12);
     }
 }

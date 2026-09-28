@@ -134,8 +134,20 @@ class PublicSaasJourneyTest extends TestCase
         // Get Started is a redirect into account registration, not a page.
         $this->get(route('get-started'))->assertRedirect(route('register'));
     }
-    /** Annual must be genuinely cheaper per month, or presenting it as better value is a lie. */
-    public function test_annual_billing_is_actually_better_value(): void
+    /**
+     * v2.82.0 -- ANNUAL MUST BE WORTH TAKING, WHICHEVER WAY IT IS WORTH IT.
+     *
+     * Until this release every tier was cheaper per month on annual, so
+     * "below twelve monthly payments" covered the catalogue. It no longer
+     * does: Business pays exactly twelve and is compensated with two extra
+     * months of service instead, and Starter is sold with no annual benefit
+     * at all.
+     *
+     * So the rule is the honest one -- annual may never cost MORE per month
+     * of service than monthly does. That holds for a discount and for a
+     * bonus period alike, and it is what a customer is actually comparing.
+     */
+    public function test_annual_billing_is_never_worse_value_than_monthly(): void
     {
         $this->seedPlans();
 
@@ -144,10 +156,12 @@ class PublicSaasJourneyTest extends TestCase
                 continue;
             }
 
-            $this->assertLessThan(
-                (float) $package->price_monthly * 12,
-                (float) $package->price_yearly,
-                "{$package->slug}: annual price must be below 12x monthly."
+            $perMonthOfService = (float) $package->price_yearly / $package->annualMonths();
+
+            $this->assertLessThanOrEqual(
+                (float) $package->price_monthly,
+                $perMonthOfService,
+                "{$package->slug}: a month of service on annual must never cost more than a month on monthly."
             );
         }
     }

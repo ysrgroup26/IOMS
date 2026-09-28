@@ -155,6 +155,9 @@ class Subscription extends Model
         'agreed_price_yearly',
         'agreed_currency',
         'seat_limit',
+        // v2.82.0 -- active-user slots purchased ON TOP of the plan's
+        // included allowance. See seatLimit() and additionalUserCharge().
+        'additional_users',
         'license_key',
         'billing_reference',
         'starts_at',
@@ -383,6 +386,16 @@ class Subscription extends Model
             // v2.80.0: how it is paid for. Part of the shared snapshot so
             // one screen can never bill a tenant another screen shows as
             // complimentary.
+            // v2.82.0 -- capacity, as three separate facts. A customer
+            // told "25 of 25 used" needs to know 25 is the ALLOWANCE and
+            // not the maximum, and Master Admin needs the same numbers.
+            'included_users' => $this->includedUsers(),
+            'additional_users' => $this->additionalUsers(),
+            'seat_limit' => $this->seatLimit(),
+            'additional_user_price' => (float) config('saas.additional_user_price', 0),
+            'additional_user_charge' => $this->additionalUserCharge(),
+            'annual_service_months' => $this->annualServiceMonths(),
+            'annual_paid_months' => $this->annualPaidMonths(),
             'billing_mode' => $this->billingMode(),
             'billing_mode_label' => $this->billingModeLabel(),
             'is_billable' => $this->isBillable(),
@@ -430,9 +443,96 @@ class Subscription extends Model
         return ! $this->isBlocked();
     }
 
+    /*
+     |-------------------------------------------------------------------
+     | ACTIVE-USER CAPACITY (v2.82.0)
+     |-------------------------------------------------------------------
+     | Three numbers, kept apart because they answer different questions:
+     |
+     |   includedUsers()   what the PLAN carries
+     |   additional_users  what this customer BOUGHT on top
+     |   seatLimit()       what the entitlement layer enforces
+     |
+     | Before v2.82.0 there was only the third, and exceeding it was a
+     | wall. Now it is a purchase, so the first two have to be visible
+     | separately -- a customer being told "25 of 25 used" needs to know
+     | that 25 is the allowance and not the maximum.
+     */
+
+    /**
+     * The allowance included in the plan, before anything purchased.
+     *
+     * `seat_limit` is an operator override on the whole capacity, so it
+     * wins here too: a tenant given a negotiated allowance has that as
+     * their included figure, not the catalogue's.
+     */
+    public function includedUsers(): ?int
+    {
+        return $this->seat_limit ?? $this->package?->includedUsers();
+    }
+
+    /** Active-user slots this customer has purchased beyond the plan. */
+    public function additionalUsers(): int
+    {
+        return max(0, (int) ($this->additional_users ?? 0));
+    }
+
+    /**
+     * What the entitlement layer enforces: the included allowance plus
+     * whatever was purchased. Null means unlimited, and stays unlimited --
+     * adding paid capacity to "no ceiling" is meaningless, not infinite+n.
+     */
     public function seatLimit(): ?int
     {
-        return $this->seat_limit ?? $this->package?->max_users;
+        $included = $this->includedUsers();
+
+        return $included === null ? null : $included + $this->additionalUsers();
+    }
+
+    /**
+     * v2.82.0 -- WHAT THE EXTRA USERS COST, PER BILLING PERIOD.
+     *
+     * One price for every plan (config saas.additional_user_price), by
+     * decision: an extra account is the same thing on Starter as on
+     * Business, and per-plan add-on pricing would make an upgrade look
+     * like a penalty for the tenants who had grown.
+     *
+     * ON AN ANNUAL CYCLE the add-on is billed for the months the customer
+     * PAYS for, not the months they receive. That keeps one rule for the
+     * whole invoice: Professional pays eleven months for the plan and
+     * eleven for its extra users; Business pays twelve for both and
+     * receives fourteen months of everything. Billing the service months
+     * instead would charge Business MORE for an add-on than the benefit it
+     * was given, which is the opposite of the offer.
+     */
+    public function additionalUserCharge(?string $cycle = null): float
+    {
+        $count = $this->additionalUsers();
+
+        if ($count === 0) {
+            return 0.0;
+        }
+
+        $cycle = $cycle ?? $this->billing_cycle;
+        $monthly = (float) config('saas.additional_user_price', 0);
+
+        if ($cycle === self::CYCLE_MONTHLY) {
+            return $count * $monthly;
+        }
+
+        return $count * $monthly * $this->annualPaidMonths();
+    }
+
+    /** How many months an annual payment is PRICED at for this subscription. */
+    public function annualPaidMonths(): float
+    {
+        return (float) ($this->package?->annualPaidMonths() ?? 12);
+    }
+
+    /** How many months of SERVICE a yearly payment buys. Business: 14. */
+    public function annualServiceMonths(): int
+    {
+        return $this->package?->annualMonths() ?? 12;
     }
 
     /**

@@ -1,5 +1,6 @@
 import { Head, Link, router, useForm, usePage } from '@inertiajs/react';
-import { CreditCard, Users, Building2, ShieldCheck, CalendarClock, Receipt, AlertTriangle, FileDown, ArrowUpRight, Clock3, CheckCircle2, Lock } from 'lucide-react';
+import { useEffect, useState } from 'react';
+import { CreditCard, Users, Building2, ShieldCheck, CalendarClock, Receipt, AlertTriangle, FileDown, ArrowUpRight, Clock3, CheckCircle2, Lock, Plus, Minus } from 'lucide-react';
 import AuthenticatedLayout from '@/Layouts/AuthenticatedLayout';
 import PageHeader from '@/Components/shared/PageHeader';
 import { Card, CardContent, CardHeader, CardTitle } from '@/Components/ui/card';
@@ -380,7 +381,12 @@ export default function Billing({
                 <Card>
                     <CardHeader><CardTitle>Capacity in use</CardTitle></CardHeader>
                     <CardContent className="space-y-4">
-                        <Meter icon={Users} label="User accounts" {...entitlements.users} />
+                        {/* v2.82.0: the meter says "used of TOTAL", which is the
+                            allowance plus anything purchased. The breakdown under it
+                            is what stops a customer at 3/3 concluding the product
+                            does not fit their team. */}
+                        <Meter icon={Users} label="Active users" {...entitlements.users} />
+                        <AdditionalUsers users={entitlements.users} />
                         {/* v2.54.0: capacity is measured in OPERATING UNITS -- one
                             organization, one subscription, one or more units. */}
                         <Meter icon={Building2} label="Operating Units" {...entitlements.operating_units} />
@@ -500,6 +506,123 @@ function Row({ label, children }) {
 }
 
 /** Real usage against a real limit. Renders a plain count when the plan sets no cap. */
+/**
+ * v2.82.0 -- BUY OR RELEASE ACTIVE-USER CAPACITY.
+ *
+ * The included allowance belongs to the plan; this is what the customer
+ * holds on top of it, at a flat price per user per month on every plan.
+ *
+ * THE RECURRING COST IS SHOWN BEFORE CONFIRMING, not after. A control that
+ * changed a subscription charge on click and explained it afterwards would
+ * be a surprise on the next invoice.
+ *
+ * The browser sends a QUANTITY and nothing else -- every price here is for
+ * reading, and the server recomputes all of it from configuration and the
+ * tenant's own subscription. A crafted form can ask for different capacity;
+ * it can never change what capacity costs.
+ */
+function AdditionalUsers({ users }) {
+    const included = users?.included ?? null;
+    const purchased = users?.additional ?? 0;
+    const used = users?.used ?? 0;
+
+    // An unlimited plan has nothing to buy.
+    const [quantity, setQuantity] = useState(purchased);
+
+    useEffect(() => setQuantity(purchased), [purchased]);
+
+    if (included === null) {
+        return (
+            <p className="text-[11px] leading-relaxed text-graphite-400">
+                Paket Anda tidak membatasi jumlah pengguna aktif.
+            </p>
+        );
+    }
+
+    // Capacity may never drop below the accounts currently active -- the
+    // server enforces this too; here it simply stops the customer asking
+    // for something that will be refused.
+    const minimum = Math.max(0, used - included);
+    const price = users?.additional_price ?? 0;
+    const remaining = Math.max(0, included + purchased - used);
+    const dirty = quantity !== purchased;
+
+    const rupiah = (n) => 'Rp' + Math.round(n).toLocaleString('id-ID');
+
+    function submit() {
+        router.put(route('subscription.additional-users'), { additional_users: quantity }, {
+            preserveScroll: true,
+        });
+    }
+
+    return (
+        <div className="rounded-lg border border-steel-200/70 bg-steel-50/40 p-3">
+            <div className="grid grid-cols-3 gap-2 text-center">
+                <div>
+                    <p className="text-sm font-semibold text-navy-900">{included}</p>
+                    <p className="text-[10px] uppercase tracking-wide text-graphite-400">Included</p>
+                </div>
+                <div>
+                    <p className="text-sm font-semibold text-navy-900">{purchased}</p>
+                    <p className="text-[10px] uppercase tracking-wide text-graphite-400">Additional</p>
+                </div>
+                <div>
+                    <p className="text-sm font-semibold text-navy-900">{remaining}</p>
+                    <p className="text-[10px] uppercase tracking-wide text-graphite-400">Remaining</p>
+                </div>
+            </div>
+
+            <div className="mt-3 flex items-center justify-center gap-2 border-t border-steel-200/70 pt-3">
+                <Button
+                    type="button"
+                    variant="outline"
+                    size="icon"
+                    className="h-7 w-7"
+                    aria-label="Decrease additional users"
+                    disabled={quantity <= minimum}
+                    onClick={() => setQuantity((q) => Math.max(minimum, q - 1))}
+                >
+                    <Minus className="h-3.5 w-3.5" />
+                </Button>
+                <span className="w-10 text-center text-sm font-semibold text-navy-900">{quantity}</span>
+                <Button
+                    type="button"
+                    variant="outline"
+                    size="icon"
+                    className="h-7 w-7"
+                    aria-label="Increase additional users"
+                    onClick={() => setQuantity((q) => q + 1)}
+                >
+                    <Plus className="h-3.5 w-3.5" />
+                </Button>
+            </div>
+
+            {/* The recurring charge, stated before the change is made. */}
+            <p className="mt-2 text-center text-[11px] leading-relaxed text-graphite-500">
+                {quantity > 0
+                    ? `${quantity} pengguna tambahan · ${rupiah(quantity * price)} per bulan`
+                    : 'Tidak ada pengguna tambahan.'}
+                <span className="block text-graphite-400">
+                    {rupiah(price)} per pengguna per bulan. Perubahan biaya masuk pada tagihan perpanjangan berikutnya.
+                </span>
+            </p>
+
+            {dirty && (
+                <Button type="button" size="sm" className="mt-2 w-full" onClick={submit}>
+                    Save capacity
+                </Button>
+            )}
+
+            {minimum > purchased && (
+                <p className="mt-2 text-[11px] leading-relaxed text-danger">
+                    Organisasi Anda menggunakan {used} pengguna aktif, melebihi kapasitas saat ini.
+                    Tambah kapasitas atau nonaktifkan akun yang tidak terpakai.
+                </p>
+            )}
+        </div>
+    );
+}
+
 function Meter({ icon: Icon, label, used, limit }) {
     const pct = limit ? Math.min(100, Math.round((used / limit) * 100)) : null;
     const tight = pct !== null && pct >= 90;

@@ -64,6 +64,19 @@ interface PaymentGatewayInterface
     public function isConfigured(): bool;
 
     /**
+     * v2.84.1 -- WHICH PROVIDER THIS IS, for the records a payment leaves
+     * behind.
+     *
+     * The shared settlement path stamps the provider name onto the invoice
+     * when it marks it paid, and it was naming Midtrans as a literal -- the
+     * last piece of provider-specific knowledge left in code every gateway
+     * runs through. A second adapter would have settled its payments under
+     * the first one's name, which is the kind of wrong that is invisible
+     * until somebody reconciles a statement.
+     */
+    public function gatewayName(): string;
+
+    /**
      * What the BROWSER may know about this provider -- a public/client key,
      * a script URL, a sandbox flag. Never a server key or secret. Empty for
      * a provider with no in-page component (a plain redirect flow).

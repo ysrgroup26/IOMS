@@ -30,14 +30,14 @@ const LIVE = [
 
 const READ_ONLY = [
     'Dashboard, reports and management views',
-    'Project Management records',
+    'Warehouse Logistics records',
     'Generated PDF and Excel documents',
 ];
 
 const LOCKED = [
-    'Procurement, Warehouse and Logistics / PPIC',
-    'Assets, Maintenance and Quality Control',
-    'Settings, company branding and billing',
+    'Admin Space: users, roles and operating units',
+    'Company branding and tenant settings',
+    'Subscription and billing',
 ];
 
 export default function Sandbox({ available, contactEmail }) {

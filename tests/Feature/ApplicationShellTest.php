@@ -118,8 +118,11 @@ class ApplicationShellTest extends TestCase
     {
         $layout = $this->layout();
 
-        $this->assertStringContainsString('flex h-8 min-w-0 items-center gap-1.5 rounded-md border', $layout);
-        $this->assertStringContainsString("<span className=\"truncate\">{activeWorkspace?.label ?? 'All Workspaces'}</span>", $layout);
+        // v2.84.1: the trigger's surface is now conditional (lit when a
+        // workspace is the active context, quiet inside Admin Space), so the
+        // stable part of the class list is what this asserts.
+        $this->assertStringContainsString("'flex h-8 min-w-0 items-center gap-1.5 rounded-md px-3 text-xs font-medium outline-none transition-colors'", $layout);
+        $this->assertStringContainsString("{space === 'admin' ? 'Workspaces' : (activeWorkspace?.label ?? 'All Workspaces')}", $layout);
     }
 
     /**

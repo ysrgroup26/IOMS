@@ -23,6 +23,34 @@ return [
         'is_production' => env('MIDTRANS_IS_PRODUCTION', false),
     ],
 
+    /*
+    |--------------------------------------------------------------------
+    | Duitku (v2.84.1)
+    |--------------------------------------------------------------------
+    | Set PAYMENT_GATEWAY=duitku AND both credentials to activate the
+    | adapter. Naming the provider without keys does NOT half-activate it:
+    | PaymentServiceProvider falls back to NullPaymentGateway, which throws
+    | on every call rather than pretending a payment succeeded.
+    |
+    | DUITKU_MERCHANT_CODE  the project code from the Duitku dashboard
+    | DUITKU_API_KEY        the project's API key -- the HMAC-SHA256 secret
+    |                       for BOTH the request signature and the callback
+    |                       signature, so a wrong value fails in two
+    |                       directions at once
+    | DUITKU_IS_PRODUCTION  false uses sandbox.duitku.com, true uses
+    |                       passport.duitku.com
+    |
+    | The callback URL to register in the Duitku dashboard is the
+    | `webhooks.payment.duitku` route: https://<host>/webhooks/payment/duitku
+    | It must be reachable from the public internet and must not sit behind
+    | authentication -- it is verified by signature, not by session.
+    */
+    'duitku' => [
+        'merchant_code' => env('DUITKU_MERCHANT_CODE'),
+        'api_key' => env('DUITKU_API_KEY'),
+        'is_production' => env('DUITKU_IS_PRODUCTION', false),
+    ],
+
     'xendit' => [
         'secret_key' => env('XENDIT_SECRET_KEY'),
         'webhook_token' => env('XENDIT_WEBHOOK_TOKEN'),

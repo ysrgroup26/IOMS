@@ -147,6 +147,10 @@ return Application::configure(basePath: dirname(__DIR__))
         // exemption is a single literal path -- never a wildcard.
         $middleware->validateCsrfTokens(except: [
             'webhooks/payment/midtrans',
+            // v2.84.1 -- Duitku's callback, under the identical rule: a single
+            // literal path, verified by HMAC-SHA256 signature before a field
+            // is read. Never a wildcard.
+            'webhooks/payment/duitku',
         ]);
 
         $middleware->alias([

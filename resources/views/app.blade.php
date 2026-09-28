@@ -196,7 +196,7 @@
                     // the page does not make.
                     'featureList' => [
                         'Industrial Operations', 'HSE & Safety', 'People & Workforce', 'Field Operations',
-                        'Projects & Execution', 'Procurement & Warehouse', 'Logistics / PPIC', 'Management Visibility',
+                        'Warehouse Logistics', 'Management Visibility',
                     ],
                     'operatingSystem' => 'Web browser',
                     'url' => $homeUrl,

@@ -54,6 +54,12 @@ class NullPaymentGateway implements PaymentGatewayInterface
      * into a 500 on the billing page, when the correct behaviour is the page
      * saying plainly that online payment is not enabled.
      */
+    public function gatewayName(): string
+    {
+        // Named honestly: nothing is configured, so nothing is the provider.
+        return 'none';
+    }
+
     public function isConfigured(): bool
     {
         return false;

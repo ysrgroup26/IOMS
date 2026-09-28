@@ -3,6 +3,7 @@
 namespace App\Providers;
 
 use App\Contracts\PaymentGatewayInterface;
+use App\Services\Payments\DuitkuGateway;
 use App\Services\Payments\MidtransGateway;
 use App\Services\Payments\NullPaymentGateway;
 use Illuminate\Support\ServiceProvider;
@@ -32,9 +33,29 @@ class PaymentServiceProvider extends ServiceProvider
         $this->app->bind(PaymentGatewayInterface::class, function () {
             return match (config('payment.gateway')) {
                 MidtransGateway::GATEWAY => $this->midtrans(),
+                DuitkuGateway::GATEWAY => $this->duitku(),
                 default => new NullPaymentGateway,
             };
         });
+    }
+
+    /**
+     * v2.84.1 -- the same conservative selection the Midtrans branch uses,
+     * for the same reason: a deployment that names Duitku without keys gets
+     * the null gateway, which throws loudly at checkout instead of booting a
+     * half-configured adapter that fails somewhere less obvious.
+     */
+    private function duitku(): PaymentGatewayInterface
+    {
+        try {
+            return new DuitkuGateway(
+                (string) config('payment.duitku.merchant_code', ''),
+                (string) config('payment.duitku.api_key', ''),
+                (bool) config('payment.duitku.is_production', false),
+            );
+        } catch (Throwable) {
+            return new NullPaymentGateway;
+        }
     }
 
     private function midtrans(): PaymentGatewayInterface

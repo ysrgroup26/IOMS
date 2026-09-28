@@ -54,7 +54,7 @@ class PublicController extends Controller
         ],
         [
             'key' => 'hr',
-            'name' => 'Human Resources',
+            'name' => 'People / HRD',
             'summary' => 'Employee records, competencies and certificates, shifts and rosters, leave, and man-hour capture.',
             'points' => [
                 'One employee master across every company in a tenant',
@@ -64,80 +64,13 @@ class PublicController extends Controller
             ],
         ],
         [
-            'key' => 'operations',
-            'name' => 'Operations',
-            'summary' => 'Daily reports, assignments, activity records, and the approval trail behind everyday work.',
-            'points' => [
-                'Daily reports filed straight from the field',
-                'Work assignment and follow-up',
-                'Every record carries its own activity history',
-            ],
-        ],
-        [
-            'key' => 'project-management',
-            'name' => 'Project Management',
-            'summary' => 'Projects, milestones, activities and manpower placement.',
-            'points' => [
-                'Projects and milestones tracked to date',
-                'Manpower assigned per project',
-                'Progress and daily activity records',
-            ],
-        ],
-        [
-            'key' => 'warehouse',
-            'name' => 'Warehouse',
-            'summary' => 'Items, stock, warehouses, goods receipt and stock movement with a full audit trail.',
-            'points' => [
-                'Item master and stock levels per warehouse',
-                'Goods Receipt matched against the Purchase Order',
-                'Stock movement with complete history',
-            ],
-        ],
-        [
-            'key' => 'procurement',
-            'name' => 'Procurement',
-            'summary' => 'Purchase requisitions, RFQ, vendors, vendor scoring and Purchase Orders.',
-            'points' => [
-                'Purchase Requisition (FPB) with tiered approval',
-                'RFQ and side-by-side vendor quotations',
-                'Purchase Orders and vendor performance review',
-            ],
-        ],
-        [
             'key' => 'logistics',
-            'name' => 'Logistics / PPIC',
-            'summary' => 'Material requests and material movement across the whole operation.',
+            'name' => 'Warehouse Logistics',
+            'summary' => 'Material requests, the item master, warehouse stock, goods receipt and every movement between locations.',
             'points' => [
-                'Material requests and issues',
-                'Movement records between locations',
-            ],
-        ],
-        [
-            'key' => 'assets',
-            'name' => 'Assets',
-            'summary' => 'Asset register, assignment, and full lifecycle history.',
-            'points' => [
-                'Asset register with automatic numbering',
-                'Assignment and status history',
-            ],
-        ],
-        [
-            'key' => 'maintenance',
-            'name' => 'Maintenance',
-            'summary' => 'Maintenance requests and Work Orders, including spare parts consumed.',
-            'points' => [
-                'Maintenance raised by the people using the asset',
-                'Work Orders (SPK) with spare parts recorded against them',
-            ],
-        ],
-        [
-            'key' => 'quality-control',
-            'name' => 'Quality Control',
-            'summary' => 'Inspection requests, non-conformance reports (NCR), and controlled documents.',
-            'points' => [
-                'Inspection requests and their results',
-                'NCR handled through to closure',
-                'Controlled document register',
+                'Material requests raised by any department',
+                'Item master and stock levels per warehouse',
+                'Goods receipt and movement history with a full audit trail',
             ],
         ],
         [
@@ -228,7 +161,7 @@ class PublicController extends Controller
         ['q' => 'What is an Operating Unit?', 'a' => 'IOMS structures your organization as IOMS → Organization → Operating Unit → Department. One subscription is ONE organization. An Operating Unit is an operational unit inside it — a yard, a site or a division — and every Department sits under one Operating Unit. Two Operating Units does not mean two companies or two separate subscriptions.'],
         ['q' => 'Who is IOMS built for?', 'a' => 'Industrial companies that run field work and carry occupational safety obligations — shipyards, construction, manufacturing, mining, oil and gas, energy, fabrication, logistics and industrial service providers.'],
         ['q' => 'Which industries are supported?', 'a' => 'IOMS is built for industrial operations generally, not one sector. The modules are the same across industries; what differs is which operational domains your company switches on.'],
-        ['q' => 'What does each plan include?', 'a' => 'Starter covers Health, Safety & Environment in full for one Operating Unit. Professional adds Human Resources, for an organization running up to two Operating Units. Business adds Project Management, Logistics / PPIC and Procurement on top of that, across up to four Operating Units. Enterprise opens every operational department IOMS ships, with unlimited Operating Units. All four are the same platform — what differs is the breadth of access and the capacity.'],
+        ['q' => 'What does each plan include?', 'a' => 'Starter covers Health, Safety & Environment in full for one Operating Unit. Professional adds People / HRD, for an organization running up to two Operating Units. Business adds Warehouse Logistics and Management on top of that, plus the company-wide Dashboard, across up to four Operating Units. All three are the same platform — what differs is the breadth of access and the capacity.'],
         ['q' => 'How are users counted?', 'a' => 'Plan capacity is stated as ONE number: how many login accounts (Users) are included. Starter includes 10 accounts, Professional 50 and Business 150; Enterprise has no stated ceiling. Permissions inside IOMS — including PTW Access — are granted to accounts you already have, and add neither accounts nor cost.'],
         ['q' => 'What is PTW Access?', 'a' => 'PTW Access is a permission granted to specific accounts so they can raise a Permit To Work. It is not sold capacity and carries no extra charge. A foreman or field supervisor given PTW Access can raise a permit straight from My Work, and HSE still reviews and approves it.'],
         ['q' => 'What is My Work?', 'a' => 'My Work is the workspace for the people doing the work in the field — foremen, supervisors, technicians, operators. An account marked as a field user lands directly in My Work at sign-in rather than in an office dashboard that means nothing to them.'],

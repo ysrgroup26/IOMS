@@ -906,6 +906,14 @@ reasoning across every refinement (v1.8.0 through v1.10.2). This section is the 
   Reports/Administration, reached only through the sidebar's Global navigation state, never the
   selector. An item's `global: true` (only ever the repeated "Dashboard" link back to the Global
   Dashboard) marks it as not owned by whichever department it appears in.
+- **ADMIN SPACE IS A CONTEXT, AND AUTHORITY DOES NOT CROSS IT** (v2.84.1). Admin Space is *how the
+  account is configured*; the operational workspaces are *how the company operates*. Administrative
+  functions (users, roles, operating units, departments, positions, security, audit, subscription)
+  belong to Admin Space **only** — not merely hidden from a workspace's sidebar but unreachable
+  through it, which is why `settings` is owned by `administration` alone in
+  `config/departments.php`. The header lights exactly one context: workspace selector **or** Admin
+  Space, never both, and the operational links (Dashboard, Calendar) are absent inside Admin Space so
+  nothing silently leaves it. ADR `046-admin-space-is-a-context.md`.
 - **IOMS is four operational workspaces, one administrative space, and a company dashboard**
   (v2.84.0). HSE, People / HRD, Logistics / Warehouse and Management are the operational workspaces;
   Admin Space is administration; the **Global Company Dashboard is Business-only and is not a

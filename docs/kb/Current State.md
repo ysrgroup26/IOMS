@@ -1,7 +1,7 @@
 ---
 title: Current State
 type: snapshot
-product-version: 2.84.0
+product-version: 2.84.1
 product-stage: Beta
 measured: 2026-09-28
 tags: [kb/state]
@@ -24,8 +24,8 @@ the date in the frontmatter, not remembered.
 | | |
 |---|---|
 | Product | **IOMS — Industrial Operations Platform** |
-| Version | **2.84.0**, stage **Beta**, edition **Enterprise Edition** |
-| Build | `2026.09.28.03`, release date `2026-09-28` |
+| Version | **2.84.1**, stage **Beta**, edition **Enterprise Edition** |
+| Build | `2026.09.29.01`, release date `2026-09-29` |
 | Stack | Laravel 12 · Inertia.js · React 18 · Tailwind · MySQL · Sanctum |
 
 The naming rules are not cosmetic — see [[Product Identity and Principles]].
@@ -39,7 +39,7 @@ The naming rules are not cosmetic — see [[Product Identity and Principles]].
 | Inertia pages | 170 |
 | Migrations | 183 |
 | Feature test files | 64 |
-| Tests / assertions | **674 / 3703**, all passing |
+| Tests / assertions | **691 / 3785**, all passing |
 | ADRs | 40 files (numbering has known gaps — see [[Decision Register]]) |
 | Workspaces in the navigation registry | 12 |
 
@@ -81,6 +81,16 @@ before it has an organization, so `isPlatformAdmin()` reads the role. See ADR
 [[038-account-organization-subscription|038]].
 
 ## What shipped most recently
+
+`2.84.1` (2026-09-29) — Admin Space became a real **context**: exactly one of the workspace
+selector and Admin Space is lit at a time, the two operational header links disappear inside it,
+and clicking Dashboard no longer drops an administrator into HSE. **Administrative authority left
+the operational workspaces** at all three layers, including the routing entry that let Settings be
+reached through HSE. Warehouse Logistics is one workspace with one name. The Master Admin Support
+500 was reproduced and its actual root cause — a pending migration — is now something the
+operations console reports instead of failing silently. And **Duitku is implemented** at the
+payment abstraction that was already waiting for it, so a tenant can renew without emailing
+billing. ADR [[046-admin-space-is-a-context|046]].
 
 `2.84.0` (2026-09-28) — the final workspace architecture. IOMS is **four operational workspaces**
 (HSE, People / HRD, Logistics / Warehouse, Management), **one administrative space** (Admin Space),

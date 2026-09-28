@@ -128,10 +128,10 @@ const MODULES = [
     },
     {
         key: 'logistics',
-        label: 'Logistics / Warehouse',
+        label: 'Warehouse Logistics',
         icon: PackageSearch,
         eyebrow: 'Department',
-        title: 'Logistics / Warehouse',
+        title: 'Warehouse Logistics',
         subtitle: 'Material requests, item master, inventory, goods receipt and stock movement.',
         stats: [
             { icon: PackageSearch, value: '8', label: 'Pending Material Requests', accent: 'amber' },

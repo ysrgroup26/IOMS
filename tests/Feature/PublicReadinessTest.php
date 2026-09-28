@@ -554,7 +554,7 @@ class PublicReadinessTest extends TestCase
         // way it always worked -- the stock, goods-receipt and movement
         // capability never lived anywhere else.
         $this->assertSame(
-            ['Logistics / Warehouse', 'Management'],
+            ['Warehouse Logistics', 'Management'],
             $plans['business']['scope']['added']
         );
 

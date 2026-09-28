@@ -71,7 +71,7 @@ class LandingPositioningTest extends TestCase
 
         foreach ([
             'Industrial Operations', 'HSE & Safety', 'People & Workforce', 'Field Operations',
-            'Logistics / Warehouse', 'Management Visibility',
+            'Warehouse Logistics', 'Management Visibility',
         ] as $eyebrow) {
             $this->assertStringContainsString("eyebrow: '{$eyebrow}'", $stories);
         }

@@ -162,9 +162,11 @@ class LanguageHierarchyTest extends TestCase
         $overviews = [
             'Hse/Dashboard.jsx' => 'HSE Overview',
             'Hr/Dashboard.jsx' => 'HR Overview',
-            'Logistics/Dashboard.jsx' => 'Logistics / PPIC Overview',
-            'Warehouses/Dashboard.jsx' => 'Warehouse Overview',
-            'ProjectManagement/Dashboard.jsx' => 'Project Management Overview',
+            // v2.84.1: Warehouse Logistics is ONE workspace, and the two
+            // retired Overviews left the customer-facing product with the
+            // departments that owned them.
+            'Logistics/Dashboard.jsx' => 'Warehouse Logistics Overview',
+            'Management/Overview.jsx' => 'Management Overview',
         ];
 
         foreach ($overviews as $file => $expectedTitle) {

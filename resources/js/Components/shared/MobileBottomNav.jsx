@@ -66,14 +66,16 @@ function buildPrimaryCandidates(visibleNav) {
     return [...rest, ...waste];
 }
 
-export default function MobileBottomNav({ visibleNav, currentUrl, onOpenMore }) {
+export default function MobileBottomNav({ visibleNav, currentUrl, space, onOpenMore }) {
     /* v2.84.0 -- the pinned Dashboard tab is the GLOBAL COMPANY DASHBOARD,
        so it appears only for the plan that includes it. Without this, the
        most prominent control on a Starter phone led to a redirect back to
        the page they were already on. One more workspace item takes its slot
        instead, which is more useful on a small screen anyway. */
     const { auth } = usePage().props;
-    const hasGlobalDashboard = Boolean(auth?.user?.has_global_dashboard);
+    // v2.84.1: and never inside Admin Space, where a link to the company
+    // dashboard is the one control that would silently leave it.
+    const hasGlobalDashboard = Boolean(auth?.user?.has_global_dashboard) && space !== 'admin';
     const primaryItems = buildPrimaryCandidates(visibleNav).slice(0, hasGlobalDashboard ? 3 : 4);
 
     return (

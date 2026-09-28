@@ -87,6 +87,11 @@ class MidtransGateway implements PaymentGatewayInterface
         return self::invoiceIdFromOrderId($gatewayReference);
     }
 
+    public function gatewayName(): string
+    {
+        return self::GATEWAY;
+    }
+
     /** Both keys present, or this deployment cannot take a payment. */
     public function isConfigured(): bool
     {

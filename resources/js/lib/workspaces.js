@@ -248,7 +248,6 @@ export const WORKSPACES = [
                     // thing, which is the rule the rest of the product
                     // already follows. Route, queryParams and authorization
                     // are untouched.
-                    { name: 'Field & PTW Access', href: 'settings.index', queryParams: { tab: 'users' }, icon: Users },
                 ],
             },
             {
@@ -363,7 +362,7 @@ export const WORKSPACES = [
         // v1.11.7 (Bahasa Indonesia Standardization, Part 4) -- "PPIC"
         // (Production Planning & Inventory Control) is itself already a
         // standard Indonesian-industry acronym, kept as-is.
-        label: 'Logistics / Warehouse',
+        label: 'Warehouse Logistics',
         icon: PackageSearch,
         tier: 'department',
         items: [

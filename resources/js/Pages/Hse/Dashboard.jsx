@@ -49,16 +49,23 @@ const HSE_MODULES = [
 ];
 
 /**
- * v2.71.0 -- the two administrative surfaces HSE owns but could not find.
+ * v2.84.1 -- ADMINISTRATIVE AUTHORITY BELONGS TO ADMIN SPACE.
  *
- * Kept OUT of HSE_MODULES above on purpose: that grid is the operational
- * work an HSE team does, and folding an account-management screen into it
- * would blur exactly the master/operational distinction this release
- * exists to sharpen. Rendered as its own small row, only for someone who
- * can actually act on it.
+ * "Field & PTW Access" was USER ADMINISTRATION living inside an
+ * operational workspace: it opened Settings > Users, where accounts are
+ * created, roles are assigned and access is granted. v2.71.0 added it here
+ * because HSE owns the PTW capability and could not find the screen that
+ * grants it -- a real problem, solved in the wrong place.
+ *
+ * Admin Space now exists and is where the account is administered, so the
+ * answer is a context switch rather than a second door. An HSE lead who
+ * also administers the tenant opens Admin Space; one who does not never
+ * needed this link. The PERMISSION is untouched -- `settings.users.ptw-access`
+ * keeps the exact route gate it has always had.
+ *
+ * What remains is operational: HSE's own master data.
  */
 const HSE_ADMIN_LINKS = [
-    { icon: Users, title: 'Field & PTW Access', description: 'Atur siapa yang boleh membuat PTW dan akun mana yang membuka My Work.', href: 'settings.index', params: { tab: 'users' } },
     { icon: ShieldCheck, title: 'Safety Equipment & Compliance', description: 'Register peralatan keselamatan dan data acuan HSE.', href: 'hse.master' },
 ];
 
@@ -75,7 +82,7 @@ const HSE_ADMIN_LINKS = [
  * used, not new query logic).
  */
 export default function HseDashboard({
-    activeProjectsCount, openIncidentsCount, incidentsBySeverity, ppeAlertCount,
+    openIncidentsCount, incidentsBySeverity, ppeAlertCount,
     recentIncidents, recentActivity, openSafetyObservationsCount, recentSafetyObservations,
     openPermitsCount, overdueSafetyEquipmentCount, overdueP3kCount, openCapaCount, actionRequired,
     manHours, safetyKpi, departmentCalendar, wasteSummary, canManageHse,

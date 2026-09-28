@@ -51,9 +51,24 @@ class PlatformController extends Controller
      * this same milestone's own verification pass, see
      * docs/ADR/008-tenancy-foundation.md.
      */
-    public function dashboard(PlatformOperationsService $operations): Response
+    public function dashboard(PlatformOperationsService $operations, \App\Services\SchemaStatusService $schema): Response
     {
         return Inertia::render('Platform/Dashboard', [
+            /*
+             * v2.84.1 -- IS THE DATABASE BEHIND THE CODE.
+             *
+             * Master Admin > Support returned 500 in a deployed environment
+             * while every other console page returned 200, because the
+             * support tables had never been created there. That is a
+             * recurring condition -- IOMS ships schema changes on nearly
+             * every release -- and `APP_DEBUG=false` is correct in
+             * production, so the operator saw a blank 500 with no way to
+             * reach the exception that explained it.
+             *
+             * This reports. It never migrates: that is a deliberate act with
+             * a backup behind it.
+             */
+            'schema' => $schema->snapshot(),
             'stats' => [
                 'tenants_total' => Tenant::count(),
                 'tenants_active' => Tenant::where('status', Tenant::STATUS_ACTIVE)->count(),

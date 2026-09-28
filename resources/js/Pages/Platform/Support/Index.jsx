@@ -56,7 +56,7 @@ function usia(hours) {
     return `${Math.floor(hours / 24)} hari`;
 }
 
-export default function SupportIndex({ tickets = [], filter, counts = {}, priorities = {}, support_mailbox: mailbox }) {
+export default function SupportIndex({ tickets = [], filter, counts = {}, priorities = {}, support_mailbox: mailbox, schema_missing: schemaMissing = [] }) {
     const { flash = {} } = usePage().props;
     const [open, setOpen] = useState(false);
 
@@ -77,6 +77,25 @@ export default function SupportIndex({ tickets = [], filter, counts = {}, priori
             )}
             {flash.warning && (
                 <div className="mb-4 rounded-lg border border-warning/25 bg-warning/[0.07] p-4 text-sm text-amber-900">{flash.warning}</div>
+            )}
+
+            {/* v2.84.1 -- KALAU TABELNYA BELUM ADA, KATAKAN ITU.
+
+                Halaman ini satu-satunya di Master Admin yang menyentuh tabel
+                tiket, jadi migrasi yang belum dijalankan membuat HANYA
+                halaman ini gagal sementara yang lain terlihat sehat. Di
+                produksi pesan errornya tidak pernah terlihat, jadi operator
+                hanya melihat 500 tanpa penjelasan. */}
+            {schemaMissing.length > 0 && (
+                <div className="mb-4 rounded-lg border border-danger/25 bg-danger/[0.06] p-4 text-sm leading-relaxed text-red-900">
+                    <p className="font-semibold">Database belum sesuai dengan versi aplikasi.</p>
+                    <p className="mt-1">
+                        Tabel berikut belum ada: <strong>{schemaMissing.join(', ')}</strong>. Antrean dukungan
+                        tidak dapat dimuat sampai migrasi dijalankan pada server ini
+                        (<code className="rounded bg-white/60 px-1">php artisan migrate --force</code>).
+                        Tidak ada data tiket yang hilang &mdash; tabelnya memang belum pernah dibuat.
+                    </p>
+                </div>
             )}
 
             {/* Ingestion email otomatis belum tersedia -- dinyatakan terbuka,

@@ -728,7 +728,7 @@ export default function AuthenticatedLayout({ children }) {
                 <main id="main-content" tabIndex={-1} className="p-5 pb-24 outline-none lg:p-8 lg:pb-8">{children}</main>
             </div>
 
-            <MobileBottomNav visibleNav={visibleNav} currentUrl={currentUrl} onOpenMore={() => setSidebarOpen(true)} />
+            <MobileBottomNav visibleNav={visibleNav} currentUrl={currentUrl} space={space} onOpenMore={() => setSidebarOpen(true)} />
         </div>
     );
 }
@@ -818,7 +818,16 @@ function TopBar({ onOpenSidebar, sidebarOpen, isDepartmentUser, departments, act
                 back to their own workspace, which made the link a loop.
                 Their workspace Overview is the first item in their rail
                 instead, which is where their day actually starts. */}
-            {auth?.user?.has_global_dashboard && (
+            {/* v2.84.1 -- AND NOT INSIDE ADMIN SPACE.
+
+                This link was how somebody left Admin Space without meaning
+                to: clicking "Dashboard" from Administration Overview went to
+                /dashboard, which redirects a non-Business plan straight into
+                HSE. Administration and operations are different
+                responsibilities, and the one control that silently crossed
+                between them was this one. You leave Admin Space by choosing
+                a workspace, deliberately. */}
+            {auth?.user?.has_global_dashboard && space !== 'admin' && (
                 <Link
                     href={route('dashboard')}
                     className="hidden h-8 shrink-0 items-center gap-1.5 rounded-md px-2.5 text-xs font-medium text-navy-200 transition-colors hover:bg-white/[0.08] hover:text-white lg:flex dark:text-slate-300 dark:hover:bg-slate-800"
@@ -832,13 +841,18 @@ function TopBar({ onOpenSidebar, sidebarOpen, isDepartmentUser, departments, act
                 as Dashboard above -- it aggregates events across several
                 departments by design (see CalendarController's own doc
                 comment), so it isn't owned by any single one of them. */}
-            <Link
-                href={route('calendar.index')}
-                className="flex h-8 shrink-0 items-center gap-1.5 rounded-md px-2.5 text-xs font-medium text-navy-200 transition-colors hover:bg-white/[0.08] hover:text-white dark:text-slate-300 dark:hover:bg-slate-800"
-            >
-                <CalendarDays className="h-3.5 w-3.5 shrink-0" />
-                <span className="hidden sm:inline">Calendar</span>
-            </Link>
+            {/* Also operational, and also hidden inside Admin Space: a
+                company calendar is how the business RUNS, not how the
+                account is configured. */}
+            {space !== 'admin' && (
+                <Link
+                    href={route('calendar.index')}
+                    className="flex h-8 shrink-0 items-center gap-1.5 rounded-md px-2.5 text-xs font-medium text-navy-200 transition-colors hover:bg-white/[0.08] hover:text-white dark:text-slate-300 dark:hover:bg-slate-800"
+                >
+                    <CalendarDays className="h-3.5 w-3.5 shrink-0" />
+                    <span className="hidden sm:inline">Calendar</span>
+                </Link>
+            )}
 
             {/* Department Selector -- a single dropdown at every breakpoint,
                 Departments only (Reports/Administration moved to the
@@ -852,24 +866,45 @@ function TopBar({ onOpenSidebar, sidebarOpen, isDepartmentUser, departments, act
                 never open. This is presentation only: `departments` is the
                 authorized list either way, and nothing here decides
                 access. */}
-            {canSwitchWorkspaces && (
+            {(canSwitchWorkspaces || (space === 'admin' && departments.length > 0)) && (
                 <DropdownMenu>
                     {/* v2.67.0: `min-w-0` + `truncate`. This label is the
                         only unbounded string in the header -- a customer
                         names their own departments -- and without a floor
                         of zero it forced the header wider than the page
                         instead of ellipsing. */}
+                    {/* v2.84.1 -- THE HEADER SHOWS WHICH CONTEXT IS ACTIVE.
+
+                        Exactly one of [workspace selector] and [Admin Space]
+                        is lit at a time, using the shell's existing active
+                        treatment (a lifted surface and a hairline border)
+                        rather than a new visual language. The quiet state is
+                        the same control with no surface, which is how every
+                        other inactive control in this header already reads. */}
                     <DropdownMenuTrigger
-                        className="flex h-8 min-w-0 items-center gap-1.5 rounded-md border border-white/15 bg-white/[0.06] px-3 text-xs font-medium text-white outline-none transition-colors hover:bg-white/[0.12] dark:border-slate-700 dark:text-slate-300 dark:hover:bg-slate-800"
+                        className={cn(
+                            'flex h-8 min-w-0 items-center gap-1.5 rounded-md px-3 text-xs font-medium outline-none transition-colors',
+                            space === 'admin'
+                                ? 'border border-transparent text-navy-200 hover:bg-white/[0.08] hover:text-white dark:text-slate-400'
+                                : 'border border-white/15 bg-white/[0.06] text-white hover:bg-white/[0.12] dark:border-slate-700 dark:text-slate-300 dark:hover:bg-slate-800',
+                        )}
                         aria-label="Switch workspace"
+                        aria-current={space !== 'admin' ? 'true' : undefined}
                     >
-                        {activeWorkspace && <activeWorkspace.icon className="h-3.5 w-3.5 shrink-0 text-steel-300" />}
+                        {space !== 'admin' && activeWorkspace && <activeWorkspace.icon className="h-3.5 w-3.5 shrink-0 text-steel-300" />}
                         {/* v2.84.0: "All Workspaces" is a first-class state --
                             the one a Business user is in on the Global
                             Company Dashboard -- not an empty label. The old
                             fallback read "Department", which named neither
-                            where you were nor where you could go. */}
-                        <span className="truncate">{activeWorkspace?.label ?? 'All Workspaces'}</span>
+                            where you were nor where you could go.
+
+                            v2.84.1: and inside Admin Space it reads
+                            "Workspaces", because no workspace is active. A
+                            selector still showing "HSE" while the page is
+                            Administration Overview is the header claiming two
+                            contexts at once, which is what made Admin Space
+                            feel like a page rather than a place. */}
+                        <span className="truncate">{space === 'admin' ? 'Workspaces' : (activeWorkspace?.label ?? 'All Workspaces')}</span>
                         <ChevronDown className="h-3.5 w-3.5 shrink-0 text-steel-300" />
                     </DropdownMenuTrigger>
                     <DropdownMenuContent className="max-h-[70vh] overflow-y-auto">
@@ -889,17 +924,7 @@ function TopBar({ onOpenSidebar, sidebarOpen, isDepartmentUser, departments, act
                 somewhere else to go. It names the workspace rather than
                 just showing an icon, so the header still states WHERE you
                 are on a page that is shared across departments. */}
-            {/* ADMIN SPACE announces itself. Administration is a different
-                kind of work from operations, and the header is the one place
-                that can say so on every page of it. */}
-            {space === 'admin' && (
-                <div className="flex h-8 shrink-0 items-center gap-1.5 rounded-md border border-white/10 bg-white/[0.04] px-3 text-xs font-medium text-white dark:border-slate-700 dark:text-slate-300">
-                    <Settings className="h-3.5 w-3.5 shrink-0 text-steel-300" />
-                    <span className="truncate">Admin Space</span>
-                </div>
-            )}
-
-            {space !== 'admin' && ! canSwitchWorkspaces && activeWorkspace && (
+            {! canSwitchWorkspaces && space !== 'admin' && activeWorkspace && (
                 /* `shrink-0` on the chip, `max-w` on the NAME.
                    v2.83.0, found in the browser: without it the chip was
                    the only unmarked item in a header of `shrink-0`
@@ -927,13 +952,33 @@ function TopBar({ onOpenSidebar, sidebarOpen, isDepartmentUser, departments, act
                 without being the tenant administrator (HSE, who manages
                 Departments and Positions) is sent to Settings rather than
                 to an Overview that would 403. */}
-            {auth?.user?.can_access_admin_space && space !== 'admin' && (
+            {/* v2.84.1 -- ADMIN SPACE IS A CONTEXT, SO IT HAS AN ACTIVE STATE.
+
+                One control, two states, and it stays in place either way:
+                lit while you are administering the account, quiet while you
+                are working. Previously the entry DISAPPEARED on entry and a
+                separate read-only chip appeared in its place, so the thing
+                you clicked was not the thing that told you where you were --
+                and the workspace selector went on showing a workspace, which
+                is how Admin Space read as "a page inside HSE" rather than a
+                place of its own.
+
+                Still a link while active: it returns to Administration
+                Overview, which is Admin Space's home. `aria-current` carries
+                the state to assistive technology, which a colour cannot. */}
+            {auth?.user?.can_access_admin_space && (
                 <Link
                     href={auth?.user?.is_tenant_admin ? route('admin.index') : route('settings.index')}
-                    className="hidden h-8 shrink-0 items-center gap-1.5 rounded-md px-2.5 text-xs font-medium text-navy-200 transition-colors hover:bg-white/[0.08] hover:text-white sm:flex dark:text-slate-300 dark:hover:bg-slate-800"
+                    aria-current={space === 'admin' ? 'page' : undefined}
+                    className={cn(
+                        'hidden h-8 shrink-0 items-center gap-1.5 rounded-md px-3 text-xs font-medium transition-colors sm:flex',
+                        space === 'admin'
+                            ? 'border border-white/15 bg-white/[0.06] text-white dark:border-slate-700 dark:text-slate-300'
+                            : 'border border-transparent text-navy-200 hover:bg-white/[0.08] hover:text-white dark:text-slate-300 dark:hover:bg-slate-800',
+                    )}
                 >
                     <Settings className="h-3.5 w-3.5 shrink-0" />
-                    <span className="hidden lg:inline">Admin Space</span>
+                    <span className={cn('hidden', space === 'admin' ? 'sm:inline' : 'lg:inline')}>Admin Space</span>
                 </Link>
             )}
 

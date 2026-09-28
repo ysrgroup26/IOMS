@@ -69,20 +69,27 @@ return [
         // Waste Container Inventory, same 'hse' ownership as every other
         // waste-* prefix above.
         'waste-containers',
-        // v2.46.0: PTW Access is granted from Settings > Users, and BOTH that
-        // page (`settings.index`) and the write itself
-        // (`settings.users.ptw-access`) are already gated `role:super_admin,hse`
-        // in routes/web.php. Listing `settings` here too lets the HSE sidebar's
-        // own "PTW Access" entry actually resolve for a department-scoped HSE
-        // user, instead of being 403'd by the routing layer before the route's
-        // role gate could allow them.
-        //
-        // This grants NO new capability: every mutating settings sub-route
-        // (company/branding, modules, roles, companies, backup) sits in the
-        // separate `role:super_admin` group and is unaffected, and a user with
-        // department_key='hse' but a non-HSE ROLE is still stopped by that same
-        // role gate. `settings` remains owned by administration as well.
-        'settings',
+        /*
+        | v2.84.1 -- 'settings' LEFT THIS LIST, AND THAT IS THE BOUNDARY.
+        |
+        | v2.46.0 added it so a department-scoped HSE user could reach
+        | Settings > Users to grant PTW Access. That was the routing layer
+        | being asked to let ADMINISTRATION through an OPERATIONAL
+        | department's door, and it is exactly the leak ADR 046 closes:
+        | administrative authority belongs to Admin Space, operational
+        | authority to the workspace.
+        |
+        | Nothing was taken from anybody who should have it. An account that
+        | administers the tenant reaches Settings through Admin Space, which
+        | is global-tier and never withheld. An account confined to the HSE
+        | department is an operational user, and user administration was
+        | never their responsibility -- it only looked like it because the
+        | link was in their sidebar.
+        |
+        | The PERMISSION is untouched: `settings.users.ptw-access` keeps its
+        | `role:super_admin,hse` route gate, so an HSE lead who is also an
+        | administrator grants PTW access exactly as before.
+        */
     ],
     'project-management' => [
         'projects', 'daily-reports', 'milestones', 'project-management',

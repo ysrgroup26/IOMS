@@ -67,7 +67,7 @@ export const DOMAIN_STORIES = [
     },
     {
         key: 'logistics',
-        eyebrow: 'Logistics / Warehouse',
+        eyebrow: 'Warehouse Logistics',
         icon: PackageSearch,
         title: 'Materials planned against the work that needs them',
         body: 'Material requests, the item master, inventory across storage locations and warehouses, goods receipt, and every stock out, transfer and adjustment kept as a movement history.',

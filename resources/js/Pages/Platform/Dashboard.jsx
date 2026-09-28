@@ -49,7 +49,7 @@ const STATE_LABEL = { grace: 'Masa tenggang', lapsed: 'Read-only', active: 'Akti
 const rupiah = (n) => 'Rp' + Math.round(Number(n || 0)).toLocaleString('id-ID');
 const tanggal = (d) => (d ? new Date(d).toLocaleDateString('id-ID', { day: 'numeric', month: 'short', year: 'numeric' }) : '—');
 
-export default function PlatformDashboard({ stats, recent_tenants: recentTenants, operations, platform_events: platformEvents = [] }) {
+export default function PlatformDashboard({ stats, recent_tenants: recentTenants, operations, platform_events: platformEvents = [], schema }) {
     const lifecycle = operations?.subscriptions?.counts ?? {};
     const attention = operations?.subscriptions?.attention ?? [];
     const payments = operations?.payments ?? {};
@@ -64,6 +64,34 @@ export default function PlatformDashboard({ stats, recent_tenants: recentTenants
                     Kondisi operasional seluruh platform: tenant, paket, langganan, dan pembayaran lintas tenant.
                 </p>
             </div>
+
+            {/* v2.84.1 -- APAKAH DATABASE SUDAH SESUAI DENGAN VERSI APLIKASI.
+
+                Ini ada karena satu insiden nyata: Master Admin > Dukungan
+                mengembalikan 500 di lingkungan terpasang sementara seluruh
+                halaman konsol lain normal, karena tabel tiket belum pernah
+                dibuat di sana. Di produksi pesan errornya memang tidak
+                ditampilkan, jadi operator hanya melihat halaman gagal tanpa
+                sebab.
+
+                Panel ini MELAPORKAN, tidak menjalankan migrasi: menjalankan
+                migrasi produksi saat halaman dibuka jauh lebih berbahaya
+                daripada 500 yang digantikannya. */}
+            {schema?.pending_count > 0 && (
+                <div className="mb-6 rounded-lg border border-danger/25 bg-danger/[0.06] p-4 text-sm leading-relaxed text-red-900">
+                    <p className="font-semibold">
+                        {schema.pending_count} migrasi belum dijalankan pada server ini.
+                    </p>
+                    <p className="mt-1">
+                        Halaman yang membutuhkan tabel baru akan gagal sampai migrasi dijalankan
+                        (<code className="rounded bg-white/60 px-1">php artisan migrate --force</code>).
+                        Migrasi tidak dijalankan otomatis dari halaman ini.
+                    </p>
+                    <ul className="mt-2 list-inside list-disc font-mono text-xs text-red-800">
+                        {schema.pending.map((name) => <li key={name}>{name}</li>)}
+                    </ul>
+                </div>
+            )}
 
             <div className="grid grid-cols-2 gap-4 sm:grid-cols-3 lg:grid-cols-6">
                 {STAT_CARDS.map(({ key, label, icon: Icon }) => (

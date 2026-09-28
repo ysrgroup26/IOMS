@@ -216,6 +216,18 @@ Route::post('/get-started/{token}/checkout', [RegistrationController::class, 'ch
 Route::post('/webhooks/payment/midtrans', [PaymentWebhookController::class, 'midtrans'])
     ->name('webhooks.payment.midtrans');
 
+/*
+ * v2.84.1 -- Duitku's callback. Registered beside Midtrans's and subject to
+ * the identical rules: outside the auth group because a provider has no
+ * session, CSRF-exempt for the same reason, and trusted only because the
+ * payload carries a signature this server verifies against its own API key.
+ *
+ * The URL registered in the Duitku dashboard must be this route, reachable
+ * from the public internet.
+ */
+Route::post('/webhooks/payment/duitku', [PaymentWebhookController::class, 'duitku'])
+    ->name('webhooks.payment.duitku');
+
 Route::get('/privacy', [PublicController::class, 'privacy'])->name('legal.privacy');
 Route::get('/terms', [PublicController::class, 'terms'])->name('legal.terms');
 // v2.55.0: a paid subscription product needs a stated refund position, and

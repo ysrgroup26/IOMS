@@ -43,8 +43,8 @@ export default function LogisticsDashboard({
 
     return (
         <AuthenticatedLayout>
-            <Head title="Logistics / PPIC Overview" />
-            <DashboardShell title="Logistics / PPIC Overview" subtitle="Tampilan operasional alur material.">
+            <Head title="Warehouse Logistics Overview" />
+            <DashboardShell title="Warehouse Logistics Overview" subtitle="Tampilan operasional alur material dan posisi stok gudang.">
                 {/* LEVEL 1 -- compact KPI strip */}
                 <div className="grid grid-cols-2 gap-3 lg:grid-cols-4">
                     <StatCard icon={PackageSearch} value={pendingMaterialRequests} label="Pending Material Requests" href={route('material-requests.index', { status: 'submitted' })} />

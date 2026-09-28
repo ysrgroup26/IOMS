@@ -7,6 +7,7 @@ use App\Models\Invoice;
 use App\Models\PaymentTransaction;
 use App\Models\PaymentWebhookEvent;
 use App\Models\TenantRegistration;
+use App\Services\Payments\DuitkuGateway;
 use App\Services\Payments\MidtransGateway;
 use App\Services\SubscriptionLifecycleService;
 use App\Services\TenantProvisioningService;
@@ -115,9 +116,83 @@ class PaymentWebhookController extends Controller
     }
 
     /**
+     * v2.84.1 -- THE DUITKU ENTRY POINT, and the thing to notice is how
+     * little of it there is.
+     *
+     * Same four rules as the Midtrans endpoint above, in the same order:
+     * verify before anything is read, record-then-check so the database
+     * decides whether a delivery is the first, re-check the amount, and
+     * return 200 for an event that was understood. Only the payload's shape
+     * and the event identity differ, because only those are Duitku's.
+     *
+     * Duitku posts form-encoded and carries no event id of its own, so the
+     * identity is the order plus its result plus Duitku's own reference --
+     * the tuple that makes one state transition unique. A redelivery of the
+     * same transition collides on the unique index; a genuine later one does
+     * not.
+     */
+    public function duitku(
+        Request $request,
+        TenantProvisioningService $provisioning,
+        SubscriptionLifecycleService $lifecycle,
+    ): JsonResponse {
+        $payload = $request->all();
+        $gateway = app(PaymentGatewayInterface::class);
+
+        if (! $gateway instanceof DuitkuGateway) {
+            Log::warning('Duitku callback received while Duitku is not the configured gateway.');
+
+            return response()->json(['message' => 'Gateway not configured.'], 503);
+        }
+
+        if (! $gateway->verifyWebhookSignature($payload, $request->headers->all())) {
+            Log::warning('Rejected a Duitku callback with an invalid signature.', [
+                'merchantOrderId' => $payload['merchantOrderId'] ?? null,
+            ]);
+
+            return response()->json(['message' => 'Invalid signature.'], 403);
+        }
+
+        $eventId = implode(':', [
+            $payload['merchantOrderId'] ?? 'unknown',
+            $payload['resultCode'] ?? 'unknown',
+            $payload['reference'] ?? '',
+        ]);
+
+        $event = PaymentWebhookEvent::recordIfNew(
+            DuitkuGateway::GATEWAY,
+            $eventId,
+            (string) ($payload['resultCode'] ?? ''),
+            $payload,
+            true,
+        );
+
+        if ($event->processed) {
+            return response()->json(['message' => 'Already processed.']);
+        }
+
+        try {
+            $result = $gateway->handleWebhook($payload);
+            $this->apply($gateway, $result->gatewayReference, $result->status, $result->amount, $provisioning, $lifecycle);
+
+            $event->update(['processed' => true, 'processed_at' => now()]);
+        } catch (Throwable $e) {
+            Log::error('Duitku callback processing failed.', [
+                'event_id' => $eventId,
+                'error' => $e->getMessage(),
+            ]);
+
+            return response()->json(['message' => 'Processing failed.'], 500);
+        }
+
+        return response()->json(['message' => 'OK']);
+    }
+
+    /**
      * Applies a verified payment result. Extracted from the Midtrans entry
      * point so a second gateway adapter reuses the identical state
-     * machine rather than writing its own.
+     * machine rather than writing its own -- which is exactly what the
+     * Duitku endpoint above does.
      */
     private function apply(
         PaymentGatewayInterface $gateway,
@@ -177,7 +252,7 @@ class PaymentWebhookController extends Controller
             return;
         }
 
-        DB::transaction(function () use ($invoice, $gatewayReference, $lifecycle) {
+        DB::transaction(function () use ($invoice, $gatewayReference, $lifecycle, $gateway) {
             // THE IDEMPOTENCY BOUNDARY. Everything a payment CHANGES sits
             // inside this guard, so a redelivered notification that slips
             // past the event-id unique index still finds a settled invoice
@@ -188,7 +263,11 @@ class PaymentWebhookController extends Controller
                 return;
             }
 
-            $invoice->markPaid($gatewayReference, MidtransGateway::GATEWAY);
+            // v2.84.1: the CONFIGURED provider's own name, not a literal.
+            // This is the shared path every gateway settles through, so a
+            // hardcoded name here made a second adapter record its payments
+            // under the first one's.
+            $invoice->markPaid($gatewayReference, $gateway->gatewayName());
 
             if ($invoice->registration_id) {
                 TenantRegistration::whereKey($invoice->registration_id)

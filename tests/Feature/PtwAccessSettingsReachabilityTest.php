@@ -26,10 +26,26 @@ use Tests\TestCase;
  *      the ROUTING layer before any of those gates could run.
  *
  * The routing layer was contradicting the authorization layer. The fix lets
- * a prefix be owned by several departments and lists `settings` for hse too.
- * It grants no new capability, which is what the second half of these tests
- * exists to prove: the mutating settings routes stay `role:super_admin`, and
- * a non-HSE department is still shut out entirely.
+ * a prefix be owned by several departments and listed `settings` for hse too.
+ *
+ * v2.84.1 -- THAT FIX WAS RIGHT ABOUT THE SYMPTOM AND WRONG ABOUT THE PLACE.
+ *
+ * It asked the ROUTING layer to let ADMINISTRATION through an OPERATIONAL
+ * department's door. Settings > Users is where accounts are created, roles
+ * are assigned and access is granted -- tenant administration, which now has
+ * its own context. Admin Space is global-tier and never withheld by a plan,
+ * so an account that administers the tenant reaches Settings through it.
+ *
+ * An account CONFINED to the HSE department is an operational user, and user
+ * administration was never their responsibility; it only looked like it
+ * because the link sat in their sidebar. So `settings` left the `hse` entry
+ * in config/departments.php, and this file now pins the boundary rather than
+ * the hole.
+ *
+ * WHAT DID NOT CHANGE, and the second half of these tests proves it: the PTW
+ * Access permission itself. `settings.users.ptw-access` keeps its
+ * `role:super_admin,hse` route gate and `canManageHse()` assertion, so an HSE
+ * lead who also administers the tenant grants PTW access exactly as before.
  */
 class PtwAccessSettingsReachabilityTest extends TestCase
 {
@@ -61,21 +77,29 @@ class PtwAccessSettingsReachabilityTest extends TestCase
         ], $attributes));
     }
 
-    /** THE BUG: an HSE user who may grant PTW Access could not open the page that grants it. */
-    public function test_an_hse_department_user_can_open_settings_to_manage_ptw_access(): void
+    /**
+     * THE BOUNDARY: an account confined to the HSE department is an
+     * OPERATIONAL user, and Settings is administration. They are refused at
+     * the routing layer, which is where the boundary belongs.
+     */
+    public function test_an_hse_department_user_cannot_open_settings(): void
     {
         $user = $this->user(['role' => 'hse', 'department_key' => 'hse']);
 
-        $this->assertTrue($user->canManageHse(), 'Sanity: HSE role may manage PTW Access.');
+        $this->assertTrue($user->canManageHse(), 'Sanity: the HSE capability itself is untouched.');
 
-        $this->actingAs($user)->get(route('settings.index'))->assertOk();
+        $this->actingAs($user)->get(route('settings.index'))->assertForbidden();
     }
 
-    /** And the write itself must go through, not just the page. */
-    public function test_an_hse_department_user_can_actually_grant_ptw_access(): void
+    /**
+     * AND THE PERMISSION SURVIVED THE MOVE. An HSE lead who is not confined
+     * to a single department -- the person who actually administers PTW
+     * access -- still grants it, through exactly the same route and gate.
+     */
+    public function test_an_unconfined_hse_user_can_still_grant_ptw_access(): void
     {
-        $admin = $this->user(['role' => 'hse', 'department_key' => 'hse']);
-        $target = $this->user(['department_key' => 'project-management']);
+        $admin = $this->user(['role' => 'hse']);
+        $target = $this->user();
 
         $this->assertFalse($target->fresh()->canCreatePtw());
 
@@ -101,7 +125,7 @@ class PtwAccessSettingsReachabilityTest extends TestCase
      */
     public function test_an_unrelated_department_user_still_cannot_open_settings(): void
     {
-        $user = $this->user(['role' => 'super_admin', 'department_key' => 'warehouse']);
+        $user = $this->user(['role' => 'super_admin', 'department_key' => 'logistics']);
 
         $this->actingAs($user)->get(route('settings.index'))->assertForbidden();
     }
@@ -113,7 +137,7 @@ class PtwAccessSettingsReachabilityTest extends TestCase
      */
     public function test_an_hse_user_still_cannot_change_company_settings(): void
     {
-        $user = $this->user(['role' => 'hse', 'department_key' => 'hse']);
+        $user = $this->user(['role' => 'hse']);
 
         $this->actingAs($user)
             ->post(route('settings.company'), ['company_name' => 'Hijacked'])

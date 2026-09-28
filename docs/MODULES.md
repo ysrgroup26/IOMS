@@ -407,6 +407,17 @@ tenant. `tenant_registrations.user_id`, set at creation, is what tells provision
 existing account instead of creating a second user. Identity comes from the session; the `contact_*`
 fields the form sends are not validated and not read.
 
+## Admin Space — the authority boundary (v2.84.1)
+
+**Rule:** administrative authority belongs to Admin Space; operational authority belongs to the
+workspace. Enforced at the ROUTING layer (`config/departments.php` gives `settings`,
+`activity-center`, `admin` and `subscription` to `administration` alone), not only in navigation.
+
+A department-scoped user — including HSE — cannot open Settings, Audit Logs or Admin Space. An
+account that administers the tenant reaches them through Admin Space, which is global-tier and never
+withheld by a plan. The PTW Access permission (`settings.users.ptw-access`) is unchanged and still
+`role:super_admin,hse`.
+
 ## Management (Business-tier workspace)
 
 **Department:** `management` (v2.83.0). **Decision:** ADR 044.

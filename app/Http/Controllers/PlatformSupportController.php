@@ -41,8 +41,38 @@ use Throwable;
  */
 class PlatformSupportController extends Controller
 {
-    public function index(Request $request): Response
+    public function index(Request $request, \App\Services\SchemaStatusService $schema): Response
     {
+        /*
+         * v2.84.1 -- THE QUEUE SAYS WHY IT IS EMPTY WHEN THE REASON IS THE
+         * SCHEMA.
+         *
+         * Reproduced from a deployed environment: with the v2.80.0 migration
+         * unrun, this was the ONLY page in Master Admin that returned 500 --
+         * it is the only one that touches these two tables. The exception
+         * was correct and completely invisible, because production does not
+         * print exceptions.
+         *
+         * This is a NAMED CHECK, not a catch. `Schema::hasTable()` answers
+         * one specific question, so a genuine bug in the support code still
+         * surfaces as a bug rather than being reported as a missing
+         * migration. Nothing is swallowed and nothing is faked: the page
+         * renders with no tickets and states the actual reason.
+         */
+        $missingTables = $schema->missingTables(['support_tickets', 'support_ticket_messages']);
+
+        if ($missingTables !== []) {
+            return Inertia::render('Platform/Support/Index', [
+                'tickets' => [],
+                'filter' => 'needs_action',
+                'counts' => ['needs_action' => 0, 'waiting_customer' => 0, 'unidentified' => 0, 'all' => 0],
+                'statuses' => SupportTicket::STATUS_LABELS,
+                'priorities' => SupportTicket::PRIORITY_LABELS,
+                'support_mailbox' => config('ioms.emails.support'),
+                'schema_missing' => $missingTables,
+            ]);
+        }
+
         $filter = $request->string('filter')->toString() ?: 'needs_action';
 
         $query = SupportTicket::with(['tenant:id,name', 'assignee:id,name'])
@@ -91,6 +121,7 @@ class PlatformSupportController extends Controller
             'statuses' => SupportTicket::STATUS_LABELS,
             'priorities' => SupportTicket::PRIORITY_LABELS,
             'support_mailbox' => config('ioms.emails.support'),
+            'schema_missing' => [],
         ]);
     }
 

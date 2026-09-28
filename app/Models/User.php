@@ -95,6 +95,16 @@ class User extends Authenticatable implements MustVerifyEmail
         'tenant_id',
         'company_id',
         'department_key',
+        /*
+         * v2.83.0 -- WHERE THIS PERSON STARTS, not what they may reach.
+         *
+         * Safe to mass-assign for the same reason `department_key` is:
+         * every controller that writes it validates the value first, and
+         * AccountController::updateWorkspaceFocus() additionally refuses
+         * any key the account is not already authorized for. Nothing in
+         * the authorization chain reads this column -- see ADR 044.
+         */
+        'workspace_focus',
         'avatar_path',
         'is_active',
         'last_login_at',
@@ -394,6 +404,73 @@ class User extends Authenticatable implements MustVerifyEmail
     public function isAdmin(): bool
     {
         return $this->isSuperAdmin() || $this->isHse();
+    }
+
+    /**
+     * v2.83.0 -- THE TENANT'S OWN ADMINISTRATOR.
+     *
+     * Deliberately NOT `isSuperAdmin()` on its own. `super_admin` is a
+     * role STRING, and a Platform Admin row can legitimately carry an
+     * elevated role while belonging to no tenant at all; a tenant
+     * administrator is somebody who administers a specific organization.
+     * Requiring a tenant makes the two impossible to confuse, which is
+     * the whole point of keeping Master Admin and Admin Space apart.
+     *
+     * Master Admin authority is a different predicate entirely
+     * (`isPlatformAdmin()`, `tenant_id IS NULL`, gated by the
+     * `role:platform_admin` middleware on /platform) and is NOT unioned
+     * in here. An operator does not silently become an administrator of
+     * every customer.
+     */
+    public function isTenantAdmin(): bool
+    {
+        return $this->isSuperAdmin() && $this->tenant_id !== null;
+    }
+
+    /**
+     * Whether this account may enter ADMIN SPACE at all.
+     *
+     * Wider than `isTenantAdmin()` on purpose, and narrower than it
+     * looks: it is "holds some genuine administration capability today",
+     * not "is an administrator". HSE has been able to manage Departments
+     * and Positions from Settings since v1.x, so gating the space on
+     * `isTenantAdmin()` alone would REMOVE a capability an existing
+     * customer already uses -- a refactor breaking a working product.
+     *
+     * What HSE can DO inside the space is unchanged: every administrative
+     * area beyond Departments/Positions is separately gated on
+     * `canManageSystemSettings()` by the routes that already guarded it,
+     * and the Administration Overview itself requires
+     * `isTenantAdmin()`. Entering a space is not a permission; each page
+     * inside it still asks its own question.
+     */
+    public function canAccessAdminSpace(): bool
+    {
+        return $this->isTenantAdmin() || $this->canManageOperationalSettings();
+    }
+
+    /**
+     * v2.83.0 -- MANAGEMENT-LEVEL VISIBILITY.
+     *
+     * Company-wide performance, read-only, across every department. That
+     * is the Manager role's entire definition in this codebase ("read-only
+     * across Dashboard, Reports, Employees, Projects") and the tenant
+     * administrator's by inclusion.
+     *
+     * HSE is deliberately NOT here. `isAdmin()` unions Super Admin with
+     * HSE for OPERATIONAL CRUD, which is a different question: an HSE
+     * supervisor owning permits and incidents is not thereby entitled to
+     * company-wide workforce and logistics performance. Keeping the two
+     * apart is why this is its own predicate instead of a reuse of
+     * `isAdmin()`.
+     *
+     * This is CAPABILITY only. The tenant must also be entitled to the
+     * `management` workspace, which is a plan question answered
+     * independently by EntitlementService -- both must pass.
+     */
+    public function canViewManagement(): bool
+    {
+        return $this->isTenantAdmin() || $this->isManager();
     }
 
     /**

@@ -226,6 +226,74 @@ class EntitlementService
         return array_values(array_unique([...$granted, ...$global]));
     }
 
+    /**
+     * v2.83.0 -- THE DEPARTMENT WORKSPACES ONE PERSON MAY ACTUALLY REACH.
+     *
+     * Three independent gates, composed here so the workspace SWITCHER
+     * and the workspace-FOCUS validator ask one question instead of two
+     * that can drift -- the same drift `grantedWorkspaceKeys()` itself was
+     * written to end in v2.58.0.
+     *
+     *   plan        the tenant is granted the workspace
+     *   tier        it is a department, not the application's own chrome
+     *   assignment  a Department User has exactly one, and it is theirs
+     *
+     * It answers a NAVIGATION question and is never the only gate on a
+     * request: `EnforceTenantEntitlement` and each controller's own
+     * capability check are unchanged and remain the real boundary.
+     */
+    public function authorizedDepartmentKeys(?User $user): array
+    {
+        if (! $user || $user->tenant_id === null) {
+            return [];
+        }
+
+        $granted = $this->grantedWorkspaceKeys($user->tenant);
+
+        $departments = Workspace::query()
+            ->where('tier', Workspace::TIER_DEPARTMENT)
+            ->where('is_active', true)
+            ->orderBy('sort_order')
+            ->pluck('key')
+            ->filter(fn (string $key) => in_array($key, $granted, true))
+            ->values()
+            ->all();
+
+        // A Department User is assigned to exactly one. If the assignment
+        // names something their plan does not grant, the answer is an
+        // empty list rather than a fallback -- silently substituting a
+        // different department would be inventing an entitlement.
+        if ($user->department_key) {
+            return array_values(array_intersect($departments, [$user->department_key]));
+        }
+
+        return $departments;
+    }
+
+    /**
+     * v2.83.0 -- the focus this account should actually be given, which is
+     * not always the one stored on the row.
+     *
+     * A focus is a PREFERENCE, and a preference can go stale: the plan is
+     * downgraded, the workspace is deactivated, the person is reassigned.
+     * Every one of those has to degrade to "All Workspaces" rather than
+     * strand somebody in a workspace they can no longer reach -- a focus
+     * must never be able to withhold access, in either direction.
+     *
+     * Null means All Workspaces, which is also what every account had
+     * before this column existed.
+     */
+    public function effectiveWorkspaceFocus(?User $user): ?string
+    {
+        $focus = $user?->workspace_focus;
+
+        if ($focus === null) {
+            return null;
+        }
+
+        return in_array($focus, $this->authorizedDepartmentKeys($user), true) ? $focus : null;
+    }
+
     /** The module equivalent, with the same "no grants recorded == unrestricted" rule. */
     public function grantedModuleKeys(?Tenant $tenant): array
     {

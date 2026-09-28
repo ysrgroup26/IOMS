@@ -23,6 +23,8 @@ class WorkspaceSeeder extends Seeder
             ['key' => 'project-management', 'label' => 'Project Management', 'icon' => 'FolderKanban', 'tier' => 'department'],
             ['key' => 'logistics', 'label' => 'Logistics / PPIC', 'icon' => 'PackageSearch', 'tier' => 'department'],
             ['key' => 'warehouse', 'label' => 'Warehouse', 'icon' => 'Warehouse', 'tier' => 'department'],
+            // v2.83.0 -- Business-tier management visibility. See ADR 044.
+            ['key' => 'management', 'label' => 'Management', 'icon' => 'TrendingUp', 'tier' => 'department'],
             ['key' => 'procurement', 'label' => 'Procurement', 'icon' => 'ShoppingCart', 'tier' => 'department'],
             ['key' => 'asset-management', 'label' => 'Asset Management', 'icon' => 'Box', 'tier' => 'department'],
             ['key' => 'maintenance', 'label' => 'Maintenance', 'icon' => 'Wrench', 'tier' => 'department'],

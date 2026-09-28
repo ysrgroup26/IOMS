@@ -70,6 +70,25 @@ The deepest module set in the product, and most of what Starter sells.
 | Stock Movement History | Built | Full audit trail |
 | BAST / Serah Terima | Built | A handover document, **not** a second Goods Receipt |
 
+## Management (`management`)
+
+**Business tier.** Read-only, company-wide, and it deliberately **owns no data** — no table, no
+cache, no write route. Every figure is read from the module that holds it, so a management number
+cannot drift from the record it describes. ADR [[044-management-workspace-and-admin-space|044]].
+
+| Page | Status | Notes |
+|---|---|---|
+| Management Overview | Built (v2.83.0) | Scale, safety trend, department comparison, what is overdue |
+| Company KPI | Built | The same `KpiCategory` catalogue the Dashboard reads, by period and by department |
+| HSE Performance | Built | Twelve-month incident vs observation trend, severity, permits, controlled documents |
+| Workforce | Built | Headcount, employment type, man-hours, leave, expiring contracts and certificates |
+| Logistics & Inventory | Built | Stock below the item's own minimum, material demand, goods receipts |
+| Outstanding Actions | Built | Overdue CAPA, inspections and awaiting-decision work, gathered across modules |
+| Inventory value · TRIR · compliance score | **Deliberately absent** | No unit cost, no reliable exposure denominator, no denominator at all. Documented rather than estimated |
+
+Two server-side gates: the plan must grant `management`, **and** the person must hold
+`canViewManagement()` (tenant administrator or Manager — an HSE supervisor is not management).
+
 ## Procurement (`procurement`)
 
 A genuine cross-department engine — not owned by any requesting department.
@@ -121,6 +140,8 @@ finance capability.
 | Public marketing site + self-service onboarding | Built | Landing, pricing, checkout, sandbox |
 | Subscription, invoicing, payments | Built | **Requires external gateway configuration to go live** — see [[Known Issues and Limitations]] |
 | Platform Super Admin surface | Built | `/platform/*`, entirely separate from tenant surfaces |
+| **Admin Space** | Built (v2.83.0) | The CUSTOMER's own administration: users, roles, operating units, security posture, audit trail, subscription. One new route (`admin.index`); every existing administrative form kept its own. Not Master Admin, and not sold. ADR [[044-management-workspace-and-admin-space\|044]] |
+| **Workspace focus** | Built (v2.83.0) | Where a person starts, not what they may reach. One nullable column no middleware, policy or capability method reads; a stale focus degrades to All Workspaces |
 
 ---
 

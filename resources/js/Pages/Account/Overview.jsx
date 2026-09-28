@@ -9,6 +9,8 @@ import { FieldGrid, Field } from '@/Components/shared/DetailFields';
 import {
     ArrowRight, BadgeCheck, MailWarning, ShieldCheck, LogOut, Building2,
     Loader2, CheckCircle2, ExternalLink,
+    // v2.83.0 -- workspace focus.
+    LayoutGrid,
 } from 'lucide-react';
 
 /**
@@ -39,7 +41,7 @@ import {
  * around an empty product would be the "looks like an error" failure this
  * page exists to avoid.
  */
-export default function AccountOverview({ account, hasOrganization, organization, pendingOrder, plans, googleEnabled }) {
+export default function AccountOverview({ account, hasOrganization, organization, pendingOrder, plans, googleEnabled, workspaceFocus }) {
     const { version } = usePage().props;
 
     return (
@@ -66,6 +68,15 @@ export default function AccountOverview({ account, hasOrganization, organization
                         {hasOrganization
                             ? <OrganizationPanel organization={organization} />
                             : <NoSubscriptionPanel plans={plans} pendingOrder={pendingOrder} canSubscribe={account.email_verified} />}
+
+                        {/* v2.83.0 -- workspace focus. Rendered only when
+                            there is genuinely a choice to make: an account
+                            with one authorized workspace has nothing to
+                            focus, and offering the control anyway would
+                            imply otherwise. */}
+                        {(workspaceFocus?.options?.length ?? 0) > 1 && (
+                            <WorkspaceFocusCard workspaceFocus={workspaceFocus} />
+                        )}
                     </div>
 
                     <div className="space-y-4">
@@ -235,6 +246,68 @@ function OrganizationPanel({ organization }) {
                     <Button asChild><Link href={route('dashboard')}>Open IOMS <ArrowRight className="h-4 w-4" /></Link></Button>
                     <Button variant="outline" asChild><Link href={route('subscription.billing')}>Billing &amp; plan</Link></Button>
                 </div>
+            </CardContent>
+        </Card>
+    );
+}
+
+/**
+ * v2.83.0 -- WORKSPACE UTAMA (workspace focus).
+ *
+ * The copy here carries the entire concept, so it is written carefully:
+ * this is where you START, not what you MAY REACH. The helper text says so
+ * explicitly, because a control that narrows a menu looks exactly like a
+ * control that removes access, and an administrator who believed that would
+ * use it as one.
+ *
+ * "All Workspaces" is a real, first-class option rather than a cleared
+ * field -- it is what every account had before this existed, and somebody
+ * whose job genuinely spans departments has chosen it rather than failed to
+ * choose.
+ *
+ * The options come from the server and are already the workspaces this
+ * account is authorized for, so the list cannot offer a focus that would
+ * 403. The endpoint validates the same thing again.
+ */
+function WorkspaceFocusCard({ workspaceFocus }) {
+    const { data, setData, put, processing } = useForm({ workspace_focus: workspaceFocus?.current ?? '' });
+
+    return (
+        <Card>
+            <CardHeader>
+                <CardTitle className="flex items-center gap-2 text-base">
+                    <LayoutGrid className="h-4 w-4 text-graphite-400" aria-hidden="true" /> Workspace Focus
+                </CardTitle>
+            </CardHeader>
+            <CardContent className="space-y-3">
+                <p className="text-xs leading-relaxed text-graphite-500">
+                    Pilih workspace yang ingin ditampilkan sebagai fokus saat Anda bekerja. Anda tetap
+                    dapat berpindah ke workspace lain sesuai hak akses Anda — pilihan ini tidak mengubah
+                    izin apa pun.
+                </p>
+                <form
+                    onSubmit={(event) => {
+                        event.preventDefault();
+                        put(route('account.workspace-focus'), { preserveScroll: true });
+                    }}
+                    className="space-y-3"
+                >
+                    <div className="space-y-1.5">
+                        <Label htmlFor="workspace-focus">Workspace Utama</Label>
+                        <select
+                            id="workspace-focus"
+                            value={data.workspace_focus}
+                            onChange={(event) => setData('workspace_focus', event.target.value)}
+                            className="h-9 w-full rounded-lg border border-graphite-200 bg-white px-3 text-sm text-graphite-900 outline-none focus:border-brand-400"
+                        >
+                            <option value="">All Workspaces</option>
+                            {(workspaceFocus?.options ?? []).map((option) => (
+                                <option key={option.key} value={option.key}>{option.label}</option>
+                            ))}
+                        </select>
+                    </div>
+                    <Button type="submit" size="sm" variant="outline" disabled={processing}>Save focus</Button>
+                </form>
             </CardContent>
         </Card>
     );

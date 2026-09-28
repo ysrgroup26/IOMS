@@ -1,6 +1,7 @@
 <?php
 
 use App\Http\Controllers\ActivityCenterController;
+use App\Http\Controllers\AdminSpaceController;
 use App\Http\Controllers\AnalyticsController;
 use App\Http\Controllers\ApprovalController;
 use App\Http\Controllers\AssetController;
@@ -24,6 +25,7 @@ use App\Http\Controllers\CompetencyTypeController;
 use App\Http\Controllers\CorrectiveActionController;
 use App\Http\Controllers\DailyReportController;
 use App\Http\Controllers\DashboardController;
+use App\Http\Controllers\ManagementController;
 use App\Http\Controllers\EmployeeCompetencyController;
 use App\Http\Controllers\EmployeeController;
 use App\Http\Controllers\EmployeeRosterController;
@@ -317,6 +319,15 @@ Route::middleware('auth')->group(function () {
     Route::put('/account/password', [AccountController::class, 'updatePassword'])
         ->middleware('throttle:6,1')->name('account.password.update');
     Route::delete('/account/google', [AccountController::class, 'unlinkGoogle'])->name('account.google.unlink');
+    /*
+     * v2.83.0 -- workspace FOCUS, on the person's own account.
+     *
+     * A preference, not a grant: it writes one nullable column that no
+     * middleware, policy or capability method reads. See ADR 044 and
+     * AccountController::updateWorkspaceFocus() for why it is still
+     * validated against the account's real authorization anyway.
+     */
+    Route::put('/account/workspace-focus', [AccountController::class, 'updateWorkspaceFocus'])->name('account.workspace-focus');
 
     /*
      * Acquiring an organization:
@@ -370,6 +381,45 @@ Route::middleware(['auth', 'restrict.platform-admin'])->group(function () {
     Route::post('/calendar', [CalendarController::class, 'store'])->name('calendar.store');
     Route::put('/calendar/{calendarEvent}', [CalendarController::class, 'update'])->name('calendar.update');
     Route::delete('/calendar/{calendarEvent}', [CalendarController::class, 'destroy'])->name('calendar.destroy');
+
+    /*
+     * MANAGEMENT WORKSPACE (v2.83.0) -- Business tier, read-only.
+     *
+     * Every action is a GET and there is deliberately no write route:
+     * Management aggregates other modules' records and owns none of them
+     * (see ManagementInsightsService), so there is nothing here to save.
+     *
+     * TWO SERVER-SIDE GATES, both applied inside the controller rather
+     * than as route middleware, because they answer different questions
+     * and both should be visible at the point of use -- the tenant's PLAN
+     * must include the `management` workspace, and the PERSON must hold
+     * `canViewManagement()`. `EnforceTenantEntitlement` independently
+     * resolves this prefix's owning workspace through
+     * config/departments.php and remains real enforcement; the controller
+     * does not depend on it being switched on.
+     */
+    Route::get('/management', [ManagementController::class, 'overview'])->name('management.overview');
+    Route::get('/management/kpi', [ManagementController::class, 'kpi'])->name('management.kpi');
+    Route::get('/management/hse', [ManagementController::class, 'hse'])->name('management.hse');
+    Route::get('/management/workforce', [ManagementController::class, 'workforce'])->name('management.workforce');
+    Route::get('/management/logistics', [ManagementController::class, 'logistics'])->name('management.logistics');
+    Route::get('/management/actions', [ManagementController::class, 'actions'])->name('management.actions');
+
+    /*
+     * ADMIN SPACE (v2.83.0) -- the CUSTOMER's own administration overview.
+     *
+     * Exactly one new route. Users, Roles, Operating Units, Departments,
+     * Positions, Modules, Audit Log and Billing are all reached through the
+     * routes that already serve them, with their authorization untouched --
+     * reframing administration into a space is a navigation and
+     * orientation change, not a re-implementation of seven forms.
+     *
+     * Gated on `isTenantAdmin()` in the controller. That predicate requires
+     * a tenant, which is what keeps Admin Space and Master Admin
+     * (/platform, `role:platform_admin`, `tenant_id IS NULL`) from ever
+     * collapsing into each other.
+     */
+    Route::get('/admin', [AdminSpaceController::class, 'index'])->name('admin.index');
 
     // Analytics Framework (Milestone 3, Task #64) -- index() renders every
     // dataset visible to the current tenant's enabled modules; show()

@@ -1,7 +1,7 @@
 ---
 title: Current State
 type: snapshot
-product-version: 2.82.0
+product-version: 2.83.0
 product-stage: Beta
 measured: 2026-09-28
 tags: [kb/state]
@@ -24,8 +24,8 @@ the date in the frontmatter, not remembered.
 | | |
 |---|---|
 | Product | **IOMS — Industrial Operations Platform** |
-| Version | **2.82.0**, stage **Beta**, edition **Enterprise Edition** |
-| Build | `2026.09.28.01`, release date `2026-09-28` |
+| Version | **2.83.0**, stage **Beta**, edition **Enterprise Edition** |
+| Build | `2026.09.28.02`, release date `2026-09-28` |
 | Stack | Laravel 12 · Inertia.js · React 18 · Tailwind · MySQL · Sanctum |
 
 The naming rules are not cosmetic — see [[Product Identity and Principles]].
@@ -39,7 +39,7 @@ The naming rules are not cosmetic — see [[Product Identity and Principles]].
 | Inertia pages | 170 |
 | Migrations | 183 |
 | Feature test files | 64 |
-| Tests / assertions | **632 / 3379**, all passing |
+| Tests / assertions | **656 / 3528**, all passing |
 | ADRs | 40 files (numbering has known gaps — see [[Decision Register]]) |
 | Workspaces in the navigation registry | 12 |
 
@@ -81,6 +81,15 @@ before it has an organization, so `isPlatformAdmin()` reads the role. See ADR
 [[038-account-organization-subscription|038]].
 
 ## What shipped most recently
+
+`2.83.0` (2026-09-28) — the Management workspace and Admin Space. The Business tier’s fourth
+name finally names something: `management` is a real department workspace that deliberately **owns
+nothing**, aggregating every figure from the module that holds it, and stating plainly when a
+module has never been used instead of showing a confident zero. Administration became its own
+space rather than a drawer inside somebody’s operational day — one new route, every existing form
+untouched, and still completely separate from Master Admin. And a **workspace focus** decides where
+a person starts without deciding anything about what they may reach.
+ADR [[044-management-workspace-and-admin-space|044]].
 
 `2.82.0` (2026-09-28) — the pricing revamp. Three tiers replace four, each carrying a small
 **included** active-user allowance instead of a large hard cap, with extra active users purchasable

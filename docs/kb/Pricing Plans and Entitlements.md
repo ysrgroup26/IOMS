@@ -1,33 +1,46 @@
 ---
 title: Pricing Plans and Entitlements
 type: reference
-updated: 2026-09-15
+updated: 2026-09-28
 tags: [kb/commercial]
 ---
 
 # Pricing Plans and Entitlements
 
-What the four plans contain, and what actually stops a tenant using something they have not bought.
+What the plans contain, and what actually stops a tenant using something they have not bought.
 
 **Authoritative sources:** the `packages` table (established by the v2.60.0 migration, not a
 seeder), `PricingService`, and `ARCHITECTURE.md` §SaaS Entitlement chain.
 
 ---
 
-## The four tiers
+## The three sold tiers
 
-Prices are IDR, from the `packages` table on 2026-09-14.
+Prices are IDR, from the `packages` table as of v2.83.0. The approved figures are also written
+down once in `Tests\Support\ApprovedCatalogue`, and a test asserts the two agree.
 
-| Tier | Monthly | Yearly | Users | Operating Units | Adds |
+| Tier | Monthly | Annual | Included active users | Operating Units | Adds |
 |---|---:|---:|---|---|---|
-| **Starter** | 299,000 | 2,990,000 | 10 | 1 | HSE, complete |
-| **Professional** | 799,000 | 7,990,000 | 50 | 2 | + People and Workforce |
-| **Business** | 1,499,000 | 14,990,000 | 150 | 4 | + Project Management, Logistics / PPIC, Procurement |
-| **Enterprise** | 2,499,000 | 24,990,000 | unlimited | unlimited | Every operational department |
+| **Starter** | 189,000 | 2,268,000 | 3 | 1 | HSE, complete |
+| **Professional** | 555,000 | 6,105,000 | 10 | 2 | + People / HRD |
+| **Business** | 1,249,000 | 14,988,000 | 25 | 4 | + Logistics / PPIC, Warehouse, **Management** |
 
-- **Annual is monthly × 10** on every tier. No percentage is hardcoded anywhere — `PricingService`
-  derives the saving from the plan's own two prices, so the displayed figure cannot drift from the
-  charged one.
+**Enterprise is retired from sale** (`is_public = false`), not deleted -- it keeps its row, its
+price, its grants and its subscribers, because deleting it would orphan live subscriptions and
+rewrite the history of paid invoices.
+
+- **An included allowance, not a hard cap** (v2.82.0). `seatLimit() = includedUsers() +
+  additional_users`, and an extra active user is **Rp50.000 per month on every plan** -- one price,
+  from `config/saas.php`, because an extra account is the same thing on Starter as on Business.
+  A **user is an active login account**: not a device, not an employee record, and not a
+  deactivated account, whose slot is freed. ADR [[043-pricing-included-users-and-add-ons|043]].
+- **The annual benefit is three different offers**, and only two of them are discounts. Starter
+  pays 12 months for 12, Professional pays **11** for 12 (a price discount), and Business pays 12
+  for **14** (extra service at the same price). Business is why `packages.annual_months` exists:
+  its annual price is exactly twelve monthly payments, so no saving can be derived from the two
+  prices, and calling it "diskon 2 bulan" would advertise a discount that is not being given.
+- **Management is inside Business, not an add-on** (v2.83.0). ADR
+  [[044-management-workspace-and-admin-space|044]].
 - **`NULL` means unlimited** on `max_users` and `max_companies` — the long-standing convention on
   those columns.
 - **There is no free trial.** `trial_days` is normalised to null on every tier; an earlier catalogue
@@ -35,6 +48,9 @@ Prices are IDR, from the `packages` table on 2026-09-14.
 - **Enterprise is not sold on its module list.** It adds only a handful of route prefixes over
   Business; what it sells is unlimited capacity plus per-unit authorization and legal-entity
   structures. See [[Product Strategy and Positioning]].
+- **Admin Space is not sold at all** (v2.83.0). `administration` is a global-tier workspace -- the
+  application's own chrome -- and `Workspace::isGlobalKey()` means no plan may withhold it. Selling
+  the parts a customer needs in order to run IOMS at all is the v2.58.0 empty-sidebar defect.
 
 > [!warning] Price changes belong in a migration, not a seeder
 > `db:seed` does not re-run on an existing deployment. v2.51.0 shipped a whole release where

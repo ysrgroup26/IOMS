@@ -407,6 +407,70 @@ tenant. `tenant_registrations.user_id`, set at creation, is what tells provision
 existing account instead of creating a second user. Identity comes from the session; the `contact_*`
 fields the form sends are not validated and not read.
 
+## Management (Business-tier workspace)
+
+**Department:** `management` (v2.83.0). **Decision:** ADR 044.
+
+Read-only, company-wide, and it **owns no data at all** — no table, no cache, no write route. Every
+figure is read from the module that holds it, through that module's own model, so a management number
+cannot drift from the record it describes.
+
+| Route | Page |
+|---|---|
+| `management.overview` | Executive overview: scale, safety trend, department comparison, what is overdue |
+| `management.kpi` | Company KPI for a period, a twelve-month shape, and KPI by department |
+| `management.hse` | Twelve-month incident/observation trend, severity and permit state, controlled documents |
+| `management.workforce` | Headcount, employment type, man-hours, leave, expiring contracts and certificates |
+| `management.logistics` | Stock below minimum, material demand, goods receipts |
+| `management.actions` | Everything overdue or awaiting a decision, gathered from every module that owns it |
+
+**Key files:** `app/Services/ManagementInsightsService.php` (the only data source),
+`app/Http/Controllers/ManagementController.php`, `resources/js/Pages/Management/*.jsx`,
+`resources/js/Components/shared/ManagementPanels.jsx` (its own dense primitives — `FigureGroup`,
+`Ranking`, `TrendBars`, `Distribution`, `NoData`; twenty numbers must not become twenty StatCards).
+
+**Business rules.**
+
+- **Two server-side gates, different questions.** The tenant's plan must grant the `management`
+  workspace *and* the person must hold `User::canViewManagement()` (tenant administrator or Manager).
+  HSE is deliberately excluded — operational CRUD is not company-wide performance.
+- **Nothing is invented.** No inventory value (`items` has no unit cost), no TRIR (no reliable
+  exposure denominator), no compliance score (no denominator at all). Each section returns
+  `available`, so an empty tenant is told which module fills the panel instead of being shown a
+  confident zero, and `days_since_last_incident` is `null` rather than `0`.
+- **Read-only, so a lapse does not block it.** A lapsed subscription withdraws writing, never
+  reading, and there is nothing here to write.
+- **Tenant scoping is borrowed, not rebuilt** — `DashboardStatsService::resolveCompanyIds()`, the
+  same helper every existing dashboard uses.
+- **Bucket dates with `substr(col, 1, 7)`, not `YEAR()`/`MONTH()`.** The suite runs on SQLite; the
+  date functions are MySQL-only, so a query using them can only ever be exercised in production.
+
+## Admin Space (tenant administration)
+
+**Workspace:** `administration` — the key did not change, only its label (v2.83.0). **Decision:** ADR 044.
+
+The customer's own administration, gathered so that administration is not a step in somebody's
+operational day. It is **not** Master Admin: that is the IOMS operator's console at `/platform`,
+gated on `role:platform_admin` with `tenant_id IS NULL`.
+
+**Key files:** `app/Http/Controllers/AdminSpaceController.php`, `resources/js/Pages/Admin/Overview.jsx`.
+
+`admin.index` is the **only route this added**. Users, Roles, Operating Units, Departments,
+Positions, Modules, Audit Log and Billing are reached through the routes that already serve them,
+with their controllers, validation and authorization untouched.
+
+**Business rules.**
+
+- `User::isTenantAdmin()` = `isSuperAdmin() && tenant_id !== null`. The tenant requirement is what
+  stops an operator becoming an administrator of every customer.
+- `User::canAccessAdminSpace()` is wider on purpose — HSE has managed Departments and Positions from
+  Settings since v1.x and must keep doing so. Entering the space is not a permission; the
+  Administration Overview itself requires `isTenantAdmin()`.
+- Capacity and lifecycle figures come from `EntitlementService` and `Subscription::stateSnapshot()`,
+  never a third calculation, so Admin Space, the customer's Billing page and Master Admin cannot
+  disagree.
+- Not sold. `administration` is global tier, so no plan may withhold it.
+
 ## Incident Management
 
 **Department:** HSE (v1.10.0).

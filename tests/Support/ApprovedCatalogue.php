@@ -72,7 +72,14 @@ final class ApprovedCatalogue
     public const SCOPE = [
         'starter' => ['hse'],
         'professional' => ['hse', 'hr'],
-        'business' => ['hse', 'hr', 'logistics', 'warehouse'],
+        /*
+         * v2.83.0 -- `management` joins Business, closing ADR 043's open
+         * question. The approved scope has always read "... + Management";
+         * until this release there was no such workspace to grant, so the
+         * word named nothing and was deliberately left unimplemented rather
+         * than faked with an existing key.
+         */
+        'business' => ['hse', 'hr', 'logistics', 'management', 'warehouse'],
     ];
 
     /** The tier presented as recommended. Exactly one, or none. */

@@ -70,6 +70,30 @@ class HandleInertiaRequests extends Middleware
                     // User::isDepartmentUser()'s own doc comment.
                     'department_key' => $user->department_key,
                     'is_department_user' => $user->isDepartmentUser(),
+
+                    /*
+                     * v2.83.0 -- THREE CAPABILITIES AND ONE PREFERENCE.
+                     *
+                     * The three booleans exist so navigation can stop
+                     * offering a door the server would close: Admin Space
+                     * and Management are both hidden from accounts that
+                     * cannot enter them. That is a COURTESY -- every one of
+                     * them is enforced again server-side
+                     * (AdminSpaceController, ManagementController), and
+                     * this codebase's standing rule is that frontend
+                     * filtering is never the boundary.
+                     *
+                     * `workspace_focus` is the odd one out and is
+                     * deliberately not a capability. It says where this
+                     * person starts, and the EFFECTIVE value is sent rather
+                     * than the stored one, so a focus left pointing at a
+                     * workspace the plan no longer grants degrades to All
+                     * Workspaces instead of stranding somebody on a 403.
+                     */
+                    'is_tenant_admin' => $user->isTenantAdmin(),
+                    'can_access_admin_space' => $user->canAccessAdminSpace(),
+                    'can_view_management' => $user->canViewManagement(),
+                    'workspace_focus' => app(EntitlementService::class)->effectiveWorkspaceFocus($user),
                     // v1.11.3.2 (production UX fix, Part 3): the exact
                     // route-name-prefix allowlist RestrictDepartmentAccess
                     // enforces server-side for this user, straight from

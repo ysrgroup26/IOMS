@@ -530,9 +530,13 @@ class PublicReadinessTest extends TestCase
         // v2.82.0: Business is Professional plus the movement of materials
         // -- Logistics / PPIC and the Warehouse it feeds. Project
         // Management and Procurement left the sold scope.
+        //
+        // v2.83.0: and Management, which ADR 043 could not include because
+        // the workspace did not exist yet. The order here follows the
+        // catalogue's own `sort_order`, not the alphabet.
         $this->assertSame('Professional', $plans['business']['scope']['inherits_from']);
         $this->assertSame(
-            ['Logistics / PPIC', 'Warehouse'],
+            ['Logistics / PPIC', 'Warehouse', 'Management'],
             $plans['business']['scope']['added']
         );
 

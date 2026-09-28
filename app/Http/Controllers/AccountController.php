@@ -4,10 +4,13 @@ namespace App\Http\Controllers;
 
 use App\Models\ActivityLog;
 use App\Models\TenantRegistration;
+use App\Models\Workspace;
+use App\Services\EntitlementService;
 use App\Services\PricingService;
 use Illuminate\Http\RedirectResponse;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Hash;
+use Illuminate\Validation\Rule;
 use Illuminate\Validation\Rules\Password;
 use Inertia\Inertia;
 use Inertia\Response;
@@ -39,7 +42,10 @@ use Inertia\Response;
  */
 class AccountController extends Controller
 {
-    public function __construct(private readonly PricingService $pricing) {}
+    public function __construct(
+        private readonly PricingService $pricing,
+        private readonly EntitlementService $entitlements,
+    ) {}
 
     public function overview(Request $request): Response
     {
@@ -93,7 +99,90 @@ class AccountController extends Controller
             // page they have not seen.
             'plans' => $this->pricing->publicPlans(),
             'googleEnabled' => \App\Http\Controllers\Auth\GoogleAuthController::configured(),
+
+            /*
+             * v2.83.0 -- WORKSPACE FOCUS lives on the person's own account
+             * page, and that placement is the point.
+             *
+             * Focus is a preference about where somebody works, not a
+             * grant, so it belongs beside their name and their password
+             * rather than in an administrator's user-management screen.
+             * Putting it there would make it read as an access control and
+             * invite an administrator to "revoke" a workspace by narrowing
+             * a focus -- which it cannot do.
+             *
+             * The options are the workspaces this account is ALREADY
+             * authorized for (plan grant AND department tier AND their own
+             * assignment), so the list can never offer a focus the person
+             * may not reach. An account with no organization gets an empty
+             * list and the panel does not render.
+             */
+            'workspaceFocus' => [
+                'current' => $this->entitlements->effectiveWorkspaceFocus($user),
+                'stored' => $user->workspace_focus,
+                'options' => $this->focusOptions($user),
+            ],
         ]);
+    }
+
+    /**
+     * The department workspaces this account may focus on, labelled from
+     * the `workspaces` catalogue so a tenant's own renamed department
+     * reads the same here as it does in the switcher.
+     */
+    private function focusOptions(?\App\Models\User $user): array
+    {
+        $keys = $this->entitlements->authorizedDepartmentKeys($user);
+
+        if ($keys === []) {
+            return [];
+        }
+
+        return Workspace::whereIn('key', $keys)
+            ->orderBy('sort_order')
+            ->get(['key', 'label'])
+            ->map(fn (Workspace $w) => ['key' => $w->key, 'label' => $w->label])
+            ->all();
+    }
+
+    /**
+     * v2.83.0 -- CHANGE WHERE YOU START. NOT WHAT YOU MAY REACH.
+     *
+     * This endpoint writes exactly one nullable column and touches nothing
+     * else -- no role, no department assignment, no grant, no permission.
+     * That is the whole design: `workspace_focus` is read only by the
+     * navigation layer, and no middleware, policy or capability method
+     * consults it (asserted by ADR 044's own regression tests).
+     *
+     * It still VALIDATES against the account's real authorization, for a
+     * reason that is not security: a focus naming a workspace the person
+     * cannot open would strand them on a 403 every time they signed in.
+     * Rejecting it here, and degrading a stale one to "All Workspaces" in
+     * `effectiveWorkspaceFocus()`, means a focus can fail only in the safe
+     * direction.
+     *
+     * Null is a first-class value and means All Workspaces -- what every
+     * account had before this column existed.
+     */
+    public function updateWorkspaceFocus(Request $request): RedirectResponse
+    {
+        $user = $request->user();
+
+        $validated = $request->validate([
+            'workspace_focus' => [
+                'nullable',
+                'string',
+                Rule::in($this->entitlements->authorizedDepartmentKeys($user)),
+            ],
+        ]);
+
+        $focus = $validated['workspace_focus'] ?? null;
+
+        $user->update(['workspace_focus' => $focus]);
+
+        return back()->with('success', $focus === null
+            ? 'Your workspace focus is now All Workspaces.'
+            : 'Your workspace focus has been updated.');
     }
 
     /** Update the person's own identity. Never their role, tenant or company. */

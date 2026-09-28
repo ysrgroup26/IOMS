@@ -62,11 +62,18 @@ return [
     | it. It is retired from SALE (`is_public = false`), not deleted --
     | removing it here would strip the departments those customers
     | already have.
+    |
+    | v2.83.0 -- `management` joins Business, and it is the reason ADR 043
+    | left an open question rather than inventing an answer. The approved
+    | scope has always read "... + Management"; there was no such
+    | workspace, and granting a key that does not exist is the v2.58.0
+    | empty-sidebar defect. The capability is now BUILT (ADR 044), so the
+    | word finally names something. Enterprise picks it up through `*`.
     */
     'workspaces' => [
         'starter' => ['hse'],
         'professional' => ['hse', 'hr'],
-        'business' => ['hse', 'hr', 'logistics', 'warehouse'],
+        'business' => ['hse', 'hr', 'logistics', 'warehouse', 'management'],
         // Every department that exists, resolved at call time.
         'enterprise' => '*',
     ],

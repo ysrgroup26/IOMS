@@ -538,6 +538,38 @@ export const WORKSPACES = [
             { name: 'Overview', href: 'finance.coming-soon', icon: DollarSign },
         ],
     },
+    /*
+     * v2.83.0 -- MANAGEMENT. The Business tier's fourth name, finally
+     * pointing at something.
+     *
+     * A department-tier workspace like any other, which is what makes it
+     * sellable and entitle-able through the existing chain rather than
+     * needing a second mechanism. What is unusual about it is that it OWNS
+     * nothing: every page here reads other departments' records (see
+     * ManagementInsightsService), so there is no master data, no form and
+     * no write route in the whole workspace.
+     *
+     * It is deliberately NOT a copy of the Dashboard's items. Dashboard
+     * answers "what is happening now", a Department Overview answers "what
+     * is happening in this department", and these pages answer "how is the
+     * company doing" -- three different questions, kept apart on purpose.
+     */
+    {
+        key: 'management',
+        label: 'Management',
+        icon: TrendingUp,
+        tier: 'department',
+        items: [
+            { name: 'Dashboard', href: 'dashboard', icon: LayoutDashboard, global: true },
+            { name: 'My Work', href: 'my-work', icon: ClipboardList, global: true, departmentUserOnly: true },
+            { name: 'Overview', href: 'management.overview', icon: TrendingUp },
+            { name: 'Company KPI', href: 'management.kpi', icon: BarChart3 },
+            { name: 'HSE Performance', href: 'management.hse', icon: HardHat },
+            { name: 'Workforce', href: 'management.workforce', icon: UsersRound },
+            { name: 'Logistics & Inventory', href: 'management.logistics', icon: PackageSearch },
+            { name: 'Outstanding Actions', href: 'management.actions', icon: ListChecks },
+        ],
+    },
     // Reports and Administration: NOT departments, NOT offered in the
     // Department Selector (see this file's top-of-file note) -- reached
     // via the sidebar's "Global navigation" state instead
@@ -564,7 +596,24 @@ export const WORKSPACES = [
     },
     {
         key: 'administration',
-        label: 'Administration',
+        /*
+         * v2.83.0 -- "ADMIN SPACE", and the key deliberately did not move.
+         *
+         * Every grant row, route-prefix map and entitlement check is keyed
+         * on `administration`; renaming the key would be a migration of the
+         * authorization model dressed up as a copy edit -- the same reason
+         * `hr` is still `hr` while its label reads "Human Resources"
+         * (v2.52.0).
+         *
+         * The label changed because the content did. This is no longer a
+         * settings drawer: it is the customer's own administration space --
+         * their users, roles, operating units, audit trail and
+         * subscription, gathered so that an HSE supervisor never has to
+         * scroll past billing to reach a permit. It is NOT Master Admin,
+         * which belongs to the IOMS operator and lives at /platform behind
+         * a completely separate permission (ADR 044).
+         */
+        label: 'Admin Space',
         icon: Settings,
         core: true,
         tier: 'global',
@@ -584,15 +633,40 @@ export const WORKSPACES = [
             // ?tab= deep-linking) -- these route to the SAME real page,
             // not new pages, matching "no duplicate modules" and "reuse
             // existing components" over building six new routes.
-            { name: 'Users', href: 'settings.index', queryParams: { tab: 'users' }, icon: Users, adminOnly: true },
+            /*
+             * v2.83.0 -- ORDERED THE WAY ADMINISTRATION IS ACTUALLY DONE:
+             * overview, then people, then the organization, then security,
+             * then the commercial arrangement.
+             *
+             * `tenantAdminOnly` is a THIRD gate beside adminOnly/moduleKey,
+             * and it exists because `adminOnly` means `is_admin` -- Super
+             * Admin OR HSE. HSE has managed Departments and Positions from
+             * Settings since v1.x and must keep doing so, but capacity,
+             * billing and every account's security posture are the
+             * administrator's business. The two audiences were previously
+             * indistinguishable in this file, so the narrower rows say so
+             * explicitly. Both gates are courtesies: each route behind them
+             * re-checks server-side.
+             */
+            { name: 'Overview', href: 'admin.index', icon: LayoutDashboard, tenantAdminOnly: true },
+            { name: 'Users & Access', href: 'settings.index', queryParams: { tab: 'users' }, icon: Users, adminOnly: true },
+            { name: 'Roles & Permissions', href: 'settings.index', queryParams: { tab: 'roles' }, icon: Lock, tenantAdminOnly: true },
             { name: 'Departments', href: 'settings.index', queryParams: { tab: 'departments' }, icon: Users, adminOnly: true },
             { name: 'Positions', href: 'settings.index', queryParams: { tab: 'positions' }, icon: Users, adminOnly: true },
             { name: 'Operating Units', href: 'settings.index', queryParams: { tab: 'companies' }, icon: Building2, adminOnly: true },
-            { name: 'Settings', href: 'settings.index', icon: Settings, adminOnly: true },
-            { name: 'Module Management', href: 'settings.index', queryParams: { tab: 'modules' }, icon: Settings, adminOnly: true },
             // Milestone 3 (Task #50): was a disabled placeholder since
             // v1.9.0 -- now a real link to the Activity Center.
             { name: 'Audit Logs', href: 'activity-center.index', icon: ClipboardList, adminOnly: true },
+            /*
+             * The tenant's own billing page, which had no sidebar entry at
+             * all before this release -- it was reachable only from the
+             * Settings subscription panel, which is exactly the kind of
+             * administrative concern Admin Space exists to collect. Same
+             * route, same controller, same authorization.
+             */
+            { name: 'Subscription & Billing', href: 'subscription.billing', icon: DollarSign, tenantAdminOnly: true },
+            { name: 'Settings', href: 'settings.index', icon: Settings, adminOnly: true },
+            { name: 'Module Management', href: 'settings.index', queryParams: { tab: 'modules' }, icon: Settings, adminOnly: true },
         ],
     },
 ];
@@ -626,10 +700,14 @@ function isDepartmentTier(workspace) {
  * (adminOnly) was grouped -- fixed here instead of narrowly working
  * around it in one workspace.
  */
-function applyItemGates(items, isAdmin, modules, isDepartmentUser = false) {
+function applyItemGates(items, isAdmin, modules, isDepartmentUser = false, isTenantAdmin = false) {
     return items
         .filter((item) =>
             (!item.adminOnly || isAdmin)
+            // v2.83.0 fourth gate -- see Admin Space's items for why
+            // `adminOnly` (Super Admin OR HSE) was too wide for capacity,
+            // billing and security rows.
+            && (!item.tenantAdminOnly || isTenantAdmin)
             && (!item.moduleKey || modules.includes(item.moduleKey))
             // v2.42.0 third gate. 'My Work' (Field Home) is the task-first
             // page Department Users used to be silently given INSTEAD of the
@@ -637,7 +715,7 @@ function applyItemGates(items, isAdmin, modules, isDepartmentUser = false) {
             // administrator browsing the same workspace does not see it.
             && (!item.departmentUserOnly || isDepartmentUser)
         )
-        .map((item) => (item.children ? { ...item, children: applyItemGates(item.children, isAdmin, modules, isDepartmentUser) } : item))
+        .map((item) => (item.children ? { ...item, children: applyItemGates(item.children, isAdmin, modules, isDepartmentUser, isTenantAdmin) } : item))
         // A group whose every child got gated out (no combination does
         // this today -- every HSE group keeps at least one ungated child
         // -- but defensive against a future edit that adds one) renders
@@ -655,6 +733,11 @@ const ICON_MAP = {
     ClipboardList, PackageSearch, Warehouse, ShoppingCart, Wrench,
     BadgeCheck, DollarSign, Box, LayoutDashboard, CalendarDays,
     AlertTriangle, PackageCheck, Flag,
+    // v2.83.0 -- Management's own icon. A workspace whose `workspaces` row
+    // names an icon missing from this map silently falls back to the
+    // hardcoded one, so omitting it would not have crashed -- it would
+    // have quietly ignored the catalogue, which is worse.
+    TrendingUp,
 };
 
 /**
@@ -699,10 +782,23 @@ export function getVisibleWorkspaces(user, enabledModules, workspaceCatalog) {
     const isAdmin = user?.is_admin;
     const modules = enabledModules ?? [];
     const isDepartmentUser = Boolean(user?.department_key);
+    const isTenantAdmin = Boolean(user?.is_tenant_admin);
 
     return applyCatalog(WORKSPACES, workspaceCatalog)
-        .map((workspace) => ({ ...workspace, items: applyItemGates(workspace.items, isAdmin, modules, isDepartmentUser) }))
-        .filter((workspace) => workspace.items.length > 0);
+        .map((workspace) => ({ ...workspace, items: applyItemGates(workspace.items, isAdmin, modules, isDepartmentUser, isTenantAdmin) }))
+        .filter((workspace) => workspace.items.length > 0)
+        /*
+         * v2.83.0 -- Management is a CAPABILITY as well as an entitlement.
+         *
+         * The workspace catalogue already hides a workspace the tenant's
+         * PLAN does not grant (`applyCatalog`, driven by
+         * EntitlementService::grantedWorkspaceKeys). It says nothing about
+         * whether this PERSON is management, and an HSE supervisor in a
+         * Business tenant is not -- ManagementController 403s them. Hiding
+         * the entry is the courtesy half of that; the controller is the
+         * boundary.
+         */
+        .filter((workspace) => workspace.key !== 'management' || user?.can_view_management !== false);
 }
 
 /**

@@ -906,6 +906,19 @@ reasoning across every refinement (v1.8.0 through v1.10.2). This section is the 
   Reports/Administration, reached only through the sidebar's Global navigation state, never the
   selector. An item's `global: true` (only ever the repeated "Dashboard" link back to the Global
   Dashboard) marks it as not owned by whichever department it appears in.
+- **Workspace FOCUS decides where somebody starts, never what they may reach** (v2.83.0).
+  `users.workspace_focus` is nullable and `null` means *All Workspaces* — what every account had
+  before the column existed. Nothing in the authorization chain reads it: no middleware, no policy,
+  no capability method. The switcher renders only when there is more than one authorized workspace
+  **and** no focus is set; a focused or single-workspace account gets a static label instead, because
+  a control that opens onto one option implies there is somewhere else to go. A stale focus (plan
+  downgraded, workspace deactivated) degrades to All Workspaces via
+  `EntitlementService::effectiveWorkspaceFocus()` rather than stranding anyone on a 403, and
+  `authorizedDepartmentKeys()` is the one place plan grant, department tier and a Department User's
+  assignment are composed. ADR `044-management-workspace-and-admin-space.md`.
+- **A fourth item gate, `tenantAdminOnly`** (v2.83.0). `adminOnly` means `is_admin`, which is Super
+  Admin **or** HSE — too wide for the Admin Space rows about capacity, billing and every account's
+  security posture. Both gates are courtesies; each route behind them re-checks server-side.
 - **A route prefix may be declared by more than one department** (v2.71.0). Man-Hour is shared
   HR/HSE data and Material Request is raised by every department; both appear in two menus on
   purpose. `PREFIX_TO_WORKSPACES` records every owner, and `getWorkspaceKeyForRoute(name,

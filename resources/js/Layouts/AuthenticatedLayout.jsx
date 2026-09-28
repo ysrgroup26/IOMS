@@ -5,6 +5,8 @@ import {
     Bell, User as UserIcon, ChevronDown, Sun, Moon, ChevronRight,
     ClipboardCheck, CheckSquare, HardHat, Inbox, Lock, LayoutDashboard, CalendarDays,
     FlaskConical, AlertTriangle,
+    // v2.83.0 -- the Admin Space entry in the header.
+    Settings,
 } from 'lucide-react';
 import { cn } from '@/lib/utils';
 import { useClock } from '@/lib/useClock';
@@ -209,9 +211,50 @@ export default function AuthenticatedLayout({ children }) {
     const routeWorkspaceKey = getWorkspaceKeyForRoute(route().current(), recallWorkspaceKey());
     const routeIsDepartment = isDepartmentWorkspaceKey(routeWorkspaceKey);
 
+    /* v2.83.0 -- WORKSPACE FOCUS. Where this person starts, which is a
+       different question from what they may reach.
+
+       Three concepts that were previously two, and conflating them is what
+       made the top bar offer a Logistics user a dropdown full of
+       departments they never open:
+
+         ROLE / PERMISSION  what the user is ALLOWED to access
+         WORKSPACE          a business area
+         FOCUS              where they START
+
+       Focus grants and revokes nothing. `selectableDepartments` above is
+       still the complete authorized list and is computed without ever
+       consulting focus -- so everything below can only change which of
+       those is shown FIRST, never which exist. A focus that has gone stale
+       (plan downgraded, workspace deactivated) already arrives as null from
+       EntitlementService::effectiveWorkspaceFocus(), so it cannot strand
+       anybody either.
+
+       null means All Workspaces, which is what every account had before
+       this existed. */
+    const workspaceFocus = auth?.user?.workspace_focus ?? null;
+    const focusedWorkspace = workspaceFocus
+        ? selectableDepartments.find((w) => w.key === workspaceFocus)
+        : undefined;
+
     const activeWorkspace = isDepartmentUser
         ? selectableDepartments[0]
-        : (routeIsDepartment ? selectableDepartments.find((w) => w.key === routeWorkspaceKey) : undefined);
+        : (routeIsDepartment
+            ? selectableDepartments.find((w) => w.key === routeWorkspaceKey)
+            // Off a department route (the Dashboard, Reports, Admin Space)
+            // a focused user keeps their own workspace's rail rather than
+            // dropping to Global navigation -- that IS the focus.
+            : focusedWorkspace);
+
+    /* The switcher is a tool for somebody who genuinely moves between
+       areas. It appears only when there is more than one authorized
+       workspace AND the person has not chosen one to focus on; a
+       single-workspace account and a focused account both get a plain
+       label instead of a dropdown offering nothing useful.
+
+       Choosing All Workspaces brings it back, still listing only the
+       workspaces this account is authorized for. */
+    const canSwitchWorkspaces = !isDepartmentUser && !focusedWorkspace && selectableDepartments.length > 1;
 
     // Remembered only once a department is genuinely active, so landing on
     // the Global Dashboard never erases where the user was.
@@ -595,6 +638,7 @@ export default function AuthenticatedLayout({ children }) {
                     isDepartmentUser={isDepartmentUser}
                     departments={selectableDepartments}
                     activeWorkspace={activeWorkspace}
+                    canSwitchWorkspaces={canSwitchWorkspaces}
                     onSwitchWorkspace={switchWorkspace}
                 />
 
@@ -638,7 +682,7 @@ export default function AuthenticatedLayout({ children }) {
  * no way to switch, so there is nothing to render, not a disabled or
  * single-option version of the same control.
  */
-function TopBar({ onOpenSidebar, sidebarOpen, isDepartmentUser, departments, activeWorkspace, onSwitchWorkspace }) {
+function TopBar({ onOpenSidebar, sidebarOpen, isDepartmentUser, departments, activeWorkspace, canSwitchWorkspaces, onSwitchWorkspace }) {
     const { auth, organization } = usePage().props;
     const now = useClock();
     const { theme, toggleTheme } = useTheme();
@@ -728,8 +772,16 @@ function TopBar({ onOpenSidebar, sidebarOpen, isDepartmentUser, departments, act
             {/* Department Selector -- a single dropdown at every breakpoint,
                 Departments only (Reports/Administration moved to the
                 sidebar's Global navigation state, see workspaces.js).
-                Administrators only. */}
-            {!isDepartmentUser && (
+                Administrators only.
+
+                v2.83.0: shown only when the account can genuinely move
+                between workspaces -- more than one authorized, and no
+                single one chosen as their focus. Everyone else gets the
+                static label below instead of a dropdown listing areas they
+                never open. This is presentation only: `departments` is the
+                authorized list either way, and nothing here decides
+                access. */}
+            {canSwitchWorkspaces && (
                 <DropdownMenu>
                     {/* v2.67.0: `min-w-0` + `truncate`. This label is the
                         only unbounded string in the header -- a customer
@@ -753,6 +805,50 @@ function TopBar({ onOpenSidebar, sidebarOpen, isDepartmentUser, departments, act
                         ))}
                     </DropdownMenuContent>
                 </DropdownMenu>
+            )}
+
+            {/* The focused / single-workspace label. Not a disabled
+                dropdown: a control that opens onto one option is a worse
+                answer than no control, because it implies there is
+                somewhere else to go. It names the workspace rather than
+                just showing an icon, so the header still states WHERE you
+                are on a page that is shared across departments. */}
+            {! canSwitchWorkspaces && activeWorkspace && (
+                /* `shrink-0` on the chip, `max-w` on the NAME.
+                   v2.83.0, found in the browser: without it the chip was
+                   the only unmarked item in a header of `shrink-0`
+                   controls, so it absorbed every pixel of shrinkage at
+                   800px and ellipsed "Health, Safety & Environment" down
+                   to nothing -- leaving a chip that read just
+                   "Workspace". The search field is still the one item
+                   allowed to give way (v2.67.0). */
+                <div className="flex h-8 shrink-0 items-center gap-1.5 rounded-md border border-white/10 bg-white/[0.04] px-3 text-xs font-medium text-white dark:border-slate-700 dark:text-slate-300">
+                    <activeWorkspace.icon className="h-3.5 w-3.5 shrink-0 text-steel-300" />
+                    <span className="max-w-[140px] truncate">{activeWorkspace.label}</span>
+                    <span className="hidden shrink-0 text-navy-300 lg:inline">Workspace</span>
+                </div>
+            )}
+
+            {/* ADMIN SPACE (v2.83.0). A separate space, so it gets a
+                separate entry rather than a row buried in a department's
+                rail -- administration is not a step in anybody's
+                operational day.
+
+                Hidden from accounts that cannot enter it, which is a
+                courtesy: AdminSpaceController re-checks `isTenantAdmin()`
+                server-side and every settings route behind it keeps its own
+                gate. An account that holds an administration capability
+                without being the tenant administrator (HSE, who manages
+                Departments and Positions) is sent to Settings rather than
+                to an Overview that would 403. */}
+            {auth?.user?.can_access_admin_space && (
+                <Link
+                    href={auth?.user?.is_tenant_admin ? route('admin.index') : route('settings.index')}
+                    className="hidden h-8 shrink-0 items-center gap-1.5 rounded-md px-2.5 text-xs font-medium text-navy-200 transition-colors hover:bg-white/[0.08] hover:text-white sm:flex dark:text-slate-300 dark:hover:bg-slate-800"
+                >
+                    <Settings className="h-3.5 w-3.5 shrink-0" />
+                    <span className="hidden lg:inline">Admin Space</span>
+                </Link>
             )}
 
             <div className="min-w-0 flex-1" />

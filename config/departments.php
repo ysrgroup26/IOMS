@@ -114,10 +114,32 @@ return [
     'quality-control' => ['inspection-requests', 'ncrs', 'quality-control'],
     'finance' => ['finance'],
 
+    /*
+     * v2.83.0 -- MANAGEMENT.
+     *
+     * One prefix, owning only its own read-only pages. Management
+     * AGGREGATES other departments; it does not own their routes, so
+     * nothing moved here from hse/hr/logistics. A user whose
+     * `department_key` is 'management' therefore reaches the management
+     * surface and nothing else, which is exactly the scope of the role.
+     */
+    'management' => ['management'],
+
     // Not real departments a user can be assigned to -- listed here only
     // so their route prefixes are correctly DENIED to every Department
     // User rather than falling through as "universal". No department_key
     // will ever equal these, so they're effectively "Administrator only".
     'reports' => ['reports', 'analytics', 'report-center'],
-    'administration' => ['settings', 'activity-center'],
+    /*
+     * v2.83.0 -- ADMIN SPACE.
+     *
+     * `admin` is the new Administration Overview; `subscription` is the
+     * tenant's own billing area, which had no owner at all before and so
+     * fell through RestrictDepartmentAccess's DENY default for every
+     * Department User. Both are administration, and administration is
+     * GLOBAL tier -- no plan withholds it (Workspace::globalKeys()), so
+     * naming them here resolves the owning workspace without making
+     * either one sellable.
+     */
+    'administration' => ['settings', 'activity-center', 'admin', 'subscription'],
 ];

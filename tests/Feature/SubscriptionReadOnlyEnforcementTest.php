@@ -75,8 +75,20 @@ class SubscriptionReadOnlyEnforcementTest extends TestCase
             'agreed_price_monthly' => 1000000, 'agreed_price_yearly' => 10000000, 'agreed_currency' => 'IDR',
         ]);
 
-        // Every workspace, so what is being tested is the LAPSE and not a
-        // plan that happens not to include a module.
+        /*
+         * Every workspace, so what is being tested is the LAPSE and not a
+         * plan that happens not to include a module.
+         *
+         * v2.83.0: the catalogue is now SEEDED first. This line used to
+         * sync an empty table, which granted nothing -- and an empty grant
+         * list means "not yet restricted" to EntitlementService, so the
+         * test passed for the opposite of the stated reason. The moment a
+         * migration put a single row in `workspaces` (Management), the
+         * sync produced a tenant explicitly granted ONE workspace and the
+         * lapsed-but-readable assertions started 403ing. Seeding makes the
+         * fixture mean what its comment says.
+         */
+        $this->seed(\Database\Seeders\WorkspaceSeeder::class);
         $this->tenant->workspaces()->sync(Workspace::pluck('id'));
 
         app(CurrentTenant::class)->set($this->tenant);

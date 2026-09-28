@@ -1,4 +1,4 @@
-import { Link } from '@inertiajs/react';
+import { Link, usePage } from '@inertiajs/react';
 import { LayoutDashboard, Menu } from 'lucide-react';
 import { cn } from '@/lib/utils';
 
@@ -67,7 +67,14 @@ function buildPrimaryCandidates(visibleNav) {
 }
 
 export default function MobileBottomNav({ visibleNav, currentUrl, onOpenMore }) {
-    const primaryItems = buildPrimaryCandidates(visibleNav).slice(0, 3);
+    /* v2.84.0 -- the pinned Dashboard tab is the GLOBAL COMPANY DASHBOARD,
+       so it appears only for the plan that includes it. Without this, the
+       most prominent control on a Starter phone led to a redirect back to
+       the page they were already on. One more workspace item takes its slot
+       instead, which is more useful on a small screen anyway. */
+    const { auth } = usePage().props;
+    const hasGlobalDashboard = Boolean(auth?.user?.has_global_dashboard);
+    const primaryItems = buildPrimaryCandidates(visibleNav).slice(0, hasGlobalDashboard ? 3 : 4);
 
     return (
         <nav
@@ -79,7 +86,9 @@ export default function MobileBottomNav({ visibleNav, currentUrl, onOpenMore }) 
             style={{ paddingBottom: 'env(safe-area-inset-bottom)' }}
             aria-label="Primary"
         >
-            <BottomNavLink href={route('dashboard')} label="Dashboard" icon={LayoutDashboard} active={currentUrl === '/dashboard' || currentUrl === '/'} />
+            {hasGlobalDashboard && (
+                <BottomNavLink href={route('dashboard')} label="Dashboard" icon={LayoutDashboard} active={currentUrl === '/dashboard' || currentUrl === '/'} />
+            )}
             {primaryItems.map((item) => (
                 <BottomNavLink
                     key={item.name}

@@ -906,6 +906,23 @@ reasoning across every refinement (v1.8.0 through v1.10.2). This section is the 
   Reports/Administration, reached only through the sidebar's Global navigation state, never the
   selector. An item's `global: true` (only ever the repeated "Dashboard" link back to the Global
   Dashboard) marks it as not owned by whichever department it appears in.
+- **IOMS is four operational workspaces, one administrative space, and a company dashboard**
+  (v2.84.0). HSE, People / HRD, Logistics / Warehouse and Management are the operational workspaces;
+  Admin Space is administration; the **Global Company Dashboard is Business-only and is not a
+  workspace at all**. `config('plans.operational')` is the one list every navigation answer is
+  bounded by, and `config('workspaces.overviews')` is the server-side "where does this person land"
+  map. Seven departments (Project Management, Procurement, Asset Management, Maintenance, Quality
+  Control, Finance, the standalone Warehouse shell) are retired from customer-facing navigation and
+  from every plan — their routes, controllers and data are untouched. ADR
+  `045-five-spaces-and-the-global-dashboard.md`.
+- **The rail belongs to a SPACE, and there are three** (v2.84.0): `admin` (Admin Space's own
+  navigation), `workspace` (one operational workspace), `company` (the Global Dashboard). The
+  previous model had a catch-all that merged Reports with Administration, which is why entering Admin
+  Space showed Analytics beside Billing. Reporting now travels with the operational workspaces as one
+  shared `Reports & Analytics` group.
+- **Workspace access is ONE question for every workspace**: `EntitlementService::userCanUseWorkspace()`
+  = the tenant's plan grant AND a Department User's own assignment. Never add a per-workspace role
+  gate — v2.83.0 did exactly that for Management and it returned 403 to paying customers.
 - **Workspace FOCUS decides where somebody starts, never what they may reach** (v2.83.0).
   `users.workspace_focus` is nullable and `null` means *All Workspaces* — what every account had
   before the column existed. Nothing in the authorization chain reads it: no middleware, no policy,

@@ -460,11 +460,12 @@ class PublicReadinessTest extends TestCase
         // label resolves to an empty string and this passes vacuously.
         $this->seed(WorkspaceSeeder::class);
 
-        // v2.82.0: `warehouse` left this list. Business sells
-        // "Logistics / Warehouse" as one domain, so naming Warehouse on a
-        // card describes what is bought rather than advertising an empty
-        // room. Finance is still a Dashboard and an Overview.
-        $this->assertSame(['finance'], config('plans.shells'));
+        // v2.84.0: the shell LIST is empty, because the concept retired with
+        // the workspaces it named -- Finance is no longer granted by any
+        // plan, so there is no shell left to keep out of the copy. What
+        // replaced it is stricter and is asserted below: a plan may not
+        // advertise any department outside the four IOMS sells.
+        $this->assertSame([], config('plans.shells'));
 
         $showcaseTabs = [];
         preg_match_all(
@@ -480,17 +481,31 @@ class PublicReadinessTest extends TestCase
          * asserting the old answer -- a test that names what it is checking
          * instead of asking is a test that goes stale silently.
          */
-        $shellLabels = Workspace::whereIn('key', config('plans.shells', []))
+        /*
+         * v2.84.0 -- THE SHELL CONCEPT RETIRED WITH THE WORKSPACES IT NAMED.
+         *
+         * A "shell" was a granted workspace with nothing behind it, kept out
+         * of marketing copy so a pricing card never presented an empty room
+         * as a reason to buy. IOMS now sells four workspaces and every one of
+         * them is real, so the list is empty by design.
+         *
+         * The guarantee this test exists for is stronger than it was, and is
+         * asserted against the whole catalogue instead: no public plan may
+         * advertise ANY department outside the four the product sells.
+         */
+        $sold = config('plans.operational', []);
+        $shellLabels = Workspace::where('tier', Workspace::TIER_DEPARTMENT)
+            ->whereNotIn('key', $sold)
             ->pluck('label')
             ->all();
 
-        $this->assertNotEmpty($shellLabels, 'Precondition: the shell workspaces must resolve to labels.');
+        $this->assertNotEmpty($sold, 'Precondition: the product must define what it sells.');
 
         foreach ($showcaseTabs[1] as $label) {
             $this->assertNotContains(
                 $label,
                 $shellLabels,
-                "{$label} is a shell workspace and must not be a showcase tab."
+                "{$label} is not a workspace IOMS sells and must not be a showcase tab."
             );
         }
 
@@ -500,7 +515,7 @@ class PublicReadinessTest extends TestCase
                 $this->assertNotContains(
                     $shell,
                     $plan['scope']['added'],
-                    "{$plan['slug']} advertises the {$shell} shell workspace as a reason to buy the tier."
+                    "{$plan['slug']} advertises {$shell}, which is not a workspace IOMS sells."
                 );
             }
         }
@@ -525,7 +540,7 @@ class PublicReadinessTest extends TestCase
         $this->assertSame(['Health, Safety & Environment'], $plans['starter']['scope']['added']);
 
         $this->assertSame('Starter', $plans['professional']['scope']['inherits_from']);
-        $this->assertSame(['Human Resources'], $plans['professional']['scope']['added']);
+        $this->assertSame(['People / HRD'], $plans['professional']['scope']['added']);
 
         // v2.82.0: Business is Professional plus the movement of materials
         // -- Logistics / PPIC and the Warehouse it feeds. Project
@@ -535,8 +550,11 @@ class PublicReadinessTest extends TestCase
         // the workspace did not exist yet. The order here follows the
         // catalogue's own `sort_order`, not the alphabet.
         $this->assertSame('Professional', $plans['business']['scope']['inherits_from']);
+        // v2.84.0: Logistics / Warehouse is ONE domain, sold and labelled the
+        // way it always worked -- the stock, goods-receipt and movement
+        // capability never lived anywhere else.
         $this->assertSame(
-            ['Logistics / PPIC', 'Warehouse', 'Management'],
+            ['Logistics / Warehouse', 'Management'],
             $plans['business']['scope']['added']
         );
 

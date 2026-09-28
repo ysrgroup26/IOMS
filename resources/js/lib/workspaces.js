@@ -76,11 +76,11 @@ export const WORKSPACES = [
         // The key stays `hr` -- every grant row, route prefix and
         // department map is keyed on it, so renaming the key would be a
         // migration of the authorization model dressed up as a copy edit.
-        label: 'Human Resources',
+        label: 'People / HRD',
         icon: Users,
         tier: 'department',
         items: [
-            { name: 'Dashboard', href: 'dashboard', icon: LayoutDashboard, global: true },
+            { name: 'Dashboard', href: 'dashboard', icon: LayoutDashboard, global: true, globalDashboardOnly: true },
             { name: 'My Work', href: 'my-work', icon: ClipboardList, global: true, departmentUserOnly: true },
             { name: 'Overview', href: 'hr.dashboard', icon: LayoutDashboard },
             { name: 'Employees', href: 'employees.index', icon: Users, moduleKey: 'employees' },
@@ -107,8 +107,6 @@ export const WORKSPACES = [
             // Project manpower) may consume this data later without it
             // moving out of HR.
             { name: 'Shift & Roster', href: 'shifts.master', icon: Clock },
-            { name: 'Recruitment', icon: Users, disabled: true },
-            { name: 'Performance', icon: BadgeCheck, disabled: true },
             // Milestone 4, Workstream A2: Training & Competency Management
             // -- real backend now (CompetencyType/EmployeeCompetency),
             // same route/controller reachable from both HR and HSE
@@ -124,9 +122,6 @@ export const WORKSPACES = [
             // stays a locked placeholder ("KPI HRD" -- a genuinely
             // separate future concept, HR's own KPI tracking, not yet
             // built) rather than a real link.
-            { name: 'HR KPI', icon: ClipboardEdit, disabled: true },
-            { name: 'Documents', icon: ClipboardList, disabled: true },
-            { name: 'Reports', icon: FileBarChart, disabled: true },
         ],
     },
     {
@@ -191,7 +186,7 @@ export const WORKSPACES = [
         // established acronyms (PPE, JSA, HIRADC, PTW, LOTO, CAPA, TBM,
         // KPI) are kept as-is. hrefs/route names UNCHANGED.
         items: [
-            { name: 'Dashboard', href: 'dashboard', icon: LayoutDashboard, global: true },
+            { name: 'Dashboard', href: 'dashboard', icon: LayoutDashboard, global: true, globalDashboardOnly: true },
             { name: 'My Work', href: 'my-work', icon: ClipboardList, global: true, departmentUserOnly: true },
             { name: 'Overview', href: 'hse.dashboard', icon: LayoutDashboard },
             {
@@ -334,48 +329,45 @@ export const WORKSPACES = [
             },
             // Training & Competency lives under HR -- same one-canonical-
             // home precedent as HSE KPI above (which moved the other way).
-            { name: 'Training', icon: ClipboardList, disabled: true },
-            { name: 'Reports', icon: FileBarChart, disabled: true },
         ],
     },
-    {
-        key: 'project-management',
-        // v1.11.7 (Bahasa Indonesia Standardization, Part 4).
-        label: 'Project Management',
-        icon: FolderKanban,
-        tier: 'department',
-        items: [
-            { name: 'Dashboard', href: 'dashboard', icon: LayoutDashboard, global: true },
-            { name: 'My Work', href: 'my-work', icon: ClipboardList, global: true, departmentUserOnly: true },
-            { name: 'Overview', href: 'project-management.dashboard', icon: LayoutDashboard },
-            { name: 'Projects', href: 'projects.index', icon: FolderKanban, moduleKey: 'projects' },
-            // Daily Reports lives here, not HSE: it's a per-project
-            // activity/progress log -- see ADR-007 for the reasoning.
-            { name: 'Daily Reports', href: 'daily-reports.index', icon: ClipboardList, moduleKey: 'daily_reports' },
-            // Milestone 4, Acceleration Part 3: real backend now
-            // (ProjectActivity) -- distinct from a DailyReportActivity
-            // free-text log line: this is a real owner+progress+status
-            // record, feeding the Avg. Activity Progress dashboard widget.
-            // Left disabled here (not a dead route -- `projects.activities`
-            // requires a {project} param, so it's reached from within a
-            // Project's own page, not as a standalone sidebar destination;
-            // same reasoning as Attendance/Training above).
-            { name: 'Activities', icon: ClipboardList, disabled: true },
-            { name: 'Milestone', href: 'milestones.index', icon: Flag },
-            { name: 'Documents', icon: ClipboardList, disabled: true },
-            { name: 'Reports', icon: FileBarChart, disabled: true },
-        ],
-    },
+    /*
+     * v2.84.0 -- SEVEN WORKSPACES LEFT THIS FILE, AND NOTHING WAS DELETED.
+     *
+     * Project Management, Warehouse (as a standalone shell), Procurement,
+     * Asset Management, Maintenance, Quality Control and Finance are no
+     * longer CUSTOMER-FACING. IOMS sells four operational workspaces --
+     * HSE, People / HRD, Logistics / Warehouse and Management -- and a
+     * product that lists eleven departments, most of them unreachable on
+     * every plan it sells, reads as unfinished rather than focused.
+     *
+     * WHAT WAS ACTUALLY REMOVED: navigation entries. Their routes,
+     * controllers, models, migrations and data are untouched, and
+     * `config/departments.php` still maps every one of their route
+     * prefixes to its owning department -- so RestrictDepartmentAccess and
+     * EnforceTenantEntitlement gate them exactly as before. What changed is
+     * that no plan grants them any more (config/plans.php), so the
+     * entitlement middleware now refuses them for any provisioned tenant.
+     *
+     * They are roadmap, recorded in the knowledge base rather than
+     * advertised as "Coming Soon" in a sidebar. Warehouse is the one that
+     * did not retire: its real capability (Item Master, Inventory, Goods
+     * Receipt, Stock Movement) was always inside Logistics, and the tier is
+     * now sold and labelled as the one domain it always was.
+     *
+     * Reinstating one is this comment plus its entry, a config/plans.php
+     * line, and a workspaces catalogue row. See ADR 045.
+     */
     {
         key: 'logistics',
         // v1.11.7 (Bahasa Indonesia Standardization, Part 4) -- "PPIC"
         // (Production Planning & Inventory Control) is itself already a
         // standard Indonesian-industry acronym, kept as-is.
-        label: 'Logistics / PPIC',
+        label: 'Logistics / Warehouse',
         icon: PackageSearch,
         tier: 'department',
         items: [
-            { name: 'Dashboard', href: 'dashboard', icon: LayoutDashboard, global: true },
+            { name: 'Dashboard', href: 'dashboard', icon: LayoutDashboard, global: true, globalDashboardOnly: true },
             { name: 'My Work', href: 'my-work', icon: ClipboardList, global: true, departmentUserOnly: true },
             { name: 'Overview', href: 'logistics.dashboard', icon: LayoutDashboard },
             { name: 'Material Request', href: 'material-requests.index', icon: PackageSearch, moduleKey: 'material_requests' },
@@ -391,176 +383,15 @@ export const WORKSPACES = [
             { name: 'Goods Receipt', href: 'goods-receipts.index', icon: PackageCheck },
             { name: 'Stock Out / Transfer / Adjustment', href: 'stock.transactions.create', icon: ArrowRightLeft },
             { name: 'Stock Movement History', href: 'stock.movements', icon: ClipboardList },
-            { name: 'Documents', icon: ClipboardList, disabled: true },
-            { name: 'Reports', icon: FileBarChart, disabled: true },
         ],
     },
-    // v1.10.6 correction, updated v1.11.3.2 (Priority Pass Part 9):
-    // 'warehouse' is deliberately NOT a "nothing built yet" placeholder
-    // like Finance -- Warehouse functionality is fully real (Stock/
-    // StockMovement/GoodsReceipt/Item), it just stays inside the
-    // Logistics / PPIC department's own RBAC group for now (explicit
-    // earlier instruction: "Warehouse stays inside Logistics, not split
-    // into its own department key yet" -- `config/departments.php` still
-    // maps every `warehouses.*`/`items.*`/`stock.*`/`goods-receipts.*`
-    // prefix to `logistics`, unchanged). This workspace's item list
-    // deliberately stays to JUST its one entry point (Overview, now
-    // pointing at the real `warehouses.dashboard` instead of the
-    // warehouse register/config page) rather than re-listing Logistics's
-    // own Item Master/Inventory/Goods Receipt/etc. items a second time --
-    // `PREFIX_TO_WORKSPACE` below requires each route prefix to be owned
-    // by exactly ONE workspace (its own doc comment, a real invariant,
-    // not decorative -- duplicating those prefixes here was tried and
-    // reverted in this same pass once it was noticed it would silently
-    // steal active-workspace highlighting away from Logistics/PPIC for
-    // its own users). Warehouse's Overview page itself still surfaces
-    // ModuleCard shortcuts to all of those pages -- the navigation depth
-    // just isn't duplicated in the sidebar item list too.
-    //
-    // Note (pre-existing, not introduced by this pass): Logistics's own
-    // item list also links `warehouses.master` under the same
-    // `warehouses` prefix this workspace's Overview now shares via
-    // `warehouses.dashboard`. Since this workspace is declared AFTER
-    // Logistics in WORKSPACES, PREFIX_TO_WORKSPACE's reduce means THIS
-    // workspace wins the active-highlight for any `warehouses.*` route --
-    // that was already true before this pass (Logistics's own "Warehouse"
-    // item already lost that contest to this workspace's prior
-    // `warehouses.master` Overview link). Purely a which-sidebar-item-
-    // highlights-as-active cosmetic detail, decided by array order here,
-    // NOT a security/RBAC concern -- that's governed entirely by
-    // config/departments.php, unrelated to this file.
-    {
-        key: 'warehouse',
-        // v1.11.7 (Bahasa Indonesia Standardization, Part 4).
-        label: 'Warehouse',
-        icon: Warehouse,
-        tier: 'department',
-        items: [
-            { name: 'Dashboard', href: 'dashboard', icon: LayoutDashboard, global: true },
-            { name: 'My Work', href: 'my-work', icon: ClipboardList, global: true, departmentUserOnly: true },
-            { name: 'Overview', href: 'warehouses.dashboard', icon: Warehouse },
-        ],
-    },
-    {
-        key: 'procurement',
-        label: 'Procurement',
-        icon: ShoppingCart,
-        tier: 'department',
-        items: [
-            { name: 'Dashboard', href: 'dashboard', icon: LayoutDashboard, global: true },
-            { name: 'My Work', href: 'my-work', icon: ClipboardList, global: true, departmentUserOnly: true },
-            // Milestone 4, Workstream C: real backend now (Vendor,
-            // PurchaseRequisition, Rfq/VendorQuotation, PurchaseOrder) --
-            // a genuine cross-department procurement engine, not owned by
-            // any single requesting department (HSE/Maintenance/Project/
-            // etc. all raise Material Requests that Procurement can turn
-            // into a PR from here).
-            { name: 'Overview', href: 'procurement.dashboard', icon: LayoutDashboard },
-            { name: 'Purchase Requisition', href: 'purchase-requisitions.index', icon: FileStack },
-            { name: 'RFQ', href: 'rfqs.index', icon: FileQuestion },
-            { name: 'Purchase Order', href: 'purchase-orders.index', icon: ShoppingCart },
-            { name: 'Vendor / Supplier', href: 'vendors.index', icon: Building2 },
-            { name: 'Vendor Performance', href: 'procurement.vendor-performance', icon: TrendingUp },
-            // v2.52.0: BAST. A formal handover instrument -- distinct from
-            // Goods Receipt, which is a warehouse transaction.
-            { name: 'BAST / Serah Terima', href: 'handover-records.index', icon: FileSignature },
-        ],
-    },
-    {
-        key: 'asset-management',
-        label: 'Asset Management',
-        icon: Box,
-        tier: 'department',
-        items: [
-            { name: 'Dashboard', href: 'dashboard', icon: LayoutDashboard, global: true },
-            { name: 'My Work', href: 'my-work', icon: ClipboardList, global: true, departmentUserOnly: true },
-            // v1.11.3 (Global Dashboard/Overview UX Rework, Part 4) -- this
-            // department had no Overview at all before this pass.
-            { name: 'Overview', href: 'asset-management.dashboard', icon: LayoutDashboard },
-            // Milestone 4, Acceleration Part 1C: real backend now (Asset +
-            // AssetTransaction) -- full Purchase->Receive->Register->
-            // Assign->Operate->Inspect->Maintain->Retire lifecycle.
-            { name: 'Assets', href: 'assets.index', icon: Box },
-            { name: 'Documents', icon: ClipboardList, disabled: true },
-            { name: 'Reports', icon: FileBarChart, disabled: true },
-        ],
-    },
-    {
-        key: 'maintenance',
-        label: 'Maintenance',
-        icon: Wrench,
-        tier: 'department',
-        items: [
-            { name: 'Dashboard', href: 'dashboard', icon: LayoutDashboard, global: true },
-            { name: 'My Work', href: 'my-work', icon: ClipboardList, global: true, departmentUserOnly: true },
-            // v1.11.3 (Global Dashboard/Overview UX Rework, Part 4) -- this
-            // department had no Overview at all before this pass.
-            { name: 'Overview', href: 'maintenance.dashboard', icon: LayoutDashboard },
-            // Milestone 4, Acceleration Part 2: real backend now
-            // (MaintenanceRequest + WorkOrder). Request -> Approved ->
-            // Work Order -> Execution -> Completed, spare parts posted via
-            // the SAME StockService the Warehouse module itself uses.
-            { name: 'Maintenance Requests', href: 'maintenance-requests.index', icon: ClipboardList },
-            { name: 'Work Orders', href: 'work-orders.index', icon: Wrench },
-            { name: 'Documents', icon: ClipboardList, disabled: true },
-            { name: 'Reports', icon: FileBarChart, disabled: true },
-        ],
-    },
-    {
-        key: 'quality-control',
-        label: 'Quality Control',
-        icon: BadgeCheck,
-        tier: 'department',
-        items: [
-            { name: 'Dashboard', href: 'dashboard', icon: LayoutDashboard, global: true },
-            { name: 'My Work', href: 'my-work', icon: ClipboardList, global: true, departmentUserOnly: true },
-            // v1.11.3 (Global Dashboard/Overview UX Rework, Part 4) -- this
-            // department had no Overview at all before this pass.
-            { name: 'Overview', href: 'quality-control.dashboard', icon: LayoutDashboard },
-            // Milestone 4, Acceleration Part 3: real backend now
-            // (InspectionRequest + InspectionResult + Ncr). NCR raises a
-            // real CorrectiveAction (reused, not duplicated -- same
-            // polymorphic CAPA pattern as HSE's own findings).
-            { name: 'Inspection Requests', href: 'inspection-requests.index', icon: ClipboardCheck },
-            { name: 'NCR', href: 'ncrs.index', icon: FileWarning },
-            { name: 'Documents', icon: ClipboardList, disabled: true },
-            { name: 'Reports', icon: FileBarChart, disabled: true },
-        ],
-    },
-    {
-        key: 'finance',
-        label: 'Finance',
-        icon: DollarSign,
-        tier: 'department',
-        items: [
-            { name: 'Dashboard', href: 'dashboard', icon: LayoutDashboard, global: true },
-            { name: 'My Work', href: 'my-work', icon: ClipboardList, global: true, departmentUserOnly: true },
-            { name: 'Overview', href: 'finance.coming-soon', icon: DollarSign },
-        ],
-    },
-    /*
-     * v2.83.0 -- MANAGEMENT. The Business tier's fourth name, finally
-     * pointing at something.
-     *
-     * A department-tier workspace like any other, which is what makes it
-     * sellable and entitle-able through the existing chain rather than
-     * needing a second mechanism. What is unusual about it is that it OWNS
-     * nothing: every page here reads other departments' records (see
-     * ManagementInsightsService), so there is no master data, no form and
-     * no write route in the whole workspace.
-     *
-     * It is deliberately NOT a copy of the Dashboard's items. Dashboard
-     * answers "what is happening now", a Department Overview answers "what
-     * is happening in this department", and these pages answer "how is the
-     * company doing" -- three different questions, kept apart on purpose.
-     */
     {
         key: 'management',
         label: 'Management',
         icon: TrendingUp,
         tier: 'department',
         items: [
-            { name: 'Dashboard', href: 'dashboard', icon: LayoutDashboard, global: true },
+            { name: 'Dashboard', href: 'dashboard', icon: LayoutDashboard, global: true, globalDashboardOnly: true },
             { name: 'My Work', href: 'my-work', icon: ClipboardList, global: true, departmentUserOnly: true },
             { name: 'Overview', href: 'management.overview', icon: TrendingUp },
             { name: 'Company KPI', href: 'management.kpi', icon: BarChart3 },
@@ -672,15 +503,47 @@ export const WORKSPACES = [
 ];
 
 /**
- * FUTURE WORKSPACES -- domains with no entry above at all yet (deeper
- * roadmap items beyond even the Future Departments already scaffolded):
+ * FUTURE WORKSPACES -- roadmap only, and deliberately invisible.
+ *
  * Marine Operations, Document Control, Visitor Management, Contractor
- * Management. Add a new WORKSPACES entry the same way the v1.9.0
- * placeholder departments were added when one of these is ready to be
- * previewed in navigation.
+ * Management, and the seven that retired in v2.84.0. None of them appears
+ * anywhere a customer can see: not in the sidebar, not in the switcher, not
+ * on a pricing card, and never as "Coming Soon". They live in the knowledge
+ * base, which is where a roadmap belongs.
  */
 
+/**
+ * v2.84.0 -- THE COMPANY CHROME, SHARED BY EVERY WORKSPACE.
+ *
+ * Reports, Analytics and Report Center are cross-module surfaces. They are
+ * not a department and no plan may withhold them (Workspace::globalKeys()),
+ * but they still have to be REACHABLE -- and after v2.84.0 a Starter or
+ * Professional customer never sees a "no workspace active" sidebar, because
+ * they never get the Global Company Dashboard. Left where they were, the
+ * three pages would have become unreachable for the two plans that sell the
+ * most focused product.
+ *
+ * So they are appended to every operational workspace as one collapsible
+ * group, and shown again on the Global Dashboard's own company nav. Each
+ * item carries `global: true`, which keeps `registerPrefixes()` from giving
+ * four different workspaces joint ownership of the `reports` prefix -- the
+ * `reports` entry in WORKSPACES stays the single owner, exactly as before.
+ */
+const COMPANY_REPORTS_GROUP = {
+    name: 'Reports & Analytics',
+    icon: FileBarChart,
+    children: [
+        { name: 'Reports', href: 'reports.index', icon: FileBarChart, moduleKey: 'reports', global: true },
+        { name: 'Analytics', href: 'analytics.index', icon: BarChart3, global: true },
+        { name: 'Report Center', href: 'report-center.index', icon: FileDown, global: true },
+    ],
+};
+
+/** The two workspace keys that are the application's own chrome, never sold. */
 const GLOBAL_NAV_KEYS = ['reports', 'administration'];
+
+/** Admin Space is a SPACE, not a department -- it is never in the switcher. */
+export const ADMIN_SPACE_KEY = 'administration';
 
 function isDepartmentTier(workspace) {
     return workspace.tier === 'department';
@@ -700,10 +563,16 @@ function isDepartmentTier(workspace) {
  * (adminOnly) was grouped -- fixed here instead of narrowly working
  * around it in one workspace.
  */
-function applyItemGates(items, isAdmin, modules, isDepartmentUser = false, isTenantAdmin = false) {
+function applyItemGates(items, isAdmin, modules, isDepartmentUser = false, isTenantAdmin = false, hasGlobalDashboard = true) {
     return items
         .filter((item) =>
             (!item.adminOnly || isAdmin)
+            /* v2.84.0 fifth gate. Every workspace repeats a link back to the
+               GLOBAL COMPANY DASHBOARD, which only Business has. On any other
+               plan `/dashboard` redirects to the workspace the user is
+               already in, so the link was a loop sitting at the top of every
+               rail -- browser-verified on a Starter tenant. */
+            && (!item.globalDashboardOnly || hasGlobalDashboard)
             // v2.83.0 fourth gate -- see Admin Space's items for why
             // `adminOnly` (Super Admin OR HSE) was too wide for capacity,
             // billing and security rows.
@@ -715,7 +584,7 @@ function applyItemGates(items, isAdmin, modules, isDepartmentUser = false, isTen
             // administrator browsing the same workspace does not see it.
             && (!item.departmentUserOnly || isDepartmentUser)
         )
-        .map((item) => (item.children ? { ...item, children: applyItemGates(item.children, isAdmin, modules, isDepartmentUser, isTenantAdmin) } : item))
+        .map((item) => (item.children ? { ...item, children: applyItemGates(item.children, isAdmin, modules, isDepartmentUser, isTenantAdmin, hasGlobalDashboard) } : item))
         // A group whose every child got gated out (no combination does
         // this today -- every HSE group keeps at least one ungated child
         // -- but defensive against a future edit that adds one) renders
@@ -732,7 +601,7 @@ const ICON_MAP = {
     Users, ClipboardEdit, FileBarChart, Settings, FolderKanban, HardHat,
     ClipboardList, PackageSearch, Warehouse, ShoppingCart, Wrench,
     BadgeCheck, DollarSign, Box, LayoutDashboard, CalendarDays,
-    AlertTriangle, PackageCheck, Flag,
+    AlertTriangle, PackageCheck, Flag, BarChart3, FileDown, ClipboardCheck,
     // v2.83.0 -- Management's own icon. A workspace whose `workspaces` row
     // names an icon missing from this map silently falls back to the
     // hardcoded one, so omitting it would not have crashed -- it would
@@ -784,9 +653,36 @@ export function getVisibleWorkspaces(user, enabledModules, workspaceCatalog) {
     const isDepartmentUser = Boolean(user?.department_key);
     const isTenantAdmin = Boolean(user?.is_tenant_admin);
 
+    /*
+     * v2.84.0 -- ONE ENTITLEMENT ANSWER, FOR EVERY WORKSPACE ALIKE.
+     *
+     * `workspace_access` is the server's own map (EntitlementService::
+     * userCanUseWorkspace: plan grant AND department assignment), so the
+     * sidebar cannot offer a door the route would close. It replaces
+     * v2.83.0's `can_view_management` -- a per-workspace boolean for
+     * exactly ONE workspace, which is how Management ended up asking a
+     * different question from Logistics and returning 403 to accounts the
+     * customer had paid for.
+     *
+     * Absent (an older cached page, or a caller that passes no user) means
+     * "do not filter", so this can never hide a workspace because a prop
+     * failed to arrive. The route gate is the boundary either way.
+     */
+    const access = user?.workspace_access;
+    // Absent means "do not filter", for the same reason as `access` above.
+    const hasGlobalDashboard = user?.has_global_dashboard !== false;
+
     return applyCatalog(WORKSPACES, workspaceCatalog)
-        .map((workspace) => ({ ...workspace, items: applyItemGates(workspace.items, isAdmin, modules, isDepartmentUser, isTenantAdmin) }))
+        .map((workspace) => ({ ...workspace, items: applyItemGates(workspace.items, isAdmin, modules, isDepartmentUser, isTenantAdmin, hasGlobalDashboard) }))
         .filter((workspace) => workspace.items.length > 0)
+        .filter((workspace) => ! isDepartmentTier(workspace) || ! access || access[workspace.key] === true)
+        // Every operational workspace carries the company chrome. Admin
+        // Space deliberately does NOT -- reporting is not administration,
+        // and mixing the two is what made the old Admin Space read as one
+        // giant application dashboard.
+        .map((workspace) => (isDepartmentTier(workspace)
+            ? { ...workspace, items: [...workspace.items, withGatedChildren(COMPANY_REPORTS_GROUP, isAdmin, modules, isDepartmentUser, isTenantAdmin, hasGlobalDashboard)] }
+            : workspace))
         /*
          * v2.83.0 -- Management is a CAPABILITY as well as an entitlement.
          *
@@ -798,7 +694,12 @@ export function getVisibleWorkspaces(user, enabledModules, workspaceCatalog) {
          * the entry is the courtesy half of that; the controller is the
          * boundary.
          */
-        .filter((workspace) => workspace.key !== 'management' || user?.can_view_management !== false);
+        .filter((workspace) => workspace.items.length > 0);
+}
+
+/** Applies the same item gates to a shared group before it is appended. */
+function withGatedChildren(group, isAdmin, modules, isDepartmentUser, isTenantAdmin, hasGlobalDashboard) {
+    return { ...group, children: applyItemGates(group.children, isAdmin, modules, isDepartmentUser, isTenantAdmin, hasGlobalDashboard) };
 }
 
 /**
@@ -832,6 +733,43 @@ export function getGlobalNavItems(user, enabledModules, workspaceCatalog) {
     return getVisibleWorkspaces(user, enabledModules, workspaceCatalog)
         .filter((workspace) => GLOBAL_NAV_KEYS.includes(workspace.key))
         .flatMap((workspace) => workspace.items);
+}
+
+/**
+ * v2.84.0 -- ADMIN SPACE'S OWN NAVIGATION, AND NOTHING ELSE.
+ *
+ * The defect this replaces: the sidebar's old "global navigation" state
+ * merged Reports + Administration into one list, so entering Admin Space
+ * showed Reports, Analytics and Report Center alongside Users, Roles and
+ * Billing -- administration and cross-module reporting presented as one
+ * undifferentiated application dashboard. They are different things for
+ * different people. Reporting now belongs to the operational workspaces
+ * (COMPANY_REPORTS_GROUP); this returns administration only.
+ */
+export function getAdminSpaceItems(user, enabledModules, workspaceCatalog) {
+    return getVisibleWorkspaces(user, enabledModules, workspaceCatalog)
+        .filter((workspace) => workspace.key === ADMIN_SPACE_KEY)
+        .flatMap((workspace) => workspace.items);
+}
+
+/**
+ * The GLOBAL COMPANY DASHBOARD's own navigation -- the only state in which
+ * no workspace is active and that is correct rather than a fallback.
+ *
+ * Business only, because the dashboard is. Deliberately SHORT: the company
+ * command centre links to the workspaces, it does not reproduce them.
+ */
+export function getCompanyNavItems(user, enabledModules, workspaceCatalog) {
+    const reporting = getVisibleWorkspaces(user, enabledModules, workspaceCatalog)
+        .filter((workspace) => workspace.key === 'reports')
+        .flatMap((workspace) => workspace.items);
+
+    return [
+        { name: 'Dashboard', href: 'dashboard', icon: LayoutDashboard },
+        { name: 'Calendar', href: 'calendar.index', icon: CalendarDays },
+        { name: 'Work Center', href: 'work-center.index', icon: ClipboardCheck },
+        ...reporting,
+    ];
 }
 
 // Keyed by route-name prefix, real items only -- disabled items have no

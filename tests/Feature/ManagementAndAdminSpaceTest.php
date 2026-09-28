@@ -181,32 +181,49 @@ class ManagementAndAdminSpaceTest extends TestCase
      * 5-7. MANAGEMENT AUTHORIZATION -- the person decides too
      * ================================================================== */
 
-    public function test_a_manager_may_read_management_and_an_hse_supervisor_may_not(): void
+    /**
+     * v2.84.0 -- MANAGEMENT ASKS THE SAME QUESTION AS EVERY OTHER WORKSPACE.
+     *
+     * v2.83.0 gated this workspace on a role allow-list (tenant administrator
+     * or Manager) ON TOP of the plan. It was the only workspace in IOMS that
+     * did, and the consequence was a 403 for accounts the customer had paid
+     * for -- an HRD or HSE account on a tenant whose plan includes Management
+     * was refused a page their organization bought.
+     *
+     * The gate is now the plan grant plus a Department User's own assignment,
+     * exactly as it is for HSE, People and Logistics. Every role that is not
+     * confined to another department may read it.
+     */
+    public function test_every_role_on_an_entitled_tenant_may_read_management(): void
     {
         $this->tenantOn('business');
 
-        $this->actingAs($this->userWith(User::ROLE_MANAGER))
-            ->get(route('management.overview'))
-            ->assertOk();
-
-        // HSE holds operational CRUD (isAdmin() unions it with Super
-        // Admin), which is a different question from company-wide
-        // performance. The distinction is the reason canViewManagement()
-        // is its own predicate rather than a reuse of isAdmin().
-        $this->actingAs($this->userWith(User::ROLE_HSE))
-            ->get(route('management.overview'))
-            ->assertForbidden();
-    }
-
-    public function test_an_ordinary_role_cannot_reach_management_even_on_business(): void
-    {
-        $this->tenantOn('business');
-
-        foreach ([User::ROLE_HRD, User::ROLE_WAREHOUSE] as $role) {
+        foreach ([User::ROLE_SUPER_ADMIN, User::ROLE_MANAGER, User::ROLE_HSE, User::ROLE_HRD, User::ROLE_WAREHOUSE] as $role) {
             $this->actingAs($this->userWith($role))
                 ->get(route('management.overview'))
-                ->assertForbidden();
+                ->assertOk("{$role} was refused a workspace their plan includes.");
         }
+    }
+
+    /**
+     * A DEPARTMENT USER STAYS IN THEIR DEPARTMENT, which is the one
+     * person-level rule that still applies -- and it applies to Management
+     * the same way it applies to everything else.
+     *
+     * This is also half of the v2.83.0 403: an account assigned to HSE was
+     * refused by `RestrictDepartmentAccess` before the controller ever ran.
+     * That refusal is correct and is kept; what changed is that an
+     * UNASSIGNED account is no longer refused as well.
+     */
+    public function test_a_department_user_stays_inside_their_own_department(): void
+    {
+        $this->tenantOn('business');
+
+        $hseOnly = $this->userWith(User::ROLE_HSE, ['department_key' => 'hse']);
+
+        $this->actingAs($hseOnly)->get(route('management.overview'))->assertForbidden();
+        $this->assertFalse($this->entitlements()->userCanUseWorkspace($hseOnly, 'management'));
+        $this->assertTrue($this->entitlements()->userCanUseWorkspace($hseOnly, 'hse'));
     }
 
     public function test_the_management_capability_is_not_granted_by_the_platform_operator_role(): void
@@ -221,9 +238,10 @@ class ManagementAndAdminSpaceTest extends TestCase
 
         // A tenantless account holds no tenant capability at all: an
         // operator does not silently become management of every customer.
-        $this->assertFalse($operator->canViewManagement());
+        $this->assertFalse($this->entitlements()->userCanUseWorkspace($operator, 'management'));
         $this->assertFalse($operator->isTenantAdmin());
         $this->assertFalse($operator->canAccessAdminSpace());
+        $this->assertFalse($this->entitlements()->tenantHasGlobalDashboard($operator->tenant));
     }
 
     /* ==================================================================
@@ -563,7 +581,11 @@ class ManagementAndAdminSpaceTest extends TestCase
 
         $this->assertSame('management', $admin->workspace_focus, 'the preference is kept');
         $this->assertNull($this->entitlements()->effectiveWorkspaceFocus($admin), 'but it is no longer served');
-        $this->actingAs($admin)->get(route('dashboard'))->assertOk();
+
+        // And the account is not stranded: the downgraded plan has no Global
+        // Company Dashboard either, so /dashboard takes them to a workspace
+        // they DO still have rather than refusing them.
+        $this->actingAs($admin)->get(route('dashboard'))->assertRedirect(route('hse.dashboard'));
     }
 
     /** A Department User has exactly one workspace, so there is nothing to focus and nothing to switch. */

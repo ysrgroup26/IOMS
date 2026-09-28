@@ -79,7 +79,7 @@ final class ApprovedCatalogue
          * word named nothing and was deliberately left unimplemented rather
          * than faked with an existing key.
          */
-        'business' => ['hse', 'hr', 'logistics', 'management', 'warehouse'],
+        'business' => ['hse', 'hr', 'logistics', 'management'],
     ];
 
     /** The tier presented as recommended. Exactly one, or none. */

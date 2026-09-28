@@ -137,7 +137,11 @@ class ReviewerJourneyTest extends TestCase
         $this->assertNotSame(200, $this->actingAs($reviewer)->get(route('platform.tenants'))->getStatusCode());
 
         // The product itself works for it.
-        $this->actingAs($reviewer)->get(route('dashboard'))->assertOk();
+        // v2.84.0: Work Center, not the Dashboard -- the Global Company
+        // Dashboard is a Business capability and this reviewer account is
+        // not on that plan. The point of the assertion is that the PRODUCT
+        // works for an ordinary customer administrator.
+        $this->actingAs($reviewer)->get(route('work-center.index'))->assertOk();
         $this->actingAs($reviewer)->get(route('subscription.billing'))->assertOk();
         $this->actingAs($reviewer)->get(route('subscription.plans'))->assertOk();
     }

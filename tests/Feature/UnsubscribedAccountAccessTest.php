@@ -110,7 +110,28 @@ class UnsubscribedAccountAccessTest extends TestCase
             'is_active' => true,
         ]);
 
-        $this->actingAs($user)->get('/dashboard')->assertOk();
+        /*
+         * v2.84.0: `/dashboard` is the Global Company Dashboard and this
+         * tenant has no subscription on record, so it redirects to where the
+         * account actually works. What this test is about is the
+         * RequireOrganization guard -- a user WITH an organization must not
+         * be swept into the account area -- so that is what it asserts.
+         */
+        /*
+         * v2.84.0: `/dashboard` is the Global Company Dashboard, which this
+         * tenant's plan does not include, so it redirects into the product
+         * rather than rendering. What this test is about is the
+         * RequireOrganization guard -- a user WITH an organization must not
+         * be swept into the account area -- so that is what it asserts, and
+         * it does not care which workspace they land in.
+         */
+        $response = $this->actingAs($user)->get('/dashboard');
+
+        $this->assertNotSame(
+            route('account.overview'),
+            $response->headers->get('Location'),
+            'A user with an organization must never be sent to the account area.'
+        );
     }
 
     /**

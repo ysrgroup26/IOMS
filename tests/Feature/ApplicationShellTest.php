@@ -105,16 +105,21 @@ class ApplicationShellTest extends TestCase
     }
 
     /**
-     * The department label is the only unbounded string in the header --
-     * a customer names their own departments -- so it must be allowed to
+     * The workspace label is the only unbounded string in the header -- a
+     * customer names their own workspaces -- so it must be allowed to
      * ellipse rather than force the bar wider.
+     *
+     * v2.84.0: the fallback is "All Workspaces", a first-class state a
+     * Business user is genuinely in on the Global Company Dashboard, rather
+     * than "Department", which named neither where you were nor where you
+     * could go.
      */
-    public function test_the_department_label_truncates_rather_than_pushing(): void
+    public function test_the_workspace_label_truncates_rather_than_pushing(): void
     {
         $layout = $this->layout();
 
         $this->assertStringContainsString('flex h-8 min-w-0 items-center gap-1.5 rounded-md border', $layout);
-        $this->assertStringContainsString("<span className=\"truncate\">{activeWorkspace?.label ?? 'Department'}</span>", $layout);
+        $this->assertStringContainsString("<span className=\"truncate\">{activeWorkspace?.label ?? 'All Workspaces'}</span>", $layout);
     }
 
     /**
@@ -236,7 +241,7 @@ class ApplicationShellTest extends TestCase
         foreach ([
             'aria-label="Open navigation"',
             'aria-label="Close navigation"',
-            'aria-label="Switch department"',
+            'aria-label="Switch workspace"',
         ] as $name) {
             $this->assertStringContainsString($name, $layout, "Missing accessible name: {$name}");
         }
@@ -319,8 +324,14 @@ class ApplicationShellTest extends TestCase
     {
         $layout = $this->layout();
 
+        // v2.84.0: the catch-all "global navigation" state became two named
+        // ones -- Admin Space's own nav and the Global Company Dashboard's
+        // company nav. Both are still built from the same server-gated
+        // helpers reading the same shared props, which is what this test is
+        // actually about.
         $this->assertStringContainsString('getSelectableDepartments(auth?.user, enabledModules, workspaceCatalog)', $layout);
-        $this->assertStringContainsString('getGlobalNavItems(auth?.user, enabledModules, workspaceCatalog)', $layout);
+        $this->assertStringContainsString('getAdminSpaceItems(auth?.user, enabledModules, workspaceCatalog)', $layout);
+        $this->assertStringContainsString('getCompanyNavItems(auth?.user, enabledModules, workspaceCatalog)', $layout);
         $this->assertStringContainsString('isDepartmentUser', $layout);
     }
 

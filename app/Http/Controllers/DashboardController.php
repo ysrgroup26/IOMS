@@ -3,25 +3,20 @@
 namespace App\Http\Controllers;
 
 use App\Models\ActivityLog;
-use App\Models\Asset;
 use App\Models\Company;
 use App\Models\CorrectiveAction;
-use App\Models\DailyReport;
 use App\Models\Employee;
 use App\Models\EmployeeShiftAssignment;
 use App\Models\Incident;
-use App\Models\Milestone;
 use App\Models\PermitToWork;
-use App\Models\Project;
-use App\Models\PurchaseOrder;
-use App\Models\PurchaseRequisition;
 use App\Models\Stock;
 use App\Models\Task;
-use App\Models\WorkOrder;
 use App\Services\CalendarService;
 use App\Services\DashboardStatsService;
+use App\Services\EntitlementService;
 use App\Services\TenantReadinessService;
 use App\Services\WorkCenterService;
+use Illuminate\Http\RedirectResponse;
 use Illuminate\Http\Request;
 use Illuminate\Support\Carbon;
 use Inertia\Inertia;
@@ -34,6 +29,7 @@ class DashboardController extends Controller
         private readonly TenantReadinessService $readiness,
         private readonly CalendarService $calendar,
         private readonly WorkCenterService $workCenter,
+        private readonly EntitlementService $entitlements,
     ) {}
 
     /**
@@ -76,7 +72,56 @@ class DashboardController extends Controller
      * already does the job for this MVP and adding a new column wasn't
      * "absolutely required."
      */
-    public function index(Request $request): Response
+    public function index(Request $request): Response|RedirectResponse
+    {
+        /*
+         * v2.84.0 -- THE GLOBAL COMPANY DASHBOARD IS A BUSINESS CAPABILITY.
+         *
+         * This page is the cross-workspace company snapshot, and a
+         * cross-workspace view is only meaningful to a customer who has more
+         * than one operational workspace and bought the tier that sells that
+         * visibility. A Starter customer works in HSE; a "company overview"
+         * for them would be the HSE Overview with a different title, which is
+         * exactly the Dashboard-vs-Overview confusion ADR 045 exists to end.
+         *
+         * A REDIRECT, NOT A 403, AND NOT AN UPSELL PAGE. `dashboard` is the
+         * route every account lands on after sign-in and the one pinned link
+         * in the header; refusing it would greet a paying Starter customer
+         * with a denial every time they sign in, and a locked teaser page
+         * would do the same thing more slowly. They are sent to the Overview
+         * of the workspace they actually work in.
+         *
+         * This is UX, not the security boundary: nothing on this page is
+         * secret, and every figure it renders is already tenant-scoped and
+         * separately reachable from the workspace that owns it.
+         */
+        if (! $this->entitlements->tenantHasGlobalDashboard($request->user()?->tenant)) {
+            return $this->redirectToWorkspace($request);
+        }
+
+        return $this->renderGlobalDashboard($request);
+    }
+
+    /**
+     * Where a customer without the Global Dashboard goes instead: their
+     * focused workspace's Overview, or the first one they are authorized
+     * for.
+     *
+     * A person with no operational workspace at all (a brand-new account, or
+     * a Department User assigned to something their plan no longer grants)
+     * would loop if sent to `dashboard`, so they are sent to Work Center --
+     * a real, universally-reachable destination that states what is waiting
+     * for them rather than a blank redirect target.
+     */
+    private function redirectToWorkspace(Request $request): RedirectResponse
+    {
+        $key = $this->entitlements->landingWorkspaceKey($request->user());
+        $route = $key ? (config('workspaces.overviews')[$key] ?? null) : null;
+
+        return redirect()->route($route && \Illuminate\Support\Facades\Route::has($route) ? $route : 'work-center.index');
+    }
+
+    private function renderGlobalDashboard(Request $request): Response
     {
         // v2.42.0 -- INFORMATION ARCHITECTURE FIX. This used to silently
         // return fieldHome() for any Department User, so an HSE-scoped
@@ -110,19 +155,13 @@ class DashboardController extends Controller
         // another tenant's company id.
         $companyIds = $this->stats->resolveCompanyIds($companyId);
 
-        $recentDailyReports = DailyReport::with('project:id,name')
-            ->whereHas('project', fn ($q) => $q->whereIn('company_id', $companyIds))
-            ->latest('report_date')
-            ->latest('id')
-            ->limit(5)
-            ->get()
-            ->map(fn (DailyReport $r) => [
-                'id' => $r->id,
-                'project_name' => $r->project->name,
-                'department_name' => $r->department_name,
-                'date' => $r->report_date->format('d M Y'),
-            ]);
-
+        /*
+         * v2.84.0: the recent-daily-reports feed was removed with the
+         * Project Management workspace it reads from. The query was real
+         * and tenant-scoped; the workspace is simply no longer
+         * customer-facing, and a company dashboard that says "no daily
+         * reports" describes the product rather than the company.
+         */
         // Reuses the existing activity_logs audit trail -- no new table
         // needed to surface "recent employee changes". ActivityLog::record()
         // already auto-populates company_id off the subject (Employee)
@@ -142,7 +181,6 @@ class DashboardController extends Controller
         $releaseDate = Carbon::parse(config('ioms.release_date'));
 
         return Inertia::render('Dashboard/Index', [
-            'recentDailyReports' => $recentDailyReports,
             'recentEmployeeChanges' => $recentEmployeeChanges,
             // Auto-hides 48h after release -- computed server-side so it
             // never flashes stale even with cached assets.
@@ -160,7 +198,6 @@ class DashboardController extends Controller
             'departmentDistribution' => $this->stats->departmentDistribution($companyId),
             'monthlyTrend' => $this->stats->monthlyTrend($year, $companyId),
             'leaderboards' => $this->stats->leaderboards($year, $companyId),
-            'activeProjectsCount' => $this->stats->activeProjectsCount($companyId),
             'todaysActivities' => $this->stats->todaysActivities($companyId),
             'upcomingReminders' => $this->stats->upcomingReminders($companyId),
             // Universal Task Engine Dashboard integration (v1.6.4) -- real
@@ -206,18 +243,37 @@ class DashboardController extends Controller
             'openCapaCount' => CorrectiveAction::whereIn('company_id', $companyIds)
                 ->whereNotIn('status', [CorrectiveAction::STATUS_VERIFIED, CorrectiveAction::STATUS_CANCELLED])
                 ->count(),
-            'pendingProcurementCount' => PurchaseRequisition::whereIn('company_id', $companyIds)
-                ->whereIn('status', [PurchaseRequisition::STATUS_SUBMITTED, PurchaseRequisition::STATUS_UNDER_REVIEW])
-                ->count()
-                + PurchaseOrder::whereIn('company_id', $companyIds)->where('status', PurchaseOrder::STATUS_SUBMITTED)->count(),
+            /*
+             * v2.84.0 -- PROCUREMENT, ASSETS AND MAINTENANCE LEFT THIS STRIP.
+             *
+             * Not because the queries were wrong -- they were real and
+             * tenant-scoped -- but because those workspaces are no longer
+             * customer-facing (ADR 045). A company snapshot carrying
+             * "Pending Procurement" and "Maintenance Due" beside a link to a
+             * department the customer cannot open is the clearest possible
+             * way to make a focused product look unfinished, and it violates
+             * the rule that this page never shows an unavailable module.
+             *
+             * The tables, models and controllers are untouched. Only the
+             * customer-facing summary stopped naming them.
+             */
             'stockAlertCount' => Stock::whereIn('company_id', $companyIds)
                 ->whereRaw('stocks.quantity <= (select items.min_stock from items where items.id = stocks.item_id)')
                 ->count(),
-            'assetCount' => Asset::whereIn('company_id', $companyIds)->active()->count(),
-            'maintenanceDueCount' => WorkOrder::whereIn('company_id', $companyIds)
-                ->whereIn('status', [WorkOrder::STATUS_SCHEDULED, WorkOrder::STATUS_IN_PROGRESS])
-                ->where('planned_date', '<=', now()->addDays(7)->toDateString())
-                ->count(),
+
+            /*
+             * WHICH WORKSPACES THIS CUSTOMER ACTUALLY HAS.
+             *
+             * The page hides a section rather than rendering a zero for a
+             * workspace the plan does not grant -- "0 stock alerts" and "you
+             * do not have Logistics" are different statements and must not
+             * look identical. Business grants all four today, so this is
+             * usually all-true; it exists so the page cannot silently start
+             * lying if a plan's scope changes.
+             */
+            'workspaceAccess' => collect(config('plans.operational', []))
+                ->mapWithKeys(fn (string $key) => [$key => $this->entitlements->userCanUseWorkspace($request->user(), $key)])
+                ->all(),
             // v1.11.1 (Final Production Readiness Pass, Part 5), narrowed to
             // the actual Management Calendar in v1.11.2 (Final Completion
             // Pass, Part 2/3): this is now genuinely the "Management
@@ -237,35 +293,6 @@ class DashboardController extends Controller
             // once, not repeated in every department. Real data only --
             // Project.manager_id already exists (belongsTo User), Milestone
             // already has target_date/status; no field is fabricated.
-            'projectSummary' => Project::whereIn('company_id', $companyIds)
-                ->whereIn('status', ['planned', 'ongoing'])
-                ->with('manager:id,name')
-                ->withCount(['milestones as total_milestones'])
-                ->withCount(['milestones as completed_milestones' => fn ($q) => $q->where('status', 'completed')])
-                ->orderBy('end_date')
-                ->limit(6)
-                ->get(['id', 'name', 'status', 'manager_id', 'end_date'])
-                ->map(fn (Project $p) => [
-                    'id' => $p->id,
-                    'name' => $p->name,
-                    'status' => $p->status,
-                    'manager' => $p->manager?->name,
-                    'end_date' => $p->end_date,
-                    'progress_percent' => $p->total_milestones > 0
-                        ? round(($p->completed_milestones / $p->total_milestones) * 100)
-                        : null,
-                ]),
-            'upcomingMilestones' => Milestone::with('project:id,name')
-                ->whereHas('project', fn ($q) => $q->whereIn('company_id', $companyIds))
-                ->whereIn('status', ['pending', 'in_progress'])
-                ->where('target_date', '>=', now()->toDateString())
-                ->orderBy('target_date')
-                ->limit(5)
-                ->get(['id', 'project_id', 'title', 'target_date', 'status']),
-            // v1.11.1, Part 6 -- Man-Power foundation. What genuinely
-            // exists and is shown: total active workforce, and how many
-            // are currently assigned to a shift right now
-            // (EmployeeShiftAssignment, real data, tenant-scoped).
             'manpower' => [
                 'active_employees' => Employee::whereIn('company_id', $companyIds)->active()->count(),
                 'on_shift_today' => EmployeeShiftAssignment::whereHas('employee', fn ($q) => $q->whereIn('company_id', $companyIds))

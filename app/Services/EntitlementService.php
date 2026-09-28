@@ -250,12 +250,30 @@ class EntitlementService
 
         $granted = $this->grantedWorkspaceKeys($user->tenant);
 
+        /*
+         * v2.84.0 -- INTERSECTED WITH WHAT IOMS ACTUALLY SELLS.
+         *
+         * `grantedWorkspaceKeys()` treats "no grant rows recorded" as
+         * UNRESTRICTED -- the v2.13.0 safety net that makes enforcement
+         * safe to enable, and still correct for ACCESS. It is wrong for
+         * NAVIGATION: an unprovisioned tenant was offered Procurement,
+         * Maintenance and Quality Control in the department selector,
+         * departments nobody sells and no plan grants.
+         *
+         * `config('plans.operational')` is the product's own answer to
+         * "which workspaces exist for a customer", so navigation is bounded
+         * by it regardless of grant state, stale catalogue rows, or a
+         * fail-open default. Nothing here loosens access -- it only stops
+         * offering doors the product does not have.
+         */
+        $sold = config('plans.operational', []);
+
         $departments = Workspace::query()
             ->where('tier', Workspace::TIER_DEPARTMENT)
             ->where('is_active', true)
             ->orderBy('sort_order')
             ->pluck('key')
-            ->filter(fn (string $key) => in_array($key, $granted, true))
+            ->filter(fn (string $key) => in_array($key, $granted, true) && in_array($key, $sold, true))
             ->values()
             ->all();
 
@@ -268,6 +286,81 @@ class EntitlementService
         }
 
         return $departments;
+    }
+
+    /**
+     * v2.84.0 -- CAN THIS PERSON WORK IN THIS WORKSPACE.
+     *
+     * Two questions, composed, and neither is a role check:
+     *
+     *   PLAN        the organization is entitled to the workspace
+     *   ASSIGNMENT  a Department User is confined to their own department
+     *
+     * There is deliberately NO third, workspace-specific role gate. v2.83.0
+     * added one for Management (`canViewManagement()`, tenant admin or
+     * Manager) and it was the wrong shape: no other workspace in IOMS has
+     * one, so Management alone answered a different question from Logistics
+     * or People, and the result was a 403 for accounts the plan had paid
+     * for. What a person may DO inside a workspace is still decided by the
+     * per-action capability checks each controller already applies.
+     */
+    public function userCanUseWorkspace(?User $user, string $workspaceKey): bool
+    {
+        if (! $user || $user->tenant_id === null) {
+            return false;
+        }
+
+        if (! $this->tenantCanUseWorkspace($user->tenant, $workspaceKey)) {
+            return false;
+        }
+
+        // A Department User is assigned to exactly one area, which is the
+        // same rule RestrictDepartmentAccess enforces on the route.
+        return $user->department_key === null || $user->department_key === $workspaceKey;
+    }
+
+    /**
+     * v2.84.0 -- THE GLOBAL COMPANY DASHBOARD IS A BUSINESS CAPABILITY.
+     *
+     * It is the one thing IOMS sells by plan that is not a workspace, so it
+     * cannot be a workspace grant and is read from `config('plans')` beside
+     * the scope lists it belongs with.
+     *
+     * A tenant with no subscription on record is treated as NOT entitled --
+     * the opposite direction from every other method in this service, and
+     * deliberately so. Elsewhere a missing commercial record must never LOCK
+     * SOMEBODY OUT of work they are doing; here the fail-open outcome would
+     * be to hand an unconfigured tenant a capability nobody sold them, and
+     * the cost of being wrong is a redirect to their own workspace rather
+     * than a lockout.
+     */
+    public function tenantHasGlobalDashboard(?Tenant $tenant): bool
+    {
+        if (! $tenant || ! $this->tenantIsUsable($tenant)) {
+            return false;
+        }
+
+        $slug = $tenant->subscription?->package?->slug;
+
+        return $slug !== null && in_array($slug, config('plans.global_dashboard', []), true);
+    }
+
+    /**
+     * Where this account starts when it has no Global Dashboard: the
+     * Overview of the workspace they are focused on, or of the first one
+     * they are authorized for. Null when they have no operational workspace
+     * at all, which the caller renders as its own honest state rather than
+     * a redirect loop.
+     */
+    public function landingWorkspaceKey(?User $user): ?string
+    {
+        $focus = $this->effectiveWorkspaceFocus($user);
+
+        if ($focus !== null) {
+            return $focus;
+        }
+
+        return $this->authorizedDepartmentKeys($user)[0] ?? null;
     }
 
     /**

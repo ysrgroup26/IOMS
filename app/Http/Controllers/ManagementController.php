@@ -48,21 +48,38 @@ class ManagementController extends Controller
     ) {}
 
     /**
-     * The one place both gates are applied, so no action of this
-     * controller can be added later without them.
+     * The one place the gate is applied, so no action of this controller can
+     * be added later without it.
+     *
+     * v2.84.0 -- THE 403 ROOT CAUSE, AND WHY THE SECOND GATE IS GONE.
+     *
+     * v2.83.0 required a workspace-specific ROLE in addition to the plan:
+     * tenant administrator or Manager, with HSE deliberately excluded. That
+     * reasoning was defensible in isolation and wrong for this product,
+     * because it made Management the ONLY workspace in IOMS that asks a
+     * question the others do not:
+     *
+     *   Logistics   plan grant + department assignment
+     *   People      plan grant + department assignment
+     *   HSE         plan grant + department assignment
+     *   Management  plan grant + department assignment + a role allow-list
+     *
+     * The consequence was a 403 for accounts the customer had paid for --
+     * confirmed against real data, where an HRD account on a tenant that
+     * grants Management was refused, and an HSE-assigned account was refused
+     * twice over (the role gate here, and `RestrictDepartmentAccess` denying
+     * the `management` prefix before the request ever arrived).
+     *
+     * `userCanUseWorkspace()` is now the same question every workspace asks:
+     * the ORGANIZATION's plan must include it, and a Department User stays
+     * inside their own department. Nothing was weakened -- the plan boundary
+     * and the department boundary are both still enforced server-side, and
+     * this workspace has no write actions to authorize beyond them.
      */
     private function authorizeManagement(Request $request): void
     {
-        $user = $request->user();
-
         abort_unless(
-            $user !== null && $user->canViewManagement(),
-            403,
-            'Halaman Management hanya untuk manajemen dan administrator perusahaan.'
-        );
-
-        abort_unless(
-            $this->entitlements->tenantCanUseWorkspace($user->tenant, 'management'),
+            $this->entitlements->userCanUseWorkspace($request->user(), 'management'),
             403,
             'Workspace Management tersedia pada paket Business.'
         );

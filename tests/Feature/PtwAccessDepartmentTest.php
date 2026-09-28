@@ -38,6 +38,11 @@ class PtwAccessDepartmentTest extends TestCase
     {
         parent::setUp();
 
+        // The workspace catalogue has to exist for a landing workspace to be
+        // resolvable at all -- an empty table makes every account look as if
+        // it has no workspace, which is not a state a real install has.
+        $this->seed(\Database\Seeders\WorkspaceSeeder::class);
+
         $this->tenant = Tenant::create(['name' => 'ACME', 'slug' => 'acme']);
         Company::withoutGlobalScopes()->create(['name' => 'ACME', 'tenant_id' => $this->tenant->id]);
         app(CurrentTenant::class)->set($this->tenant);
@@ -107,15 +112,21 @@ class PtwAccessDepartmentTest extends TestCase
      * Department User, so the one route meaning "IOMS-wide company picture"
      * meant something different per account -- and made PTW look like the
      * primary content of the company Dashboard.
+     *
+     * v2.84.0 KEEPS THAT FIX AND NARROWS IT. `dashboard` still means exactly
+     * one thing, and now it means the GLOBAL COMPANY DASHBOARD, which is a
+     * Business capability. A Department User on a tenant without it is sent
+     * to their own workspace's Overview -- a real destination, not Field Home
+     * wearing the Dashboard's name. The thing this test exists to prevent is
+     * unchanged: the route never quietly renders a different page.
      */
-    public function test_a_department_user_now_gets_the_company_wide_dashboard(): void
+    public function test_a_department_user_is_sent_to_their_workspace_not_to_field_home(): void
     {
         $user = $this->user(['department_key' => 'hse', 'role' => 'hse']);
 
         $this->actingAs($user)
             ->get(route('dashboard'))
-            ->assertOk()
-            ->assertInertia(fn ($page) => $page->component('Dashboard/Index'));
+            ->assertRedirect(route('hse.dashboard'));
     }
 
     /** Field Home was not deleted -- it moved to an honestly-named route. */

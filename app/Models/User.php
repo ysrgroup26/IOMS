@@ -449,29 +449,26 @@ class User extends Authenticatable implements MustVerifyEmail
         return $this->isTenantAdmin() || $this->canManageOperationalSettings();
     }
 
-    /**
-     * v2.83.0 -- MANAGEMENT-LEVEL VISIBILITY.
+    /*
+     * v2.84.0 -- `canViewManagement()` WAS REMOVED, NOT RELAXED.
      *
-     * Company-wide performance, read-only, across every department. That
-     * is the Manager role's entire definition in this codebase ("read-only
-     * across Dashboard, Reports, Employees, Projects") and the tenant
-     * administrator's by inclusion.
+     * v2.83.0 gated the Management workspace on a role allow-list (tenant
+     * administrator or Manager) ON TOP of the plan grant. It made Management
+     * the only workspace in IOMS asking a question the others do not, and it
+     * returned 403 to accounts their customer had paid for -- confirmed
+     * against real data before this change.
      *
-     * HSE is deliberately NOT here. `isAdmin()` unions Super Admin with
-     * HSE for OPERATIONAL CRUD, which is a different question: an HSE
-     * supervisor owning permits and incidents is not thereby entitled to
-     * company-wide workforce and logistics performance. Keeping the two
-     * apart is why this is its own predicate instead of a reuse of
-     * `isAdmin()`.
+     * Which workspaces a person may work in is now ONE question, asked in
+     * one place for every workspace alike: `EntitlementService::
+     * userCanUseWorkspace()` (the organization's plan grant, plus a
+     * Department User's own assignment). What a person may DO inside a
+     * workspace is still decided by the per-action `canManageX()` methods
+     * above, which are unchanged.
      *
-     * This is CAPABILITY only. The tenant must also be entitled to the
-     * `management` workspace, which is a plan question answered
-     * independently by EntitlementService -- both must pass.
+     * Deleted rather than left returning true, so nothing can quietly start
+     * depending on a second, weaker answer to a question that now has one.
+     * See ADR 045.
      */
-    public function canViewManagement(): bool
-    {
-        return $this->isTenantAdmin() || $this->isManager();
-    }
 
     /**
      * Departments/Positions management in Settings: Super Admin + HSE.

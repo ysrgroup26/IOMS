@@ -23,6 +23,7 @@ import {
     Sparkles, X, ClipboardCheck, ShoppingCart, Boxes, Box, Wrench, Flag, Clock,
     Eye, FileWarning, ShieldAlert, FlaskConical, GraduationCap, PackagePlus, PackageCheck,
     ArrowRightLeft, FileStack, UserPlus, CheckSquare, Recycle, Lock, Circle, ChevronDown,
+    TrendingUp,
 } from 'lucide-react';
 
 // v2.2.0 (IOMS OS Ecosystem pass, Part 5): matches every icon key
@@ -48,10 +49,10 @@ const QUICK_ACTION_ICONS = {
 export default function Dashboard({
     filters, availableYears, currentMonth, companies, summary, companyHeadcount,
     departmentDistribution, monthlyTrend, leaderboards,
-    activeProjectsCount, todaysActivities, upcomingReminders, pendingTasks, quickActions, employeesNeedCompletionCount,
-    recentDailyReports, recentEmployeeChanges, showAnnouncement,
-    openIncidentsCount, openCapaCount, pendingProcurementCount, stockAlertCount, assetCount, maintenanceDueCount,
-    upcomingEvents, manpower, manhours, projectSummary, upcomingMilestones, readiness,
+    todaysActivities, upcomingReminders, pendingTasks, quickActions, employeesNeedCompletionCount,
+    recentEmployeeChanges, showAnnouncement,
+    openIncidentsCount, openCapaCount, stockAlertCount, workspaceAccess,
+    upcomingEvents, manpower, manhours, readiness,
 }) {
     const { auth, notifications, version } = usePage().props;
     const deptPrefixes = auth?.user?.department_prefixes ?? null;
@@ -344,9 +345,12 @@ export default function Dashboard({
                    tallest thing between a customer and their charts, and a
                    figure of 0 does not need 18px type to be read. */}
             <p className="mt-3 text-[11px] font-semibold uppercase tracking-wide text-graphite-400 dark:text-slate-500">Company Snapshot</p>
-            <div className="mt-1.5 grid grid-cols-1 gap-2.5 sm:grid-cols-3">
+            {/* v2.84.0: Active Projects left this row with the Project
+                Management workspace. What remains is what a company-wide
+                snapshot can still say truthfully on every plan that has this
+                page: how many people, across how many operating units. */}
+            <div className="mt-1.5 grid grid-cols-1 gap-2.5 sm:grid-cols-2">
                 <StatCard size="sm" icon={Users} value={`${formatNumber(companyHeadcount.overall_total)} Employees`} label="Active Workforce" href={deptSafeHref('employees.index', deptPrefixes)} />
-                <StatCard size="sm" icon={FolderKanban} value={`${formatNumber(activeProjectsCount)} Active Projects`} label="Running Projects" accent="green" href={deptSafeHref('projects.index', deptPrefixes)} />
                 <StatCard size="sm" icon={Building2} value={formatNumber(companyHeadcount.by_company.length)} label="Operating Units" accent="neutral" href={deptSafeHref('settings.index', deptPrefixes) ? route('settings.index') + '?tab=companies' : undefined} />
             </div>
 
@@ -362,12 +366,29 @@ export default function Dashboard({
                 unchanged; this only avoids exposing a link it would reject). */}
             <p className="mt-3 text-[11px] font-semibold uppercase tracking-wide text-graphite-400 dark:text-slate-500">Needs Attention</p>
             <div className="mt-1.5 grid grid-cols-2 gap-2.5 sm:grid-cols-3 lg:grid-cols-6">
-                <StatCard size="sm" icon={AlertTriangle} value={formatNumber(openIncidentsCount)} label="Open Incidents" accent={openIncidentsCount > 0 ? 'red' : 'green'} href={deptSafeHref('incidents.index', deptPrefixes)} />
-                <StatCard size="sm" icon={ClipboardCheck} value={formatNumber(openCapaCount)} label="Open CAPA" accent={openCapaCount > 0 ? 'amber' : 'green'} href={deptSafeHref('corrective-actions.index', deptPrefixes)} />
-                <StatCard size="sm" icon={ShoppingCart} value={formatNumber(pendingProcurementCount)} label="Pending Procurement" accent="purple" href={deptSafeHref('procurement.dashboard', deptPrefixes)} />
-                <StatCard size="sm" icon={Boxes} value={formatNumber(stockAlertCount)} label="Stock Alerts" accent={stockAlertCount > 0 ? 'amber' : 'green'} href={deptSafeHref('stock.index', deptPrefixes, { low_stock: 1 })} />
-                <StatCard size="sm" icon={Box} value={formatNumber(assetCount)} label="Active Assets" accent="purple" href={deptSafeHref('assets.index', deptPrefixes)} />
-                <StatCard size="sm" icon={Wrench} value={formatNumber(maintenanceDueCount)} label="Maintenance Due (7d)" accent={maintenanceDueCount > 0 ? 'amber' : 'green'} href={deptSafeHref('work-orders.index', deptPrefixes)} />
+                {/* v2.84.0 -- Pending Procurement, Active Assets and
+                    Maintenance Due left this strip with the workspaces that
+                    owned them. The queries were real; the departments are no
+                    longer customer-facing, and a company snapshot carrying a
+                    number the customer cannot open is the clearest way to
+                    make a focused product look unfinished.
+
+                    Each remaining card belongs to a workspace this plan
+                    actually has -- Business grants all four, and the guard
+                    exists so the page cannot start lying if a scope changes
+                    rather than because it fires today. */}
+                {workspaceAccess?.hse !== false && (
+                    <>
+                        <StatCard size="sm" icon={AlertTriangle} value={formatNumber(openIncidentsCount)} label="Open Incidents" accent={openIncidentsCount > 0 ? 'red' : 'green'} href={deptSafeHref('incidents.index', deptPrefixes)} />
+                        <StatCard size="sm" icon={ClipboardCheck} value={formatNumber(openCapaCount)} label="Open CAPA" accent={openCapaCount > 0 ? 'amber' : 'green'} href={deptSafeHref('corrective-actions.index', deptPrefixes)} />
+                    </>
+                )}
+                {workspaceAccess?.logistics !== false && (
+                    <StatCard size="sm" icon={Boxes} value={formatNumber(stockAlertCount)} label="Stock Alerts" accent={stockAlertCount > 0 ? 'amber' : 'green'} href={deptSafeHref('stock.index', deptPrefixes, { low_stock: 1 })} />
+                )}
+                {workspaceAccess?.management !== false && (
+                    <StatCard size="sm" icon={TrendingUp} value="Management" label="Analysis & Trends" href={deptSafeHref('management.overview', deptPrefixes)} />
+                )}
             </div>
 
             {/* Pending Tasks -- Universal Task Engine Dashboard integration
@@ -594,69 +615,15 @@ export default function Dashboard({
                 </Card>
             </div>
 
-            {/* v1.11.3.2 (Priority Pass Part 4) -- Management Summary. Explicit
-                product rule: cross-department project visibility belongs on
-                the Main Dashboard ONCE, not repeated in every department
-                Overview (HSE/HR/Logistics/Warehouse Overviews show only their
-                own department's data). Real data only -- Project.manager_id
-                and Milestone.status/target_date already exist; progress is a
-                real milestone-completion percentage, not fabricated. */}
-            <div className="mt-4 grid grid-cols-1 gap-3 lg:grid-cols-2">
-                <Card>
-                    <CardHeader className="flex flex-row items-center justify-between space-y-0">
-                        <div>
-                            <CardTitle className="flex items-center gap-2"><FolderKanban className="h-3.5 w-3.5 text-graphite-400" /> Project Portfolio</CardTitle>
-                            <CardDescription>Active projects across all companies</CardDescription>
-                        </div>
-                        <Link href={route('projects.index')} className="text-xs font-medium text-brand-600 hover:underline">View all</Link>
-                    </CardHeader>
-                    <CardContent>
-                        {projectSummary.length === 0 ? (
-                            <p className="py-6 text-center text-sm text-graphite-400">No active projects.</p>
-                        ) : (
-                            <div className="divide-y divide-graphite-100 dark:divide-slate-800">
-                                {projectSummary.map((p) => (
-                                    <Link key={p.id} href={route('projects.show', p.id)} className="flex items-center justify-between gap-2 py-2 text-sm hover:text-brand-700">
-                                        <div className="min-w-0 flex-1">
-                                            <p className="truncate font-medium text-graphite-700 dark:text-slate-200">{p.name}</p>
-                                            <p className="truncate text-xs text-graphite-400">{p.manager || 'No manager assigned'}</p>
-                                        </div>
-                                        <span className="shrink-0 text-xs text-graphite-400">{p.progress_percent === null ? '—' : `${p.progress_percent}%`}</span>
-                                        <StatusBadge value={p.status} />
-                                    </Link>
-                                ))}
-                            </div>
-                        )}
-                    </CardContent>
-                </Card>
+            {/* v2.84.0 -- PROJECT PORTFOLIO AND UPCOMING MILESTONES WERE
+                REMOVED, not emptied.
 
-                <Card>
-                    <CardHeader className="flex flex-row items-center justify-between space-y-0">
-                        <div>
-                            <CardTitle className="flex items-center gap-2"><Flag className="h-3.5 w-3.5 text-graphite-400" /> Upcoming Milestones</CardTitle>
-                            <CardDescription>Across all active projects</CardDescription>
-                        </div>
-                        <Link href={route('milestones.index')} className="text-xs font-medium text-brand-600 hover:underline">View all</Link>
-                    </CardHeader>
-                    <CardContent>
-                        {upcomingMilestones.length === 0 ? (
-                            <p className="py-6 text-center text-sm text-graphite-400">No upcoming milestones.</p>
-                        ) : (
-                            <div className="divide-y divide-graphite-100 dark:divide-slate-800">
-                                {upcomingMilestones.map((m) => (
-                                    <div key={m.id} className="flex items-center justify-between gap-2 py-2 text-sm">
-                                        <div className="min-w-0 flex-1">
-                                            <p className="truncate font-medium text-graphite-700 dark:text-slate-200">{m.title}</p>
-                                            <p className="truncate text-xs text-graphite-400">{m.project?.name}</p>
-                                        </div>
-                                        <span className="shrink-0 text-xs text-graphite-400">{new Date(m.target_date).toLocaleDateString('en-US', { day: 'numeric', month: 'short' })}</span>
-                                    </div>
-                                ))}
-                            </div>
-                        )}
-                    </CardContent>
-                </Card>
-            </div>
+                Both read from Project Management, which is no longer a
+                customer-facing workspace. Leaving them would have printed
+                "No active projects" on the company dashboard of a customer
+                whose plan has no projects module at all -- a sentence that
+                describes the company when it describes the product. The
+                tables, models and routes behind them are untouched. */}
 
             <div className="mt-4 grid grid-cols-1 gap-3 lg:grid-cols-3">
                 <Card>
@@ -737,22 +704,10 @@ export default function Dashboard({
                 from the retired Home page (v1.9.0), the two feeds that
                 weren't already covered elsewhere on this Dashboard
                 (Today's Activities above is KPI records specifically). */}
-            <div className="mt-4 grid grid-cols-1 gap-3 lg:grid-cols-2">
-                <FeedCard
-                    icon={ClipboardCheck}
-                    title="Recent Daily Reports"
-                    viewAllHref={route('daily-reports.index')}
-                    items={recentDailyReports}
-                    empty="No daily reports submitted yet."
-                    renderItem={(r) => (
-                        <>
-                            <span className="font-medium text-graphite-700">{r.project_name}</span>
-                            <span className="text-graphite-400">{r.department_name}</span>
-                            <span className="text-xs text-graphite-400">{r.date}</span>
-                        </>
-                    )}
-                />
-
+            <div className="mt-4 grid grid-cols-1 gap-3">
+                {/* v2.84.0: Recent Daily Reports left with Project
+                    Management. Recent Employee Changes stays -- People is
+                    a workspace every plan with this page has. */}
                 <FeedCard
                     icon={UserCog}
                     title="Recent Employee Changes"

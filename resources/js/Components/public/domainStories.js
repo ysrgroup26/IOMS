@@ -1,5 +1,5 @@
 import {
-    Factory, ShieldCheck, Users, HardHat, FolderKanban, ShoppingCart, PackageSearch, BarChart3,
+    Factory, ShieldCheck, Users, HardHat, PackageSearch, BarChart3,
 } from 'lucide-react';
 
 /**
@@ -10,12 +10,17 @@ import {
  * and people it depends on, the field, the projects, the materials, and
  * finally what management sees. Rendered by <StorySection>.
  *
- * EVERY CAPABILITY HERE IS REAL. Each `items` entry is a menu item that
- * exists under that workspace in resources/js/lib/workspaces.js (this list
- * replaced the v2.61.0 DepartmentGrid and keeps its corrections: Warehouse
- * capability -- item master, inventory, goods receipt, stock movement --
- * lives under Logistics / PPIC; Maintenance and Quality Control are named).
- * Nothing is promised that the product does not do.
+ * EVERY CAPABILITY HERE IS REAL, AND REACHABLE. Each `items` entry is a menu
+ * item that exists under a workspace IOMS actually sells
+ * (resources/js/lib/workspaces.js).
+ *
+ * v2.84.0 -- the Procurement and Projects stories were removed, and the
+ * Operations and Field stories stopped naming maintenance, assets, quality
+ * inspections and daily reports. Every one of those belongs to a workspace
+ * that is no longer customer-facing. Describing them here would be worse than
+ * a stale roadmap entry: it is a promise on the page a prospect buys from,
+ * about capabilities the plan they buy does not open. The code is untouched;
+ * the claim is gone.
  *
  * `image` is empty on purpose. When real IOMS photography or screenshots
  * exist, add { src, alt } here and the visual changes; the heading and
@@ -30,8 +35,8 @@ export const DOMAIN_STORIES = [
         eyebrow: 'Industrial Operations',
         icon: Factory,
         title: 'Every department working from one operational record',
-        body: 'Operating units, sites, people, equipment and materials share one set of master data and one approval layer. A permit, a work order and a purchase all point at the same job, the same site and the same people — including maintenance, assets and quality control.',
-        items: ['Operating units & sites', 'Shared master data', 'Maintenance, assets & work orders', 'Quality inspections & NCR'],
+        body: 'Operating units, sites, people and materials share one set of master data and one approval layer. A permit, a material request and a KPI record all point at the same job, the same site and the same people.',
+        items: ['Operating units & sites', 'Shared master data', 'One approval layer', 'One audit trail'],
         cta: { label: 'Explore the platform', route: 'platform-overview' },
     },
     {
@@ -57,32 +62,16 @@ export const DOMAIN_STORIES = [
         icon: HardHat,
         title: 'Built for the people on site',
         body: 'Field users open to their own work first — permits to raise, tasks to close, what is running now — on a phone. The office sees the same record the moment it is submitted.',
-        items: ['My Work for field users', 'Permit requests from site', 'Daily reports', 'Tasks & progress updates'],
+        items: ['My Work for field users', 'Permit requests from site', 'Observations & checklists', 'Tasks & progress updates'],
         cta: { label: 'See the field experience', anchor: '#field' },
     },
     {
-        key: 'projects',
-        eyebrow: 'Projects & Execution',
-        icon: FolderKanban,
-        title: 'Progress recorded where the work happens',
-        body: 'Projects carry their milestones, assigned manpower and daily reports, so progress is captured on the day rather than rebuilt at the end of the month.',
-        items: ['Projects & milestones', 'Manpower assignment', 'Daily reports', 'Tasks & progress records'],
-    },
-    {
-        key: 'procurement',
-        eyebrow: 'Procurement & Warehouse',
-        icon: ShoppingCart,
-        title: 'From purchase requisition to goods received',
-        body: 'Purchase requisitions (FPB), RFQs and vendor comparison, purchase orders and goods receipt, with inventory updated as materials arrive and vendor performance on record.',
-        items: ['Purchase Requisition (FPB)', 'RFQ & vendor comparison', 'Purchase Order', 'Goods receipt & BAST'],
-    },
-    {
         key: 'logistics',
-        eyebrow: 'Logistics / PPIC',
+        eyebrow: 'Logistics / Warehouse',
         icon: PackageSearch,
         title: 'Materials planned against the work that needs them',
-        body: 'Material requests, the item master, inventory across storage locations, and every stock out, transfer and adjustment kept as a movement history.',
-        items: ['Material Request', 'Item master & inventory', 'Stock out, transfer & adjustment', 'Stock movement history'],
+        body: 'Material requests, the item master, inventory across storage locations and warehouses, goods receipt, and every stock out, transfer and adjustment kept as a movement history.',
+        items: ['Material Request', 'Item master & inventory', 'Warehouse & goods receipt', 'Stock movement history'],
     },
     {
         key: 'management',

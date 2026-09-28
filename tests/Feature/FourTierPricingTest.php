@@ -344,10 +344,12 @@ class FourTierPricingTest extends TestCase
         $expected = collect($package->defaultWorkspaceKeys())->sort()->values()->all();
 
         $this->assertSame($expected, $granted);
-        // v2.82.0: Business sells HSE + People + Logistics / Warehouse.
-        // Project Management and Procurement left the sold scope.
+        // v2.84.0: Business sells the four operational workspaces. Warehouse
+        // is not a separate grant -- it is the domain Logistics is sold as,
+        // and its capability always lived there.
         $this->assertContains('logistics', $granted);
-        $this->assertContains('warehouse', $granted);
+        $this->assertContains('management', $granted);
+        $this->assertNotContains('warehouse', $granted);
         $this->assertNotContains('procurement', $granted);
         $this->assertNotContains('project-management', $granted);
     }

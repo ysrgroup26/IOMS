@@ -1,9 +1,9 @@
 import { useRef, useState } from 'react';
 import {
-    LayoutDashboard, ShieldCheck, Users, FolderKanban, PackageSearch, ShoppingCart,
+    LayoutDashboard, ShieldCheck, Users, PackageSearch,
     Building2, AlertTriangle, ClipboardCheck, Boxes, Flame, Eye,
-    GraduationCap, Flag, PackageCheck, FileStack, FileQuestion,
-    Clock, HardHat, Search, Bell, ChevronDown,
+    GraduationCap, PackageCheck, TrendingUp,
+    HardHat, Search, Bell, ChevronDown,
 } from 'lucide-react';
 import { cn } from '@/lib/utils';
 
@@ -68,13 +68,12 @@ const MODULES = [
         subtitle: 'Operational summary across every department and Operating Unit.',
         stats: [
             { icon: Users, value: '248', label: 'Active Workforce' },
-            { icon: FolderKanban, value: '12', label: 'Active Projects', accent: 'green' },
+            { icon: HardHat, value: '186', label: 'On Duty Today', accent: 'green' },
             { icon: Building2, value: '2', label: 'Operating Units' },
         ],
         attention: [
             { icon: AlertTriangle, value: '3', label: 'Open Incidents', accent: 'red' },
             { icon: ClipboardCheck, value: '7', label: 'Open CAPA', accent: 'amber' },
-            { icon: ShoppingCart, value: '5', label: 'Pending PO Approval', accent: 'purple' },
             { icon: Boxes, value: '9', label: 'Low Stock Items', accent: 'amber' },
         ],
         rows: [
@@ -107,10 +106,10 @@ const MODULES = [
     },
     {
         key: 'hr',
-        label: 'Human Resources',
+        label: 'People / HRD',
         icon: Users,
         eyebrow: 'Department',
-        title: 'Human Resources',
+        title: 'People / HRD',
         subtitle: 'Employees, competency, shifts and rosters, leave and man-hour.',
         stats: [
             { icon: Users, value: '248', label: 'Active Employees' },
@@ -128,33 +127,11 @@ const MODULES = [
         },
     },
     {
-        key: 'project-management',
-        label: 'Project Management',
-        icon: FolderKanban,
-        eyebrow: 'Department',
-        title: 'Project Management',
-        subtitle: 'Projects, milestones, manpower assignment and daily reports.',
-        stats: [
-            { icon: FolderKanban, value: '12', label: 'Active Projects' },
-            { icon: Flag, value: '78%', label: 'Milestone Completion', accent: 'green' },
-            { icon: AlertTriangle, value: '2', label: 'Delayed Projects', accent: 'red' },
-        ],
-        table: {
-            head: ['Project', 'Milestone', 'Status'],
-            rows: [
-                ['PRJ-2026-0114 — Tanker drydocking', 'Hull blasting complete', 'In progress'],
-                ['PRJ-2026-0109 — Barge fabrication', 'Block assembly 4 of 6', 'In progress'],
-                ['DR-2026-00312 — Daily report', '38 manpower, Dock 2', 'Submitted'],
-                ['PRJ-2026-0098 — Crane overhaul', 'Load test', 'Delayed'],
-            ],
-        },
-    },
-    {
         key: 'logistics',
-        label: 'Logistics / PPIC',
+        label: 'Logistics / Warehouse',
         icon: PackageSearch,
         eyebrow: 'Department',
-        title: 'Logistics / PPIC',
+        title: 'Logistics / Warehouse',
         subtitle: 'Material requests, item master, inventory, goods receipt and stock movement.',
         stats: [
             { icon: PackageSearch, value: '8', label: 'Pending Material Requests', accent: 'amber' },
@@ -172,24 +149,34 @@ const MODULES = [
         },
     },
     {
-        key: 'procurement',
-        label: 'Procurement',
-        icon: ShoppingCart,
+        /*
+         * v2.84.0 -- MANAGEMENT REPLACED PROJECT MANAGEMENT AND PROCUREMENT
+         * IN THIS SHOWCASE, and the two are not the same swap.
+         *
+         * Project Management and Procurement are no longer customer-facing,
+         * so a showcase tab for either advertised a department the plan a
+         * visitor buys does not open. Management is a real, sold workspace
+         * and belongs here in its own right -- it is the fourth thing
+         * Business buys, not a rename of the third.
+         */
+        key: 'management',
+        label: 'Management',
+        icon: TrendingUp,
         eyebrow: 'Department',
-        title: 'Procurement',
-        subtitle: 'Requisitions, RFQ and vendor comparison, purchase orders and vendors.',
+        title: 'Management',
+        subtitle: 'Company KPI, safety and workforce trends, department comparison and outstanding actions.',
         stats: [
-            { icon: FileStack, value: '5', label: 'Pending PRs', accent: 'amber' },
-            { icon: FileQuestion, value: '3', label: 'Open RFQs' },
-            { icon: Clock, value: '9d', label: 'Avg. Purchase Cycle', accent: 'green' },
+            { icon: TrendingUp, value: '11', label: 'Days Since Incident', accent: 'green' },
+            { icon: Users, value: '248', label: 'Active Workforce' },
+            { icon: ClipboardCheck, value: '7', label: 'Open CAPA', accent: 'amber' },
         ],
         table: {
-            head: ['Document', 'Vendor', 'Status'],
+            head: ['Department', 'Headcount', 'KPI total'],
             rows: [
-                ['PR-2026-00051', 'Awaiting evaluation', 'Submitted'],
-                ['PO-2026-00042', 'PT Baja Sentosa Nusantara', 'Issued'],
-                ['PO-2026-00041', 'CV Anugerah Teknik Marine', 'Delivered'],
-                ['MR-2026-00126', 'Raised by Logistics / PPIC', 'Approved'],
+                ['Blasting & Painting', '34', '128'],
+                ['Workshop', '28', '104'],
+                ['Warehouse Logistics', '19', '77'],
+                ['HSE', '11', '96'],
             ],
         },
     },

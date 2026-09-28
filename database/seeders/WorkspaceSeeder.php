@@ -17,21 +17,33 @@ class WorkspaceSeeder extends Seeder
      */
     public function run(): void
     {
+        /*
+         * v2.84.0 -- THE ORDER IS THE PRODUCT LADDER.
+         *
+         * HSE first, because Starter IS HSE and every plan above it is HSE
+         * plus something. The order decides which workspace an account lands
+         * in when it has more than one and has chosen no focus, so "People
+         * before Safety" was not a cosmetic detail -- it sent a Professional
+         * customer to the wrong half of their product on every sign-in.
+         *
+         * The four sold workspaces come first; the retired ones keep their
+         * rows (a catalogue row is not tenant data, and deleting them would
+         * orphan history) but no plan grants them any more.
+         */
         $workspaces = [
-            ['key' => 'hr', 'label' => 'Human Resources', 'icon' => 'Users', 'tier' => 'department'],
             ['key' => 'hse', 'label' => 'Health, Safety & Environment', 'icon' => 'HardHat', 'tier' => 'department'],
-            ['key' => 'project-management', 'label' => 'Project Management', 'icon' => 'FolderKanban', 'tier' => 'department'],
-            ['key' => 'logistics', 'label' => 'Logistics / PPIC', 'icon' => 'PackageSearch', 'tier' => 'department'],
-            ['key' => 'warehouse', 'label' => 'Warehouse', 'icon' => 'Warehouse', 'tier' => 'department'],
-            // v2.83.0 -- Business-tier management visibility. See ADR 044.
+            ['key' => 'hr', 'label' => 'People / HRD', 'icon' => 'Users', 'tier' => 'department'],
+            ['key' => 'logistics', 'label' => 'Logistics / Warehouse', 'icon' => 'PackageSearch', 'tier' => 'department'],
             ['key' => 'management', 'label' => 'Management', 'icon' => 'TrendingUp', 'tier' => 'department'],
+            ['key' => 'project-management', 'label' => 'Project Management', 'icon' => 'FolderKanban', 'tier' => 'department'],
+            ['key' => 'warehouse', 'label' => 'Warehouse', 'icon' => 'Warehouse', 'tier' => 'department'],
             ['key' => 'procurement', 'label' => 'Procurement', 'icon' => 'ShoppingCart', 'tier' => 'department'],
             ['key' => 'asset-management', 'label' => 'Asset Management', 'icon' => 'Box', 'tier' => 'department'],
             ['key' => 'maintenance', 'label' => 'Maintenance', 'icon' => 'Wrench', 'tier' => 'department'],
             ['key' => 'quality-control', 'label' => 'Quality Control', 'icon' => 'BadgeCheck', 'tier' => 'department'],
             ['key' => 'finance', 'label' => 'Finance', 'icon' => 'DollarSign', 'tier' => 'department'],
             ['key' => 'reports', 'label' => 'Reports', 'icon' => 'FileBarChart', 'tier' => 'global'],
-            ['key' => 'administration', 'label' => 'Administration', 'icon' => 'Settings', 'tier' => 'global', 'is_core' => true],
+            ['key' => 'administration', 'label' => 'Admin Space', 'icon' => 'Settings', 'tier' => 'global', 'is_core' => true],
         ];
 
         foreach ($workspaces as $order => $workspace) {

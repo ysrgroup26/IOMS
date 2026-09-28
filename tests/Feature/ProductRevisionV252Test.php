@@ -442,8 +442,12 @@ class ProductRevisionV252Test extends TestCase
     {
         $registry = file_get_contents(resource_path('js/lib/workspaces.js'));
 
+        // v2.84.0: People / HRD is the name the workspace is SOLD as, which
+        // is the same rule -- a department is named the way a customer and
+        // their contract both say it, not by an abbreviation they have to
+        // decode.
         $this->assertStringContainsString("label: 'Health, Safety & Environment'", $registry);
-        $this->assertStringContainsString("label: 'Human Resources'", $registry);
+        $this->assertStringContainsString("label: 'People / HRD'", $registry);
         $this->assertStringNotContainsString("label: 'HSE',", $registry);
         $this->assertStringNotContainsString("label: 'HR',", $registry);
     }

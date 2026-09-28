@@ -146,9 +146,15 @@ class TenantNavigationTest extends TestCase
     /**
      * The prop the sidebar is built from. `applyCatalog()` in
      * resources/js/lib/workspaces.js drops any entry with
-     * `is_active: false`, and `getGlobalNavItems()` reads ONLY reports +
-     * administration -- so these two flags decide whether the Dashboard
-     * has a sidebar at all.
+     * `is_active: false`, so these flags decide whether a workspace has a
+     * sidebar at all.
+     *
+     * v2.84.0: read from WORK CENTER rather than the Dashboard. The Global
+     * Company Dashboard is a Business capability now, so `/dashboard`
+     * redirects a Starter or Professional customer to their own workspace --
+     * asserting a 200 there would be asserting the opposite of the product.
+     * Work Center is universal, carries the same shared props, and is what
+     * this test actually needed: any authenticated page.
      */
     #[\PHPUnit\Framework\Attributes\DataProvider('customerPlans')]
     public function test_the_dashboard_sidebar_is_not_empty_for_any_plan(string $slug): void
@@ -157,7 +163,7 @@ class TenantNavigationTest extends TestCase
         $admin = $this->adminFor($tenant);
 
         $catalog = $this->actingAs($admin)
-            ->get(route('dashboard'))
+            ->get(route('work-center.index'))
             ->assertOk()
             ->viewData('page')['props']['workspace_catalog'];
 
@@ -180,11 +186,12 @@ class TenantNavigationTest extends TestCase
         $admin = $this->adminFor($tenant);
 
         $catalog = $this->actingAs($admin)
-            ->get(route('dashboard'))
+            ->get(route('work-center.index'))
             ->viewData('page')['props']['workspace_catalog'];
 
-        $this->assertFalse((bool) $catalog['warehouse']['is_active'], 'Starter must not receive Warehouse.');
-        $this->assertFalse((bool) $catalog['hr']['is_active'], 'Starter must not receive Human Resources.');
+        $this->assertFalse((bool) $catalog['logistics']['is_active'], 'Starter must not receive Logistics / Warehouse.');
+        $this->assertFalse((bool) $catalog['hr']['is_active'], 'Starter must not receive People / HRD.');
+        $this->assertFalse((bool) $catalog['management']['is_active'], 'Starter must not receive Management.');
         $this->assertTrue((bool) $catalog['hse']['is_active'], 'Starter must receive its own HSE department.');
     }
 
@@ -199,11 +206,14 @@ class TenantNavigationTest extends TestCase
         $admin = $this->adminFor($tenant);
 
         $catalog = $this->actingAs($admin)
-            ->get(route('dashboard'))
+            ->get(route('work-center.index'))
             ->viewData('page')['props']['workspace_catalog'];
 
-        // v2.82.0: Business is HSE + People + Logistics / Warehouse.
-        foreach (['hse', 'hr', 'logistics', 'warehouse'] as $key) {
+        // v2.84.0: Business is the four operational workspaces IOMS sells --
+        // HSE, People / HRD, Logistics / Warehouse and Management. Warehouse
+        // is no longer a separate grant: it is the domain Logistics is sold
+        // as, and its capability always lived there.
+        foreach (['hse', 'hr', 'logistics', 'management'] as $key) {
             $this->assertTrue((bool) $catalog[$key]['is_active'], "Business must receive {$key}.");
         }
 
@@ -220,7 +230,7 @@ class TenantNavigationTest extends TestCase
         $admin = $this->adminFor($tenant);
 
         $catalog = $this->actingAs($admin)
-            ->get(route('dashboard'))
+            ->get(route('work-center.index'))
             ->viewData('page')['props']['workspace_catalog'];
 
         $this->assertTrue((bool) $catalog['hr']['is_active']);

@@ -431,9 +431,11 @@ cannot drift from the record it describes.
 
 **Business rules.**
 
-- **Two server-side gates, different questions.** The tenant's plan must grant the `management`
-  workspace *and* the person must hold `User::canViewManagement()` (tenant administrator or Manager).
-  HSE is deliberately excluded — operational CRUD is not company-wide performance.
+- **One gate, the same one every workspace has** (v2.84.0). `EntitlementService::userCanUseWorkspace()`
+  — the tenant's plan must grant `management`, and a Department User stays inside their own
+  department. v2.83.0 additionally required a ROLE here and nowhere else, which returned 403 to
+  accounts the customer had paid for; `canViewManagement()` was deleted rather than relaxed. See ADR
+  045.
 - **Nothing is invented.** No inventory value (`items` has no unit cost), no TRIR (no reliable
   exposure denominator), no compliance score (no denominator at all). Each section returns
   `available`, so an empty tenant is told which module fills the panel instead of being shown a

@@ -601,7 +601,7 @@ class SubscriptionLifecycleTest extends TestCase
         // READ: unaffected. This is the property that matters most -- IOMS
         // is a system of record for safety compliance, and withholding it
         // over a late invoice would be a safety problem, not leverage.
-        $this->actingAs($admin)->get(route('dashboard'))->assertOk();
+        $this->actingAs($admin)->get(route('work-center.index'))->assertOk();
         $this->actingAs($admin)->get(route('subscription.billing'))->assertOk();
 
         // WRITE: refused, with an explanation rather than a blank 403.

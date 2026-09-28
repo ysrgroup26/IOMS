@@ -1,7 +1,7 @@
 ---
 title: Current State
 type: snapshot
-product-version: 2.83.0
+product-version: 2.84.0
 product-stage: Beta
 measured: 2026-09-28
 tags: [kb/state]
@@ -24,8 +24,8 @@ the date in the frontmatter, not remembered.
 | | |
 |---|---|
 | Product | **IOMS — Industrial Operations Platform** |
-| Version | **2.83.0**, stage **Beta**, edition **Enterprise Edition** |
-| Build | `2026.09.28.02`, release date `2026-09-28` |
+| Version | **2.84.0**, stage **Beta**, edition **Enterprise Edition** |
+| Build | `2026.09.28.03`, release date `2026-09-28` |
 | Stack | Laravel 12 · Inertia.js · React 18 · Tailwind · MySQL · Sanctum |
 
 The naming rules are not cosmetic — see [[Product Identity and Principles]].
@@ -39,7 +39,7 @@ The naming rules are not cosmetic — see [[Product Identity and Principles]].
 | Inertia pages | 170 |
 | Migrations | 183 |
 | Feature test files | 64 |
-| Tests / assertions | **656 / 3528**, all passing |
+| Tests / assertions | **674 / 3703**, all passing |
 | ADRs | 40 files (numbering has known gaps — see [[Decision Register]]) |
 | Workspaces in the navigation registry | 12 |
 
@@ -81,6 +81,15 @@ before it has an organization, so `isPlatformAdmin()` reads the role. See ADR
 [[038-account-organization-subscription|038]].
 
 ## What shipped most recently
+
+`2.84.0` (2026-09-28) — the final workspace architecture. IOMS is **four operational workspaces**
+(HSE, People / HRD, Logistics / Warehouse, Management), **one administrative space** (Admin Space),
+and a **Global Company Dashboard that only Business receives** — separate experiences over one set
+of shared records. Management stopped asking a question no other workspace asks, which is why it
+had been returning 403 to customers who had paid for it. The sidebar’s catch-all state became three
+named spaces, so Admin Space no longer reads as one giant application dashboard. And seven
+departments left the customer-facing product with their code, routes and data untouched.
+ADR [[045-five-spaces-and-the-global-dashboard|045]].
 
 `2.83.0` (2026-09-28) — the Management workspace and Admin Space. The Business tier’s fourth
 name finally names something: `management` is a real department workspace that deliberately **owns

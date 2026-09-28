@@ -294,7 +294,7 @@ class UserEntitlementAndAddOnTest extends TestCase
         for ($i = 0; $i < 3; $i++) {
             Auth::forgetGuards();
             $this->flushSession();
-            $this->actingAs($this->admin)->get(route('dashboard'))->assertOk();
+            $this->actingAs($this->admin)->get(route('work-center.index'))->assertOk();
         }
 
         $this->assertSame($before, $this->entitlements()->usersUsedCount($this->tenant));

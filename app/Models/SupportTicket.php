@@ -3,6 +3,7 @@
 namespace App\Models;
 
 use Illuminate\Database\Eloquent\Model;
+use Illuminate\Database\UniqueConstraintViolationException;
 use Illuminate\Database\Eloquent\Builder;
 
 /**
@@ -251,11 +252,57 @@ class SupportTicket extends Model
     /**
      * Sequential, human-quotable, and generated from the table rather than
      * from a date, because a support reference is read aloud on the phone.
+     *
+     * v2.84.0 -- READ FROM THE REFERENCES ISSUED, NOT FROM `max(id)`.
+     *
+     * Two defects, both latent and both real:
+     *
+     *  1. `max(id) + 1` is not the next REFERENCE, it is the next ROW. An
+     *     InnoDB auto-increment counter advances on a failed insert and never
+     *     goes back, so after one rolled-back insert every subsequent ticket
+     *     carried a reference lower than its own id -- confirmed on real
+     *     data, where TKT-000001 lives at id 3.
+     *  2. It could issue a reference that already exists. `reference` is
+     *     UNIQUE, so that is a 500 on a customer-facing action rather than a
+     *     cosmetic mismatch.
+     *
+     * Reading the highest reference actually issued fixes the arithmetic.
+     * The remaining race -- two operators logging a message in the same
+     * millisecond -- is handled by the caller retrying (see
+     * `createWithUniqueReference()`), because no amount of reading before a
+     * write can make a read-then-write atomic.
      */
+    public const REFERENCE_PREFIX = 'TKT-';
+
     public static function generateReference(): string
     {
-        $next = (int) static::query()->max('id') + 1;
+        $last = static::query()->max('reference');
+        $next = $last ? ((int) substr((string) $last, strlen(self::REFERENCE_PREFIX))) + 1 : 1;
 
-        return 'TKT-'.str_pad((string) $next, 6, '0', STR_PAD_LEFT);
+        return self::REFERENCE_PREFIX.str_pad((string) $next, 6, '0', STR_PAD_LEFT);
+    }
+
+    /**
+     * Create a ticket, surviving a reference collision.
+     *
+     * The window is small and the consequence is a 500 on the one action a
+     * support operator performs most, so it is closed here rather than
+     * reasoned away. Each attempt recomputes the reference, so a concurrent
+     * winner simply pushes this one to the next number.
+     *
+     * The loop is bounded: after a few attempts something other than
+     * contention is wrong, and failing loudly beats spinning.
+     */
+    public static function createWithUniqueReference(array $attributes, int $attempts = 5): self
+    {
+        for ($attempt = 1; ; $attempt++) {
+            try {
+                return static::create([...$attributes, 'reference' => static::generateReference()]);
+            } catch (UniqueConstraintViolationException $e) {
+                if ($attempt >= $attempts) {
+                    throw $e;
+                }
+            }
+        }
     }
 }

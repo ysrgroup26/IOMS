@@ -86,8 +86,10 @@ cannot drift from the record it describes. ADR [[044-management-workspace-and-ad
 | Outstanding Actions | Built | Overdue CAPA, inspections and awaiting-decision work, gathered across modules |
 | Inventory value · TRIR · compliance score | **Deliberately absent** | No unit cost, no reliable exposure denominator, no denominator at all. Documented rather than estimated |
 
-Two server-side gates: the plan must grant `management`, **and** the person must hold
-`canViewManagement()` (tenant administrator or Manager — an HSE supervisor is not management).
+One gate, the same one every workspace has (v2.84.0): the plan must grant `management`, and a
+Department User stays inside their own department. The v2.83.0 role allow-list was deleted — it made
+Management the only workspace asking a different question, and refused accounts the customer had paid
+for. See ADR [[045-five-spaces-and-the-global-dashboard|045]].
 
 ## Procurement (`procurement`)
 

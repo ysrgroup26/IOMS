@@ -1,7 +1,7 @@
 ---
 title: Management Workspace and Admin Space
 type: backlog
-status: COMPLETED (v2.83.0)
+status: COMPLETED (v2.83.0) — shape corrected in v2.84.0
 updated: 2026-09-28
 tags: [kb/backlog, status/verified]
 ---
@@ -39,7 +39,7 @@ from the module that holds it, so a management number cannot drift from the reco
 | Management routes | `management.overview` / `.kpi` / `.hse` / `.workforce` / `.logistics` / `.actions` — all GET |
 | Data source | `ManagementInsightsService`, scoped through `DashboardStatsService::resolveCompanyIds()` |
 | Entitlement | `management` in `config/plans.php` → `packages` grant → `EntitlementService` → route gate |
-| Capability | `User::canViewManagement()` — tenant administrator or Manager; **not** HSE |
+| Capability | ~~`User::canViewManagement()`~~ — **superseded in v2.84.0**. The role allow-list made Management the only workspace asking a question the others do not, and refused accounts the customer had paid for. Access is now `EntitlementService::userCanUseWorkspace()`: plan grant + department assignment, for all four workspaces alike. ADR [[045-five-spaces-and-the-global-dashboard\|045]] |
 | Admin Space | `admin.index` (new) plus the existing Settings tabs, Activity Center and Billing, reframed |
 | Admin capability | `User::isTenantAdmin()` (requires a tenant) and the wider `canAccessAdminSpace()` |
 | Workspace focus | `users.workspace_focus`, nullable; null = All Workspaces; read only by navigation |

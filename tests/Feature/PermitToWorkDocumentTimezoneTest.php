@@ -107,7 +107,7 @@ class PermitToWorkDocumentTimezoneTest extends TestCase
         ]);
 
         $this->actingAs($user)
-            ->get('/dashboard')
+            ->get('/work-center')
             ->assertInertia(fn ($page) => $page->where('display_timezone', 'Asia/Makassar'));
     }
 }

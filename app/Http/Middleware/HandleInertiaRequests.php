@@ -92,8 +92,35 @@ class HandleInertiaRequests extends Middleware
                      */
                     'is_tenant_admin' => $user->isTenantAdmin(),
                     'can_access_admin_space' => $user->canAccessAdminSpace(),
-                    'can_view_management' => $user->canViewManagement(),
                     'workspace_focus' => app(EntitlementService::class)->effectiveWorkspaceFocus($user),
+
+                    /*
+                     * v2.84.0 -- ONE ANSWER FOR EVERY WORKSPACE.
+                     *
+                     * v2.83.0 shipped `can_view_management`, a per-workspace
+                     * boolean for exactly one workspace, and the navigation
+                     * layer grew a special case to read it. That is how a
+                     * product ends up with four workspaces answering three
+                     * different questions.
+                     *
+                     * This is the whole answer instead: which of the
+                     * workspaces IOMS sells this person may work in, from
+                     * `userCanUseWorkspace()` -- the same method the route
+                     * gate uses, so the sidebar and the server cannot
+                     * disagree. `has_global_dashboard` is separate because
+                     * the company dashboard is sold by PLAN and is not a
+                     * workspace at all.
+                     *
+                     * Both are still only a courtesy: every route re-checks.
+                     */
+                    'workspace_access' => (function () use ($user) {
+                        $entitlements = app(EntitlementService::class);
+
+                        return collect(config('plans.operational', []))
+                            ->mapWithKeys(fn (string $key) => [$key => $entitlements->userCanUseWorkspace($user, $key)])
+                            ->all();
+                    })(),
+                    'has_global_dashboard' => app(EntitlementService::class)->tenantHasGlobalDashboard($user->tenant),
                     // v1.11.3.2 (production UX fix, Part 3): the exact
                     // route-name-prefix allowlist RestrictDepartmentAccess
                     // enforces server-side for this user, straight from

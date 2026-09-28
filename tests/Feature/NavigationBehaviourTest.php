@@ -147,7 +147,7 @@ class NavigationBehaviourTest extends TestCase
     public function test_the_memory_is_keyed_per_workspace(): void
     {
         $this->assertStringContainsString(
-            "useScrollMemory(navScrollRef, activeWorkspace?.key ?? 'global'",
+            'useScrollMemory(navScrollRef, activeWorkspace?.key ?? space',
             $this->layout()
         );
     }

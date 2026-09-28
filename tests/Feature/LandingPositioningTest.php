@@ -57,20 +57,31 @@ class LandingPositioningTest extends TestCase
             'Search and social metadata come from config/seo.php via the server; a page-level <meta> duplicates them.');
     }
 
-    /** Each of the eight domains is a story, and each has real content. */
+    /**
+     * Each domain is a story, and each has real content.
+     *
+     * v2.84.0: six, not eight. Projects & Execution and Procurement &
+     * Warehouse went with the workspaces that owned them -- the landing page
+     * may not promise a domain the plan a prospect buys does not open. The
+     * count is asserted so a retired domain cannot quietly reappear.
+     */
     public function test_every_operational_domain_is_told_as_a_story(): void
     {
         $stories = $this->source('Components/public/domainStories.js');
 
         foreach ([
             'Industrial Operations', 'HSE & Safety', 'People & Workforce', 'Field Operations',
-            'Projects & Execution', 'Procurement & Warehouse', 'Logistics / PPIC', 'Management Visibility',
+            'Logistics / Warehouse', 'Management Visibility',
         ] as $eyebrow) {
             $this->assertStringContainsString("eyebrow: '{$eyebrow}'", $stories);
         }
 
-        $this->assertSame(8, substr_count($stories, "eyebrow: '"));
-        $this->assertSame(8, substr_count($stories, 'items: ['));
+        foreach (['Projects & Execution', 'Procurement & Warehouse'] as $retired) {
+            $this->assertStringNotContainsString("eyebrow: '{$retired}'", $stories, "{$retired} is not a workspace IOMS sells.");
+        }
+
+        $this->assertSame(6, substr_count($stories, "eyebrow: '"));
+        $this->assertSame(6, substr_count($stories, 'items: ['));
     }
 
     /**
@@ -82,10 +93,14 @@ class LandingPositioningTest extends TestCase
         $registry = strtolower($this->source('lib/workspaces.js'));
 
         foreach ([
+            // v2.84.0: RFQ, Purchase Order, BAST, Daily Report and Work Order
+            // left this list with the workspaces that owned them. The landing
+            // page stopped naming them in the same change -- a claim on the
+            // page a prospect buys from must point at something the plan they
+            // buy actually opens.
             'my work', 'permit', 'loto', 'gas test', 'investigation', 'jsa', 'hiradc', 'capa',
             'competenc', 'contractor', 'visitor', 'material request', 'item master', 'inventory',
-            'stock movement', 'goods receipt', 'rfq', 'purchase order', 'bast', 'daily report',
-            'work order', 'report center', 'kpi',
+            'stock movement', 'goods receipt', 'report center', 'kpi',
         ] as $capability) {
             $this->assertStringContainsString($capability, $registry, "\"{$capability}\" is not in the workspace registry.");
         }

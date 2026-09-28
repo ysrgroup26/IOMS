@@ -13,7 +13,10 @@ import { useClock } from '@/lib/useClock';
 import { useTheme, DARK_MODE_ENABLED } from '@/lib/useTheme';
 import { useFocusTrap } from '@/lib/useFocusTrap';
 import { useMediaQuery } from '@/lib/useMediaQuery';
-import { getSelectableDepartments, getGlobalNavItems, getWorkspaceKeyForRoute, isDepartmentWorkspaceKey } from '@/lib/workspaces';
+import {
+    getSelectableDepartments, getAdminSpaceItems, getCompanyNavItems,
+    getWorkspaceKeyForRoute, isDepartmentWorkspaceKey, ADMIN_SPACE_KEY,
+} from '@/lib/workspaces';
 import { useScrollMemory, rememberWorkspaceKey, recallWorkspaceKey } from '@/lib/navigationMemory';
 import AboutDialog from '@/Components/shared/AboutDialog';
 import BrandWordmark from '@/Components/shared/BrandWordmark';
@@ -233,18 +236,73 @@ export default function AuthenticatedLayout({ children }) {
        null means All Workspaces, which is what every account had before
        this existed. */
     const workspaceFocus = auth?.user?.workspace_focus ?? null;
-    const focusedWorkspace = workspaceFocus
+
+    /* v2.84.0 -- A SINGLE AUTHORIZED WORKSPACE IS AN IMPLICIT FOCUS.
+
+       A Starter customer has exactly one operational workspace, so "no focus
+       chosen" and "focused on HSE" describe the same situation. Treating
+       them differently is what would drop that customer into an empty
+       company-navigation state the moment they opened Reports -- a state
+       that only exists for Business, because only Business has a Global
+       Company Dashboard to be in. */
+    const explicitFocus = workspaceFocus
         ? selectableDepartments.find((w) => w.key === workspaceFocus)
         : undefined;
+    const focusedWorkspace = explicitFocus
+        ?? (selectableDepartments.length === 1 ? selectableDepartments[0] : undefined);
+
+    const hasGlobalDashboard = Boolean(auth?.user?.has_global_dashboard);
+
+    /* v2.84.0 -- THREE SPACES, NOT ONE APPLICATION WITH ONE SIDEBAR.
+
+         'admin'      the customer's own administration (Admin Space)
+         'workspace'  one operational workspace: HSE, People, Logistics,
+                      Management
+         'company'    the Global Company Dashboard, which only Business has
+
+       The previous model had two states -- "a department is active" and a
+       catch-all "global navigation" that merged Reports with Administration.
+       That is the defect this release exists to fix: entering Admin Space
+       showed Reports, Analytics and Report Center beside Users, Roles and
+       Billing, so administration and cross-module reporting read as one
+       undifferentiated application dashboard.
+
+       The space is DERIVED from the route, exactly as the active department
+       always was. Nothing here is persisted, and nothing here decides
+       access. */
+    const inAdminSpace = routeWorkspaceKey === ADMIN_SPACE_KEY;
+
+    /* The GLOBAL COMPANY DASHBOARD is the company space, always.
+
+       Browser-verified: without this, opening /dashboard fell through to the
+       remembered-workspace fallback below and rendered the HSE rail on the
+       company-wide page -- the exact Dashboard-is-not-an-Overview confusion
+       this release exists to end. The remembered workspace is the right
+       answer for a route that belongs to no space (Reports, Calendar, Work
+       Center, a search result); it is the wrong answer for the one route
+       whose whole meaning is "no single workspace". */
+    const onGlobalDashboard = Boolean(route().current('dashboard'));
+
+    /* Which workspace the rail should show when the current route does not
+       belong to one (Reports, Calendar, Work Center, a search result).
+
+       Without a Global Company Dashboard there is no legitimate "no
+       workspace" state, so the answer falls back through: the chosen focus,
+       then the last workspace this person was actually working in, then
+       their first authorized one. With a Global Dashboard, undefined is a
+       real answer and means the company space. */
+    const rememberedWorkspace = selectableDepartments.find((w) => w.key === recallWorkspaceKey());
+    const fallbackWorkspace = focusedWorkspace
+        ?? rememberedWorkspace
+        ?? (hasGlobalDashboard ? undefined : selectableDepartments[0]);
 
     const activeWorkspace = isDepartmentUser
         ? selectableDepartments[0]
         : (routeIsDepartment
             ? selectableDepartments.find((w) => w.key === routeWorkspaceKey)
-            // Off a department route (the Dashboard, Reports, Admin Space)
-            // a focused user keeps their own workspace's rail rather than
-            // dropping to Global navigation -- that IS the focus.
-            : focusedWorkspace);
+            : ((inAdminSpace || onGlobalDashboard) ? undefined : fallbackWorkspace));
+
+    const space = inAdminSpace ? 'admin' : (activeWorkspace ? 'workspace' : 'company');
 
     /* The switcher is a tool for somebody who genuinely moves between
        areas. It appears only when there is more than one authorized
@@ -254,7 +312,7 @@ export default function AuthenticatedLayout({ children }) {
 
        Choosing All Workspaces brings it back, still listing only the
        workspaces this account is authorized for. */
-    const canSwitchWorkspaces = !isDepartmentUser && !focusedWorkspace && selectableDepartments.length > 1;
+    const canSwitchWorkspaces = !isDepartmentUser && !explicitFocus && selectableDepartments.length > 1;
 
     // Remembered only once a department is genuinely active, so landing on
     // the Global Dashboard never erases where the user was.
@@ -266,17 +324,20 @@ export default function AuthenticatedLayout({ children }) {
     // switching department starts a new memory, because the list is now a
     // different list. Disabled while the mobile drawer is closed, where the
     // container is not scrollable and would record a meaningless 0.
-    useScrollMemory(navScrollRef, activeWorkspace?.key ?? 'global', isDesktop || sidebarOpen);
+    useScrollMemory(navScrollRef, activeWorkspace?.key ?? space, isDesktop || sidebarOpen);
 
-    // Department Users always see only their own department's sidebar, on
-    // every page -- including the Global Dashboard itself -- never the
-    // Administrator's "Global navigation" (Reports + Administration)
-    // fallback, per "only their assigned Department should be available."
-    // Administrators see the active department's items, or Global
-    // navigation whenever no department is currently active.
+    /* The rail is the SPACE's navigation, and each space has exactly one.
+
+       A Department User is always in their own workspace -- including on
+       Admin Space routes, which they cannot reach anyway -- per "only their
+       assigned Department should be available". */
     const visibleNav = isDepartmentUser
         ? (selectableDepartments[0]?.items ?? [])
-        : (activeWorkspace?.items ?? getGlobalNavItems(auth?.user, enabledModules, workspaceCatalog));
+        : (space === 'admin'
+            ? getAdminSpaceItems(auth?.user, enabledModules, workspaceCatalog)
+            : (space === 'workspace'
+                ? activeWorkspace.items
+                : getCompanyNavItems(auth?.user, enabledModules, workspaceCatalog)));
 
     const navEntryBoundary = entryBoundary(visibleNav);
 
@@ -638,6 +699,7 @@ export default function AuthenticatedLayout({ children }) {
                     isDepartmentUser={isDepartmentUser}
                     departments={selectableDepartments}
                     activeWorkspace={activeWorkspace}
+                    space={space}
                     canSwitchWorkspaces={canSwitchWorkspaces}
                     onSwitchWorkspace={switchWorkspace}
                 />
@@ -682,7 +744,7 @@ export default function AuthenticatedLayout({ children }) {
  * no way to switch, so there is nothing to render, not a disabled or
  * single-option version of the same control.
  */
-function TopBar({ onOpenSidebar, sidebarOpen, isDepartmentUser, departments, activeWorkspace, canSwitchWorkspaces, onSwitchWorkspace }) {
+function TopBar({ onOpenSidebar, sidebarOpen, isDepartmentUser, departments, activeWorkspace, space, canSwitchWorkspaces, onSwitchWorkspace }) {
     const { auth, organization } = usePage().props;
     const now = useClock();
     const { theme, toggleTheme } = useTheme();
@@ -749,13 +811,22 @@ function TopBar({ onOpenSidebar, sidebarOpen, isDepartmentUser, departments, act
                 640px to 1023px -- exactly the band where the header had no
                 room to spare. Hidden to `lg:` now, which is where the
                 duplicate actually stops. */}
-            <Link
-                href={route('dashboard')}
-                className="hidden h-8 shrink-0 items-center gap-1.5 rounded-md px-2.5 text-xs font-medium text-navy-200 transition-colors hover:bg-white/[0.08] hover:text-white lg:flex dark:text-slate-300 dark:hover:bg-slate-800"
-            >
-                <LayoutDashboard className="h-3.5 w-3.5 shrink-0" />
-                <span className="hidden sm:inline">Dashboard</span>
-            </Link>
+            {/* v2.84.0: the GLOBAL COMPANY DASHBOARD, and only for the plan
+                that includes it. For Starter and Professional this link used
+                to be the most prominent thing in the header and led to a
+                page they are not sold -- `/dashboard` now redirects them
+                back to their own workspace, which made the link a loop.
+                Their workspace Overview is the first item in their rail
+                instead, which is where their day actually starts. */}
+            {auth?.user?.has_global_dashboard && (
+                <Link
+                    href={route('dashboard')}
+                    className="hidden h-8 shrink-0 items-center gap-1.5 rounded-md px-2.5 text-xs font-medium text-navy-200 transition-colors hover:bg-white/[0.08] hover:text-white lg:flex dark:text-slate-300 dark:hover:bg-slate-800"
+                >
+                    <LayoutDashboard className="h-3.5 w-3.5 shrink-0" />
+                    <span className="hidden sm:inline">Dashboard</span>
+                </Link>
+            )}
 
             {/* Calendar (v1.11.0): same "pinned, not a department" reasoning
                 as Dashboard above -- it aggregates events across several
@@ -790,14 +861,19 @@ function TopBar({ onOpenSidebar, sidebarOpen, isDepartmentUser, departments, act
                         instead of ellipsing. */}
                     <DropdownMenuTrigger
                         className="flex h-8 min-w-0 items-center gap-1.5 rounded-md border border-white/15 bg-white/[0.06] px-3 text-xs font-medium text-white outline-none transition-colors hover:bg-white/[0.12] dark:border-slate-700 dark:text-slate-300 dark:hover:bg-slate-800"
-                        aria-label="Switch department"
+                        aria-label="Switch workspace"
                     >
                         {activeWorkspace && <activeWorkspace.icon className="h-3.5 w-3.5 shrink-0 text-steel-300" />}
-                        <span className="truncate">{activeWorkspace?.label ?? 'Department'}</span>
+                        {/* v2.84.0: "All Workspaces" is a first-class state --
+                            the one a Business user is in on the Global
+                            Company Dashboard -- not an empty label. The old
+                            fallback read "Department", which named neither
+                            where you were nor where you could go. */}
+                        <span className="truncate">{activeWorkspace?.label ?? 'All Workspaces'}</span>
                         <ChevronDown className="h-3.5 w-3.5 shrink-0 text-steel-300" />
                     </DropdownMenuTrigger>
                     <DropdownMenuContent className="max-h-[70vh] overflow-y-auto">
-                        <DropdownMenuLabel className="text-[10px] uppercase tracking-wide text-graphite-400">Departments</DropdownMenuLabel>
+                        <DropdownMenuLabel className="text-[10px] uppercase tracking-wide text-graphite-400">Workspaces</DropdownMenuLabel>
                         {departments.map((workspace) => (
                             <DropdownMenuItem key={workspace.key} onSelect={() => onSwitchWorkspace(workspace)}>
                                 <workspace.icon className="h-4 w-4 text-graphite-400" /> {workspace.label}
@@ -813,7 +889,17 @@ function TopBar({ onOpenSidebar, sidebarOpen, isDepartmentUser, departments, act
                 somewhere else to go. It names the workspace rather than
                 just showing an icon, so the header still states WHERE you
                 are on a page that is shared across departments. */}
-            {! canSwitchWorkspaces && activeWorkspace && (
+            {/* ADMIN SPACE announces itself. Administration is a different
+                kind of work from operations, and the header is the one place
+                that can say so on every page of it. */}
+            {space === 'admin' && (
+                <div className="flex h-8 shrink-0 items-center gap-1.5 rounded-md border border-white/10 bg-white/[0.04] px-3 text-xs font-medium text-white dark:border-slate-700 dark:text-slate-300">
+                    <Settings className="h-3.5 w-3.5 shrink-0 text-steel-300" />
+                    <span className="truncate">Admin Space</span>
+                </div>
+            )}
+
+            {space !== 'admin' && ! canSwitchWorkspaces && activeWorkspace && (
                 /* `shrink-0` on the chip, `max-w` on the NAME.
                    v2.83.0, found in the browser: without it the chip was
                    the only unmarked item in a header of `shrink-0`
@@ -841,7 +927,7 @@ function TopBar({ onOpenSidebar, sidebarOpen, isDepartmentUser, departments, act
                 without being the tenant administrator (HSE, who manages
                 Departments and Positions) is sent to Settings rather than
                 to an Overview that would 403. */}
-            {auth?.user?.can_access_admin_space && (
+            {auth?.user?.can_access_admin_space && space !== 'admin' && (
                 <Link
                     href={auth?.user?.is_tenant_admin ? route('admin.index') : route('settings.index')}
                     className="hidden h-8 shrink-0 items-center gap-1.5 rounded-md px-2.5 text-xs font-medium text-navy-200 transition-colors hover:bg-white/[0.08] hover:text-white sm:flex dark:text-slate-300 dark:hover:bg-slate-800"

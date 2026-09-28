@@ -73,9 +73,14 @@ return [
     'workspaces' => [
         'starter' => ['hse'],
         'professional' => ['hse', 'hr'],
-        'business' => ['hse', 'hr', 'logistics', 'warehouse', 'management'],
-        // Every department that exists, resolved at call time.
-        'enterprise' => '*',
+        'business' => ['hse', 'hr', 'logistics', 'management'],
+        // v2.84.0: Enterprise is no longer '*'. A retired plan must not
+        // be the one place a department nobody sells can still be
+        // granted -- that is how Procurement, Maintenance and Quality
+        // Control stayed reachable after the catalogue narrowed. It now
+        // grants exactly what Business does; its remaining difference is
+        // capacity, not scope.
+        'enterprise' => ['hse', 'hr', 'logistics', 'management'],
     ],
 
     /*
@@ -91,9 +96,11 @@ return [
         'starter' => ['employees', 'ppe', 'kpi_input', 'reports'],
         'professional' => ['employees', 'ppe', 'kpi_input', 'reports'],
         // Material Request spans Logistics and Warehouse, so it stays.
-        // `projects` and `daily_reports` leave with Project Management.
         'business' => ['employees', 'ppe', 'kpi_input', 'reports', 'material_requests'],
-        'enterprise' => '*',
+        // v2.84.0: narrowed with the workspace grant above, for the same
+        // reason -- a module whose workspace is not sold has nowhere to
+        // be reached from.
+        'enterprise' => ['employees', 'ppe', 'kpi_input', 'reports', 'material_requests'],
     ],
 
     /*
@@ -134,7 +141,7 @@ return [
     | empty room -- the stock, goods-receipt and movement capability it
     | fronts is granted with it.
     */
-    'shells' => ['finance'],
+    'shells' => [],
 
     /*
     |--------------------------------------------------------------------
@@ -167,6 +174,57 @@ return [
         'professional' => 10,
         'business' => 25,
     ],
+
+    /*
+    |--------------------------------------------------------------------
+    | The customer-facing operational workspaces -- ALL of them (v2.84.0)
+    |--------------------------------------------------------------------
+    | IOMS sells FOUR operational workspaces and nothing else. This list
+    | is what makes that true rather than aspirational: the navigation
+    | layer intersects every answer with it, so a workspace that is not
+    | named here cannot appear in a sidebar, a switcher or a plan card no
+    | matter what a grant row, a stale catalogue row or an unprovisioned
+    | tenant's fail-open default would otherwise allow.
+    |
+    | It exists because `EntitlementService::grantedWorkspaceKeys()`
+    | deliberately treats "no grant rows recorded" as UNRESTRICTED (the
+    | v2.13.0 safety net that makes enforcement safe to switch on). That
+    | is right for ACCESS and wrong for NAVIGATION: it meant a legacy
+    | tenant was offered Procurement, Maintenance and Quality Control --
+    | departments nobody sells -- in the department selector.
+    |
+    | Administration (Admin Space) and Reports are NOT here. They are
+    | global-tier chrome, never sold, and never offered as a department.
+    |
+    | Procurement, Project Management, Asset Management, Maintenance,
+    | Quality Control, Finance and the standalone Warehouse shell are
+    | deliberately absent. Their code, routes and data are untouched --
+    | they are simply not customer-facing. See ADR 045.
+    */
+    'operational' => ['hse', 'hr', 'logistics', 'management'],
+
+    /*
+    |--------------------------------------------------------------------
+    | Which plans include the GLOBAL COMPANY DASHBOARD (v2.84.0)
+    |--------------------------------------------------------------------
+    | The cross-workspace company snapshot is a BUSINESS capability, and
+    | it is the one part of IOMS that is sold by plan without being a
+    | workspace -- so it cannot be expressed as a workspace grant and
+    | needed somewhere honest to live.
+    |
+    | The reasoning is product, not technical: a company-wide dashboard is
+    | only meaningful when a customer has more than one operational area
+    | AND the tier that sells cross-functional visibility. Starter has one
+    | workspace, so a "company overview" would be the HSE Overview with a
+    | different title. Professional has two, and summarising two areas is
+    | what the two Overviews already do.
+    |
+    | A plan not listed here does not get a locked page or an upsell
+    | screen -- `/dashboard` simply redirects to where that customer
+    | actually works. A paywall on the landing route would greet a Starter
+    | customer with a refusal every time they sign in.
+    */
+    'global_dashboard' => ['business', 'enterprise'],
 
     /*
     |--------------------------------------------------------------------

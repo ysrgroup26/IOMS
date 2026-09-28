@@ -51,8 +51,10 @@ class SupportTicketIntake
         $ticket = $thread ?? $this->openThreadFor($email);
 
         if (! $ticket) {
-            $ticket = SupportTicket::create([
-                'reference' => SupportTicket::generateReference(),
+            // v2.84.0: created through the model's own retrying helper, so a
+            // reference collision between two operators logging a message at
+            // the same moment costs a retry instead of a 500.
+            $ticket = SupportTicket::createWithUniqueReference([
                 'tenant_id' => $this->identifyTenant($email)?->id,
                 'requester_email' => $email,
                 'requester_name' => $name,

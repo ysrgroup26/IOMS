@@ -211,7 +211,7 @@ class SubscriptionReadOnlyEnforcementTest extends TestCase
     {
         [, $employee, $log] = $this->realRecords();
 
-        $this->actingAs($this->admin)->get(route('dashboard'))->assertOk();
+        $this->actingAs($this->admin)->get(route('work-center.index'))->assertOk();
         $this->actingAs($this->admin)->get(route('employees.index'))->assertOk();
         $this->actingAs($this->admin)->get(route('employees.show', $employee))->assertOk();
 

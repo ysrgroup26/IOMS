@@ -116,5 +116,5 @@ Additional user Rp50.000/user/month, one price on every tier. Enterprise is `is_
 `app/Http/Controllers/PublicController.php`, `app/Http/Middleware/HandleInertiaRequests.php`, `app/Support/LegalDocuments.php`, `config/seo.php`, `resources/views/app.blade.php`, `tailwind.config.js`, `resources/js/Layouts/PublicLayout.jsx` (unchanged in the end), `resources/js/Components/shared/PublicPageHero.jsx`, `resources/js/Components/public/{ConnectedOperations,FragmentedToConnected,PlatformShowcase,domainStories}.jsx|js`, `resources/js/Pages/Public/{Welcome,Pricing,Platform,Solutions,HowItWorks,Faq,Sandbox,Contact,Checkout,GetStarted,RegistrationStatus}.jsx`, `database/seeders/PackageSeeder.php`, `database/migrations/2026_09_30_090000_rewrite_package_descriptions_for_public_website.php`, `tests/Feature/LandingPositioningTest.php`.
 
 - **Verification performed:** See `05 - QA & Verification.md`. Full suite 692 passed / 3813 assertions, 0 failures. Production build clean. ESLint 0 errors. Migration applied, rolled back and re-applied against MySQL. Every public route exercised in a real browser at desktop and mobile widths.
-- **Commit hash:** recorded below on commit.
+- **Commit hash:** `2ed3ac9`, pushed to origin/main.
 - **Next action:** Owner decision on WEB-014. WEB-013 to be scheduled as its own change.

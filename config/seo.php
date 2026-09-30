@@ -81,7 +81,7 @@ return [
         ],
         'pricing' => [
             'title' => 'Pricing and Plans: IOMS',
-            'description' => 'Three IOMS plans with published prices, from HSE alone to all four operational workspaces. Monthly or annual billing, and additional users priced per user.',
+            'description' => 'Three IOMS plans with published prices, from HSE alone to all four operational workspaces. Full Users, My Work field accounts and included PTW documents on every plan.',
             'priority' => '0.9',
             'changefreq' => 'weekly',
         ],

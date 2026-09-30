@@ -62,6 +62,7 @@ use App\Http\Controllers\NcrController;
 use App\Http\Controllers\P3kBoxController;
 use App\Http\Controllers\PermitToWorkController;
 use App\Http\Controllers\ProcurementDashboardController;
+use App\Http\Controllers\PtwQuotaController;
 use App\Http\Controllers\PurchaseOrderController;
 use App\Http\Controllers\PurchaseRequisitionController;
 use App\Http\Controllers\RfqController;
@@ -582,6 +583,23 @@ Route::middleware(['auth', 'restrict.platform-admin'])->group(function () {
     // would try to resolve the literal segment "mine" as a PermitToWork
     // ID and 404 instead of reaching this controller method.
     Route::get('/permits-to-work/mine', [PermitToWorkController::class, 'myIndex'])->name('permits-to-work.mine');
+    /*
+     * v2.86.0 -- PTW DOCUMENT QUOTA.
+     *
+     * Registered above the `/permits-to-work/{permitToWork}` show route for
+     * the same reason `mine` is: a literal segment must be matched before
+     * the wildcard, or "quota" is read as a permit id.
+     *
+     * Under the `permits-to-work` prefix deliberately. A My Work User is
+     * allowed that prefix and must be able to see why creation was refused;
+     * putting the page under `subscription` would have hidden the
+     * explanation from the only class most likely to hit the limit.
+     * Purchasing inside it is still administrator-only, in the controller.
+     */
+    Route::get('/permits-to-work/quota', [PtwQuotaController::class, 'show'])->name('permits-to-work.quota');
+    Route::post('/permits-to-work/quota/purchase', [PtwQuotaController::class, 'purchase'])
+        ->middleware('throttle:10,1')->name('permits-to-work.quota.purchase');
+
     Route::post('/permits-to-work', [PermitToWorkController::class, 'store'])->name('permits-to-work.store');
     Route::get('/permits-to-work/{permitToWork}', [PermitToWorkController::class, 'show'])->name('permits-to-work.show');
     // v2.4.0 (PTW UX + Field Operations pass, Part 13) -- PTW PDF

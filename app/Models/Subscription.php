@@ -158,6 +158,11 @@ class Subscription extends Model
         // v2.82.0 -- active-user slots purchased ON TOP of the plan's
         // included allowance. See seatLimit() and additionalUserCharge().
         'additional_users',
+        // v2.86.0 -- purchased My Work capacity, in packs of ten. On the
+        // SUBSCRIPTION for the same reason `additional_users` is: capacity a
+        // customer paid for survives a plan change rather than being
+        // discarded by one.
+        'additional_my_work_packs',
         'license_key',
         'billing_reference',
         'starts_at',
@@ -488,6 +493,81 @@ class Subscription extends Model
 
         return $included === null ? null : $included + $this->additionalUsers();
     }
+
+    /*
+    |--------------------------------------------------------------------
+    | v2.86.0 -- MY WORK CAPACITY, THE SAME SHAPE, A SEPARATE POOL
+    |--------------------------------------------------------------------
+    | Everything above this block is about FULL users and keeps that exact
+    | meaning. These mirror it for the My Work class, deliberately with the
+    | same null-means-unlimited convention and the same
+    | included-plus-purchased arithmetic, so there is one rule to learn
+    | rather than two.
+    |
+    | The one real difference is the UNIT. A Full User is bought one at a
+    | time; My Work capacity is bought in packs of ten. The pack count is
+    | what is stored, because that is what was purchased and what is
+    | charged; the user count is derived from it.
+    */
+
+    /** The plan's own My Work allowance, before anything purchased. */
+    public function includedMyWorkUsers(): ?int
+    {
+        $allowance = $this->package?->max_my_work_users;
+
+        return $allowance === null ? null : (int) $allowance;
+    }
+
+    /** Packs of ten purchased beyond the plan. */
+    public function additionalMyWorkPacks(): int
+    {
+        return max(0, (int) ($this->additional_my_work_packs ?? 0));
+    }
+
+    /** Those packs expressed as users. */
+    public function additionalMyWorkUsers(): int
+    {
+        return $this->additionalMyWorkPacks() * (int) config('saas.my_work_pack_size', 10);
+    }
+
+    /**
+     * What the entitlement layer enforces for the My Work class: allowance
+     * plus purchased. Null stays null, for the same reason it does above --
+     * adding paid capacity to "no ceiling" is meaningless, not infinite+n.
+     */
+    public function myWorkSeatLimit(): ?int
+    {
+        $included = $this->includedMyWorkUsers();
+
+        return $included === null ? null : $included + $this->additionalMyWorkUsers();
+    }
+
+    /**
+     * What the purchased My Work packs cost for one billing period.
+     *
+     * Follows `additionalUserCharge()` exactly, including billing an annual
+     * cycle for the months that are PAID rather than the months received --
+     * so Business annual, which is twelve payments for fourteen months of
+     * access, is not charged add-on for the two months it was given.
+     */
+    public function myWorkPackCharge(?string $cycle = null): float
+    {
+        $packs = $this->additionalMyWorkPacks();
+
+        if ($packs === 0) {
+            return 0.0;
+        }
+
+        $cycle = $cycle ?? $this->billing_cycle;
+        $monthly = $packs * (float) config('saas.my_work_pack_price', 0);
+
+        if ($cycle !== 'yearly') {
+            return $monthly;
+        }
+
+        return $monthly * (float) ($this->package?->annualPaidMonths() ?? 12);
+    }
+
 
     /**
      * v2.82.0 -- WHAT THE EXTRA USERS COST, PER BILLING PERIOD.

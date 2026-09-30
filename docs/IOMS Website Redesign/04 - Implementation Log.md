@@ -297,3 +297,68 @@ Nothing below has been started.
 - **Issues discovered:** C-1 through C-10 above; open decisions D-1 through D-9.
 - **Commit hash:** documentation only.
 - **Next action:** Owner answers D-1 first. It is the prerequisite for the rest, and answering it late would invalidate work built on an assumed answer.
+
+## 2026-09-30 - v2.86.0: the monetization model, implemented
+
+- **Phase:** Implementation, complete and verified. Supersedes the "approved, not implemented" entry above.
+- **Work completed:** Two billable user classes and a metered PTW document quota, end to end: schema, entitlement, enforcement, billing, UI and public copy.
+
+### The nine open decisions, resolved
+
+| ID | Question | Final answer | Where it lives |
+|---|---|---|---|
+| D-1 | What may a My Work User not do? | Everything outside My Work, assigned field work, PTW, tasks and its own account. Enforced server-side by route-name allow-list | `RestrictMyWorkUser` |
+| D-2 | Billing period for quota on an annual plan | Monthly windows on every cycle. An annual plan gets 12 allocations, never a lump sum | `PtwQuotaService::windowFor()` |
+| D-3 | Which pool is consumed first | Included, then purchased. The customer loses what was going to expire before what they paid extra for | `PtwQuotaService::consume()` |
+| D-4 | Business annual, 14 months access | 12 PTW allocations, not 14. Extra access is platform access, not entitlement | `plans.ptw_annual_allocations` |
+| D-5 | Grace and lapsed | No new behaviour. The v2.70.0 lifecycle already pauses new records when lapsed, and quota is not consulted for reads | unchanged |
+| D-6 | What counts as created, and refunds | Consumption on successful creation. No refund on delete or cancel | `ptw_quota_consumptions`, no cascade |
+| D-7 | Existing tenants | Every existing account becomes a Full User. Enterprise keeps null capacities, so it stays unmetered and uncapped | both migrations |
+| D-8 | Do My Work packs survive a plan change | Yes, on the subscription, like `additional_users` | `subscriptions.additional_my_work_packs` |
+| D-9 | Refunds and cancellation | Purchased quota is non-refundable and carries forward until consumed | `creditPurchased()` |
+
+### Architecture decisions
+
+**`user_type` is a new column, not a reinterpretation of `is_field_user`.** This is the decision the whole feature turns on. `is_field_user` is a landing preference that grants and restricts nothing, and real accounts carry it today: foremen and HSE staff who legitimately reach other workspaces. Treating it as the cheap class would have demoted every one of them on deploy, removing access those customers already pay for. So the two stay separate: `user_type` decides what you may reach and how you are billed, `is_field_user` decides where you land. Every existing account migrates to `full`, which is what it already is.
+
+**The restriction is an allow-list.** A deny-list of forbidden workspaces would need updating whenever a route is added, and forgetting means a cheap account silently gains an expensive capability. An allow-list fails the other way: a new route is unreachable for the class until someone decides otherwise, which is visible and fixable rather than invisible and billable.
+
+**Quota is a grant ledger, not a counter.** `ptw_quota_grants` holds each grant with its own kind, quantity, consumed count and expiry; `ptw_quota_consumptions` records which permit spent which grant. A counter cannot express included-expires and purchased-does-not, and cannot prevent a permit being charged twice. Both properties are enforced by schema: a unique index on `permit_to_work_id`, and a deliberately non-cascading foreign key so consumption outlives the permit. That closes create-delete-repeat by construction rather than by policy.
+
+**Included grants are issued lazily as well as by the nightly job**, made safe by a unique index on (tenant, term, sequence). A tenant that signs up mid-month, or whose cron missed a night, must not be unable to raise a permit because a scheduled task did not run.
+
+**The meter fails open only where the meter is not sold.** A plan with no `ptw_included_monthly` (Enterprise) is unmetered, following the same direction `EntitlementService` takes for an unprovisioned tenant, because the alternative is a misconfigured plan silently blocking a safety-critical permit. A tenant that HAS a figure is metered strictly.
+
+**Invoices gained real line items.** `invoices.amount` stays the authoritative total and the payment path is untouched; `invoice_items` describes what it is made of, written by the same code that computes the total. Every pre-existing invoice was backfilled with one line, so no invoice is left unitemised.
+
+**A top-up is a purchase, not a period.** New `Invoice::PURPOSE_TOPUP`, handled first in `applyPaidInvoice()` and returned from, because everything below moves subscription dates and a top-up moves none. Falling through would have granted a free month per top-up. Credited only from the verified-payment path, idempotent on the invoice.
+
+### Files changed
+
+Migrations: `2026_09_30_120000_establish_user_classes_and_ptw_metering`, `2026_09_30_120100_set_plan_my_work_and_ptw_capacity`.
+New: `PtwQuotaService`, `PtwQuotaGrant`, `PtwQuotaConsumption`, `InvoiceItem`, `PtwQuotaController`, `RestrictMyWorkUser`, `Pages/Ptw/Quota.jsx`, `Components/shared/PtwQuotaNotice.jsx`, `UserClassAndPtwQuotaTest`.
+Changed: `User`, `Package`, `Subscription`, `Invoice`, `EntitlementService`, `SubscriptionLifecycleService`, `PricingService`, `PermitToWorkController`, `SettingsController`, `SubscriptionController`, `HandleInertiaRequests`, `bootstrap/app.php`, `routes/web.php`, `config/plans.php`, `config/saas.php`, `config/seo.php`, `PublicController`, `Pricing.jsx`, `Welcome.jsx`, PTW `Index`/`MyIndex`, `PricingConsistencyTest`, `TransitiveTenantIsolationTest`.
+
+### Two existing tests were changed, and why
+
+**`PricingConsistencyTest` forbade any PTW-shaped field on a pricing payload**, pinning the v2.53.0 decision that PTW is not sold capacity. The approved model reverses half of that: PTW *documents* are now sold, PTW *seats* stay retired. The assertion is now specific to `max_ptw_users` and additionally requires the document allowance to be stated, so the retired concept still fails loudly while the new one is pinned.
+
+**`TransitiveTenantIsolationTest` caught all three new models**, which is the guard working as designed. `PtwQuotaGrant` and `PtwQuotaConsumption` carry `tenant_id` and every read constrains it; they are declared tenant-owned rather than company-scoped because quota is bought and spent by the tenant. Scoping by company would silently give a tenant one allowance per operating unit.
+
+### Discovered during implementation
+
+- **`Invoice::generateNumber()` takes a tenant id**, and `STATUS_UNPAID` does not exist (`STATUS_ISSUED` does). Found by writing the purchase flow against the real API rather than an assumed one.
+- **The default development tenant is on Enterprise**, so it is unmetered. That is the migration behaviour working, and it means the metered paths are covered by tests rather than by clicking this particular tenant.
+
+### Deferred, with reasons
+
+| Item | Why |
+|---|---|
+| Platform Admin per-tenant quota override | The customer-facing model is complete and enforced. An operator override is an operations convenience, and `subscriptions.seat_limit` already sets the precedent for how it should look. Not required for the model to be correct |
+| PTW consumption reporting beyond the last 20 | The quota page shows recent consumption and the ledger holds the full history. A report over it is reporting work, not metering work |
+| Buying My Work packs from the UI | Capacity is stored, charged at renewal, enforced and honoured by downgrade safety. The self-service purchase screen for it is not built; an operator sets the pack count today. PTW top-ups ARE self-service, because that is the one a field team hits mid-shift |
+| Public top-up pack prices on `/pricing` | The cards state that extra documents can be bought and do not expire, and the FAQ gives the entry price. A three-row pack table on the pricing page was judged to be the "wall of billing terminology" the direction warns against. The full table is in-product on the quota page |
+
+- **Verification performed:** See `05 - QA & Verification.md`. 733 tests / 3913 assertions passing, zero failures, up from 692. Clean build, ESLint 0 errors. Both migrations applied, rolled back and re-applied against MySQL. Public pricing verified in a real browser at 1440 and 375.
+- **Issues discovered:** None outstanding.
+- **Next action:** None blocking. The deferred items above are the natural follow-ups.

@@ -25,6 +25,10 @@ class Package extends Model
         'trial_days',
         'max_users',
         'max_companies',
+        // v2.86.0 -- the two capacities the monetization model added.
+        // `max_users` continues to mean FULL users and is unchanged.
+        'max_my_work_users',
+        'ptw_included_monthly',
         'max_ptw_users',
         'is_active',
         'is_public',

@@ -314,27 +314,63 @@ class PricingConsistencyTest extends TestCase
      * ================================================================ */
 
     /**
-     * PTW Access was retired as a sold capacity in v2.53.0 and must not
-     * return to a pricing payload.
+     * PTW SEATS stay retired. PTW DOCUMENTS are now sold.
      *
-     * v2.60.0 narrowed this from "the word 'ptw' appears nowhere" to "no
-     * FIELD describes a PTW allowance". Starter's description now names
-     * Permit To Work among the HSE modules it includes, which is true and
-     * is the point of the tier -- naming an included capability is not
-     * selling a quota. The thing that must never come back is the number.
+     * v2.53.0 retired `max_ptw_users`, a second SEAT pool that sat beside
+     * `max_users` and made every plan card read as two numbers a buyer had
+     * to reconcile. v2.60.0 narrowed the assertion from "the word 'ptw'
+     * appears nowhere" to "no FIELD describes a PTW allowance".
+     *
+     * v2.86.0 REVERSES HALF OF THAT, DELIBERATELY, and the half matters.
+     *
+     * The approved monetization model meters PTW DOCUMENTS: creating a
+     * permit consumes one, and a plan includes a monthly number of them.
+     * That is a consumption meter on an action, not a seat pool on a person,
+     * and it is a thing a pricing surface must now state -- a published
+     * allowance that a buyer cannot see is exactly the defect v2.85.0 was
+     * written to fix.
+     *
+     * What must NEVER come back is `max_ptw_users`: a per-account PTW seat,
+     * priced separately from a user. PTW Access remains a free permission an
+     * administrator grants to an account that already exists.
+     *
+     * So the assertion is now specific rather than a blanket ban on the
+     * substring, and it still fails loudly if the retired concept returns.
      */
-    public function test_no_pricing_surface_exposes_a_ptw_quota(): void
+    public function test_ptw_seats_stay_retired_while_ptw_documents_are_sold(): void
     {
         foreach (app(PricingService::class)->publicPlans() as $plan) {
+            // The retired concept: a PTW-enabled SEAT allowance.
             $this->assertArrayNotHasKey('max_ptw_users', $plan, "{$plan['slug']} exposes a PTW seat allowance.");
+            $this->assertArrayNotHasKey('ptw_users', $plan, "{$plan['slug']} exposes a PTW seat allowance.");
 
-            foreach (array_keys($plan) as $field) {
-                $this->assertStringNotContainsStringIgnoringCase(
-                    'ptw',
-                    $field,
-                    "{$plan['slug']} carries a PTW-shaped capacity field: {$field}."
-                );
-            }
+            // The sold concept: a monthly document meter, stated as a number
+            // so a card can print it.
+            $this->assertArrayHasKey('ptw_included_monthly', $plan, "{$plan['slug']} does not state its PTW document allowance.");
+            $this->assertIsInt($plan['ptw_included_monthly'], "{$plan['slug']} states a non-numeric PTW allowance.");
+            $this->assertGreaterThan(0, $plan['ptw_included_monthly']);
+        }
+    }
+
+    /**
+     * v2.86.0 -- the public catalogue states BOTH user classes.
+     *
+     * They are counted and priced separately, so a surface that published
+     * only one of them would understate what a plan carries and leave a
+     * buyer sizing a field crew against an office allowance.
+     */
+    public function test_every_public_plan_states_both_user_classes(): void
+    {
+        foreach (app(PricingService::class)->publicPlans() as $plan) {
+            $this->assertIsInt($plan['included_users'], "{$plan['slug']} does not state its Full User allowance.");
+            $this->assertIsInt($plan['included_my_work_users'], "{$plan['slug']} does not state its My Work allowance.");
+
+            // The add-ons are priced in different units, and the unit is
+            // part of the price: Rp100.000 without "per 10" reads as the
+            // price of one account.
+            $this->assertNotNull($plan['additional_user']);
+            $this->assertNotNull($plan['my_work_pack']);
+            $this->assertSame(10, $plan['my_work_pack']['size']);
         }
     }
 }

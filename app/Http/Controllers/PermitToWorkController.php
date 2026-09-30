@@ -13,8 +13,10 @@ use App\Models\Project;
 use App\Models\RiskAssessment;
 use App\Services\DocumentEngine;
 use App\Services\PdfGeneratorService;
+use App\Services\PtwQuotaService;
 use Illuminate\Http\RedirectResponse;
 use Illuminate\Http\Request;
+use Illuminate\Support\Facades\DB;
 use Illuminate\Validation\Rule;
 use Illuminate\Validation\ValidationException;
 use Inertia\Inertia;
@@ -141,13 +143,34 @@ class PermitToWorkController extends Controller
         ]);
     }
 
-    public function create(Request $request): Response
+    public function create(Request $request): Response|RedirectResponse
     {
         // v2.17.0 (PTW Field Workflow Foundation + Controlled PTW
         // Access): was canManageHse() only -- see User::canCreatePtw()'s
         // own doc comment for why this is a union, not a replacement.
         abort_unless($request->user()->canCreatePtw(), 403);
+
+        /*
+         * v2.86.0 -- QUOTA IS CHECKED BEFORE THE FORM, NOT AFTER IT.
+         *
+         * Letting somebody fill in a permit and refusing it on submit is the
+         * worst version of this: the work is already done, and on a phone in
+         * the field it is done twice. A tenant with no documents left is
+         * sent to the explanation instead, which names the two ways out.
+         *
+         * This is NOT an authorization check. `canCreatePtw()` above decides
+         * who may raise a permit and is unchanged; this decides whether the
+         * company has capacity left to raise one at all.
+         */
+        $quota = app(PtwQuotaService::class);
+
+        if (! $quota->canCreate($request->user()->tenant)) {
+            return redirect()->route('permits-to-work.quota')
+                ->with('flash', ['error' => 'Kuota dokumen PTW sudah habis. Tambah kuota atau tingkatkan paket untuk membuat PTW baru.']);
+        }
+
         $tenantCompanyIds = Company::query()->pluck('id');
+
 
         return Inertia::render('PermitsToWork/Form', [
             'companies' => Company::active()->orderBy('name')->get(['id', 'name']),
@@ -202,16 +225,46 @@ class PermitToWorkController extends Controller
         $personnelIds = $validated['personnel_ids'] ?? [];
         unset($validated['personnel_ids']);
 
-        $permit = PermitToWork::create([
+        /*
+         * v2.86.0 -- THE PERMIT AND ITS DOCUMENT ARE ONE TRANSACTION.
+         *
+         * Creating the permit and spending the document have to succeed or
+         * fail together. Apart, a failure between them either gives away a
+         * permit that was never paid for or charges for one that does not
+         * exist, and both are silent.
+         *
+         * The quota check in create() is the courteous one; this is the real
+         * one. Two supervisors submitting the last document at the same
+         * moment both pass create(), and only one may pass here --
+         * PtwQuotaService::consume() locks the grant rows to make sure of it.
+         */
+        $quota = app(PtwQuotaService::class);
+        $tenant = $request->user()->tenant;
+
+        if (! $quota->canCreate($tenant)) {
+            return back()->withInput()
+                ->with('flash', ['error' => 'Kuota dokumen PTW sudah habis. Tambah kuota atau tingkatkan paket untuk membuat PTW baru.']);
+        }
+
+        $permit = DB::transaction(function () use ($validated, $request, $quota, $tenant) {
+            $permit = PermitToWork::create([
             ...$validated,
             'ptw_number' => PermitToWork::generateNumber(),
             'status' => PermitToWork::STATUS_DRAFT,
+
             // Requester is ALWAYS the authenticated user -- never a
             // client-supplied value (there is no `requested_by` key in
             // StorePermitToWorkRequest::rules() at all, so nothing in
             // $validated could override this even if the frontend tried).
             'requested_by' => $request->user()->id,
-        ]);
+            ]);
+
+            // Spent inside the transaction, so a permit can never exist
+            // without its document having been charged for.
+            $quota->consume($tenant, $permit, $request->user());
+
+            return $permit;
+        });
 
         if (! empty($personnelIds)) {
             $permit->personnel()->sync($personnelIds);

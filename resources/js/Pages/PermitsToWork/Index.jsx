@@ -1,6 +1,7 @@
 import { Head, Link, router } from '@inertiajs/react';
 import FilterBar from '@/Components/shared/FilterBar';
 import PageHeader from '@/Components/shared/PageHeader';
+import PtwQuotaNotice from '@/Components/shared/PtwQuotaNotice';
 import AuthenticatedLayout from '@/Layouts/AuthenticatedLayout';
 import { Card, CardContent } from '@/Components/ui/card';
 import { Button } from '@/Components/ui/button';
@@ -65,6 +66,8 @@ export default function PermitsToWorkIndex({ permits, filters, can }) {
             >
                 {can.manage && (<Button asChild><Link href={route('permits-to-work.create')}><Plus className="h-4 w-4" /> New Permit</Link></Button>)}
             </PageHeader>
+
+            <PtwQuotaNotice className="mb-4" />
 
             {/* v2.47.0: was a bare row of controls floating on the page
                 background -- the clearest remaining marker of the older

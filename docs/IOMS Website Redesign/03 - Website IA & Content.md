@@ -165,3 +165,43 @@ the workspace scope it carries now.
 Everything in the v2.85.0 rules stays in force for the new copy: no em dash in either encoding, only
 the four operational workspaces named, Admin Space never presented as operational, Global Dashboard
 Business only, English on the public site, and no figure published before its enforcement is verified.
+
+---
+
+# BUILT, 2026-09-30: the pricing page now states both classes and the meter
+
+The pending section above is done. v2.86.0.
+
+## What the cards say
+
+Each plan card carries five facts rather than three: price, Full Users with the per-user add-on, My
+Work Users with the per-pack add-on, PTW documents per month, and Operating Units.
+
+The unit is printed on both add-ons, because they are priced differently on purpose and "Rp100.000"
+without "per 10 pengguna" reads as the price of one account.
+
+## How the three-number problem was avoided
+
+v2.53.0's warning was that two capacity numbers make a card a reconciliation exercise. The answer
+here was not to hide a number but to make each one self-explanatory on its own line, with its add-on
+price directly beneath it rather than in a footnote. A reader sizing an office team reads one line; a
+reader sizing a field crew reads the next; neither has to subtract anything.
+
+## Deliberately NOT on the public pricing page
+
+The three top-up pack prices. The cards state that extra documents are purchasable and do not expire,
+and the FAQ gives the entry price of Rp600 each. A three-row pack table beside three plan cards is
+the "wall of technical billing terminology" the direction warns against, and a customer choosing a
+pack is already signed in, where the full table lives on the quota page.
+
+## Copy changed
+
+- FAQ, "How are users counted?" now describes both classes, both allowances and both add-on prices.
+- FAQ, "What is PTW Access?" keeps the permission free and no longer implies the ACTION is unmetered.
+- New FAQ, "How many Permits To Work are included?", covering the monthly allowance, what consumes a
+  document, that the allowance does not roll over, and that purchased documents do not expire.
+- Landing pricing section names both add-ons and the document meter.
+- `config/seo.php` pricing description names both user classes.
+
+Verified: 0 em dashes across all 11 public pages in both encodings, no horizontal overflow at 375,
+and every published figure matches server-side enforcement.

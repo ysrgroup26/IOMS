@@ -639,10 +639,13 @@ function Pricing({ plans }) {
 
                                         <ul className="mt-6 flex-1 space-y-2.5 border-t border-graphite-100 pt-5 text-sm text-graphite-600">
                                             <li className="flex items-center gap-2 font-medium text-graphite-800">
-                                                <Users className="h-3.5 w-3.5 shrink-0 text-brand-500" /> {plan.included_users ? `${plan.included_users} active users included` : 'Highest user capacity'}
+                                                <Users className="h-3.5 w-3.5 shrink-0 text-brand-500" /> {plan.included_users ? `${plan.included_users} Full Users, ${plan.included_my_work_users ?? 0} My Work Users` : 'Highest user capacity'}
                                             </li>
                                             {/* v2.53.0: capacity is ONE number. PTW Access is a
                                                 permission granted inside IOMS, not a sold seat. */}
+                                            <li className="flex items-center gap-2">
+                                                <FileCheck2 className="h-3.5 w-3.5 shrink-0 text-brand-500" /> {plan.ptw_included_monthly ? `${plan.ptw_included_monthly} PTW documents a month` : 'PTW documents not metered'}
+                                            </li>
                                             <li className="flex items-center gap-2">
                                                 <Building2 className="h-3.5 w-3.5 shrink-0 text-brand-500" /> {plan.max_companies ? `${plan.max_companies} Operating Unit${plan.max_companies > 1 ? 's' : ''}` : 'Multiple Operating Units'}
                                             </li>
@@ -687,11 +690,13 @@ function Pricing({ plans }) {
                             from copy, so it cannot quote a stale price. */}
                         {plans[0]?.additional_user && (
                             <p className="mt-8 text-center text-sm text-graphite-600">
-                                Need more people on the system? Additional active users are{' '}
+                                Need more capacity? Full Users are{' '}
+                                <strong className="font-semibold text-graphite-900">{plans[0].additional_user.formatted}</strong>{' '}
+                                per user per month, My Work Users are{' '}
                                 <strong className="font-semibold text-graphite-900">
-                                    {plans[0].additional_user.formatted}
+                                    {plans[0].my_work_pack?.formatted}
                                 </strong>{' '}
-                                per user per month on every plan.
+                                per {plans[0].my_work_pack?.size} users per month, and extra PTW documents start at Rp600 each and do not expire.
                             </p>
                         )}
                     </>

@@ -195,3 +195,27 @@ and
 
 Both are accurate against the enforced system today and both become wrong the day the new model
 ships. They must change **in the same release that enforces it**, never before.
+
+---
+
+# STATUS UPDATE, 2026-09-30: the model above is now IMPLEMENTED and PUBLISHED
+
+The section above was written as approved-but-unbuilt. It is now built, enforced server-side, verified
+and published on the public website. v2.86.0.
+
+The publication gate is satisfied for every figure: Full User and My Work allowances are counted and
+enforced per class, the PTW meter blocks creation at zero, included quota expires at the period
+boundary, purchased quota does not, and a top-up is credited only by a verified payment. Evidence is
+in `05 - QA & Verification.md`, and the full decision record in `04 - Implementation Log.md`.
+
+## Two clarifications the implementation settled
+
+**A My Work User is defined by `users.user_type`, not by `is_field_user`.** The two are separate and
+stay separate: `user_type` decides what an account may reach and how it is billed, `is_field_user`
+decides where it lands after signing in. Every account that existed before v2.86.0 is a Full User,
+which is what it already was.
+
+**Enterprise is unmetered and uncapped on both new capacities.** It carries null for
+`max_my_work_users` and `ptw_included_monthly`, which already means "no stated ceiling" everywhere
+else on `packages`. Its subscribers bought a plan with no stated limit, so giving it a number would
+have been a silent downgrade of a live customer.

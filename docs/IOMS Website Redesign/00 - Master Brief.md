@@ -177,3 +177,30 @@ with a direct revenue consequence rather than a credibility one.
 
 Owner answers **D-1**. Everything else is designable once that is settled, and building on an assumed
 answer would have to be redone.
+
+---
+
+# STATUS, 2026-09-30, end of day: v2.86.0 shipped
+
+The scope addition recorded above is **implemented, verified and published**. Blocking decision D-1
+was answered by the owner and all nine open decisions are resolved; see `04 - Implementation Log.md`.
+
+| | |
+|---|---|
+| Product direction | Approved |
+| Implementation | Complete. 733 tests passing, 0 failures |
+| Publication | Published. Every figure enforced server-side before it appeared |
+| Blocking decisions | None |
+
+**What the model turned on.** A My Work User is sold at a fifth of a Full User's price, so the
+restriction is the product rather than a detail of it. It is enforced by a server-side route
+allow-list, asserted by direct URL with the strongest tenant role attached, because a restriction
+that can be escaped with a role is not a restriction.
+
+**Deferred, and why:** buying My Work packs from the UI (capacity is stored, charged and enforced; an
+operator sets it, and PTW top-ups are self-service because that is the limit a field team hits
+mid-shift); a Platform Admin per-tenant quota override; and the top-up pack table on the public
+pricing page, kept in-product to avoid the wall of billing terminology the direction warns against.
+
+**Still open from v2.85.0:** QA-002 (Ziggy route manifest) and QA-003 (the "Enterprise Edition"
+string), both unchanged and both recorded in `05 - QA & Verification.md`.

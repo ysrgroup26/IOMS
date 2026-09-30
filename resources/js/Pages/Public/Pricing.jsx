@@ -167,8 +167,8 @@ export default function Pricing({ plans = [], contactEmail }) {
                                                 <Check className="mt-0.5 h-3.5 w-3.5 shrink-0 text-success" />
                                                 <span>
                                                     {plan.included_users
-                                                        ? `${plan.included_users} pengguna aktif termasuk`
-                                                        : 'Kapasitas pengguna tanpa batas'}
+                                                        ? `${plan.included_users} Full User termasuk`
+                                                        : 'Kapasitas Full User tanpa batas'}
                                                     {plan.included_users && plan.additional_user && (
                                                         <span className="mt-0.5 block text-[11px] text-graphite-500">
                                                             Tambahan {plan.additional_user.formatted}/pengguna/bulan
@@ -176,6 +176,41 @@ export default function Pricing({ plans = [], contactEmail }) {
                                                     )}
                                                 </span>
                                             </li>
+                                            {/* v2.86.0 -- THE SECOND USER CLASS.
+                                                Given its own line rather than folded into the one
+                                                above, because they are counted separately and a
+                                                buyer sizing a crew needs to read the field number
+                                                without doing arithmetic against the office one.
+                                                The unit is stated on the add-on price: Rp100.000
+                                                without "per 10" reads as the price of one seat. */}
+                                            {plan.included_my_work_users !== null && plan.included_my_work_users !== undefined && (
+                                                <li className="flex items-start gap-2 text-xs text-graphite-600">
+                                                    <Check className="mt-0.5 h-3.5 w-3.5 shrink-0 text-success" />
+                                                    <span>
+                                                        {plan.included_my_work_users} My Work User termasuk
+                                                        {plan.my_work_pack && (
+                                                            <span className="mt-0.5 block text-[11px] text-graphite-500">
+                                                                Tambahan {plan.my_work_pack.formatted}/{plan.my_work_pack.size} pengguna/bulan
+                                                            </span>
+                                                        )}
+                                                    </span>
+                                                </li>
+                                            )}
+                                            {/* The PTW meter. Stated per month on every cycle,
+                                                because that is what it is: an annual plan receives
+                                                this figure twelve times, not twelve times this
+                                                figure at once. */}
+                                            {plan.ptw_included_monthly !== null && plan.ptw_included_monthly !== undefined && (
+                                                <li className="flex items-start gap-2 text-xs text-graphite-600">
+                                                    <Check className="mt-0.5 h-3.5 w-3.5 shrink-0 text-success" />
+                                                    <span>
+                                                        {plan.ptw_included_monthly} dokumen PTW per bulan
+                                                        <span className="mt-0.5 block text-[11px] text-graphite-500">
+                                                            Bisa ditambah, dan tambahannya tidak hangus
+                                                        </span>
+                                                    </span>
+                                                </li>
+                                            )}
                                             <li className="flex items-start gap-2 text-xs text-graphite-600">
                                                 <Check className="mt-0.5 h-3.5 w-3.5 shrink-0 text-success" />
                                                 {/* v2.54.0: Operating Units, not companies. A plan

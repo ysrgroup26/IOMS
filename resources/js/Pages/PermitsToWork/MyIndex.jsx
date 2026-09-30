@@ -6,6 +6,7 @@ import EmptyState from '@/Components/shared/EmptyState';
 import { cn } from '@/lib/utils';
 import { Plus, ArrowRight, RotateCcw, FileWarning, ChevronLeft, ChevronRight } from 'lucide-react';
 import PageHeader from '@/Components/shared/PageHeader';
+import PtwQuotaNotice from '@/Components/shared/PtwQuotaNotice';
 
 const FILTERS = [
     { key: 'all', label: 'All' },
@@ -68,6 +69,8 @@ export default function MyPermitsToWork({ permits, filters, counts }) {
             <PageHeader title="My PTW" subtitle="Izin kerja yang Anda ajukan.">
                 <Button asChild><Link href={route('permits-to-work.create')}><Plus className="h-4 w-4" /> New PTW</Link></Button>
             </PageHeader>
+
+            <PtwQuotaNotice className="mb-4" />
 
             {/* Filter tabs -- horizontally scrollable on a narrow phone
                 rather than wrapping into a cramped grid, so they stay on

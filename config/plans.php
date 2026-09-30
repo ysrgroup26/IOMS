@@ -177,6 +177,56 @@ return [
 
     /*
     |--------------------------------------------------------------------
+    | Included My Work users, for the PRICING COPY only (v2.86.0)
+    |--------------------------------------------------------------------
+    | The same arrangement as `included_users` directly above, for the same
+    | reason: the authoritative allowance is `packages.max_my_work_users`,
+    | which the entitlement layer reads and an operator can see, and this
+    | list exists so a pricing surface can state the allowance for a tier it
+    | is describing without a database row. A test asserts the two agree, so
+    | it cannot become a second answer.
+    */
+    'included_my_work_users' => [
+        'starter' => 10,
+        'professional' => 30,
+        'business' => 50,
+    ],
+
+    /*
+    |--------------------------------------------------------------------
+    | Included PTW documents per MONTH (v2.86.0)
+    |--------------------------------------------------------------------
+    | Mirrors `packages.ptw_included_monthly`, pinned by the same test.
+    |
+    | PER MONTH ON EVERY BILLING CYCLE. An annual subscription does not
+    | receive twelve times this figure on day one; it receives this figure
+    | twelve times, once per monthly window. The distinction is the whole
+    | reason PtwQuotaService anchors windows to the subscription start day
+    | rather than to the invoice.
+    */
+    'ptw_included_monthly' => [
+        'starter' => 50,
+        'professional' => 200,
+        'business' => 500,
+    ],
+
+    /*
+    |--------------------------------------------------------------------
+    | How many included PTW allocations one ANNUAL term may receive
+    |--------------------------------------------------------------------
+    | Twelve. Business annual is sold as fourteen months of platform ACCESS
+    | for twelve months of payment, and the approved model is explicit that
+    | the extra access does not create extra PTW entitlement -- the usage
+    | entitlement stays on the normal twelve billing periods.
+    |
+    | A monthly subscription is not capped by this: every month is separately
+    | paid for, so every month earns its allocation.
+    */
+    'ptw_annual_allocations' => 12,
+
+
+    /*
+    |--------------------------------------------------------------------
     | The customer-facing operational workspaces -- ALL of them (v2.84.0)
     |--------------------------------------------------------------------
     | IOMS sells FOUR operational workspaces and nothing else. This list

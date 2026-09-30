@@ -55,7 +55,17 @@ class Invoice extends Model
     /** Buys an upgrade, prorated for the rest of the current period. */
     public const PURPOSE_PLAN_CHANGE = 'plan_change';
 
-    public const PURPOSES = [self::PURPOSE_ONBOARDING, self::PURPOSE_RENEWAL, self::PURPOSE_PLAN_CHANGE];
+    /**
+     * v2.86.0 -- a ONE-OFF purchase that belongs to no billing period.
+     *
+     * Every other purpose is tied to a subscription period, which is why
+     * this needed its own: a PTW top-up grants a durable resource that
+     * carries forward, and the renewal machinery must not treat it as a
+     * period it should extend.
+     */
+    public const PURPOSE_TOPUP = 'topup';
+
+    public const PURPOSES = [self::PURPOSE_ONBOARDING, self::PURPOSE_RENEWAL, self::PURPOSE_PLAN_CHANGE, self::PURPOSE_TOPUP];
 
     protected $fillable = [
         'invoice_number', 'tenant_id', 'registration_id', 'subscription_id', 'period_start', 'period_end',
@@ -73,6 +83,12 @@ class Invoice extends Model
             'payment_date' => 'date',
             'amount' => 'decimal:2',
         ];
+    }
+
+    /** v2.86.0 -- what this invoice's total is made of. */
+    public function items()
+    {
+        return $this->hasMany(InvoiceItem::class)->orderBy('sort_order')->orderBy('id');
     }
 
     public function tenant()

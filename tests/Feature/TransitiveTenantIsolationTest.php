@@ -387,6 +387,23 @@ class TransitiveTenantIsolationTest extends TestCase
             // it explicitly; a registration exists BEFORE its tenant does,
             // so it cannot be scoped by one.
             'Invoice', 'Subscription', 'TenantRegistration', 'PaymentTransaction', 'PaymentWebhookEvent',
+            // v2.86.0 -- billing records, in the same category and for the
+            // same reason as the five above.
+            //
+            // `InvoiceItem` is owned by its invoice, which is already in
+            // this list; it carries no tenant_id of its own and is only ever
+            // reached through that invoice.
+            //
+            // `PtwQuotaGrant` and `PtwQuotaConsumption` DO carry tenant_id,
+            // and every read of them constrains it explicitly --
+            // PtwQuotaService takes a Tenant and filters on it in every
+            // query, asserted by UserClassAndPtwQuotaTest. They are not
+            // company-scoped because quota is bought and spent by the
+            // TENANT: a permit raised at one operating unit spends the same
+            // pool as a permit raised at another, which is what the customer
+            // buys. Scoping them by company would silently give a tenant one
+            // allowance per operating unit.
+            'InvoiceItem', 'PtwQuotaGrant', 'PtwQuotaConsumption',
             // The approval engine walks these across tenants from a
             // scheduled command; the tenancy check lives in
             // ApprovalEngine::authorize(), asserted above.

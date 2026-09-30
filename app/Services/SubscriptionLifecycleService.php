@@ -108,6 +108,19 @@ class SubscriptionLifecycleService
                 'due_date' => now()->addDays((int) config('saas.invoice_due_days', 14))->toDateString(),
             ]);
 
+            /*
+             * v2.86.0 -- WHAT THE TOTAL IS MADE OF.
+             *
+             * Written by the same code that computed `amount`, from the same
+             * three parts, so the itemisation cannot drift from the figure
+             * being charged. The approved direction rules out faking line
+             * items in the UI over an ambiguous total, and this is what
+             * avoiding that means in practice: the breakdown is produced at
+             * the moment the total is, or it is a reconstruction.
+             */
+            $this->writeRenewalItems($invoice, $subscription, $package, $cycle);
+
+
             ActivityLog::record(
                 'created',
                 "Renewal invoice {$invoice->invoice_number} issued for the period "
@@ -165,7 +178,7 @@ class SubscriptionLifecycleService
         // `Model::preventLazyLoading()` is active outside production, and
         // an N+1 guard throwing mid-settlement would leave a paid invoice
         // unapplied.
-        $invoice->loadMissing(['subscription.tenant', 'subscription.package', 'targetPackage']);
+        $invoice->loadMissing(['subscription.tenant', 'subscription.package', 'targetPackage', 'items']);
 
         $subscription = $invoice->subscription;
 
@@ -184,8 +197,42 @@ class SubscriptionLifecycleService
             );
         }
 
+        /*
+         * v2.86.0 -- A PTW TOP-UP IS A PURCHASE, NOT A PERIOD.
+         *
+         * Handled first and returned from, because everything below this
+         * point is about moving a subscription's dates, and a top-up moves
+         * none of them. Falling through would extend the customer's period
+         * because they bought documents, which is a free month per top-up.
+         *
+         * Credited here rather than anywhere earlier because this method
+         * runs only for an invoice a VERIFIED payment settled. That is the
+         * standing rule in IOMS -- reaching a confirmation page grants
+         * nothing -- and quota is no different from activation in that
+         * respect. `creditPurchased()` is idempotent on the invoice, so a
+         * provider that delivers the same notification twice, which they all
+         * do, credits once.
+         */
+        if ($invoice->purpose === Invoice::PURPOSE_TOPUP) {
+            $documents = (int) $invoice->items
+                ->where('kind', \App\Models\InvoiceItem::KIND_PTW_TOPUP)
+                ->sum('quantity');
+
+            if ($documents > 0 && $subscription->tenant) {
+                app(\App\Services\PtwQuotaService::class)->creditPurchased(
+                    $subscription->tenant,
+                    $documents,
+                    $invoice,
+                    "Pembelian kuota PTW, faktur {$invoice->invoice_number}"
+                );
+            }
+
+            return;
+        }
+
         $package = $invoice->targetPackage ?? $subscription->package;
         $cycle = $invoice->target_billing_cycle ?: $subscription->billing_cycle;
+
 
         if ($invoice->purpose === Invoice::PURPOSE_PLAN_CHANGE) {
             // applyPlanChange() clears anything scheduled. A cycle switch
@@ -627,6 +674,60 @@ class SubscriptionLifecycleService
     }
 
     /**
+     * v2.86.0 -- the three lines a renewal invoice can carry.
+     *
+     * Only non-zero lines are written: an invoice for a customer who has
+     * bought nothing extra is one line, exactly as it reads today.
+     */
+    private function writeRenewalItems(Invoice $invoice, Subscription $subscription, ?Package $package, string $cycle): void
+    {
+        $plan = $this->planAmount($subscription, $package, $cycle);
+        $users = $subscription->additionalUserCharge($cycle);
+        $packs = $subscription->myWorkPackCharge($cycle);
+
+        $periodLabel = $cycle === Subscription::CYCLE_MONTHLY ? 'bulan' : 'tahun';
+
+        \App\Models\InvoiceItem::create([
+            'invoice_id' => $invoice->id,
+            'kind' => \App\Models\InvoiceItem::KIND_SUBSCRIPTION,
+            'description' => 'Langganan '.($package?->name ?? 'IOMS').', per '.$periodLabel,
+            'quantity' => 1,
+            'unit_amount' => $plan,
+            'amount' => $plan,
+            'sort_order' => 0,
+        ]);
+
+        if ($users > 0) {
+            $count = $subscription->additionalUsers();
+
+            \App\Models\InvoiceItem::create([
+                'invoice_id' => $invoice->id,
+                'kind' => \App\Models\InvoiceItem::KIND_ADDITIONAL_USERS,
+                'description' => "Tambahan {$count} Full User",
+                'quantity' => $count,
+                'unit_amount' => $count > 0 ? round($users / $count, 2) : 0,
+                'amount' => $users,
+                'sort_order' => 1,
+            ]);
+        }
+
+        if ($packs > 0) {
+            $packCount = $subscription->additionalMyWorkPacks();
+            $size = (int) config('saas.my_work_pack_size', 10);
+
+            \App\Models\InvoiceItem::create([
+                'invoice_id' => $invoice->id,
+                'kind' => \App\Models\InvoiceItem::KIND_MY_WORK_PACKS,
+                'description' => "Tambahan {$packCount} paket My Work User, {$size} pengguna per paket",
+                'quantity' => $packCount,
+                'unit_amount' => $packCount > 0 ? round($packs / $packCount, 2) : 0,
+                'amount' => $packs,
+                'sort_order' => 2,
+            ]);
+        }
+    }
+
+    /**
      * What a renewal costs: the price this customer agreed to, not
      * whatever the catalogue says today — unless the renewal also carries
      * a plan change, which re-agrees the price by definition.
@@ -644,8 +745,12 @@ class SubscriptionLifecycleService
      */
     public function renewalAmount(Subscription $subscription, ?Package $package, string $cycle): float
     {
+        // v2.86.0 -- and the My Work packs, on the same recurring basis and
+        // for the same reason: purchased capacity is a subscription charge
+        // held for as long as the capacity is held.
         return $this->planAmount($subscription, $package, $cycle)
-            + $subscription->additionalUserCharge($cycle);
+            + $subscription->additionalUserCharge($cycle)
+            + $subscription->myWorkPackCharge($cycle);
     }
 
     /** The plan half of a renewal, without add-ons. */

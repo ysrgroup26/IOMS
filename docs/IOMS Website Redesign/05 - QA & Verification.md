@@ -254,3 +254,86 @@ Full User at Rp50.000 means any gap in the restriction is a five-to-one arbitrag
 matters most is not that a My Work User can reach My Work; it is that a My Work User **cannot** reach
 what a Full User pays for, attempted by direct URL against every operational workspace. That is the
 same method the v2.84.0 plan matrix suite already uses, and it is the right precedent here.
+
+---
+
+# QA execution, v2.86.0, 2026-09-30
+
+Same environment as the v2.85.0 run. Everything below was executed.
+
+## Automated
+
+| Check | Result |
+|---|---|
+| Full suite | **733 passed, 3913 assertions, 0 failures** (692 before this work) |
+| New suite `UserClassAndPtwQuotaTest` | 40 passed, 136 assertions |
+| Public site suites | 48 passed, 759 assertions, including the em dash guard |
+| Production build | Clean |
+| ESLint | 0 errors, 4 pre-existing warnings in untouched files |
+| Migrations | Both applied, rolled back and re-applied against MySQL |
+
+## The publication gate, satisfied
+
+Every figure now published is enforced and asserted:
+
+- [x] Full User allowance per plan, counted and enforced separately
+- [x] My Work allowance per plan, counted and enforced separately
+- [x] A My Work User cannot reach what a Full User pays for, attempted by DIRECT URL against eight operational and administrative routes, with the strongest tenant role attached to prove the restriction is on the class and cannot be escaped with a role
+- [x] PTW creation blocked at zero, at the controller and again inside the creation transaction
+- [x] Included quota expires at the period boundary
+- [x] Purchased quota survives the boundary
+- [x] Top-up credited only by the verified payment path
+- [x] Prices recomputed server-side; the browser sends a pack key, never an amount
+
+## Behaviour verified
+
+| Rule | Evidence |
+|---|---|
+| Consumption order, included then purchased | The approved worked example reproduced exactly: 50 included plus 150 purchased, create 70, leaves 0 and 130 |
+| Included expires, purchased carries forward | 10 unused included expire at the boundary, a fresh 50 arrives, 130 purchased untouched |
+| Creation locked at zero, unlocked by a top-up | Asserted both directions |
+| Deleting a permit does not refund | Balance unchanged after delete; the consumption row survives the permit |
+| A permit consumes exactly once | Charged three times, spent one |
+| Annual is monthly, not a lump sum | Business annual shows 500 for the month, not 6000 |
+| Business annual gets 12 allocations, not 14 | Walked 14 monthly windows, 12 grants exist |
+| Granting the same window twice is a no-op | Three calls, one grant |
+| An unmetered plan is unmetered, not zero | `metered: false`, creation allowed, balance null |
+| Low balance flagged before exhaustion | Flips at the configured threshold |
+| Downgrade refused while it would strand My Work accounts | Business to Starter with 20 field accounts refused, naming the My Work reason |
+| Purchased packs count towards the target plan on downgrade | Same move with 2 packs allowed |
+| A user created without a class is a Full User | A My Work User is never produced by an omitted field |
+| Creating a My Work account checks the My Work pool | Full pool at its limit does not block it |
+| A top-up does not extend the subscription period | `ends_at` unchanged after a paid top-up |
+| A replayed payment notification credits once | Applied three times, credited once |
+| An ordinary member cannot buy quota | 403 |
+| A customer cannot set their own top-up price | Submitted amount ignored, config price used |
+| Renewal invoice itemises and the items sum to the total | Three lines, summing to `amount` |
+
+## Browser
+
+`/pricing` at 1440 and 375. All three cards render the new capacities, verified against the served Inertia props:
+
+| Plan | Full | My Work | PTW/month | Pack |
+|---|---|---|---|---|
+| Starter | 3 | 10 | 50 | Rp100.000 / 10 |
+| Professional | 10 | 30 | 200 | Rp100.000 / 10 |
+| Business | 25 | 50 | 500 | Rp100.000 / 10 |
+
+No horizontal overflow at 375. No console errors. All public routes 200. Em dash sweep across all 11 public pages, both literal and JSON-escaped: **0**.
+
+## Not verified
+
+- **Live payment for a top-up.** No transaction was executed against a provider. The credit path is asserted through `applyPaidInvoice()`, which is what the verified webhook calls, but no money moved.
+- **The authenticated quota page in a browser.** The development tenant is on Enterprise and therefore unmetered, so the metered states are covered by feature tests through real HTTP rather than visually. Switching a real tenant's plan to photograph a screen was judged a worse trade than testing it.
+- **Concurrency under real contention.** Consumption locks the grant rows `FOR UPDATE` and a permit can only consume once by unique index, both asserted logically; no parallel load test was run.
+- **Cross-browser and real devices.** Chromium and viewport emulation only.
+
+## Known limitations
+
+| Item | Status |
+|---|---|
+| Buying My Work packs from the UI | Not built. Capacity is stored, charged, enforced and honoured by downgrade safety; an operator sets the count. PTW top-ups are self-service because that is the limit a field team hits mid-shift |
+| Platform Admin per-tenant quota override | Not built. `subscriptions.seat_limit` is the precedent for how it should look |
+| Public top-up pack table on `/pricing` | Deliberately absent. The cards say extra documents are purchasable and do not expire, and the FAQ gives the entry price; the full table lives in-product |
+| QA-002, Ziggy route manifest | Still open, unchanged from v2.85.0 |
+| QA-003, "Enterprise Edition" edition string | Still open, owner decision |

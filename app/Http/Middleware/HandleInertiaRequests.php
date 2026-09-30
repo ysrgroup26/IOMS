@@ -440,7 +440,24 @@ class HandleInertiaRequests extends Middleware
             // WorkCenterService queries the full Work Center page uses,
             // just counted rather than shaped, so the badge can never
             // drift out of sync with what the page actually shows.
+            /*
+             * v2.86.0 -- PTW DOCUMENT QUOTA, VISIBLE BEFORE IT RUNS OUT.
+             *
+             * A closure, so it costs nothing on a request that does not
+             * render it, and null for a guest or an unmetered plan so a
+             * surface can tell "not metered" from "none left" -- which a
+             * zero could not express.
+             *
+             * Shared rather than passed per page because the approved model
+             * asks for the usage state to be visible on a core workspace
+             * surface, and there is more than one place a field supervisor
+             * might notice it.
+             */
+            'ptw_quota' => fn () => $user && $user->tenant
+                ? app(\App\Services\PtwQuotaService::class)->balance($user->tenant)
+                : null,
             'work_center' => fn () => [
+
                 'approvals_count' => $this->workCenter->pendingApprovalsFor($user)->count(),
                 'tasks_count' => $this->workCenter->myTasksFor($user)->count(),
                 'alerts_count' => $user ? $this->workCenter->ppeAlertCount() : 0,

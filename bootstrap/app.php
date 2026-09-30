@@ -9,6 +9,7 @@ use App\Http\Middleware\RequireOrganization;
 use App\Http\Middleware\ResolveTenant;
 use App\Http\Middleware\RestrictDemoTenant;
 use App\Http\Middleware\RestrictDepartmentAccess;
+use App\Http\Middleware\RestrictMyWorkUser;
 use App\Http\Middleware\RestrictPlatformAdminFromTenantRoutes;
 use App\Support\ErrorMessagePresenter;
 use Illuminate\Foundation\Application;
@@ -132,7 +133,22 @@ return Application::configure(basePath: dirname(__DIR__))
             // for the next. It grants nothing; see its own doc comment.
             RestrictDemoTenant::class,
             RestrictDepartmentAccess::class,
+            /*
+             * v2.86.0 -- LAST, AND DELIBERATELY SO.
+             *
+             * A My Work User is a restricted, cheaper billable class, and
+             * the restriction is what makes the price difference real. It
+             * runs after every other gate because it is the narrowest: a
+             * request that survives the tenant, subscription, demo and
+             * department checks may still be refused here purely because of
+             * who is asking.
+             *
+             * Placing it last also means it can never widen anything. It
+             * only ever refuses, and only ever for one class of account.
+             */
+            RestrictMyWorkUser::class,
             AddLinkHeadersForPreloadedAssets::class,
+
         ]);
 
         // Sanctum stateful API middleware for the 'web' group (SPA-style auth

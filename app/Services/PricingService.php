@@ -124,6 +124,17 @@ class PricingService
             // annual benefit is not derivable from the two prices.
             'included_users' => $package->includedUsers(),
             'additional_user' => $this->additionalUserPrice($package),
+            /*
+             * v2.86.0 -- THE SECOND USER CLASS AND THE PTW METER.
+             *
+             * Null on either means the plan states no ceiling, which is what
+             * Enterprise carries and what a surface must render as "no
+             * stated limit" rather than as zero.
+             */
+            'included_my_work_users' => $package->max_my_work_users === null ? null : (int) $package->max_my_work_users,
+            'my_work_pack' => $this->myWorkPackPrice($package),
+            'ptw_included_monthly' => $package->ptw_included_monthly === null ? null : (int) $package->ptw_included_monthly,
+
             'annual_terms' => $this->annualTerms($package),
             'max_companies' => $package->max_companies,
             // v2.53.0: `max_ptw_users` is no longer sent. PTW Access is not
@@ -165,7 +176,36 @@ class PricingService
      * different figure from the one the billing layer charges. Null for a
      * custom plan, which is negotiated as a whole.
      */
+    /**
+     * v2.86.0 -- what a pack of My Work capacity costs.
+     *
+     * Returns the SIZE alongside the price, because Rp100.000 without "per
+     * 10 users" reads as the price of one account, and the two add-ons are
+     * deliberately priced in different units.
+     */
+    private function myWorkPackPrice(Package $package): ?array
+    {
+        if ($package->is_custom) {
+            return null;
+        }
+
+        $price = (float) config('saas.my_work_pack_price', 0);
+        $size = (int) config('saas.my_work_pack_size', 10);
+
+        if ($price <= 0 || $size <= 0) {
+            return null;
+        }
+
+        return [
+            'amount' => $price,
+            'size' => $size,
+            'currency' => $package->currency,
+            'formatted' => $this->format($price, $package->currency),
+        ];
+    }
+
     private function additionalUserPrice(Package $package): ?array
+
     {
         if ($package->is_custom) {
             return null;

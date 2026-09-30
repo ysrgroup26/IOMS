@@ -119,6 +119,7 @@ class User extends Authenticatable implements MustVerifyEmail
         // migration doc comment.
         'ptw_access',
         'is_field_user',
+        'user_type',
 
         /*
          * v2.74.0. Needed by TenantProvisioningService (which marks a
@@ -766,6 +767,41 @@ class User extends Authenticatable implements MustVerifyEmail
     {
         return (bool) $this->is_field_user;
     }
+
+    /*
+    |--------------------------------------------------------------------
+    | v2.86.0 -- THE BILLABLE USER CLASS
+    |--------------------------------------------------------------------
+    | `user_type` and `is_field_user` answer two different questions and
+    | are deliberately NOT merged:
+    |
+    |   user_type      WHAT you may reach, and what you are billed as
+    |   is_field_user  WHERE you land after signing in
+    |
+    | Every account that existed before this release is `full`, because
+    | that is what it is: `is_field_user` never restricted anything, so
+    | treating it as the cheap class would have removed access customers
+    | already pay for. A My Work User is created deliberately from here on.
+    |
+    | A My Work User is a REAL restriction, enforced server-side by
+    | App\Http\Middleware\RestrictMyWorkUser, not by hiding menu items.
+    */
+    public const TYPE_FULL = 'full';
+
+    public const TYPE_MY_WORK = 'my_work';
+
+    public const TYPES = [self::TYPE_FULL, self::TYPE_MY_WORK];
+
+    public function isMyWorkUser(): bool
+    {
+        return $this->user_type === self::TYPE_MY_WORK;
+    }
+
+    public function isFullUser(): bool
+    {
+        return ! $this->isMyWorkUser();
+    }
+
 
     /**
      * The route this user should land on after signing in.

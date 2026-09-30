@@ -756,7 +756,40 @@ class SubscriptionController extends Controller
                 .'Nonaktifkan akun yang tidak terpakai, atau tambah kapasitas, sebelum berpindah paket.';
         }
 
+        /*
+         * v2.86.0 -- THE SAME SAFETY, FOR THE SECOND CLASS.
+         *
+         * My Work capacity is its own pool, so a downgrade has to be
+         * measured against it separately. Without this, a tenant on Business
+         * with 45 My Work accounts could move to Starter, whose allowance is
+         * 10, and thirty-five accounts would be over the limit the moment
+         * the change applied.
+         *
+         * Purchased packs count towards the target plan exactly as purchased
+         * Full Users do -- capacity the customer paid for is not discarded
+         * by a plan change, which is the v2.82.0 rule applied to the new
+         * pool rather than a second, different answer.
+         *
+         * Nothing is deactivated on the customer's behalf. They are told
+         * what to reduce.
+         */
+        $myWorkIncluded = $target->max_my_work_users === null ? null : (int) $target->max_my_work_users;
+        $myWorkSeats = $myWorkIncluded === null
+            ? null
+            : $myWorkIncluded + ($subscription?->additionalMyWorkUsers() ?? 0);
+
+        if ($myWorkSeats !== null && ($used = $entitlements->myWorkUsersUsedCount($tenant)) > $myWorkSeats) {
+            $purchased = $subscription?->additionalMyWorkUsers() ?? 0;
+            $capacity = $purchased > 0
+                ? "{$myWorkIncluded} My Work User termasuk paket ditambah {$purchased} tambahan ({$myWorkSeats} total)"
+                : "{$myWorkSeats} My Work User";
+
+            return "Paket {$target->name} mencakup {$capacity}, sedangkan organisasi Anda saat ini memiliki {$used} My Work User aktif. "
+                .'Nonaktifkan akun yang tidak terpakai, atau tambah kapasitas My Work, sebelum berpindah paket.';
+        }
+
         if ($units !== null && ($used = $entitlements->operatingUnitsUsedCount($tenant)) > $units) {
+
             return "Paket {$target->name} mencakup {$units} operating unit, sedangkan organisasi Anda saat ini memiliki {$used}. "
                 .'Kurangi jumlah operating unit terlebih dahulu sebelum berpindah paket.';
         }

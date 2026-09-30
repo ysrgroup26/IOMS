@@ -111,7 +111,7 @@ class SettingsController extends Controller
             // loading them through the scoped relation would hide the very
             // rows an administrator is trying to review.
             'users' => User::with(['roles:id,name', 'companies' => fn ($q) => $q->withoutGlobalScopes()->select('companies.id')])
-                ->where('tenant_id', $request->user()->tenant_id)->orderBy('name')->get(['id', 'name', 'email', 'role', 'department_key', 'is_active', 'ptw_access', 'is_field_user', 'last_login_at'])
+                ->where('tenant_id', $request->user()->tenant_id)->orderBy('name')->get(['id', 'name', 'email', 'role', 'department_key', 'is_active', 'ptw_access', 'is_field_user', 'user_type', 'last_login_at'])
                 ->map(fn (User $u) => [
                     ...$u->only(['id', 'name', 'email', 'role', 'department_key', 'is_active', 'ptw_access', 'is_field_user', 'last_login_at']),
                     'role_ids' => $u->roles->pluck('id'),
@@ -1060,9 +1060,20 @@ class SettingsController extends Controller
             // "Administrator: full Department Selector" -- this is purely
             // additive, no existing account's behavior changes.
             'department_key' => ['nullable', 'string', Rule::in($this->assignableDepartmentKeys())],
+            /*
+             * v2.86.0 -- WHICH BILLABLE CLASS THIS ACCOUNT IS.
+             *
+             * Defaults to `full` when the form does not send it, which keeps
+             * every existing caller and every existing test creating exactly
+             * what they created before. A My Work User is therefore always a
+             * deliberate choice, never something an omitted field produces.
+             */
+            'user_type' => ['nullable', 'string', Rule::in(User::TYPES)],
         ]);
 
+        $data['user_type'] = $data['user_type'] ?? User::TYPE_FULL;
         $data['password'] = Hash::make($data['password']);
+
         // Milestone 2 (Tenancy Foundation): every user created through this
         // form belongs to the same tenant as the admin creating them --
         // never leave tenant_id unset here, or the new account would
@@ -1084,11 +1095,23 @@ class SettingsController extends Controller
         $user = DB::transaction(function () use ($data, $tenant) {
             User::where('tenant_id', $tenant?->id)->lockForUpdate()->get();
 
+            /*
+             * v2.86.0 -- THE CLASS DECIDES WHICH POOL IS CHECKED.
+             *
+             * Full Users and My Work Users are counted and sold separately,
+             * so charging a My Work account against the Full allowance would
+             * both refuse a customer who has capacity and let them exceed
+             * the one they are actually consuming. The lock above still
+             * covers both, because both classes live in the same table.
+             */
             abort_unless(
-                app(EntitlementService::class)->canCreateUser($tenant),
+                app(EntitlementService::class)->canCreateUserOfType($tenant, $data['user_type']),
                 422,
-                'Kuota pengguna paket Anda telah tercapai. Hubungi administrator untuk menambah kapasitas.'
+                $data['user_type'] === User::TYPE_MY_WORK
+                    ? 'Kuota My Work User paket Anda telah tercapai. Tambah kapasitas My Work untuk menambah akun.'
+                    : 'Kuota pengguna paket Anda telah tercapai. Hubungi administrator untuk menambah kapasitas.'
             );
+
 
             return User::create($data);
         });

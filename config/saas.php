@@ -116,6 +116,51 @@ return [
     'additional_user_price' => (float) env('SAAS_ADDITIONAL_USER_PRICE', 50000),
 
     /*
+    |--------------------------------------------------------------------
+    | Additional My Work capacity, sold in PACKS (v2.86.0)
+    |--------------------------------------------------------------------
+    | Rp100.000 per pack of ten My Work users per month.
+    |
+    | Sold as a pack rather than per user on purpose, and the two add-ons
+    | are therefore priced in different units: a Full User is bought one at
+    | a time because each one is a named person with real authority, and My
+    | Work capacity is bought in tens because a crew arrives in tens. A
+    | surface quoting these must say the unit, or Rp100.000 reads as the
+    | price of one account.
+    */
+    'my_work_pack_size' => (int) env('SAAS_MY_WORK_PACK_SIZE', 10),
+    'my_work_pack_price' => (float) env('SAAS_MY_WORK_PACK_PRICE', 100000),
+
+    /*
+    |--------------------------------------------------------------------
+    | PTW top-up packs (v2.86.0)
+    |--------------------------------------------------------------------
+    | One-off purchases. Quota carries forward until consumed and is not
+    | refundable, so these are priced per document with a discount for
+    | volume: Rp1.000, Rp800, Rp600.
+    |
+    | Keyed by document count so a purchase request names a PACK rather than
+    | an amount. The browser sends the key; the price is read here. Nothing
+    | in the purchase path ever trusts an amount that arrived in a request,
+    | which is the same rule the subscription checkout already follows.
+    */
+    'ptw_topup_packs' => [
+        50 => ['documents' => 50, 'price' => 50000.0],
+        150 => ['documents' => 150, 'price' => 120000.0],
+        500 => ['documents' => 500, 'price' => 300000.0],
+    ],
+
+    /*
+    |--------------------------------------------------------------------
+    | When to warn a customer that PTW capacity is running low
+    |--------------------------------------------------------------------
+    | A fraction of the tenant's own total available quota. At or below
+    | this, surfaces show a warning rather than a plain figure.
+    */
+    'ptw_low_quota_threshold' => (float) env('SAAS_PTW_LOW_QUOTA_THRESHOLD', 0.2),
+
+
+    /*
     | How many days before a period ends the renewal invoice is issued --
     | the reminder the customer receives. SEVEN (H-7), decided alongside
     | the grace window above so the two numbers read as one policy: the

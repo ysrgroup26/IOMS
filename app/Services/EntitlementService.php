@@ -493,10 +493,81 @@ class EntitlementService
             return 0;
         }
 
+        /*
+         * v2.86.0 -- FULL USERS ONLY.
+         *
+         * This counted every active account, which was right while there
+         * was one class. There are two now, priced differently, and the
+         * approved model is explicit that a My Work User must not be
+         * counted against the Full User allowance.
+         *
+         * Scoped rather than renamed: every existing caller -- the seat
+         * gate, the downgrade check, Settings, Admin Space, the operator
+         * console -- is asking about the Full User pool, and all of them
+         * keep the right answer without being touched. The My Work pool
+         * has its own methods below.
+         */
         return User::where('tenant_id', $tenant->id)
             ->where('is_active', true)
+            ->where('user_type', User::TYPE_FULL)
             ->count();
     }
+
+    /** Active My Work accounts. The cheaper class's own pool. */
+    public function myWorkUsersUsedCount(?Tenant $tenant): int
+    {
+        if (! $tenant) {
+            return 0;
+        }
+
+        return User::where('tenant_id', $tenant->id)
+            ->where('is_active', true)
+            ->where('user_type', User::TYPE_MY_WORK)
+            ->count();
+    }
+
+    /** The My Work allowance plus purchased packs. Null means unlimited. */
+    public function myWorkSeatLimit(?Tenant $tenant): ?int
+    {
+        return $tenant?->subscription?->myWorkSeatLimit();
+    }
+
+    /** The plan's My Work allowance alone, before purchased packs. */
+    public function includedMyWorkAllowance(?Tenant $tenant): ?int
+    {
+        return $tenant?->subscription?->includedMyWorkUsers();
+    }
+
+    /** Purchased My Work capacity, expressed as users. */
+    public function additionalMyWorkUsersPurchased(?Tenant $tenant): int
+    {
+        return $tenant?->subscription?->additionalMyWorkUsers() ?? 0;
+    }
+
+    /** How many more My Work accounts may be activated. Null means unlimited. */
+    public function remainingMyWorkSlots(?Tenant $tenant): ?int
+    {
+        $limit = $this->myWorkSeatLimit($tenant);
+
+        return $limit === null ? null : max(0, $limit - $this->myWorkUsersUsedCount($tenant));
+    }
+
+    /**
+     * Server-side gate for creating or activating an account of a given
+     * class. The class decides which pool is checked, so one call site
+     * cannot accidentally charge a My Work account to the Full pool.
+     */
+    public function canCreateUserOfType(?Tenant $tenant, string $type): bool
+    {
+        if ($type === User::TYPE_MY_WORK) {
+            $limit = $this->myWorkSeatLimit($tenant);
+
+            return $limit === null || $this->myWorkUsersUsedCount($tenant) < $limit;
+        }
+
+        return $this->canCreateUser($tenant);
+    }
+
 
     /** The plan allowance alone, before anything the tenant purchased. */
     public function includedUserAllowance(?Tenant $tenant): ?int

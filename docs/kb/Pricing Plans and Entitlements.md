@@ -241,3 +241,35 @@ decisions, lives in `docs/IOMS Website Redesign/02 - Product & Pricing Truth.md`
 > `is_field_user` chooses a landing route and restricts nothing, so the cheaper class does not yet
 > exist as a distinct product. Publishing that price before the restriction is enforced is a
 > five-to-one arbitrage, not a rollout detail. This is blocking decision **D-1**, on [[Project Board]].
+
+---
+
+## IMPLEMENTED, v2.86.0, 2026-09-30
+
+The approved future model recorded above is now the live model. It is enforced server-side, verified
+and published.
+
+| Plan | Price/month | Full Users | My Work Users | PTW documents/month |
+|---|---|---|---|---|
+| Starter | Rp189.000 | 3 | 10 | 50 |
+| Professional | Rp555.000 | 10 | 30 | 200 |
+| Business | Rp1.249.000 | 25 | 50 | 500 |
+
+Additional Full User Rp50.000/user/month. Additional My Work capacity Rp100.000 per 10 users/month.
+PTW top-up packs: 50 for Rp50.000, 150 for Rp120.000, 500 for Rp300.000, non-refundable and carrying
+forward until consumed.
+
+Enterprise stays retired from sale and carries null on both new capacities, which already means "no
+stated ceiling" on this table. Its subscribers are unmetered and uncapped, unchanged.
+
+### The three facts most likely to be misremembered
+
+1. **`user_type` is the billable class. `is_field_user` is a landing preference.** They are separate
+   columns answering different questions, and merging them would demote every existing field account.
+2. **PTW quota is MONTHLY on every billing cycle.** An annual plan receives twelve allocations, one
+   per monthly window anchored to the subscription start day, never a lump sum. Business annual gets
+   fourteen months of platform ACCESS and twelve PTW allocations.
+3. **Included quota expires, purchased quota does not**, and they are two pools that are never added
+   together in storage. Consumption order is included first.
+
+Detail: `docs/IOMS Website Redesign/02 - Product & Pricing Truth.md` and `04 - Implementation Log.md`.

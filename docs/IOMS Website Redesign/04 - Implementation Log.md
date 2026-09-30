@@ -1,7 +1,7 @@
 ---
 title: IOMS Website Redesign - Implementation Log
 tags: [ioms, website-redesign, project-log]
-updated: 2026-09-29
+updated: 2026-09-30
 ---
 
 # Implementation Log
@@ -118,3 +118,182 @@ Additional user Rp50.000/user/month, one price on every tier. Enterprise is `is_
 - **Verification performed:** See `05 - QA & Verification.md`. Full suite 692 passed / 3813 assertions, 0 failures. Production build clean. ESLint 0 errors. Migration applied, rolled back and re-applied against MySQL. Every public route exercised in a real browser at desktop and mobile widths.
 - **Commit hash:** `2ed3ac9`, pushed to origin/main.
 - **Next action:** Owner decision on WEB-014. WEB-013 to be scheduled as its own change.
+
+## 2026-09-30 - New approved direction: metered PTW and a second user class
+
+- **Phase:** New scope, approved. **No implementation performed. No application code changed.** This
+  entry records the decision and the architectural audit that must precede any coding.
+- **Work completed:** Read the approved model, audited the existing architecture against it, and
+  recorded the required work, the conflicts and the open decisions. The model itself is in
+  `02 - Product & Pricing Truth.md`.
+
+### The decision
+
+Two billable user classes (Full User, My Work User) plus a metered PTW document quota with two
+pools, included-and-expiring and purchased-and-carrying-forward. Plan prices and workspace scope are
+unchanged. See `02 - Product & Pricing Truth.md` for the figures.
+
+---
+
+### Conflicts with the existing system
+
+These are **documented deliberate decisions the new model reverses**, recorded rather than quietly
+overwritten, as the approved direction requires.
+
+#### C-1. v2.53.0 retired a second seat pool on purpose. This reintroduces one.
+
+`EntitlementService::ptwUserQuota()` still carries its own reasoning:
+
+> "PTW Access used to be a second seat pool alongside `max_users`, which made every plan card read as
+> two numbers a buyer had to reconcile. Capacity is now expressed as TOTAL USERS."
+
+The approved model puts two user numbers back on every plan card, plus a third figure for PTW
+documents. The commercial decision is the owner's to make; what must not happen is making it without
+noticing it was already made the other way. The pricing page will need to present three numbers per
+tier without becoming the reconciliation exercise v2.53.0 removed.
+
+#### C-2. `is_field_user` is a landing preference, not a restricted account. **This is the blocker.**
+
+`SettingsController::updateFieldAccess()` states it outright:
+
+> "`is_field_user` -> which WORKSPACE you land in (My Work vs Dashboard) ... It therefore consumes NO
+> quota and grants NO capability."
+
+A "My Work User" **does not exist today as a restricted account**. The flag chooses a landing route
+and nothing else; the account retains whatever its role and department grant. There is no reduced
+permission set, no data restriction, no narrower session.
+
+The commercial consequence is direct. A My Work User costs Rp10.000 per user per month
+(Rp100.000 per pack of 10); a Full User costs Rp50.000. If the two classes are not genuinely
+different in what they can do, a tenant buys My Work packs and receives Full User capability at a
+fifth of the price. **Selling the cheaper class before the restriction exists is revenue leakage by
+construction, not a rollout detail.**
+
+Defining what a My Work User may actually do is therefore a prerequisite for the entire model, not a
+later refinement. It is the largest single piece of work identified here.
+
+#### C-3. User counting is one pool and does not know about types.
+
+`EntitlementService::usersUsedCount()` counts every active account in the tenant. Under the new
+model a My Work User would consume Full User allowance. Splitting it touches the seat check, the
+Settings capacity panel, Admin Space, the Platform Admin tenant list and the downgrade-safety rule
+that refuses a plan change which would strand active accounts, which now has to be evaluated per
+class.
+
+#### C-4. `ptw_access` is documented and published as free.
+
+It is a permission, granted by HSE to an existing account, costing nothing. The public FAQ shipped in
+v2.85.0 says so explicitly. The new model does not change the permission, but it makes the action it
+authorizes consume a purchasable resource, so both the internal semantics and the published copy
+need revising **in the release that enforces it, not before**.
+
+#### C-5. `ptwUserQuota()` fails open, and a metered resource must not.
+
+It returns `null` (no ceiling) for an unconfigured tenant, deliberately, following the v2.13.0
+fail-open principle that makes entitlement safe to switch on. That is right for **access** and wrong
+for a **meter**: failing open on a metered, billable resource means unlimited free consumption. A PTW
+quota check must fail in a defined, non-free direction, and must not be built by extending this
+method's semantics.
+
+#### C-6. `packages.max_ptw_users` still exists, with the wrong meaning.
+
+The column survives (`2026_09_19_100240_retire_ptw_seat_entitlement.php` retired the behaviour, not
+the column). Its old meaning is **PTW-enabled seats**, which is not My Work Users and not PTW
+documents. Reusing it because it is conveniently present would put a third meaning on a column that
+already had two. Either drop it or leave it dead; do not repurpose it.
+
+#### C-7. Invoices have a single amount and no line items.
+
+`invoices` carries one `amount` column. The current add-on model folds the additional-user charge
+into the renewal total via `Subscription::additionalUserCharge()`. The new model adds a recurring My
+Work pack charge **and** a one-off top-up purchase. A customer who buys a top-up and later disputes
+an invoice has no itemisation to read. Whether to introduce invoice line items is an architectural
+decision with a blast radius beyond this feature.
+
+#### C-8. `Invoice::PURPOSES` has no concept of a one-off purchase.
+
+The enum is `onboarding`, `renewal`, `plan_change`. Every one is tied to a subscription period. A PTW
+top-up is a one-off purchase that grants a durable, carry-forward resource and belongs to no period.
+
+#### C-9. Only a verified payment webhook may grant anything.
+
+This is a standing and correct constraint: `PaymentWebhookController` is the only route in IOMS
+permitted to settle an invoice or activate a tenant, and reaching a confirmation page grants nothing.
+Top-up quota must be credited on the verified webhook and nowhere else. This is a constraint to
+preserve, not a conflict, but it is the single easiest thing to get wrong in a purchase flow.
+
+#### C-10. The Sandbox and the demo seeder create PTWs.
+
+`DemoTenantSeeder` creates permits directly, and the public Sandbox is a real signed-in session. A
+demonstration must not consume a real tenant's quota, and the Sandbox must not be a way to observe
+quota exhaustion in a product tour.
+
+---
+
+### Implementation work identified
+
+Nothing below has been started.
+
+**Plans and catalogue**
+1. Represent three capacities per plan: Full Users, My Work Users, included PTW documents. Decide between new `packages` columns and `config/plans.php`, following the existing split where what a plan **costs** is the table and what it **grants** is config.
+2. Extend `tests/Support/ApprovedCatalogue.php` with the new figures. It is transcribed from the commercial decision on purpose and is the assertion the catalogue is measured against.
+3. Price the two add-ons: the recurring My Work pack and the three one-off PTW packs.
+
+**User classes**
+4. Define what a My Work User may actually do. See C-2. This gates everything else.
+5. Introduce an account class and migrate existing accounts into it, deciding what an existing `is_field_user` account becomes.
+6. Split user counting, the seat check, remaining-slots and downgrade safety per class.
+7. Update every surface that shows capacity: Settings, Admin Space, Platform Admin, Billing.
+
+**PTW metering**
+8. A quota ledger that keeps included and purchased balances distinct, with consumption order defined (see D-3).
+9. Consume on PTW creation, at the one real creation path (`PermitToWorkController::store()`), with row-level locking against concurrent creation. Precedent exists: `canEnablePtwAccess()` already uses a row-locking transaction.
+10. Block creation when exhausted: the controller gate, `StorePermitToWorkRequest::authorize()`, the My Work tile and the Create button, with an explanatory state rather than a 403.
+11. Expire included quota at the period boundary and carry purchased quota forward, in `RunSubscriptionLifecycle` / `SubscriptionLifecycleService`.
+12. Exclude the Sandbox and demo seeding from real consumption.
+
+**Billing and purchasing**
+13. A purchase flow for PTW packs and My Work packs, reusing the existing invoice and webhook path.
+14. A new invoice purpose for one-off purchases, and a decision on line items (C-7, C-8).
+15. Credit purchased quota only on the verified webhook (C-9).
+16. Include the recurring My Work pack charge in renewal totals alongside the existing additional-user charge.
+
+**Visibility**
+17. Customer-facing quota display: remaining included, remaining purchased, period end, and how to buy more.
+18. Platform Admin visibility and a per-tenant override, matching the existing `subscriptions.seat_limit` override precedent.
+19. Reporting on PTW consumption.
+
+**Website and copy**
+20. Rework the pricing cards to carry three figures per tier without becoming a reconciliation exercise (C-1).
+21. Add top-up pack pricing to the public site.
+22. Rewrite the two FAQ answers that will become false (C-4), in the same release.
+23. Re-run the full v2.85.0 verification set: em dash sweep in both encodings, retired-concept sweep, responsive checks.
+
+**Tests**
+24. Server-side enforcement tests for both user classes and the PTW meter, to satisfy this project's own publication gate before any figure is published.
+25. Boundary tests: exhaustion, period rollover, carry-forward, concurrent creation, downgrade with active accounts of both classes.
+26. A test asserting included quota expires and purchased quota does not.
+
+---
+
+### Open decisions required before coding
+
+| ID | Question | Why it blocks |
+|---|---|---|
+| **D-1** | What can a My Work User actually **not** do? | C-2. Without a real restriction the cheaper class is a discount on the same product. Everything else depends on this answer. |
+| **D-2** | What is a "billing period" for PTW quota on an **annual** plan? | Annual Starter: 50 per month for 12 months, or 600 once for the year? The two behave differently at every boundary and give different revenue. |
+| **D-3** | Which pool is consumed first, included or purchased? | Consuming included first maximises carry-forward value to the customer; consuming purchased first maximises expiry. This is a commercial choice and must be explicit, not emergent. |
+| **D-4** | Business annual grants **14 months of service for 12 paid**. How many PTW allocations? | 12 or 14. The existing annual-terms model already treats this tier as a special case. |
+| **D-5** | Does quota reset during **grace**, and what happens while **lapsed**? | The v2.70.0 lifecycle already pauses new records when lapsed, which may make PTW blocking redundant in that state. Grace is undecided. |
+| **D-6** | What counts as "newly created"? Does a deleted or rejected draft refund a document? | Determines whether consumption is at draft creation or at submission, and whether a refund path exists at all. |
+| **D-7** | What do **existing tenants** receive at migration, including Enterprise, which has null capacities? | Existing subscribers must not be worse off without a decision. Enterprise has no stated ceiling today. |
+| **D-8** | Does the My Work pack quantity behave like `additional_users`, surviving a plan change? | v2.82.0 decided purchased capacity belongs to the subscription and survives a plan change. Consistency suggests yes; it should be stated. |
+| **D-9** | Is unused purchased quota refundable, and does it survive cancellation? | Carry-forward "until consumed" does not say what happens when the subscription ends. |
+
+---
+
+- **Files changed:** Documentation only. `02 - Product & Pricing Truth.md`, `03 - Website IA & Content.md`, `04 - Implementation Log.md` (this entry), `05 - QA & Verification.md`, `00 - Master Brief.md`.
+- **Verification performed:** Architectural audit by reading source: `EntitlementService`, `Subscription`, `Invoice`, `User`, `PermitToWorkController`, `StorePermitToWorkRequest`, `SettingsController`, `SubscriptionLifecycleService`, `RunSubscriptionLifecycle`, `config/plans.php`, the packages schema and the migration history. Confirmed by direct schema inspection that `packages.max_ptw_users` still exists, and by grep that `PermitToWorkController::store()` is the only application PTW creation path. **No tests were run and no code was changed, because nothing was implemented.**
+- **Issues discovered:** C-1 through C-10 above; open decisions D-1 through D-9.
+- **Commit hash:** documentation only.
+- **Next action:** Owner answers D-1 first. It is the prerequisite for the rest, and answering it late would invalidate work built on an assumed answer.

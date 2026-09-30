@@ -2,7 +2,7 @@
 title: IOMS Website Redesign - Master Brief
 tags: [ioms, website-redesign, source-of-truth]
 updated: 2026-09-30
-status: complete
+status: redesign-complete; new-scope-approved-pending
 ---
 
 # IOMS Website Redesign
@@ -122,3 +122,58 @@ After every meaningful change, update 04 - Implementation Log.md and 05 - QA & V
 **Not verified, stated plainly:** live payment execution, renewal across a real period boundary, the authenticated UI visually, non-Chromium browsers, and real mobile hardware. See `05 - QA & Verification.md`.
 
 **Next action:** Owner review of WEB-014. Schedule WEB-013 separately.
+
+---
+
+# Scope addition, 2026-09-30: metered PTW and a second user class
+
+**Approved product direction. Not implemented. Not published.**
+
+The website redesign (v2.85.0) is complete and shipped. This is **additional approved scope** for the
+IOMS product and, consequently, for the website.
+
+## What was approved
+
+Two billable user classes, Full User and My Work User, counted separately, and a metered PTW document
+quota with two pools: an included monthly allowance that expires at the period boundary, and purchased
+top-up quota that carries forward until consumed. Plan prices and workspace scope are unchanged.
+Enterprise stays retired from public sale.
+
+Figures: `02 - Product & Pricing Truth.md`.
+Work, conflicts and open decisions: `04 - Implementation Log.md`.
+Website consequences: `03 - Website IA & Content.md`.
+Verification required before publication: `05 - QA & Verification.md`.
+
+## Status
+
+| | |
+|---|---|
+| Product direction | Approved |
+| Implementation | Not started. No application code changed |
+| Publication | Blocked by the existing publication gate until enforcement exists and is verified |
+| Blocking decision | **D-1**, what a My Work User may actually not do |
+
+## Why this is recorded as a reversal, not an update
+
+Two decisions in the current system were taken deliberately and are reversed by this direction:
+v2.53.0 retired a second seat pool because two capacity numbers made a plan card a reconciliation
+exercise, and v2.82.0 defined a user as one active login account of any kind. Both are documented
+with their reasoning in the code itself. The new direction is the owner's to take; recording it as a
+reversal keeps the original reasoning available to whoever implements it, so the problems those
+decisions solved are re-solved rather than rediscovered.
+
+## The non-negotiables above still apply
+
+Unchanged: public claims may not exceed server-side entitlement; no figure is published before its
+enforcement is verified; the four operational workspaces are the four named; Admin Space is not an
+operational workspace; Global Dashboard is Business only; no em dash in website copy; nothing invented.
+
+One of them now carries more weight than the rest. The approved model prices a restricted account at
+one fifth of a full one, so **the restriction is the product**. Publishing that price before the
+restriction is enforced would be the same class of defect as the capacity claim v2.85.0 corrected,
+with a direct revenue consequence rather than a credibility one.
+
+## Next action
+
+Owner answers **D-1**. Everything else is designable once that is settled, and building on an assumed
+answer would have to be redone.

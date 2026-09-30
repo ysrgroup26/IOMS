@@ -1,8 +1,8 @@
 ---
 title: IOMS Website Redesign - QA and Verification
 tags: [ioms, website-redesign, qa]
-updated: 2026-09-29
-status: not-started
+updated: 2026-09-30
+status: v2.85.0-verified; new-scope-pending
 ---
 
 # QA & Verification
@@ -183,3 +183,74 @@ Stated plainly rather than implied:
 | 2026-09-30 | 10 | Build and lint | Clean, 0 errors | None |
 | 2026-09-30 | 10 | Migration up, down, up | Succeeded against MySQL | None |
 | 2026-09-30 | 11 | Browser, desktop and mobile | No overflow, no console errors, all routes 200 | None |
+
+---
+
+# Pending verification: metered PTW and the second user class
+
+**Approved 2026-09-30. NOT IMPLEMENTED, therefore NOTHING BELOW HAS BEEN RUN.** This is the check
+list the future implementation must satisfy, recorded now so it is not assembled from memory later.
+
+## The publication gate applies in full
+
+No figure from the new model may appear on the public website until its server-side enforcement
+exists and a passing test demonstrates it. v2.85.0 exists because that gate was not applied to the
+user allowance, and the site advertised capacities the billing layer did not enforce.
+
+Specifically required before publication:
+
+- [ ] Full User allowance enforced server-side, per class
+- [ ] My Work User allowance enforced server-side, per class
+- [ ] A My Work User genuinely cannot do what a Full User can, asserted by test, not by configuration
+- [ ] PTW creation blocked at zero quota, at the controller **and** the form request
+- [ ] Included quota expires at the period boundary
+- [ ] Purchased quota does not expire
+- [ ] Top-up quota credited only by the verified payment webhook
+- [ ] Prices recomputed server-side; the browser sends a pack choice, never an amount
+
+## Functional checks
+
+- [ ] PTW creation decrements exactly one document, from the pool defined by **D-3**
+- [ ] Concurrent creation cannot double-spend the last document, tested under contention
+- [ ] At zero: My Work still opens, assigned work still workable, existing permits readable and
+      exportable, only new creation blocked
+- [ ] The block is an explanatory state with a route to upgrade or top up, not a bare 403
+- [ ] Sandbox and demo seeding consume no real quota
+- [ ] Deactivating an account frees capacity in the correct class
+- [ ] Downgrade refused when it would strand active accounts **of either class**
+
+## Boundary checks
+
+- [ ] Period rollover: included resets, purchased survives
+- [ ] Annual plans behave per the answer to **D-2**
+- [ ] Business annual behaves per **D-4**
+- [ ] Grace and lapsed behave per **D-5**
+- [ ] Plan change carries purchased quota and pack quantities per **D-8**
+- [ ] Cancellation behaves per **D-9**
+- [ ] Existing tenants migrated per **D-7**, and no existing subscriber is left worse off unnoticed
+
+## Billing checks
+
+- [ ] Renewal total includes the recurring My Work pack charge beside the additional-user charge
+- [ ] A one-off top-up invoice is not mistaken for a renewal by the lifecycle job
+- [ ] A paid invoice is never rewritten by a later price change, the existing v2.82.0 guarantee
+- [ ] Platform Admin override behaves like the existing `subscriptions.seat_limit` override
+
+## Website checks, on the release that publishes it
+
+- [ ] Every published figure matches `ApprovedCatalogue` and enforcement
+- [ ] Three capacities per tier are legible without reconciliation
+- [ ] Both add-ons named with correct prices and units
+- [ ] Included versus purchased quota explained in plain terms
+- [ ] Em dash sweep, literal **and** JSON-escaped, across all public pages
+- [ ] Retired-concept sweep
+- [ ] Desktop and mobile, no horizontal overflow
+- [ ] The two FAQ answers that become false are corrected in the same release
+
+## Known risk to verify against
+
+The cheaper class is the one to watch. A My Work User at an effective Rp10.000 per month beside a
+Full User at Rp50.000 means any gap in the restriction is a five-to-one arbitrage. The test that
+matters most is not that a My Work User can reach My Work; it is that a My Work User **cannot** reach
+what a Full User pays for, attempted by direct URL against every operational workspace. That is the
+same method the v2.84.0 plan matrix suite already uses, and it is the right precedent here.

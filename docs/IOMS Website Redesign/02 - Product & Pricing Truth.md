@@ -2,7 +2,7 @@
 title: IOMS Website Redesign - Product and Pricing Truth
 tags: [ioms, product-truth, pricing]
 updated: 2026-09-30
-status: verified
+status: verified-current-model; approved-future-model-pending
 ---
 
 # Product & Pricing Truth
@@ -95,3 +95,103 @@ This document previously listed "Warehouse Logistics" among the four workspaces 
 
 - Enterprise pricing and scope. Retired from sale; still shown to its existing subscribers on their own Billing pages, which is why its description was corrected rather than deleted.
 - The software edition string "Enterprise Edition" in `config/ioms.php` names the build, not the plan. It is serialized in props but never rendered. Flagged as WEB-014 for an owner decision.
+
+---
+
+# APPROVED FUTURE MODEL: metered PTW and a second user class
+
+**Approved 2026-09-30. NOT IMPLEMENTED. NOT PUBLISHED.**
+
+> [!warning] This section describes a model the code does not yet enforce
+> Everything above this heading is the **current, enforced, published** truth. Everything below is
+> **approved product direction awaiting implementation**.
+>
+> The publication gate in this document applies unchanged: a price, capacity or quota claim may not
+> appear on the public website until its server-side enforcement exists and is verified. Publishing
+> the figures below before then would recreate exactly the defect v2.85.0 was written to fix, where
+> the FAQ advertised capacities the billing layer did not enforce.
+
+## The approved model
+
+| Plan | Price/month | Full Users | My Work Users | Included PTW documents per billing period | Workspaces |
+|---|---|---|---|---|---|
+| Starter | Rp189.000 | 3 | 10 | 50 | HSE |
+| Professional | Rp555.000 | 10 | 30 | 200 | HSE + People / HRD |
+| Business | Rp1.249.000 | 25 | 50 | 500 | HSE + People / HRD + Warehouse Logistics + Management + Global Company Dashboard |
+
+Enterprise remains retired from public sale and public pricing. Plan prices and workspace scope are
+unchanged from the current enforced model; what is new is the second user class and the PTW meter.
+
+## User types
+
+**Full User.** A normal IOMS account using the workspaces its plan and role authorize. Additional
+Full Users remain **Rp50.000 per user per month**, unchanged.
+
+**My Work User.** A restricted field or operational account, intended for My Work and PTW-related
+field activity. Counted **separately** from Full Users. Additional capacity is sold in **packs of 10
+at Rp100.000 per pack per month**, a recurring charge.
+
+## PTW document metering
+
+Each newly created PTW consumes one PTW document from available quota.
+
+Two pools, which must remain distinguishable:
+
+| Pool | Source | Expiry |
+|---|---|---|
+| Included monthly quota | The plan (50 / 200 / 500) | **Expires** at the end of the applicable billing period |
+| Purchased quota | Top-up packs | **Carries forward** across billing periods until consumed |
+
+> [!important] One counter is not acceptable
+> The approved direction states explicitly that the implementation must be able to distinguish
+> included monthly quota from purchased carry-forward quota. Collapsing them into a single remaining
+> figure loses the expiry rule and cannot be reconstructed afterwards.
+
+## PTW top-up packs
+
+| Pack | Price | Effective per document |
+|---|---|---|
+| 50 PTW | Rp50.000 | Rp1.000 |
+| 150 PTW | Rp120.000 | Rp800 |
+| 500 PTW | Rp300.000 | Rp600 |
+
+One-off purchases, not recurring. Quota carries forward until consumed.
+
+## Behaviour when PTW quota is exhausted
+
+- Creating a **new** PTW becomes unavailable and locked.
+- My Work remains accessible.
+- Existing assigned work remains accessible and workable.
+- The customer can upgrade the subscription or purchase additional PTW quota.
+
+Existing operational work is **never** locked merely because new-PTW creation quota is exhausted.
+This is consistent with the v2.70.0 lifecycle principle already in force: expiry pauses new records
+and never withholds what is already recorded.
+
+## What this model changes about IOMS's own definitions
+
+| Concept | Current enforced meaning | Meaning under the approved model |
+|---|---|---|
+| A "user" | One active login account, any kind. `EntitlementService::usersUsedCount()` counts them all | Two billable classes counted separately |
+| `is_field_user` | A **landing preference**. Chooses My Work over Dashboard. Grants nothing, consumes no quota | Becomes, or is replaced by, a **billable account class** |
+| `ptw_access` | A free permission to create a PTW. Costs nothing, is not capacity | Still gates authorization, but creation additionally consumes a metered, purchasable resource |
+| Plan capacity | One number, total users | Two user numbers plus a document meter |
+
+These are reversals of decisions taken deliberately in v2.53.0 and v2.82.0, not oversights. They are
+recorded as reversals in `04 - Implementation Log.md` so the reasoning that produced the current
+shape is not lost.
+
+## Currently published copy that will contradict this model
+
+The public FAQ, shipped in v2.85.0 and correct today, says:
+
+> "PTW Access is a permission granted to specific accounts so they can raise a Permit To Work. It is
+> not sold capacity and carries no extra charge."
+
+and
+
+> "Every plan carries an allowance of included active users: 3 on Starter, 10 on Professional, 25 on
+> Business ... Additional active users are Rp50.000 per user per month on every plan."
+
+Both are accurate against the enforced system today and both become wrong the day the new model
+ships. They must change **in the same release that enforces it**, never before.

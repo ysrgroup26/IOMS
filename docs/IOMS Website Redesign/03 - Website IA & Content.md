@@ -2,7 +2,7 @@
 title: IOMS Website Redesign - Website IA and Content
 tags: [ioms, website-redesign, content]
 updated: 2026-09-30
-status: built
+status: built; new-scope-approved-pending
 ---
 
 # Website IA & Content
@@ -121,3 +121,47 @@ This is a deliberate exception to the `CLAUDE.md` language hierarchy, which gove
 ## Visual direction, as built
 
 Left-aligned editorial composition on a shared margin. Archivo for display, IBM Plex Mono for instrument labels, Inter for body and all authenticated UI. Navy, steel, brand and graphite are unchanged: the existing IOMS colour language was the foundation, as the brief required. Product UI appears as evidence in the showcase and the domain stories, never as the hero. No neon, no decorative 3D, no gradient beyond the existing single steel bloom, no animation without a job.
+
+---
+
+# Pending: website changes for the metered PTW model
+
+**Approved 2026-09-30. NOT IMPLEMENTED.** The public site currently describes the enforced model and
+is correct. Nothing below may ship before the enforcement it describes exists.
+
+## The presentation problem to solve
+
+A plan card carries **one** capacity figure today. The approved model gives it **three**: Full Users,
+My Work Users, and included PTW documents per period. Plus two add-on prices, one recurring and one
+one-off, in three pack sizes.
+
+v2.53.0 collapsed a two-number card specifically because it "made every plan card read as two numbers
+a buyer had to reconcile". Going to three without recreating that problem is a real design task, not
+a matter of adding rows. Likely direction, to be decided when it is built: capacity belongs in a
+comparison table rather than on the card, with the card carrying the price, the positioning line and
+the workspace scope it carries now.
+
+## Copy that must change in the same release
+
+| Surface | Current, correct today | Becomes |
+|---|---|---|
+| FAQ, "How are users counted?" | One allowance of active users, Rp50.000 per additional | Two classes counted separately, two add-on prices |
+| FAQ, "What is PTW Access?" | "It is not sold capacity and carries no extra charge" | Still a free permission, but creation consumes a metered document |
+| Landing pricing section | "Additional active users are Rp50.000 per user per month on every plan" | Must name both add-ons |
+| `/pricing` capacity line | "N active users included" | Two figures plus the PTW allowance |
+| `config/seo.php` pricing description | "additional users priced per user" | Must not imply one add-on |
+
+## New copy required
+
+- What a My Work User is and cannot do. Unwritable until **D-1** is answered.
+- What consumes a PTW document, and what happens at zero.
+- The difference between included quota, which expires, and purchased quota, which does not. This
+  distinction is the most likely thing for a buyer to misunderstand and the most likely thing to
+  generate a billing dispute, so it needs plain, concrete wording rather than a footnote.
+- Top-up pack pricing.
+
+## Constraints that still apply
+
+Everything in the v2.85.0 rules stays in force for the new copy: no em dash in either encoding, only
+the four operational workspaces named, Admin Space never presented as operational, Global Dashboard
+Business only, English on the public site, and no figure published before its enforcement is verified.

@@ -1,7 +1,7 @@
 ---
 title: Project Board
 type: board
-updated: 2026-09-28
+updated: 2026-09-30
 tags: [kb/board]
 ---
 
@@ -45,6 +45,7 @@ Full definitions and the update loop: [[Working with This Knowledge Base]].
 
 | Work | Blocked on | Who can unblock |
 |---|---|---|
+| Metered PTW and the My Work user class | **D-1: what a My Work User may actually NOT do.** `is_field_user` is a landing preference today that grants nothing and restricts nothing, so the class being sold at one fifth of a Full User does not yet exist as a restricted account. Every other part of the model can be designed once that is answered; building on an assumed answer would have to be redone | Owner |
 | [[iPaymu Payment Provider]] — the adapter itself | Sandbox credentials and the **current official** iPaymu API documentation: the signature scheme, the callback payload and the status vocabulary. Neither exists in this environment, and writing them from memory would produce code that looks finished and fails on first contact | Owner |
 | [[Support Inbox]] — inbound mail ingestion only | How mail for `support@iomsuite.com` reaches the application: IMAP polling, an inbound-mail webhook (Mailgun / Postmark / SES), or forwarding to an application address. The answer decides the whole ingestion design; everything downstream of it is already built | Owner |
 

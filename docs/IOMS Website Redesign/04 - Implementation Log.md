@@ -434,5 +434,5 @@ Each takes `{ src, alt }` on its `domainStories.js` entry and needs no code chan
 
 - **Files changed:** `resources/js/Components/public/PermitArtifact.jsx` (new), `Pages/Public/Welcome.jsx`, `Components/public/StorySection.jsx`, `tailwind.config.js`, `database/seeders/PackageSeeder.php`, `tests/Feature/LandingPositioningTest.php`.
 - **Verification performed:** See `05 - QA & Verification.md`. 735 tests / 3920 assertions, 0 failures. Clean build, ESLint 0 errors. Desktop 1440 and mobile 375 exercised in a real browser.
-- **Commit hash:** recorded on commit.
+- **Commit hash:** `4951de5`, pushed to origin/main.
 - **Next action:** Owner decision on photography. Nothing else is blocking.

@@ -1,8 +1,8 @@
 ---
 title: IOMS Website Redesign - Product and Pricing Truth
 tags: [ioms, product-truth, pricing]
-updated: 2026-09-30
-status: verified-current-model; approved-future-model-pending
+updated: 2026-10-01
+status: verified; model implemented in v2.86.0
 ---
 
 # Product & Pricing Truth

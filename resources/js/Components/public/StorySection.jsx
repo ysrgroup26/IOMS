@@ -44,8 +44,11 @@ export default function StorySection({ eyebrow, title, children, icon, items = [
             </div>
 
             <div className={cn('min-w-0', reverse && 'lg:order-1')}>
-                <p className="text-xs font-semibold uppercase tracking-[0.18em] text-brand-700">{eyebrow}</p>
-                <h3 className="mt-3 text-xl font-semibold tracking-tight text-graphite-900 sm:text-2xl">{title}</h3>
+                {/* v2.87.0: the eyebrow was printed twice, once here and
+                    once inside StoryVisual beside the icon. One is enough,
+                    and the one attached to the visual is the one that labels
+                    something. The heading now opens the column. */}
+                <h3 className="font-display text-xl font-semibold tracking-tight text-graphite-900 sm:text-2xl">{title}</h3>
                 <div className="mt-3 text-[15px] leading-relaxed text-graphite-600">{children}</div>
 
                 {cta && <StoryLink {...cta} />}

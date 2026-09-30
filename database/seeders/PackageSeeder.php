@@ -188,7 +188,25 @@ class PackageSeeder extends Seeder
                 'max_users' => null,
                 'max_companies' => null,
                 'max_ptw_users' => null,
-                'is_public' => true,
+                /*
+                 * v2.87.0 -- RETIRED FROM SALE, AND THE SEEDER NOW SAYS SO.
+                 *
+                 * This was `true`, while the migration that narrowed the
+                 * catalogue to three tiers sets it to `false`. Migrations run
+                 * BEFORE seeders, so on a fresh install or any re-seed the
+                 * seeder put Enterprise back on the PUBLIC pricing page at
+                 * Rp2.499.000: a plan nobody can buy, advertised beside the
+                 * three that can be, contradicting the approved model.
+                 *
+                 * Found because a new test asserted the pricing grid has a
+                 * column for every public plan and reported four plans where
+                 * the catalogue sells three.
+                 *
+                 * The row itself stays. Tenants are still subscribed to
+                 * Enterprise and deleting it would orphan live subscriptions.
+                 * Retired means not for sale, not gone.
+                 */
+                'is_public' => false,
                 // v2.50.0: was `is_custom => true`, which rendered Enterprise
                 // as "Hubungi Kami" with no price. Enterprise is the most
                 // complete STANDARDIZED tier, not a negotiated custom build.

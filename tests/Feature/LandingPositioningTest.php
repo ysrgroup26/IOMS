@@ -86,6 +86,78 @@ class LandingPositioningTest extends TestCase
      * character appears as the escape sequence —, which is exactly how
      * the database descriptions evaded the first sweep.
      */
+    /**
+     * v2.87.0 -- THE PRICING GRID HAS AS MANY COLUMNS AS THERE ARE PLANS.
+     *
+     * This is written because the page shipped for five releases with
+     * `xl:grid-cols-4` after the catalogue narrowed to three tiers in
+     * v2.82.0. At wide viewports the row laid out four columns for three
+     * cards and left an empty cell on the right, which is why the section
+     * read as left-weighted rather than centred. Nothing failed: the markup
+     * was valid, the plans were correct, and the only symptom was a
+     * composition nobody could name.
+     *
+     * Asserted against the markup rather than a screenshot, because the
+     * defect is a constant in the class list that outlived the catalogue it
+     * was written for.
+     */
+    public function test_the_pricing_grid_has_a_column_for_every_public_plan(): void
+    {
+        $this->seed(\Database\Seeders\PackageSeeder::class);
+
+        $planCount = app(\App\Services\PricingService::class)->publicPlans()->count();
+        $welcome = $this->source('Pages/Public/Welcome.jsx');
+
+        $this->assertSame(3, $planCount, 'The public catalogue is no longer three tiers; this test and the grid both need revisiting.');
+
+        // Scoped to the grid that actually holds the plan cards. The page has
+        // other grids, including a twelve-column one in the hero, and a check
+        // that counted those would be measuring the wrong thing.
+        $pricingBlock = substr($welcome, (int) strpos($welcome, 'function Pricing('));
+        $cardGrid = substr($pricingBlock, 0, (int) strpos($pricingBlock, '{plans.map('));
+
+        preg_match_all('/(?:md|lg|xl):grid-cols-(\d+)/', $cardGrid, $matches);
+        $columnCounts = array_map('intval', $matches[1] ?? []);
+
+        $this->assertNotEmpty($columnCounts, 'The pricing grid no longer declares a column count.');
+        $this->assertLessThanOrEqual(
+            $planCount,
+            max($columnCounts),
+            'A grid on the landing page asks for more columns than there are public plans, which leaves an empty cell.'
+        );
+    }
+
+    /**
+     * v2.87.0 -- EYEBROWS ARE RATIONED.
+     *
+     * A small uppercase label above every section headline gives a long page
+     * one repeating LABEL / Headline / body rhythm, and that rhythm is the
+     * most reliable signature of a generated marketing site. The budget is
+     * one per three sections.
+     *
+     * Counted in the SOURCE rather than the DOM, so the check runs without a
+     * browser. It counts `SectionHeading` eyebrow props plus the hand-rolled
+     * uppercase labels that sit directly above an `h2`.
+     */
+    public function test_section_eyebrows_stay_within_budget(): void
+    {
+        $welcome = $this->source('Pages/Public/Welcome.jsx');
+
+        // The sections the landing page renders, from its own composition.
+        preg_match('/<PublicLayout>(.*?)<\/PublicLayout>/s', $welcome, $shell);
+        $sectionCount = preg_match_all('/^\s{12}<[A-Z]\w+/m', $shell[1] ?? '');
+
+        $eyebrows = preg_match_all('/eyebrow="/', $welcome)
+            + preg_match_all('/uppercase tracking-\[0\.2em\]/', $welcome);
+
+        $this->assertGreaterThan(6, $sectionCount, 'The section count could not be read; this test needs updating.');
+        $this->assertLessThanOrEqual(
+            (int) ceil($sectionCount / 3),
+            $eyebrows,
+            "The landing page uses {$eyebrows} section eyebrows across {$sectionCount} sections. The budget is one per three."
+        );
+    }
+
     public function test_no_public_page_contains_an_em_dash(): void
     {
         $this->seed(\Database\Seeders\PackageSeeder::class);

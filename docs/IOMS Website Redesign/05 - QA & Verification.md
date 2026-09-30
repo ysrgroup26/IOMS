@@ -1,8 +1,8 @@
 ---
 title: IOMS Website Redesign - QA and Verification
 tags: [ioms, website-redesign, qa]
-updated: 2026-09-30
-status: v2.85.0-verified; new-scope-pending
+updated: 2026-10-01
+status: verified through v2.87.0
 ---
 
 # QA & Verification
@@ -337,3 +337,78 @@ No horizontal overflow at 375. No console errors. All public routes 200. Em dash
 | Public top-up pack table on `/pricing` | Deliberately absent. The cards say extra documents are purchasable and do not expire, and the FAQ gives the entry price; the full table lives in-product |
 | QA-002, Ziggy route manifest | Still open, unchanged from v2.85.0 |
 | QA-003, "Enterprise Edition" edition string | Still open, owner decision |
+
+---
+
+# QA execution, v2.87.0 visual pass, 2026-10-01
+
+Same environment as the previous runs. Everything below was executed.
+
+## Automated
+
+| Check | Result |
+|---|---|
+| Full suite | **735 passed, 3920 assertions, 0 failures** (733 before; 2 new tests) |
+| Public site suites | 63 passed, 871 assertions |
+| Production build | Clean |
+| ESLint | 0 errors, 4 pre-existing warnings in untouched files |
+
+## Composition, measured
+
+These were measured in the live DOM rather than judged by eye.
+
+| Check | Before | After |
+|---|---|---|
+| Section eyebrows | 23 across 12 sections | **4**, exactly the one-per-three budget |
+| Consecutive zigzag rows | 6 | **2**, the cap |
+| Hero height at 1440x900 | 1595px, taller than the viewport | **649px**, fits with the CTAs visible |
+| Hero headline lines | 3 | **2** |
+| Hero text elements | 5, including a decoration strip at the bottom | **4** |
+| Pricing columns vs public plans | 4 columns, 3 plans, one empty cell | **3 and 3** |
+| Pricing card heights | unequal | **542px on all three** |
+| Pricing price baseline | staggered by blurb length | **aligned at 366px** on both standard cards; the recommended card sits 9px higher by its deliberate lift |
+
+## Motion
+
+| Check | Result |
+|---|---|
+| Every animation justifiable in one sentence | Yes. Permit settles then the seal lands, because that is the order the events happen; grids stagger so lists arrive in reading order |
+| Infinite or decorative loops added | None |
+| Reduced motion | Every new animation is `motion-safe:` gated. Under reduce the classes are stripped and elements render at their natural opacity |
+| Content stranded by motion | None. No new `opacity-0` class exists. Two elements read opacity 0 when sampled mid-animation; both use `both` fill and end at opacity 1, and both were confirmed to be the permit seal and the pre-existing showcase fade |
+| Banned scroll patterns | None. No `window.addEventListener('scroll')`, no GSAP, no scroll hijack. The existing IntersectionObserver-based `Reveal` is the only scroll-driven mechanism |
+
+## Responsive
+
+| Width | Result |
+|---|---|
+| 1440x900 | No horizontal overflow. Hero fits. Pricing centred at three columns |
+| 375x812 | No horizontal overflow, `scrollWidth` equals `clientWidth` equals 375. Hero CTAs above the fold. Permit artifact stacks below the copy at full width. Pricing stacks to one column |
+
+Console: no errors at either width.
+
+## Product truth, re-verified after the seeder fix
+
+| Check | Result |
+|---|---|
+| Public plans served | Exactly 3: Starter, Professional, Business |
+| Enterprise on the public site | Absent, from both the database and a fresh seed |
+| Em dash across all 11 public pages, both encodings | 0 |
+| Retired workspaces in visible copy | None |
+| Domain story content | Unchanged. Restructuring was layout only, and `domain stories name only real capabilities` still passes |
+
+## Not verified
+
+- **Real-device testing.** Chromium with viewport emulation only.
+- **Cross-browser.** Not checked in Firefox or Safari. The new work uses CSS transforms, radial-gradient and standard keyframes, all long-stable, but it was not run there.
+- **Lighthouse / Core Web Vitals.** Not run. The pass added one component and three keyframes and no new dependency, so the bundle is materially unchanged, but no measurement was taken.
+- **Photography.** None exists. See the implementation log for the slots.
+
+## Known limitations
+
+| Item | Status |
+|---|---|
+| No environmental or operational photography | OPEN, needs the owner. Stock is ruled out by the brief and by test; the slots are wired and take one field each |
+| Page is about 10,250px tall | OPEN by choice. Every section carries verified content; cutting is a content decision |
+| Public site is light-only | OPEN by choice. Theme-locked light with navy bands is the existing brand expression |
+| QA-002 Ziggy manifest, QA-003 "Enterprise Edition" string | Unchanged from v2.85.0 |

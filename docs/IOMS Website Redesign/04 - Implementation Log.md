@@ -1,7 +1,7 @@
 ---
 title: IOMS Website Redesign - Implementation Log
 tags: [ioms, website-redesign, project-log]
-updated: 2026-09-30
+updated: 2026-10-01
 ---
 
 # Implementation Log
@@ -363,3 +363,76 @@ Changed: `User`, `Package`, `Subscription`, `Invoice`, `EntitlementService`, `Su
 - **Issues discovered:** None outstanding.
 - **Commit hash:** `565ab8f`, pushed to origin/main.
 - **Next action:** None blocking. The deferred items above are the natural follow-ups.
+
+## 2026-10-01 - v2.87.0: visual storytelling pass
+
+- **Phase:** Visual redesign, complete and verified. The product, pricing and entitlement model is unchanged; this pass is composition, atmosphere, motion and rhythm.
+- **Method:** Ran the local `taste-skill` per the Master Brief's own instruction to use it when implementation begins, in its **Redesign Protocol (section 11)** mode rather than as a greenfield generator. Its defaults assume Next.js, Motion and image-generation tooling, none of which apply here, so the skill's own preservation rules governed: audit first, extract existing tokens, evolve rather than replace.
+
+**Design read:** redesign-preserve of a B2B industrial SaaS landing for Indonesian industrial buyers, calm technical-operational language, on the existing IOMS navy/steel system.
+**Dials:** DESIGN_VARIANCE 7, MOTION_INTENSITY 5, VISUAL_DENSITY 4 (redesign-preserve = match existing, motion +1).
+
+### Audit findings, measured rather than asserted
+
+| Finding | Measurement |
+|---|---|
+| Eyebrow saturation | 23 uppercase tracking labels across a 12-section page. The budget is one per three sections, so 4. Every section opened with the same LABEL / Headline / body rhythm, which is the most reliable signature of a generated marketing page |
+| Zigzag repetition | The platform section rendered SIX consecutive left-panel / right-text rows. The cap is two; the third is already a failure. This was the flat middle of the page |
+| Tonal monotony | Sections 5 through 10 were six consecutive light bands. The page had exactly three dark surfaces, all of them at the top or the very bottom |
+| Hero had no subject | Text on the left, a workspace list on the right, and a diagram below. Nothing on the page was an object |
+| Product UI dissolved | The platform showcase is a white interface rendered on a white section, so the strongest proof on the page read as more page furniture |
+| Pricing off-balance | The grid asked for four columns at xl while the catalogue sells three, leaving an empty cell. See PAGE-002 |
+
+### Work completed
+
+**The hero has a subject: a Permit To Work.** New `PermitArtifact`, rendered in the document format `Pages/PermitsToWork/Document.jsx` actually produces: the same mono reference, the same field grid, the same approval seal with a named approver and a real role. It is cropped by the right edge and tilted two degrees, so it reads as a sheet on a desk rather than as a picture of one.
+
+The choice is deliberate and is the core of this pass. A dashboard screenshot is what every B2B SaaS hero uses and it means nothing to a yard superintendent; a work permit is the artifact this industry already organises its day around. It is also the honest option: IOMS genuinely generates this document, so nothing here claims a screen that does not exist.
+
+**The hero fits one viewport and carries four text elements.** It was five, including an industries strip at the bottom, which is a documented decoration tell. The workspace list and the industries moved into the band below, which was previously a single centred sentence and is now doing real work. The headline was three lines at 64px in a column too narrow for it; it is two lines at 48px in a wider column.
+
+**The zigzag is capped at two.** The first two domains keep the story layout because they carry the argument. The remaining four became a two-column brief with capability chips: a different layout family, and the right density for content a reader is skimming rather than studying. **No content changed** in `domainStories.js`, so every claim still maps to a real menu item and the product-truth tests still pass.
+
+**Eyebrows cut from 23 to 4.** `SectionHeading` now takes an optional eyebrow, and the label survives only where a genuinely new chapter opens: the hero, Platform, My Work, Pricing. `StorySection` was printing its eyebrow twice, once beside the visual and once above the heading; the duplicate is gone.
+
+**Two dark objects in the light middle.** The connected-operations diagram moved out of the hero and into the platform section, inset on a navy panel, which is both where its argument belongs and a dark surface in the middle of six light ones. The product showcase sits on a tinted ground with a real shadow, so it reads as a screen being shown rather than as part of the page.
+
+**Motion, all of it motivated.** The permit settles once and the approval seal lands a beat after it, because that is the order the events happen in. The new grids stagger at 60 and 70ms, so a list arrives in reading order. Nothing loops. Everything is `motion-safe:` gated with `both` fill, so under reduced motion the classes are stripped and every element renders at full opacity. `Reveal`'s own note argues for ONE gesture rather than a vocabulary of effects, and that principle was respected rather than overridden: the staggers are the same gesture, sequenced.
+
+**Pricing composition.** See PAGE-002. Three columns for three plans, centred and capped, cards stretched to a shared height, and the head block reserved so all three prices sit on one baseline. The recommended card keeps its lift, which is why its price sits 9px higher by design.
+
+### Issues discovered and fixed
+
+| ID | Issue | Severity | Status |
+|---|---|---|---|
+| PAGE-001 | `PackageSeeder` seeded Enterprise with `is_public => true` while the pricing migration sets it to `false`. Migrations run BEFORE seeders, so on any fresh install or re-seed **Enterprise reappeared on the public pricing page at Rp2.499.000**, a plan nobody can buy advertised beside the three that can be | **High, product truth** | FIXED. The row stays, because tenants are still subscribed to it; only its public visibility changed |
+| PAGE-002 | The pricing grid declared `xl:grid-cols-4`, written when the catalogue had four tiers. Enterprise was retired from sale in v2.82.0 and the grid was never narrowed, so at wide viewports it laid out four columns for three cards and left an empty cell. This is why the section read as left-weighted: the composition was balanced around a card that no longer exists | Medium | FIXED |
+| PAGE-003 | Hero headline ran to three lines at desktop | Low | FIXED |
+| PAGE-004 | An unused `rule-draw` keyframe was added during this pass and then not used | Low | REMOVED rather than left as dead code |
+
+**PAGE-001 was found by a test written during this pass**, not by looking. The new pricing-grid test compares the declared column count against the number of public plans, reported four plans where the catalogue sells three, and the seeder was the reason.
+
+**A mistake worth recording.** The first attempt at the PAGE-001 fix used a string replacement whose marker matched Starter's entry before Enterprise's, so it silently set **Starter** private instead. `ReviewerJourneyTest` failed on the next full run and named it. The lesson is the ordinary one: a first-match string replacement across a file with repeated shapes needs an anchor unique to the target, and the suite is what catches it when it does not have one.
+
+### Two tests added
+
+- `the pricing grid has a column for every public plan`, which is what found PAGE-001 and would have caught PAGE-002 five releases ago. Scoped to the plan-card grid, because the page has other grids including a twelve-column one in the hero.
+- `section eyebrows stay within budget`, one per three sections, counted from source so it runs without a browser.
+
+### Deliberately not done
+
+| Item | Reason |
+|---|---|
+| Photography and environmental imagery | There is no image-generation tool in this environment, and the brief plus `PublicReadinessTest` both rule out stock photography. `StorySection` already accepts `image={{ src, alt }}` and passes it through from `domainStories.js`, so adding real photographs is one field per story with no component change. **This is the one gap that needs the owner: the site would benefit from real photographs of the customer's own operations, and nothing else can supply them honestly.** Slots listed below |
+| A scroll-pinned or horizontal-pan section | The skill offers both. Neither earns its place here: this audience evaluates operational software on a laptop in daylight, and scroll hijack on a page a buyer is scanning for a price is hostile |
+| Dark mode for the public site | The page is theme-locked light with navy bands, which is the existing brand expression. Adding a second mode is a separate decision, not a visual-polish one |
+| Reducing total page height | The page is about 10,250px. Every section on it earns its place and the content is verified; cutting sections is a content decision for the owner |
+
+### Image slots, if real photography becomes available
+
+Each takes `{ src, alt }` on its `domainStories.js` entry and needs no code change: `industrial-operations`, `hse`, `people`, `field`, `warehouse-logistics`, `management`. Landscape, roughly 4:3, real operations rather than stock.
+
+- **Files changed:** `resources/js/Components/public/PermitArtifact.jsx` (new), `Pages/Public/Welcome.jsx`, `Components/public/StorySection.jsx`, `tailwind.config.js`, `database/seeders/PackageSeeder.php`, `tests/Feature/LandingPositioningTest.php`.
+- **Verification performed:** See `05 - QA & Verification.md`. 735 tests / 3920 assertions, 0 failures. Clean build, ESLint 0 errors. Desktop 1440 and mobile 375 exercised in a real browser.
+- **Commit hash:** recorded on commit.
+- **Next action:** Owner decision on photography. Nothing else is blocking.

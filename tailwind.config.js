@@ -201,7 +201,28 @@ export default {
                 // keyframe rather than a transition between two states, so
                 // an element that never receives it is simply not animated
                 // -- it can never be left invisible. See lib/useReveal.js.
+                // v2.87.0 -- THE HERO ARTIFACT ARRIVES, ONCE.
+                //
+                // `sheet-settle` is the permit coming to rest: it starts
+                // slightly lifted and rotated a touch further than its resting
+                // angle, then settles. `both` holds the END state, so the sheet
+                // is fully visible if the animation never runs at all -- the
+                // same content-safety rule `reveal` follows.
+                //
+                // `stamp-land` is the approval seal, delayed so it lands after
+                // the sheet rather than with it. That order is the whole point:
+                // a permit is raised, and then it is approved.
+                'sheet-settle': {
+                    '0%': { transform: 'translateY(14px) rotate(3.2deg)', opacity: '0.4' },
+                    '100%': { transform: 'translateY(0) rotate(2deg)', opacity: '1' },
+                },
+                'stamp-land': {
+                    '0%, 35%': { transform: 'rotate(-14deg) scale(1.28)', opacity: '0' },
+                    '65%': { transform: 'rotate(-4deg) scale(0.96)', opacity: '1' },
+                    '100%': { transform: 'rotate(-6deg) scale(1)', opacity: '1' },
+                },
                 reveal: {
+
                     '0%': { opacity: '0', transform: 'translateY(16px)' },
                     '100%': { opacity: '1', transform: 'translateY(0)' },
                 },
@@ -233,6 +254,8 @@ export default {
                 'float-slow': 'float 9s ease-in-out infinite',
                 'pulse-glow': 'pulse-glow 4s ease-in-out infinite',
                 reveal: 'reveal 0.55s cubic-bezier(0.22, 1, 0.36, 1) both',
+                'sheet-settle': 'sheet-settle 0.9s cubic-bezier(0.22, 1, 0.36, 1) both',
+                'stamp-land': 'stamp-land 1.5s cubic-bezier(0.34, 1.56, 0.64, 1) both',
                 dataflow: 'dataflow 3.4s cubic-bezier(0.5, 0, 0.5, 1) infinite',
                 'hub-ring': 'hub-ring 3.4s ease-out infinite',
             },

@@ -1,8 +1,8 @@
 ---
 title: IOMS Website Redesign - Master Brief
 tags: [ioms, website-redesign, source-of-truth]
-updated: 2026-09-30
-status: redesign-complete; new-scope-approved-pending
+updated: 2026-10-01
+status: complete; photography pending
 ---
 
 # IOMS Website Redesign
@@ -204,3 +204,35 @@ pricing page, kept in-product to avoid the wall of billing terminology the direc
 
 **Still open from v2.85.0:** QA-002 (Ziggy route manifest) and QA-003 (the "Enterprise Edition"
 string), both unchanged and both recorded in `05 - QA & Verification.md`.
+
+---
+
+# STATUS, 2026-10-01: v2.87.0, the visual pass
+
+The website is now visually finished to the extent this environment allows, with one honest gap.
+
+| | |
+|---|---|
+| Product, pricing, entitlement | Unchanged. This pass touched composition, atmosphere, motion and rhythm only |
+| Visual storytelling | Done. The hero has a subject, the zigzag is capped, the eyebrows are rationed, the product reads as an object |
+| Motion | Done and motivated. Nothing loops, everything honours reduced motion |
+| Pricing composition | Fixed, and the cause was a real defect rather than taste. See PAGE-002 |
+| Photography | **OPEN, and it needs you.** Nothing else can supply it honestly |
+
+## The one thing the site still needs from the owner
+
+Real photographs of the customer's own operations. Stock photography is ruled out by this brief and
+by a passing test, and there is no image-generation tool in this environment, so inventing imagery
+would mean either faking it or shipping something the brief forbids. The slots are already wired:
+each domain story takes one `{ src, alt }` field and needs no code change. Six slots, listed in
+`04 - Implementation Log.md`.
+
+Until then the page is carried by product evidence and typography. That is the honest version of this
+site rather than the complete one, and the difference is worth stating plainly.
+
+## A defect worth knowing about
+
+`PackageSeeder` was seeding Enterprise as publicly visible while the pricing migration retires it.
+Migrations run before seeders, so any fresh install or re-seed put **Enterprise back on the public
+pricing page at Rp2.499.000**, a plan nobody can buy. Fixed, and now pinned by a test. It was found
+by a test written during this pass rather than by looking, which is the argument for writing the test.

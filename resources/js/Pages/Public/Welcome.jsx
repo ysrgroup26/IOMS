@@ -5,6 +5,7 @@ import Reveal from '@/Components/public/Reveal';
 import BlueprintBackdrop from '@/Components/public/BlueprintBackdrop';
 import PlatformShowcase from '@/Components/public/PlatformShowcase';
 import ConnectedOperations from '@/Components/public/ConnectedOperations';
+import PermitArtifact from '@/Components/public/PermitArtifact';
 import FragmentedToConnected from '@/Components/public/FragmentedToConnected';
 import StorySection from '@/Components/public/StorySection';
 import { DOMAIN_STORIES } from '@/Components/public/domainStories';
@@ -55,7 +56,7 @@ export default function PublicWelcome({ plans, steps = [], faqs = [], contactEma
             <Head title="Industrial Operations Platform" />
 
             <Hero />
-            <TrustStatement />
+            <WhatItOpens />
             <ProblemSection />
             <PlatformOverview />
             <PtwHseStory />
@@ -127,7 +128,7 @@ function Hero() {
                     column carries the four workspaces as a plain list. That
                     asymmetry is what gives the page an axis to hang the rest
                     of its sections on. */}
-                <div className="grid grid-cols-1 gap-x-12 gap-y-14 lg:grid-cols-12">
+                <div className="grid grid-cols-1 items-center gap-x-10 gap-y-14 lg:grid-cols-12">
                     <div className="lg:col-span-7">
                         {/* THE PRODUCT DEFINITION IS VISIBLE TEXT (v2.76.0).
                             The eyebrow names the product and its category,
@@ -139,7 +140,7 @@ function Hero() {
                         <p className="font-mono text-[11px] uppercase tracking-[0.18em] text-steel-300">
                             IOMS / Industrial Operations Platform
                         </p>
-                        <h1 className="mt-5 font-display text-[2.6rem] font-semibold leading-[1.03] tracking-[-0.02em] text-white sm:text-[3.5rem] lg:text-[4rem]">
+                        <h1 className="mt-5 font-display text-[2.3rem] font-semibold leading-[1.04] tracking-[-0.02em] text-white sm:text-[2.9rem] lg:text-[2.75rem] xl:text-[3rem]">
                             Run the whole operation
                             <span className="block text-steel-300">on one record.</span>
                         </h1>
@@ -170,51 +171,18 @@ function Hero() {
                             </Button>
                         </div>
 
-                        <p className="mt-6 font-mono text-[11px] uppercase tracking-[0.14em] text-navy-400">
-                            {INDUSTRIES_STRIP.join('  /  ')}
-                        </p>
                     </div>
 
-                    {/* The four workspaces, stated plainly. Not cards: a
-                        numbered list on a hairline rule, which is how a
-                        specification sheet lists what is in the box. These
-                        are the four IOMS actually sells, read from the same
-                        names config/plans.php pins. */}
-                    <div className="lg:col-span-5 lg:pt-3">
-                        <p className="font-mono text-[11px] uppercase tracking-[0.18em] text-steel-300">
-                            Operational workspaces
-                        </p>
-                        <ul className="mt-5 divide-y divide-white/10 border-y border-white/10">
-                            {HERO_WORKSPACES.map((w, i) => (
-                                <li key={w.name} className="flex gap-4 py-4">
-                                    <span className="font-mono text-[11px] leading-6 text-navy-400">
-                                        {String(i + 1).padStart(2, '0')}
-                                    </span>
-                                    <span>
-                                        <span className="block font-display text-[0.95rem] font-semibold tracking-tight text-white">
-                                            {w.name}
-                                        </span>
-                                        <span className="mt-1 block text-sm leading-relaxed text-navy-300">
-                                            {w.line}
-                                        </span>
-                                    </span>
-                                </li>
-                            ))}
-                        </ul>
-                        <p className="mt-4 text-xs leading-relaxed text-navy-400">
-                            Plans open these in order. Starter begins with HSE; Business runs all four plus the
-                            company-wide Dashboard.
-                        </p>
+                    {/* v2.87.0 -- THE HERO HAS A SUBJECT.
+                        A Permit To Work, in the document format IOMS
+                        actually generates. See PermitArtifact for why this
+                        and not a dashboard. It runs past the right edge on
+                        purpose: a sheet cropped by the viewport reads as an
+                        object on a desk, where a centred one reads as a
+                        picture of an object. */}
+                    <div className="relative lg:col-span-5 lg:-mr-28 xl:-mr-36">
+                        <PermitArtifact />
                     </div>
-                </div>
-
-                {/* v2.61.0: the platform visualisation moved into its own
-                    component and learned to move -- see ConnectedOperations
-                    for what the motion is saying and why it is not
-                    decoration. The hero keeps owning the composition; it no
-                    longer owns 40 lines of absolute positioning. */}
-                <div className="mt-16 sm:mt-20">
-                    <ConnectedOperations />
                 </div>
             </div>
         </section>
@@ -222,13 +190,57 @@ function Hero() {
 }
 
 
-function TrustStatement() {
+/**
+ * v2.87.0 -- WHAT IOMS OPENS, AND WHO IT IS FOR.
+ *
+ * This band was one centred sentence. It now carries the two things the hero
+ * gave up when the permit took the right column: the four workspaces, and
+ * the industries. Both belong here rather than in the hero, which is a
+ * single moment and was carrying five competing text blocks.
+ *
+ * The workspaces are a hairline table, not cards. Four cards would be the
+ * generic feature row this page already has too much of; a table is how a
+ * specification sheet lists what is in the box, which is the register this
+ * audience reads in.
+ */
+function WhatItOpens() {
     return (
-        <section className="border-b border-graphite-100 bg-white py-10">
-            <div className="mx-auto max-w-4xl px-4 text-center sm:px-6 lg:px-8">
-                <p className="text-lg font-medium text-graphite-700 sm:text-xl">
-                    Departments stop working in separate systems. The operation starts working as one.
-                </p>
+        <section className="border-b border-graphite-100 bg-white py-14 sm:py-16">
+            <div className="mx-auto max-w-7xl px-4 sm:px-6 lg:px-8">
+                <Reveal>
+                    <p className="max-w-3xl font-display text-xl font-semibold leading-snug tracking-tight text-graphite-900 sm:text-2xl">
+                        Departments stop working in separate systems. The operation starts working as one.
+                    </p>
+                </Reveal>
+
+                {/* v2.87.0: staggered, not because motion is nice but
+                    because these four are a list the reader works down.
+                    Same gesture as everywhere else, just sequenced. 60ms is
+                    short enough that the last row is in before the eye
+                    reaches it. */}
+                <div className="mt-10 grid grid-cols-1 gap-x-12 sm:grid-cols-2">
+                    {HERO_WORKSPACES.map((w, i) => (
+                        <Reveal
+                            key={w.name}
+                            delay={i * 60}
+                            className="flex flex-col border-t border-graphite-200 py-5 sm:flex-row sm:gap-6"
+                        >
+                            <p className="font-display text-[0.95rem] font-semibold tracking-tight text-navy-900 sm:w-52 sm:shrink-0">
+                                {w.name}
+                            </p>
+                            <p className="mt-1.5 text-sm leading-relaxed text-graphite-600 sm:mt-0">{w.line}</p>
+                        </Reveal>
+                    ))}
+                </div>
+
+                <Reveal className="mt-10 flex flex-col gap-4 border-t border-graphite-200 pt-6 sm:flex-row sm:items-baseline sm:justify-between">
+                    <p className="text-sm text-graphite-600">
+                        Starter begins with HSE. Business runs all four plus the company-wide Dashboard.
+                    </p>
+                    <p className="font-mono text-[11px] uppercase tracking-[0.14em] text-graphite-400">
+                        {INDUSTRIES_STRIP.join('  /  ')}
+                    </p>
+                </Reveal>
             </div>
         </section>
     );
@@ -242,7 +254,6 @@ function ProblemSection() {
         <section className="border-b border-graphite-100 bg-gradient-to-b from-brand-50/50 to-brand-50/20 py-20">
             <div className="mx-auto max-w-6xl px-4 sm:px-6 lg:px-8">
                 <SectionHeading
-                    eyebrow="The problem"
                     title="Your departments already have the data. They just don't share it."
                     subtitle="The warehouse cannot see what the yard actually consumed. HSE cannot see which crew the permit covers. Management rebuilds the same report every month from files that disagree."
                 />
@@ -267,13 +278,38 @@ function PlatformOverview() {
                     subtitle="Every domain below runs in IOMS today, not on a roadmap. They share one set of master data, one approval layer and one reporting layer."
                 />
 
-                {/* v2.76.0: domain by domain, as stories rather than a grid
-                    of eight cards. Content and capability list live in
-                    domainStories.js; the pattern is StorySection, which is
-                    the one future domain sections reuse. Rows alternate
-                    sides so the sequence reads as a sequence. */}
-                <div className="mx-auto mt-6 max-w-6xl divide-y divide-graphite-100">
-                    {DOMAIN_STORIES.map((story, i) => (
+                {/* v2.87.0: the connected-operations diagram opens this
+                    section rather than closing the hero. It is an argument
+                    about how the platform is put together, so it belongs
+                    where that argument is being made, and moving it kept the
+                    hero to a single viewport. */}
+                {/* Inset on navy rather than recoloured for the light
+                    ground. Two reasons: the diagram's whole legibility comes
+                    from thin light strokes on a dark surface, and the page
+                    had six consecutive white bands through its middle, so a
+                    dark object here is doing rhythm work as well as carrying
+                    the diagram. */}
+                <div className="relative mt-12 overflow-hidden rounded-2xl border border-navy-800 bg-navy-900 px-4 py-10 shadow-[0_24px_60px_-28px_rgba(15,39,71,0.55)] sm:px-8 sm:py-14">
+                    <BlueprintBackdrop variant="hero" />
+                    <div className="relative">
+                        <ConnectedOperations />
+                    </div>
+                </div>
+
+                {/* v2.87.0 -- THE ZIGZAG IS CAPPED AT TWO.
+                    These six domains used to render as six identical
+                    left-panel / right-text rows. Six of anything reads as a
+                    template, and the eye stops reading at about the third.
+                    The first two keep the story layout, because the opening
+                    two domains are the ones that carry the argument; the
+                    remaining four become a two-column brief, which is a
+                    different layout family and is also the right density for
+                    content a reader is now skimming rather than studying.
+                    Content and capability lists are untouched in
+                    domainStories.js, so every claim still maps to a real
+                    menu item. */}
+                <div className="mx-auto mt-4 max-w-6xl divide-y divide-graphite-100">
+                    {DOMAIN_STORIES.slice(0, 2).map((story, i) => (
                         <StorySection
                             key={story.key}
                             eyebrow={story.eyebrow}
@@ -289,6 +325,30 @@ function PlatformOverview() {
                         >
                             <p>{story.body}</p>
                         </StorySection>
+                    ))}
+                </div>
+
+                <div className="mx-auto mt-14 grid max-w-6xl grid-cols-1 gap-x-14 gap-y-10 md:grid-cols-2">
+                    {DOMAIN_STORIES.slice(2).map((story, i) => (
+                        <Reveal key={story.key} delay={i * 70} className="border-t border-graphite-200 pt-6">
+                            <div className="flex items-center gap-2.5">
+                                {story.icon && <story.icon className="h-4 w-4 shrink-0 text-brand-600" />}
+                                <h3 className="font-display text-lg font-semibold tracking-tight text-graphite-900">
+                                    {story.title}
+                                </h3>
+                            </div>
+                            <p className="mt-2.5 text-[15px] leading-relaxed text-graphite-600">{story.body}</p>
+                            <ul className="mt-4 flex flex-wrap gap-x-2 gap-y-1.5">
+                                {(story.items ?? []).slice(0, 5).map((item) => (
+                                    <li
+                                        key={typeof item === 'string' ? item : item.label}
+                                        className="rounded-md bg-graphite-50 px-2 py-1 text-xs text-graphite-600"
+                                    >
+                                        {typeof item === 'string' ? item : item.label}
+                                    </li>
+                                ))}
+                            </ul>
+                        </Reveal>
                     ))}
                 </div>
             </div>
@@ -334,8 +394,7 @@ function PtwHseStory() {
             <BlueprintBackdrop />
             <div className="mx-auto max-w-5xl px-4 sm:px-6 lg:px-8">
                 <div className="text-center">
-                    <p className="text-xs font-semibold uppercase tracking-[0.2em] text-brand-400">How the chain works</p>
-                    <h2 className="mt-3 text-2xl font-semibold tracking-tight sm:text-3xl">One record, from the field to the approval that releases it</h2>
+                    <h2 className="font-display text-2xl font-semibold tracking-tight sm:text-3xl">One record, from the field to the approval that releases it</h2>
                     <p className="mx-auto mt-3 max-w-2xl text-sm text-graphite-300 sm:text-base">
                         Permit To Work is one worked example of how IOMS connects departments. The same shape applies to
                         a material request, a stock movement or an inspection: one record, the people accountable for
@@ -378,7 +437,7 @@ function FieldExperience() {
                 <div className="grid grid-cols-1 items-center gap-10 lg:grid-cols-2">
                     <div>
                         <p className="text-xs font-semibold uppercase tracking-[0.2em] text-brand-600">My Work</p>
-                        <h2 className="mt-3 text-2xl font-semibold tracking-tight text-graphite-900 sm:text-3xl">
+                        <h2 className="mt-3 font-display text-2xl font-semibold tracking-tight text-graphite-900 sm:text-3xl">
                             Built for the people doing the work, not only those reporting on it.
                         </h2>
                         <p className="mt-4 text-base text-graphite-600">
@@ -467,15 +526,21 @@ function MyWorkPreview() {
  */
 function ProductPreview() {
     return (
-        <section className="border-b border-graphite-100 bg-white py-20">
+        /* v2.87.0 -- THE PRODUCT SITS ON A GROUND, NOT ON THE PAGE.
+           The showcase is a white interface that was rendered on a white
+           section, so the strongest proof on the page dissolved into its own
+           background and read as more page furniture. On a tinted ground with
+           a real shadow it reads as a screen: an object being shown, which is
+           what proof has to look like. Same treatment as the connected
+           operations diagram, for the same reason. */
+        <section className="border-b border-graphite-100 bg-gradient-to-b from-steel-50 via-white to-white py-20">
             <div className="mx-auto max-w-5xl px-4 sm:px-6 lg:px-8">
                 <SectionHeading
-                    eyebrow="Product"
                     title="This is the platform, not a screenshot of one module"
                     subtitle="Switch between the workspaces IOMS actually ships. Built from the real IOMS design system with illustrative operational data, not stock photography."
                 />
 
-                <Reveal className="mt-10">
+                <Reveal className="mt-10 rounded-2xl bg-white/70 p-2 shadow-[0_28px_70px_-32px_rgba(15,39,71,0.45)] ring-1 ring-steel-200/70 sm:p-3">
                     <PlatformShowcase />
                 </Reveal>
             </div>
@@ -498,13 +563,13 @@ function Industries() {
     return (
         <section className="border-b border-graphite-100 bg-gradient-to-b from-brand-50/50 to-brand-50/20 py-16">
             <div className="mx-auto max-w-7xl px-4 sm:px-6 lg:px-8">
-                {/* v2.76.0: "Built For" was an eyebrow with no heading under
-                    it -- the one section on the page whose subject was not
-                    stated as a heading. The industries are what IOMS is FOR,
-                    so they now have one. */}
-                <p className="text-center text-xs font-semibold uppercase tracking-[0.2em] text-graphite-400">Built For</p>
-                <h2 className="mt-3 text-center text-2xl font-semibold tracking-tight text-graphite-900 sm:text-3xl">
-                    Complex industrial operations
+                {/* v2.76.0 gave this section a heading, because it was the
+                    one section whose subject was only an eyebrow.
+                    v2.87.0 drops the eyebrow instead: with the heading there,
+                    the label was repeating it, and the page was over its
+                    eyebrow budget. The headline says what the section is. */}
+                <h2 className="text-center font-display text-2xl font-semibold tracking-tight text-graphite-900 sm:text-3xl">
+                    Built for complex industrial operations
                 </h2>
                 <div className="mt-8 flex flex-wrap items-center justify-center gap-3">
                     {industries.map((ind) => (
@@ -576,11 +641,20 @@ function Pricing({ plans }) {
                             </div>
                         </div>
 
-                        {/* v2.60.0: four tiers. Two-up from md, four-up only at
-                            xl -- three across at lg would leave a lone card on a
-                            second row, and squeezing four into lg makes each
-                            narrower than its own price line. */}
-                        <div className="mt-10 grid grid-cols-1 gap-6 md:grid-cols-2 xl:grid-cols-4 xl:items-start">
+                        {/* v2.87.0 -- THREE CARDS, THREE COLUMNS.
+                            The grid asked for four columns at xl, written
+                            when the catalogue had four tiers. Enterprise was
+                            retired from sale in v2.82.0 and the grid was
+                            never narrowed, so at xl the row laid out four
+                            columns for three cards and left an empty cell on
+                            the right. That is why the section read as
+                            left-weighted rather than centred: the composition
+                            was balanced around a card that no longer exists.
+
+                            Cards now stretch to a shared height rather than
+                            aligning to their tops, which is what lets the
+                            three prices sit on one baseline. */}
+                        <div className="mx-auto mt-10 grid max-w-6xl grid-cols-1 items-stretch gap-6 md:grid-cols-2 lg:grid-cols-3">
                             {plans.map((plan) => {
                                 const price = interval === 'monthly' ? plan.monthly : plan.yearly;
                                 // Server-derived (config/plans.php -> PricingService),
@@ -598,7 +672,7 @@ function Pricing({ plans }) {
                                         key={plan.id}
                                         className={
                                             emphasized
-                                                ? 'relative flex h-full flex-col rounded-2xl border-2 border-brand-500 bg-gradient-to-b from-brand-50/60 to-white p-6 shadow-card-hover xl:-translate-y-2'
+                                                ? 'relative flex h-full flex-col rounded-2xl border-2 border-brand-500 bg-gradient-to-b from-brand-50/60 to-white p-6 shadow-card-hover lg:-translate-y-3'
                                                 : 'flex h-full flex-col rounded-2xl border border-graphite-200 bg-white p-6 shadow-card'
                                         }
                                     >
@@ -611,17 +685,28 @@ function Pricing({ plans }) {
                                                 Most popular
                                             </span>
                                         )}
-                                        <h3 className="text-lg font-semibold text-graphite-900">{plan.name}</h3>
-                                        {/* The tier's one-line answer to "who is this
-                                            for", served from config/plans.php beside the
-                                            scope it describes so the two cannot drift. */}
-                                        {plan.positioning && (
-                                            <p className="mt-1 text-xs font-semibold text-brand-700">{plan.positioning}</p>
-                                        )}
-                                        {framing && <p className="mt-1.5 text-sm leading-relaxed text-graphite-500">{framing}</p>}
+                                        {/* v2.87.0 -- THE HEAD IS A FIXED BLOCK.
+                                            The three framing lines run to two or
+                                            three lines depending on the tier, which
+                                            pushed each card's price to a different
+                                            height and left the row looking
+                                            accidentally staggered. Reserving the
+                                            head puts all three prices on one
+                                            baseline, which is the comparison the
+                                            section exists to make. */}
+                                        <div className="min-h-[7.5rem]">
+                                            <h3 className="font-display text-lg font-semibold tracking-tight text-graphite-900">{plan.name}</h3>
+                                            {/* The tier's one-line answer to "who is this
+                                                for", served from config/plans.php beside the
+                                                scope it describes so the two cannot drift. */}
+                                            {plan.positioning && (
+                                                <p className="mt-1 text-xs font-semibold text-brand-700">{plan.positioning}</p>
+                                            )}
+                                            {framing && <p className="mt-1.5 text-sm leading-relaxed text-graphite-500">{framing}</p>}
+                                        </div>
 
-                                        <div className="mt-5">
-                                            <p className={emphasized ? 'text-3xl font-bold text-brand-700' : 'text-3xl font-bold text-graphite-900'}>{price.formatted}</p>
+                                        <div className="border-t border-graphite-100 pt-5">
+                                            <p className={emphasized ? 'font-display text-[2rem] font-bold tracking-tight text-brand-700' : 'font-display text-[2rem] font-bold tracking-tight text-graphite-900'}>{price.formatted}</p>
                                             {!plan.is_custom && price.amount !== null && (
                                                 <p className="text-xs text-graphite-400">per {interval === 'monthly' ? 'month' : 'year'}</p>
                                             )}
@@ -732,7 +817,6 @@ function HowItWorks({ steps = [] }) {
 
             <div className="relative mx-auto max-w-6xl px-4 sm:px-6 lg:px-8">
                 <SectionHeading
-                    eyebrow="How It Works"
                     title="From master data to management reporting"
                     subtitle="One record travels the whole route: set up once, worked on in the field, approved by whoever is accountable, watched while it runs, and reported on when it closes."
                 />
@@ -757,7 +841,7 @@ function Faq({ faqs = [] }) {
     return (
         <section id="faq" className="border-b border-graphite-100 bg-white py-20">
             <div className="mx-auto max-w-3xl px-4 sm:px-6 lg:px-8">
-                <SectionHeading eyebrow="FAQ" title="Frequently asked questions" />
+                <SectionHeading title="Frequently asked questions" />
                 <div className="mt-10 divide-y divide-graphite-100 rounded-xl border border-graphite-200">
                     {faqs.map((item) => (
                         <details key={item.q} className="group p-5">
@@ -821,14 +905,21 @@ function FinalCta() {
 function SectionHeading({ eyebrow, title, subtitle, onDark = false }) {
     return (
         <Reveal className="max-w-3xl">
-            <p className={cn(
-                'font-mono text-[11px] uppercase tracking-[0.18em]',
-                onDark ? 'text-steel-300' : 'text-brand-600'
-            )}>
-                {eyebrow}
-            </p>
+            {/* v2.87.0: OPTIONAL, and used sparingly.
+                Every section on this page carried one of these, which gave a
+                twelve-section page one repeating LABEL / Headline / body
+                rhythm and made the whole thing read as generated. The label
+                now appears only where a genuinely new chapter opens. */}
+            {eyebrow && (
+                <p className={cn(
+                    'mb-4 font-mono text-[11px] uppercase tracking-[0.18em]',
+                    onDark ? 'text-steel-300' : 'text-brand-600'
+                )}>
+                    {eyebrow}
+                </p>
+            )}
             <h2 className={cn(
-                'mt-4 font-display text-[1.75rem] font-semibold leading-[1.12] tracking-[-0.02em] sm:text-[2.25rem]',
+                'font-display text-[1.75rem] font-semibold leading-[1.12] tracking-[-0.02em] sm:text-[2.25rem]',
                 onDark ? 'text-white' : 'text-graphite-900'
             )}>
                 {title}

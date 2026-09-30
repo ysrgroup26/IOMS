@@ -1,8 +1,8 @@
 ---
 title: IOMS Website Redesign - Website IA and Content
 tags: [ioms, website-redesign, content]
-updated: 2026-09-30
-status: built; new-scope-approved-pending
+updated: 2026-10-01
+status: built
 ---
 
 # Website IA & Content

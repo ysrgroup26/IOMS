@@ -361,4 +361,5 @@ Changed: `User`, `Package`, `Subscription`, `Invoice`, `EntitlementService`, `Su
 
 - **Verification performed:** See `05 - QA & Verification.md`. 733 tests / 3913 assertions passing, zero failures, up from 692. Clean build, ESLint 0 errors. Both migrations applied, rolled back and re-applied against MySQL. Public pricing verified in a real browser at 1440 and 375.
 - **Issues discovered:** None outstanding.
+- **Commit hash:** `565ab8f`, pushed to origin/main.
 - **Next action:** None blocking. The deferred items above are the natural follow-ups.

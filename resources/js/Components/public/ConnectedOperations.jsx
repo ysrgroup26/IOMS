@@ -1,8 +1,5 @@
 import { useState } from 'react';
-import {
-    ShieldCheck, Users, FolderKanban, PackageSearch, ShoppingCart,
-    Wrench, BadgeCheck, LineChart, Layers3,
-} from 'lucide-react';
+import { ShieldCheck, Users, PackageSearch, LineChart, FileText, Layers3 } from 'lucide-react';
 import { cn } from '@/lib/utils';
 
 /**
@@ -44,8 +41,33 @@ import { cn } from '@/lib/utils';
  * lines name real menu items, not capabilities.
  */
 
-// x/y are percentages on a 100x100 box: eight nodes, from the top,
-// clockwise. Computed once, no trig at runtime.
+/*
+ * v2.85.0 -- FIVE NODES, NOT EIGHT.
+ *
+ * This diagram sat in the hero orbiting eight departments, four of which
+ * IOMS no longer sells: Project Management, Procurement, Maintenance and
+ * Quality Control were retired from the customer-facing product (ADR 045)
+ * with their code intact. The most prominent graphic on the website was
+ * therefore advertising four workspaces a new customer cannot buy, which is
+ * the exact failure the component's own PRODUCT FIDELITY note above was
+ * written to prevent -- the note was true when it was written and nobody
+ * came back to it when the catalogue narrowed.
+ *
+ * It now carries the four operational workspaces `config/plans.php` pins in
+ * `operational`, plus Reports & Analytics. Reports earns its place for a
+ * different reason from the other four and the distinction matters: it is
+ * not sold and cannot be withheld, it is global chrome every plan carries.
+ * Including it is what makes the diagram a LOOP rather than a list -- four
+ * domains produce records, one reporting layer reads them back.
+ *
+ * Admin Space is deliberately absent. It is tenant administration, not an
+ * operational workspace, and putting it on this circle would market it as
+ * one.
+ *
+ * x/y are percentages on a 100x100 box, r=42 from the centre, five nodes
+ * from the top, clockwise at 72 degree steps. Computed once, no trig at
+ * runtime.
+ */
 const NODES = [
     {
         key: 'hse',
@@ -57,59 +79,35 @@ const NODES = [
     },
     {
         key: 'hr',
-        label: 'Human Resources',
+        label: 'People / HRD',
         icon: Users,
-        x: 85.7,
-        y: 22.7,
+        x: 89.9,
+        y: 37,
         detail: 'Employee master data, competency and certificate expiry, shifts and rosters, leave, man-hour.',
     },
     {
-        key: 'project-management',
-        label: 'Project Management',
-        icon: FolderKanban,
-        x: 92,
-        y: 50,
-        detail: 'Projects, milestones, manpower assignment, daily reports and task follow-up.',
-    },
-    {
         key: 'logistics',
-        label: 'Logistics / PPIC',
+        label: 'Warehouse Logistics',
         icon: PackageSearch,
-        x: 85.7,
-        y: 77.3,
+        x: 74.7,
+        y: 84,
         detail: 'Material Request, item master, inventory, goods receipt, stock movement and transfers.',
     },
     {
-        key: 'procurement',
-        label: 'Procurement',
-        icon: ShoppingCart,
-        x: 50,
-        y: 92,
-        detail: 'Purchase requisition, RFQ and vendor comparison, purchase order, vendor performance, BAST.',
-    },
-    {
-        key: 'maintenance',
-        label: 'Maintenance',
-        icon: Wrench,
-        x: 14.3,
-        y: 77.3,
-        detail: 'Asset register, maintenance requests and work orders against the equipment that runs the site.',
-    },
-    {
-        key: 'quality-control',
-        label: 'Quality Control',
-        icon: BadgeCheck,
-        x: 8,
-        y: 50,
-        detail: 'Inspection requests and Non-Conformance Reports raised against the work being delivered.',
+        key: 'management',
+        label: 'Management',
+        icon: LineChart,
+        x: 25.3,
+        y: 84,
+        detail: 'KPI input and history, analytics, and the company-wide Dashboard on the Business plan.',
     },
     {
         key: 'reports',
         label: 'Reports & Analytics',
-        icon: LineChart,
-        x: 14.3,
-        y: 22.7,
-        detail: 'Report Center, scheduled reports, KPI records and exports on your own letterhead.',
+        icon: FileText,
+        x: 10.1,
+        y: 37,
+        detail: 'Report Center, scheduled reports and exports on your own letterhead. Included with every plan.',
     },
 ];
 

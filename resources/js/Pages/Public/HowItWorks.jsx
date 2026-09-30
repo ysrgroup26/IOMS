@@ -21,7 +21,7 @@ export default function HowItWorks({ steps = [] }) {
             <PublicPageHero
                 eyebrow="How It Works"
                 title="From master data to management reporting."
-                subtitle="IOMS follows one cycle. Work is centralized, carried out, approved by whoever is accountable for it, watched while it runs, and reported on once it closes — and what that reporting shows is what the next cycle starts from."
+                subtitle="IOMS follows one cycle. Work is centralized, carried out, approved by whoever is accountable for it, watched while it runs, and reported on once it closes. What that reporting shows is what the next cycle starts from."
             />
 
             <section className="bg-white py-14 sm:py-20">
@@ -54,7 +54,7 @@ export default function HowItWorks({ steps = [] }) {
                         </h2>
                         <p className="mx-auto mt-2 max-w-xl text-sm leading-relaxed text-graphite-600">
                             You create your account and company, confirm your email, choose a plan and pay. Your
-                            workspace is provisioned once the payment provider confirms the payment — with your company
+                            workspace is provisioned once the payment provider confirms the payment, with your company
                             identity already in place, so the first document you generate carries your own letterhead.
                         </p>
                         <div className="mt-6 flex flex-col items-center justify-center gap-3 sm:flex-row">

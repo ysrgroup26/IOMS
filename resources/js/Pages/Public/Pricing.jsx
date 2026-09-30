@@ -2,6 +2,7 @@ import { Head, Link } from '@inertiajs/react';
 import { useState } from 'react';
 import { Check, Plus, ArrowRight, ShieldCheck } from 'lucide-react';
 import PublicLayout from '@/Layouts/PublicLayout';
+import PublicPageHero from '@/Components/shared/PublicPageHero';
 import { Button } from '@/Components/ui/button';
 import { cn } from '@/lib/utils';
 
@@ -29,30 +30,17 @@ export default function Pricing({ plans = [], contactEmail }) {
         <PublicLayout>
             <Head title="Pricing" />
 
-            <section className="relative isolate overflow-hidden border-b border-navy-800 bg-navy-900 py-16 text-white sm:py-20">
-                <div
-                    className="pointer-events-none absolute inset-0 -z-10 opacity-[0.16]"
-                    aria-hidden="true"
-                    style={{
-                        backgroundImage:
-                            'linear-gradient(to right, rgba(255,255,255,0.10) 1px, transparent 1px), linear-gradient(to bottom, rgba(255,255,255,0.10) 1px, transparent 1px)',
-                        backgroundSize: '56px 56px',
-                        maskImage: 'linear-gradient(to bottom, black, transparent 92%)',
-                    }}
-                />
-                <div className="pointer-events-none absolute -right-40 -top-40 -z-10 h-[32rem] w-[32rem] rounded-full bg-steel-500 opacity-[0.14] blur-3xl" aria-hidden="true" />
-
-                <div className="mx-auto max-w-3xl px-4 text-center sm:px-6">
-                    <p className="text-xs font-semibold uppercase tracking-[0.2em] text-steel-300">Pricing</p>
-                    <h1 className="mt-3 text-3xl font-semibold leading-tight tracking-tight sm:text-4xl">
-                        Standardized plans for industrial operations.
-                    </h1>
-                    <p className="mx-auto mt-4 max-w-xl text-sm leading-relaxed text-navy-300 sm:text-base">
-                        One product, improved for every customer. All three plans are the same IOMS platform — what
-                        differs is breadth of access and capacity, not the build.
-                    </p>
-
-                    <div className="mt-8 inline-flex items-center gap-1 rounded-full border border-white/10 bg-white/[0.06] p-1" role="group" aria-label="Billing cycle">
+            {/* v2.85.0: was a fourth hand-rolled copy of the navy band --
+                the exact drift PublicPageHero was extracted to stop. It now
+                uses the shared component, so /pricing opens on the same
+                left margin and the same display/mono type as every other
+                public page. */}
+            <PublicPageHero
+                eyebrow="Pricing"
+                title="Standardized plans for industrial operations."
+                subtitle="One product, improved for every customer. All three plans are the same IOMS platform. What differs is breadth of access and capacity, not the build."
+            >
+                    <div className="inline-flex items-center gap-1 rounded-full border border-white/10 bg-white/[0.06] p-1" role="group" aria-label="Billing cycle">
                         {[
                             { key: false, label: 'Monthly' },
                             { key: true, label: 'Annual' },
@@ -71,8 +59,7 @@ export default function Pricing({ plans = [], contactEmail }) {
                             </button>
                         ))}
                     </div>
-                </div>
-            </section>
+            </PublicPageHero>
 
             <section className="bg-graphite-100 py-14 sm:py-20">
                 {/* v2.60.0: 7xl, not 6xl -- four cards at 6xl left each one
@@ -138,7 +125,7 @@ export default function Pricing({ plans = [], contactEmail }) {
 
                                         <div className="mt-5">
                                             <p className="text-[26px] font-semibold leading-none tracking-tight text-navy-900">
-                                                {price?.formatted ?? '—'}
+                                                {price?.formatted ?? 'Not set'}
                                             </p>
                                             <p className="mt-1.5 text-[11px] uppercase tracking-wide text-graphite-400">
                                                 per {yearly ? 'year' : 'month'}
@@ -240,25 +227,25 @@ export default function Pricing({ plans = [], contactEmail }) {
                         </span>
                         <p className="text-xs leading-relaxed text-graphite-600">
                             Every plan is the same standardized IOMS platform. We build once and improve it for
-                            everyone — no per-customer custom development, and no lifetime plan.
+                            everyone. There is no per-customer custom development, and no lifetime plan.
                             {/* v2.82.0: says exactly what is counted, because three plausible
                                 readings are all wrong -- a device, an employee record, and an
                                 admin "seat". Stated here once rather than argued about later. */}
-                            <strong className="text-navy-800"> Pengguna aktif</strong> adalah akun login yang aktif —
+                            <strong className="text-navy-800"> Pengguna aktif</strong> adalah akun login yang aktif,
                             satu akun boleh dipakai di beberapa perangkat, dan karyawan tanpa akun login tidak dihitung.
                             Akun yang dinonaktifkan membebaskan kembali slotnya. Izin seperti PTW Access diberikan
                             kepada akun yang sudah ada, tanpa biaya tambahan.
                             {/* v2.54.0: says plainly what an Operating Unit is, so nobody reads
                                 "2 Operating Units" as "two companies you may bill separately". */}
                             <strong className="text-navy-800"> Operating Units</strong> are yards, sites or divisions
-                            inside one organization — one subscription, not separate companies.
+                            inside one organization: one subscription, not separate companies.
                         </p>
                     </div>
 
                     <p className="mt-6 text-center text-xs text-graphite-500">
                         Not sure yet?{' '}
                         <Link href={route('sandbox')} className="font-medium text-brand-700 hover:underline">Try the Sandbox</Link>
-                        {' '}first — a real workspace with an operation already running in it.
+                        {' '}first: a real workspace with an operation already running in it.
                     </p>
                     <p className="mt-2 text-center text-xs text-graphite-500">
                         Already have an IOMS account?{' '}

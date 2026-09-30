@@ -144,6 +144,12 @@ export default {
             },
             fontFamily: {
                 sans: ['Inter', 'ui-sans-serif', 'system-ui', 'sans-serif'],
+                // v2.85.0: the public website's headline and label voices.
+                // `sans` is untouched, so every authenticated surface keeps
+                // rendering in Inter exactly as before -- these two are
+                // opt-in per element via `font-display` / `font-mono`.
+                display: ['Archivo', 'Inter', 'ui-sans-serif', 'system-ui', 'sans-serif'],
+                mono: ['"IBM Plex Mono"', 'ui-monospace', 'SFMono-Regular', 'monospace'],
             },
             boxShadow: {
                 // v1.11.12: simplified to the exact single-layer shadow

@@ -27,11 +27,16 @@ import Reveal from '@/Components/public/Reveal';
  *          panel: the actual thing the left panel cannot do.
  *
  * WHY A REAL RECORD ON THE RIGHT. "One connected operation" is a claim.
- * A Material Request that is raised in Logistics, approved by the project,
- * ordered by Procurement and received against a goods receipt is the
- * claim demonstrated -- and every one of those steps is a route that
- * exists (material-requests, purchase-requisitions, purchase-orders,
- * goods-receipts). The numbers are illustrative; the chain is not.
+ * A Material Request raised by a department, approved against stock on
+ * hand, issued from a warehouse and counted in reporting is the claim
+ * demonstrated, and every step is a route that exists (material-requests,
+ * stock, stock-transactions, report-center). The reference numbers are
+ * illustrative; the chain is not.
+ *
+ * v2.85.0: the chain previously ran through Project Management and
+ * Procurement, both retired from the customer-facing product (ADR 045). It
+ * now crosses only workspaces IOMS sells, which is also a shorter and
+ * clearer chain.
  *
  * MOTION. Only the existing `Reveal` primitive, staggered down the two
  * panels, so the left panel is read before the right one resolves. No new
@@ -51,11 +56,10 @@ const TOOLS = [
 // One record, the departments it passes through, and the status IOMS
 // actually stores at each step (see StatusBadge's own status vocabulary).
 const CHAIN = [
-    { department: 'Logistics / PPIC', event: 'MR-2026-00126 raised', status: 'Submitted', tone: 'warning' },
-    { department: 'Project Management', event: 'Charged to Project SY-114', status: 'Approved', tone: 'success' },
-    { department: 'Procurement', event: 'PO-2026-00042 issued', status: 'Issued', tone: 'brand' },
-    { department: 'Logistics / PPIC', event: 'GRN-2026-00097 received', status: 'Posted', tone: 'success' },
-    { department: 'Management', event: 'Visible in Report Center', status: 'Reported', tone: 'neutral' },
+    { department: 'Health, Safety & Environment', event: 'MR-2026-00126 raised for site work', status: 'Submitted', tone: 'warning' },
+    { department: 'Warehouse Logistics', event: 'Approved against stock on hand', status: 'Approved', tone: 'success' },
+    { department: 'Warehouse Logistics', event: 'Issued from WH-01, movement recorded', status: 'Posted', tone: 'brand' },
+    { department: 'Management', event: 'Counted in KPI and Report Center', status: 'Reported', tone: 'neutral' },
 ];
 
 const TONES = {

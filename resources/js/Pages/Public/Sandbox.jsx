@@ -23,9 +23,9 @@ import { Button } from '@/Components/ui/button';
  * subscribing rather than a dead end.
  */
 const LIVE = [
-    'Health, Safety & Environment — raise a Permit To Work, log a safety observation',
-    'My Work — the field workspace, with live permits and assigned tasks',
-    'Human Resources — browse the employee directory and workforce data',
+    'Health, Safety & Environment: raise a Permit To Work, log a safety observation',
+    'My Work: the field workspace, with live permits and assigned tasks',
+    'People / HRD: browse the employee directory and workforce data',
 ];
 
 const READ_ONLY = [
@@ -56,7 +56,7 @@ export default function Sandbox({ available, contactEmail }) {
             <PublicPageHero
                 eyebrow="Sandbox"
                 title="See how IOMS works before you buy."
-                subtitle="Walk into a working IOMS workspace with real operational data already in it — employees, projects, permits and equipment. No sign-up, no card, no trial to cancel."
+                subtitle="Walk into a working IOMS workspace with real operational data already in it: employees, permits, PPE and stock. No sign-up, no card, no trial to cancel."
             >
                 <form onSubmit={enter}>
                     <Button size="lg" type="submit" disabled={processing || !available}>
@@ -92,7 +92,7 @@ export default function Sandbox({ available, contactEmail }) {
                             icon={MousePointerClick}
                             accent="from-navy-800 to-brand-600"
                             title="Try it"
-                            body="Fully interactive — create records and see them appear."
+                            body="Fully interactive. Create records and see them appear."
                             items={LIVE}
                         />
                         <Panel
@@ -118,7 +118,7 @@ export default function Sandbox({ available, contactEmail }) {
                         <p className="mt-2 max-w-3xl text-sm leading-relaxed text-graphite-600">
                             The Sandbox is a shared demonstration company with invented data. It is not your workspace,
                             nothing you enter there is kept, and there is nothing to cancel afterwards. When you are
-                            ready, subscribing gives you your own isolated workspace with your own company identity —
+                            ready, subscribing gives you your own isolated workspace with your own company identity,
                             provisioned once payment is confirmed.
                         </p>
                         <div className="mt-5 flex flex-col gap-3 sm:flex-row">

@@ -14,7 +14,7 @@ import { cn } from '@/lib/utils';
  * animated gradient, no full-colour panel — the same industrial register
  * as the authenticated shell.
  */
-export default function PublicPageHero({ eyebrow, title, subtitle, children, size = 'default' }) {
+export default function PublicPageHero({ eyebrow, title, subtitle, children, size = 'default', align = 'start' }) {
     return (
         <section
             className={cn(
@@ -37,15 +37,40 @@ export default function PublicPageHero({ eyebrow, title, subtitle, children, siz
                 aria-hidden="true"
             />
 
-            <div className="mx-auto max-w-3xl px-4 text-center sm:px-6">
-                {eyebrow && (
-                    <p className="text-xs font-semibold uppercase tracking-[0.2em] text-steel-300">{eyebrow}</p>
+            {/* v2.85.0 -- LEFT-ALIGNED, AND ON THE SAME MARGIN AS THE PAGE.
+                Centred intros put every line on a different left edge, which
+                is the slowest way to read a paragraph, and they gave each
+                sub-page a different axis from the landing page's own hero.
+                The eyebrow is now a mono instrument label and the title is
+                set in the display face, so a section on /platform and a
+                section on / are recognisably the same system.
+
+                `align="center"` remains available for the short
+                single-sentence intros (an order page, a status page) where a
+                measure this narrow genuinely reads better centred. */}
+            <div
+                className={cn(
+                    'mx-auto px-4 sm:px-6 lg:px-8',
+                    align === 'center' ? 'max-w-3xl text-center' : 'max-w-7xl'
                 )}
-                <h1 className="mt-3 text-3xl font-semibold leading-tight tracking-tight sm:text-4xl">{title}</h1>
-                {subtitle && (
-                    <p className="mx-auto mt-4 max-w-xl text-sm leading-relaxed text-navy-300 sm:text-base">{subtitle}</p>
-                )}
-                {children && <div className="mt-8">{children}</div>}
+            >
+                <div className={cn(align === 'center' ? '' : 'max-w-3xl')}>
+                    {eyebrow && (
+                        <p className="font-mono text-[11px] uppercase tracking-[0.18em] text-steel-300">{eyebrow}</p>
+                    )}
+                    <h1 className="mt-4 font-display text-[2rem] font-semibold leading-[1.08] tracking-[-0.02em] sm:text-[2.6rem]">
+                        {title}
+                    </h1>
+                    {subtitle && (
+                        <p className={cn(
+                            'mt-5 text-sm leading-relaxed text-navy-300 sm:text-base',
+                            align === 'center' ? 'mx-auto max-w-xl' : 'max-w-2xl'
+                        )}>
+                            {subtitle}
+                        </p>
+                    )}
+                    {children && <div className="mt-8">{children}</div>}
+                </div>
             </div>
         </section>
     );

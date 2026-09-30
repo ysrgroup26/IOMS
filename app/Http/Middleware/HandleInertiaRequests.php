@@ -371,6 +371,31 @@ class HandleInertiaRequests extends Middleware
             // exactly as before -- nothing was loosened except the two keys
             // that were never sellable.
             'workspace_catalog' => function () use ($user) {
+                /*
+                 * v2.85.0 -- A GUEST HAS NO NAVIGATION, SO IT GETS NO
+                 * CATALOGUE.
+                 *
+                 * `grantedWorkspaceKeys()` treats a tenant with no grant
+                 * rows as UNRESTRICTED -- the deliberate v2.13.0 fail-open
+                 * that makes enforcement safe to switch on. An anonymous
+                 * visitor has no tenant at all, so it took that same branch
+                 * and the public marketing site was served the ENTIRE
+                 * Workspace table, retired departments included: Procurement,
+                 * Project Management and Quality Control, named in the page
+                 * source of a website whose copy was carefully audited to
+                 * never mention them.
+                 *
+                 * Nothing reads this prop outside AuthenticatedLayout and
+                 * Settings, both of which require a session, so returning an
+                 * empty catalogue for a guest removes the disclosure without
+                 * changing any behaviour. Entitlement logic is untouched --
+                 * this decides what is SERIALIZED to a page, never what a
+                 * tenant may reach.
+                 */
+                if (! $user) {
+                    return collect();
+                }
+
                 $grantedKeys = app(EntitlementService::class)->grantedWorkspaceKeys($user?->tenant);
 
                 return Workspace::query()
@@ -437,7 +462,29 @@ class HandleInertiaRequests extends Middleware
                 'emails' => config('ioms.emails'),
                 'documentation_url' => config('ioms.documentation_url'),
                 'whats_new' => config('ioms.whats_new'),
-                'history' => config('ioms.version_history'),
+                /*
+                 * v2.85.0 -- THE CHANGELOG IS NOT PUBLIC PAYLOAD.
+                 *
+                 * `version_history` is roughly 253 KB of release notes, and
+                 * it was shared on EVERY response -- so an anonymous visitor
+                 * opening the landing page downloaded the complete internal
+                 * release history, inline in the HTML, before a single pixel
+                 * of the marketing site rendered. It was the largest prop on
+                 * every public page by two orders of magnitude, larger than
+                 * the page's own content by far.
+                 *
+                 * It is also the wrong thing to publish. The history names
+                 * retired workspaces, internal defects and product decisions
+                 * that the public site deliberately no longer mentions, so
+                 * the one surface most carefully audited for product truth
+                 * was shipping the unedited engineering record beneath it.
+                 *
+                 * Exactly one component reads it -- AboutDialog, mounted
+                 * only in AuthenticatedLayout -- and it already renders
+                 * nothing when the key is absent, so a guest loses no
+                 * feature. Scoped to a signed-in user rather than removed.
+                 */
+                'history' => $user ? config('ioms.version_history') : null,
             ],
             // v2.54.0 -- ORGANIZATIONAL CONTEXT, read-only.
             //

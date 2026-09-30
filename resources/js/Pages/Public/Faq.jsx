@@ -19,7 +19,7 @@ export default function Faq({ faqs = [], contactEmail }) {
             <PublicPageHero
                 eyebrow="FAQ"
                 title="The questions worth answering before you buy."
-                subtitle="Plans, capacity, payment, activation, data separation and documents — answered plainly."
+                subtitle="Plans, capacity, payment, activation, data separation and documents, answered plainly."
                 size="sm"
             />
 

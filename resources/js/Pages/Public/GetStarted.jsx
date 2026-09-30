@@ -118,7 +118,7 @@ export default function GetStarted({ plans = [], selectedPlan, billingCycle, ind
         // describing an email that will never arrive would be a lie.
         { icon: Mail, title: 'Your account is ready', body: 'You are signed in as ' + account.email + '. This account becomes the administrator of the workspace created below.' },
         { icon: CreditCard, title: 'Pay for your plan', body: 'An invoice is issued for the cycle you choose and paid through our payment provider. Your card details never reach IOMS.' },
-        { icon: Building2, title: 'Your workspace is created', body: 'Your organization, first operating unit, administrator account and permissions are set up — with your own company identity on them.' },
+        { icon: Building2, title: 'Your workspace is created', body: 'Your organization, first operating unit, administrator account and permissions are set up, with your own company identity on them.' },
         // And there is no password to set here either, so telling somebody
         // to use one would send them looking for it.
         { icon: KeyRound, title: 'Sign in to IOMS', body: 'Use the account you are signed in with now. It becomes the administrator of the new workspace.' },
@@ -221,7 +221,7 @@ export default function GetStarted({ plans = [], selectedPlan, billingCycle, ind
                                 they belong on a formal document header, and
                                 left blank without consequence if a customer
                                 does not want to provide them yet. */}
-                            <Field label="NPWP" error={errors.company_tax_id} hint="Optional — appears on generated documents.">
+                            <Field label="NPWP" error={errors.company_tax_id} hint="Optional. Appears on generated documents.">
                                 <Input value={data.company_tax_id} onChange={(e) => setData('company_tax_id', e.target.value)} />
                             </Field>
                             <Field label="NIB" error={errors.company_business_id} hint="Optional.">
@@ -325,7 +325,7 @@ export default function GetStarted({ plans = [], selectedPlan, billingCycle, ind
                                                 </span>
                                             </span>
                                             <span className="shrink-0 text-right">
-                                                <span className="block text-sm font-semibold text-navy-900">{amount?.formatted ?? '—'}</span>
+                                                <span className="block text-sm font-semibold text-navy-900">{amount?.formatted ?? 'Not set'}</span>
                                                 <span className="block text-[10px] uppercase tracking-wide text-graphite-400">/{yearly ? 'year' : 'month'}</span>
                                             </span>
                                         </button>
@@ -366,7 +366,7 @@ export default function GetStarted({ plans = [], selectedPlan, billingCycle, ind
                                         {yearly ? 'Annual billing' : 'Monthly billing'}
                                     </span>
                                     <span className="text-lg font-semibold tracking-tight text-navy-900">
-                                        {price?.formatted ?? '—'}
+                                        {price?.formatted ?? 'Not set'}
                                     </span>
                                 </div>
 
@@ -426,7 +426,7 @@ export default function GetStarted({ plans = [], selectedPlan, billingCycle, ind
                                 <p className="text-xs leading-relaxed text-graphite-600">
                                     <span className="font-semibold text-navy-800">Not ready yet?</span>{' '}
                                     <Link href={route('account.overview')} className="font-medium text-brand-700 hover:underline">Back to your account</Link>
-                                    {' '}— or{' '}
+                                    {' '}or{' '}
                                     <Link href={route('pricing')} className="font-medium text-brand-700 hover:underline">compare plans</Link>
                                     {' '}first. Nothing here is saved until you continue to payment.
                                 </p>

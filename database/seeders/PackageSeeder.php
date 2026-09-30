@@ -110,7 +110,7 @@ class PackageSeeder extends Seeder
             [
                 'name' => 'Starter',
                 'slug' => 'starter',
-                'description' => 'Digitalize Health, Safety & Environment for one operating unit — incidents, observations, inspections, PPE, Permit To Work, CAPA and every other HSE module.',
+                'description' => 'Digitalize Health, Safety & Environment for one operating unit: incidents, observations, inspections, PPE, Permit To Work, CAPA and every other HSE module.',
                 'price_monthly' => 189000,
                 'price_yearly' => 2268000,
                 // 12 x 189.000, twelve months access -- no annual benefit.
@@ -133,7 +133,7 @@ class PackageSeeder extends Seeder
             [
                 'name' => 'Professional',
                 'slug' => 'professional',
-                'description' => 'Health, Safety & Environment plus People and Workforce — employees, competency and certificate expiry, shifts and rosters, leave — for an organization running up to two operating units.',
+                'description' => 'Health, Safety & Environment plus People and Workforce: employees, competency and certificate expiry, shifts, rosters and leave, for an organization running up to two operating units.',
                 // v2.60.0: 999.000 -> 799.000. Professional cost 3.3x
                 // Starter and added ONE department while Enterprise added
                 // eight for 2x -- the expensive step was the small one.
@@ -153,7 +153,7 @@ class PackageSeeder extends Seeder
             [
                 'name' => 'Business',
                 'slug' => 'business',
-                'description' => 'Health, Safety & Environment and People, plus Logistics / PPIC and Warehouse — so work, materials and stock stop living in separate systems.',
+                'description' => 'Health, Safety & Environment and People, plus Warehouse Logistics and Management reporting, with the company-wide Dashboard across up to four operating units.',
                 // The bridge tier, and the largest scope jump in the ladder:
                 // three departments at the middle price. That is what earns
                 // it "Most Popular" rather than a badge chosen for effect.
@@ -174,7 +174,7 @@ class PackageSeeder extends Seeder
             [
                 'name' => 'Enterprise',
                 'slug' => 'enterprise',
-                'description' => 'The complete IOMS platform — every operational department, unlimited operating units and unlimited user accounts, with per-unit authorization and legal entity structures where they apply.',
+                'description' => 'The four operational workspaces with no stated ceiling on operating units or active user accounts, for organizations that need per-unit authorization and legal entity structures.',
                 // v2.60.0: 1.999.000 -> 2.499.000. Enterprise adds only a
                 // handful of thin departments over Business; what it sells
                 // is UNLIMITED operating units and users plus multi-entity

@@ -82,3 +82,14 @@ Full procedure: `LOCAL-VERIFICATION.md`.
 ---
 
 See also: [[Requirements Register]] · [[Verification Status]] · [[Release History]]
+
+---
+
+## Public website, opened v2.85.0
+
+| ID | Issue | Severity | Status |
+|---|---|---|---|
+| QA-002 | The Ziggy route manifest ships every internal route name, including the retired `procurement.*` routes, into the page source of public pages. Not visible copy; it is route metadata. | Low | Open, deliberately deferred. Filtering Ziggy changes the `route()` helper site-wide and a wrong allow-list breaks navigation silently rather than loudly, so it warrants its own change with its own verification. |
+| QA-003 | `config/ioms.php` sets `edition` to "Enterprise Edition" and `license` to "Commercial Enterprise License" while `enterprise` is also a retired plan slug. The strings name the build, not the plan, and are serialized in props but never rendered. | Low | Open, owner decision. Renaming a product edition is product direction, not a redesign call. |
+
+Full detail: `docs/IOMS Website Redesign/05 - QA & Verification.md`.

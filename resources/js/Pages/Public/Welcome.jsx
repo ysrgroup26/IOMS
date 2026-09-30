@@ -9,6 +9,7 @@ import FragmentedToConnected from '@/Components/public/FragmentedToConnected';
 import StorySection from '@/Components/public/StorySection';
 import { DOMAIN_STORIES } from '@/Components/public/domainStories';
 import OperatingLoop from '@/Components/public/OperatingLoop';
+import { cn } from '@/lib/utils';
 import { Button } from '@/Components/ui/button';
 import {
     ArrowRight, Users, FileCheck2, Flame, Eye, ClipboardCheck, ChevronDown,
@@ -75,6 +76,23 @@ export default function PublicWelcome({ plans, steps = [], faqs = [], contactEma
 const INDUSTRIES_STRIP = ['Shipyards', 'Construction', 'Manufacturing', 'Mining', 'Energy & Marine'];
 
 /**
+ * v2.85.0 -- the four workspaces IOMS sells, for the hero's right column.
+ *
+ * Kept as a short one-line form rather than reusing the `domains` server
+ * prop: that prop carries the full four-point capability list each domain
+ * section renders further down the page, and printing it twice would make
+ * the hero a summary of the page instead of an entry into it. The NAMES are
+ * the same four `config/plans.php` pins as `operational`, so this list
+ * cannot name a fifth workspace or a retired one.
+ */
+const HERO_WORKSPACES = [
+    { name: 'Health, Safety & Environment', line: 'Permit To Work, incidents, inspections, HIRADC, JSA, LOTO, PPE and CAPA.' },
+    { name: 'People / HRD', line: 'Employee records, competencies and certificates, shifts, rosters, leave and man-hours.' },
+    { name: 'Warehouse Logistics', line: 'Material requests, item master, stock per warehouse, goods receipt and movements.' },
+    { name: 'Management', line: 'KPI input and history, analytics, Report Center and scheduled reports.' },
+];
+
+/**
  * v2.45.0 -- the hero moves onto a deep navy atmospheric surface, the same
  * brand DNA as the sign-in gateway, so the first thing a visitor sees is an
  * industrial operations platform rather than a white marketing page with
@@ -99,53 +117,94 @@ function Hero() {
             <BlueprintBackdrop variant="hero" />
 
             <div className="relative mx-auto max-w-7xl px-4 py-20 sm:px-6 sm:py-28 lg:px-8">
-                <div className="mx-auto max-w-3xl text-center">
-                    {/* v2.76.0 -- THE PRODUCT DEFINITION IS VISIBLE TEXT.
-                        The eyebrow names the product and its category; the
-                        H1 says what it is for; the paragraph below names the
-                        domains and the industries. Together they are the
-                        sentence a search engine -- or a person skimming --
-                        should come away with, so it lives in the HTML, not
-                        only in metadata or structured data. */}
-                    <p className="text-xs font-semibold uppercase tracking-[0.2em] text-steel-300">
-                        IOMS · Industrial Operations Platform
-                    </p>
-                    <h1 className="mt-4 text-4xl font-semibold leading-[1.08] tracking-tight text-white sm:text-5xl lg:text-6xl">
-                        One platform for complex<br className="hidden sm:block" /> industrial operations.
-                    </h1>
+                {/* v2.85.0 -- THE HERO IS NO LONGER CENTERED.
+                    A centered stack over a dark surface is the default
+                    composition of every generated SaaS landing page, and
+                    centered text also forces every line to a new left edge,
+                    which is the slowest way to read a paragraph. The
+                    headline now sits on a single left margin shared with the
+                    eyebrow, the paragraph and the buttons, and the right
+                    column carries the four workspaces as a plain list. That
+                    asymmetry is what gives the page an axis to hang the rest
+                    of its sections on. */}
+                <div className="grid grid-cols-1 gap-x-12 gap-y-14 lg:grid-cols-12">
+                    <div className="lg:col-span-7">
+                        {/* THE PRODUCT DEFINITION IS VISIBLE TEXT (v2.76.0).
+                            The eyebrow names the product and its category,
+                            the H1 says what it is for, the paragraph names
+                            the domains and industries. A search engine and
+                            a person skimming should come away with the same
+                            sentence, so it lives in the HTML rather than
+                            only in metadata. */}
+                        <p className="font-mono text-[11px] uppercase tracking-[0.18em] text-steel-300">
+                            IOMS / Industrial Operations Platform
+                        </p>
+                        <h1 className="mt-5 font-display text-[2.6rem] font-semibold leading-[1.03] tracking-[-0.02em] text-white sm:text-[3.5rem] lg:text-[4rem]">
+                            Run the whole operation
+                            <span className="block text-steel-300">on one record.</span>
+                        </h1>
 
-                    <div className="mx-auto mt-6 inline-flex flex-wrap items-center justify-center gap-x-2 gap-y-1 rounded-full border border-white/10 bg-white/[0.06] px-4 py-2 text-[11px] font-semibold uppercase tracking-wide text-steel-200 sm:text-xs">
-                        <span className="text-white">Built for Industrial Operations</span>
-                        <span className="hidden text-white/25 sm:inline">&middot;</span>
-                        <span className="flex flex-wrap items-center justify-center gap-x-1.5">
-                            {INDUSTRIES_STRIP.map((ind, i) => (
-                                <span key={ind}>{ind}{i < INDUSTRIES_STRIP.length - 1 ? ' •' : ''}</span>
-                            ))}
-                        </span>
+                        <p className="mt-7 max-w-xl text-base leading-relaxed text-navy-300 sm:text-lg">
+                            IOMS covers Health, Safety &amp; Environment, People / HRD, Warehouse Logistics and
+                            Management reporting in one platform. A permit raised on site, the crew who signed it and
+                            the report management reads at month end are the same record, not three systems that no
+                            longer agree.
+                        </p>
+
+                        {/* One unmistakable primary, one quiet secondary. The
+                            secondary is a surface-on-navy rather than a
+                            bordered white button, so the pair reads as a
+                            hierarchy instead of two buttons competing for
+                            the same weight. */}
+                        <div className="mt-9 flex flex-col gap-3 sm:flex-row">
+                            <Button size="lg" className="w-full sm:w-auto" asChild>
+                                <Link href={route('get-started')}>Get Started <ArrowRight className="h-4 w-4" /></Link>
+                            </Button>
+                            <Button
+                                size="lg"
+                                variant="ghost"
+                                className="w-full border border-white/15 bg-white/[0.06] text-white hover:bg-white/[0.12] hover:text-white sm:w-auto"
+                                asChild
+                            >
+                                <Link href={route('sandbox')}>Open the Sandbox</Link>
+                            </Button>
+                        </div>
+
+                        <p className="mt-6 font-mono text-[11px] uppercase tracking-[0.14em] text-navy-400">
+                            {INDUSTRIES_STRIP.join('  /  ')}
+                        </p>
                     </div>
 
-                    <p className="mx-auto mt-6 max-w-2xl text-base leading-relaxed text-navy-300 sm:text-lg">
-                        IOMS connects management, HSE, people, field operations, projects, procurement, warehouse and
-                        logistics for shipyards, construction, manufacturing, mining, energy and marine operations — so
-                        what happens on site reaches management as data, not as spreadsheets that no longer agree.
-                    </p>
-
-                    {/* One unmistakable primary, one quiet secondary. The
-                        secondary is a surface-on-navy rather than a bordered
-                        white button, so the pair reads as a hierarchy instead
-                        of two buttons competing for the same weight. */}
-                    <div className="mt-8 flex flex-col items-center justify-center gap-3 sm:flex-row">
-                        <Button size="lg" className="w-full sm:w-auto" asChild>
-                            <Link href={route('get-started')}>Get Started <ArrowRight className="h-4 w-4" /></Link>
-                        </Button>
-                        <Button
-                            size="lg"
-                            variant="ghost"
-                            className="w-full border border-white/15 bg-white/[0.06] text-white hover:bg-white/[0.12] hover:text-white sm:w-auto"
-                            asChild
-                        >
-                            <Link href={route('sandbox')}>Try the Sandbox</Link>
-                        </Button>
+                    {/* The four workspaces, stated plainly. Not cards: a
+                        numbered list on a hairline rule, which is how a
+                        specification sheet lists what is in the box. These
+                        are the four IOMS actually sells, read from the same
+                        names config/plans.php pins. */}
+                    <div className="lg:col-span-5 lg:pt-3">
+                        <p className="font-mono text-[11px] uppercase tracking-[0.18em] text-steel-300">
+                            Operational workspaces
+                        </p>
+                        <ul className="mt-5 divide-y divide-white/10 border-y border-white/10">
+                            {HERO_WORKSPACES.map((w, i) => (
+                                <li key={w.name} className="flex gap-4 py-4">
+                                    <span className="font-mono text-[11px] leading-6 text-navy-400">
+                                        {String(i + 1).padStart(2, '0')}
+                                    </span>
+                                    <span>
+                                        <span className="block font-display text-[0.95rem] font-semibold tracking-tight text-white">
+                                            {w.name}
+                                        </span>
+                                        <span className="mt-1 block text-sm leading-relaxed text-navy-300">
+                                            {w.line}
+                                        </span>
+                                    </span>
+                                </li>
+                            ))}
+                        </ul>
+                        <p className="mt-4 text-xs leading-relaxed text-navy-400">
+                            Plans open these in order. Starter begins with HSE; Business runs all four plus the
+                            company-wide Dashboard.
+                        </p>
                     </div>
                 </div>
 
@@ -185,7 +244,7 @@ function ProblemSection() {
                 <SectionHeading
                     eyebrow="The problem"
                     title="Your departments already have the data. They just don't share it."
-                    subtitle="Procurement cannot see what the yard actually consumed. HSE cannot see which job the permit belongs to. Management rebuilds the same report every month."
+                    subtitle="The warehouse cannot see what the yard actually consumed. HSE cannot see which crew the permit covers. Management rebuilds the same report every month from files that disagree."
                 />
 
                 <div className="mt-12">
@@ -205,7 +264,7 @@ function PlatformOverview() {
                 <SectionHeading
                     eyebrow="Platform"
                     title="One platform, every operational domain"
-                    subtitle="Every domain below runs in IOMS today — not a roadmap. They share one set of master data, one approval layer and one reporting layer."
+                    subtitle="Every domain below runs in IOMS today, not on a roadmap. They share one set of master data, one approval layer and one reporting layer."
                 />
 
                 {/* v2.76.0: domain by domain, as stories rather than a grid
@@ -279,8 +338,8 @@ function PtwHseStory() {
                     <h2 className="mt-3 text-2xl font-semibold tracking-tight sm:text-3xl">One record, from the field to the approval that releases it</h2>
                     <p className="mx-auto mt-3 max-w-2xl text-sm text-graphite-300 sm:text-base">
                         Permit To Work is one worked example of how IOMS connects departments. The same shape applies to
-                        a purchase requisition, a material issue or a work order: one record, the people accountable for
-                        it, and the approvals that release it — all visible to management without anyone rekeying it.
+                        a material request, a stock movement or an inspection: one record, the people accountable for
+                        it, and the approvals that release it, all visible to management without anyone rekeying it.
                     </p>
                 </div>
 
@@ -323,7 +382,7 @@ function FieldExperience() {
                             Built for the people doing the work, not only those reporting on it.
                         </h2>
                         <p className="mt-4 text-base text-graphite-600">
-                            Foremen, supervisors, technicians and operators land straight in My Work — a compact field
+                            Foremen, supervisors, technicians and operators land straight in My Work, a compact field
                             workspace built for a phone on site, not an office dashboard they have no use for.
                         </p>
                         <ul className="mt-6 space-y-2.5">
@@ -413,7 +472,7 @@ function ProductPreview() {
                 <SectionHeading
                     eyebrow="Product"
                     title="This is the platform, not a screenshot of one module"
-                    subtitle="Switch between the workspaces IOMS actually ships. Built from the real IOMS design system with illustrative operational data — not stock photography."
+                    subtitle="Switch between the workspaces IOMS actually ships. Built from the real IOMS design system with illustrative operational data, not stock photography."
                 />
 
                 <Reveal className="mt-10">
@@ -485,8 +544,11 @@ function Industries() {
 const PLAN_FRAMING = {
     starter: 'For a team putting Health, Safety & Environment on one system for the first time.',
     professional: 'For an operation that also has to manage its people, competency and rosters.',
-    business: 'For an operation running projects, materials and purchasing across several sites.',
-    enterprise: 'For an organization that needs every department, unlimited capacity and cross-unit governance.',
+    business: 'For an operation that also runs its warehouse and reports to management across several units.',
+    // v2.85.0: the `enterprise` entry is gone. Enterprise is retired from
+    // sale (is_public = false), so PricingService::publicPlans() never
+    // returns it and this landing section could not render it -- a blurb
+    // for a plan nobody can buy is copy that only rots.
 };
 function Pricing({ plans }) {
     const [interval, setInterval] = useState('monthly');
@@ -495,7 +557,7 @@ function Pricing({ plans }) {
     return (
         <section id="pricing" className="border-b border-graphite-100 bg-white py-20">
             <div className="mx-auto max-w-7xl px-4 sm:px-6 lg:px-8">
-                <SectionHeading eyebrow="Pricing" title="Plans that grow with your operation" subtitle="One standardized product at four levels of access and capacity. No hidden implementation fee, and no per-customer custom development." />
+                <SectionHeading eyebrow="Pricing" title="Plans that grow with your operation" subtitle="One standardized product at three levels of access and capacity. Additional active users are priced per user on every plan, with no implementation fee and no per-customer custom development." />
 
                 {plans && plans.length > 0 ? (
                     <>
@@ -577,7 +639,7 @@ function Pricing({ plans }) {
 
                                         <ul className="mt-6 flex-1 space-y-2.5 border-t border-graphite-100 pt-5 text-sm text-graphite-600">
                                             <li className="flex items-center gap-2 font-medium text-graphite-800">
-                                                <Users className="h-3.5 w-3.5 shrink-0 text-brand-500" /> {plan.max_users ? `${plan.max_users} user accounts` : 'Highest user capacity'}
+                                                <Users className="h-3.5 w-3.5 shrink-0 text-brand-500" /> {plan.included_users ? `${plan.included_users} active users included` : 'Highest user capacity'}
                                             </li>
                                             {/* v2.53.0: capacity is ONE number. PTW Access is a
                                                 permission granted inside IOMS, not a sold seat. */}
@@ -615,6 +677,23 @@ function Pricing({ plans }) {
                                 );
                             })}
                         </div>
+
+                        {/* v2.85.0 -- THE ALLOWANCE IS NOT A CEILING, SO SAY
+                            WHAT PASSING IT COSTS. Each card states the users
+                            its plan includes; without this line a reader
+                            reasonably concludes the plan stops there. The
+                            figure comes from the same `additional_user` the
+                            billing layer charges (PricingService), never
+                            from copy, so it cannot quote a stale price. */}
+                        {plans[0]?.additional_user && (
+                            <p className="mt-8 text-center text-sm text-graphite-600">
+                                Need more people on the system? Additional active users are{' '}
+                                <strong className="font-semibold text-graphite-900">
+                                    {plans[0].additional_user.formatted}
+                                </strong>{' '}
+                                per user per month on every plan.
+                            </p>
+                        )}
                     </>
                 ) : (
                     <div className="mt-10 rounded-xl border border-dashed border-graphite-300 p-10 text-center">
@@ -700,7 +779,7 @@ function FinalCta() {
             <div className="mx-auto max-w-3xl px-4 text-center sm:px-6 lg:px-8">
                 <h2 className="text-2xl font-semibold tracking-tight sm:text-3xl">Ready to connect your operation?</h2>
                 <p className="mx-auto mt-3 max-w-xl text-sm text-graphite-300 sm:text-base">
-                    Try the Sandbox first, or choose a plan and register your company — your workspace is provisioned
+                    Try the Sandbox first, or choose a plan and register your company. Your workspace is provisioned
                     once payment is confirmed.
                 </p>
                 <div className="mt-8 flex flex-col items-center justify-center gap-3 sm:flex-row">
@@ -722,12 +801,41 @@ function FinalCta() {
  * site means every section on the page inherits the same single gesture
  * for free, and there is exactly one place to change or remove it.
  */
-function SectionHeading({ eyebrow, title, subtitle }) {
+/**
+ * v2.85.0 -- LEFT-ALIGNED, MONO EYEBROW, DISPLAY TITLE.
+ *
+ * Every section on this page was centred, which gave a long page a single
+ * repeating rhythm and no axis. The heading now sits on the page's left
+ * margin, so the sections below it can be asymmetric without the heading
+ * fighting them, and the eyebrow reads as an instrument label rather than
+ * as small bold marketing text.
+ *
+ * `onDark` exists because two sections sit on navy and previously passed
+ * their own text colours around this component's defaults.
+ */
+function SectionHeading({ eyebrow, title, subtitle, onDark = false }) {
     return (
-        <Reveal className="mx-auto max-w-2xl text-center">
-            <p className="text-xs font-semibold uppercase tracking-[0.2em] text-brand-600">{eyebrow}</p>
-            <h2 className="mt-3 text-2xl font-semibold tracking-tight text-graphite-900 sm:text-3xl">{title}</h2>
-            {subtitle && <p className="mt-3 text-sm text-graphite-600 sm:text-base">{subtitle}</p>}
+        <Reveal className="max-w-3xl">
+            <p className={cn(
+                'font-mono text-[11px] uppercase tracking-[0.18em]',
+                onDark ? 'text-steel-300' : 'text-brand-600'
+            )}>
+                {eyebrow}
+            </p>
+            <h2 className={cn(
+                'mt-4 font-display text-[1.75rem] font-semibold leading-[1.12] tracking-[-0.02em] sm:text-[2.25rem]',
+                onDark ? 'text-white' : 'text-graphite-900'
+            )}>
+                {title}
+            </h2>
+            {subtitle && (
+                <p className={cn(
+                    'mt-4 max-w-2xl text-sm leading-relaxed sm:text-base',
+                    onDark ? 'text-navy-300' : 'text-graphite-600'
+                )}>
+                    {subtitle}
+                </p>
+            )}
         </Reveal>
     );
 }

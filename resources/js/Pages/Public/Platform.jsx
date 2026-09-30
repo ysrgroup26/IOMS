@@ -19,7 +19,7 @@ const PILLARS = [
     {
         icon: Layers,
         title: 'One platform, not a collection of apps',
-        body: 'Employees, assets, permits, stock and purchase orders all refer to the same master data. The record created in the field is the same record management reports on.',
+        body: 'Employees, permits, PPE issues, material requests and stock all refer to the same master data. The record created in the field is the same record management reports on.',
     },
     {
         icon: ShieldCheck,
@@ -29,7 +29,7 @@ const PILLARS = [
     {
         icon: Workflow,
         title: 'Approvals are built in',
-        body: 'Approval flows, per-role and per-department access, and an activity history on every record — not a spreadsheet with a signature column.',
+        body: 'Approval flows, per-role and per-department access, and an activity history on every record, not a spreadsheet with a signature column.',
     },
     {
         icon: FileText,
@@ -46,7 +46,7 @@ export default function Platform({ domains = [] }) {
             <PublicPageHero
                 eyebrow="Platform"
                 title="Your whole operation in one system."
-                subtitle="IOMS is an Industrial Operations Platform: the work in the field, the approvals behind it, and the records it produces — held together, not scattered across forms, folders and spreadsheets."
+                subtitle="IOMS is an Industrial Operations Platform: the work in the field, the approvals behind it, and the records it produces, held together, not scattered across forms, folders and spreadsheets."
             />
 
             <section className="bg-white py-14 sm:py-20">
@@ -76,7 +76,7 @@ export default function Platform({ domains = [] }) {
                             The operational domains IOMS covers
                         </h2>
                         <p className="mt-3 text-sm leading-relaxed text-graphite-600">
-                            Which domains you can open is set by your plan — the platform behind them is the same either way.
+                            Which domains you can open is set by your plan. The platform behind them is the same either way.
                         </p>
                     </div>
 

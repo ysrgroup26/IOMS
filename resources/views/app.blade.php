@@ -178,7 +178,7 @@
                     '@type' => 'WebSite',
                     '@id' => $homeUrl.'#website',
                     'name' => $brandName,
-                    'alternateName' => $brandName.' — '.$brandDescriptor,
+                    'alternateName' => $brandName.': '.$brandDescriptor,
                     'url' => $homeUrl,
                     'inLanguage' => 'en',
                     'publisher' => ['@id' => $organizationId],
@@ -238,7 +238,7 @@
         <meta property="og:image" content="{{ $socialImage }}">
         <meta property="og:image:width" content="1200">
         <meta property="og:image:height" content="630">
-        <meta property="og:image:alt" content="{{ $brandName }} — {{ $brandDescriptor }}">
+        <meta property="og:image:alt" content="{{ $brandName }}: {{ $brandDescriptor }}">
 
         <meta name="twitter:card" content="summary_large_image">
         <meta name="twitter:title" content="{{ $seoPage['title'] }}">
@@ -252,7 +252,26 @@
 
     <link rel="preconnect" href="https://fonts.googleapis.com">
     <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
-    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800&display=swap" rel="stylesheet">
+    {{-- v2.85.0 -- THREE FAMILIES, ONE REQUEST.
+
+         Inter stays the UI face: it is what the authenticated application
+         is built in, and nothing here changes that.
+
+         Archivo is the DISPLAY face, added for the public website only. A
+         grotesque with tighter apertures and a squarer bowl than Inter, it
+         reads as industrial signage rather than as another SaaS landing
+         page. Inter at 60px is the single most recognisable typographic
+         tell of a generated marketing site; the product it fronts deserves
+         a headline voice of its own.
+
+         IBM Plex Mono carries INSTRUMENT LABELS -- eyebrows, plan
+         capacities, step numbers, reference figures. On an operations
+         platform a monospaced label is not decoration: it is the
+         convention the reader already associates with a reading taken off
+         a system rather than a claim written by marketing.
+
+         One combined request, weights restricted to those actually used. --}}
+    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800&family=Archivo:wght@500;600;700&family=IBM+Plex+Mono:wght@400;500&display=swap" rel="stylesheet">
 
     @routes
     @viteReactRefresh
@@ -273,7 +292,7 @@
     @if ($seoPage)
         <noscript>
             <header>
-                <p>{{ config('ioms.name', 'IOMS') }} — {{ config('ioms.descriptor', 'Industrial Operations Platform') }}</p>
+                <p>{{ config('ioms.name', 'IOMS') }}: {{ config('ioms.descriptor', 'Industrial Operations Platform') }}</p>
                 <h1>{{ $seoPage['title'] }}</h1>
                 <p>{{ $seoPage['description'] }}</p>
             </header>

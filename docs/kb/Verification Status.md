@@ -1,7 +1,7 @@
 ---
 title: Verification Status
 type: register
-updated: 2026-09-20
+updated: 2026-09-30
 tags: [kb/verification]
 ---
 
@@ -162,3 +162,44 @@ code → tests → build → browser → responsive check → report
 ---
 
 See also: [[Known Issues and Limitations]] · [[Working with This Knowledge Base]] · [[Security Decisions and Lessons]]
+
+---
+
+## v2.85.0, 2026-09-30: the public website, verified by running it
+
+The whole release was verified by execution rather than by reading, which is worth recording because
+of what only execution found.
+
+**Run:** full suite 692 passing / 3813 assertions with zero failures; `npm run build` clean; ESLint
+zero errors; one data migration applied, rolled back and re-applied against MySQL; every public route
+requested and checked for status and console errors; both 1440x900 and 375x812 exercised in a real
+browser; rendered prices read off the page and compared to `tests/Support/ApprovedCatalogue.php`.
+
+**What only running it found**
+
+The em dash rule was being broken in the `packages` table, and a source-file search could not see it.
+Plan descriptions are database rows rendered onto every pricing card, so they are website copy that
+lives outside every file a copy review reads.
+
+Worse, the **first** runtime sweep also missed them and reported a clean result. It searched the
+rendered HTML for the literal character, and Inertia serializes props as JSON, where the character
+appears as an escape sequence. The check was wrong in a way that produced a confident pass.
+
+> [!important] A verification method can fail silently too
+> "Verified by running it" is not automatically true. The first sweep ran against the real server,
+> against real responses, and was still wrong, because it looked for one encoding of the thing it was
+> searching for. The corrected check searches both forms and is pinned by a test that asserts against
+> the rendered response rather than against source files.
+
+**A test was holding a defect in place.** `LandingPositioningTest` asserted the hero names "projects"
+and "procurement". It passed, because the hero did, through the entire release that retired both
+departments. A green suite is evidence that the code matches the tests, which is only useful while
+the tests still match the product.
+
+**Payload, which no amount of reading would have surfaced as urgent.** Every public page carried
+about 253 KB of internal changelog and the full workspace table. Visible only by measuring an actual
+response.
+
+**Not verified, and stated rather than implied:** no live payment was executed, no subscription
+crossed a real period boundary, the authenticated UI was not re-reviewed visually, only Chromium was
+tested, and mobile was viewport emulation rather than hardware.

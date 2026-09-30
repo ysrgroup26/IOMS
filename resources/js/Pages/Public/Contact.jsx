@@ -55,7 +55,7 @@ export default function Contact({ emails, operator, address, sandboxEnabled }) {
                         Contact IOMS
                     </h1>
                     <p className="mt-3 max-w-2xl text-base leading-relaxed text-graphite-600">
-                        IOMS — Industrial Operations Platform. Three addresses for three different jobs, so your
+                        IOMS, the Industrial Operations Platform. Three addresses for three different jobs, so your
                         question reaches the right person first time. We reply on business days.
                     </p>
                 </div>

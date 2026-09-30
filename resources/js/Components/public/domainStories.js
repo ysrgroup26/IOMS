@@ -53,7 +53,7 @@ export const DOMAIN_STORIES = [
         eyebrow: 'People & Workforce',
         icon: Users,
         title: 'The workforce record every other module relies on',
-        body: 'Employee master data, competency and certificate expiry, shifts, rosters and leave, contractors and visitors — the same people who are assigned to projects and named on permits.',
+        body: 'Employee master data, competency and certificate expiry, shifts, rosters and leave, contractors and visitors, the same people who are named on permits and assigned to shifts.',
         items: ['Employee master data', 'Competency & certificate expiry', 'Shifts, rosters & leave', 'Contractors & visitors'],
     },
     {
@@ -61,7 +61,7 @@ export const DOMAIN_STORIES = [
         eyebrow: 'Field Operations',
         icon: HardHat,
         title: 'Built for the people on site',
-        body: 'Field users open to their own work first — permits to raise, tasks to close, what is running now — on a phone. The office sees the same record the moment it is submitted.',
+        body: 'Field users open to their own work first, on a phone: permits to raise, tasks to close, what is running now. The office sees the same record the moment it is submitted.',
         items: ['My Work for field users', 'Permit requests from site', 'Observations & checklists', 'Tasks & progress updates'],
         cta: { label: 'See the field experience', anchor: '#field' },
     },

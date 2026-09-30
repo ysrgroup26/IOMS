@@ -110,7 +110,7 @@ class LegalDocuments
             [
                 'heading' => '1. Tentang dokumen ini',
                 'body' => self::paragraphs([
-                    'Syarat & Ketentuan ini mengatur penggunaan IOMS — Industrial Operations Platform ("IOMS", "Layanan"), sebuah platform perangkat lunak berbasis langganan yang diakses melalui internet. Dokumen ini berlaku antara IOMS sebagai penyedia layanan dan organisasi yang berlangganan ("Pelanggan").',
+                    'Syarat & Ketentuan ini mengatur penggunaan IOMS, Industrial Operations Platform ("IOMS", "Layanan"), sebuah platform perangkat lunak berbasis langganan yang diakses melalui internet. Dokumen ini berlaku antara IOMS sebagai penyedia layanan dan organisasi yang berlangganan ("Pelanggan").',
                     'IOMS dioperasikan oleh :entity.',
                     'Alamat korespondensi resmi: :address.',
                     'Dengan membuat akun, melakukan pembayaran, atau menggunakan Layanan, Pelanggan menyatakan telah membaca, memahami, dan terikat pada Syarat & Ketentuan ini. Apabila Pelanggan tidak menyetujuinya, Pelanggan tidak boleh menggunakan Layanan.',
@@ -178,7 +178,7 @@ class LegalDocuments
             [
                 'heading' => '9. Data Pelanggan dan kepemilikan',
                 'body' => self::paragraphs([
-                    'Seluruh data operasional yang dimasukkan Pelanggan ke dalam IOMS — data karyawan, dokumen, catatan keselamatan kerja, dan seluruh catatan lain — tetap menjadi milik Pelanggan.',
+                    'Seluruh data operasional yang dimasukkan Pelanggan ke dalam IOMS, yaitu data karyawan, dokumen, catatan keselamatan kerja, dan seluruh catatan lain, tetap menjadi milik Pelanggan.',
                     'Kami memproses data tersebut semata-mata untuk menyediakan dan memelihara Layanan bagi Pelanggan, sebagaimana diuraikan dalam Privacy Policy.',
                     'Selama langganan aktif, Pelanggan dapat mengekspor datanya sendiri dari dalam aplikasi dalam format PDF dan Excel yang telah tersedia.',
                     'Setelah pengakhiran, Pelanggan disarankan mengekspor data yang diperlukan sebelum masa akses berakhir.',
@@ -257,7 +257,7 @@ class LegalDocuments
             [
                 'heading' => '1. Ruang lingkup',
                 'body' => self::paragraphs([
-                    'Kebijakan ini menjelaskan bagaimana IOMS — Industrial Operations Platform menangani data dalam penyediaan layanannya kepada organisasi pelanggan.',
+                    'Kebijakan ini menjelaskan bagaimana IOMS, Industrial Operations Platform, menangani data dalam penyediaan layanannya kepada organisasi pelanggan.',
                     'IOMS dioperasikan oleh :entity.',
                     'Terdapat dua jenis data yang perlu dibedakan, karena perlakuannya berbeda: data akun yang kami kumpulkan untuk menjalankan hubungan langganan, dan data operasional yang dimasukkan Pelanggan ke dalam aplikasi.',
                 ], $t),
@@ -273,7 +273,7 @@ class LegalDocuments
             [
                 'heading' => '3. Data operasional Pelanggan',
                 'body' => self::paragraphs([
-                    'Data yang dimasukkan Pelanggan ke dalam IOMS — data karyawan, proyek, izin kerja, inspeksi, dokumen, dan catatan operasional lainnya — merupakan milik Pelanggan.',
+                    'Data yang dimasukkan Pelanggan ke dalam IOMS, yaitu data karyawan, izin kerja, inspeksi, dokumen, dan catatan operasional lainnya, merupakan milik Pelanggan.',
                     'Terhadap data tersebut kami bertindak sebagai pemroses atas nama Pelanggan. Kami memprosesnya untuk menyediakan, memelihara, mengamankan, dan mendukung Layanan, dan tidak untuk tujuan lain.',
                     'Kami tidak menjual data Pelanggan, tidak menggunakannya untuk periklanan, dan tidak membagikannya kepada pelanggan lain.',
                     'Penentuan data pribadi apa yang dimasukkan ke dalam IOMS dan atas dasar hukum apa merupakan tanggung jawab Pelanggan sebagai pengendali data.',
@@ -296,7 +296,7 @@ class LegalDocuments
             [
                 'heading' => '6. Pihak ketiga',
                 'body' => self::paragraphs([
-                    'Pembayaran diproses oleh penyedia pembayaran berlisensi. Kami mengirimkan informasi yang diperlukan untuk memproses transaksi — antara lain nomor pesanan, jumlah tagihan, serta nama dan email kontak penagihan. Data kartu atau instrumen pembayaran Pelanggan tidak pernah melewati maupun disimpan pada sistem IOMS.',
+                    'Pembayaran diproses oleh penyedia pembayaran berlisensi. Kami mengirimkan informasi yang diperlukan untuk memproses transaksi, antara lain nomor pesanan, jumlah tagihan, serta nama dan email kontak penagihan. Data kartu atau instrumen pembayaran Pelanggan tidak pernah melewati maupun disimpan pada sistem IOMS.',
                     'Layanan dijalankan pada infrastruktur penyedia hosting, dan email transaksional dikirimkan melalui penyedia layanan email. Penyedia-penyedia tersebut memproses data hanya sejauh diperlukan untuk menjalankan fungsinya.',
                     'Kami tidak mengalihkan data Pelanggan kepada pihak ketiga untuk tujuan komersial pihak ketiga tersebut.',
                 ], $t),

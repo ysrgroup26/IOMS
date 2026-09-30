@@ -51,11 +51,12 @@ export default function RegistrationStatus({ registration, paymentConfigured, co
 
             <PublicPageHero
                 eyebrow={registration.reference}
+                align="center"
                 title={
                     isProvisioned
                         ? 'Your IOMS workspace is ready.'
                         : isPaid
-                            ? 'Payment received — your workspace is being prepared.'
+                            ? 'Payment received. Your workspace is being prepared.'
                             : isVerified
                                 ? 'Complete payment to activate IOMS.'
                                 : 'Confirm your email address to continue.'
@@ -172,7 +173,7 @@ export default function RegistrationStatus({ registration, paymentConfigured, co
                         <div className="rounded-xl border border-steel-200/70 bg-white p-6 text-center shadow-panel">
                             <Clock className="mx-auto h-8 w-8 text-brand-600" />
                             <h2 className="mt-3 text-base font-semibold tracking-tight text-navy-900">
-                                Payment confirmed — preparing your workspace
+                                Payment confirmed, preparing your workspace
                             </h2>
                             <p className="mx-auto mt-2 max-w-md text-sm leading-relaxed text-graphite-600">
                                 This usually finishes within seconds. You will receive an email as soon as your
@@ -201,7 +202,7 @@ export default function RegistrationStatus({ registration, paymentConfigured, co
                             <p className="mt-2 text-sm leading-relaxed text-graphite-600">
                                 {paymentConfigured
                                     ? 'You will see your order summary next, then pay through our licensed payment provider. IOMS never receives or stores your card details, and your workspace activates only once the provider confirms the payment to our server.'
-                                    : 'Online payment is not enabled on this deployment yet. Continuing issues your invoice and our team will contact you with payment instructions — nothing is charged on this page.'}
+                                    : 'Online payment is not enabled on this deployment yet. Continuing issues your invoice and our team will contact you with payment instructions. Nothing is charged on this page.'}
                             </p>
 
                             <form onSubmit={pay}>
@@ -235,7 +236,7 @@ function Row({ label, value, strong }) {
         <div>
             <dt className="text-[11px] uppercase tracking-wide text-graphite-400">{label}</dt>
             <dd className={cn('mt-0.5 text-sm', strong ? 'font-semibold text-navy-900' : 'text-graphite-700')}>
-                {value || '—'}
+                {value || 'Not set'}
             </dd>
         </div>
     );

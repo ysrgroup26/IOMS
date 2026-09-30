@@ -114,14 +114,14 @@ class PublicController extends Controller
         [
             'step' => '02',
             'title' => 'Operate',
-            'summary' => 'Permits, material issues, purchase requisitions and work orders are raised in the system.',
-            'body' => 'Work runs inside the system: a field supervisor raises a Permit To Work, the warehouse issues material, procurement raises a purchase requisition, maintenance opens a Work Order. The record is created where the work happens, by the person doing it.',
+            'summary' => 'Permits, incident reports, material requests and inspections are raised in the system.',
+            'body' => 'Work runs inside the system: a field supervisor raises a Permit To Work, a crew member reports a near miss, a department raises a material request, HSE records an inspection. The record is created where the work happens, by the person doing it.',
         ],
         [
             'step' => '03',
             'title' => 'Approve',
-            'summary' => 'Each record follows its own approval route — by role, department and workflow.',
-            'body' => 'Every record follows its own approval route. Who may approve what is decided by role, department and your workflow configuration — not by habit, and not by whoever happens to be in the room.',
+            'summary' => 'Each record follows its own approval route, set by role, department and workflow.',
+            'body' => 'Every record follows its own approval route. Who may approve what is decided by role, department and your workflow configuration, not by habit, and not by whoever happens to be in the room.',
         ],
         [
             'step' => '04',
@@ -132,8 +132,8 @@ class PublicController extends Controller
         [
             'step' => '05',
             'title' => 'Report & Improve',
-            'summary' => 'Daily operational data becomes management reporting — on your own letterhead.',
-            'body' => 'The operational data entered each day becomes management reporting through KPI records, the Report Center and scheduled reports — exported to PDF and Excel on your own company letterhead. What that reporting shows is what the next cycle starts from.',
+            'summary' => 'Daily operational data becomes management reporting, on your own letterhead.',
+            'body' => 'The operational data entered each day becomes management reporting through KPI records, the Report Center and scheduled reports, exported to PDF and Excel on your own company letterhead. What that reporting shows is what the next cycle starts from.',
         ],
     ];
 
@@ -157,17 +157,17 @@ class PublicController extends Controller
      * this copy and the pricing cards cannot disagree.
      */
     private const FAQS = [
-        ['q' => 'What is IOMS?', 'a' => 'IOMS is an Industrial Operations Platform: one system connecting field work, Health, Safety & Environment, workforce data, warehousing, procurement, logistics, assets, maintenance, quality control and management reporting. The work and the records it produces live in the same place.'],
-        ['q' => 'What is an Operating Unit?', 'a' => 'IOMS structures your organization as IOMS → Organization → Operating Unit → Department. One subscription is ONE organization. An Operating Unit is an operational unit inside it — a yard, a site or a division — and every Department sits under one Operating Unit. Two Operating Units does not mean two companies or two separate subscriptions.'],
-        ['q' => 'Who is IOMS built for?', 'a' => 'Industrial companies that run field work and carry occupational safety obligations — shipyards, construction, manufacturing, mining, oil and gas, energy, fabrication, logistics and industrial service providers.'],
+        ['q' => 'What is IOMS?', 'a' => 'IOMS is an Industrial Operations Platform: one system covering Health, Safety & Environment, People / HRD, Warehouse Logistics and Management reporting. Field work and the records it produces live in the same place, on one set of master data and one approval layer.'],
+        ['q' => 'What is an Operating Unit?', 'a' => 'IOMS structures your organization as IOMS → Organization → Operating Unit → Department. One subscription is ONE organization. An Operating Unit is an operational unit inside it, such as a yard, a site or a division, and every Department sits under one Operating Unit. Two Operating Units does not mean two companies or two separate subscriptions.'],
+        ['q' => 'Who is IOMS built for?', 'a' => 'Industrial companies that run field work and carry occupational safety obligations: shipyards, construction, manufacturing, mining, oil and gas, energy, fabrication, logistics and industrial service providers.'],
         ['q' => 'Which industries are supported?', 'a' => 'IOMS is built for industrial operations generally, not one sector. The modules are the same across industries; what differs is which operational domains your company switches on.'],
-        ['q' => 'What does each plan include?', 'a' => 'Starter covers Health, Safety & Environment in full for one Operating Unit. Professional adds People / HRD, for an organization running up to two Operating Units. Business adds Warehouse Logistics and Management on top of that, plus the company-wide Dashboard, across up to four Operating Units. All three are the same platform — what differs is the breadth of access and the capacity.'],
-        ['q' => 'How are users counted?', 'a' => 'Plan capacity is stated as ONE number: how many login accounts (Users) are included. Starter includes 10 accounts, Professional 50 and Business 150; Enterprise has no stated ceiling. Permissions inside IOMS — including PTW Access — are granted to accounts you already have, and add neither accounts nor cost.'],
+        ['q' => 'What does each plan include?', 'a' => 'Starter covers Health, Safety & Environment in full for one Operating Unit. Professional adds People / HRD, for an organization running up to two Operating Units. Business adds Warehouse Logistics and Management on top of that, plus the company-wide Dashboard, across up to four Operating Units. All three are the same platform. What differs is the breadth of access and the capacity.'],
+        ['q' => 'How are users counted?', 'a' => 'Every plan carries an allowance of included active users: 3 on Starter, 10 on Professional, 25 on Business. The allowance is not a ceiling. Additional active users are Rp50.000 per user per month on every plan. Permissions inside IOMS, including PTW Access, are granted to accounts you already have and add neither accounts nor cost.'],
         ['q' => 'What is PTW Access?', 'a' => 'PTW Access is a permission granted to specific accounts so they can raise a Permit To Work. It is not sold capacity and carries no extra charge. A foreman or field supervisor given PTW Access can raise a permit straight from My Work, and HSE still reviews and approves it.'],
-        ['q' => 'What is My Work?', 'a' => 'My Work is the workspace for the people doing the work in the field — foremen, supervisors, technicians, operators. An account marked as a field user lands directly in My Work at sign-in rather than in an office dashboard that means nothing to them.'],
-        ['q' => 'Can Enterprise be customized?', 'a' => 'Enterprise is the most complete STANDARD IOMS plan, not a custom development track. IOMS is one product improved for every customer — there is no per-company development, and no lifetime plan.'],
+        ['q' => 'What is My Work?', 'a' => 'My Work is the workspace for the people doing the work in the field: foremen, supervisors, technicians, operators. An account marked as a field user lands directly in My Work at sign-in rather than in an office dashboard that means nothing to them.'],
+        ['q' => 'Is IOMS customized per company?', 'a' => 'No. IOMS is one product, improved for every customer. There is no per-company development track and no lifetime plan. What differs between customers is configuration: your own company identity, departments, roles, approval routes and master data.'],
         ['q' => 'How does payment work?', 'a' => 'You choose a plan and a billing cycle, confirm your email address, then pay through our payment provider. Your card details never pass through or rest in IOMS.'],
-        ['q' => 'When does our workspace become active?', 'a' => 'Once the payment provider confirms your payment to our server. Simply reaching the confirmation page in your browser activates nothing — activation follows the verified notification from the payment provider.'],
+        ['q' => 'When does our workspace become active?', 'a' => 'Once the payment provider confirms your payment to our server. Simply reaching the confirmation page in your browser activates nothing. Activation follows the verified notification from the payment provider.'],
         ['q' => 'Can a subscription be cancelled?', 'a' => 'Yes, at any time. A cancelled subscription runs to the end of the period already paid for, after which the workspace stops being usable and there is no further billing. Your data is not deleted at cancellation. The full terms are on the Refund & Cancellation Policy page.'],
         ['q' => 'What happens if a payment fails?', 'a' => 'Nothing is activated. For a running subscription, a failed renewal passes through a grace period before access is affected, and you are notified before that point.'],
         ['q' => 'Can our own company identity appear on documents?', 'a' => 'Yes. Each customer manages its own company name, logo, address, contact details, NPWP and NIB, and all of it appears on the documents IOMS generates for you.'],

@@ -90,6 +90,7 @@ export default function Checkout({ order, payment, statusUrl, invoiceUrl, billin
                 title="Complete your subscription payment."
                 subtitle={order.company_name}
                 size="sm"
+                align="center"
             />
 
             <section className="bg-graphite-100 py-12 sm:py-16">
@@ -187,7 +188,7 @@ export default function Checkout({ order, payment, statusUrl, invoiceUrl, billin
                             <ShieldCheck className="mt-0.5 h-4 w-4 shrink-0 text-brand-600" />
                             <p className="text-xs leading-relaxed text-graphite-600">
                                 Your workspace activates once the payment provider confirms the payment to our
-                                server — not simply because you reached a confirmation page. You can close this
+                                server, not simply because you reached a confirmation page. You can close this
                                 page safely; the status is always available again from your registration page.
                             </p>
                         </div>

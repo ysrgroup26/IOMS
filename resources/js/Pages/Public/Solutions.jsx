@@ -33,7 +33,7 @@ export default function Solutions({ domains = [] }) {
             <PublicPageHero
                 eyebrow="Solutions"
                 title="Built the way an industrial operation actually runs."
-                subtitle="Every domain below is covered by IOMS today. They share one set of master data, one approval layer and one reporting layer — so work that crosses departments does not have to cross systems."
+                subtitle="Every domain below is covered by IOMS today. They share one set of master data, one approval layer and one reporting layer, so work that crosses departments does not have to cross systems."
             />
 
             <section className="bg-white py-14 sm:py-20">

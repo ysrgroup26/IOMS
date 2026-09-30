@@ -97,9 +97,9 @@ const MODULES = [
         table: {
             head: ['Number', 'Work', 'Status'],
             rows: [
-                ['PTW-2026-00184', 'Hot work — shell plate, Dock 2', 'Active'],
-                ['PTW-2026-00183', 'Confined space — ballast tank 3P', 'Approved'],
-                ['INC-2026-00021', 'Near miss — dropped object', 'Investigation'],
+                ['PTW-2026-00184', 'Hot work: shell plate, Dock 2', 'Active'],
+                ['PTW-2026-00183', 'Confined space: ballast tank 3P', 'Approved'],
+                ['INC-2026-00021', 'Near miss: dropped object', 'Investigation'],
                 ['CAPA-2026-00044', 'Scaffold inspection frequency', 'In progress'],
             ],
         },
@@ -119,10 +119,10 @@ const MODULES = [
         table: {
             head: ['Employee', 'Record', 'Status'],
             rows: [
-                ['Welding Supervisor — Dock 2', 'Annual leave, 3 days', 'Submitted'],
-                ['Rigger — Fabrication Shop', 'Rigging certificate, 21 days left', 'Expiring'],
-                ['Night shift roster — Week 38', '42 assigned', 'Published'],
-                ['Contract renewal — 4 employees', 'Ends in 30 days', 'Review'],
+                ['Welding Supervisor, Dock 2', 'Annual leave, 3 days', 'Submitted'],
+                ['Rigger, Fabrication Shop', 'Rigging certificate, 21 days left', 'Expiring'],
+                ['Night shift roster, Week 38', '42 assigned', 'Published'],
+                ['Contract renewal, 4 employees', 'Ends in 30 days', 'Review'],
             ],
         },
     },
@@ -144,7 +144,7 @@ const MODULES = [
                 ['Welding Electrode E7018 3.2mm', '18 box', 'Low stock'],
                 ['Steel Plate A36 10mm', '64 sheet', 'In stock'],
                 ['Safety Harness Full Body', '11 pcs', 'Low stock'],
-                ['GRN-2026-00097 — received', '40 box', 'Posted'],
+                ['GRN-2026-00097 received', '40 box', 'Posted'],
             ],
         },
     },
@@ -292,7 +292,7 @@ export default function PlatformShowcase() {
                     </div>
                     <div className="flex min-w-0 flex-1 items-center gap-1.5 rounded-md border border-graphite-200 bg-white px-2 py-1">
                         <Building2 className="h-3 w-3 shrink-0 text-graphite-400" />
-                        <span className="truncate text-[10px] font-medium text-graphite-600">Batam Yard — Operating Unit</span>
+                        <span className="truncate text-[10px] font-medium text-graphite-600">Batam Yard, Operating Unit</span>
                         <ChevronDown className="ml-auto h-3 w-3 shrink-0 text-graphite-400" />
                     </div>
                     <Search className="hidden h-3.5 w-3.5 shrink-0 text-graphite-400 sm:block" />

@@ -549,5 +549,5 @@ Both are the same official mark in the same official colour. Nothing was redrawn
   advisory remains. ESLint: 0 errors, 4 existing warnings in untouched files. Local Chromium preview
   checked the sign-in entry and story imagery at the available narrow viewport. See
   `05 - QA & Verification.md` for what was not measured.
-- **Commit hash:** pending commit.
-- **Next action:** record the commit and push result after publication to `origin/main`.
+- **Commit hash:** `0827cfe` (implementation commit).
+- **Next action:** push the implementation and documentation commits to `origin/main`.

@@ -1,7 +1,7 @@
 ---
 title: Verification Status
 type: register
-updated: 2026-09-30
+updated: 2026-10-01
 tags: [kb/verification]
 ---
 
@@ -49,7 +49,7 @@ on every phone width.
 
 | | |
 |---|---|
-| Suite | **741 tests, 3956 assertions — all passing** (2026-10-01, v2.89.0) |
+| Suite | **741 tests, 3978 assertions — all passing** (2026-10-01, v2.90.0) |
 | Database | In-memory **SQLite**, so no MySQL or external service is needed |
 | Lint | `npm run lint` — 0 errors (4 pre-existing warnings in `GasTestRecords/Index.jsx` and `Settings/Index.jsx`) |
 | Build | `npm run build` — clean, with the known bundle-size warning |
@@ -72,6 +72,7 @@ matters — several defects only appear at realistic scale.
 
 | Area | Version | What was verified |
 |---|---|---|
+| Brand icon correction | 2.90.0 | `BrandIconsTest` + `PwaInstallabilityTest`; all 741 tests / 3978 assertions pass. Browser, Apple touch and PWA PNGs have transparent corners; the maskable mark stays within the 40%-radius safe circle; the SVG favicon is a 512px tight crop of the official source. Generated icons visually inspected over light and dark surfaces. Isolated production build succeeded with the known 2,031 KB chunk advisory; lint 0 errors / 4 existing warnings. No live browser tab or Apple device pass |
 | Public website continuation | 2.89.0 | Local Chromium preview confirmed the landing hero, editorial domain sequence, Tahada Group identity and sign-in entry. Full automated suite passed. Narrow viewport only; 1440px desktop, real devices, Firefox/Safari and Lighthouse were not checked |
 | Account → Subscription, end to end | 2.74.0 | Against MySQL: registered through `/register`; confirmed the account carried `role=account`, null tenant/company, **`isPlatformAdmin()` false**, and that no tenant, company or subscription row was created; read the verification email out of the mail log and followed its signed link; raised an order through the subscription setup page (identity taken from the account, never re-asked); drove checkout, which honestly parked at `awaiting_payment` with a real invoice because no gateway is configured; then activated through `TenantProvisioningService` — the same entry point the verified webhook uses — and confirmed the **user count did not change**, the account was promoted to `super_admin` on the new tenant, and an active subscription with agreed pricing was created |
 | Admin context, workspace boundaries, billing | 2.84.1 | `AdminContextAndBillingFlowTest` (17): the two operational header links absent inside Admin Space; exactly one context carrying the active treatment and `aria-current`; `settings` owned by administration alone in `config/departments.php` **and enforced** — a department-scoped user refused Settings, Audit Logs and Admin Space alike; no operational workspace navigation containing an administrative route; Warehouse Logistics as one workspace with one name; the support queue reporting a **missing schema** instead of 500ing, asserted by dropping the tables; the schema service proven to report and not repair; an unconfigured deployment taking no payment; Duitku refusing to half-activate without credentials; the callback signature verified against the formula Duitku documents and **rejected** for a wrong signature, a changed amount, an empty signature and an unsigned payload; result codes mapped with an unknown code settling nothing; an unsigned callback settling nothing; a verified callback settling the invoice, recording **the provider that took it**, extending the period, and not extending twice on replay; and a lapsed tenant still reaching Admin Space, billing and renewal. **Both migrations applied against MySQL.** **In a browser**: the Support 500 reproduced from its actual root cause (tables renamed away — only that page failed, exception `42S02`); the full plan matrix by direct URL on all three plans; the header lighting exactly one context in each; HSE showing 26 operational items and **zero** administrative ones; every operational surface carrying no administrative link and no retired content; and the renewal flow reaching a **real** Duitku API call with deliberately invalid credentials, so the refusal surfaced as a refusal |

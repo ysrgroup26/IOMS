@@ -36,7 +36,7 @@ class WebAppManifestController extends Controller
         $descriptor = config('ioms.descriptor', 'Industrial Operations Platform');
 
         return response()->json([
-            'name' => $name.' — '.$descriptor,
+            'name' => $name.' - '.$descriptor,
             // `short_name` is what fits under a home-screen icon. Android
             // truncates around 12 characters, so this is the product name
             // alone and nothing else.

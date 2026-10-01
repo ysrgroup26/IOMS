@@ -11,36 +11,26 @@ use Tests\TestCase;
  * Square, the official mark, reachable at the path crawlers ask for without
  * reading any HTML (/favicon.ico), and referenced from every page.
  *
- * v2.88.0 -- TRANSPARENCY IS NOW REQUIRED, AND ONLY FOR THE FAVICONS.
+ * v2.90.0 -- ALL ICON SURFACES USE THE OWNER-DESIGNATED TRANSPARENT SOURCE.
  *
- * This file used to assert that EVERY icon was opaque, pinning the v2.76.0
- * decision to put the mark on a navy square. The brand direction reversed
- * that: the favicon is the transparent symbol.
- *
- * The reversal is only for the favicons, and the distinction is the whole
- * point of splitting the assertion in two. An apple-touch-icon and a
- * maskable PWA icon must stay OPAQUE, because iOS composites a home-screen
- * icon onto its own surface and renders transparency as black, and a
- * maskable icon is cropped to a platform shape that assumes a filled
- * canvas. Shipping those transparent would put a black tile on every
- * iPhone home screen that saved the site.
- *
- * So: tab icons transparent, installed-app icons opaque, each asserted for
- * its own reason.
+ * Browser, Apple and PWA outputs are generated from the same official asset.
+ * Only maskable padding differs, to keep the mark inside the manifest's
+ * guaranteed safe circle. Platform fill behaviour is not represented by an
+ * opaque image baked into these files.
  */
 class BrandIconsTest extends TestCase
 {
     use RefreshDatabase;
 
-    /** Tab and search-result icons: the official mark, on nothing. */
-    private const TRANSPARENT = ['favicon_48', 'favicon_96', 'favicon_png'];
-
-    /** Installed-app icons: a filled canvas, for the reasons above. */
-    private const OPAQUE = ['apple_touch_icon', 'icon_192', 'icon_512', 'maskable_192', 'maskable_512'];
+    /** Every active raster icon: the official mark on transparency. */
+    private const TRANSPARENT = [
+        'favicon_48', 'favicon_96', 'favicon_png', 'apple_touch_icon',
+        'icon_192', 'icon_512', 'maskable_192', 'maskable_512',
+    ];
 
     public function test_every_icon_asset_exists_and_is_square(): void
     {
-        foreach ([...self::TRANSPARENT, ...self::OPAQUE] as $key) {
+        foreach (self::TRANSPARENT as $key) {
             $path = public_path(config("branding.assets.{$key}"));
             $this->assertFileExists($path, "{$key} is missing.");
 
@@ -52,7 +42,7 @@ class BrandIconsTest extends TestCase
         $this->assertSame(48, getimagesize(public_path(config('branding.assets.favicon_48')))[0]);
     }
 
-    public function test_the_favicons_carry_no_background_square(): void
+    public function test_every_raster_icon_carries_no_background_square(): void
     {
         foreach (self::TRANSPARENT as $key) {
             $path = public_path(config("branding.assets.{$key}"));
@@ -62,47 +52,67 @@ class BrandIconsTest extends TestCase
             $this->assertSame(
                 127,
                 ($corner >> 24) & 0x7F,
-                "{$key} has a background square; the favicon is the official mark on transparency."
+                "{$key} has a background square; every IOMS icon must remain transparent."
             );
         }
     }
 
-    public function test_the_installed_app_icons_stay_opaque(): void
+    public function test_maskable_artwork_fits_inside_the_manifest_safe_circle(): void
     {
-        foreach (self::OPAQUE as $key) {
-            $path = public_path(config("branding.assets.{$key}"));
-            $corner = imagecolorat(imagecreatefrompng($path), 0, 0);
+        foreach (['maskable_192', 'maskable_512'] as $key) {
+            $image = imagecreatefrompng(public_path(config("branding.assets.{$key}")));
+            $width = imagesx($image);
+            $height = imagesy($image);
+            $centreX = ($width - 1) / 2;
+            $centreY = ($height - 1) / 2;
+            $furthestVisiblePixel = 0.0;
 
-            $this->assertSame(
-                0,
-                ($corner >> 24) & 0x7F,
-                "{$key} is transparent. iOS renders that as a black tile, and a maskable icon is cropped to a shape that assumes a filled canvas."
+            for ($y = 0; $y < $height; $y++) {
+                for ($x = 0; $x < $width; $x++) {
+                    $pixel = imagecolorat($image, $x, $y);
+
+                    // In GD, 127 is fully transparent and 0 is opaque.
+                    if ((($pixel >> 24) & 0x7F) < 127) {
+                        $furthestVisiblePixel = max(
+                            $furthestVisiblePixel,
+                            hypot($x - $centreX, $y - $centreY)
+                        );
+                    }
+                }
+            }
+
+            $this->assertLessThanOrEqual(
+                $width * 0.4,
+                $furthestVisiblePixel,
+                "{$key} places visible artwork outside the Web App Manifest's guaranteed safe circle."
             );
+            imagedestroy($image);
         }
     }
 
     /**
-     * The SVG favicon must be real vector.
-     *
-     * The artwork supplied for this change was a 4096px PNG inside an SVG
-     * wrapper, 679 KB. Serving that as a tab icon would cost roughly three
-     * hundred times the vector it replaces, so the SVG favicon points at the
-     * repository's own vector art instead. This asserts nobody swaps it back.
+     * The active SVG is a compact, tightly-cropped derivative of the
+     * canonical source, rather than a different vector or the full 4096px
+     * source canvas.
      */
-    public function test_the_svg_favicon_is_vector_and_not_an_embedded_raster(): void
+    public function test_the_svg_favicon_is_a_compact_crop_of_the_official_artwork(): void
     {
         $svg = file_get_contents(public_path(config('branding.assets.favicon')));
 
-        $this->assertStringNotContainsString('data:image/png;base64', $svg, 'The SVG favicon embeds a raster.');
-        $this->assertLessThan(20 * 1024, strlen($svg), 'The SVG favicon is too large to be vector art.');
-        $this->assertStringContainsString('#01c1ed', $svg, 'The SVG favicon is not the official mark colour.');
+        $this->assertStringContainsString('data:image/png;base64,', $svg);
+        $this->assertLessThan(64 * 1024, strlen($svg), 'The favicon should not ship the 679 KB source wrapper.');
+        $this->assertSame('/branding/ioms-favicon-transparent.svg', config('branding.assets.favicon_source'));
+        $this->assertFileExists(public_path(config('branding.assets.favicon_source')));
 
-        // No full-bleed background rect: that is the square this release removed.
-        $this->assertDoesNotMatchRegularExpression(
-            '/<rect[^>]*width="(100%|[0-9]{3,})"/',
-            $svg,
-            'The SVG favicon has a background rect.'
-        );
+        $this->assertSame(1, preg_match('/viewBox="0 0 (\d+) (\d+)"/', $svg, $viewBox));
+        $width = (int) $viewBox[1];
+        $height = (int) $viewBox[2];
+        $this->assertSame(512, $width);
+        $this->assertGreaterThan(440, $height);
+        $this->assertLessThan(470, $height);
+        $this->assertGreaterThan(1.1, $width / $height);
+        $this->assertLessThan(1.15, $width / $height);
+        $this->assertStringNotContainsString('<rect', $svg, 'The SVG favicon must not add a background shape.');
     }
 
     public function test_favicon_ico_is_a_real_multi_size_icon_at_the_root(): void
@@ -115,9 +125,15 @@ class BrandIconsTest extends TestCase
 
         $sizes = [];
         for ($i = 0; $i < 3; $i++) {
-            $entry = unpack('Cwidth/Cheight', substr($ico, 6 + 16 * $i, 2));
+            $entry = unpack('Cwidth/Cheight/Ccolors/Creserved/vplanes/vbits/Vlength/Voffset', substr($ico, 6 + 16 * $i, 16));
             $sizes[] = $entry['width'];
             $this->assertSame($entry['width'], $entry['height']);
+
+            $frame = imagecreatefromstring(substr($ico, $entry['offset'], $entry['length']));
+            $this->assertNotFalse($frame, "ICO frame {$entry['width']} could not be decoded.");
+            $corner = imagecolorat($frame, 0, 0);
+            $this->assertSame(127, ($corner >> 24) & 0x7F, "ICO frame {$entry['width']} has an opaque background.");
+            imagedestroy($frame);
         }
         $this->assertSame([16, 32, 48], $sizes);
     }
@@ -131,6 +147,7 @@ class BrandIconsTest extends TestCase
         $this->assertStringContainsString('/favicon.ico" sizes="16x16 32x32 48x48"', $head);
         $this->assertStringContainsString('/branding/ioms-favicon-48.png', $head);
         $this->assertStringContainsString('/branding/ioms-favicon.svg', $head);
+        $this->assertStringContainsString('sizes="180x180"', $head);
         $this->assertStringContainsString('/branding/ioms-apple-touch-icon.png', $head);
         $this->assertStringContainsString('rel="manifest"', $head);
 
@@ -154,12 +171,17 @@ class BrandIconsTest extends TestCase
 
         $head = strstr($this->get(route('home'))->getContent(), '</head>', true);
 
-        foreach (['favicon_ico', 'favicon_48', 'favicon', 'favicon_png', 'apple_touch_icon'] as $key) {
+        foreach (['favicon_ico', 'favicon_48', 'favicon_96', 'favicon', 'favicon_png', 'apple_touch_icon'] as $key) {
             $path = config("branding.assets.{$key}");
 
             $this->assertStringContainsString($path, $head, "The head does not use branding.assets.{$key}.");
             $this->assertFileExists(public_path($path));
         }
+
+        // The general in-product mark is a separate vector master. This task
+        // changes icon surfaces, not controlled PDF or watermark branding.
+        $this->assertSame('/branding/ioms-icon.svg', config('branding.assets.icon'));
+        $this->assertFileExists(public_path(config('branding.assets.icon')));
 
         $manifest = $this->get(route('manifest'))->assertOk()->json();
 

@@ -562,3 +562,78 @@ forms. No retired workspace on any marketing or authentication surface.
 - Lighthouse and Core Web Vitals. Byte weights and variant selection were measured directly instead.
 - A browser session driven as an actual My Work account. The entry, the routing and the restriction
   are covered by feature tests through real HTTP.
+
+
+# QA addendum, v2.90.0: transparent icon correction
+
+## Automated
+
+| Check | Result |
+|---|---|
+| Full PHPUnit suite | **741 passed, 3978 assertions, 0 failures** |
+| Icon/PWA contract | `BrandIconsTest` + `PwaInstallabilityTest`: HTML references resolve; every generated PNG has transparent corners; ICO has transparent 16/32/48 frames; SVG crop uses the official artwork; manifest name is exact; both maskable sizes fit inside the 40%-radius safe circle |
+| Production build | Completed in an isolated QA output folder. Existing large-chunk advisory remains at 2,031 KB minified JS |
+| ESLint | 0 errors; 4 existing unused-disable warnings in untouched files |
+
+## Asset review
+
+| Surface | Result |
+|---|---|
+| Browser PNG | 32×32, 48×48 and 96×96, transparent |
+| `.ico` | Three decodable PNG frames: 16×16, 32×32 and 48×48, transparent |
+| SVG favicon | Tight 512×454 viewBox, 57,844 bytes, with no background shape |
+| Apple touch icon | 180×180 PNG, transparent |
+| PWA `any` | 192×192 and 512×512 PNGs, transparent |
+| PWA `maskable` | 192×192 and 512×512 PNGs, transparent, all visible pixels within the safe circle |
+| Canonical source | `ioms-favicon-transparent.svg` unchanged; all generated variants derive from it |
+| Visual inspection | Official cyan mark reviewed on light and navy surfaces; no embedded tile, excessive canvas or off-centre mark |
+
+The W3C manifest rule for maskable icons and Safari's transparent custom-shape behavior are recorded
+in [[Decision Register]] and the [[IOMS Website Redesign/04 - Implementation Log]]. The user agent
+chooses any fill used behind transparent maskable pixels; IOMS does not choose one.
+
+## Still not verified in this pass
+
+- A favicon photographed in a live browser tab or checked across Firefox/Safari.
+- Home-screen display on a physical iPhone/iPad or Android device. Automated icon pixels and
+  platform contracts are verified; platform rendering remains device-specific.
+- Production hosting or cPanel. No deploy or cPanel action was performed.
+
+---
+
+# QA execution, v2.91.0: the full-bleed hero
+
+## Automated
+
+| Check | Result |
+|---|---|
+| Full suite | **741 passed, 3978 assertions, 0 failures** |
+| Production build | Clean |
+| ESLint | 0 errors, 4 pre-existing warnings in untouched files |
+
+## The composition, by width
+
+| Width | Result |
+|---|---|
+| 1440 | Scene fills the hero: management 1432x791, field 888x791 overlaid and feathered. Hero 792px. Headline 2 lines at 48px. Dashboard 560px over the blend. No horizontal overflow |
+| 1280 | Holds. Hero 757px, headline 2 lines, dashboard 560px |
+| 1024 | Holds. Hero 722px, dashboard 456px and visible. **Headline wrapped to 3 lines here and was fixed** with a separate type step at `lg` |
+| 375 | Both environments preserved: management 375x625 with the dock blended in at 375x363. Dashboard correctly hidden. No horizontal overflow, `scrollWidth` equals `clientWidth` equals 375 |
+
+Both photographs resolve to `-1600.webp` at desktop and `-1024.webp` at 375, which is correct for a 375px box at device pixel ratio 2.
+
+## The live panel
+
+| Check | Result |
+|---|---|
+| It cycles | Observed over four dwells: Health Safety & Environment, People / HRD, Warehouse Logistics, Management |
+| The rail follows the content | Asserted on every sample. The highlighted rail item and the panel title matched each time |
+| Only real workspaces appear | Five, from the exported `MODULES`. Projects and a standalone Permit To Work entry are deliberately absent, see the implementation log |
+| It stays subdued | Navy glass at 45 to 55 percent with a backdrop blur. The photography reads through it at every width tested |
+| Reduced motion | The interval is never created when `prefers-reduced-motion: reduce` matches, so the panel holds its first state rather than pausing mid-cycle. Verified by reading the code path; not exercised with the preference set in the browser |
+
+## Not verified
+
+- **`prefers-reduced-motion` in a live browser.** The guard was confirmed in code, not by toggling the preference in Chromium.
+- **Cross-browser.** Chromium only. `mask-image` carries a `-webkit-` prefix alongside the standard property; Safari and Firefox were not exercised.
+- **Real devices and Lighthouse.** Neither was run.

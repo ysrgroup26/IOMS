@@ -327,3 +327,16 @@ v2.89.0.
 
 Nothing blocking. QA-002 (Ziggy route manifest) and QA-003 (the "Enterprise Edition" string) are
 unchanged. No cPanel work was performed.
+
+
+# v2.90.0 addendum: the owner-directed icon correction
+
+The site redesign phases remain complete. This follow-up corrects the icon scope from v2.88.0:
+every active browser, Apple touch and PWA icon now derives from the same owner-supplied transparent
+symbol. The original asset remains unchanged; generated variants are tightly cropped, centred and
+transparent. Maskable artwork fits the manifest safe zone, with platform-controlled fill behind its
+transparent pixels. The app manifest name is exactly `IOMS - Industrial Operations Platform`.
+
+Verified by 741 tests / 3978 assertions, a production build and lint. The browser/app imagery, account
+entry, public company identity, pricing and operational logic were not reopened. See
+[[IOMS Website Redesign/04 - Implementation Log]] and [[IOMS Website Redesign/05 - QA & Verification]].

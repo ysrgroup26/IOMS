@@ -37,8 +37,8 @@ class PwaInstallabilityTest extends TestCase
 
         // The three fields a browser actually requires before it will
         // offer installation at all.
-        $this->assertNotEmpty($manifest['name']);
-        $this->assertNotEmpty($manifest['short_name']);
+        $this->assertSame('IOMS - Industrial Operations Platform', $manifest['name']);
+        $this->assertSame('IOMS', $manifest['short_name']);
         $this->assertSame('standalone', $manifest['display']);
         $this->assertNotEmpty($manifest['start_url']);
 

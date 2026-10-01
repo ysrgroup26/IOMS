@@ -1,7 +1,7 @@
 ---
 title: UX and Design Principles
 type: reference
-updated: 2026-09-16
+updated: 2026-10-01
 tags: [kb/ux, kb/design]
 ---
 
@@ -44,7 +44,8 @@ that draws the lockup.
 | PWA | `icon_192/512` (any) and `maskable_192/512` | manifest |
 | Social | `social` (1200×630) | Open Graph and Twitter cards |
 
-**Re-verified in v2.78.0 and kept as is.** Contrast was measured, not eyeballed:
+**The earlier opaque favicon decision (v2.76.0–2.78.0, superseded in v2.88–2.90.0).** Contrast was
+measured, not eyeballed:
 
 | Pair | Contrast |
 |---|---|
@@ -53,17 +54,26 @@ that draws the lockup.
 | cyan mark on its navy ground | 8.9:1 |
 | the cyan mark alone on white (a transparent variant) | **2.1:1** |
 
-A lighter or transparent treatment would therefore be weaker, not cleaner. The navy ground is what
-carries the mark on light surfaces. Do not "lighten" it without a new measurement.
+A transparent cyan mark has lower contrast on a light surface. That measured trade-off remains true;
+the v2.88–2.90 owner-directed decision selects the transparent official symbol anyway. The contrast
+measurement is historical context, not a rule that icons require a navy ground.
 
-**The favicon is a small-format asset, not a shrunken logo.** It is the mark alone, in cyan on a
-**solid navy square**. The wordmark is unreadable at 16px. A transparent mark would float on Google's
-light result surface, and the white-and-cyan dark lockup would lose its wordmark there. Navy on light
-and cyan on navy both hold at 16px, so no lighter container was needed.
+**Current icon treatment (v2.90.0):** the mark alone, in cyan and without a baked-in background, is
+used by browser favicons, the Apple touch icon and PWA icons. Every raster output is square and
+transparent; the SVG favicon uses a tightly-cropped derivative of the canonical supplied source.
+The broader `ioms-icon.svg` vector remains the regular product mark for watermarks and controlled
+documents.
 
-Every favicon, touch and PWA raster is square and opaque, which `BrandIconsTest` pins. The
-pre-rebrand `branding/icon.png` and `wordmark.png` (a 2 MB photograph of a neon "icms" sign) are
-gone from every head reference.
+`any` and `maskable` remain separate manifest purposes. The latter keeps the artwork inside the
+guaranteed 40%-radius safe circle. The [W3C manifest specification](https://www.w3.org/TR/appmanifest/#icon-masks-and-safe-zone)
+says a user agent composites transparent pixels onto its own solid fill; Safari 17.2 documents
+spacing adjustments for a transparent custom-shaped icon ([Apple release notes](https://developer.apple.com/documentation/safari-release-notes/safari-17_2-release-notes?language=_5)).
+Those are platform display choices, not a need to place a navy square in the asset.
+
+`BrandIconsTest` pins transparency across all raster contexts, and
+`PwaInstallabilityTest` pins the manifest identity. The pre-rebrand `branding/icon.png` and
+`wordmark.png` (a 2 MB photograph of a neon "icms" sign) remain absent from every active head
+reference.
 
 ### Landing page storytelling
 

@@ -612,3 +612,127 @@ assuming the edit worked. The default is a literal now, with that reason stated 
   Multi-width desktop and mobile review completed in Chromium. Zero em dashes across twelve public
   pages including `/login`, in both encodings.
 - **Next action:** none blocking.
+
+
+## 2026-10-01 — v2.90.0: one transparent source across every app icon
+
+This is an owner-directed correction to the icon scope inside the completed website redesign. It
+does not reopen the photography, My Work entry, company identity or editorial-story work from
+v2.88–2.89.0.
+
+### Discovery
+
+The v2.88.0 pass removed the ground from browser favicons but deliberately retained separate opaque
+assets for Apple and PWA installation. That left one brand symbol appearing with two different
+background treatments depending on how the visitor saved or installed the site. The designated
+source, `public/branding/ioms-favicon-transparent.svg`, is a 4096×4096 PNG embedded in an SVG wrapper
+(679 KB); its visible mark is 2246×1991 and is offset inside the source canvas. The source file is
+preserved byte-for-byte.
+
+### Decisions
+
+- All browser formats (`favicon.ico`, SVG, PNG), the Apple touch icon and both PWA purposes are now
+  generated from that single transparent source. Empty canvas is trimmed and the mark is centred in
+  required square rasters; no ground, mark path or colour is added or redrawn.
+- The served SVG favicon is a compact SVG wrapper around a 512×454 transparent derivative. It uses
+  the official pixels in a tight viewBox rather than serving the 679 KB source canvas or switching
+  back to a second vector master.
+- `any` and `maskable` remain distinct manifest purposes. The maskable mark uses a 76% scale; its
+  furthest source pixel reaches about 0.389 of the icon size, inside the W3C safe-circle radius of
+  0.4. Its remaining pixels are transparent. The [Manifest specification](https://www.w3.org/TR/appmanifest/#icon-masks-and-safe-zone)
+  says user agents composite transparent pixels onto a solid fill of their choice. The [Safari 17.2
+  release notes](https://developer.apple.com/documentation/safari-release-notes/safari-17_2-release-notes?language=_5)
+  document spacing adjustment for transparent custom-shaped icons. Neither requires IOMS to bake a
+  background colour into these files.
+- The existing vector at `ioms-icon.svg` remains the ordinary product mark used by watermarks and
+  controlled documents. Those surfaces are not favicon or install-icon references and stay as they
+  are.
+- The manifest full name now uses the exact form `IOMS - Industrial Operations Platform`; its
+  `short_name` stays `IOMS`.
+
+### Implementation and scope
+
+`scripts/build-favicons.mjs` now generates the complete icon family. `config/branding.php` remains
+the path registry; the page head adds the Apple 180×180 dimensions; `WebAppManifestController`
+supplies the full name. `BrandIconsTest` covers alpha on every raster, maskable safe-zone bounds,
+the cropped SVG, ICO transparency and references. `PwaInstallabilityTest` pins the manifest name.
+
+No authentication, product claims, pricing, entitlement, workspace, billing, PTW behaviour, public
+company identity, lockup art, PDF identity or cPanel configuration changed.
+
+- **Verification:** full suite 741 tests / 3978 assertions; production build succeeded in an isolated
+  output directory with the existing large-chunk advisory; ESLint 0 errors and 4 existing warnings.
+  Generated icons were visually reviewed on light and dark surfaces. A real browser tab and Apple
+  device were not exercised.
+- **Next action:** none blocking.
+
+## 2026-10-01 - v2.91.0: the hero becomes one photograph with the platform running on it
+
+- **Scope:** The hero only. No other section, no branding, no product logic.
+- **Direction:** The previous hero was not matching the intended visual direction. It was revised rather than redesigned: the copy, its hierarchy and the CTA pair are unchanged.
+
+### What was there, and why it was wrong
+
+Through v2.89.0 the hero was **a navy field with framed photographs sitting on it**. Each environment had its own bordered frame, a hairline ran between them, and navy showed around and between. The frames and the navy were the composition; the photography was an inset. That is the diptych-of-cards reading the direction rules out.
+
+### What it is now
+
+**One panoramic scene filling the section.** Management occupies the left, field the right, and they meet through a feathered overlap rather than an edge:
+
+- **The right photograph is masked, not butted up.** Its left edge fades out over roughly a third of its width with a mask gradient, so the office dissolves into the dock. There is no divider, no border and no gap for a background to show through, because the two images physically overlap in the blend zone.
+- **The seam crosses two quiet regions.** The boardroom's right side is dark wall; the dock's left is hull and shadow. Feathering between two busy areas is what makes a composite look like a composite.
+- **One grade over both.** A single navy wash and one readability gradient sit above both photographs rather than per image. Per-image scrims were a large part of why the old version read as two separate pictures.
+
+**Navy is no longer the hero's field.** It survives only as the grade that keeps the copy legible.
+
+### The PTW card is gone, replaced by the platform running
+
+`PermitArtifact` is removed from the hero and **the component is deleted**, because nothing referenced it afterwards and this repository does not keep dead code. Git history holds it.
+
+In its place, `HeroDashboard`: a translucent IOMS interface floating across the blend, cycling slowly through workspaces.
+
+- **It reads the same data as the showcase.** `MODULES` is now exported from `PlatformShowcase` and shared, so the two product previews on this page cannot drift into describing two different products.
+- **Subdued by construction.** Low-opacity navy glass with a hairline edge and a backdrop blur, not a white card. An opaque panel over a photograph is a screenshot with a drop shadow.
+- **It sits across the join**, which is the one place on the page where an interface genuinely connects an office to a dock.
+- **Motion:** one module every five seconds, a slow cross-fade, the rail's active item moving with the content. Nothing slides, flashes or loops faster than reading speed.
+
+### One product-truth correction to the brief
+
+The requested cycle named **Dashboard, Permit to Work, HSE, Projects, Warehouse, Dashboard**. Two of those cannot be advertised:
+
+- **Projects** was retired from the customer-facing product in v2.84.0. Putting it in a loop on the landing page would promise a workspace no plan opens.
+- **Permit To Work** is a capability inside HSE rather than a workspace, so it has no rail entry of its own.
+
+The loop runs the five real workspaces instead: **Dashboard, HSE, People / HRD, Warehouse Logistics, Management**. The brief described the sequence as an example, and this is the truthful version of it.
+
+### Accessibility
+
+The panel is `aria-hidden`. It is decorative narrative, not a control, and a screen reader user gains nothing from a silent carousel of figures they cannot act on. The same numbers are read properly in the showcase further down.
+
+Under `prefers-reduced-motion` the cycle **does not start at all** and the panel holds its first state. An element that changes by itself is precisely what that preference asks not to see, so pausing it is not enough.
+
+### Responsive
+
+Mobile keeps both worlds rather than cropping one away: below `md` the scene stacks vertically, management above and field below, blended through the same feather rotated ninety degrees. The dashboard is hidden there, because at phone width it would either cover the photography it is supposed to float over or shrink past being readable.
+
+Two headline wraps were found and fixed during the width pass, at 1024 and at 1440, each caused by the copy column narrowing faster than the type scale.
+
+### Issues found and fixed during this pass
+
+| ID | Issue | Status |
+|---|---|---|
+| HERO-002 | Headline ran to three lines at 1440 in the narrower copy column | FIXED, column widened to six of twelve |
+| HERO-003 | Headline ran to three lines again at 1024 | FIXED, separate type step at `lg` |
+| HERO-004 | The first grade was heavy enough that the boardroom read as a dark blue field rather than an office | FIXED, wash and left scrim both reduced |
+| HERO-005 | `PermitArtifact` left orphaned by the replacement | FIXED, component deleted |
+
+### Deferred
+
+| Item | Reason |
+|---|---|
+| The dashboard on mobile | It would cover the photography or become unreadable. The mobile hero is the scene and the copy |
+| Pausing the cycle on hover or focus | The panel is not interactive and takes no focus, so there is nothing to pause for. Reduced motion already covers the case that matters |
+
+- **Verification performed:** See `05 - QA & Verification.md`. 741 tests / 3978 assertions, 0 failures. Clean build, ESLint 0 errors.
+- **Commit hash:** recorded on commit.
+- **Next action:** none blocking.

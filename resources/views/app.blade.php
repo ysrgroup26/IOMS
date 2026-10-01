@@ -21,38 +21,23 @@
     <meta name="viewport" content="width=device-width, initial-scale=1">
     <meta name="csrf-token" content="{{ csrf_token() }}">
 
-    {{-- v2.72.0 -- SITE IDENTITY.
+    {{-- v2.90.0 -- every active IOMS icon is generated from the canonical,
+         owner-supplied transparent artwork in config/branding.php.
 
-         Until this release the favicon pointed at `branding/icon.png`,
-         which was a 2 MB photograph of a neon sign reading "icms" -- the
-         pre-rebrand name. Every browser tab in the product showed the
-         wrong brand, and downloaded two megabytes to do it.
-
-         SVG first, PNG behind it. An SVG favicon is crisp at every size
-         and is what modern browsers prefer; the 32px PNG covers the rest,
-         and `apple-touch-icon` must be PNG because iOS does not accept
-         SVG. All three are the icon-only mark on its own brand ground --
-         the one place the compact square identity is genuinely required,
-         rather than the full lockup. --}}
-    {{-- v2.76.0: the .ico first for clients that take the first match,
-         then 48px (Google's preferred minimum), SVG and the 32px PNG.
-
-         v2.88.0: every one of these is now the official mark on
-         TRANSPARENCY. The navy square is gone -- see config/branding.php
-         for the decision and for why the earlier reasoning is kept there
-         rather than deleted.
-
-         The apple-touch-icon is deliberately NOT transparent and is
-         unchanged. iOS composites a home-screen icon onto its own
-         background and renders transparency as black, so a transparent
-         touch icon would ship a black tile to every iPhone that saved the
-         site. It is a different asset for a different surface. --}}
+         ICO remains first for older clients that request /favicon.ico;
+         PNG fallbacks cover crawlers and other browser surfaces; the compact
+         SVG derivative uses the same pixels with its empty canvas trimmed.
+         Apple and PWA icons are PNG because those consumers require raster
+         files. All are transparent, including the Apple touch icon and both
+         PWA purposes. A maskable-capable browser may composite transparency
+         onto its own solid fill; that platform choice is not baked into IOMS.
+         --}}
     <link rel="icon" href="{{ asset(config('branding.assets.favicon_ico')) }}" sizes="16x16 32x32 48x48">
     <link rel="icon" type="image/svg+xml" href="{{ asset(config('branding.assets.favicon')) }}">
     <link rel="icon" type="image/png" sizes="96x96" href="{{ asset(config('branding.assets.favicon_96')) }}">
     <link rel="icon" type="image/png" sizes="48x48" href="{{ asset(config('branding.assets.favicon_48')) }}">
     <link rel="icon" type="image/png" sizes="32x32" href="{{ asset(config('branding.assets.favicon_png')) }}">
-    <link rel="apple-touch-icon" href="{{ asset(config('branding.assets.apple_touch_icon')) }}">
+    <link rel="apple-touch-icon" type="image/png" sizes="180x180" href="{{ asset(config('branding.assets.apple_touch_icon')) }}">
     <meta name="theme-color" content="#00004f">
 
     {{-- v2.73.0 -- INSTALLABILITY.

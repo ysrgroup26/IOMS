@@ -1,33 +1,22 @@
 /**
- * v2.88.0 -- THE FAVICON LOSES ITS BLUE SQUARE.
+ * v2.90.0 -- every active IOMS icon is derived from the designated official
+ * transparent artwork at public/branding/ioms-favicon-transparent.svg.
  *
- * The favicon was the official mark in cyan on a SOLID NAVY square. That was
- * a deliberate v2.76.0 decision, and its reasoning is in config/branding.php:
- * Google renders favicons on a light surface, and a ground was chosen so the
- * mark could not float. The brand direction is now the transparent symbol, so
- * this script rebuilds the set without the square. The decision is reversed,
- * not lost: the old reasoning stays in the config beside the new answer.
+ * The supplied file is a 4096px PNG embedded in an SVG wrapper. Its transparent
+ * canvas is 4096 square, while the visible mark occupies 2246 x 1991 and is
+ * off-centre. The source is kept byte-for-byte intact. This build extracts the
+ * PNG, trims only transparent margins, centres it where square raster formats
+ * require one, and writes transparent output for browser, Apple and PWA icons.
  *
- * WHAT THE SUPPLIED SOURCE ACTUALLY IS. `ioms-favicon-transparent.svg` is a
- * 679 KB SVG whose entire content is one 4096x4096 PNG embedded as base64. It
- * is a raster in an SVG wrapper rather than vector art, and the mark inside it
- * is not centred: trimmed, it occupies 2246x1991 of the 4096 square.
+ * The SVG favicon is a compact SVG wrapper around a trimmed 512px derivative of
+ * that same source. It avoids both a tiny mark in the source's oversized canvas
+ * and a 679 KB download for a browser tab. No background, path or colour is
+ * added or redrawn.
  *
- * So the two formats come from two places, deliberately:
- *
- *   RASTERS (ico, png) are rasterised from that supplied file, because it is
- *   the file the brand owner designated, and a raster source is exactly what
- *   a raster output wants. Trimmed and re-centred first, so the mark sits
- *   square with even padding at 16px.
- *
- *   THE SVG favicon is the repository's own `ioms-icon.svg`: real vector,
- *   1.8 KB, the same mark, the same single colour (#01c1ed), and already
- *   transparent with no background rect. Shipping the supplied file as the
- *   SVG favicon would make every modern browser download 679 KB for a 16px
- *   tab icon, which is roughly three hundred times the vector.
- *
- * Both are the same official mark in the same official colour. Nothing was
- * redrawn and no path was edited.
+ * Maskable icons keep the entire mark within the Web App Manifest's guaranteed
+ * 40%-radius safe circle. Their transparent pixels are composited by the user
+ * agent onto its own solid fill, as specified by W3C; IOMS does not bake in a
+ * ground colour.
  *
  * Run with: npm run favicons
  */
@@ -35,7 +24,6 @@ import sharp from 'sharp';
 import { readFileSync, writeFileSync, existsSync } from 'node:fs';
 
 const SUPPLIED = 'public/branding/ioms-favicon-transparent.svg';
-const VECTOR = 'public/branding/ioms-icon.svg';
 const OUT = 'public/branding';
 
 if (!existsSync(SUPPLIED)) {
@@ -43,7 +31,7 @@ if (!existsSync(SUPPLIED)) {
     process.exit(1);
 }
 
-/** Pull the embedded PNG out of the SVG wrapper. */
+/** Pull the embedded PNG out of the official SVG wrapper. */
 function extractEmbeddedRaster(svgPath) {
     const svg = readFileSync(svgPath, 'utf8');
     const match = svg.match(/href="data:image\/png;base64,([^"]+)"/);
@@ -55,13 +43,8 @@ function extractEmbeddedRaster(svgPath) {
     return Buffer.from(match[1], 'base64');
 }
 
-/**
- * Trim the transparent margin, then centre the mark on a square canvas with
- * even padding. Without this the icon sits off-centre in every size, because
- * the supplied artwork is not centred in its own canvas.
- */
-async function squareMark(raster, size, padding = 0.06) {
-    const trimmed = await sharp(raster).trim().toBuffer();
+/** Trim transparent edges, then centre on a transparent square. */
+async function squareMark(trimmed, size, padding = 0.06) {
     const inner = Math.round(size * (1 - padding * 2));
 
     return sharp({
@@ -84,13 +67,24 @@ async function squareMark(raster, size, padding = 0.06) {
         .toBuffer();
 }
 
-/**
- * A minimal ICO containing PNG payloads.
- *
- * ICO has carried PNG entries since Windows Vista, and every browser that
- * still asks for /favicon.ico understands them. Writing the container by hand
- * avoids a dependency whose only job is forty bytes of header.
- */
+/** Create a tightly-cropped SVG favicon from the official transparent artwork. */
+async function croppedSvgFavicon(trimmed) {
+    const png = await sharp(trimmed)
+        .resize(512, 512, { fit: 'inside' })
+        .png({ compressionLevel: 9, adaptiveFiltering: true })
+        .toBuffer();
+    const { width, height } = await sharp(png).metadata();
+    const encoded = png.toString('base64');
+
+    return Buffer.from(
+        `<?xml version="1.0" encoding="UTF-8"?>\n`
+        + `<svg xmlns="http://www.w3.org/2000/svg" width="${width}" height="${height}" viewBox="0 0 ${width} ${height}">`
+        + `<image width="${width}" height="${height}" href="data:image/png;base64,${encoded}"/>`
+        + `</svg>\n`,
+    );
+}
+
+/** A minimal ICO containing PNG payloads. */
 function buildIco(pngs) {
     const header = Buffer.alloc(6);
     header.writeUInt16LE(0, 0); // reserved
@@ -119,31 +113,30 @@ function buildIco(pngs) {
 }
 
 const raster = extractEmbeddedRaster(SUPPLIED);
+const trimmed = await sharp(raster).trim().png().toBuffer();
 
-// The sizes the markup and crawlers actually ask for.
-const png32 = await squareMark(raster, 32);
-const png48 = await squareMark(raster, 48);
-const png96 = await squareMark(raster, 96);
-
+// Browser favicons: tight SVG plus transparent raster fallbacks.
+const png32 = await squareMark(trimmed, 32);
+const png48 = await squareMark(trimmed, 48);
+const png96 = await squareMark(trimmed, 96);
+writeFileSync(`${OUT}/ioms-favicon.svg`, await croppedSvgFavicon(trimmed));
 writeFileSync(`${OUT}/ioms-favicon-32.png`, png32);
 writeFileSync(`${OUT}/ioms-favicon-48.png`, png48);
 writeFileSync(`${OUT}/ioms-favicon-96.png`, png96);
-
-const ico = buildIco([
-    { size: 16, data: await squareMark(raster, 16) },
+writeFileSync('public/favicon.ico', buildIco([
+    { size: 16, data: await squareMark(trimmed, 16) },
     { size: 32, data: png32 },
     { size: 48, data: png48 },
-]);
+]));
 
-// Served from the web root: crawlers and older clients request this path
-// directly without reading any <link>.
-writeFileSync('public/favicon.ico', ico);
+// App icons: same transparent mark, with extra padding only for the safe zone.
+writeFileSync(`${OUT}/ioms-apple-touch-icon.png`, await squareMark(trimmed, 180));
+writeFileSync(`${OUT}/ioms-icon-192.png`, await squareMark(trimmed, 192));
+writeFileSync(`${OUT}/ioms-icon-512.png`, await squareMark(trimmed, 512));
+writeFileSync(`${OUT}/ioms-maskable-192.png`, await squareMark(trimmed, 192, 0.12));
+writeFileSync(`${OUT}/ioms-maskable-512.png`, await squareMark(trimmed, 512, 0.12));
 
-// The SVG favicon is the real vector, copied rather than rewritten.
-writeFileSync(`${OUT}/ioms-favicon.svg`, readFileSync(VECTOR));
-
-console.log('favicon.ico            16 + 32 + 48, transparent');
-console.log('ioms-favicon-32.png    transparent');
-console.log('ioms-favicon-48.png    transparent');
-console.log('ioms-favicon-96.png    transparent');
-console.log('ioms-favicon.svg       vector, transparent, copied from ioms-icon.svg');
+console.log('Official transparent mark regenerated:');
+console.log('  browser: favicon.ico (16/32/48), SVG, PNG (32/48/96)');
+console.log('  Apple:   touch icon (180)');
+console.log('  PWA:     any + maskable (192/512), all transparent');

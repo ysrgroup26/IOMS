@@ -551,3 +551,64 @@ Both are the same official mark in the same official colour. Nothing was redrawn
   `05 - QA & Verification.md` for what was not measured.
 - **Commit hashes:** `0827cfe` (implementation) and `cfd7096` (documentation closeout); both pushed to `origin/main`.
 - **Next action:** none blocking. A 1440px desktop browser review remains unverified and is recorded in `05 - QA & Verification.md`.
+
+
+## 2026-10-01 - v2.89.0 addendum: the desktop review that was still outstanding
+
+The entry above closed with one thing unverified: *"A 1440px desktop browser review remains
+unverified."* This is that review, and what it found.
+
+### The hero composition holds, and one width did not
+
+Checked at 1440, 1280, 1024 and 375.
+
+**Found at 1024:** the hero's right bleed clipped both frame labels, `OFFICE / MANAGEMENT` and
+`FIELD / OPERATIONS`. The cause is a width the composition had not been reasoned about rather than a
+styling mistake: `max-w-7xl` has side margins at 1440, so pulling the column 96px right stays inside
+the viewport, and at 1024 the container fills the screen and the same 96px goes off the edge.
+
+Fixed by making the bleed breakpoint-aware. Both labels now sit at 992px of 1024, fully visible, and
+the wider bleed is kept for `xl` where there is margin to spend. Verified at every width above.
+
+Everything else held: no horizontal overflow at any width, a two-line headline at all of them, the
+hero inside the viewport at 1440 (832px of 900) and at 1024 (690px of 860), and the mobile sequence
+reading office, field, then the record.
+
+**One crop decision confirmed rather than assumed.** The mobile and desktop crops of the field
+photograph are set independently because they want different subjects: at 375 the supervisor is the
+frame, and at 1440 the dock and cranes are.
+
+### Sub-page photography, previously deferred
+
+v2.88.0 deferred this on the grounds that spreading eight images thinner would weaken the landing
+page. That reasoning held for the landing page's own sections and not for the sub-page headers, which
+had no imagery at all and opened on the same navy rectangle, so the site lost its atmosphere the
+moment a visitor left the landing page.
+
+`PublicPageHero` gained an optional photograph: behind the whole band at low contrast, deliberately
+quieter than the landing hero, because a sub-page header should not compete with the page it is
+subordinate to. `/platform-overview` takes the shipyard, `/solutions` the mine, `/how-it-works` the
+workshop. It is opt-in, so transactional headers such as an order or a payment status keep the plain
+band; atmosphere is not what somebody checking a payment needs.
+
+Still deferred, and now for a stated reason rather than by omission: `/pricing`, `/faq` and
+`/contact` are decision and reference pages, and a photograph behind a price comparison competes with
+the comparison.
+
+### Two findings worth keeping, beyond the fixes
+
+**The audit boundary was wrong, not the audits.** The sign-in page had advertised two retired
+workspaces since v2.84.0. Every copy audit missed it because they scoped themselves to
+`Pages/Public`, and the auth shell lives under `guest`. A prospect reaches sign-in from the marketing
+site, so its claims are public claims. The lesson is about where the boundary is drawn, and
+`03 - Website IA & Content.md` now records it.
+
+**A config file cannot read config.** The first attempt at defaulting `legal.entity_name` used
+`config('ioms.legal_entity')`, which silently resolved to null, because a config file is loaded
+before the config repository exists. It was caught by checking the resolved value rather than by
+assuming the edit worked. The default is a literal now, with that reason stated beside it.
+
+- **Verification performed:** 741 tests / 3956 assertions, 0 failures. Clean build, ESLint 0 errors.
+  Multi-width desktop and mobile review completed in Chromium. Zero em dashes across twelve public
+  pages including `/login`, in both encodings.
+- **Next action:** none blocking.

@@ -76,7 +76,7 @@ See 01 - Design References.md for reference-specific borrow/avoid guidance. Trea
 - [x] Phase 04: Hero + core storytelling
 - [x] Phase 05: Workspace/product sections
 - [x] Phase 06: Pricing + purchase journey
-- [x] Phase 07: Industries + trust + security
+- [x] Phase 07: Industries + trust + security (trust shipped v2.89.0)
 - [x] Phase 08: Motion + imagery + responsive
 - [x] Phase 09: SEO + metadata + OG
 - [x] Phase 10: Full QA + consistency audit
@@ -295,4 +295,35 @@ and four existing warnings; Chromium local preview confirmed the hero, four-doma
 login entry and company identity. The specific QA evidence and limits are in `05 - QA & Verification.md`.
 
 **Still open:** QA-002 (Ziggy route manifest) and QA-003 (the "Enterprise Edition" string) are
+unchanged. No cPanel work was performed.
+
+
+# ADDENDUM, 2026-10-01: the desktop review, and the last deferred photography
+
+The status above left one thing open: the preview had no controllable 1440px viewport, so the new
+hero composition had not been measured at desktop width.
+
+**It has been now, at 1440, 1280, 1024 and 375, and it found one defect.** At 1024 the hero's right
+bleed clipped both frame labels, because `max-w-7xl` has side margins at 1440 and none once the
+viewport is narrower than the container. The bleed is breakpoint-aware now and every width is clean.
+
+**Sub-page photography, deferred since v2.88.0, is done.** The reasoning for deferring it was that
+spreading eight images thinner would weaken the landing page. That held for the landing page's own
+sections and not for the sub-page headers, which had no imagery at all, so the site lost its
+atmosphere the moment a visitor left the landing page. `/platform-overview`, `/solutions` and
+`/how-it-works` now open on a photograph behind the band at low contrast, quieter than the landing
+hero on purpose.
+
+`/pricing`, `/faq` and `/contact` stay without photography, now by decision rather than omission:
+they are decision and reference pages, and an image behind a price comparison competes with the
+comparison.
+
+## Roadmap
+
+Every phase is complete. Phase 07 was the last carrying unshipped work, and its trust half shipped in
+v2.89.0.
+
+## Still open
+
+Nothing blocking. QA-002 (Ziggy route manifest) and QA-003 (the "Enterprise Edition" string) are
 unchanged. No cPanel work was performed.

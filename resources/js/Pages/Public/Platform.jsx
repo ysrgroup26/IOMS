@@ -44,6 +44,7 @@ export default function Platform({ domains = [] }) {
             <Head title="Platform" />
 
             <PublicPageHero
+                photo={{ name: "shipyard", position: "center 58%" }}
                 eyebrow="Platform"
                 title="Your whole operation in one system."
                 subtitle="IOMS is an Industrial Operations Platform: the work in the field, the approvals behind it, and the records it produces, held together, not scattered across forms, folders and spreadsheets."

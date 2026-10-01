@@ -518,3 +518,47 @@ Copy rules hold: zero em dashes across all public pages in both encodings, four 
 
 Product pricing, workspace grants, server-side entitlements, PTW behavior, billing and subscription
 lifecycle remained covered by the passing full suite and were not changed.
+
+
+# QA addendum, v2.89.0: the 1440px desktop review
+
+The block above recorded that the preview could not provide a controllable 1440px viewport, so the
+new hero composition had not been measured at desktop width. It has been now, at four widths, and it
+found one defect.
+
+## Hero composition by width
+
+| Width | Result |
+|---|---|
+| 1440 | Stacked frames with the permit across the seam. Hero 832px inside a 900px viewport. Headline 2 lines. Both frame labels fully visible. No horizontal overflow |
+| 1280 | Same composition, nothing clipped |
+| 1024 | **Defect found and fixed.** The right bleed clipped both frame labels at this width: `max-w-7xl` has side margins at 1440, so a 96px pull stays on screen, and at 1024 the container fills the viewport and the same pull goes off the edge. The bleed is now breakpoint-aware. After the fix both labels sit at 992px of 1024, hero 690px of 860, headline 2 lines, no overflow |
+| 375 | Vertical sequence: office frame, field frame, then the permit beneath. No horizontal overflow, `scrollWidth` equals `clientWidth` equals 375 |
+
+## Images
+
+| Check | Result |
+|---|---|
+| All eight photographs load | Yes, every one resolving to WebP |
+| Variant selection at 375 | `-640` for panel-scale frames, `-1024` for full-width bands, correct for device pixel ratio 2 |
+| Variant selection at 1440 | `-1024` for story panels, `-1600` for full-bleed bands |
+| Duplicate hero trees | The desktop and mobile compositions reference identical URLs, so one request serves both |
+| Sub-page headers | Photograph loads behind the band and the heading stays pure white over it |
+
+## Section rhythm
+
+13 sections, 12,664px at 1440, four dark bands: hero, the permit chain story, the new trust section
+and the closing band. The trust section was placed partly to break the long light run through the
+lower half, and it does.
+
+## Copy
+
+Zero em dashes across twelve public pages including `/login`, in both the literal and JSON-escaped
+forms. No retired workspace on any marketing or authentication surface.
+
+## Still not verified
+
+- Cross-browser and real devices. Chromium with viewport emulation only.
+- Lighthouse and Core Web Vitals. Byte weights and variant selection were measured directly instead.
+- A browser session driven as an actual My Work account. The entry, the routing and the restriction
+  are covered by feature tests through real HTTP.

@@ -205,3 +205,46 @@ pack is already signed in, where the full table lives on the quota page.
 
 Verified: 0 em dashes across all 11 public pages in both encodings, no horizontal overflow at 375,
 and every published figure matches server-side enforcement.
+
+---
+
+# Added, 2026-10-01: trust, and the authentication surfaces
+
+## The trust section
+
+The IA proposed "Trust / security" as a page and the roadmap scheduled it inside Phase 07. Industries
+shipped from that phase; trust did not. It is now a section on the landing page immediately after
+pricing, rather than a page of its own, because a buyer asks the question at the moment they see a
+price and not as a separate navigation decision. A page would also need either more facts than IOMS
+can evidence or padding to fill it.
+
+Four claims, each enforced in the product: tenant-scoped data access, provider-confirmed activation,
+approvals stored as authorization records, and operational history retained when a subscription
+lapses to read-only. No certification, uptime figure or compliance badge, because IOMS holds none.
+
+## The authentication surfaces are public copy
+
+This document scoped "public pages" to the marketing routes. That was wrong in one specific way, and
+it cost five releases: the sign-in page advertised two retired workspaces because it sits under
+`guest` rather than under `Pages/Public`, so no copy audit looked at it.
+
+**A prospect reaches sign-in from the marketing site.** Its copy is public copy, and it is now inside
+the audit boundary and covered by a test.
+
+## Company identity on public surfaces
+
+| Slot | Value |
+|---|---|
+| Footer copyright | `© 2026 Tahada Group. All rights reserved.` |
+| Attribution on sign-in and in the app shell | Tahada Group |
+| Legal document operator | PT Tahada Vistara Bersama |
+| Structured data | `name` IOMS, `legalName` PT Tahada Vistara Bersama |
+
+The product name is still IOMS everywhere it was. The brand behind it is Tahada Group, the registered
+entity is PT Tahada Vistara Bersama, and those are three different facts in three different slots.
+
+## The My Work entry
+
+One sign-in for both account classes, with a line on the form naming the field destination. The link
+is a real deep link: `/my-work` requires authentication, so an unauthenticated visit is captured and
+replayed after sign-in. An emailed My Work invitation is that URL and nothing more.

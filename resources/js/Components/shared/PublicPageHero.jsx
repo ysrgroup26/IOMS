@@ -1,4 +1,5 @@
 import { cn } from '@/lib/utils';
+import Photo from '@/Components/public/Photo';
 
 /**
  * v2.51.0 -- the navy band every public page opens with.
@@ -14,7 +15,7 @@ import { cn } from '@/lib/utils';
  * animated gradient, no full-colour panel — the same industrial register
  * as the authenticated shell.
  */
-export default function PublicPageHero({ eyebrow, title, subtitle, children, size = 'default', align = 'start' }) {
+export default function PublicPageHero({ eyebrow, title, subtitle, children, size = 'default', align = 'start', photo = null }) {
     return (
         <section
             className={cn(
@@ -22,6 +23,36 @@ export default function PublicPageHero({ eyebrow, title, subtitle, children, siz
                 size === 'sm' ? 'py-12 sm:py-14' : 'py-16 sm:py-20'
             )}
         >
+            {/* v2.89.0 -- AN OPTIONAL PHOTOGRAPH BEHIND THE BAND.
+                The sub-pages had no imagery at all, so each one opened on the
+                same navy rectangle and the site lost its atmosphere the
+                moment a visitor left the landing page.
+
+                Deliberately quieter than the landing hero: this is a page
+                header rather than a composition, so the photograph sits
+                behind the whole band at low contrast and the copy keeps
+                priority. A page that is not the landing page should not be
+                competing with it.
+
+                Opt-in. A transactional header (an order, a status) passes
+                nothing and keeps the plain band, because atmosphere is not
+                what somebody checking a payment needs. */}
+            {photo && (
+                <div className="absolute inset-0 -z-10" aria-hidden="true">
+                    <Photo
+                        name={photo.name}
+                        alt=""
+                        ratio="auto"
+                        className="h-full w-full"
+                        position={photo.position ?? 'center'}
+                        sizes="100vw"
+                        priority
+                    />
+                    <div className="absolute inset-0 bg-navy-900/82" />
+                    <div className="absolute inset-0 bg-gradient-to-r from-navy-900 via-navy-900/70 to-navy-900/85" />
+                </div>
+            )}
+
             <div
                 className="pointer-events-none absolute inset-0 -z-10 opacity-[0.16]"
                 aria-hidden="true"

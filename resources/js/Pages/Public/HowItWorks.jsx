@@ -19,6 +19,7 @@ export default function HowItWorks({ steps = [] }) {
             <Head title="How It Works" />
 
             <PublicPageHero
+                photo={{ name: "workshop", position: "center 50%" }}
                 eyebrow="How It Works"
                 title="From master data to management reporting."
                 subtitle="IOMS follows one cycle. Work is centralized, carried out, approved by whoever is accountable for it, watched while it runs, and reported on once it closes. What that reporting shows is what the next cycle starts from."

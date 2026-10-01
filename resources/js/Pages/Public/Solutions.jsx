@@ -31,6 +31,7 @@ export default function Solutions({ domains = [] }) {
             <Head title="Solutions" />
 
             <PublicPageHero
+                photo={{ name: "mining", position: "center 45%" }}
                 eyebrow="Solutions"
                 title="Built the way an industrial operation actually runs."
                 subtitle="Every domain below is covered by IOMS today. They share one set of master data, one approval layer and one reporting layer, so work that crosses departments does not have to cross systems."

@@ -213,7 +213,7 @@ function Hero() {
                         the field executes it, and one record exists in both
                         places. See HeroComposition for why this is a stacked
                         sequence rather than a split screen. */}
-                    <div className="relative lg:col-span-5 lg:-mr-24 xl:-mr-32">
+                    <div className="relative lg:col-span-5 lg:-mr-6 xl:-mr-28">
                         <HeroComposition />
                     </div>
                 </div>

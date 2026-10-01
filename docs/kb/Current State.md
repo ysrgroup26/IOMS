@@ -1,7 +1,7 @@
 ---
 title: Current State
 type: snapshot
-product-version: 2.91.0
+product-version: 2.92.0
 product-stage: Beta
 measured: 2026-10-01
 tags: [kb/state]
@@ -25,8 +25,8 @@ the date in the frontmatter, not remembered.
 |---|---|
 | Product | **IOMS — Industrial Operations Platform** |
 | Public company identity | **Tahada Group**; legal entity **PT Tahada Vistara Bersama** |
-| Version | **2.90.0**, stage **Beta**, edition **Enterprise Edition** |
-| Build | `2026.10.01.04`, release date `2026-10-01` |
+| Version | **2.92.0**, stage **Beta**, edition **Enterprise Edition** |
+| Build | `2026.10.01.06`, release date `2026-10-01` |
 | Stack | Laravel 12 · Inertia.js · React 18 · Tailwind · MySQL · Sanctum |
 
 The naming rules are not cosmetic — see [[Product Identity and Principles]].
@@ -40,7 +40,7 @@ The naming rules are not cosmetic — see [[Product Identity and Principles]].
 | Inertia pages | 181 |
 | Migrations | 190 |
 | Feature test files | 69 |
-| Tests / assertions | **741 / 3978**, all passing |
+| Tests / assertions | **742 / 3986**, all passing |
 | ADRs | 44 files (numbering has known gaps — see [[Decision Register]]) |
 | Workspaces in the navigation registry | 12 |
 
@@ -82,6 +82,14 @@ replace the role. A My Work User authenticates through the same login and lands 
 server-side route allow-list still controls what that account may reach. See [[Domain Glossary]].
 
 ## What shipped most recently
+
+`2.92.0` (2026-10-01) — the hero uses the four supplied paragraphs exactly; mobile copy is smaller
+and the mobile background uses only the management photograph. The desktop presentation and all
+other website sections remain unchanged. **742 tests / 3986 assertions pass.** See [[Release History]].
+
+`2.91.0` (2026-10-01) — the hero is now one full-bleed office-to-field scene with the platform
+running across the blend; the mobile dashboard stays hidden. **741 tests / 3978 assertions pass.**
+See [[Release History]].
 
 `2.90.0` (2026-10-01) — all browser, Apple and PWA icon variants now come from the owner-supplied
 transparent source; the SVG is tightly cropped and the maskable drawing fits the manifest safe

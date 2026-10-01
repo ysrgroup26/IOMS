@@ -30,11 +30,8 @@ import Photo from '@/Components/public/Photo';
  * is built on; it survives only as the scrim that keeps the copy legible and
  * as the ground beneath the blend.
  *
- * MOBILE KEEPS THE TWO WORLDS. Below `md` the scene stacks vertically,
- * management above and field below, blended through the same feather rotated
- * ninety degrees. Cropping one environment away, or squeezing both into a
- * single narrow strip, would lose the one thing the composition exists to
- * say.
+ * MOBILE USES THE MANAGEMENT PHOTOGRAPH ONLY. The field photograph remains a
+ * desktop-only layer; the office scene fills the narrow viewport on its own.
  */
 export default function HeroComposition() {
     return (
@@ -75,7 +72,7 @@ export default function HeroComposition() {
                 </div>
             </div>
 
-            {/* ---------------------------------------------- narrow: top / bottom */}
+            {/* ---------------------------------------------- narrow: management only */}
             <div className="absolute inset-0 md:hidden">
                 <Photo
                     name="management"
@@ -86,24 +83,6 @@ export default function HeroComposition() {
                     position="42% 44%"
                     sizes="100vw"
                 />
-
-                <div
-                    className="absolute inset-x-0 bottom-0 h-[58%]"
-                    style={{
-                        WebkitMaskImage: 'linear-gradient(to bottom, transparent 0%, rgba(0,0,0,0.55) 14%, black 32%)',
-                        maskImage: 'linear-gradient(to bottom, transparent 0%, rgba(0,0,0,0.55) 14%, black 32%)',
-                    }}
-                >
-                    <Photo
-                        name="operational"
-                        alt=""
-                        priority
-                        ratio="auto"
-                        className="h-full w-full"
-                        position="46% 50%"
-                        sizes="100vw"
-                    />
-                </div>
             </div>
 
             {/* ---------------------------------------------- one grade, over both */}

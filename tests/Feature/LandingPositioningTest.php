@@ -71,6 +71,31 @@ class LandingPositioningTest extends TestCase
         $this->assertStringNotContainsString('Integrated Operations Management System', $welcome);
     }
 
+    public function test_the_home_hero_uses_the_approved_copy_and_management_photo_on_mobile(): void
+    {
+        $welcome = $this->source('Pages/Public/Welcome.jsx');
+
+        foreach ([
+            'IOMS turns daily activities into one connected flow of operational data, keeping what happens in the field connected to what management sees.',
+            'It brings Health, Safety &amp; Environment, People / HRD, Warehouse &amp; Logistics, and Management Reporting together in one platform.',
+            'A permit raised on site becomes part of the work record, connected to the people involved, the activities performed, and the data management uses to monitor performance and make decisions.',
+            'One operation. One connected record. One source of truth.',
+        ] as $paragraph) {
+            $this->assertStringContainsString($paragraph, $welcome);
+        }
+
+        $composition = $this->source('Components/public/HeroComposition.jsx');
+        $mobileStart = strpos($composition, '<div className="absolute inset-0 md:hidden">');
+        $this->assertNotFalse($mobileStart, 'The mobile hero composition is missing.');
+        $mobileComposition = substr($composition, $mobileStart);
+        $mobileEnd = strpos($mobileComposition, '</div>');
+        $this->assertNotFalse($mobileEnd, 'The mobile hero composition is not closed.');
+        $mobileComposition = substr($mobileComposition, 0, $mobileEnd);
+
+        $this->assertStringContainsString('name="management"', $mobileComposition);
+        $this->assertStringNotContainsString('name="operational"', $mobileComposition);
+    }
+
     /**
      * v2.85.0 -- THE EM DASH RULE, PINNED WHERE IT IS ACTUALLY BROKEN.
      *

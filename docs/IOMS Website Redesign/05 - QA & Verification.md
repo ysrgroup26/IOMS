@@ -637,3 +637,25 @@ Both photographs resolve to `-1600.webp` at desktop and `-1024.webp` at 375, whi
 - **`prefers-reduced-motion` in a live browser.** The guard was confirmed in code, not by toggling the preference in Chromium.
 - **Cross-browser.** Chromium only. `mask-image` carries a `-webkit-` prefix alongside the standard property; Safari and Firefox were not exercised.
 - **Real devices and Lighthouse.** Neither was run.
+
+---
+
+# QA execution, v2.92.0: approved hero copy and the mobile management photograph
+
+## Automated
+
+| Check | Result |
+|---|---|
+| Full PHPUnit suite | **742 passed, 3986 assertions, 0 failures** |
+| Hero contract | `LandingPositioningTest` pins all four supplied paragraphs and confirms that the mobile composition contains the management photo without the field photo |
+| Production build | Completed successfully in an isolated QA output directory; existing 2,031 KB JavaScript chunk advisory remains |
+| ESLint | 0 errors; 4 existing unused-disable warnings in untouched files |
+
+## Scope check
+
+The hero body is the supplied copy. Mobile typography is smaller and the mobile background uses the
+management photograph alone. Desktop styling and imagery, heading, dashboard, CTA and navigation
+were not changed. No other website section or page changed. The production app was not opened in a
+browser for visual review in this pass.
+
+No cPanel access or deployment was performed.

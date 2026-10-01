@@ -736,3 +736,21 @@ Two headline wraps were found and fixed during the width pass, at 1024 and at 14
 - **Verification performed:** See `05 - QA & Verification.md`. 741 tests / 3978 assertions, 0 failures. Clean build, ESLint 0 errors.
 - **Commit hash:** recorded on commit.
 - **Next action:** none blocking.
+
+## 2026-10-01 - v2.92.0: the hero story connects field activity to management
+
+- **Coverage:** Owner-directed hero copy and mobile image treatment only.
+- **Copy:** The hero body now uses the four supplied paragraphs verbatim. The existing descriptor,
+  headline and CTA pair remain in place; no other public-page copy changed.
+- **Mobile:** The long body copy uses a smaller type size below the desktop breakpoint. The mobile
+  background uses the management photograph alone. The field photograph remains in the desktop
+  composition.
+- **Desktop:** Its type size and styling, photography, dashboard, spacing, CTA and navigation are
+  unchanged. No other website section or page changed. No product, pricing, workspace, authentication,
+  billing, entitlement or PTW behavior changed.
+- **Verification:** Full PHPUnit suite: 742 tests / 3986 assertions, 0 failures. Production build
+  succeeded in an isolated output directory with the existing 2,031 KB chunk advisory. ESLint:
+  0 errors, 4 existing unused-disable warnings. No browser visual review was performed. Details in
+  `05 - QA & Verification.md` and [[Verification Status]].
+- **Commit hash:** recorded after the release commit.
+- **Next action:** Continue the remaining redesign coverage from the project board.

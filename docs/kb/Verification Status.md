@@ -49,10 +49,10 @@ on every phone width.
 
 | | |
 |---|---|
-| Suite | **741 tests, 3978 assertions — all passing** (2026-10-01, v2.90.0) |
+| Suite | **742 tests, 3986 assertions — all passing** (2026-10-01, v2.92.0) |
 | Database | In-memory **SQLite**, so no MySQL or external service is needed |
-| Lint | `npm run lint` — 0 errors (4 pre-existing warnings in `GasTestRecords/Index.jsx` and `Settings/Index.jsx`) |
-| Build | `npm run build` — clean, with the known bundle-size warning |
+| Lint | `npm run lint` — 0 errors (4 existing warnings in `GasTestRecords/Index.jsx` and `Settings/Index.jsx`) |
+| Build | Production build in an isolated output directory succeeded, with the existing 2,031 KB bundle-size advisory |
 
 > [!warning] SQLite is not MySQL
 > The suite deliberately runs on SQLite so it needs nothing external. That means it does **not**
@@ -64,6 +64,12 @@ on every phone width.
 > multi-table `UPDATE … JOIN` and anything reading `information_schema`, or guard it with
 > `DB::getDriverName() === 'mysql'`. Six migrations had to be made portable before the suite could
 > provision at all.
+
+### Test-covered, not browser-reviewed
+
+| Area | Version | What was verified |
+|---|---|---|
+| Hero copy and mobile background | 2.92.0 | `LandingPositioningTest` pins the four supplied paragraphs and asserts that the mobile composition uses the management photograph without the field photograph. Full suite: 742 tests / 3986 assertions; isolated production build succeeded; lint 0 errors / 4 existing warnings. No browser visual review was performed |
 
 ### Browser-verified
 

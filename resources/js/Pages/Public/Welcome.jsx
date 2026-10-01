@@ -173,11 +173,14 @@ function Hero() {
                             <span className="block text-steel-300">on one record.</span>
                         </h1>
 
-                        <p className="mt-6 max-w-xl text-base leading-relaxed text-navy-200 drop-shadow-[0_1px_10px_rgba(3,12,26,0.7)] sm:text-lg">
-                            IOMS covers Health, Safety &amp; Environment, People / HRD, Warehouse Logistics and
-                            Management reporting in one platform. A permit raised on site, the crew who signed it and
-                            the report management reads at month end are the same record, not three systems that no
-                            longer agree.
+                        <p className="mt-6 max-w-xl text-sm leading-relaxed text-navy-200 drop-shadow-[0_1px_10px_rgba(3,12,26,0.7)] md:text-lg">
+                            IOMS turns daily activities into one connected flow of operational data, keeping what happens in the field connected to what management sees.
+                            <br /><br />
+                            It brings Health, Safety &amp; Environment, People / HRD, Warehouse &amp; Logistics, and Management Reporting together in one platform.
+                            <br /><br />
+                            A permit raised on site becomes part of the work record, connected to the people involved, the activities performed, and the data management uses to monitor performance and make decisions.
+                            <br /><br />
+                            One operation. One connected record. One source of truth.
                         </p>
 
                         <div className="mt-8 flex flex-col gap-3 sm:flex-row">

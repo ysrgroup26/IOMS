@@ -6,6 +6,7 @@ import BlueprintBackdrop from '@/Components/public/BlueprintBackdrop';
 import PlatformShowcase from '@/Components/public/PlatformShowcase';
 import ConnectedOperations from '@/Components/public/ConnectedOperations';
 import HeroComposition from '@/Components/public/HeroComposition';
+import HeroDashboard from '@/Components/public/HeroDashboard';
 import Photo from '@/Components/public/Photo';
 import FragmentedToConnected from '@/Components/public/FragmentedToConnected';
 import StorySection from '@/Components/public/StorySection';
@@ -140,88 +141,77 @@ const HERO_WORKSPACES = [
  */
 function Hero() {
     return (
-        <section className="relative isolate overflow-hidden border-b border-navy-800 bg-navy-900 text-white">
-            {/* v2.59.0: replaces a 56px grid plus two blurred blobs -- the
-                same treatment every navy band on this page used, which is
-                why three dark sections read as one flat blue field. See
-                BlueprintBackdrop for what each layer is doing. */}
-            <BlueprintBackdrop variant="hero" />
+        /* v2.90.0 -- THE PHOTOGRAPH IS THE HERO, NOT A PANEL INSIDE IT.
+           Through v2.89.0 the hero was a navy field with framed photographs
+           sitting on it. The frames, their borders and the navy around them
+           were the composition, and the photography was an inset. This is the
+           other way round: one panoramic scene fills the section, and navy
+           survives only as the grade that keeps the copy legible.
 
-            <div className="relative mx-auto max-w-7xl px-4 py-16 sm:px-6 sm:py-20 lg:px-8">
-                {/* v2.85.0 -- THE HERO IS NO LONGER CENTERED.
-                    A centered stack over a dark surface is the default
-                    composition of every generated SaaS landing page, and
-                    centered text also forces every line to a new left edge,
-                    which is the slowest way to read a paragraph. The
-                    headline now sits on a single left margin shared with the
-                    eyebrow, the paragraph and the buttons, and the right
-                    column carries the four workspaces as a plain list. That
-                    asymmetry is what gives the page an axis to hang the rest
-                    of its sections on. */}
-                <div className="grid grid-cols-1 items-center gap-x-10 gap-y-14 lg:grid-cols-12">
-                    <div className="lg:col-span-7">
-                        {/* THE PRODUCT DEFINITION IS VISIBLE TEXT (v2.76.0).
-                            The eyebrow names the product and its category,
-                            the H1 says what it is for, the paragraph names
-                            the domains and industries. A search engine and
-                            a person skimming should come away with the same
-                            sentence, so it lives in the HTML rather than
-                            only in metadata. */}
+           Minimum height is in dvh rather than vh, so a phone's address bar
+           appearing does not resize the scene under the reader. */
+        <section className="relative isolate flex min-h-[560px] items-end overflow-hidden border-b border-navy-800 text-white sm:min-h-[620px] md:min-h-[88dvh] md:items-center">
+            <HeroComposition />
+
+            <div className="relative mx-auto w-full max-w-7xl px-4 pb-14 pt-24 sm:px-6 sm:pb-16 md:py-20 lg:px-8">
+                <div className="grid grid-cols-1 items-center gap-y-10 md:grid-cols-12 md:gap-x-10">
+                    {/* The copy keeps the left margin it has had since
+                        v2.85.0 and the hierarchy it has had since v2.76.0.
+                        Only the surface under it changed, so nothing about
+                        the reading order or the CTA pair is renegotiated.
+
+                        The drop shadows are the one addition: white type over
+                        a photograph needs a shadow to hold its edge, and it
+                        is cheaper than darkening the image enough to do the
+                        same job. */}
+                    <div className="md:col-span-6 lg:col-span-6">
                         <p className="font-mono text-[11px] uppercase tracking-[0.18em] text-steel-300">
                             IOMS / Industrial Operations Platform
                         </p>
-                        <h1 className="mt-5 font-display text-[2.3rem] font-semibold leading-[1.04] tracking-[-0.02em] text-white sm:text-[2.9rem] lg:text-[2.75rem] xl:text-[3rem]">
+                        <h1 className="mt-5 font-display text-[2.3rem] font-semibold leading-[1.04] tracking-[-0.02em] text-white drop-shadow-[0_2px_18px_rgba(3,12,26,0.65)] sm:text-[2.9rem] lg:text-[2.4rem] xl:text-[3rem]">
                             Run the whole operation
                             <span className="block text-steel-300">on one record.</span>
                         </h1>
 
-                        <p className="mt-7 max-w-xl text-base leading-relaxed text-navy-300 sm:text-lg">
+                        <p className="mt-6 max-w-xl text-base leading-relaxed text-navy-200 drop-shadow-[0_1px_10px_rgba(3,12,26,0.7)] sm:text-lg">
                             IOMS covers Health, Safety &amp; Environment, People / HRD, Warehouse Logistics and
                             Management reporting in one platform. A permit raised on site, the crew who signed it and
                             the report management reads at month end are the same record, not three systems that no
                             longer agree.
                         </p>
 
-                        {/* One unmistakable primary, one quiet secondary. The
-                            secondary is a surface-on-navy rather than a
-                            bordered white button, so the pair reads as a
-                            hierarchy instead of two buttons competing for
-                            the same weight. */}
-                        <div className="mt-9 flex flex-col gap-3 sm:flex-row">
+                        <div className="mt-8 flex flex-col gap-3 sm:flex-row">
                             <Button size="lg" className="w-full sm:w-auto" asChild>
                                 <Link href={route('get-started')}>Get Started <ArrowRight className="h-4 w-4" /></Link>
                             </Button>
                             <Button
                                 size="lg"
                                 variant="ghost"
-                                className="w-full border border-white/15 bg-white/[0.06] text-white hover:bg-white/[0.12] hover:text-white sm:w-auto"
+                                className="w-full border border-white/20 bg-white/[0.08] text-white backdrop-blur-sm hover:bg-white/[0.16] hover:text-white sm:w-auto"
                                 asChild
                             >
                                 <Link href={route('sandbox')}>Open the Sandbox</Link>
                             </Button>
                         </div>
-
                     </div>
 
-                    {/* v2.87.0 gave the hero a subject: a Permit To Work in
-                        the format IOMS actually generates.
+                    {/* The running platform, over the blend. It sits to the
+                        right of the copy and across the join between the two
+                        environments, which is the one place on the page where
+                        an interface genuinely connects an office to a dock.
 
-                        v2.89.0 gives it an ARGUMENT. The permit now sits
-                        across the seam between two photographs, an office
-                        above and a dock below, so the hero states the thing
-                        IOMS is actually selling: the office plans the work,
-                        the field executes it, and one record exists in both
-                        places. See HeroComposition for why this is a stacked
-                        sequence rather than a split screen. */}
-                    <div className="relative lg:col-span-5 lg:-mr-6 xl:-mr-28">
-                        <HeroComposition />
+                        Hidden below md: at phone width it would either cover
+                        the photography it is supposed to float over, or
+                        shrink past the point of being readable. The mobile
+                        hero is the scene and the copy, which is enough. */}
+                    <div className="hidden md:col-span-6 md:block lg:col-span-6">
+                        <HeroDashboard className="ml-auto w-full max-w-[520px] lg:max-w-[560px]" />
                     </div>
                 </div>
             </div>
         </section>
     );
 }
-
 
 /**
  * v2.87.0 -- WHAT IOMS OPENS, AND WHO IT IS FOR.

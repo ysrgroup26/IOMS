@@ -216,6 +216,15 @@ export default {
                 // delay on the second, so the two environments arrive in the
                 // order the work happens rather than together. Holds its end
                 // state, so a frame is fully visible if it never runs.
+                // v2.90.0 -- the hero dashboard swapping module. A slow
+                // cross-fade with a few pixels of lift, so a state change
+                // reads as the panel updating rather than as a slide
+                // transition. Holds its end state like every other reveal
+                // here, so a missed animation costs nothing.
+                'panel-in': {
+                    '0%': { opacity: '0.35', transform: 'translateY(4px)' },
+                    '100%': { opacity: '1', transform: 'translateY(0)' },
+                },
                 'frame-settle': {
                     '0%': { transform: 'translateY(10px) scale(1.02)', opacity: '0.35' },
                     '100%': { transform: 'translateY(0) scale(1)', opacity: '1' },
@@ -262,6 +271,7 @@ export default {
                 'float-slow': 'float 9s ease-in-out infinite',
                 'pulse-glow': 'pulse-glow 4s ease-in-out infinite',
                 reveal: 'reveal 0.55s cubic-bezier(0.22, 1, 0.36, 1) both',
+                'panel-in': 'panel-in 0.7s cubic-bezier(0.22, 1, 0.36, 1) both',
                 'frame-settle': 'frame-settle 0.85s cubic-bezier(0.22, 1, 0.36, 1) both',
                 'sheet-settle': 'sheet-settle 0.9s cubic-bezier(0.22, 1, 0.36, 1) both',
                 'stamp-land': 'stamp-land 1.5s cubic-bezier(0.34, 1.56, 0.64, 1) both',

@@ -58,7 +58,13 @@ import { cn } from '@/lib/utils';
  * previous version did not implement.
  */
 
-const MODULES = [
+/*
+ * v2.90.0: exported so the hero can drive a live preview from the SAME
+ * module data this showcase renders. Two product previews on one page must
+ * not describe two different products, and the only way to guarantee that is
+ * for both to read one list.
+ */
+export const MODULES = [
     {
         key: 'dashboard',
         label: 'Dashboard',

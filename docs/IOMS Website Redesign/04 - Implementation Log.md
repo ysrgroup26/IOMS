@@ -549,5 +549,5 @@ Both are the same official mark in the same official colour. Nothing was redrawn
   advisory remains. ESLint: 0 errors, 4 existing warnings in untouched files. Local Chromium preview
   checked the sign-in entry and story imagery at the available narrow viewport. See
   `05 - QA & Verification.md` for what was not measured.
-- **Commit hash:** `0827cfe` (implementation commit).
-- **Next action:** push the implementation and documentation commits to `origin/main`.
+- **Commit hashes:** `0827cfe` (implementation) and `cfd7096` (documentation closeout); both pushed to `origin/main`.
+- **Next action:** none blocking. A 1440px desktop browser review remains unverified and is recorded in `05 - QA & Verification.md`.

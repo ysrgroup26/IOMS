@@ -515,5 +515,5 @@ Both are the same official mark in the same official colour. Nothing was redrawn
 | A blur-up placeholder | The reserved aspect box already prevents layout shift, which is the defect that actually matters. A blur placeholder is polish on top of a solved problem |
 
 - **Verification performed:** See `05 - QA & Verification.md`. 738 tests / 3931 assertions, 0 failures. Clean build, ESLint 0 errors.
-- **Commit hash:** recorded on commit.
+- **Commit hash:** `f4f547f`, pushed to origin/main.
 - **Next action:** None blocking.

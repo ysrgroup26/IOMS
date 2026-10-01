@@ -752,5 +752,5 @@ Two headline wraps were found and fixed during the width pass, at 1024 and at 14
   succeeded in an isolated output directory with the existing 2,031 KB chunk advisory. ESLint:
   0 errors, 4 existing unused-disable warnings. No browser visual review was performed. Details in
   `05 - QA & Verification.md` and [[Verification Status]].
-- **Commit hash:** recorded after the release commit.
+- **Commit hash:** `c3b38d866f7d556390dc0bb7c33438c9bd731602`.
 - **Next action:** Continue the remaining redesign coverage from the project board.

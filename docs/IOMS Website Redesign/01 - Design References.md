@@ -114,3 +114,30 @@ no image-generation tool exists in this environment. The slots are wired and tak
 `04 - Implementation Log.md`. Until real photographs of the customer's own operations exist, the site
 is carried by product evidence and typography, which is the honest version rather than the complete
 one.
+
+---
+
+# The photography, 2026-10-01
+
+The references all lean on real imagery, and the previous pass had to record that as the one thing it
+could not supply honestly. Eight photographs arrived, and the reference principles finally had
+something to apply:
+
+- **Targo, atmosphere.** The hero gained a dusk dock scene behind the permit. Atmosphere now comes
+  from a real place and real light rather than from a gradient over navy.
+- **Halo, editorial restraint.** The photographs are cropped and scrimmed to serve the composition,
+  not dropped in at full saturation. The hero image keeps its detail because it sits beside the copy;
+  the closing band is heavily scrimmed because it sits under it.
+- **Boomerang, one strong full-bleed visual.** The page now ends on the shipyard aerial rather than on
+  a flat navy block, so it arrives somewhere instead of running out.
+- **Axion Studio, image and sequence.** Industries became three establishing shots in sequence rather
+  than seven pills in a row.
+
+**What the photography did NOT get used for.** Not every section, and not every asset. A photograph
+behind the product showcase would compete with the interface it is meant to prove; a photograph on
+the platform story would be decoration where a product panel is evidence. Three of the eight are used
+once each, two are used twice, and one is unused in the stories on purpose.
+
+The remaining reference gap is now closed. What is left is a judgement call rather than a missing
+asset: whether the sub-pages should carry photography too, which is recorded as deferred in
+`04 - Implementation Log.md`.

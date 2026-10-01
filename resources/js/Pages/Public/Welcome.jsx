@@ -6,6 +6,7 @@ import BlueprintBackdrop from '@/Components/public/BlueprintBackdrop';
 import PlatformShowcase from '@/Components/public/PlatformShowcase';
 import ConnectedOperations from '@/Components/public/ConnectedOperations';
 import PermitArtifact from '@/Components/public/PermitArtifact';
+import Photo from '@/Components/public/Photo';
 import FragmentedToConnected from '@/Components/public/FragmentedToConnected';
 import StorySection from '@/Components/public/StorySection';
 import { DOMAIN_STORIES } from '@/Components/public/domainStories';
@@ -86,6 +87,32 @@ const INDUSTRIES_STRIP = ['Shipyards', 'Construction', 'Manufacturing', 'Mining'
  * the same four `config/plans.php` pins as `operational`, so this list
  * cannot name a fifth workspace or a retired one.
  */
+/**
+ * v2.88.0 -- the three sectors that have an establishing photograph.
+ *
+ * Kept beside the section that renders them rather than in domainStories,
+ * because these are PLACES IOMS is sold into, not product domains. The alt
+ * text describes the scene for anyone who cannot see it, and the label is a
+ * separate element over the image rather than text baked into the file.
+ */
+const FEATURED_INDUSTRIES = [
+    {
+        name: 'shipyard',
+        label: 'Shipyard & Marine',
+        alt: 'An aerial view of a working shipyard at sunrise, with vessels in dry dock and gantry cranes along the quay.',
+    },
+    {
+        name: 'construction',
+        label: 'Construction',
+        alt: 'An aerial view of a large construction site, with tower cranes over a concrete frame.',
+    },
+    {
+        name: 'mining',
+        label: 'Mining & Energy',
+        alt: 'An open pit mine at sunset, with haul roads cut into terraces and processing plant in the foreground.',
+    },
+];
+
 const HERO_WORKSPACES = [
     { name: 'Health, Safety & Environment', line: 'Permit To Work, incidents, inspections, HIRADC, JSA, LOTO, PPE and CAPA.' },
     { name: 'People / HRD', line: 'Employee records, competencies and certificates, shifts, rosters, leave and man-hours.' },
@@ -116,6 +143,42 @@ function Hero() {
                 why three dark sections read as one flat blue field. See
                 BlueprintBackdrop for what each layer is doing. */}
             <BlueprintBackdrop variant="hero" />
+
+            {/* v2.88.0 -- THE PHOTOGRAPH IS A LAYER, NOT A BACKGROUND.
+                A photograph stretched behind a whole hero with text laid over
+                it is the stock-photo hero every template ships, and it costs
+                the copy its contrast. This one occupies the RIGHT of the
+                field and bleeds off the edge, with a navy gradient dissolving
+                its left side into the text column, so the two halves are one
+                surface rather than a picture with a caption.
+
+                The subject is deliberate: a supervisor on a dock at dusk
+                holding a tablet. That is the person IOMS is for, doing the
+                thing IOMS is, and the permit artifact sits ON this image, so
+                the document and the place it came from are in one frame.
+
+                Hidden below lg, where there is no room for a two-column
+                composition and the photograph would be a strip behind text.
+                The mobile hero keeps the artifact and drops the scene. */}
+            <div className="pointer-events-none absolute inset-y-0 right-0 hidden w-[58%] lg:block" aria-hidden="true">
+                <Photo
+                    name="operational"
+                    alt=""
+                    priority
+                    ratio="auto"
+                    className="h-full w-full"
+                    position="28% 50%"
+                    sizes="58vw"
+                />
+                {/* Two scrims, each doing one job. The horizontal one carries
+                    the navy across the seam; the vertical one keeps the
+                    bottom edge from ending in a hard line against the band
+                    below. Opacity is set so the crane silhouettes and the sky
+                    survive: a scrim that hides the photograph is just a
+                    darker navy with a download attached. */}
+                <div className="absolute inset-0 bg-gradient-to-r from-navy-900 via-navy-900/55 to-transparent" />
+                <div className="absolute inset-0 bg-gradient-to-t from-navy-900/90 via-transparent to-navy-900/30" />
+            </div>
 
             <div className="relative mx-auto max-w-7xl px-4 py-20 sm:px-6 sm:py-28 lg:px-8">
                 {/* v2.85.0 -- THE HERO IS NO LONGER CENTERED.
@@ -554,10 +617,8 @@ function ProductPreview() {
 /* ------------------------------------------------------------------ */
 function Industries() {
     const industries = [
-        { label: 'Shipyard & Marine', icon: Ship }, { label: 'Construction', icon: Building },
-        { label: 'Manufacturing', icon: Factory }, { label: 'Engineering & Fabrication', icon: Wrench },
-        { label: 'Logistics', icon: Truck }, { label: 'Mining & Energy', icon: Zap },
-        { label: 'Industrial Services', icon: Building2 },
+        { label: 'Manufacturing' }, { label: 'Engineering & Fabrication' },
+        { label: 'Logistics' }, { label: 'Industrial Services' },
     ];
 
     return (
@@ -568,14 +629,53 @@ function Industries() {
                     v2.87.0 drops the eyebrow instead: with the heading there,
                     the label was repeating it, and the page was over its
                     eyebrow budget. The headline says what the section is. */}
-                <h2 className="text-center font-display text-2xl font-semibold tracking-tight text-graphite-900 sm:text-3xl">
+                <h2 className="max-w-2xl font-display text-2xl font-semibold tracking-tight text-graphite-900 sm:text-3xl">
                     Built for complex industrial operations
                 </h2>
-                <div className="mt-8 flex flex-wrap items-center justify-center gap-3">
-                    {industries.map((ind) => (
-                        <div key={ind.label} className="flex items-center gap-2 rounded-full border border-graphite-200 bg-white px-4 py-2 text-sm text-graphite-600 shadow-card">
-                            <ind.icon className="h-4 w-4 text-graphite-400" /> {ind.label}
-                        </div>
+                <p className="mt-3 max-w-2xl text-sm leading-relaxed text-graphite-600 sm:text-base">
+                    The modules are the same across sectors. What differs is which operational domains a company
+                    switches on.
+                </p>
+
+                {/* v2.88.0 -- THREE PLACES, NOT SEVEN PILLS.
+                    This section was a centred row of seven bordered pills,
+                    which is the most generic thing a marketing page can do
+                    with a list and said nothing a reader could picture. Three
+                    of the photographs are aerial establishing shots of exactly
+                    the environments IOMS is sold into, and an establishing
+                    shot is the one job a photograph does better than any
+                    layout.
+
+                    The remaining four sectors stay as text beneath, because
+                    there are only three photographs and inventing a fourth
+                    tile would mean either repeating an image or dropping a
+                    sector IOMS genuinely serves. */}
+                <div className="mt-10 grid grid-cols-1 gap-5 sm:grid-cols-3">
+                    {FEATURED_INDUSTRIES.map((ind, i) => (
+                        <Reveal key={ind.name} delay={i * 80} className="group relative overflow-hidden rounded-xl">
+                            <Photo
+                                name={ind.name}
+                                alt={ind.alt}
+                                ratio="4 / 3"
+                                sizes="(min-width: 640px) 33vw, 100vw"
+                                imgClassName="transition-transform duration-700 ease-out group-hover:scale-[1.03]"
+                            />
+                            {/* A scrim only where the label sits, so the top
+                                two thirds of the photograph are untouched. */}
+                            <div className="pointer-events-none absolute inset-x-0 bottom-0 h-2/5 bg-gradient-to-t from-navy-900/85 to-transparent" />
+                            <p className="absolute bottom-0 left-0 right-0 p-4 font-display text-base font-semibold tracking-tight text-white">
+                                {ind.label}
+                            </p>
+                        </Reveal>
+                    ))}
+                </div>
+
+                <div className="mt-6 flex flex-wrap items-center gap-x-2 gap-y-1.5 text-sm text-graphite-600">
+                    <span className="text-graphite-400">Also</span>
+                    {industries.map((ind, i) => (
+                        <span key={ind.label}>
+                            {ind.label}{i < industries.length - 1 ? ',' : ''}
+                        </span>
                     ))}
                 </div>
             </div>
@@ -863,10 +963,35 @@ function Faq({ faqs = [] }) {
 /* ------------------------------------------------------------------ */
 function FinalCta() {
     return (
-        <section className="relative isolate overflow-hidden bg-navy-900 py-20 text-white">
+        <section className="relative isolate overflow-hidden bg-navy-900 py-24 text-white sm:py-28">
+            {/* v2.88.0 -- THE PAGE ENDS ON THE PLACE IT IS ABOUT.
+                This closed on a flat navy block, which read as the page
+                running out rather than arriving somewhere. The shipyard
+                aerial is the widest, most atmospheric photograph in the set
+                and it is the one establishing shot that says INDUSTRIAL
+                OPERATIONS without a caption, so it belongs at the close
+                where the reader is deciding.
+
+                Full-bleed and heavily scrimmed, because here the photograph
+                is a GROUND for the call to action rather than the subject.
+                That is the opposite job from the hero, where the image is
+                beside the copy and keeps its detail, and it is why the two
+                treatments are deliberately not the same. */}
+            <div className="absolute inset-0 -z-10" aria-hidden="true">
+                <Photo
+                    name="shipyard"
+                    alt=""
+                    ratio="auto"
+                    className="h-full w-full"
+                    position="center 55%"
+                    sizes="100vw"
+                />
+                <div className="absolute inset-0 bg-navy-900/80" />
+                <div className="absolute inset-0 bg-gradient-to-t from-navy-900 via-navy-900/40 to-navy-900" />
+            </div>
             <BlueprintBackdrop />
             <div className="mx-auto max-w-3xl px-4 text-center sm:px-6 lg:px-8">
-                <h2 className="text-2xl font-semibold tracking-tight sm:text-3xl">Ready to connect your operation?</h2>
+                <h2 className="font-display text-2xl font-semibold tracking-tight sm:text-3xl">Ready to connect your operation?</h2>
                 <p className="mx-auto mt-3 max-w-xl text-sm text-graphite-300 sm:text-base">
                     Try the Sandbox first, or choose a plan and register your company. Your workspace is provisioned
                     once payment is confirmed.

@@ -1,4 +1,5 @@
 import { Link } from '@inertiajs/react';
+import Photo from '@/Components/public/Photo';
 import { ArrowRight } from 'lucide-react';
 import Reveal from '@/Components/public/Reveal';
 import { cn } from '@/lib/utils';
@@ -83,14 +84,30 @@ function StoryLink({ label, href }) {
  * cannot shift the layout or slow the first screen.
  */
 export function StoryVisual({ eyebrow, icon: Icon, items = [], image }) {
-    if (image?.src) {
+    /*
+     * v2.88.0 -- THE PHOTOGRAPH ARRIVED, AND IT GOES THROUGH Photo.
+     *
+     * This used to take a raw `src` and render a bare `<img>`, which was the
+     * right placeholder for a slot nobody had filled. Real photography is
+     * here now, and a bare `<img>` would hand every visitor the desktop file
+     * on a phone. `Photo` carries the srcset, the sizes, the WebP source, the
+     * JPEG fallback and the reserved aspect box.
+     *
+     * `name` rather than `src`: the call site names a photograph, and the
+     * component owns which files exist at which widths. A call site that
+     * knows about `-640.webp` is a call site that breaks when the build
+     * script changes.
+     */
+    if (image?.name) {
         return (
-            <img
-                src={image.src}
+            <Photo
+                name={image.name}
                 alt={image.alt ?? ''}
-                loading="lazy"
-                decoding="async"
-                className="aspect-[16/10] w-full rounded-xl border border-graphite-200 object-cover shadow-card"
+                ratio="16 / 10"
+                className="rounded-xl border border-graphite-200 shadow-card"
+                // A story panel is half the content column on a desktop and
+                // the full width of a phone.
+                sizes="(min-width: 1024px) 45vw, 100vw"
             />
         );
     }

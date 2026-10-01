@@ -22,9 +22,17 @@ import {
  * about capabilities the plan they buy does not open. The code is untouched;
  * the claim is gone.
  *
- * `image` is empty on purpose. When real IOMS photography or screenshots
- * exist, add { src, alt } here and the visual changes; the heading and
- * copy, which search engines and screen readers read, do not.
+ * v2.88.0 -- THE PHOTOGRAPHY ARRIVED.
+ *
+ * `image` is { name, alt }, where `name` is a photograph the build script has
+ * produced derivatives for. See Photo.jsx for the manifest. The heading and
+ * copy are unchanged by it: what a search engine and a screen reader read is
+ * the text, and the photograph carries the atmosphere.
+ *
+ * NOT EVERY STORY HAS ONE, deliberately. `operations` describes the platform
+ * itself, where a photograph of a place would be decoration rather than
+ * evidence, so it keeps the product panel. That panel is the more honest
+ * visual for a story about software.
  *
  * `cta` is optional and used sparingly -- a link on every row is noise.
  * Anchors point at the deeper sections on the same page.
@@ -41,6 +49,7 @@ export const DOMAIN_STORIES = [
     },
     {
         key: 'hse',
+        image: { name: 'energy', alt: 'Two technicians in high-visibility clothing walking a walkway through a refinery at dusk.' },
         eyebrow: 'HSE & Safety',
         icon: ShieldCheck,
         title: 'Safety work that is part of the job, not paperwork beside it',
@@ -50,6 +59,7 @@ export const DOMAIN_STORIES = [
     },
     {
         key: 'people',
+        image: { name: 'workshop', alt: 'A fabrication workshop with an overhead crane, steel sections and a welder at work.' },
         eyebrow: 'People & Workforce',
         icon: Users,
         title: 'The workforce record every other module relies on',
@@ -58,6 +68,7 @@ export const DOMAIN_STORIES = [
     },
     {
         key: 'field',
+        image: { name: 'construction', alt: 'An aerial view of a large construction site with tower cranes in morning light.' },
         eyebrow: 'Field Operations',
         icon: HardHat,
         title: 'Built for the people on site',
@@ -67,6 +78,7 @@ export const DOMAIN_STORIES = [
     },
     {
         key: 'logistics',
+        image: { name: 'warehouse', alt: 'A warehouse aisle lined with racked pallets, with a forklift working at the far end.' },
         eyebrow: 'Warehouse Logistics',
         icon: PackageSearch,
         title: 'Materials planned against the work that needs them',
@@ -75,6 +87,7 @@ export const DOMAIN_STORIES = [
     },
     {
         key: 'management',
+        image: { name: 'management', alt: 'A meeting room overlooking a refinery, with the IOMS dashboard on the wall screen.' },
         eyebrow: 'Management Visibility',
         icon: BarChart3,
         title: 'Management reads the operation, not a rebuilt spreadsheet',

@@ -235,17 +235,49 @@ class LandingPositioningTest extends TestCase
         $story = $this->source('Components/public/StorySection.jsx');
 
         // Heading, eyebrow and explanation are elements beside the visual,
-        // never inside it -- an image replaces only the placeholder.
+        // never inside it. An image replaces only the placeholder, so nothing
+        // a search engine or a screen reader needs is ever baked into a
+        // photograph.
         $this->assertStringContainsString('<h3', $story);
-        $this->assertStringContainsString('loading="lazy"', $story);
-        $this->assertStringContainsString("alt={image.alt ?? ''}", $story);
 
-        // v2.78.0: and the landing page passes each story's image through, so
-        // adding real IOMS imagery later is ONE field on a domainStories.js
-        // entry -- { src, alt } -- with no change to either component.
+        /*
+         * v2.88.0 -- THE SLOT IS FILLED, AND THE CONTRACT CHANGED WITH IT.
+         *
+         * This asserted `loading="lazy"` and `alt={image.alt ?? ''}` directly
+         * on a bare `<img>`, which was correct while the slot was an empty
+         * placeholder taking a raw `src`. Real photography arrived, and a
+         * bare `<img>` would hand a phone the desktop file, so the visual now
+         * goes through `Photo`, which owns the srcset, the WebP source, the
+         * JPEG fallback, the reserved aspect box and the lazy default.
+         *
+         * The assertions moved with it rather than being dropped: alt is
+         * still passed through, laziness is still guaranteed, and both are
+         * now checked where they actually live.
+         */
+        $this->assertStringContainsString('<Photo', $story, 'The story visual no longer uses the responsive image component.');
+        $this->assertStringContainsString('alt={image.alt', $story);
+
+        $photo = $this->source('Components/public/Photo.jsx');
+        $this->assertStringContainsString("loading={priority ? 'eager' : 'lazy'}", $photo, 'Photo no longer lazy-loads by default.');
+        $this->assertStringContainsString('srcSet', $photo, 'Photo no longer offers a responsive source set.');
+        $this->assertStringContainsString('image/webp', $photo);
+
+        // The landing page still passes each story's image straight through,
+        // so a photograph is one field on a domainStories entry.
         $welcome = $this->source('Pages/Public/Welcome.jsx');
         $this->assertStringContainsString('image={story.image}', $welcome);
-        $this->assertStringContainsString('{ src, alt }', $this->source('Components/public/domainStories.js'));
+
+        /*
+         * And the slot is no longer empty. This is the assertion the old test
+         * could not make: photography exists now, so "the mechanism works" is
+         * weaker than "the mechanism is carrying real images".
+         */
+        $stories = $this->source('Components/public/domainStories.js');
+        $this->assertGreaterThanOrEqual(
+            4,
+            preg_match_all('/image: \{ name:/', $stories),
+            'The domain stories lost their photography.'
+        );
     }
 
     /** The one part of the definition a non-JavaScript crawler receives. */

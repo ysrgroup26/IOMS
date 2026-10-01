@@ -412,3 +412,77 @@ Console: no errors at either width.
 | Page is about 10,250px tall | OPEN by choice. Every section carries verified content; cutting is a content decision |
 | Public site is light-only | OPEN by choice. Theme-locked light with navy bands is the existing brand expression |
 | QA-002 Ziggy manifest, QA-003 "Enterprise Edition" string | Unchanged from v2.85.0 |
+
+---
+
+# QA execution, v2.88.0 photography and favicon, 2026-10-01
+
+## Automated
+
+| Check | Result |
+|---|---|
+| Full suite | **738 passed, 3931 assertions, 0 failures** (735 before; 3 new tests) |
+| Brand icon suite | 10 passed, including three new assertions |
+| Production build | Clean |
+| ESLint | 0 errors, 4 pre-existing warnings in untouched files |
+
+## Image loading, cropping and performance
+
+| Check | Result |
+|---|---|
+| Source weight | 14.29 MB across 8 PNGs |
+| Derivative weight | **2.45 MB** for all 26 files, of which any page loads a handful |
+| Largest single request, 1440 desktop | 121 KB (`shipyard-1024.webp`) |
+| Never upscaled | The three 787px sources get only a 640 derivative and their native-width JPEG. Confirmed in the generator output |
+| Format negotiation | Every photograph resolves to WebP in Chromium. JPEG fallback present for all eight |
+| Responsive selection, 1440 desktop | 392px industry tiles take `-640.webp`; the 1432px full-bleed band takes `-1600.webp`. Correct |
+| Responsive selection, 375 mobile | All take `-1024.webp`, which is right for a 375px box at device pixel ratio 2 |
+| Layout shift | Every `Photo` reserves its aspect box before the image arrives |
+| Lazy loading | On by default, `priority` only on the hero |
+| Alt text | Required by the component. Decorative placements pass `alt=""` explicitly at the call site; every content photograph describes its scene |
+
+> [!note] A measurement artifact worth recording
+> Lazy images report `complete: false` in the preview pane, which defers lazy
+> loads when it is hidden or rescaling. Proven to be the harness and not the
+> markup: flipping `loading` to `eager` in the live DOM loaded all five
+> instantly **and** selected the correct WebP variant at the correct width.
+> The network log also shows the hero repeatedly aborting and re-requesting as
+> the pane rescales and `sizes` re-evaluates, which cannot happen on a stable
+> viewport.
+
+## Favicon
+
+| Check | Result |
+|---|---|
+| Every declared icon resolves | `/favicon.ico`, SVG, 96, 48, 32, apple-touch all 200 |
+| Favicons transparent | Asserted by test on 32, 48 and 96. Corner alpha is fully transparent |
+| No background square | Verified visually at 96px and asserted against a full-bleed `rect` in the SVG |
+| Mark and colour unchanged | `#01c1ed`, official geometry, nothing redrawn |
+| `favicon.ico` structure | Real 3-entry ICO, 16 + 32 + 48, PNG payloads. Header verified byte-wise and by test |
+| SVG favicon is vector | 1.8 KB, asserted to contain no embedded raster and to stay under 20 KB |
+| Stale references | None. A repository-wide search finds no reference to the old navy-ground art outside the config comment that documents the reversal |
+| Installed-app icons still opaque | Asserted by test for apple-touch-icon and both maskable sizes |
+| PWA manifest | Unchanged, all four icons intact and serving |
+| Preserved | Wordmark, both logo variants, dark logo, email logo, OG image, PWA icons |
+
+## Layout
+
+| Width | Result |
+|---|---|
+| 1440x900 | No horizontal overflow. Hero photograph occupies the right of the field with the permit over it. Three industry tiles at 392x294 each with correct labels. Closing band carries the shipyard at full bleed with white heading at full contrast |
+| 375x812 | No horizontal overflow, `scrollWidth` equals `clientWidth` equals 375. Hero photograph correctly hidden below `lg`; the artifact and copy carry the mobile hero. Industry tiles stack to one column |
+
+Console: no errors at either width. Page height 10,787px.
+
+## Product safety
+
+Unchanged and re-verified by the suite: pricing, plan catalogue, workspace architecture, PTW logic and quota, user classes, entitlement, authentication, billing and subscription lifecycle. This release touched presentation components, two generator scripts, `config/branding.php`, the Blade head, and three test files.
+
+Copy rules hold: zero em dashes across all public pages in both encodings, four section eyebrows against a budget of four, no retired workspace named.
+
+## Not verified
+
+- **Real-device and cross-browser.** Chromium with viewport emulation only. WebP, `<picture>`, `srcset` and `aspect-ratio` are all long-stable, but Safari and Firefox were not exercised.
+- **Lighthouse.** Not run. Byte weights were measured directly instead.
+- **The favicon in a real browser tab.** Verified as files and markup, and rendered at 96px, but not photographed in a live tab strip.
+- **Colour management.** The photographs were re-encoded without an explicit colour profile pass; they render correctly in Chromium.

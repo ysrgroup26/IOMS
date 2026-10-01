@@ -436,3 +436,84 @@ Each takes `{ src, alt }` on its `domainStories.js` entry and needs no code chan
 - **Verification performed:** See `05 - QA & Verification.md`. 735 tests / 3920 assertions, 0 failures. Clean build, ESLint 0 errors. Desktop 1440 and mobile 375 exercised in a real browser.
 - **Commit hash:** `4951de5`, pushed to origin/main.
 - **Next action:** Owner decision on photography. Nothing else is blocking.
+
+## 2026-10-01 - v2.88.0: photography, and the favicon loses its square
+
+- **Phase:** Visual completion. The gap v2.87.0 closed its own log with ("there is no photography, and it needs the owner") is closed.
+- **Scope:** Presentation and brand assets only. No backend, auth, billing, entitlement, PTW, user-class, workspace-authorization or pricing change.
+
+### The photography, inspected before placing
+
+Eight photographs arrived. Each was opened and judged individually rather than wired into whatever slot existed:
+
+| Asset | Subject | Decision |
+|---|---|---|
+| `Operational` | A supervisor on a dock at dusk, holding a tablet | **Hero.** It is the person IOMS is for, doing the thing IOMS is |
+| `Shipyard` | Aerial shipyard at sunrise, enormous scale | **Industries tile + the closing band.** The widest, most atmospheric frame in the set |
+| `Construction` | Aerial construction site, tower cranes | **Industries tile** and the Field Operations story |
+| `Mining` | Open pit mine at sunset | **Industries tile** |
+| `Energy` | Two technicians on a refinery walkway | **HSE story.** People doing permit-governed work |
+| `Workshop` | Fabrication shop, overhead crane, welding | **People / Workforce story** |
+| `Warehouse` | Warehouse aisle, racked pallets, forklift | **Warehouse Logistics story** |
+| `Management` | Boardroom over a refinery, IOMS on the wall screen | **Management story** |
+
+**One was deliberately left unused in the stories.** `operations` describes the platform itself, and a photograph of a place would be decoration rather than evidence there, so it keeps the product panel.
+
+### How each photograph is used, and why the treatments differ
+
+**The hero photograph is a LAYER, not a background.** A photograph stretched behind a whole hero with text over it is the stock-photo hero every template ships, and it costs the copy its contrast. This one occupies the right of the navy field and bleeds off the edge, with a gradient dissolving its left side into the text column. The permit artifact sits ON it, so the document and the place it came from are in one frame. Hidden below `lg`, where there is no room for a two-column composition.
+
+**The closing band is the opposite treatment, deliberately.** Full-bleed and heavily scrimmed, because there the photograph is a ground for the call to action rather than the subject. The page used to end on a flat navy block, which read as running out rather than arriving somewhere.
+
+**Industries stopped being seven pills.** A centred row of seven bordered pills is the most generic thing a page can do with a list and said nothing a reader could picture. It is now three establishing shots, which is the one job a photograph does better than any layout. The remaining four sectors are a text line beneath, because there are only three photographs and inventing a fourth tile would mean repeating an image or dropping a sector IOMS serves.
+
+### Performance: the photographs could not ship as delivered
+
+The eight PNGs were **14.6 MB**. PNG is lossless and built for flat-colour graphics; for a photograph it stores an enormous amount of data no viewer can see. Shipping them would have made the landing page heavier than every other asset on it combined.
+
+`scripts/build-website-images.mjs` (`npm run images`) now generates WebP at 640/1024/1600 plus one JPEG fallback, **never upscaling**: three of the sources are only 787px wide and simply do not get the larger derivatives. Originals moved to `public/images/website/source/`.
+
+**14.29 MB of sources produce 2.45 MB of derivatives**, and any one page loads a handful of those. The landing page's largest photograph request on a 1440 desktop is 121 KB.
+
+`Photo.jsx` is the one way a photograph reaches the public site: srcset, `sizes`, WebP source, JPEG fallback, reserved aspect box, lazy by default with `priority` for the hero. `sizes` is set per call site, which is what actually decides whether a phone downloads the 640 or the 1600.
+
+### The favicon
+
+**The supplied file is not vector.** `ioms-favicon-transparent.svg` is a 4096x4096 PNG embedded as base64 inside an SVG wrapper, 679 KB, and the mark is not centred: trimmed it occupies 2246x1991 of the 4096 square.
+
+So the two formats come from two places, deliberately:
+
+- **Rasters** (`favicon.ico`, 32, 48, 96) are rasterised from the supplied file, because it is what the brand owner designated. Trimmed and re-centred first, so the mark sits square with even padding at 16px.
+- **The SVG favicon** is the repository's own `ioms-icon.svg`: real vector, 1.8 KB, the same mark, the same colour `#01c1ed`, already transparent with no background rect. Serving the supplied file as a tab icon would cost roughly **three hundred times** the vector.
+
+Both are the same official mark in the same official colour. Nothing was redrawn.
+
+`favicon.ico` is written by hand as a 3-entry container (16/32/48) with PNG payloads, which ICO has carried since Vista. That avoids a dependency whose only job is forty bytes of header.
+
+**What was preserved, explicitly:** the wordmark and both logo variants, the dark logo, the email logo, the OG image, and every PWA icon. The apple-touch-icon and the maskable PWA icons stay **opaque**, because iOS composites a home-screen icon onto its own surface and renders transparency as black, and a maskable icon is cropped to a platform shape that assumes a filled canvas. A transparent touch icon would put a black tile on every iPhone that saved the site.
+
+### Issues discovered
+
+| ID | Issue | Severity | Status |
+|---|---|---|---|
+| IMG-001 | Photography delivered as 14.6 MB of PNG | High, performance | FIXED. 2.45 MB of WebP/JPEG derivatives, generated by a committed script |
+| IMG-002 | The supplied favicon "SVG" is a 679 KB embedded raster, and the mark is off-centre inside its canvas | Medium | FIXED. Rasters trimmed and re-centred from it; the SVG favicon points at real vector |
+| IMG-003 | `config/branding.php` declared `favicon_ico => /favicon.ico`, and the comment claimed it had been a 404 until v2.76.0. The file **did** exist, so this was not a live defect, but the .ico was the old navy-square art | Low | Regenerated transparent |
+
+### Decisions
+
+- **A dev dependency was added**: `sharp`, dev-only, for the two generator scripts. The alternative was shipping 14.6 MB or hand-waving the optimisation. The derivatives are committed, like `public/build`, because the deployment target serves files rather than running a pipeline.
+- **Story image contract changed** from `{ src, alt }` to `{ name, alt }`. A call site that knows about `-640.webp` is a call site that breaks when the build script changes; the component owns which files exist at which widths.
+- **The v2.76.0 opaque-favicon decision is reversed, not deleted.** Its reasoning (Google renders favicons on a light surface, where a transparent mark has less to hold onto) is kept in `config/branding.php` beside the new answer, because it was a trade rather than a mistake.
+
+### Deferred
+
+| Item | Reason |
+|---|---|
+| Photography on the sub-pages (`/platform-overview`, `/solutions`, `/how-it-works`) | The brief asked for the landing page, and the set is eight images. Spreading them thinner would weaken the landing page without making a sub-page strong. The `Photo` component and derivatives are ready if that is wanted |
+| An AVIF derivative tier | WebP already gives a 6x reduction and is universally supported. AVIF would add a third encode and a third set of files for a marginal further gain |
+| A blur-up placeholder | The reserved aspect box already prevents layout shift, which is the defect that actually matters. A blur placeholder is polish on top of a solved problem |
+
+- **Verification performed:** See `05 - QA & Verification.md`. 738 tests / 3931 assertions, 0 failures. Clean build, ESLint 0 errors.
+- **Commit hash:** recorded on commit.
+- **Next action:** None blocking.

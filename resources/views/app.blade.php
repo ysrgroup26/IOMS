@@ -36,11 +36,21 @@
          rather than the full lockup. --}}
     {{-- v2.76.0: the .ico first for clients that take the first match,
          then 48px (Google's preferred minimum), SVG and the 32px PNG.
-         Every one is the same official mark on its navy square -- see
-         config/branding.php for why the favicon has a solid ground. --}}
+
+         v2.88.0: every one of these is now the official mark on
+         TRANSPARENCY. The navy square is gone -- see config/branding.php
+         for the decision and for why the earlier reasoning is kept there
+         rather than deleted.
+
+         The apple-touch-icon is deliberately NOT transparent and is
+         unchanged. iOS composites a home-screen icon onto its own
+         background and renders transparency as black, so a transparent
+         touch icon would ship a black tile to every iPhone that saved the
+         site. It is a different asset for a different surface. --}}
     <link rel="icon" href="{{ asset(config('branding.assets.favicon_ico')) }}" sizes="16x16 32x32 48x48">
-    <link rel="icon" type="image/png" sizes="48x48" href="{{ asset(config('branding.assets.favicon_48')) }}">
     <link rel="icon" type="image/svg+xml" href="{{ asset(config('branding.assets.favicon')) }}">
+    <link rel="icon" type="image/png" sizes="96x96" href="{{ asset(config('branding.assets.favicon_96')) }}">
+    <link rel="icon" type="image/png" sizes="48x48" href="{{ asset(config('branding.assets.favicon_48')) }}">
     <link rel="icon" type="image/png" sizes="32x32" href="{{ asset(config('branding.assets.favicon_png')) }}">
     <link rel="apple-touch-icon" href="{{ asset(config('branding.assets.apple_touch_icon')) }}">
     <meta name="theme-color" content="#00004f">

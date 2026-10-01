@@ -8,29 +8,101 @@ use Tests\TestCase;
 /**
  * v2.76.0 -- THE FAVICON IS A SMALL-FORMAT BRAND ASSET, NOT A SHRUNKEN LOGO.
  *
- * Square, opaque, the official mark on its navy ground, reachable at the
- * path crawlers ask for without reading any HTML (/favicon.ico), and
- * referenced from every page. See config/branding.php.
+ * Square, the official mark, reachable at the path crawlers ask for without
+ * reading any HTML (/favicon.ico), and referenced from every page.
+ *
+ * v2.88.0 -- TRANSPARENCY IS NOW REQUIRED, AND ONLY FOR THE FAVICONS.
+ *
+ * This file used to assert that EVERY icon was opaque, pinning the v2.76.0
+ * decision to put the mark on a navy square. The brand direction reversed
+ * that: the favicon is the transparent symbol.
+ *
+ * The reversal is only for the favicons, and the distinction is the whole
+ * point of splitting the assertion in two. An apple-touch-icon and a
+ * maskable PWA icon must stay OPAQUE, because iOS composites a home-screen
+ * icon onto its own surface and renders transparency as black, and a
+ * maskable icon is cropped to a platform shape that assumes a filled
+ * canvas. Shipping those transparent would put a black tile on every
+ * iPhone home screen that saved the site.
+ *
+ * So: tab icons transparent, installed-app icons opaque, each asserted for
+ * its own reason.
  */
 class BrandIconsTest extends TestCase
 {
     use RefreshDatabase;
 
-    public function test_every_icon_asset_exists_is_square_and_opaque(): void
+    /** Tab and search-result icons: the official mark, on nothing. */
+    private const TRANSPARENT = ['favicon_48', 'favicon_96', 'favicon_png'];
+
+    /** Installed-app icons: a filled canvas, for the reasons above. */
+    private const OPAQUE = ['apple_touch_icon', 'icon_192', 'icon_512', 'maskable_192', 'maskable_512'];
+
+    public function test_every_icon_asset_exists_and_is_square(): void
     {
-        foreach (['favicon_48', 'favicon_png', 'apple_touch_icon', 'icon_192', 'icon_512', 'maskable_192', 'maskable_512'] as $key) {
+        foreach ([...self::TRANSPARENT, ...self::OPAQUE] as $key) {
             $path = public_path(config("branding.assets.{$key}"));
             $this->assertFileExists($path, "{$key} is missing.");
 
             [$width, $height] = getimagesize($path);
             $this->assertSame($width, $height, "{$key} is not square.");
-
-            $corner = imagecolorat(imagecreatefrompng($path), 0, 0);
-            $this->assertSame(0, ($corner >> 24) & 0x7F, "{$key} is transparent; it would float on a light search surface.");
         }
 
         // Google prefers a favicon of at least 48px.
         $this->assertSame(48, getimagesize(public_path(config('branding.assets.favicon_48')))[0]);
+    }
+
+    public function test_the_favicons_carry_no_background_square(): void
+    {
+        foreach (self::TRANSPARENT as $key) {
+            $path = public_path(config("branding.assets.{$key}"));
+            $corner = imagecolorat(imagecreatefrompng($path), 0, 0);
+
+            // 127 is fully transparent in GD's alpha channel, 0 is opaque.
+            $this->assertSame(
+                127,
+                ($corner >> 24) & 0x7F,
+                "{$key} has a background square; the favicon is the official mark on transparency."
+            );
+        }
+    }
+
+    public function test_the_installed_app_icons_stay_opaque(): void
+    {
+        foreach (self::OPAQUE as $key) {
+            $path = public_path(config("branding.assets.{$key}"));
+            $corner = imagecolorat(imagecreatefrompng($path), 0, 0);
+
+            $this->assertSame(
+                0,
+                ($corner >> 24) & 0x7F,
+                "{$key} is transparent. iOS renders that as a black tile, and a maskable icon is cropped to a shape that assumes a filled canvas."
+            );
+        }
+    }
+
+    /**
+     * The SVG favicon must be real vector.
+     *
+     * The artwork supplied for this change was a 4096px PNG inside an SVG
+     * wrapper, 679 KB. Serving that as a tab icon would cost roughly three
+     * hundred times the vector it replaces, so the SVG favicon points at the
+     * repository's own vector art instead. This asserts nobody swaps it back.
+     */
+    public function test_the_svg_favicon_is_vector_and_not_an_embedded_raster(): void
+    {
+        $svg = file_get_contents(public_path(config('branding.assets.favicon')));
+
+        $this->assertStringNotContainsString('data:image/png;base64', $svg, 'The SVG favicon embeds a raster.');
+        $this->assertLessThan(20 * 1024, strlen($svg), 'The SVG favicon is too large to be vector art.');
+        $this->assertStringContainsString('#01c1ed', $svg, 'The SVG favicon is not the official mark colour.');
+
+        // No full-bleed background rect: that is the square this release removed.
+        $this->assertDoesNotMatchRegularExpression(
+            '/<rect[^>]*width="(100%|[0-9]{3,})"/',
+            $svg,
+            'The SVG favicon has a background rect.'
+        );
     }
 
     public function test_favicon_ico_is_a_real_multi_size_icon_at_the_root(): void

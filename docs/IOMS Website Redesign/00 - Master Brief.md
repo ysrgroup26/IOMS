@@ -272,3 +272,27 @@ eight images and spreading it thinner would weaken the landing page without maki
 `Photo` and the derivative pipeline are ready if that is wanted.
 
 QA-002 (Ziggy route manifest) and QA-003 (the "Enterprise Edition" string) remain open and unchanged.
+
+---
+
+# STATUS, 2026-10-01: v2.89.0, the operation has two ends
+
+The v2.88.0 photography and responsive WebP pipeline remain complete. This continuation addressed
+the next uncovered website items: public company identity, the My Work sign-in entry, the missing
+trust/security story, and a more editorial treatment of the operational-domain section.
+
+| | |
+|---|---|
+| Public company identity | **Tahada Group**. The legal entity remains **PT Tahada Vistara Bersama**. Technical/internal YSR identifiers were not globally replaced |
+| My Work entry | One authentication system. The login page links to My Work; `/my-work` still requires authentication and the account class decides its landing route |
+| Hero | Office/management and field/operations photographs meet around the real PTW artifact. Keep the artifact: it makes the shared-record story concrete |
+| Domain storytelling | Workshop, warehouse and management photographs are placed in distinct editorial layouts; field remains a text handover. They are not repeated image cards |
+| Trust and security | Added after pricing with claims checked against tenant isolation, payment callback verification, approval records and the read-only subscription state |
+| Product and commercial logic | Pricing, workspaces, entitlement, PTW rules, account authentication mechanism, billing and subscription lifecycle are unchanged |
+
+**Verification:** 741 tests / 3956 assertions passed; production build completed; ESLint reported 0 errors
+and four existing warnings; Chromium local preview confirmed the hero, four-domain story sequence,
+login entry and company identity. The specific QA evidence and limits are in `05 - QA & Verification.md`.
+
+**Still open:** QA-002 (Ziggy route manifest) and QA-003 (the "Enterprise Edition" string) are
+unchanged. No cPanel work was performed.

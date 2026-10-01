@@ -1,7 +1,7 @@
 ---
 title: Release History
 type: index
-updated: 2026-09-20
+updated: 2026-10-01
 tags: [kb/releases]
 ---
 
@@ -48,6 +48,7 @@ Roughly, the history falls into eras:
 
 | Version | Date | Headline |
 |---|---|---|
+| `2.89.0` | 2026-10-01 | TWO ENDS OF ONE OPERATION |
 | `2.88.0` | 2026-10-01 | REAL PHOTOGRAPHY ON THE PAGE, AND A FAVICON WITHOUT ITS SQUARE |
 | `2.87.0` | 2026-10-01 | THE HERO GETS A SUBJECT, AND A SEEDER PUTS A RETIRED PLAN BACK ON SALE |
 | `2.86.0` | 2026-09-30 | TWO BILLABLE USER CLASSES, AND A PERMIT TO WORK THAT IS COUNTED |

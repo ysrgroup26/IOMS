@@ -53,14 +53,40 @@ export default function Login() {
                    them. v2.74.0 points at Sign Up rather than at the pay-first
                    onboarding: creating an account is now free and takes a
                    minute, and choosing a plan is a decision for later. */
-                <div className="mt-6 rounded-lg border border-steel-200/70 bg-steel-50/70 px-3.5 py-3 text-center">
-                    <p className="text-xs leading-relaxed text-graphite-600">
-                        Don&apos;t have an IOMS account?{' '}
-                        <Link href={route('register')} className="font-semibold text-brand-700 hover:underline">Sign up</Link>
-                        {' '}or{' '}
-                        <Link href={route('pricing')} className="font-semibold text-brand-700 hover:underline">view plans</Link>.
-                    </p>
-                </div>
+                <>
+                    {/* v2.89.0 -- ONE SIGN-IN, TWO DESTINATIONS.
+                        IOMS has two account classes, and a field crew told
+                        "sign in to IOMS" reasonably wonders whether this is
+                        the page they mean. It is, and saying so is the whole
+                        fix: a second login page would duplicate
+                        authentication to solve a wording problem.
+
+                        The link is a real deep link, not a shortcut past the
+                        form. `/my-work` requires auth, so an unauthenticated
+                        visit is captured by the auth middleware and replayed
+                        through `redirect()->intended()` after sign-in. The
+                        account authenticates first and is routed afterwards,
+                        which is also exactly what an emailed My Work
+                        invitation needs: the invitation is simply this URL. */}
+                    <div className="mt-6 rounded-lg border border-steel-200/70 bg-steel-50/70 px-3.5 py-3">
+                        <p className="text-xs leading-relaxed text-graphite-600">
+                            <span className="font-semibold text-graphite-700">Working in the field?</span>{' '}
+                            Sign in here with your IOMS account and continue to{' '}
+                            <Link href={route('my-work')} className="font-semibold text-brand-700 hover:underline">
+                                My Work
+                            </Link>.
+                        </p>
+                    </div>
+
+                    <div className="mt-3 rounded-lg border border-steel-200/70 bg-steel-50/70 px-3.5 py-3 text-center">
+                        <p className="text-xs leading-relaxed text-graphite-600">
+                            Don&apos;t have an IOMS account?{' '}
+                            <Link href={route('register')} className="font-semibold text-brand-700 hover:underline">Sign up</Link>
+                            {' '}or{' '}
+                            <Link href={route('pricing')} className="font-semibold text-brand-700 hover:underline">view plans</Link>.
+                        </p>
+                    </div>
+                </>
             }
         >
             {googleEnabled && (

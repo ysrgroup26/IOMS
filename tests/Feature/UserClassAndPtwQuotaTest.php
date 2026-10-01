@@ -261,6 +261,56 @@ class UserClassAndPtwQuotaTest extends TestCase
         }
     }
 
+    /**
+     * v2.89.0 -- THE CLASS DECIDES WHERE A MY WORK USER LANDS, NOT THE
+     * PREFERENCE.
+     *
+     * `landingRouteName()` branched on `is_field_user` alone, which was right
+     * while that flag was the only distinction. A My Work User whose landing
+     * preference happened to be off was therefore sent to `dashboard`: a
+     * route the class allow-list permits, in a workspace the account cannot
+     * actually use.
+     *
+     * `is_field_user` keeps its exact meaning for a Full User, which is the
+     * only account the preference was ever about.
+     */
+    public function test_a_my_work_user_lands_in_my_work_whatever_its_preference_says(): void
+    {
+        $tenant = $this->tenantOn('business');
+
+        $withPreference = $this->userOn($tenant, User::TYPE_MY_WORK, ['is_field_user' => true]);
+        $withoutPreference = $this->userOn($tenant, User::TYPE_MY_WORK, ['is_field_user' => false]);
+
+        $this->assertSame('my-work', $withPreference->landingRouteName());
+        $this->assertSame('my-work', $withoutPreference->landingRouteName());
+
+        // The preference still decides for a Full User, unchanged.
+        $fieldFull = $this->userOn($tenant, User::TYPE_FULL, ['is_field_user' => true]);
+        $officeFull = $this->userOn($tenant, User::TYPE_FULL, ['is_field_user' => false]);
+
+        $this->assertSame('my-work', $fieldFull->landingRouteName());
+        $this->assertSame('dashboard', $officeFull->landingRouteName());
+    }
+
+    /**
+     * A My Work deep link authenticates first and routes afterwards.
+     *
+     * This is what an emailed My Work invitation is: the URL itself. It must
+     * never be a way past the sign-in form.
+     */
+    public function test_a_my_work_deep_link_requires_authentication_and_then_routes_through(): void
+    {
+        $tenant = $this->tenantOn('business');
+        $user = $this->userOn($tenant, User::TYPE_MY_WORK);
+
+        // Unauthenticated, the deep link is captured rather than served.
+        $this->get('/my-work')->assertRedirect('/login');
+
+        // And signing in replays it.
+        $this->post('/login', ['email' => $user->email, 'password' => 'secret-pass-1'])
+            ->assertRedirect('/my-work');
+    }
+
     public function test_a_my_work_user_can_still_reach_my_work(): void
     {
         $tenant = $this->tenantOn('business');

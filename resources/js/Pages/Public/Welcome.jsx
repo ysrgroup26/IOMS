@@ -5,10 +5,11 @@ import Reveal from '@/Components/public/Reveal';
 import BlueprintBackdrop from '@/Components/public/BlueprintBackdrop';
 import PlatformShowcase from '@/Components/public/PlatformShowcase';
 import ConnectedOperations from '@/Components/public/ConnectedOperations';
-import PermitArtifact from '@/Components/public/PermitArtifact';
+import HeroComposition from '@/Components/public/HeroComposition';
 import Photo from '@/Components/public/Photo';
 import FragmentedToConnected from '@/Components/public/FragmentedToConnected';
 import StorySection from '@/Components/public/StorySection';
+import DomainEditorial from '@/Components/public/DomainEditorial';
 import { DOMAIN_STORIES } from '@/Components/public/domainStories';
 import OperatingLoop from '@/Components/public/OperatingLoop';
 import { cn } from '@/lib/utils';
@@ -16,6 +17,7 @@ import { Button } from '@/Components/ui/button';
 import {
     ArrowRight, Users, FileCheck2, Flame, Eye, ClipboardCheck, ChevronDown,
     Ship, Building2, Factory, Wrench, Truck, Zap, Check, Plus, Smartphone, Building,
+    ShieldCheck, CreditCard,
 } from 'lucide-react';
 
 /**
@@ -65,6 +67,7 @@ export default function PublicWelcome({ plans, steps = [], faqs = [], contactEma
             <ProductPreview />
             <Industries />
             <Pricing plans={plans} />
+            <Trust />
             <HowItWorks steps={steps} />
             <Faq faqs={faqs} />
             <FinalCta />
@@ -144,43 +147,7 @@ function Hero() {
                 BlueprintBackdrop for what each layer is doing. */}
             <BlueprintBackdrop variant="hero" />
 
-            {/* v2.88.0 -- THE PHOTOGRAPH IS A LAYER, NOT A BACKGROUND.
-                A photograph stretched behind a whole hero with text laid over
-                it is the stock-photo hero every template ships, and it costs
-                the copy its contrast. This one occupies the RIGHT of the
-                field and bleeds off the edge, with a navy gradient dissolving
-                its left side into the text column, so the two halves are one
-                surface rather than a picture with a caption.
-
-                The subject is deliberate: a supervisor on a dock at dusk
-                holding a tablet. That is the person IOMS is for, doing the
-                thing IOMS is, and the permit artifact sits ON this image, so
-                the document and the place it came from are in one frame.
-
-                Hidden below lg, where there is no room for a two-column
-                composition and the photograph would be a strip behind text.
-                The mobile hero keeps the artifact and drops the scene. */}
-            <div className="pointer-events-none absolute inset-y-0 right-0 hidden w-[58%] lg:block" aria-hidden="true">
-                <Photo
-                    name="operational"
-                    alt=""
-                    priority
-                    ratio="auto"
-                    className="h-full w-full"
-                    position="28% 50%"
-                    sizes="58vw"
-                />
-                {/* Two scrims, each doing one job. The horizontal one carries
-                    the navy across the seam; the vertical one keeps the
-                    bottom edge from ending in a hard line against the band
-                    below. Opacity is set so the crane silhouettes and the sky
-                    survive: a scrim that hides the photograph is just a
-                    darker navy with a download attached. */}
-                <div className="absolute inset-0 bg-gradient-to-r from-navy-900 via-navy-900/55 to-transparent" />
-                <div className="absolute inset-0 bg-gradient-to-t from-navy-900/90 via-transparent to-navy-900/30" />
-            </div>
-
-            <div className="relative mx-auto max-w-7xl px-4 py-20 sm:px-6 sm:py-28 lg:px-8">
+            <div className="relative mx-auto max-w-7xl px-4 py-16 sm:px-6 sm:py-20 lg:px-8">
                 {/* v2.85.0 -- THE HERO IS NO LONGER CENTERED.
                     A centered stack over a dark surface is the default
                     composition of every generated SaaS landing page, and
@@ -236,15 +203,18 @@ function Hero() {
 
                     </div>
 
-                    {/* v2.87.0 -- THE HERO HAS A SUBJECT.
-                        A Permit To Work, in the document format IOMS
-                        actually generates. See PermitArtifact for why this
-                        and not a dashboard. It runs past the right edge on
-                        purpose: a sheet cropped by the viewport reads as an
-                        object on a desk, where a centred one reads as a
-                        picture of an object. */}
-                    <div className="relative lg:col-span-5 lg:-mr-28 xl:-mr-36">
-                        <PermitArtifact />
+                    {/* v2.87.0 gave the hero a subject: a Permit To Work in
+                        the format IOMS actually generates.
+
+                        v2.89.0 gives it an ARGUMENT. The permit now sits
+                        across the seam between two photographs, an office
+                        above and a dock below, so the hero states the thing
+                        IOMS is actually selling: the office plans the work,
+                        the field executes it, and one record exists in both
+                        places. See HeroComposition for why this is a stacked
+                        sequence rather than a split screen. */}
+                    <div className="relative lg:col-span-5 lg:-mr-24 xl:-mr-32">
+                        <HeroComposition />
                     </div>
                 </div>
             </div>
@@ -391,29 +361,13 @@ function PlatformOverview() {
                     ))}
                 </div>
 
-                <div className="mx-auto mt-14 grid max-w-6xl grid-cols-1 gap-x-14 gap-y-10 md:grid-cols-2">
-                    {DOMAIN_STORIES.slice(2).map((story, i) => (
-                        <Reveal key={story.key} delay={i * 70} className="border-t border-graphite-200 pt-6">
-                            <div className="flex items-center gap-2.5">
-                                {story.icon && <story.icon className="h-4 w-4 shrink-0 text-brand-600" />}
-                                <h3 className="font-display text-lg font-semibold tracking-tight text-graphite-900">
-                                    {story.title}
-                                </h3>
-                            </div>
-                            <p className="mt-2.5 text-[15px] leading-relaxed text-graphite-600">{story.body}</p>
-                            <ul className="mt-4 flex flex-wrap gap-x-2 gap-y-1.5">
-                                {(story.items ?? []).slice(0, 5).map((item) => (
-                                    <li
-                                        key={typeof item === 'string' ? item : item.label}
-                                        className="rounded-md bg-graphite-50 px-2 py-1 text-xs text-graphite-600"
-                                    >
-                                        {typeof item === 'string' ? item : item.label}
-                                    </li>
-                                ))}
-                            </ul>
-                        </Reveal>
-                    ))}
-                </div>
+                {/* v2.89.0: the four remaining domains used to become a
+                    two-column text grid, which left the new workshop,
+                    warehouse and management photographs out of the actual
+                    story. The editorial sequence gives each scene its own
+                    form: a workshop figure, a field handover, a full-bleed
+                    warehouse scene, then a management photograph. */}
+                <DomainEditorial stories={DOMAIN_STORIES.slice(2)} />
             </div>
         </section>
     );
@@ -891,6 +845,87 @@ function Pricing({ plans }) {
                         <p className="mt-1 text-sm text-graphite-500">Contact us to discuss what your operation needs.</p>
                     </div>
                 )}
+            </div>
+        </section>
+    );
+}
+
+/* ------------------------------------------------------------------ */
+/* Section: Trust                                                      */
+/* ------------------------------------------------------------------ */
+/**
+ * v2.89.0 -- THE SECTION PHASE 07 NEVER SHIPPED.
+ *
+ * The roadmap's Phase 07 was "Industries + trust + security". Industries
+ * shipped; trust did not, and nobody noticed because the page still read as
+ * complete. An industrial buyer who has just read a price asks exactly one
+ * question next, and the page had no answer anywhere except four scattered
+ * FAQ entries below the fold.
+ *
+ * EVERY CLAIM HERE IS ONE THE PRODUCT ALREADY ENFORCES, and each maps to
+ * something in this repository rather than to a security page template:
+ * tenant isolation is a global query scope, activation is reachable only
+ * from a signature-verified webhook, cancellation deliberately does not
+ * delete, and an approval is a stored authorization record rather than a
+ * boolean. Nothing about certifications, uptime or compliance badges appears
+ * here, because IOMS holds none and this project does not invent them.
+ *
+ * On navy, and placed immediately after pricing: the question follows the
+ * price, and the lower half of the page had gone light-heavy.
+ */
+function Trust() {
+    const guarantees = [
+        {
+            icon: ShieldCheck,
+            title: 'Tenant boundaries apply to data access',
+            body: 'Customer records are isolated by tenant-scoped queries, with access checked against the signed-in account and its organization.',
+        },
+        {
+            icon: CreditCard,
+            title: 'Payment confirmation comes from the provider',
+            body: 'A return page cannot activate a subscription. IOMS updates payment state only after validating the provider callback.',
+        },
+        {
+            icon: FileCheck2,
+            title: 'Approval decisions are authorization records',
+            body: 'Approver identity and authority are recorded with the decision, then shown on generated approvals where supported.',
+        },
+        {
+            icon: Building2,
+            title: 'Subscription lapse does not erase history',
+            body: 'Existing operational records remain stored and readable when a subscription moves to its read-only state.',
+        },
+    ];
+
+    return (
+        <section className="relative isolate overflow-hidden border-b border-navy-800 bg-navy-900 py-20 text-white">
+            <BlueprintBackdrop />
+            <div className="relative mx-auto max-w-7xl px-4 sm:px-6 lg:px-8">
+                <SectionHeading
+                    onDark
+                    title="What a safety record has to be able to promise"
+                    subtitle="IOMS holds permits, incident reports, training expiry and audit trails. Four things it guarantees about them, each enforced in the product rather than stated in a policy."
+                />
+
+                {/* A hairline row, not four cards. Cards would make these read
+                    as features being sold; a specification row reads as
+                    properties of the system, which is what they are. */}
+                <div className="mt-12 grid grid-cols-1 gap-x-10 sm:grid-cols-2 lg:grid-cols-4">
+                    {guarantees.map((g, i) => (
+                        <Reveal key={g.title} delay={i * 70} className="border-t border-white/15 pt-5">
+                            <g.icon className="h-5 w-5 text-steel-300" aria-hidden="true" />
+                            <h3 className="mt-3 font-display text-[15px] font-semibold leading-snug tracking-tight text-white">
+                                {g.title}
+                            </h3>
+                            <p className="mt-2 text-sm leading-relaxed text-navy-300">{g.body}</p>
+                        </Reveal>
+                    ))}
+                </div>
+
+                <p className="mt-10 max-w-3xl text-xs leading-relaxed text-navy-400">
+                    IOMS does not claim a certification it does not hold. The full terms, the privacy
+                    position and the refund policy are published and linked in the footer.
+                </p>
             </div>
         </section>
     );

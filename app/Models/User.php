@@ -848,6 +848,30 @@ class User extends Authenticatable implements MustVerifyEmail
             return 'account.overview';
         }
 
+        /*
+         * v2.89.0 -- A MY WORK USER LANDS IN MY WORK, WHATEVER ITS
+         * PREFERENCE SAYS.
+         *
+         * This branched on `is_field_user` alone, which was right while that
+         * flag was the only distinction. It is not any more: `user_type` is
+         * the billable CLASS and decides what an account may reach, and
+         * RestrictMyWorkUser refuses a My Work account everything outside My
+         * Work and its own field work.
+         *
+         * So a My Work User whose landing preference happened to be off was
+         * sent to `dashboard` -- a route the allow-list permits, in a
+         * workspace the account cannot actually use. It is the one class for
+         * which the landing question has only one correct answer, so the
+         * class is asked first and the preference is not consulted.
+         *
+         * `is_field_user` keeps its exact meaning for a FULL user, which is
+         * the only account the preference was ever about: a foreman who
+         * would rather open on My Work than on an office dashboard.
+         */
+        if ($this->isMyWorkUser()) {
+            return 'my-work';
+        }
+
         return $this->isFieldUser() ? 'my-work' : 'dashboard';
     }
 

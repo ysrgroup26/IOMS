@@ -1,7 +1,7 @@
 ---
 title: Project Board
 type: board
-updated: 2026-09-30
+updated: 2026-10-01
 tags: [kb/board]
 ---
 
@@ -59,6 +59,7 @@ Full definitions and the update loop: [[Working with This Knowledge Base]].
 
 | Work | Shipped | Verified by |
 |---|---|---|
+| [[IOMS Website Redesign/00 - Master Brief|IOMS public website continuation]] — Tahada Group identity, one-system My Work entry, office-to-field hero, editorial domain storytelling and trust coverage | v2.89.0 | 741 tests / 3956 assertions pass; production build and lint; browser-reviewed at the available narrow Chromium viewport. Desktop visual review remains unverified |
 | Metered PTW and the My Work user class | v2.86.0 | Two billable user classes counted separately, plus a PTW document meter with two pools that never merge. The class restriction is a server-side route allow-list, asserted by DIRECT URL with the strongest tenant role attached, because a restriction escapable with a role is not one. 733 tests / 3913 assertions, 0 failures; both migrations applied, rolled back and re-applied against MySQL; public pricing verified in a browser at 1440 and 375 |
 | [[Admin Context and Billing Flow]] — Admin Space as a real context, administrative authority out of the workspaces, Warehouse Logistics, the Support 500 root cause, and Duitku | v2.84.1 | `AdminContextAndBillingFlowTest` (17), both migrations applied, browser-verified on all three plans and as the operator. **Duitku needs its credentials set on the deployment before a customer can pay** |
 | [[Final Workspace Architecture]] — four operational workspaces, Admin Space, and a Business-only Global Company Dashboard | v2.84.0 | `WorkspaceArchitectureTest` (18): the plan matrix asserted by DIRECT URL for all three tiers, the Global Dashboard redirecting rather than refusing, no plan granting a retired department, the registry offering none of them, Admin Space separate from both reporting and Master Admin, and focus proven to neither grant nor revoke. Browser end to end on Starter, Professional and Business, plus mobile |

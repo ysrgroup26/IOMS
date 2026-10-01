@@ -148,9 +148,8 @@ export default function AboutDialog({ open, onOpenChange }) {
 function Row({ icon: Icon, label, value }) {
     return (
         // v2.72.0: label and value sit side by side where there is room
-        // and stack where there is not. Squeezing them onto one line at
-        // 375px broke "YSR Systems" across a line mid-word, which reads
-        // worse than the overflow it was fixing.
+        // and stack where there is not. At narrow widths they stack so a
+        // long company name remains readable instead of breaking mid-word.
         <div className="flex flex-col gap-y-0.5 px-4 py-2.5 text-sm min-[400px]:flex-row min-[400px]:items-start min-[400px]:justify-between min-[400px]:gap-x-4">
             <dt className="flex items-center gap-1.5 text-graphite-500 min-[400px]:shrink-0 dark:text-slate-400">
                 {Icon && <Icon className="h-3.5 w-3.5" />}

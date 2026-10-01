@@ -1,7 +1,7 @@
 ---
 title: Product Identity and Principles
 type: reference
-updated: 2026-09-14
+updated: 2026-10-01
 tags: [kb/product]
 ---
 
@@ -22,6 +22,14 @@ of truth for it and states the rule directly:
 - **"Integrated Operations Management System" is forbidden as branding.** The expansion is not the
   product name.
 
+### The company behind the product (v2.89.0)
+
+**Tahada Group** is the public-facing company identity. The registered legal entity is **PT Tahada
+Vistara Bersama**. These are separate facts: the public site, sign-in and company attribution use the
+group brand; legal pages and structured `legalName` use the legal entity; structured Organization
+`name` remains **IOMS**. `config/ioms.php` keeps these values in their separate roles. Do not globally
+replace YSR: technical and internal YSR identifiers are not public company copy.
+
 That prohibition exists because it was violated: v2.38.0 found the long form hardcoded as a
 fallback in **twelve** places — `app.jsx`, the shared Inertia props, four Excel/PDF export classes,
 the About dialog, layout tooltips and `config/excel.php` — so it surfaced in browser titles *and* in
@@ -30,23 +38,22 @@ generated customer documents whenever a tenant had not set its own company name.
 Former names, which appear in older documents and commit history: *Shipyard Management System*,
 and before that *SAFETY LOG*.
 
-### What IOMS is, in one line (v2.76.0)
+### What IOMS is, in one line (updated v2.89.0)
 
-> **IOMS — Industrial Operations Platform.** One platform for complex industrial operations:
-> management, HSE, people, field operations, projects, procurement, warehouse and logistics, for
-> shipyards, construction, manufacturing, mining, energy and marine.
+> **IOMS — Industrial Operations Platform.** One platform connecting Health, Safety & Environment,
+> People / HRD, Logistics / Warehouse and Management across industrial operations.
 
 That sentence is the positioning, and it is written into the product in exactly three places, which
 must be changed together:
 
 | Where | What it carries |
 |---|---|
-| Landing hero (`Pages/Public/Welcome.jsx`) | eyebrow *IOMS · Industrial Operations Platform*; H1 *One platform for complex industrial operations.*; the paragraph naming the domains and the industries |
-| `config/seo.php` → `home` | the search title and meta description |
-| `app.blade.php` structured data | Organization `slogan` *Built for Industrial Operations*; SoftwareApplication `applicationSubCategory` and a `featureList` worded as the eight story headings |
+| Landing hero (`Pages/Public/Welcome.jsx`) | Product descriptor, one-record value proposition and the four current operational workspaces |
+| `config/seo.php` → `home` | Search title and meta description; keep public claims consistent with the four workspaces |
+| `app.blade.php` structured data | Organization remains `IOMS`; `legalName` is the legal entity; SoftwareApplication details stay aligned with verified public capabilities |
 
-**IOMS is not an HSE product.** HSE is one domain of eight. The page leads with the operation, and HSE
-appears where it belongs in the sequence — see [[UX and Design Principles#Landing page storytelling]].
+**IOMS is not an HSE-only product.** HSE is one of four operational workspaces. The page leads with
+the operation, and HSE appears where it belongs in the sequence — see [[UX and Design Principles#Landing page storytelling]].
 
 **No claim without a menu item.** Every capability the public site names exists in
 `resources/js/lib/workspaces.js`; `LandingPositioningTest` checks the list against it.

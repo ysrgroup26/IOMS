@@ -17,7 +17,7 @@ return [
     |
     */
 
-    'version' => '2.88.0',
+    'version' => '2.89.0',
 
     // Tester / Beta / Stable -- tracks the release stage explicitly.
     // Previously only implied in conversation, never actually stored.
@@ -49,7 +49,7 @@ return [
 
     'edition' => 'Enterprise Edition',
 
-    'build' => '2026.10.01.02',
+    'build' => '2026.10.01.03',
 
     'release_date' => '2026-10-01',
 
@@ -85,7 +85,28 @@ return [
 
     'developer' => 'Yofhanza Shultona Rizqi S.',
 
-    'company' => 'YSR Systems',
+    /*
+    |--------------------------------------------------------------------------
+    | The company behind IOMS (v2.89.0)
+    |--------------------------------------------------------------------------
+    | THE PUBLIC CORPORATE BRAND. This was 'YSR Systems', which is the
+    | identity the product was built under and is no longer the one it is
+    | sold under. Every consumer of this key means the same thing, the company
+    | standing behind IOMS, which is why one value changes here rather than a
+    | scattered find and replace:
+    |
+    |   the public footer copyright
+    |   the sign-in and authenticated shell attribution
+    |   the About dialog
+    |   the vendor fallback on a generated PDF, used only when a tenant has
+    |   not set a company identity of its own
+    |
+    | DELIBERATELY NOT CHANGED ANYWHERE ELSE. 'YSR' survives in the repository
+    | name, namespaces, migrations, seeded history and the git author, and
+    | none of those are public identity. A global replace would rewrite
+    | technical identifiers to fix a brand line.
+    */
+    'company' => 'Tahada Group',
 
     'copyright_year' => '2026',
 
@@ -169,19 +190,19 @@ return [
     ],
     /*
     |--------------------------------------------------------------------------
-    | Legal identity (v2.55.0) -- EMPTY BY DEFAULT, AND THAT IS THE POINT
+    | Legal identity (v2.55.0; registered entity supplied v2.89.0)
     |--------------------------------------------------------------------------
     | The operator's registered name, address and jurisdiction belong on the
-    | Terms of Service and are legally meaningful. IOMS therefore refuses to
-    | guess at them: every value below defaults to null, the public pages
-    | OMIT any clause that would depend on a missing value, and nothing is
-    | ever rendered as a placeholder that reads like a fact.
+    | Terms of Service and are legally meaningful. The registered entity is
+    | known and defaults to PT Tahada Vistara Bersama. Address, jurisdiction
+    | and venue still default to null and are omitted until supplied.
     |
     | THE PRIVATE/PUBLIC BOUNDARY. The identity a payment provider verifies
     | (KYC: personal name, residential address, NPWP, ID documents) is NOT the
     | same thing as the identity a website publishes. A registered address is
-    | frequently a home address. Nothing here is published unless it has been
-    | set deliberately, and NPWP/registration numbers have no key at all --
+    | frequently a home address. The known entity name is stated below;
+    | address, jurisdiction and venue are published only when intentionally
+    | configured. NPWP/registration numbers have no key at all --
     | they are merchant-verification data, not website content, and this
     | config is not the place for them.
     |
@@ -192,7 +213,13 @@ return [
     |   IOMS_LEGAL_VENUE    the courts named for disputes, if advised
     */
     'legal' => [
-        'entity_name' => env('IOMS_LEGAL_ENTITY'),
+        // v2.89.0: defaults to the registered entity rather than to
+        // null. While this was unset, LegalDocuments omitted its operator
+        // clause, so the Terms page never named who operates the service and
+        // the Contact page showed no operator at all. The entity is known
+        // now, so the default states it; the env override is unchanged for a
+        // deployment that is operated by someone else.
+        'entity_name' => env('IOMS_LEGAL_ENTITY', 'PT Tahada Vistara Bersama'),
         'address' => env('IOMS_LEGAL_ADDRESS'),
         'jurisdiction' => env('IOMS_JURISDICTION'),
         'venue' => env('IOMS_LEGAL_VENUE'),
@@ -222,13 +249,10 @@ return [
     'documentation_url' => env('IOMS_DOCUMENTATION_URL'),
 
     'whats_new' => [
-        'Halaman depan IOMS kini menampilkan foto operasi industri yang sebenarnya: galangan, konstruksi, tambang, kilang, bengkel fabrikasi, dan gudang',
-        'Bagian hero menampilkan suasana lapangan dengan dokumen Permit To Work di atasnya, bukan sekadar latar berwarna',
-        'Bagian industri kini berupa tiga foto suasana, menggantikan deretan label',
-        'Halaman ditutup dengan foto galangan selebar layar, bukan blok warna polos',
-        'Foto dimuat dalam ukuran yang sesuai perangkat Anda, sehingga halaman tetap ringan di ponsel',
-        'Favicon IOMS kini memakai simbol resmi dengan latar transparan, tanpa kotak biru',
-        'Logo, logo versi gelap, logo email, gambar pratinjau sosial, dan ikon aplikasi tetap seperti sebelumnya',
+        'Website IOMS kini menampilkan hubungan kerja antara manajemen dan tim lapangan dalam satu rekam kerja',
+        'Pengguna My Work kini langsung diarahkan ke My Work setelah masuk dengan akun IOMS yang sama',
+        'Website publik kini mencantumkan Tahada Group sebagai identitas perusahaan dan PT Tahada Vistara Bersama sebagai badan hukum',
+        'Informasi tentang pemisahan data, pembayaran dan riwayat operasional kini tersedia sebelum calon pelanggan mendaftar',
     ],
     /*
     |--------------------------------------------------------------------------
@@ -242,6 +266,7 @@ return [
     */
 
     'version_history' => [
+        ['version' => '2.89.0', 'date' => '2026-10-01', 'summary' => 'TWO ENDS OF ONE OPERATION. The public company identity is now Tahada Group while the legal entity remains PT Tahada Vistara Bersama; IOMS stays the Organization name in structured data, and technical YSR identifiers were left intact. My Work Users now land in My Work regardless of a Full User preference, and the existing login page has a clear My Work entry that still authenticates first. The hero brings office management and field operations together around the Permit To Work artifact, retained because it is the real record connecting those settings. Workshop, field, warehouse and management now form an editorial sequence with distinct image treatments instead of a text grid or repeated image cards. A trust section after pricing names only product-enforced behavior: tenant-scoped data, verified payment callbacks, recorded approval authority and readable records after subscription lapse. Three feature tests cover the My Work landing and deep-link behavior; public structured data asserts IOMS and the separate legal identity. Verified by 741 tests and 3956 assertions, production build, zero lint errors, and a local Chromium review of the landing page and sign-in at the available narrow viewport. No pricing, workspace grants, entitlement, PTW rules, authentication mechanism, billing or subscription lifecycle was changed.'],
         ['version' => '2.88.0', 'date' => '2026-10-01', 'summary' => 'THE PHOTOGRAPHY LANDED, AND THE FAVICON LOST ITS SQUARE. The previous release closed by saying the site needed real photographs of a customer operation and that nothing else could supply them honestly. Eight arrived. Each was opened and judged on its own before being placed, rather than wired into whatever slot already existed, and one of the eight is deliberately unused in the domain stories: the story about the platform itself keeps a product panel, because a photograph of a place would be decoration there where the interface is evidence. THE HERO PHOTOGRAPH IS A LAYER, NOT A BACKGROUND. A photograph stretched behind a hero with text laid over it is the stock-photo hero every template ships, and it costs the copy its contrast. A supervisor on a dock at dusk holding a tablet now occupies the RIGHT of the navy field and bleeds off the edge, with a gradient dissolving its left side into the text column, and the Permit To Work artifact sits ON it: the document and the place it came from are in one frame. The closing band is the OPPOSITE treatment on purpose, full-bleed and heavily scrimmed, because there the photograph is a ground under a call to action rather than the subject. Using one treatment twice would have made the page feel like it had a single idea. INDUSTRIES STOPPED BEING SEVEN PILLS. A centred row of bordered pills is the most generic thing a page can do with a list and said nothing a reader could picture; three aerial establishing shots say INDUSTRIAL OPERATIONS without a caption, which is the one job a photograph does better than any layout. The four sectors with no photograph of their own stayed as a text line, because inventing a fourth tile would have meant repeating an image or dropping a sector IOMS genuinely serves. THE PHOTOGRAPHS COULD NOT SHIP AS DELIVERED. Eight PNGs, 14.6 MB. PNG is lossless and built for flat-colour graphics; for a photograph it stores an enormous amount of data no viewer can ever see, and shipping them would have made the landing page heavier than every other asset on it combined. A committed build script now generates WebP at 640, 1024 and 1600 plus one JPEG fallback, and NEVER upscales: three of the sources are only 787px wide and simply do not get the larger derivatives. 14.29 MB of sources produce 2.45 MB of derivatives, of which any one page loads a handful, and the largest single request on a desktop is 121 KB. One component owns every photograph on the site so the srcset, the sizes, the WebP source, the JPEG fallback, the reserved aspect box and the lazy default cannot be forgotten per call site. THE SUPPLIED FAVICON IS NOT VECTOR, WHICH DECIDED HOW IT WAS USED. The transparent symbol supplied for this change is a 4096px PNG embedded as base64 inside an SVG wrapper, 679 KB, and the mark is not centred inside its own canvas. So the rasters -- the .ico and the 32, 48 and 96 PNGs -- are rasterised from that file, trimmed and re-centred so the mark sits square at 16px, because it is the file the brand owner designated. The SVG favicon instead points at the repository own vector art: the same mark, the same single colour, already transparent, 1.8 KB. Serving the supplied file as a tab icon would have cost roughly three hundred times the vector. Nothing was redrawn and no colour changed. The .ico is written by hand as a three-entry container with PNG payloads, which ICO has carried since Vista, rather than taking a dependency whose only job is forty bytes of header. THE OPAQUE-FAVICON DECISION IS REVERSED, NOT DELETED. v2.76.0 deliberately put the mark on a navy square, reasoning that Google renders favicons on a light surface where a transparent mark has less to hold onto. That reasoning is kept in config/branding.php beside the new answer, because it was a trade rather than a mistake. What is NOT reversed: the apple-touch-icon and both maskable PWA icons stay OPAQUE, because iOS composites a home-screen icon onto its own surface and renders transparency as black, and a maskable icon is cropped to a platform shape that assumes a filled canvas. A transparent touch icon would put a black tile on every iPhone that saved the site. The test that used to assert every icon was opaque now asserts tab icons transparent and installed-app icons opaque, each for its own stated reason. Verified: 738 tests and 3931 assertions passing, up from 735, zero failures. Clean build, ESLint clean. Wordmark, both logo variants, the email logo, the OG image and every PWA icon preserved and confirmed serving. Exercised at 1440 and 375: no horizontal overflow at either, every photograph resolving to WebP at the right width for the viewport, the hero image correctly hidden below the two-column breakpoint, and zero em dashes across every public page in both encodings. NOT VERIFIED, AND SAID SO: Chromium only, no Lighthouse run, and the favicon was checked as files, markup and a 96px render rather than photographed in a live tab strip.'],
         ['version' => '2.87.0', 'date' => '2026-10-01', 'summary' => 'THE HERO HAS A SUBJECT, AND THE SUBJECT IS A PERMIT. The landing page was technically correct and visually unfinished: text on the left, a list on the right, a diagram below, and nothing on the page that was an OBJECT. It now opens on a Permit To Work, rendered in the document format IOMS actually generates -- the same mono reference, the same field grid, the same approval seal with a named approver and a real role -- cropped by the right edge and tilted two degrees so it reads as a sheet on a desk rather than a picture of one. The choice is the point. A dashboard screenshot is what every B2B SaaS hero uses and it means nothing to a yard superintendent; a work permit is the artifact this industry already organises its day around, and it is the honest option because IOMS genuinely produces that document. THE MEASUREMENTS THAT EXPLAINED THE FLATNESS. Twenty-three small uppercase labels sat above headlines across a twelve-section page, which gave the whole thing one repeating LABEL then HEADLINE then BODY rhythm and is the most reliable signature of a generated marketing site; the budget is one per three sections and it is now four. The platform section rendered SIX consecutive left-panel right-text rows, where the third is already too many; two keep the story layout and the remaining four became a two-column brief, with no content changed at all so every claim still maps to a real menu item. Six consecutive light bands ran through the middle of the page, so the connected-operations diagram moved out of the hero onto an inset navy panel where its argument belongs, and the product showcase moved onto a tinted ground with a real shadow -- a white interface rendered on a white section had dissolved into its own background, which meant the strongest proof on the page read as furniture. THE PRICING SECTION WAS NOT A TASTE PROBLEM. It declared four columns for a catalogue that sells three, written when there were four tiers and never narrowed when Enterprise was retired from sale in v2.82.0, so at wide viewports the row laid out an empty fourth cell and the whole composition balanced around a card that no longer exists. Three columns now, centred, cards stretched to a shared height, and the head block reserved so all three prices sit on one baseline, which is the comparison the section exists to make. A TEST FOUND A REAL DEFECT THAT LOOKING HAD NOT. PackageSeeder seeded Enterprise as publicly visible while the pricing migration retires it, and migrations run BEFORE seeders -- so on any fresh install or re-seed, Enterprise came back onto the public pricing page at Rp2.499.000: a plan nobody can buy, advertised beside the three that can be. The row stays, because tenants are still subscribed to it and deleting it would orphan live subscriptions; only its public visibility changed. Two tests now pin this class of drift: the pricing grid must declare a column for every public plan, and section eyebrows must stay inside their budget. MOTION, ALL OF IT MOTIVATED. The permit settles once and the approval seal lands a beat after it, because that is the order those events happen in; the new grids stagger so a list arrives in reading order. Nothing loops, nothing hijacks the scroll, no animation library was added. Every new animation is motion-safe gated with both fill, so under reduced motion the classes are stripped and every element renders at full opacity. Reveal own note argues for ONE gesture rather than a vocabulary of effects, and that was respected rather than overridden: the staggers are the same gesture, sequenced. Verified: 735 tests and 3920 assertions passing, up from 733, zero failures. Clean build, ESLint clean. Exercised at 1440 and 375 in a real browser, with the composition MEASURED in the live DOM rather than judged by eye: four eyebrows, two zigzag rows, a 649px hero that fits the viewport, three pricing columns for three plans, and three cards of identical height with their prices on one baseline. NOT DONE, AND IT NEEDS THE OWNER: there is no photography. Stock is ruled out by the brief and by a passing test, and no image-generation tool exists in this environment, so the six image slots are wired and empty rather than filled with something invented. Until real photographs of a customer operation exist, the page is carried by product evidence and typography, which is the honest version of this site rather than the complete one.'],
         ['version' => '2.86.0', 'date' => '2026-09-30', 'summary' => 'TWO KINDS OF ACCOUNT, AND A PERMIT TO WORK THAT IS COUNTED. IOMS now sells a FULL USER and a MY WORK USER, counted and priced separately: 3 and 10 on Starter, 10 and 30 on Professional, 25 and 50 on Business, with an additional Full User at Rp50.000 per month and additional My Work capacity at Rp100.000 per ten. Plan prices and workspace scope are unchanged. THE RESTRICTION IS THE PRODUCT, WHICH IS WHY IT IS ENFORCED ON THE SERVER. A My Work User costs a fifth of a Full User, so a cheap class that is not actually restricted is not a cosmetic bug -- it is a five-to-one arbitrage on the full product. It is enforced by a route-name ALLOW-LIST rather than a deny-list, because a deny-list has to be updated every time a route is added and the cost of forgetting is that a cheap account silently gains an expensive capability; an allow-list fails the other way, leaving a new route unreachable until somebody decides otherwise. Asserted by DIRECT URL against eight operational and administrative routes with the strongest tenant role attached, because a restriction that can be escaped with a role is not a restriction. MY WORK USER IS A NEW COLUMN, NOT A REINTERPRETATION OF is_field_user, AND THAT IS THE DECISION THE WHOLE FEATURE TURNS ON. is_field_user is a LANDING PREFERENCE: its own controller says it consumes no quota and grants no capability. Real accounts carry it today -- foremen and HSE staff who legitimately reach other workspaces -- so treating it as the cheap class would have DEMOTED every one of them the moment this deployed, removing access those customers already pay for. The two stay separate: user_type decides what you may reach and how you are billed, is_field_user decides where you land. Every pre-existing account migrates to full, which is what it already was, and a My Work User is only ever created deliberately -- an omitted form field can never produce one. A PTW DOCUMENT IS CONSUMED ON CREATION, AND NEVER AGAIN. Each plan includes 50, 200 or 500 documents per month; editing, viewing, approving and closing a permit are free. Two pools that never merge in storage: INCLUDED quota expires at the period boundary, PURCHASED top-up quota carries forward until consumed, and consumption spends included first so a customer loses what was going to expire before what they paid extra for. Collapsing them into one remaining figure was explicitly rejected, and rightly: the expiry rule cannot be reconstructed once the two have been added together. DELETING A PERMIT DOES NOT REFUND ITS DOCUMENT, AND THE SCHEMA IS WHAT GUARANTEES IT. Consumption is its own row with a deliberately NON-cascading key to the permit, so it outlives what it paid for; a unique index on the permit id means a retry or a double-submitted form charges once. Create-delete-repeat is closed by construction rather than by policy. QUOTA IS MONTHLY ON EVERY BILLING CYCLE. An annual plan receives twelve allocations, one per monthly window anchored to the subscription start day, not a lump sum -- and Business annual, sold as fourteen months of access for twelve payments, receives fourteen months of PLATFORM ACCESS and exactly twelve PTW allocations. Extra access is not extra entitlement. Grants are issued lazily as well as by the nightly job, made safe by a unique index on the term slot, because a tenant that signed up mid-month or whose cron missed a night must not be unable to raise a permit because a scheduled task did not run. THE METER FAILS OPEN ONLY WHERE THE METER IS NOT SOLD. A plan with no stated PTW figure -- Enterprise, and any plan an operator has not given one -- is unmetered, following the same direction the entitlement layer already takes for an unprovisioned tenant, because the alternative is a misconfigured plan silently blocking a safety-critical permit. A tenant that HAS a figure is metered strictly, and exhaustion locks new creation while leaving My Work, assigned work and every existing permit readable and workable. INVOICES GAINED REAL LINE ITEMS, NOT A PRESENTATIONAL ONE. The total stays authoritative and the payment path is untouched; items are written by the same code that computes the total, from the same parts, so the breakdown cannot drift from the figure being charged, and every pre-existing invoice was backfilled so none is left unitemised. A top-up is a PURCHASE rather than a period: it is handled first in settlement and returns immediately, because everything below that point moves subscription dates and falling through would have granted a free month with every top-up. It is credited only from the verified-payment path, idempotent on the invoice, because reaching a confirmation page has never granted anything in IOMS and quota is no different. TWO EXISTING TESTS WERE CHANGED, BOTH DELIBERATELY. One forbade any PTW-shaped field on a pricing payload, pinning the v2.53.0 decision that PTW is not sold capacity; this release reverses half of it, so the assertion is now specific -- PTW SEATS stay retired, PTW DOCUMENTS are stated and required. The other is the tenant-isolation guard, which caught all three new models on the first full run, exactly as designed. Verified: 733 tests and 3913 assertions passing, up from 692, zero failures. Clean production build, ESLint clean. Two migrations, applied AND rolled back AND re-applied against MySQL. Public pricing exercised in a real browser at 1440 and 375, every figure checked against the served props, no horizontal overflow, and zero em dashes across all eleven public pages in both the literal and JSON-escaped forms. NOT VERIFIED, AND SAID SO: no live payment was executed for a top-up, the authenticated quota page was covered by feature tests rather than photographed because the development tenant is on Enterprise and therefore unmetered, and no parallel load test was run against the consumption lock.'],

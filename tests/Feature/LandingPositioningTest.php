@@ -158,6 +158,48 @@ class LandingPositioningTest extends TestCase
         );
     }
 
+    /**
+     * v2.89.0 -- THE GUEST SURFACES OUTSIDE /public COUNT AS PUBLIC COPY.
+     *
+     * The sign-in page advertised "HSE, workforce, projects, maintenance"
+     * five releases after Project Management and Maintenance left the
+     * customer-facing product. Every copy audit since v2.84.0 missed it for
+     * the same reason: they scoped themselves to the marketing routes under
+     * `Pages/Public`, and the auth shell lives under `guest`.
+     *
+     * A prospect reaches the sign-in page from the marketing site, so its
+     * claims are public claims. This covers the surfaces those audits do not.
+     */
+    public function test_the_authentication_surfaces_name_no_retired_workspace(): void
+    {
+        $sources = [
+            'Layouts/AuthLayout.jsx',
+            'Pages/Auth/Login.jsx',
+            'Pages/Auth/Register.jsx',
+        ];
+
+        foreach ($sources as $file) {
+            $path = resource_path('js/'.$file);
+
+            if (! file_exists($path)) {
+                continue;
+            }
+
+            // Comments are stripped first: this file documents the retired
+            // names in the comment explaining why they were removed.
+            $source = preg_replace('#\{?/\*.*?\*/\}?#s', '', file_get_contents($path));
+            $source = preg_replace('#^\s*//.*$#m', '', $source);
+
+            foreach (['Procurement', 'Quality Control', 'Project Management', 'maintenance', 'projects'] as $retired) {
+                $this->assertStringNotContainsStringIgnoringCase(
+                    $retired,
+                    $source,
+                    "{$file} names {$retired}, which is not a workspace IOMS sells."
+                );
+            }
+        }
+    }
+
     public function test_no_public_page_contains_an_em_dash(): void
     {
         $this->seed(\Database\Seeders\PackageSeeder::class);

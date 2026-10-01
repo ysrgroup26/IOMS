@@ -78,9 +78,18 @@ export default function AuthLayout({ title, heading, subheading, children, foote
                     <h1 className="max-w-md text-[28px] font-semibold leading-tight tracking-tight xl:text-[32px]">
                         Built for industrial operations.
                     </h1>
+                    {/* v2.89.0 -- TWO RETIRED WORKSPACES WERE STILL BEING
+                        ADVERTISED HERE. This read "HSE, workforce, projects,
+                        maintenance", and Project Management and Maintenance
+                        both left the customer-facing product in v2.84.0. The
+                        sign-in page was missed by every copy sweep since,
+                        because those audits scoped themselves to the public
+                        marketing routes and this one sits under `guest`.
+                        Replaced with the four workspaces IOMS actually
+                        sells. */}
                     <p className="mt-3 max-w-md text-sm leading-relaxed text-navy-300">
-                        One platform for HSE, workforce, projects, maintenance and the documents
-                        that have to stand up to an audit.
+                        One platform for HSE, workforce, warehouse logistics and management
+                        reporting, and the documents that have to stand up to an audit.
                     </p>
 
                     <ul className="mt-7 flex flex-wrap gap-x-2.5 gap-y-2" aria-label="Target industries">

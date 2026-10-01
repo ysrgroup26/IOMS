@@ -517,3 +517,37 @@ Both are the same official mark in the same official colour. Nothing was redrawn
 - **Verification performed:** See `05 - QA & Verification.md`. 738 tests / 3931 assertions, 0 failures. Clean build, ESLint 0 errors.
 - **Commit hash:** `f4f547f`, pushed to origin/main.
 - **Next action:** None blocking.
+
+## 2026-10-01 - v2.89.0: two ends of one operation
+
+- **Coverage:** Public company identity; My Work entry experience; hero story; domain imagery and
+  rhythm; the trust/security coverage left open in Phase 07.
+- **Identity decision:** `config('ioms.company')` is the public brand **Tahada Group**. The legal
+  entity used by legal pages and structured data defaults to **PT Tahada Vistara Bersama**. IOMS
+  remains the Organization name in structured data. No global replacement was made; technical and
+  internal YSR references remain intact.
+- **My Work decision:** keep one authentication system. The login page gives field users a direct
+  `/my-work` entry. That route still authenticates first; `user_type` decides the My Work landing
+  for My Work Users while the existing field preference continues to apply to Full Users.
+- **Hero decision:** retain the PTW artifact. It bridges the management and operations photographs
+  as the real record that connects those settings. On mobile it follows the photographs instead of
+  being squeezed across two short frames.
+- **Domain layout decision:** use a workshop figure, a text-led field handover, a full-width
+  warehouse scene and a management image with its copy. Each has a different composition rather
+  than turning every asset into an image card.
+- **Trust claims:** placed after pricing; wording names only repository-enforced behavior. No
+  certification or unverified service-level claim was added.
+- **Files changed:** `config/ioms.php`, `resources/views/app.blade.php`,
+  `resources/js/Components/shared/AboutDialog.jsx`, `resources/js/Layouts/AuthLayout.jsx`,
+  `resources/js/Pages/Auth/Login.jsx`, `resources/js/Pages/Public/Welcome.jsx`,
+  `resources/js/Components/public/DomainEditorial.jsx`,
+  `resources/js/Components/public/HeroComposition.jsx`, `tailwind.config.js`,
+  `app/Models/User.php`, `tests/Feature/LandingPositioningTest.php`,
+  `tests/Feature/PublicSearchIdentityTest.php`, `tests/Feature/UserClassAndPtwQuotaTest.php`,
+  and generated `public/build` assets.
+- **Verification:** 741 tests / 3956 assertions passed. `npm run build` completed; known large-chunk
+  advisory remains. ESLint: 0 errors, 4 existing warnings in untouched files. Local Chromium preview
+  checked the sign-in entry and story imagery at the available narrow viewport. See
+  `05 - QA & Verification.md` for what was not measured.
+- **Commit hash:** pending commit.
+- **Next action:** record the commit and push result after publication to `origin/main`.

@@ -215,6 +215,8 @@ class PublicSearchIdentityTest extends TestCase
 
         $org = $graph['Organization'];
         $this->assertSame('IOMS', $org['name']);
+        $this->assertSame('Tahada Group', config('ioms.company'));
+        $this->assertSame(config('ioms.legal.entity_name'), $org['legalName']);
         $this->assertSame('https://iomsuite.com/', $org['url']);
         $this->assertSame('https://iomsuite.com/branding/ioms-logo.png', $org['logo']);
 

@@ -1,7 +1,7 @@
 ---
 title: Current State
 type: snapshot
-product-version: 2.88.0
+product-version: 2.89.0
 product-stage: Beta
 measured: 2026-10-01
 tags: [kb/state]
@@ -24,8 +24,9 @@ the date in the frontmatter, not remembered.
 | | |
 |---|---|
 | Product | **IOMS — Industrial Operations Platform** |
-| Version | **2.84.1**, stage **Beta**, edition **Enterprise Edition** |
-| Build | `2026.09.29.01`, release date `2026-09-29` |
+| Public company identity | **Tahada Group**; legal entity **PT Tahada Vistara Bersama** |
+| Version | **2.89.0**, stage **Beta**, edition **Enterprise Edition** |
+| Build | `2026.10.01.03`, release date `2026-10-01` |
 | Stack | Laravel 12 · Inertia.js · React 18 · Tailwind · MySQL · Sanctum |
 
 The naming rules are not cosmetic — see [[Product Identity and Principles]].
@@ -34,38 +35,34 @@ The naming rules are not cosmetic — see [[Product Identity and Principles]].
 
 | Measure | Count |
 |---|---|
-| Eloquent models | 114 |
-| Controllers | 105 |
-| Inertia pages | 170 |
-| Migrations | 183 |
-| Feature test files | 64 |
-| Tests / assertions | **691 / 3785**, all passing |
-| ADRs | 40 files (numbering has known gaps — see [[Decision Register]]) |
+| Eloquent models | 117 |
+| Controllers | 100 |
+| Inertia pages | 181 |
+| Migrations | 190 |
+| Feature test files | 69 |
+| Tests / assertions | **741 / 3956**, all passing |
+| ADRs | 44 files (numbering has known gaps — see [[Decision Register]]) |
 | Workspaces in the navigation registry | 12 |
 
 ## Workspaces
 
-Ten department workspaces plus two global ones, from `resources/js/lib/workspaces.js`. What a user
-actually sees is filtered by role, enabled modules and tenant grants — navigation never widens
-access. See [[Data Ownership and Boundaries]].
+The customer-facing product sells **four operational workspaces**: HSE, People / HRD, Logistics /
+Warehouse, and Management. Admin Space is tenant administration, not an operational workspace; the
+Global Company Dashboard is separate and Business-only. Navigation may retain internal/legacy
+registry entries, but they are not marketed as workspaces. What each user reaches remains filtered
+by role, enabled modules and tenant grants; navigation never widens access. See [[Data Ownership and
+Boundaries]] and [[Final Workspace Architecture]].
 
 | Workspace | Key | Built? |
 |---|---|---|
-| Human Resources | `hr` | Yes |
-| Health, Safety & Environment | `hse` | Yes — the deepest module set |
-| Project Management | `project-management` | Yes |
-| Logistics / PPIC | `logistics` | Yes |
-| Warehouse | `warehouse` | Yes |
-| Procurement | `procurement` | Yes |
-| Asset Management | `asset-management` | Yes |
-| Maintenance | `maintenance` | Yes |
-| Quality Control | `quality-control` | Yes |
-| Finance | `finance` | **Placeholder** — routes to a Coming Soon page |
-| Reports | `reports` | Yes (global tier) |
-| Administration | `administration` | Yes (global tier) |
-
-Several built workspaces still carry individual `disabled: true` placeholder items (HR has 5, e.g.
-Recruitment and Performance). A disabled item is an advertised intention, not a capability.
+| Workspace | Public role |
+|---|---|
+| Health, Safety & Environment | Operational workspace |
+| People / HRD | Operational workspace |
+| Logistics / Warehouse | Operational workspace |
+| Management | Operational workspace |
+| Admin Space | Tenant administration; not sold as an operational workspace |
+| Global Company Dashboard | Business-only, separate from the four workspaces |
 
 ## Roles
 
@@ -80,7 +77,23 @@ someone a platform operator, not a null `tenant_id` — since v2.74.0 an ordinar
 before it has an organization, so `isPlatformAdmin()` reads the role. See ADR
 [[038-account-organization-subscription|038]].
 
+`user_type` is a separate billing and capability class: Full User or My Work User. It does not
+replace the role. A My Work User authenticates through the same login and lands in My Work; the
+server-side route allow-list still controls what that account may reach. See [[Domain Glossary]].
+
 ## What shipped most recently
+
+`2.89.0` (2026-10-01) — Tahada Group is the public company identity while the legal entity is PT
+Tahada Vistara Bersama; the login offers a My Work entry through the existing authentication
+system; My Work Users land in My Work by account class; the hero links management and field
+operations around the PTW artifact; the domain section uses workshop, warehouse and management
+photography in distinct editorial layouts; and the missing trust/security section now follows
+pricing with claims tied to enforced product behavior. **741 tests / 3956 assertions pass.** Pricing,
+plan scope, entitlement, PTW rules, authentication mechanism, billing and subscription behavior are
+unchanged.
+
+`2.88.0` (2026-10-01) — photography integration, responsive WebP pipeline and transparent favicon;
+738 tests / 3931 assertions. See [[Release History]].
 
 `2.84.1` (2026-09-29) — Admin Space became a real **context**: exactly one of the workspace
 selector and Admin Space is lit at a time, the two operational header links disappear inside it,

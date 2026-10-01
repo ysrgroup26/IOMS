@@ -172,6 +172,18 @@
                 '@type' => 'Organization',
                 '@id' => $organizationId,
                 'name' => $brandName,
+                /*
+                 * v2.89.0 -- THE REGISTERED ENTITY, NAMED SEPARATELY.
+                 *
+                 * `name` stays IOMS: that is what the site is about, what a
+                 * search result should read, and what every link to it says.
+                 * `legalName` is a different fact, and schema.org has a field
+                 * for it precisely because the two are rarely the same thing.
+                 * Stating the entity here rather than renaming the
+                 * Organization keeps the search identity intact while making
+                 * the publisher accurate.
+                 */
+                'legalName' => config('ioms.legal.entity_name'),
                 'url' => $homeUrl,
                 // The LIGHT-surface raster lockup: a search engine composites
                 // it onto its own white ground, where the near-white dark

@@ -212,6 +212,14 @@ export default {
                 // `stamp-land` is the approval seal, delayed so it lands after
                 // the sheet rather than with it. That order is the whole point:
                 // a permit is raised, and then it is approved.
+                // v2.89.0 -- a hero frame coming to rest. Used twice with a
+                // delay on the second, so the two environments arrive in the
+                // order the work happens rather than together. Holds its end
+                // state, so a frame is fully visible if it never runs.
+                'frame-settle': {
+                    '0%': { transform: 'translateY(10px) scale(1.02)', opacity: '0.35' },
+                    '100%': { transform: 'translateY(0) scale(1)', opacity: '1' },
+                },
                 'sheet-settle': {
                     '0%': { transform: 'translateY(14px) rotate(3.2deg)', opacity: '0.4' },
                     '100%': { transform: 'translateY(0) rotate(2deg)', opacity: '1' },
@@ -254,6 +262,7 @@ export default {
                 'float-slow': 'float 9s ease-in-out infinite',
                 'pulse-glow': 'pulse-glow 4s ease-in-out infinite',
                 reveal: 'reveal 0.55s cubic-bezier(0.22, 1, 0.36, 1) both',
+                'frame-settle': 'frame-settle 0.85s cubic-bezier(0.22, 1, 0.36, 1) both',
                 'sheet-settle': 'sheet-settle 0.9s cubic-bezier(0.22, 1, 0.36, 1) both',
                 'stamp-land': 'stamp-land 1.5s cubic-bezier(0.34, 1.56, 0.64, 1) both',
                 dataflow: 'dataflow 3.4s cubic-bezier(0.5, 0, 0.5, 1) infinite',

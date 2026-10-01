@@ -486,3 +486,35 @@ Copy rules hold: zero em dashes across all public pages in both encodings, four 
 - **Lighthouse.** Not run. Byte weights were measured directly instead.
 - **The favicon in a real browser tab.** Verified as files and markup, and rendered at 96px, but not photographed in a live tab strip.
 - **Colour management.** The photographs were re-encoded without an explicit colour profile pass; they render correctly in Chromium.
+
+---
+
+# QA execution, v2.89.0 continuation, 2026-10-01
+
+## Automated
+
+| Check | Result |
+|---|---|
+| Full PHPUnit suite | **741 passed, 3956 assertions, 0 failures** |
+| Production build | Completed. The existing large-chunk advisory remains (2,031 KB minified JS) |
+| ESLint | 0 errors; 4 existing unused-disable warnings in untouched `GasTestRecords/Index.jsx` and `Settings/Index.jsx` |
+| Diff whitespace check | Source and documentation changes are clean; the generated minified JS contains five whitespace-only lines |
+
+## Browser review
+
+| Surface | Result |
+|---|---|
+| Public landing hero | Office/management and field/operations labels render; headline, copy and both actions remain readable |
+| Domain story | Workshop photo and copy, text-led field handover, warehouse scene with overlay copy, then management copy and photograph. The treatments differ instead of repeating image cards |
+| My Work entry | Login page names one IOMS account and links to My Work. Automated feature coverage confirms an unauthenticated deep link redirects to login and returns to the intended route after authentication |
+| Company identity | Landing footer shows Tahada Group; login footer shows Tahada Group; JSON-LD keeps `IOMS` as Organization name and exposes the configured legal entity in `legalName` |
+| Viewport | Visual review used the available narrow Chromium preview. No visible horizontal overflow in the reviewed states |
+
+## Not verified in this pass
+
+- The local browser preview did not provide a controllable 1440px viewport, so the new desktop composition was not visually measured at 1440px.
+- No real-device, Firefox or Safari pass; no Lighthouse/Core Web Vitals run.
+- No cPanel or production-hosting action was performed.
+
+Product pricing, workspace grants, server-side entitlements, PTW behavior, billing and subscription
+lifecycle remained covered by the passing full suite and were not changed.

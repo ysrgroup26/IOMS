@@ -266,16 +266,7 @@ class EntitlementService
          * fail-open default. Nothing here loosens access -- it only stops
          * offering doors the product does not have.
          */
-        $sold = config('plans.operational', []);
-
-        $departments = Workspace::query()
-            ->where('tier', Workspace::TIER_DEPARTMENT)
-            ->where('is_active', true)
-            ->orderBy('sort_order')
-            ->pluck('key')
-            ->filter(fn (string $key) => in_array($key, $granted, true) && in_array($key, $sold, true))
-            ->values()
-            ->all();
+        $departments = $this->tenantDepartmentKeys($user->tenant);
 
         // A Department User is assigned to exactly one. If the assignment
         // names something their plan does not grant, the answer is an
@@ -286,6 +277,52 @@ class EntitlementService
         }
 
         return $departments;
+    }
+
+    /**
+     * v2.96.0 -- THE DEPARTMENTS THIS ORGANIZATION HAS, before any one
+     * person's assignment narrows them.
+     *
+     * Extracted from `authorizedDepartmentKeys()`, which asks the same
+     * question and then narrows it to the user's own department. Two
+     * callers need the unnarrowed answer:
+     *
+     *   NAVIGATION   what an administrator may switch between.
+     *   ASSIGNMENT   which departments a user may be PUT IN. An admin is
+     *                not assigning themselves, so their own
+     *                `department_key` must not bound the choice -- but the
+     *                PLAN must, and before this it did not. Settings built
+     *                the list from `config('departments')`, every
+     *                department the application knows about, so a Starter
+     *                tenant could assign somebody to People, Warehouse or
+     *                Management: departments their plan does not grant,
+     *                whose routes then refuse them. An entitlement the
+     *                customer never bought, handed out by a dropdown.
+     *
+     * Bounded by `config('plans.operational')` for the same reason
+     * `authorizedDepartmentKeys()` is: the grant layer treats "no rows
+     * recorded" as unrestricted, which is right for ACCESS and wrong for
+     * offering doors the product does not sell.
+     *
+     * @return array<int, string>
+     */
+    public function tenantDepartmentKeys(?Tenant $tenant): array
+    {
+        if (! $tenant) {
+            return [];
+        }
+
+        $granted = $this->grantedWorkspaceKeys($tenant);
+        $sold = config('plans.operational', []);
+
+        return Workspace::query()
+            ->where('tier', Workspace::TIER_DEPARTMENT)
+            ->where('is_active', true)
+            ->orderBy('sort_order')
+            ->pluck('key')
+            ->filter(fn (string $key) => in_array($key, $granted, true) && in_array($key, $sold, true))
+            ->values()
+            ->all();
     }
 
     /**

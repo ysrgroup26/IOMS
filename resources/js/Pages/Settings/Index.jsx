@@ -46,7 +46,7 @@ const ROLE_LABELS = {
     warehouse: 'Warehouse',
 };
 
-export default function SettingsIndex({ company, companies, departments, positions, kpiCategories, users, can, filters, roles, permissionCatalog, numberingFormats, approvalFlows, numberingModuleKeys, notificationPreferences, documentTemplates, documentModuleKeys, fieldMappings, subscription, invoices, ptwAccess, organization }) {
+export default function SettingsIndex({ company, companies, departments, positions, kpiCategories, users, can, filters, roles, permissionCatalog, numberingFormats, approvalFlows, numberingModuleKeys, notificationPreferences, documentTemplates, documentModuleKeys, fieldMappings, subscription, invoices, ptwAccess, organization, assignableDepartments = [] }) {
     // System-level tabs (Companies, Users, Backup) are Super-Admin-only.
     // HSE sees only the operational tabs (Departments, Positions).
     const canSystem = can?.manage_system;
@@ -118,7 +118,7 @@ export default function SettingsIndex({ company, companies, departments, positio
                 <Tabs.Content value="positions"><PositionsTab positions={positions} departments={departments} companies={companies} filters={filters} /></Tabs.Content>
                 <Tabs.Content value="kpi-categories"><KpiCategoriesTab kpiCategories={kpiCategories} companies={companies} /></Tabs.Content>
                 <Tabs.Content value="authentication"><AuthenticationTab /></Tabs.Content>
-                {(canSystem || canPtwAccess) && <Tabs.Content value="users"><UsersTab users={users} roles={roles} ptwAccess={ptwAccess} canManageUsers={canSystem} canPtwAccess={canPtwAccess} canFieldAccess={canFieldAccess} companies={organization?.units ?? companies} /></Tabs.Content>}
+                {(canSystem || canPtwAccess) && <Tabs.Content value="users"><UsersTab users={users} roles={roles} ptwAccess={ptwAccess} canManageUsers={canSystem} canPtwAccess={canPtwAccess} canFieldAccess={canFieldAccess} companies={organization?.units ?? companies} assignableDepartments={assignableDepartments} /></Tabs.Content>}
                 {canSystem && <Tabs.Content value="roles"><RolesTab roles={roles} permissionCatalog={permissionCatalog} /></Tabs.Content>}
                 {canSystem && <Tabs.Content value="numbering"><NumberingTab numberingFormats={numberingFormats} /></Tabs.Content>}
                 {canSystem && <Tabs.Content value="approval-flows"><ApprovalFlowsTab approvalFlows={approvalFlows} moduleKeys={numberingModuleKeys} /></Tabs.Content>}
@@ -2001,9 +2001,25 @@ function AuthenticationTab() {
 // assignable departments, without needing a second hardcoded list to
 // keep in sync -- config('departments')'s own `assignableDepartmentKeys()`
 // on the backend does the equivalent exclusion explicitly).
-const DEPARTMENT_OPTIONS = WORKSPACES.filter((w) => w.tier === 'department').map((w) => ({ key: w.key, label: w.label }));
+/*
+ * v2.96.0 -- THE PLAN DECIDES WHICH DEPARTMENTS CAN BE ASSIGNED.
+ *
+ * This was built from the hardcoded WORKSPACES registry, which lists every
+ * department the APPLICATION has rather than the ones this ORGANIZATION
+ * bought. A Starter tenant was therefore offered People, Warehouse
+ * Logistics and Management in the dropdown; the assignment saved, and the
+ * routes then refused the user it was given to.
+ *
+ * `assignableDepartments` comes from the server, through the same
+ * EntitlementService the route gate and the sidebar read, so the form
+ * cannot offer a department the request would reject. Kept as a fallback
+ * only for the labels of departments already assigned (see labelFor).
+ */
+const ALL_DEPARTMENT_OPTIONS = WORKSPACES.filter((w) => w.tier === 'department').map((w) => ({ key: w.key, label: w.label }));
 
-function DepartmentField({ value, onChange }) {
+const departmentLabel = (key) => ALL_DEPARTMENT_OPTIONS.find((d) => d.key === key)?.label ?? key;
+
+function DepartmentField({ value, onChange, options = [] }) {
     return (
         <div className="space-y-1.5">
             <Label>Department Restriction</Label>
@@ -2011,7 +2027,7 @@ function DepartmentField({ value, onChange }) {
                 <SelectTrigger><SelectValue /></SelectTrigger>
                 <SelectContent>
                     <SelectItem value="none">None -- Administrator (sees every department)</SelectItem>
-                    {DEPARTMENT_OPTIONS.map((d) => <SelectItem key={d.key} value={d.key}>{d.label}</SelectItem>)}
+                    {options.map((d) => <SelectItem key={d.key} value={d.key}>{d.label}</SelectItem>)}
                 </SelectContent>
             </Select>
             <p className="text-xs text-graphite-400">
@@ -2047,16 +2063,16 @@ function DepartmentField({ value, onChange }) {
  * content, which is why the rest of Settings looked fine). Threaded
  * through as a prop, like every other capability flag on this page.
  */
-function UsersTab({ users, roles, ptwAccess, canManageUsers, canPtwAccess, canFieldAccess, companies }) {
+function UsersTab({ users, roles, ptwAccess, canManageUsers, canPtwAccess, canFieldAccess, companies, assignableDepartments = [] }) {
     return (
         <div className="space-y-4">
-            {canManageUsers && <UserManagementCard users={users} roles={roles} companies={companies} />}
+            {canManageUsers && <UserManagementCard users={users} roles={roles} companies={companies} assignableDepartments={assignableDepartments} />}
             {(canManageUsers || canPtwAccess) && <FieldPtwAccessCard users={users} ptwAccess={ptwAccess} canFieldAccess={canFieldAccess} canManageUsers={canManageUsers} />}
         </div>
     );
 }
 
-function UserManagementCard({ users, roles, companies }) {
+function UserManagementCard({ users, roles, companies, assignableDepartments = [] }) {
     const [open, setOpen] = useState(false);
     const [editingRolesFor, setEditingRolesFor] = useState(null);
     const [editingUser, setEditingUser] = useState(null);
@@ -2113,7 +2129,7 @@ function UserManagementCard({ users, roles, companies }) {
                                     </SelectContent>
                                 </Select>
                             </div>
-                            <DepartmentField value={data.department_key} onChange={(v) => setData('department_key', v)} />
+                            <DepartmentField value={data.department_key} onChange={(v) => setData('department_key', v)} options={assignableDepartments} />
                             <DialogFooter><Button type="submit" disabled={processing}>Create</Button></DialogFooter>
                         </form>
                     </DialogContent>
@@ -2125,7 +2141,7 @@ function UserManagementCard({ users, roles, companies }) {
                     <TableBody>
                         {users.map((u) => {
                             const assignedCustom = customRoles.filter((r) => (u.role_ids ?? []).includes(r.id));
-                            const deptLabel = DEPARTMENT_OPTIONS.find((d) => d.key === u.department_key)?.label;
+                            const deptLabel = u.department_key ? departmentLabel(u.department_key) : undefined;
                             return (
                                 <TableRow key={u.id}>
                                     <TableCell className="font-medium">{u.name}</TableCell>
@@ -2176,7 +2192,7 @@ function UserManagementCard({ users, roles, companies }) {
                 <UserRolesDialog user={editingRolesFor} customRoles={customRoles} onClose={() => setEditingRolesFor(null)} />
             )}
             {editingUser && (
-                <EditUserDialog user={editingUser} onClose={() => setEditingUser(null)} />
+                <EditUserDialog user={editingUser} onClose={() => setEditingUser(null)} assignableDepartments={assignableDepartments} />
             )}
             {editingUnitsFor && (
                 <UserOperatingUnitsDialog user={editingUnitsFor} companies={companies ?? []} onClose={() => setEditingUnitsFor(null)} />
@@ -2390,7 +2406,7 @@ function FieldPtwAccessCard({ users, ptwAccess, canFieldAccess, canManageUsers }
                         <p className="px-4 py-4 text-sm text-graphite-400">No users match your search.</p>
                     ) : (
                         filtered.map((u) => {
-                            const deptLabel = DEPARTMENT_OPTIONS.find((d) => d.key === u.department_key)?.label;
+                            const deptLabel = u.department_key ? departmentLabel(u.department_key) : undefined;
 
                             /* What the account can actually do, in one line.
                                The switches describe INPUTS; this describes the
@@ -2463,7 +2479,7 @@ function FieldPtwAccessCard({ users, ptwAccess, canFieldAccess, canManageUsers }
  * Same field set as Create, pre-filled, password left blank (only sent if
  * actually changed -- matches UpdateUserRequest's own `nullable` rule).
  */
-function EditUserDialog({ user, onClose }) {
+function EditUserDialog({ user, onClose, assignableDepartments = [] }) {
     const { data, setData, put, processing, errors } = useForm({
         name: user.name,
         email: user.email,
@@ -2508,7 +2524,7 @@ function EditUserDialog({ user, onClose }) {
                             </SelectContent>
                         </Select>
                     </div>
-                    <DepartmentField value={data.department_key} onChange={(v) => setData('department_key', v)} />
+                    <DepartmentField value={data.department_key} onChange={(v) => setData('department_key', v)} options={assignableDepartments} />
                     <div className="flex items-center gap-2">
                         <Checkbox checked={data.is_active} onCheckedChange={(v) => setData('is_active', Boolean(v))} />
                         <Label className="!mt-0">Active</Label>

@@ -483,10 +483,16 @@ export const WORKSPACES = [
             { name: 'Roles & Permissions', href: 'settings.index', queryParams: { tab: 'roles' }, icon: Lock, tenantAdminOnly: true },
             { name: 'Departments', href: 'settings.index', queryParams: { tab: 'departments' }, icon: Users, adminOnly: true },
             { name: 'Positions', href: 'settings.index', queryParams: { tab: 'positions' }, icon: Users, adminOnly: true },
-            { name: 'Operating Units', href: 'settings.index', queryParams: { tab: 'companies' }, icon: Building2, adminOnly: true },
+            // v2.96.0: `settings.companies.*` is role:super_admin and the
+            // Operating Units tab renders only for `can.manage_system`, so
+            // `adminOnly` put this row in an HSE user's rail pointing at a
+            // tab that would not draw for them.
+            { name: 'Operating Units', href: 'settings.index', queryParams: { tab: 'companies' }, icon: Building2, tenantAdminOnly: true },
             // Milestone 3 (Task #50): was a disabled placeholder since
             // v1.9.0 -- now a real link to the Activity Center.
-            { name: 'Audit Logs', href: 'activity-center.index', icon: ClipboardList, adminOnly: true },
+            // v2.96.0: `activity-center.index` is role:super_admin. Offered
+            // to HSE by `adminOnly`, it was a link that answered 403.
+            { name: 'Audit Logs', href: 'activity-center.index', icon: ClipboardList, tenantAdminOnly: true },
             /*
              * The tenant's own billing page, which had no sidebar entry at
              * all before this release -- it was reachable only from the
@@ -496,7 +502,9 @@ export const WORKSPACES = [
              */
             { name: 'Subscription & Billing', href: 'subscription.billing', icon: DollarSign, tenantAdminOnly: true },
             { name: 'Settings', href: 'settings.index', icon: Settings, adminOnly: true },
-            { name: 'Module Management', href: 'settings.index', queryParams: { tab: 'modules' }, icon: Settings, adminOnly: true },
+            // v2.96.0: `settings.modules` is role:super_admin and the tab
+            // renders only for `can.manage_system` -- the same dead row.
+            { name: 'Module Management', href: 'settings.index', queryParams: { tab: 'modules' }, icon: Settings, tenantAdminOnly: true },
         ],
     },
 ];

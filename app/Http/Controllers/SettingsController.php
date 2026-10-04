@@ -165,6 +165,11 @@ class SettingsController extends Controller
                     ->get(['id', 'name', 'code', 'is_active', 'legal_entity_name', 'legal_entity_registration']),
             ],
             'filters' => ['company_id' => $companyId],
+            // v2.96.0 -- the departments this PLAN actually grants, so the
+            // user form offers only what the organization bought. The UI
+            // built this from the hardcoded workspace registry and so kept
+            // offering every department after the server began refusing them.
+            'assignableDepartments' => $this->assignableDepartments(),
             'can' => [
                 'manage_operational' => request()->user()->canManageOperationalSettings(),
                 'manage_system' => request()->user()->canManageSystemSettings(),
@@ -1029,12 +1034,48 @@ class SettingsController extends Controller
      * they're explicitly documented as "not real departments a user can
      * be assigned to" and must never be offered here.
      */
+    /**
+     * v2.96.0 -- WHICH DEPARTMENTS THIS TENANT MAY ASSIGN SOMEBODY TO.
+     *
+     * Was `config('departments')` -- every department the APPLICATION
+     * knows about, with no reference to what the ORGANIZATION bought. A
+     * Starter tenant, entitled to HSE alone, could create a user assigned
+     * to People, Warehouse Logistics or Management. The assignment saved
+     * cleanly and the routes then refused that user, so the dropdown handed
+     * out an entitlement the customer had not paid for and the person it
+     * was given to could not use.
+     *
+     * Now the plan decides, through the same service the route gate and the
+     * sidebar read. `reports` and `administration` disappear on their own:
+     * they are global chrome, never `TIER_DEPARTMENT`.
+     */
     private function assignableDepartmentKeys(): array
     {
-        return collect(config('departments', []))
-            ->keys()
-            ->reject(fn (string $key) => in_array($key, ['reports', 'administration'], true))
-            ->values()
+        return app(EntitlementService::class)
+            ->tenantDepartmentKeys(request()->user()?->tenant);
+    }
+
+    /**
+     * The same list as label/key pairs, for the form that offers it. The UI
+     * built this from the hardcoded workspace registry, so it offered every
+     * department regardless of plan even once the server started refusing
+     * them.
+     *
+     * @return array<int, array{key: string, label: string}>
+     */
+    private function assignableDepartments(): array
+    {
+        $keys = $this->assignableDepartmentKeys();
+
+        if ($keys === []) {
+            return [];
+        }
+
+        return Workspace::query()
+            ->whereIn('key', $keys)
+            ->orderBy('sort_order')
+            ->get(['key', 'label'])
+            ->map(fn (Workspace $w) => ['key' => $w->key, 'label' => $w->label])
             ->all();
     }
 

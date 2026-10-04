@@ -404,6 +404,35 @@ log, and raised on the platform operator's own notification feed — so it is es
 rather than discoverable only by reading logs. Tolerance is one cent, which absorbs float
 representation and nothing else.
 
+### Effective access is four questions, and the UI may never answer them more loosely (v2.96.0)
+
+```
+Effective access = plan entitlement + role + assignment + module availability
+```
+
+Each is answered in exactly one place, and the navigation layer is **subordinate** to all of them:
+
+| Question | Answered by |
+|---|---|
+| Which workspaces did this organization buy? | `EntitlementService::grantedWorkspaceKeys()`, bounded by `config('plans.operational')` |
+| Which departments may it assign somebody to? | `EntitlementService::tenantDepartmentKeys()` |
+| Which may this person work in? | `EntitlementService::userCanUseWorkspace()` — plan + assignment, never role |
+| What may they DO there? | the controller's own `can*()` capability check |
+| Is the feature switched on? | the module grant |
+
+**Role does not widen the plan and never has.** A Super Admin on Starter has every capability IOMS
+defines and still cannot open People — asserted by `AccessControlBoundaryTest`.
+
+**Billing mode grants nothing.** A complimentary tenant is entitled by its plan exactly as a paying
+one is (ADR 041), so a free Starter is a Starter. Also asserted there.
+
+**There are no tenant-specific exceptions.** Two tenants on one plan receive identical entitlements,
+and that is a test rather than a convention.
+
+The division of labour between hiding and refusing is deliberate: **403 is the boundary, hiding is
+the courtesy.** Every route re-checks regardless of what the sidebar shows, and the tests assert
+both halves — that the unauthorized row is absent *and* that typing its URL still fails.
+
 ### The support queue (v2.80.0)
 
 Platform-owned, not tenant-scoped, and deliberately separate from notifications. A ticket is a state

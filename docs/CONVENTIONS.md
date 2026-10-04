@@ -1779,6 +1779,55 @@ silent two-month shortfall into a failing assertion.
 
 Audited on production before release: **zero subscriptions affected**, so the fix is forward-only.
 
+## CRITICAL — Known Pitfall (v2.96.0) — a CHOICE the UI offers is an ENTITLEMENT, and must be bounded by the plan
+
+Settings built its "Department Restriction" dropdown from `config('departments')` on the server and
+from the hardcoded `WORKSPACES` registry in the browser. Both list every department the
+**application** has. Neither asked what the **organization** bought.
+
+So a Starter tenant, entitled to HSE alone, could create a user assigned to People, Warehouse
+Logistics or Management. The assignment validated, saved, and then the routes refused that user
+every time they signed in. A dropdown had handed out an entitlement nobody paid for, to somebody who
+could not use it.
+
+**The rule.** Anything the UI offers as a choice is part of the access model, not decoration. Bound
+it with the same service the route gate reads:
+
+| Question | Ask |
+|---|---|
+| Which workspaces may this ORGANIZATION use? | `EntitlementService::tenantDepartmentKeys($tenant)` |
+| Which may THIS PERSON work in? | `EntitlementService::userCanUseWorkspace($user, $key)` |
+| Which may this person be ASSIGNED to? | `tenantDepartmentKeys()` — never the person's own, they are not assigning themselves |
+
+The browser copy of a list is the part that rots. `assignableDepartments` is now a server prop for
+exactly that reason: the client cannot offer what the request would reject, because it is not the
+one deciding.
+
+## CRITICAL — Known Pitfall (v2.96.0) — a sidebar row is a PROMISE, so its gate must match the route's
+
+Three Admin Space rows were gated `adminOnly` — `isAdmin()`, which is Super Admin **or HSE** — while
+the things behind them are `role:super_admin`:
+
+| Row | Route / tab | Was | Is |
+|---|---|---|---|
+| Operating Units | `settings.companies.*`, tab needs `can.manage_system` | `adminOnly` | `tenantAdminOnly` |
+| Audit Logs | `activity-center.index` | `adminOnly` | `tenantAdminOnly` |
+| Module Management | `settings.modules`, tab needs `can.manage_system` | `adminOnly` | `tenantAdminOnly` |
+
+An HSE user got a rail entry that led to a 403 or to a tab that would not draw.
+
+**And the opposite mistake is just as easy**, which is why it is written down here. Most operational
+rows (Employees, PPE, Shift & Roster, Waste, HSE master data) look like they should be gated the
+same way, because their WRITE routes are `role:super_admin,hse`. Their **index routes carry no role
+middleware on purpose**: a workspace's lists are readable by everyone the plan admits, and each
+controller passes `can.manage` so the page renders read-only. Hiding those rows removes reading the
+product intends people to do. This pass gated them, a test caught it, and they were restored.
+
+**Before changing a nav gate, read the gate on the route it points at — specifically the one the row
+links to, not the group's write routes.** `php artisan route:list --json` and match by exact name;
+grouping by prefix attributes a group's strictest middleware to its index and is how this was got
+wrong the first time.
+
 ## Known Pitfall (v2.78.2) — a service worker caching STABLE filenames pins them forever
 
 `/build/` is content-hashed by Vite: a new build is a new URL, so cache-first can never be stale.

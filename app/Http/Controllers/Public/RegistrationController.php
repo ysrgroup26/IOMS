@@ -286,6 +286,18 @@ class RegistrationController extends Controller
                 ->with('info', 'Your invoice has been issued. Online payment is not enabled on this deployment yet — our team will contact you with payment instructions.');
         }
 
+        /*
+         * v2.94.0 -- REUSE A LIVE SESSION INSTEAD OF OPENING A SECOND ONE.
+         *
+         * This path previously created a payment transaction on EVERY call,
+         * so a customer returning to checkout opened another real inquiry at
+         * the provider each time and left another pending row behind. The
+         * invoice was already being reused here; the payment session was not.
+         */
+        if (PaymentTransaction::liveFor($invoice)) {
+            return redirect()->route('register.pay', $token);
+        }
+
         try {
             $gateway = app(PaymentGatewayInterface::class);
 

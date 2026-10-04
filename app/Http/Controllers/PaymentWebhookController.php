@@ -98,7 +98,7 @@ class PaymentWebhookController extends Controller
 
         try {
             $result = $gateway->handleWebhook($payload);
-            $this->apply($gateway, $result->gatewayReference, $result->status, $result->amount, $provisioning, $lifecycle);
+            $this->apply($gateway, $result->gatewayReference, $result->status, $result->amount, $provisioning, $lifecycle, $payload);
 
             $event->update(['processed' => true, 'processed_at' => now()]);
         } catch (Throwable $e) {
@@ -173,7 +173,7 @@ class PaymentWebhookController extends Controller
 
         try {
             $result = $gateway->handleWebhook($payload);
-            $this->apply($gateway, $result->gatewayReference, $result->status, $result->amount, $provisioning, $lifecycle);
+            $this->apply($gateway, $result->gatewayReference, $result->status, $result->amount, $provisioning, $lifecycle, $payload);
 
             $event->update(['processed' => true, 'processed_at' => now()]);
         } catch (Throwable $e) {
@@ -189,6 +189,41 @@ class PaymentWebhookController extends Controller
     }
 
     /**
+     * v2.94.0 -- the provider's own facts, pulled from an ALREADY-VERIFIED
+     * payload into the columns that describe a payment.
+     *
+     * Deliberately field-by-field rather than storing the payload wholesale.
+     * The raw body is already kept on `payment_webhook_events`; what belongs
+     * on the transaction is the handful of facts a human asks for.
+     *
+     * THE SIGNATURE IS STRIPPED. It is derived from the API key, so keeping
+     * it would place a secret-derived value in the table beside the data it
+     * authenticates -- and it has no use after verification, which has
+     * already happened by the time this runs.
+     */
+    private function providerFacts(array $payload, string $status): array
+    {
+        if ($payload === []) {
+            return [];
+        }
+
+        $metadata = $payload;
+        unset($metadata['signature']);
+
+        $reason = $payload['statusMessage'] ?? $payload['status_message'] ?? null;
+
+        return [
+            // Duitku: reference. Midtrans: transaction_id.
+            'provider_reference' => $payload['reference'] ?? $payload['transaction_id'] ?? null,
+            'publisher_order_id' => $payload['publisherOrderId'] ?? null,
+            'payment_method' => $payload['paymentCode'] ?? $payload['payment_type'] ?? null,
+            'result_code' => $payload['resultCode'] ?? $payload['status_code'] ?? null,
+            'failure_reason' => $status === 'failed' ? mb_substr((string) $reason, 0, 500) ?: 'Provider reported a failed payment.' : null,
+            'provider_metadata' => $metadata,
+        ];
+    }
+
+    /**
      * Applies a verified payment result. Extracted from the Midtrans entry
      * point so a second gateway adapter reuses the identical state
      * machine rather than writing its own -- which is exactly what the
@@ -201,6 +236,7 @@ class PaymentWebhookController extends Controller
         ?float $amount,
         TenantProvisioningService $provisioning,
         SubscriptionLifecycleService $lifecycle,
+        array $payload = [],
     ): void {
         // v2.80.0: which invoice a reference belongs to is the ADAPTER'S
         // knowledge, because the reference format is. This is the shared
@@ -217,7 +253,21 @@ class PaymentWebhookController extends Controller
             return;
         }
 
-        $transaction?->update(['status' => $status]);
+        // v2.94.0 -- WRITE DOWN WHAT THE PROVIDER SAID, whatever it said.
+        //
+        // Recorded for EVERY verified callback, including failures, and
+        // before any decision below. A failed payment nobody can explain is
+        // the support case that costs the most time, and "the callback
+        // arrived at 14:02 with result code 01" is the whole answer.
+        //
+        // None of it is load-bearing: the status transition is still decided
+        // from the mapped result, and the provider's own ids are stored to
+        // be quoted, never to be matched on.
+        $transaction?->update([
+            'status' => $status,
+            'callback_received_at' => now(),
+            ...$this->providerFacts($payload, $status),
+        ]);
 
         if ($status !== 'paid') {
             // Failed / expired / still pending. The registration stays
@@ -241,18 +291,38 @@ class PaymentWebhookController extends Controller
             return;
         }
 
-        // A settlement notification must actually cover the invoice.
-        if ($amount !== null && $amount + 0.01 < (float) $invoice->amount) {
-            Log::warning('Payment notification amount is below the invoice total; not treating it as settled.', [
+        /*
+         * A settlement notification must actually cover what was owed.
+         *
+         * v2.94.0 -- CHECKED AGAINST BOTH the invoice and the payment
+         * session, where there is one. The invoice is the contract; the
+         * transaction is the amount the customer was actually SHOWN and sent
+         * to the provider. They are normally identical, and when they are
+         * not, settling against whichever happens to be lower would accept a
+         * payment for a figure nobody agreed to. Taking the higher is the
+         * safe direction: the one thing that must never happen is treating
+         * an underpayment as settlement.
+         */
+        $expected = max((float) $invoice->amount, (float) ($transaction?->amount ?? 0));
+
+        if ($amount !== null && $amount + 0.01 < $expected) {
+            Log::warning('Payment notification amount is below what was owed; not treating it as settled.', [
                 'invoice' => $invoice->invoice_number,
                 'notified' => $amount,
-                'expected' => (float) $invoice->amount,
+                'expected' => $expected,
+            ]);
+
+            // Recorded as a refusal rather than left silent: an amount that
+            // does not match is exactly the event somebody needs to find
+            // later, and the log line alone is not queryable.
+            $transaction?->update([
+                'failure_reason' => 'Amount below the expected total (notified '.$amount.', expected '.$expected.').',
             ]);
 
             return;
         }
 
-        DB::transaction(function () use ($invoice, $gatewayReference, $lifecycle, $gateway) {
+        DB::transaction(function () use ($invoice, $gatewayReference, $lifecycle, $gateway, $transaction) {
             // THE IDEMPOTENCY BOUNDARY. Everything a payment CHANGES sits
             // inside this guard, so a redelivered notification that slips
             // past the event-id unique index still finds a settled invoice
@@ -268,6 +338,11 @@ class PaymentWebhookController extends Controller
             // hardcoded name here made a second adapter record its payments
             // under the first one's.
             $invoice->markPaid($gatewayReference, $gateway->gatewayName());
+
+            // v2.94.0: when the money was confirmed, on the row that
+            // represents the payment. `updated_at` moves for any write and
+            // was never a payment time.
+            $transaction?->update(['paid_at' => now()]);
 
             if ($invoice->registration_id) {
                 TenantRegistration::whereKey($invoice->registration_id)

@@ -309,6 +309,66 @@ The contract now also declares `isConfigured()`, `clientConfig()` and `invoiceId
 class, one webhook route and configuration, with nothing to change in subscription, invoice,
 entitlement or reporting code.
 
+### A payment session is reused, not reopened (v2.94.0)
+
+Both checkout paths asked "is there already a live payment session for this invoice", and each
+answered it differently and wrongly.
+
+- `SubscriptionController::openCheckout()` reused a session only when it carried a
+  `checkout_token`. That is a **Midtrans** concept. Duitku is a hosted redirect and returns no
+  token, so for Duitku the reuse branch could never be taken: every page load opened a new inquiry
+  at the provider and wrote another pending row.
+- `RegistrationController::checkout()` did not ask at all. It created a payment transaction on
+  **every** call.
+
+One customer returning to checkout three times therefore left three live "pending payments" against
+one invoice, each a real provider inquiry — and an operator reconciling later could not tell which
+one the customer actually used.
+
+`PaymentTransaction::liveFor()` is now the single definition. A session is live when it is
+**pending** (a finished attempt points at a dead page), **usable** (it has a token or a redirect URL;
+a row with neither is the debris of a failed create), and **not stale** (inside
+`payment.checkout_expiry_hours`, the same window handed to the provider as the session's own
+expiry, so IOMS never offers a session the provider has abandoned).
+
+The reference itself was also not unique. `orderIdFor()` was invoice id plus a to-the-second
+timestamp, and `gateway_reference` is a UNIQUE column — so two attempts inside one second collided,
+the insert was refused, and the caller swallowed it as "checkout could not be created": a payment the
+customer could not make, for no reason they could see. A random suffix is appended in both adapters.
+The `INV<id>-` prefix is unchanged, so an inbound callback is still traceable to exactly one invoice.
+
+### What a payment row has to answer afterwards (v2.94.0)
+
+`payment_transactions` could settle an invoice and could not **reconcile** one. It recorded the
+invoice, gateway, reference, status and amount — so none of these were answerable:
+
+| Question | Was | Now |
+|---|---|---|
+| "They say they paid on Tuesday" | `updated_at`, which moves for any write | `paid_at` |
+| "Which bank / VA / wallet?" | nothing | `payment_method` |
+| "Duitku's dashboard shows reference X" | only OUR reference was stored | `provider_reference`, `publisher_order_id` |
+| "Why did it fail?" | nothing | `result_code`, `failure_reason` |
+| "Did the callback ever arrive?" | unanswerable — a failed payment and a callback that never came looked identical | `callback_received_at` |
+
+These are written for **every** verified callback, including failures, before any decision is taken.
+None of them is load-bearing: the status transition is still decided from the mapped result code, and
+the provider's ids are stored to be quoted, never matched on. **Internal ids stay authoritative.**
+
+`provider_metadata` keeps the rest of the payload **with the signature stripped** — it is derived
+from the API key, so storing it would place a secret-derived value beside the data it authenticates,
+and it has no use once verification has happened. Asserted by `DuitkuPaymentFlowTest`.
+
+### Amount integrity is checked against both the contract and the session (v2.94.0)
+
+A settlement is refused unless it covers `max(invoice.amount, transaction.amount)`.
+
+The invoice is the contract; the transaction is the figure the customer was actually **shown** and
+which was sent to the provider. They are normally identical. When they are not — an invoice corrected
+after checkout was opened — settling against whichever happens to be lower would accept a payment for
+a figure nobody agreed to. The refusal is now recorded on the transaction's `failure_reason` as well
+as logged, because an amount mismatch is exactly the event somebody needs to **find** later, and a
+log line is not queryable.
+
 ### The support queue (v2.80.0)
 
 Platform-owned, not tenant-scoped, and deliberately separate from notifications. A ticket is a state

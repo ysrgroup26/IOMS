@@ -8,6 +8,7 @@ use App\Contracts\PaymentWebhookResult;
 use App\Models\Invoice;
 use Illuminate\Support\Facades\Http;
 use Illuminate\Support\Facades\Log;
+use Illuminate\Support\Str;
 use RuntimeException;
 
 /**
@@ -69,7 +70,13 @@ class MidtransGateway implements PaymentGatewayInterface
      */
     public static function orderIdFor(Invoice $invoice): string
     {
-        return 'INV'.$invoice->id.'-'.now()->format('YmdHis');
+        // v2.94.0 -- RANDOM SUFFIX, because the timestamp alone is not
+        // unique. `gateway_reference` is a UNIQUE column, and two attempts
+        // inside the same second produced the same string: the second
+        // insert hit the constraint, the caller swallowed it, and the
+        // customer was told checkout could not be created. Seconds are not
+        // fine-grained enough for something a double-click can trigger.
+        return 'INV'.$invoice->id.'-'.now()->format('YmdHis').'-'.Str::upper(Str::random(4));
     }
 
     public static function invoiceIdFromOrderId(string $orderId): ?int

@@ -634,12 +634,9 @@ class SubscriptionController extends Controller
      */
     private function openCheckout(Request $request, Invoice $invoice): ?PaymentTransaction
     {
-        $existing = PaymentTransaction::where('invoice_id', $invoice->id)
-            ->where('status', PaymentTransaction::STATUS_PENDING)
-            ->latest()
-            ->first();
-
-        if ($existing && filled($existing->checkout_token)) {
+        // v2.94.0: asked through the shared definition rather than by
+        // testing for a Midtrans-shaped token. See PaymentTransaction::liveFor().
+        if ($existing = PaymentTransaction::liveFor($invoice)) {
             return $existing;
         }
 

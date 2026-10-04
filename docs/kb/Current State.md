@@ -1,7 +1,7 @@
 ---
 title: Current State
 type: snapshot
-product-version: 2.93.0
+product-version: 2.94.0
 product-stage: Beta
 measured: 2026-10-01
 tags: [kb/state]
@@ -25,7 +25,7 @@ the date in the frontmatter, not remembered.
 |---|---|
 | Product | **IOMS — Industrial Operations Platform** |
 | Public company identity | **Tahada Group**; legal entity **PT Tahada Vistara Bersama** |
-| Version | **2.93.0**, stage **Beta**, edition **Enterprise Edition** |
+| Version | **2.94.0**, stage **Beta**, edition **Enterprise Edition** |
 | Build | `2026.10.01.06`, release date `2026-10-01` |
 | Stack | Laravel 12 · Inertia.js · React 18 · Tailwind · MySQL · Sanctum |
 
@@ -82,6 +82,13 @@ replace the role. A My Work User authenticates through the same login and lands 
 server-side route allow-list still controls what that account may reach. See [[Domain Glossary]].
 
 ## What shipped most recently
+
+`2.94.0` (2026-10-04) — three real defects in the payment path, found by driving it: a Duitku payment
+session was reopened rather than reused on every visit, the gateway reference collided within a
+second, and the payment row could settle an invoice but not reconcile one. Amount integrity is now
+checked against the session as well as the invoice. **782 tests / 4152 assertions pass.** Sandbox
+configuration verified; **no live sandbox transaction was performed** (no credentials on this
+machine). See [[Release History]] and `docs/PAYMENTS-DUITKU.md`.
 
 `2.93.0` (2026-10-04) — Master Admin can grant complimentary access to a verified registration:
 it provisions that registration through the same body a payment uses, with different commercial

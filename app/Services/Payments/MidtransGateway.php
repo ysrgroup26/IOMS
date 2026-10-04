@@ -190,6 +190,15 @@ class MidtransGateway implements PaymentGatewayInterface
         );
     }
 
+    /**
+     * Snap presents its own method picker in the browser, so IOMS must not
+     * present a second one. Empty means "this provider chooses".
+     */
+    public function getPaymentMethods(float $amount, string $currency = 'IDR'): array
+    {
+        return [];
+    }
+
     public function getPaymentStatus(string $gatewayReference): string
     {
         $response = Http::withBasicAuth($this->serverKey, '')

@@ -6,6 +6,7 @@ use App\Http\Controllers\Controller;
 use App\Mail\InvoiceIssued;
 use App\Mail\VerifyRegistrationEmail;
 use App\Models\Invoice;
+use App\Models\Package;
 use App\Models\PaymentTransaction;
 use App\Models\TenantRegistration;
 use App\Services\InvoiceDocumentService;
@@ -264,7 +265,18 @@ class RegistrationController extends Controller
                 'currency' => $package->currency,
                 'status' => Invoice::STATUS_ISSUED,
                 'due_date' => now()->addDays(7)->toDateString(),
-                'notes' => 'IOMS '.$package->name.' -- '.$registration->billing_cycle.' subscription ('.$registration->reference.')',
+                /*
+                 * v2.95.0 -- A FIRST PURCHASE IS AN ONBOARDING INVOICE.
+                 *
+                 * `purpose` defaults to `renewal` at the schema level, and
+                 * this call never set it -- so every first purchase IOMS has
+                 * ever issued was filed as a renewal of a subscription that
+                 * did not yet exist. Harmless to settlement, which routes on
+                 * `registration_id`, and wrong on the document: ADR 033 says
+                 * an invoice states what it bought.
+                 */
+                'purpose' => Invoice::PURPOSE_ONBOARDING,
+                'notes' => $this->invoiceNotes($registration, $package),
             ]);
 
             $registration->update([
@@ -294,6 +306,23 @@ class RegistrationController extends Controller
          * invoice was already being reused here; the payment session was not.
          */
         if (PaymentTransaction::liveFor($invoice)) {
+            return redirect()->route('register.pay', $token);
+        }
+
+        /*
+         * v2.95.0 -- A PROVIDER THAT NEEDS A METHOD GETS ASKED FIRST.
+         *
+         * Duitku's inquiry refuses outright without `paymentMethod`, so
+         * there is nothing to create until the customer has chosen. The
+         * order summary page does the asking; this step stops at the
+         * invoice, which is the honest state -- the invoice is real and
+         * nothing has been attempted at the provider yet.
+         *
+         * A provider that presents its own picker (Midtrans Snap) returns an
+         * empty list and keeps the original behaviour: the session is
+         * created here and the summary page opens it.
+         */
+        if (app(PaymentGatewayInterface::class)->getPaymentMethods((float) $invoice->amount, $invoice->currency) !== []) {
             return redirect()->route('register.pay', $token);
         }
 
@@ -380,17 +409,24 @@ class RegistrationController extends Controller
             return redirect()->route('register.status', $token);
         }
 
-        $transaction = PaymentTransaction::where('invoice_id', $invoice->id)
-            ->latest()
-            ->first();
+        $gateway = app(PaymentGatewayInterface::class);
+        $package = $registration->package;
 
-        if (! $transaction || blank($transaction->checkout_token)) {
+        $transaction = PaymentTransaction::liveFor($invoice);
+
+        /*
+         * v2.95.0 -- the methods this provider wants the customer to choose
+         * from. Empty for a provider that picks its own (Snap), in which
+         * case a session must already exist for this page to mean anything.
+         */
+        $methods = $transaction
+            ? []
+            : $gateway->getPaymentMethods((float) $invoice->amount, $invoice->currency);
+
+        if (! $transaction && $methods === []) {
             return redirect()->route('register.status', $token)
                 ->withErrors(['payment' => 'Sesi pembayaran belum tersedia. Silakan mulai pembayaran kembali dari halaman ini.']);
         }
-
-        $gateway = app(PaymentGatewayInterface::class);
-        $package = $registration->package;
 
         return Inertia::render('Public/Checkout', [
             'order' => [
@@ -419,15 +455,136 @@ class RegistrationController extends Controller
                 // v2.80.0: asked through the CONTRACT, not an instanceof chain a
                 // second provider would have to be added to.
                 ...$gateway->clientConfig(),
-                'snap_token' => $transaction->checkout_token,
+                'snap_token' => $transaction?->checkout_token,
                 // The provider's hosted page, kept as the fallback for a
                 // browser where the Snap script cannot load.
-                'fallback_url' => $transaction->redirect_url,
+                'fallback_url' => $transaction?->redirect_url,
+                // v2.95.0 -- the choice, when the provider needs one made.
+                // Codes only; nothing here authorises anything, and the
+                // chosen code is re-validated server-side against this same
+                // live list before any session is created.
+                'methods' => $methods,
+                'start_url' => route('register.pay.start', $token),
+                // Native form POST, because the response is an external
+                // redirect to the provider and an XHR cannot follow one.
+                'csrf' => csrf_token(),
             ],
             'statusUrl' => route('register.status', $token),
             'invoiceUrl' => route('register.invoice', $token),
             'billingEmail' => config('ioms.emails.billing'),
         ]);
+    }
+
+    /**
+     * v2.95.0 -- CREATE THE PAYMENT SESSION FOR A CHOSEN METHOD.
+     *
+     * Separate from `checkout()` because the provider cannot be asked for a
+     * session until the customer has picked a channel, and separate from
+     * `pay()` because opening a page must never create anything.
+     *
+     * THE CHOICE IS RE-VALIDATED AGAINST THE PROVIDER'S OWN LIVE LIST, not
+     * against a stored enum and not against what the browser sent. The
+     * method decides which instrument the customer is sent to and what fee
+     * applies, so a request naming a channel this merchant cannot take, or
+     * one disabled since the page rendered, is refused rather than passed
+     * through to fail at the provider.
+     */
+    public function startPayment(Request $request, string $token): RedirectResponse
+    {
+        $registration = $this->findOpen($token);
+        $invoice = $registration->invoice;
+
+        if (! $invoice || ! $this->paymentConfigured()) {
+            return redirect()->route('register.status', $token);
+        }
+
+        // Already paying. Never open a second session for one invoice.
+        if ($existing = PaymentTransaction::liveFor($invoice)) {
+            return redirect()->away($existing->redirect_url);
+        }
+
+        $gateway = app(PaymentGatewayInterface::class);
+        $available = collect($gateway->getPaymentMethods((float) $invoice->amount, $invoice->currency));
+
+        $validated = $request->validate([
+            'payment_method' => ['required', 'string', 'max:10'],
+        ]);
+
+        if (! $available->contains('code', $validated['payment_method'])) {
+            return back()->withErrors([
+                'payment' => 'Metode pembayaran tersebut tidak tersedia. Silakan pilih metode lain.',
+            ]);
+        }
+
+        try {
+            $checkout = $gateway->createPayment($invoice, [
+                'payment_method' => $validated['payment_method'],
+                'plan_slug' => $registration->package?->slug,
+                'customer_name' => $registration->contact_name,
+                'customer_email' => $registration->billingEmail(),
+                'finish_url' => route('register.status', $token),
+            ]);
+
+            PaymentTransaction::create([
+                'invoice_id' => $invoice->id,
+                'gateway' => (string) config('payment.gateway'),
+                'gateway_reference' => $checkout->gatewayReference,
+                'status' => PaymentTransaction::STATUS_PENDING,
+                'amount' => $invoice->amount,
+                'currency' => $invoice->currency,
+                'redirect_url' => $checkout->redirectUrl,
+                'checkout_token' => $checkout->token,
+                // Recorded at CREATION, so an abandoned session still says
+                // which channel the customer chose.
+                'payment_method' => $validated['payment_method'],
+            ]);
+
+            return redirect()->away($checkout->redirectUrl);
+        } catch (Throwable $e) {
+            Log::error('Onboarding payment session could not be created.', [
+                'registration' => $registration->reference,
+                'method' => $validated['payment_method'],
+                'error' => $e->getMessage(),
+            ]);
+
+            return back()->withErrors([
+                'payment' => 'Sesi pembayaran tidak dapat dibuat. Silakan coba lagi atau pilih metode lain.',
+            ]);
+        }
+    }
+
+    /**
+     * v2.95.0 -- what the invoice SAYS it bought.
+     *
+     * Business annual is twelve months' money for fourteen months of
+     * access. The invoice bills the PAID period -- twelve months -- because
+     * that is what the customer is being charged for and what their own
+     * accounting files. The two free months are stated in the notes rather
+     * than folded into the period, so the document is honest about both:
+     * the amount covers twelve, the access runs to fourteen.
+     *
+     * Derived from the plan, never hardcoded: a tier whose service term
+     * equals its paid term simply gets no bonus line.
+     */
+    private function invoiceNotes(TenantRegistration $registration, Package $package): string
+    {
+        $notes = 'IOMS '.$package->name.' -- '.$registration->billing_cycle.' subscription ('.$registration->reference.')';
+
+        if ($registration->billing_cycle !== 'yearly') {
+            return $notes;
+        }
+
+        $bonus = $package->annualMonths() - 12;
+
+        if ($bonus <= 0) {
+            return $notes;
+        }
+
+        $accessUntil = now()->addMonths($package->annualMonths())->translatedFormat('d F Y');
+
+        return $notes
+            .'. Tagihan ini mencakup 12 bulan berbayar. Tambahan '.$bonus
+            .' bulan akses diberikan gratis, sehingga masa akses berlaku sampai '.$accessUntil.'.';
     }
 
     /**

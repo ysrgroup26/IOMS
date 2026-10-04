@@ -36,6 +36,18 @@ class NullPaymentGateway implements PaymentGatewayInterface
         throw new RuntimeException('No payment gateway is configured.');
     }
 
+    /**
+     * Empty rather than a throw, on purpose. This is a QUERY a page makes
+     * while deciding what to render, not an attempt to take money. A
+     * deployment with no gateway shows no methods and offers no payment,
+     * which is exactly the honest no-payments state -- and it reaches that
+     * state without a 500.
+     */
+    public function getPaymentMethods(float $amount, string $currency = 'IDR'): array
+    {
+        return [];
+    }
+
     public function verifyWebhookSignature(array $payload, array $headers): bool
     {
         return false;

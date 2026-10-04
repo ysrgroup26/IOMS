@@ -28,6 +28,27 @@ interface PaymentGatewayInterface
     /** Low-level payment creation for gateways that separate "create payment" from "create checkout" (e.g. a Snap-style flow vs. a direct charge API). */
     public function createPayment(Invoice $invoice, array $options = []): PaymentCheckoutResult;
 
+    /**
+     * v2.95.0 -- THE PAYMENT METHODS THIS PROVIDER OFFERS FOR AN AMOUNT.
+     *
+     * Some providers choose the method themselves: Midtrans Snap presents
+     * its own picker, so the merchant never names one. Others REQUIRE the
+     * method up front -- Duitku's inquiry refuses outright without it
+     * ("paymentMethod is mandatory"), which is a 400 and no payment session
+     * at all.
+     *
+     * So this returns the list when the provider needs the merchant to
+     * choose, and an EMPTY ARRAY when the provider does its own choosing.
+     * An empty array is therefore not an error and not "no methods
+     * available"; it means "do not ask, this provider handles it".
+     *
+     * The list is fetched per AMOUNT because availability and fees depend
+     * on it -- a method may be offered for one total and not another.
+     *
+     * @return array<int, array{code: string, name: string, fee: float}>
+     */
+    public function getPaymentMethods(float $amount, string $currency = 'IDR'): array;
+
     /** Confirms a payment's current status directly against the provider (a manual "check now" action, distinct from webhook-driven confirmation). */
     public function getPaymentStatus(string $gatewayReference): string;
 

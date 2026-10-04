@@ -124,6 +124,69 @@ class DuitkuGateway implements PaymentGatewayInterface
         return [];
     }
 
+    /**
+     * v2.95.0 -- THE METHODS THIS MERCHANT MAY ACTUALLY OFFER, for an amount.
+     *
+     * Duitku's inquiry REQUIRES `paymentMethod`; without it the API answers
+     * 400 "paymentMethod is mandatory" and no session exists. So the method
+     * cannot be an afterthought -- the customer has to choose before there
+     * is anything to pay.
+     *
+     * The list is fetched live rather than hardcoded because it is a
+     * property of the MERCHANT ACCOUNT and the amount, not of the
+     * integration: channels are enabled per account in the Duitku
+     * dashboard, and a hardcoded list would offer a channel this merchant
+     * cannot take, or hide one they are paying for.
+     *
+     * NOTE THE DIFFERENT SIGNATURE. This endpoint uses plain
+     * SHA256(merchantcode + amount + datetime + apiKey) -- NOT the
+     * HMAC-SHA256 the inquiry and callback use. That is Duitku's own
+     * inconsistency, documented as such, and getting it wrong here fails as
+     * "no methods available" rather than as an error.
+     *
+     * A failure returns an EMPTY list, never a throw: being unable to list
+     * methods must leave the customer on a page that says payment cannot
+     * start right now, not a 500.
+     */
+    public function getPaymentMethods(float $amount, string $currency = 'IDR'): array
+    {
+        $amount = (int) round($amount);
+        $datetime = now()->format('Y-m-d H:i:s');
+
+        try {
+            $response = Http::asJson()->acceptJson()->timeout(20)
+                ->post($this->baseUrl().'/webapi/api/merchant/paymentmethod/getpaymentmethod', [
+                    'merchantcode' => $this->merchantCode,
+                    'amount' => (string) $amount,
+                    'datetime' => $datetime,
+                    'signature' => hash('sha256', $this->merchantCode.$amount.$datetime.$this->apiKey),
+                ]);
+        } catch (\Throwable $e) {
+            Log::error('Duitku payment methods could not be fetched.', ['error' => $e->getMessage()]);
+
+            return [];
+        }
+
+        if (! $response->successful()) {
+            Log::error('Duitku refused to list payment methods.', [
+                'http_status' => $response->status(),
+                'status_code' => $response->json('responseCode'),
+            ]);
+
+            return [];
+        }
+
+        return collect($response->json('paymentFee') ?? [])
+            ->map(fn (array $m) => [
+                'code' => (string) ($m['paymentMethod'] ?? ''),
+                'name' => (string) ($m['paymentName'] ?? ''),
+                'fee' => (float) ($m['totalFee'] ?? 0),
+            ])
+            ->filter(fn (array $m) => $m['code'] !== '')
+            ->values()
+            ->all();
+    }
+
     public function createCheckout(Invoice $invoice): PaymentCheckoutResult
     {
         return $this->createPayment($invoice);
@@ -135,12 +198,29 @@ class DuitkuGateway implements PaymentGatewayInterface
         // Duitku takes the amount as a whole number of rupiah.
         $amount = (int) round((float) $invoice->amount);
 
+        /*
+         * v2.95.0 -- REQUIRED, and refused loudly when absent.
+         *
+         * Duitku's inquiry answers 400 "paymentMethod is mandatory" without
+         * it. Throwing here rather than sending a default is deliberate:
+         * picking a channel on the customer's behalf would put them in front
+         * of a payment instrument they did not choose, and the fee differs
+         * per channel, so a silent default is a commercial decision made by
+         * accident.
+         */
+        $method = (string) ($options['payment_method'] ?? '');
+
+        if ($method === '') {
+            throw new RuntimeException('Duitku requires a payment method to be chosen before a payment session can be created.');
+        }
+
         $response = Http::asJson()
             ->acceptJson()
             ->timeout(20)
             ->post($this->baseUrl().'/webapi/api/merchant/v2/inquiry', [
                 'merchantCode' => $this->merchantCode,
                 'paymentAmount' => $amount,
+                'paymentMethod' => $method,
                 'merchantOrderId' => $orderId,
                 'productDetails' => $this->productDetail($invoice),
                 'email' => $this->payerEmail($invoice),

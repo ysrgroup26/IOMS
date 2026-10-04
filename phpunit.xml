@@ -40,5 +40,27 @@
         <env name="QUEUE_CONNECTION" value="sync"/>
         <env name="SESSION_DRIVER" value="array"/>
         <env name="TELESCOPE_ENABLED" value="false"/>
+
+        <!--
+            v2.95.0: THE SUITE RUNS WITH NO PAYMENT PROVIDER, ALWAYS.
+
+            These are pinned empty on purpose. A developer who puts real
+            sandbox credentials in .env to exercise checkout by hand would
+            otherwise have them leak into every test run: Laravel's Dotenv
+            does not overwrite variables already set, but it DOES supply ones
+            phpunit never mentioned. The suite then ran with a live gateway
+            bound, and getPaymentMethods() made REAL HTTP CALLS to the
+            provider from tests that never meant to touch the network:
+            slow, flaky, and dependent on whose machine it ran on.
+
+            A test that needs a gateway binds one explicitly with config()
+            and fakes the HTTP boundary, which is the only way it can be
+            deterministic. Nothing should inherit a provider by accident.
+        -->
+        <env name="PAYMENT_GATEWAY" value=""/>
+        <env name="DUITKU_MERCHANT_CODE" value=""/>
+        <env name="DUITKU_API_KEY" value=""/>
+        <env name="MIDTRANS_SERVER_KEY" value=""/>
+        <env name="MIDTRANS_CLIENT_KEY" value=""/>
     </php>
 </phpunit>

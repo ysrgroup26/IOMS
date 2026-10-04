@@ -75,6 +75,13 @@ class PricingChainIntegrityTest extends TestCase
         // the amount it puts on the wire and the signature over it -- is the
         // thing under test.
         Http::fake([
+            '*duitku.com/webapi/api/merchant/paymentmethod/getpaymentmethod' => Http::response([
+                'paymentFee' => [
+                    ['paymentMethod' => 'BC', 'paymentName' => 'BCA VA', 'totalFee' => '0'],
+                    ['paymentMethod' => 'VC', 'paymentName' => 'CREDIT CARD', 'totalFee' => '0'],
+                ],
+                'responseCode' => '00',
+            ]),
             '*duitku.com/webapi/api/merchant/v2/inquiry' => Http::response([
                 'statusCode' => '00',
                 'statusMessage' => 'SUCCESS',
@@ -119,6 +126,7 @@ class PricingChainIntegrityTest extends TestCase
         $registration = $this->registration($package, $cycle, storedAmount: 1.0);
 
         $this->post(route('register.checkout', $registration->token));
+        $this->post(route('register.pay.start', $registration->token), ['payment_method' => 'BC']);
 
         $registration->refresh();
         $invoice = $registration->invoice;
@@ -237,6 +245,7 @@ class PricingChainIntegrityTest extends TestCase
         $registration = $this->registration($package, $cycle);
 
         $this->post(route('register.checkout', $registration->token));
+        $this->post(route('register.pay.start', $registration->token), ['payment_method' => 'BC']);
         $registration->refresh();
         $invoice = $registration->invoice;
         $transaction = PaymentTransaction::where('invoice_id', $invoice->id)->firstOrFail();
@@ -298,6 +307,7 @@ class PricingChainIntegrityTest extends TestCase
         $registration = $this->registration($package, 'monthly', storedAmount: 1.0);
 
         $this->post(route('register.checkout', $registration->token));
+        $this->post(route('register.pay.start', $registration->token), ['payment_method' => 'BC']);
         $registration->refresh();
         $invoice = $registration->invoice;
         $transaction = PaymentTransaction::where('invoice_id', $invoice->id)->firstOrFail();

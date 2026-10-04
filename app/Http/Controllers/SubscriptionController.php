@@ -577,14 +577,31 @@ class SubscriptionController extends Controller
             );
         }
 
-        $transaction = $this->openCheckout($request, $invoice);
-
-        if (! $transaction) {
-            return redirect()->route('subscription.billing')
-                ->withErrors(['payment' => 'Sesi pembayaran tidak dapat dibuat saat ini. Tagihan Anda sudah diterbitkan -- silakan coba lagi beberapa saat lagi.']);
-        }
-
         $gateway = app(PaymentGatewayInterface::class);
+
+        /*
+         * v2.95.0 -- A PROVIDER THAT NEEDS A CHANNEL GETS ASKED FIRST.
+         *
+         * Identical to the onboarding flow: Duitku's inquiry refuses without
+         * a `paymentMethod`, so nothing can be created until the customer
+         * has chosen one. Renewals previously went straight to
+         * `createPayment()`, which meant a Duitku deployment could not take
+         * a renewal at all -- the session simply failed to open.
+         *
+         * A provider that presents its own picker (Midtrans Snap) returns an
+         * empty list and keeps the original behaviour.
+         */
+        $transaction = PaymentTransaction::liveFor($invoice);
+        $methods = $transaction ? [] : $gateway->getPaymentMethods((float) $invoice->amount, $invoice->currency);
+
+        if (! $transaction && $methods === []) {
+            $transaction = $this->openCheckout($request, $invoice);
+
+            if (! $transaction) {
+                return redirect()->route('subscription.billing')
+                    ->withErrors(['payment' => 'Sesi pembayaran tidak dapat dibuat saat ini. Tagihan Anda sudah diterbitkan -- silakan coba lagi beberapa saat lagi.']);
+            }
+        }
         $subscription = $invoice->subscription;
         $package = $invoice->targetPackage ?? $subscription?->package;
 
@@ -607,15 +624,94 @@ class SubscriptionController extends Controller
                 // v2.80.0: asked through the CONTRACT, not an instanceof chain a
                 // second provider would have to be added to.
                 ...$gateway->clientConfig(),
-                'snap_token' => $transaction->checkout_token,
+                'snap_token' => $transaction?->checkout_token,
+                // v2.95.0 -- the channels this provider wants chosen, and
+                // where to post the choice. Codes only; the choice is
+                // re-validated server-side against this same live list.
+                'methods' => $methods,
+                'start_url' => route('subscription.pay.start', $invoice),
+                'csrf' => csrf_token(),
                 // The provider's hosted page, kept as the fallback for a
                 // browser where the Snap script cannot load.
-                'fallback_url' => $transaction->redirect_url,
+                'fallback_url' => $transaction?->redirect_url,
             ],
             'billingUrl' => route('subscription.billing'),
             'invoiceUrl' => route('subscription.invoices.pdf', $invoice),
             'billingEmail' => config('ioms.emails.billing'),
         ]);
+    }
+
+    /**
+     * v2.95.0 -- CREATE THE RENEWAL PAYMENT SESSION FOR A CHOSEN CHANNEL.
+     *
+     * The renewal twin of the onboarding `startPayment()`, and it enforces
+     * the same rule: the channel is re-validated against the PROVIDER'S OWN
+     * live list, never against a stored enum and never against what the
+     * browser sent. Authorization and ownership are checked exactly as the
+     * page that offers the choice checks them.
+     */
+    public function startPayment(Request $request, Invoice $invoice): RedirectResponse
+    {
+        abort_unless($request->user()->canManageSystemSettings(), 403);
+        $this->assertOwned($request, $invoice);
+
+        if ($invoice->status === Invoice::STATUS_PAID || ! $invoice->isPayable() || ! $this->paymentConfigured()) {
+            return redirect()->route('subscription.billing');
+        }
+
+        // Already paying. One live session per invoice, never two.
+        if ($existing = PaymentTransaction::liveFor($invoice)) {
+            return redirect()->away($existing->redirect_url);
+        }
+
+        $gateway = app(PaymentGatewayInterface::class);
+        $available = collect($gateway->getPaymentMethods((float) $invoice->amount, $invoice->currency));
+
+        $validated = $request->validate([
+            'payment_method' => ['required', 'string', 'max:10'],
+        ]);
+
+        if (! $available->contains('code', $validated['payment_method'])) {
+            return back()->withErrors([
+                'payment' => 'Metode pembayaran tersebut tidak tersedia. Silakan pilih metode lain.',
+            ]);
+        }
+
+        try {
+            $package = $invoice->targetPackage ?? $invoice->subscription?->package;
+
+            $checkout = $gateway->createPayment($invoice, [
+                'payment_method' => $validated['payment_method'],
+                'plan_slug' => $package?->slug ?? 'subscription',
+                'customer_name' => $request->user()->name,
+                'customer_email' => $request->user()->email,
+                'finish_url' => route('subscription.billing'),
+            ]);
+
+            PaymentTransaction::create([
+                'invoice_id' => $invoice->id,
+                'gateway' => (string) config('payment.gateway'),
+                'gateway_reference' => $checkout->gatewayReference,
+                'status' => PaymentTransaction::STATUS_PENDING,
+                'amount' => $invoice->amount,
+                'currency' => $invoice->currency,
+                'redirect_url' => $checkout->redirectUrl,
+                'checkout_token' => $checkout->token,
+                'payment_method' => $validated['payment_method'],
+            ]);
+
+            return redirect()->away($checkout->redirectUrl);
+        } catch (Throwable $e) {
+            Log::error('Renewal payment session could not be created.', [
+                'invoice' => $invoice->invoice_number,
+                'method' => $validated['payment_method'],
+                'error' => $e->getMessage(),
+            ]);
+
+            return back()->withErrors([
+                'payment' => 'Sesi pembayaran tidak dapat dibuat. Silakan coba lagi atau pilih metode lain.',
+            ]);
+        }
     }
 
     /* ==================================================================

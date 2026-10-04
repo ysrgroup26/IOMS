@@ -205,6 +205,10 @@ Route::get('/get-started/{token}/invoice', [RegistrationController::class, 'invo
 // v2.55.0: IOMS's own order-summary page. The payment interface opens
 // over it; this page renders server state and can activate nothing.
 Route::get('/get-started/{token}/pay', [RegistrationController::class, 'pay'])->name('register.pay');
+// v2.95.0: creates the payment session for the method the customer chose.
+// POST because it has a side effect at the provider -- opening the summary
+// page must never create a session.
+Route::post('/get-started/{token}/pay', [RegistrationController::class, 'startPayment'])->name('register.pay.start');
 Route::post('/get-started/{token}/checkout', [RegistrationController::class, 'checkout'])
     ->middleware('throttle:10,1')->name('register.checkout');
 
@@ -1021,6 +1025,9 @@ Route::middleware(['auth', 'restrict.platform-admin'])->group(function () {
     Route::post('/subscription/plan-change', [SubscriptionController::class, 'changePlan'])->name('subscription.plan-change');
     Route::delete('/subscription/plan-change', [SubscriptionController::class, 'cancelPlanChange'])->name('subscription.plan-change.cancel');
     Route::get('/subscription/invoices/{invoice}/pay', [SubscriptionController::class, 'pay'])->name('subscription.pay');
+    // v2.95.0: creates the renewal payment session for the chosen channel.
+    // POST because it has a side effect at the provider.
+    Route::post('/subscription/invoices/{invoice}/pay', [SubscriptionController::class, 'startPayment'])->name('subscription.pay.start');
 
     /*
     |--------------------------------------------------------------------------

@@ -59,6 +59,13 @@ class DuitkuPaymentFlowTest extends TestCase
         // mocking the gateway, so the adapter's own request assembly --
         // including the signature -- is exercised.
         Http::fake([
+            '*duitku.com/webapi/api/merchant/paymentmethod/getpaymentmethod' => Http::response([
+                'paymentFee' => [
+                    ['paymentMethod' => 'BC', 'paymentName' => 'BCA VA', 'totalFee' => '0'],
+                    ['paymentMethod' => 'VC', 'paymentName' => 'CREDIT CARD', 'totalFee' => '0'],
+                ],
+                'responseCode' => '00',
+            ]),
             '*duitku.com/webapi/api/merchant/v2/inquiry' => Http::response([
                 'statusCode' => '00',
                 'statusMessage' => 'SUCCESS',
@@ -146,11 +153,12 @@ class DuitkuPaymentFlowTest extends TestCase
         // carries a timestamp, so without this the second attempt collides
         // with the first on the unique index and the test would pass
         // whether or not the reuse branch works at all.
-        $this->post(route('register.checkout', $registration->token));
+        $this->reachCheckout($registration);
+        $this->choosePaymentMethod($registration);
         $this->travel(2)->seconds();
-        $this->post(route('register.checkout', $registration->token));
+        $this->choosePaymentMethod($registration);
         $this->travel(2)->seconds();
-        $this->post(route('register.checkout', $registration->token));
+        $this->choosePaymentMethod($registration);
 
         $invoice = $registration->fresh()->invoice;
 
@@ -170,9 +178,12 @@ class DuitkuPaymentFlowTest extends TestCase
     {
         [$admin, $invoice] = $this->tenantWithRenewalInvoice();
 
+        // The renewal page now ASKS for a channel; choosing it is what
+        // creates the session, exactly as onboarding does.
         $this->actingAs($admin)->get(route('subscription.pay', $invoice));
+        $this->actingAs($admin)->post(route('subscription.pay.start', $invoice), ['payment_method' => 'BC']);
         $this->travel(2)->seconds();
-        $this->actingAs($admin)->get(route('subscription.pay', $invoice));
+        $this->actingAs($admin)->post(route('subscription.pay.start', $invoice), ['payment_method' => 'BC']);
 
         $this->assertSame(
             1,
@@ -189,11 +200,12 @@ class DuitkuPaymentFlowTest extends TestCase
     {
         $registration = $this->registration();
 
-        $this->post(route('register.checkout', $registration->token));
+        $this->reachCheckout($registration);
+        $this->choosePaymentMethod($registration);
         $first = PaymentTransaction::latest('id')->first();
 
         $this->travel(2)->seconds();
-        $this->post(route('register.checkout', $registration->token));
+        $this->choosePaymentMethod($registration);
         $second = PaymentTransaction::latest('id')->first();
 
         $this->assertSame($first->id, $second->id);
@@ -205,7 +217,8 @@ class DuitkuPaymentFlowTest extends TestCase
     {
         $registration = $this->registration();
 
-        $this->post(route('register.checkout', $registration->token));
+        $this->reachCheckout($registration);
+        $this->choosePaymentMethod($registration);
 
         $this->assertSame(Invoice::STATUS_ISSUED, $registration->fresh()->invoice->status);
         $this->assertSame(PaymentTransaction::STATUS_PENDING, PaymentTransaction::latest('id')->first()->status);
@@ -538,8 +551,8 @@ class DuitkuPaymentFlowTest extends TestCase
         // link and pays.
         $this->travel(19)->days();
 
-        $this->post(route('register.checkout', $registration->token))
-            ->assertSessionHasNoErrors();
+        $this->reachCheckout($registration);
+        $this->choosePaymentMethod($registration)->assertSessionHasNoErrors();
 
         $registration->refresh();
         $invoice = $registration->invoice;
@@ -563,11 +576,11 @@ class DuitkuPaymentFlowTest extends TestCase
     {
         $registration = $this->registration(['expires_at' => now()->subDays(20)]);
 
-        $this->post(route('register.checkout', $registration->token));
+        $this->reachCheckout($registration);
         $firstInvoiceId = $registration->fresh()->invoice_id;
 
         $this->travel(30)->days();
-        $this->post(route('register.checkout', $registration->token));
+        $this->reachCheckout($registration);
 
         $this->assertSame($firstInvoiceId, $registration->fresh()->invoice_id);
         $this->assertSame(1, Invoice::withoutGlobalScopes()->where('registration_id', $registration->id)->count());
@@ -577,6 +590,23 @@ class DuitkuPaymentFlowTest extends TestCase
     /* ==================================================================
      * Helpers
      * ================================================================== */
+
+    /**
+     * v2.95.0 -- CHECKOUT NO LONGER CREATES THE SESSION BY ITSELF.
+     *
+     * Duitku's inquiry refuses without a `paymentMethod`, so the order page
+     * now asks the customer to choose one and the session is created by that
+     * choice. These helpers follow the same two steps a buyer takes.
+     */
+    private function reachCheckout(TenantRegistration $registration): void
+    {
+        $this->post(route('register.checkout', $registration->token));
+    }
+
+    private function choosePaymentMethod(TenantRegistration $registration, string $method = 'BC'): \Illuminate\Testing\TestResponse
+    {
+        return $this->post(route('register.pay.start', $registration->token), ['payment_method' => $method]);
+    }
 
     private function signedCallback(string $orderId, string $amount, string $resultCode): array
     {
@@ -610,7 +640,8 @@ class DuitkuPaymentFlowTest extends TestCase
     {
         $registration = $this->registration();
 
-        $this->post(route('register.checkout', $registration->token));
+        $this->reachCheckout($registration);
+        $this->choosePaymentMethod($registration);
 
         $registration->refresh();
         $invoice = $registration->invoice;

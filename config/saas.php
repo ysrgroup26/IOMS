@@ -178,4 +178,23 @@ return [
     */
     'invoice_due_days' => (int) env('SAAS_INVOICE_DUE_DAYS', 14),
 
+    /*
+    | v2.93.0 -- COMPLIMENTARY ACCESS: THE DURATIONS AN OPERATOR MAY GRANT.
+    |
+    | A closed allow-list, not a minimum and a maximum. Master Admin picks
+    | from these and the server accepts nothing else, so a free grant can
+    | never be for an arbitrary length -- a mistyped duration is a rejected
+    | request rather than a decade of free service nobody notices.
+    |
+    | Twelve is the ceiling on purpose. A complimentary arrangement meant to
+    | outlive a year is a different commercial decision, and it should be
+    | re-made deliberately at the end of the period rather than granted once
+    | and forgotten. Extending is the existing subscription edit, which is
+    | already audited.
+    |
+    | A genuinely perpetual free account is NOT expressed here: that is
+    | `type = lifetime`, which has no period to run out (ADR 041).
+    */
+    'complimentary_durations' => [1, 3, 6, 12],
+
 ];

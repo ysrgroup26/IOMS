@@ -1,7 +1,7 @@
 ---
 title: Verification Status
 type: register
-updated: 2026-10-01
+updated: 2026-10-04
 tags: [kb/verification]
 ---
 
@@ -49,7 +49,7 @@ on every phone width.
 
 | | |
 |---|---|
-| Suite | **742 tests, 3986 assertions — all passing** (2026-10-01, v2.92.0) |
+| Suite | **766 tests, 4091 assertions — all passing** (2026-10-04, v2.93.0) |
 | Database | In-memory **SQLite**, so no MySQL or external service is needed |
 | Lint | `npm run lint` — 0 errors (4 existing warnings in `GasTestRecords/Index.jsx` and `Settings/Index.jsx`) |
 | Build | Production build in an isolated output directory succeeded, with the existing 2,031 KB bundle-size advisory |
@@ -78,6 +78,7 @@ matters — several defects only appear at realistic scale.
 
 | Area | Version | What was verified |
 |---|---|---|
+| Complimentary access | 2.93.0 | `ComplimentaryAccessTest` (24): a platform admin granting; a tenant's **own Super Admin refused** and a guest redirected; the resulting subscription active, complimentary, `type = subscription` (not trial, not lifetime), with a real end date and no agreed price; the reason and operator recorded; **no payment transaction, no invoice raised, and no invoice marked paid**; an unpaid invoice **voided** rather than settled, with its payment date and reference still null; a complimentary Starter tenant granted `hse` and refused `hr`, `logistics` and `management` (asserted negatively, because the entitlement service fails open for an ungranted tenant); the plan being the operator's choice rather than the one ordered; an expired grant **lapsing to read-only** past its grace window while still reading; the nightly lifecycle job raising nothing for it; exactly one tenant, company, subscription and administrator, built from the registration's own identity; a second grant **erroring instead of duplicating**; unverified and already-paid registrations refused; an arbitrary duration, a missing or one-word reason, and an inactive plan all rejected; a request attempting to dictate `billing_mode`, `type`, `ends_at` and `tenant_id` ignored on every one; the audit line carrying organization, reference, operator, plan, duration, both dates and reason; conversion to paid Professional through the **ordinary** subscription edit recreating nothing (same tenant, subscription, admin and company ids) and moving the entitlements; two grants isolated from each other; and a regression test pinning the **paying** path, which was refactored to share the provisioning body. **No migration was needed — every column already existed.** **In a browser against MySQL**: a verified registration for PT. Galangan Aliran Jaya granted complimentary Starter for 3 months through the two-step dialog, with the duration list matching the config allow-list exactly and the end date recomputing as the duration changed; the review step reading back organization, reference, administrator, plan, duration, end date, billing and reason before anything was written; the result confirmed in the database as one tenant, one company, one subscription and one administrator with `billing_mode=complimentary`, `billable=no`, null agreed price, **zero invoices and zero payments**, and workspaces `hse, reports, administration`; the action button offered **only** on the grantable row and absent from the already-provisioned ones; and the tenant administrator then signing in, landing on the HSE Overview titled with the tenant name, and receiving a **403** on `/hr/dashboard` |
 | Brand icon correction | 2.90.0 | `BrandIconsTest` + `PwaInstallabilityTest`; all 741 tests / 3978 assertions pass. Browser, Apple touch and PWA PNGs have transparent corners; the maskable mark stays within the 40%-radius safe circle; the SVG favicon is a 512px tight crop of the official source. Generated icons visually inspected over light and dark surfaces. Isolated production build succeeded with the known 2,031 KB chunk advisory; lint 0 errors / 4 existing warnings. No live browser tab or Apple device pass |
 | Public website continuation | 2.89.0 | Local Chromium preview confirmed the landing hero, editorial domain sequence, Tahada Group identity and sign-in entry. Full automated suite passed. Narrow viewport only; 1440px desktop, real devices, Firefox/Safari and Lighthouse were not checked |
 | Account → Subscription, end to end | 2.74.0 | Against MySQL: registered through `/register`; confirmed the account carried `role=account`, null tenant/company, **`isPlatformAdmin()` false**, and that no tenant, company or subscription row was created; read the verification email out of the mail log and followed its signed link; raised an order through the subscription setup page (identity taken from the account, never re-asked); drove checkout, which honestly parked at `awaiting_payment` with a real invoice because no gateway is configured; then activated through `TenantProvisioningService` — the same entry point the verified webhook uses — and confirmed the **user count did not change**, the account was promoted to `super_admin` on the new tenant, and an active subscription with agreed pricing was created |

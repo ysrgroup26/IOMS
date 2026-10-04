@@ -1,5 +1,6 @@
+import { useState } from 'react';
 import { Head, Link, router, usePage } from '@inertiajs/react';
-import { UserPlus, AlertTriangle, ExternalLink, PlayCircle } from 'lucide-react';
+import { UserPlus, AlertTriangle, ExternalLink, PlayCircle, Gift } from 'lucide-react';
 import PlatformLayout from '@/Layouts/PlatformLayout';
 import PageHeader from '@/Components/shared/PageHeader';
 import { Card, CardContent } from '@/Components/ui/card';
@@ -7,6 +8,7 @@ import { Table, TableHeader, TableBody, TableRow, TableHead, TableCell } from '@
 import StatusBadge from '@/Components/shared/StatusBadge';
 import EmptyState from '@/Components/shared/EmptyState';
 import { Button } from '@/Components/ui/button';
+import ComplimentaryGrantDialog from '@/Components/platform/ComplimentaryGrantDialog';
 
 /**
  * v2.51.0 -- Master Admin > Registrations.
@@ -19,8 +21,12 @@ import { Button } from '@/Components/ui/button';
  * "Provision" is a recovery action, not an activation switch — the server
  * refuses it for anything that is not already paid, and it is idempotent.
  */
-export default function Registrations({ registrations = [] }) {
+export default function Registrations({ registrations = [], packages = [], complimentaryDurations = [] }) {
     const { flash = {}, errors = {} } = usePage().props;
+
+    // null = closed. Holds the registration being granted, so the dialog
+    // never has to guess which row opened it.
+    const [granting, setGranting] = useState(null);
 
     const stuck = registrations.filter((r) => r.status === 'paid' && !r.provisioned_at);
 
@@ -130,6 +136,14 @@ export default function Registrations({ registrations = [] }) {
                                                         <PlayCircle className="h-4 w-4" /> Provisioning
                                                     </Button>
                                                 )}
+                                                {/* v2.93.0: offered only where the SERVER says a grant
+                                                    is possible, so the button cannot propose an action
+                                                    the request would refuse. */}
+                                                {r.can_grant_complimentary && (
+                                                    <Button size="sm" variant="outline" onClick={() => setGranting(r)}>
+                                                        <Gift className="h-4 w-4" /> Akses Gratis
+                                                    </Button>
+                                                )}
                                             </TableCell>
                                         </TableRow>
                                     ))}
@@ -139,6 +153,15 @@ export default function Registrations({ registrations = [] }) {
                     )}
                 </CardContent>
             </Card>
+
+            {granting && (
+                <ComplimentaryGrantDialog
+                    registration={granting}
+                    packages={packages}
+                    durations={complimentaryDurations}
+                    onClose={() => setGranting(null)}
+                />
+            )}
         </PlatformLayout>
     );
 }

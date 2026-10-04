@@ -1279,6 +1279,11 @@ Route::middleware(['auth', 'role:platform_admin'])->prefix('platform')->name('pl
     // only be re-run for an ALREADY-PAID registration.
     Route::get('/registrations', [PlatformController::class, 'registrations'])->name('registrations');
     Route::post('/registrations/{registration}/provision', [PlatformController::class, 'provisionRegistration'])->name('registrations.provision');
+    // v2.93.0: grant free access to a VERIFIED registration. A separate
+    // endpoint from provisioning on purpose -- that one is a recovery
+    // action for a payment that already happened, this one is a commercial
+    // decision, and collapsing them would make one button mean two things.
+    Route::post('/registrations/{registration}/complimentary', [PlatformController::class, 'grantComplimentary'])->name('registrations.complimentary');
 
     Route::get('/tenants', [PlatformController::class, 'tenants'])->name('tenants');
     Route::post('/tenants', [PlatformController::class, 'storeTenant'])->name('tenants.store');

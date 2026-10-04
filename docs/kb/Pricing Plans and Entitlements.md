@@ -1,7 +1,7 @@
 ---
 title: Pricing Plans and Entitlements
 type: reference
-updated: 2026-09-30
+updated: 2026-10-04
 tags: [kb/commercial]
 ---
 
@@ -136,6 +136,23 @@ used to promise it; nothing implemented it, so it was removed in v2.70.0 rather 
 > [!note] Live payments still need external configuration
 > The integration is built; going live requires provider credentials and configuration outside this
 > repository. See [[Known Issues and Limitations]] and `ROADMAP.md`.
+
+
+### Complimentary access (v2.93.0)
+
+Master Admin can activate a **verified registration** without payment: choose the plan, a duration
+from a closed list (1 / 3 / 6 / 12 months), and state a reason. It provisions that registration
+through the same code a payment uses, so the resulting tenant is indistinguishable from a paying one
+except in how it is paid for.
+
+**It is the absence of billing, not a payment with a different label.** No invoice is raised, none is
+marked paid, no transaction is written, and an invoice the prospect was going to settle is **voided**
+rather than settled.
+
+**It grants nothing extra.** An ordinary subscription with a real `ends_at`, not a trial and not a
+lifetime licence: the plan decides entitlements, the dates decide access, and it lapses to read-only
+on expiry exactly as a paying subscription does. Converting to paid later is the ordinary
+subscription edit and recreates nothing. See [[047-complimentary-access-provisioning|ADR 047]].
 
 ---
 

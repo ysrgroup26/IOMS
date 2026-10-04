@@ -8,6 +8,7 @@ use App\Models\Company;
 use App\Models\CompanySetting;
 use App\Models\Invoice;
 use App\Models\Module;
+use App\Models\Package;
 use App\Models\Subscription;
 use App\Models\Tenant;
 use App\Models\TenantRegistration;
@@ -68,7 +69,7 @@ class TenantProvisioningService
                 return [null, false];
             }
 
-            return [$this->provision($fresh), true];
+            return [$this->provision($fresh, $this->paidTerms($fresh)), true];
         });
 
         // Sent only on the transition, so a replayed webhook does not
@@ -80,10 +81,162 @@ class TenantProvisioningService
         return $tenant;
     }
 
-    /** Runs inside activate()'s transaction. Creates every row a usable tenant needs, in one unit of work. */
-    private function provision(TenantRegistration $registration): Tenant
+    /**
+     * v2.93.0 -- THE COMPLIMENTARY GRANT. A verified order becomes a live
+     * tenant by an operator's decision instead of by a payment.
+     *
+     * It is the SAME provisioning body as `activate()`, given different
+     * commercial terms. That is the whole design: a complimentary tenant
+     * must be indistinguishable from a paying one in every respect except
+     * how it is paid for, and the only way to guarantee that is for one
+     * piece of code to build both. A second "free provisioning" routine
+     * would be a second place for the grant mapping, the company identity
+     * copy and the Super Admin attachment to drift.
+     *
+     * WHAT IT REFUSES, AND WHY EACH REFUSAL MATTERS:
+     *
+     *   already has a tenant   The tenant exists; making it free is a
+     *                          billing-mode change on its subscription, not
+     *                          a provision. Provisioning again would be the
+     *                          duplicate tenant this must never create.
+     *   not verified           The email address is unproven. A grant is a
+     *                          decision about a known organization.
+     *   already paid           They paid. Converting that to a free grant
+     *                          would discard a real payment; the ordinary
+     *                          provisioning path owns this case.
+     *
+     * NO PAYMENT IS SIMULATED ANYWHERE IN HERE. No invoice is raised, none
+     * is marked paid, and no payment transaction is written. An invoice the
+     * customer was going to settle is VOIDED, because a free account must
+     * not leave a live demand for money behind it.
+     *
+     * @return Tenant|null the new tenant, or null if the registration is not in a grantable state
+     */
+    public function activateComplimentary(
+        TenantRegistration $registration,
+        Package $package,
+        int $months,
+        string $reason,
+        User $operator,
+    ): ?Tenant {
+        $tenant = DB::transaction(function () use ($registration, $package, $months, $reason, $operator) {
+            /** @var TenantRegistration|null $fresh */
+            $fresh = TenantRegistration::whereKey($registration->getKey())->lockForUpdate()->first();
+
+            if (! $fresh || ! $this->isGrantable($fresh)) {
+                return null;
+            }
+
+            $starts = now();
+            $ends = $starts->copy()->addMonths($months);
+
+            $tenant = $this->provision($fresh, [
+                'package' => $package,
+                'billing_cycle' => $months >= 12 ? Subscription::CYCLE_YEARLY : Subscription::CYCLE_MONTHLY,
+                'billing_mode' => Subscription::BILLING_MODE_COMPLIMENTARY,
+                'starts_at' => $starts,
+                'ends_at' => $ends,
+                // Null on purpose. `agreed_price_*` records what this
+                // customer agreed to PAY, and nothing was agreed. Null
+                // already means "follow the catalogue" (see
+                // Subscription::agreedAmountFor), which is exactly the
+                // right behaviour if they later convert to paying.
+                'agreed_price_monthly' => null,
+                'agreed_price_yearly' => null,
+                'agreed_currency' => null,
+                'notes' => $reason,
+                'created_by' => $operator->id,
+                // An unpaid invoice must not be carried into a free
+                // account's billing history as an open demand.
+                'void_pending_invoice' => true,
+            ]);
+
+            ActivityLog::record(
+                'updated',
+                sprintf(
+                    'Complimentary access granted to "%s" (registration %s) by %s: plan %s, %s, %s to %s. Reason: %s',
+                    $tenant->name,
+                    $fresh->reference,
+                    $operator->email,
+                    $package->name,
+                    $months === 1 ? '1 month' : $months.' months',
+                    $starts->toDateString(),
+                    $ends->toDateString(),
+                    $reason,
+                ),
+                $tenant,
+            );
+
+            return $tenant;
+        });
+
+        if ($tenant) {
+            $this->sendActivationEmail($registration->refresh());
+        }
+
+        return $tenant;
+    }
+
+    /**
+     * Whether a complimentary grant may provision this registration.
+     *
+     * Deliberately permissive about the seven-day order expiry: that window
+     * exists to stop an abandoned checkout holding an email address
+     * forever, and an operator deciding to grant access is the opposite of
+     * an abandoned checkout.
+     */
+    public function isGrantable(TenantRegistration $registration): bool
+    {
+        return $registration->tenant_id === null
+            && $registration->isVerified()
+            && in_array($registration->status, [
+                TenantRegistration::STATUS_VERIFIED,
+                TenantRegistration::STATUS_AWAITING_PAYMENT,
+            ], true);
+    }
+
+    /** The terms a PAID registration provisions on: whatever the customer bought. */
+    private function paidTerms(TenantRegistration $registration): array
     {
         $package = $registration->package;
+
+        $cycle = $registration->billing_cycle === Subscription::CYCLE_MONTHLY
+            ? Subscription::CYCLE_MONTHLY
+            : Subscription::CYCLE_YEARLY;
+
+        return [
+            'package' => $package,
+            'billing_cycle' => $cycle,
+            'billing_mode' => Subscription::BILLING_MODE_PAID,
+            'starts_at' => now(),
+            'ends_at' => $cycle === Subscription::CYCLE_MONTHLY ? now()->addMonth() : now()->addYear(),
+            // v2.60.0 -- the price this customer actually bought at, taken
+            // at the moment of activation. Both cycles are stored so a
+            // later monthly<->yearly switch does not silently reprice
+            // them. Without this, a future edit to the catalogue would
+            // change what an existing customer is billed at renewal --
+            // see Subscription::agreedAmountFor().
+            'agreed_price_monthly' => $package->price_monthly,
+            'agreed_price_yearly' => $package->price_yearly,
+            'agreed_currency' => $package->currency,
+            'notes' => null,
+            'created_by' => null,
+            'void_pending_invoice' => false,
+        ];
+    }
+
+    /**
+     * Runs inside a transaction. Creates every row a usable tenant needs,
+     * in one unit of work, on the commercial terms it is given.
+     *
+     * `$terms` is the ONLY thing that differs between a paid activation and
+     * a complimentary grant. Everything below it -- the company, the grant
+     * sync, the Super Admin, the company identity copy -- is identical by
+     * construction rather than by two code paths agreeing.
+     */
+    private function provision(TenantRegistration $registration, array $terms): Tenant
+    {
+        $package = $terms['package'];
 
         $tenant = Tenant::create([
             'name' => $registration->displayName(),
@@ -103,27 +256,24 @@ class TenantProvisioningService
             'is_active' => true,
         ]);
 
-        $cycle = $registration->billing_cycle === Subscription::CYCLE_MONTHLY
-            ? Subscription::CYCLE_MONTHLY
-            : Subscription::CYCLE_YEARLY;
-
         $subscription = Subscription::create([
             'tenant_id' => $tenant->id,
             'package_id' => $package->id,
+            // Ordinary subscription in both cases, NOT a trial and not a
+            // lifetime licence. A complimentary grant has a real end date
+            // and lapses on it like any other -- billing mode grants
+            // nothing and withholds nothing (ADR 041).
             'type' => Subscription::TYPE_SUBSCRIPTION,
             'status' => Subscription::STATUS_ACTIVE,
-            'billing_cycle' => $cycle,
-            'starts_at' => now(),
-            'ends_at' => $cycle === Subscription::CYCLE_MONTHLY ? now()->addMonth() : now()->addYear(),
-            // v2.60.0 -- the price this customer actually bought at, taken
-            // at the moment of activation. Both cycles are stored so a
-            // later monthly<->yearly switch does not silently reprice
-            // them. Without this, a future edit to the catalogue would
-            // change what an existing customer is billed at renewal --
-            // see Subscription::agreedAmountFor().
-            'agreed_price_monthly' => $package->price_monthly,
-            'agreed_price_yearly' => $package->price_yearly,
-            'agreed_currency' => $package->currency,
+            'billing_cycle' => $terms['billing_cycle'],
+            'billing_mode' => $terms['billing_mode'],
+            'starts_at' => $terms['starts_at'],
+            'ends_at' => $terms['ends_at'],
+            'agreed_price_monthly' => $terms['agreed_price_monthly'],
+            'agreed_price_yearly' => $terms['agreed_price_yearly'],
+            'agreed_currency' => $terms['agreed_currency'],
+            'notes' => $terms['notes'],
+            'created_by' => $terms['created_by'],
         ]);
 
         // The same Package -> Workspace/Module grant mapping
@@ -200,10 +350,28 @@ class TenantProvisioningService
         // The invoice was raised before the tenant existed. Attach it now
         // so the tenant's billing history is complete from its first day.
         if ($registration->invoice_id) {
-            Invoice::whereKey($registration->invoice_id)->update([
+            $attributes = [
                 'tenant_id' => $tenant->id,
                 'subscription_id' => $subscription->id,
-            ]);
+            ];
+
+            /*
+             * A complimentary grant voids the invoice the customer was
+             * going to settle. It is NOT marked paid -- nobody paid it --
+             * and it is not deleted, because the document was really
+             * raised and the void is the honest record of what happened
+             * to it. Guarded on being unpaid: a PAID invoice is a
+             * historical billing fact and is never rewritten here.
+             */
+            if ($terms['void_pending_invoice'] ?? false) {
+                $invoice = Invoice::withoutGlobalScopes()->find($registration->invoice_id);
+
+                if ($invoice && $invoice->status !== Invoice::STATUS_PAID) {
+                    $attributes['status'] = Invoice::STATUS_VOID;
+                }
+            }
+
+            Invoice::whereKey($registration->invoice_id)->update($attributes);
         }
 
         $registration->update([

@@ -1,7 +1,7 @@
 ---
 title: Release History
 type: index
-updated: 2026-10-01
+updated: 2026-10-04
 tags: [kb/releases]
 ---
 
@@ -48,6 +48,7 @@ Roughly, the history falls into eras:
 
 | Version | Date | Headline |
 |---|---|---|
+| `2.93.0` | 2026-10-04 | MASTER ADMIN CAN GRANT ACCESS WITHOUT PAYMENT, AND IT IS NOT A PAYMENT |
 | `2.92.0` | 2026-10-01 | THE HERO COPY CONNECTS FIELD ACTIVITY TO MANAGEMENT |
 | `2.91.0` | 2026-10-01 | THE HERO BECOMES ONE PHOTOGRAPH, WITH THE PLATFORM RUNNING ON IT |
 | `2.90.0` | 2026-10-01 | ONE OFFICIAL TRANSPARENT MARK ACROSS EVERY APP ICON |

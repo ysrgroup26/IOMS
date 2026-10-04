@@ -2,6 +2,7 @@
 
 namespace App\Http\Controllers;
 
+use App\Http\Requests\GrantComplimentaryAccessRequest;
 use App\Http\Requests\StoreTenantRequest;
 use App\Http\Requests\UpdateTenantRequest;
 use App\Models\ActivityLog;
@@ -153,7 +154,17 @@ class PlatformController extends Controller
                     'invoice_number' => $r->invoice?->invoice_number,
                     'tenant' => $r->tenant ? ['id' => $r->tenant->id, 'name' => $r->tenant->name] : null,
                     'created_at' => $r->created_at,
+                    // v2.93.0: whether a complimentary grant is available
+                    // for this row, answered by the SAME predicate the
+                    // service enforces with. The button cannot offer an
+                    // action the server would refuse.
+                    'can_grant_complimentary' => app(TenantProvisioningService::class)->isGrantable($r),
                 ]),
+            // v2.93.0: what a complimentary grant may choose from. Both
+            // lists come from the server, so the dialog cannot offer a
+            // retired plan or a duration the request would reject.
+            'packages' => Package::active()->orderBy('sort_order')->get(['id', 'name', 'slug']),
+            'complimentaryDurations' => array_values(config('saas.complimentary_durations')),
         ]);
     }
 
@@ -251,6 +262,61 @@ class PlatformController extends Controller
         ActivityLog::record('updated', "Registration {$registration->reference} was provisioned from Master Admin.");
 
         return back()->with('success', "Tenant \"{$tenant->name}\" is provisioned.");
+    }
+
+    /**
+     * v2.93.0 -- GRANT COMPLIMENTARY ACCESS to a verified registration.
+     *
+     * The gap this closes: IOMS could describe a free account
+     * (`billing_mode = complimentary`, v2.80.0) but had no way to CREATE
+     * one. A verified organization that was never going to pay could only
+     * become a tenant two ways -- by paying, or by an operator re-typing
+     * the company name, the admin name, the email and a password into the
+     * Create Tenant form. The second duplicates an identity the
+     * registration already holds, and leaves the real registration sitting
+     * unprovisioned beside the tenant it became.
+     *
+     * So this provisions the registration ITSELF. One tenant, one company,
+     * one Super Admin, from the identity the customer already supplied and
+     * confirmed.
+     *
+     * NO PAYMENT IS INVOLVED OR SIMULATED. Nothing here raises an invoice,
+     * marks one paid, or writes a payment transaction; the service voids
+     * the unpaid invoice instead, so a free account does not carry an open
+     * demand for money. Complimentary is the ABSENCE of billing, not a
+     * payment with a different label.
+     *
+     * AND IT GRANTS NOTHING EXTRA. The subscription is an ordinary active
+     * subscription with a real end date: the plan decides entitlements, the
+     * dates decide access, and it lapses to read-only on expiry exactly as
+     * a paying one does. Billing mode is not a second entitlement system --
+     * ADR 041, asserted by ComplimentaryAccessTest.
+     */
+    public function grantComplimentary(
+        GrantComplimentaryAccessRequest $request,
+        TenantRegistration $registration,
+        TenantProvisioningService $provisioning,
+    ): RedirectResponse {
+        $validated = $request->validated();
+
+        $tenant = $provisioning->activateComplimentary(
+            $registration,
+            // Re-read from the database. The request carried an id, not a
+            // plan -- nothing about what that plan GRANTS comes from the
+            // browser.
+            $request->package(),
+            (int) $validated['months'],
+            $validated['reason'],
+            $request->user(),
+        );
+
+        if (! $tenant) {
+            return back()->withErrors([
+                'registration' => 'This registration cannot be granted complimentary access. It must be a verified registration that has no tenant yet. A registration that has already paid should be provisioned normally, and an organization that already exists is made complimentary from its own subscription.',
+            ]);
+        }
+
+        return back()->with('success', "Tenant \"{$tenant->name}\" is active on complimentary access.");
     }
     public function tenants(): Response
     {

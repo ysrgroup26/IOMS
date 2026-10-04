@@ -1,7 +1,7 @@
 ---
 title: Current State
 type: snapshot
-product-version: 2.92.0
+product-version: 2.93.0
 product-stage: Beta
 measured: 2026-10-01
 tags: [kb/state]
@@ -25,7 +25,7 @@ the date in the frontmatter, not remembered.
 |---|---|
 | Product | **IOMS — Industrial Operations Platform** |
 | Public company identity | **Tahada Group**; legal entity **PT Tahada Vistara Bersama** |
-| Version | **2.92.0**, stage **Beta**, edition **Enterprise Edition** |
+| Version | **2.93.0**, stage **Beta**, edition **Enterprise Edition** |
 | Build | `2026.10.01.06`, release date `2026-10-01` |
 | Stack | Laravel 12 · Inertia.js · React 18 · Tailwind · MySQL · Sanctum |
 
@@ -82,6 +82,13 @@ replace the role. A My Work User authenticates through the same login and lands 
 server-side route allow-list still controls what that account may reach. See [[Domain Glossary]].
 
 ## What shipped most recently
+
+`2.93.0` (2026-10-04) — Master Admin can grant complimentary access to a verified registration:
+it provisions that registration through the same body a payment uses, with different commercial
+terms. No invoice is raised or marked paid, an unpaid one is voided, and the subscription lapses
+normally on its end date. Needed no migration. **766 tests / 4091 assertions pass**, and the flow was
+exercised end to end against MySQL in a browser. See [[Release History]] and
+[[047-complimentary-access-provisioning|ADR 047]].
 
 `2.92.0` (2026-10-01) — the hero uses the four supplied paragraphs exactly; mobile copy is smaller
 and the mobile background uses only the management photograph. The desktop presentation and all

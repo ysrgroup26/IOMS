@@ -123,7 +123,7 @@ class ComplimentaryAccessTest extends TestCase
             route('platform.registrations.complimentary', $registration->id),
             array_merge([
                 'package_id' => $this->package('starter', 'Starter')->id,
-                'months' => 3,
+                'days' => 14,
                 'reason' => 'Internal product evaluation',
             ], $payload),
         );
@@ -184,7 +184,7 @@ class ComplimentaryAccessTest extends TestCase
     {
         $registration = $this->verifiedRegistration();
 
-        $this->grant($this->operator(), $registration, ['months' => 3]);
+        $this->grant($this->operator(), $registration, ['days' => 14]);
 
         $subscription = Tenant::find($registration->fresh()->tenant_id)->subscription;
 
@@ -200,7 +200,7 @@ class ComplimentaryAccessTest extends TestCase
         $this->assertFalse($subscription->isLifetime());
 
         $this->assertNotNull($subscription->ends_at);
-        $this->assertSame(now()->addMonths(3)->toDateString(), $subscription->ends_at->toDateString());
+        $this->assertSame(now()->addDays(14)->toDateString(), $subscription->ends_at->toDateString());
 
         // Nothing was agreed, so no agreed price is recorded. Null already
         // means "follow the catalogue", which is the right behaviour if
@@ -341,7 +341,7 @@ class ComplimentaryAccessTest extends TestCase
     {
         $registration = $this->verifiedRegistration();
 
-        $this->grant($this->operator(), $registration, ['months' => 1]);
+        $this->grant($this->operator(), $registration, ['days' => 3]);
 
         $subscription = Tenant::find($registration->fresh()->tenant_id)->subscription;
 
@@ -349,7 +349,7 @@ class ComplimentaryAccessTest extends TestCase
         $this->assertTrue($subscription->allowsWrites());
 
         // Travel past the period AND past the grace window.
-        $this->travelTo(now()->addMonths(1)->addDays(Subscription::graceDays() + 1));
+        $this->travelTo(now()->addDays(3 + Subscription::graceDays() + 1));
 
         $subscription->refresh();
 
@@ -364,10 +364,10 @@ class ComplimentaryAccessTest extends TestCase
     public function test_the_nightly_lifecycle_job_does_not_invoice_a_complimentary_tenant(): void
     {
         $registration = $this->verifiedRegistration();
-        $this->grant($this->operator(), $registration, ['months' => 1]);
+        $this->grant($this->operator(), $registration, ['days' => 3]);
 
         // Into the window where a renewal invoice would be raised.
-        $this->travelTo(now()->addMonths(1)->subDays(1));
+        $this->travelTo(now()->addDays(2));
 
         $this->artisan('subscriptions:lifecycle')->assertExitCode(0);
 
@@ -459,8 +459,8 @@ class ComplimentaryAccessTest extends TestCase
     {
         $registration = $this->verifiedRegistration();
 
-        $this->grant($this->operator(), $registration, ['months' => 999])
-            ->assertSessionHasErrors('months');
+        $this->grant($this->operator(), $registration, ['days' => 999])
+            ->assertSessionHasErrors('days');
 
         $this->assertNull($registration->fresh()->tenant_id);
     }
@@ -504,7 +504,7 @@ class ComplimentaryAccessTest extends TestCase
         $registration = $this->verifiedRegistration();
 
         $this->grant($this->operator(), $registration, [
-            'months' => 1,
+            'days' => 3,
             'billing_mode' => Subscription::BILLING_MODE_PAID,
             'status' => Subscription::STATUS_ACTIVE,
             'type' => Subscription::TYPE_LIFETIME,
@@ -516,7 +516,7 @@ class ComplimentaryAccessTest extends TestCase
 
         $this->assertSame(Subscription::BILLING_MODE_COMPLIMENTARY, $subscription->billing_mode);
         $this->assertSame(Subscription::TYPE_SUBSCRIPTION, $subscription->type);
-        $this->assertSame(now()->addMonth()->toDateString(), $subscription->ends_at->toDateString());
+        $this->assertSame(now()->addDays(3)->toDateString(), $subscription->ends_at->toDateString());
     }
 
     /* ==================================================================
@@ -529,7 +529,7 @@ class ComplimentaryAccessTest extends TestCase
         $registration = $this->verifiedRegistration();
 
         $this->grant($operator, $registration, [
-            'months' => 3,
+            'days' => 14,
             'reason' => 'Internal product evaluation',
         ]);
 
@@ -545,9 +545,9 @@ class ComplimentaryAccessTest extends TestCase
             $registration->reference,         // which registration
             $operator->email,                 // who granted it
             'Starter',                        // which plan
-            '3 months',                       // for how long
+            '14 days',                        // for how long
             now()->toDateString(),            // from when
-            now()->addMonths(3)->toDateString(), // until when
+            now()->addDays(14)->toDateString(), // until when
             'Internal product evaluation',    // why
         ] as $fact) {
             $this->assertStringContainsString($fact, $entry->description);

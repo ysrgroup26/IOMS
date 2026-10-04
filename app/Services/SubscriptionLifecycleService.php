@@ -8,6 +8,7 @@ use App\Models\Module;
 use App\Models\Package;
 use App\Models\Subscription;
 use App\Models\Tenant;
+use App\Models\User;
 use App\Models\Workspace;
 use Illuminate\Support\Carbon;
 use Illuminate\Support\Facades\DB;
@@ -631,6 +632,138 @@ class SubscriptionLifecycleService
      * includes. Removes as well as adds, which is why it is reachable only
      * from a deliberate plan change.
      */
+    /**
+     * v2.97.0 -- GRANT COMPLIMENTARY ACCESS TO A TENANT THAT ALREADY EXISTS.
+     *
+     * The original grant (v2.93.0) could only provision a REGISTRATION, so
+     * it worked exactly once per customer: `isGrantable()` requires
+     * `tenant_id === null`, and after the first grant the registration has
+     * one. A tenant whose evaluation ended could never be given another,
+     * which is the opposite of what an evaluation is for.
+     *
+     * This is the same commercial act applied to a subscription that is
+     * already there. It creates nothing: no second tenant, no second
+     * subscription, no parallel record of free access. One row changes
+     * state, which is why a re-grant cannot fork a customer in two.
+     *
+     * PREVIOUS COMPLIMENTARY HISTORY DOES NOT BLOCK IT, by design. Whether
+     * somebody has been given free access before is a judgement for the
+     * operator making the decision, and it is in the activity log for them
+     * to read -- it is not a rule the system should enforce on their behalf.
+     *
+     * It is deliberately MANUAL. Nothing calls this on a schedule; a free
+     * period that renewed itself would be a permanent discount nobody chose.
+     */
+    public function grantComplimentary(
+        Subscription $subscription,
+        Package $package,
+        int $days,
+        string $reason,
+        User $operator,
+    ): void {
+        $starts = now();
+        $ends = $starts->copy()->addDays($days);
+        $previous = $subscription->billingMode();
+
+        DB::transaction(function () use ($subscription, $package, $starts, $ends, $reason, $operator) {
+            $subscription->update([
+                'billing_mode' => Subscription::BILLING_MODE_COMPLIMENTARY,
+                // An evaluation is an ordinary subscription with a real end
+                // date. NOT a trial and NOT lifetime: the first has its own
+                // meaning in the lifecycle, the second never expires.
+                'type' => Subscription::TYPE_SUBSCRIPTION,
+                'status' => Subscription::STATUS_ACTIVE,
+                'billing_cycle' => Subscription::CYCLE_MONTHLY,
+                'starts_at' => $starts,
+                'ends_at' => $ends,
+                // Nothing was agreed, so nothing is remembered as agreed.
+                // Null already means "follow the catalogue", which is what
+                // should happen when the free period ends.
+                'agreed_price_monthly' => null,
+                'agreed_price_yearly' => null,
+                'agreed_currency' => null,
+                'notes' => $reason,
+                'created_by' => $operator->id,
+                // A re-grant must not inherit a plan change that was
+                // scheduled before it.
+                'pending_package_id' => null,
+                'pending_billing_cycle' => null,
+                'pending_requested_at' => null,
+                'renewal_reminded_at' => null,
+            ]);
+
+            // The plan decides entitlements, exactly as it does for a paying
+            // customer -- so a complimentary tenant is re-entitled through
+            // the same path a plan change uses, never a special one.
+            $this->applyPlanChange($subscription, $package, Subscription::CYCLE_MONTHLY, extendPeriod: false);
+        });
+
+        ActivityLog::record(
+            'updated',
+            sprintf(
+                'Complimentary access granted to "%s" by %s: plan %s, %s, %s to %s (previously %s). Reason: %s',
+                $subscription->tenant?->name ?? 'tenant '.$subscription->tenant_id,
+                $operator->email,
+                $package->name,
+                $days === 1 ? '1 day' : $days.' days',
+                $starts->toDateString(),
+                $ends->toDateString(),
+                $previous,
+                $reason,
+            ),
+            $subscription->tenant,
+        );
+    }
+
+    /**
+     * v2.97.0 -- THE FREE PERIOD ENDS BY ITSELF, AND BECOMES PAID-REQUIRED.
+     *
+     * Before this, `billing_mode` stayed `complimentary` forever. The
+     * nightly job skips a complimentary subscription entirely, so an expired
+     * free tenant was never invoiced and never asked for anything: it simply
+     * sat read-only, permanently non-billable, and only an operator noticing
+     * by hand would ever have changed that. A free evaluation had no end.
+     *
+     * The end is the mode flipping back to BILLABLE. That is all this does:
+     *
+     *   it does NOT extend the period      -- nothing auto-renews
+     *   it does NOT change the dates       -- where they sit in time is
+     *                                         derived, and already correct
+     *   it does NOT touch access           -- billing mode grants nothing
+     *                                         and withholds nothing (ADR 041)
+     *   it does NOT delete anything        -- tenant, users, history and the
+     *                                         subscription row are untouched
+     *
+     * What follows is simply the ordinary billing lifecycle: the next run
+     * sees a billable subscription past its period end and raises a renewal
+     * invoice at catalogue price, because `agreed_price_*` was never set.
+     *
+     * The reason is deliberately LEFT ON THE ROW. It is the record of why
+     * the account was free, and an account that has become payable still
+     * needs that answered.
+     */
+    public function expireComplimentary(Subscription $subscription): bool
+    {
+        if (! $subscription->isComplimentary() || ! $subscription->isExpired()) {
+            return false;
+        }
+
+        $subscription->update(['billing_mode' => Subscription::BILLING_MODE_PAID]);
+
+        ActivityLog::record(
+            'updated',
+            sprintf(
+                'Complimentary access for "%s" ended on %s. The account is now paid-required on plan %s; no access was removed and nothing was renewed.',
+                $subscription->tenant?->name ?? 'tenant '.$subscription->tenant_id,
+                $subscription->periodEndsAt()?->toDateString() ?? 'its end date',
+                $subscription->package?->name ?? 'its current plan',
+            ),
+            $subscription->tenant,
+        );
+
+        return true;
+    }
+
     public function syncGrantsToPackage(Tenant $tenant, Package $package): void
     {
         $tenant->workspaces()->sync(

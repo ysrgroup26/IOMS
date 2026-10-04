@@ -57,12 +57,21 @@ class GrantComplimentaryAccessRequest extends FormRequest
             ],
 
             /*
-             * A closed allow-list from config, not a free integer. An
-             * operator typing 999 into a number field should not be able to
-             * grant an eighty-three-year free subscription, and a typo in a
-             * date picker should not be able to either.
+             * v2.97.0 -- DAYS, BETWEEN A FLOOR AND A CEILING.
+             *
+             * Bounded rather than free, for the same reason the old list was
+             * closed: an operator typing 999 into a number field must not be
+             * able to grant three years of free service, and a typo must be
+             * a rejected request rather than something nobody notices until
+             * renewal. The bounds live in config and are read by the form,
+             * so the UI and this rule cannot drift.
              */
-            'months' => ['required', 'integer', Rule::in(config('saas.complimentary_durations'))],
+            'days' => [
+                'required',
+                'integer',
+                'min:'.config('saas.complimentary_min_days'),
+                'max:'.config('saas.complimentary_max_days'),
+            ],
 
             /*
              * Required, and required to be substantial. The reason is the
@@ -79,7 +88,9 @@ class GrantComplimentaryAccessRequest extends FormRequest
     {
         return [
             'reason.min' => 'Alasan pemberian akses gratis harus dijelaskan, minimal 10 karakter.',
-            'months.in' => 'Durasi tidak berada dalam pilihan yang diizinkan.',
+            'days.min' => 'Durasi minimal '.config('saas.complimentary_min_days').' hari.',
+            'days.max' => 'Durasi maksimal '.config('saas.complimentary_max_days').' hari.',
+            'days.required' => 'Durasi akses gratis harus ditentukan dalam hari.',
             'package_id.exists' => 'Paket tersebut tidak tersedia untuk diberikan.',
         ];
     }

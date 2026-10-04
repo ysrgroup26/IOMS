@@ -115,11 +115,11 @@ class TenantProvisioningService
     public function activateComplimentary(
         TenantRegistration $registration,
         Package $package,
-        int $months,
+        int $days,
         string $reason,
         User $operator,
     ): ?Tenant {
-        $tenant = DB::transaction(function () use ($registration, $package, $months, $reason, $operator) {
+        $tenant = DB::transaction(function () use ($registration, $package, $days, $reason, $operator) {
             /** @var TenantRegistration|null $fresh */
             $fresh = TenantRegistration::whereKey($registration->getKey())->lockForUpdate()->first();
 
@@ -128,11 +128,20 @@ class TenantProvisioningService
             }
 
             $starts = now();
-            $ends = $starts->copy()->addMonths($months);
+            $ends = $starts->copy()->addDays($days);
 
             $tenant = $this->provision($fresh, [
                 'package' => $package,
-                'billing_cycle' => $months >= 12 ? Subscription::CYCLE_YEARLY : Subscription::CYCLE_MONTHLY,
+                /*
+                 * v2.97.0 -- MONTHLY, ALWAYS.
+                 *
+                 * An evaluation lasts days, so there is no yearly
+                 * complimentary grant to express. The cycle is what the
+                 * customer will be BILLED on when the free period ends and
+                 * the account becomes paid-required, and monthly is the
+                 * smaller commitment to be moved onto automatically.
+                 */
+                'billing_cycle' => Subscription::CYCLE_MONTHLY,
                 'billing_mode' => Subscription::BILLING_MODE_COMPLIMENTARY,
                 'starts_at' => $starts,
                 'ends_at' => $ends,
@@ -159,7 +168,7 @@ class TenantProvisioningService
                     $fresh->reference,
                     $operator->email,
                     $package->name,
-                    $months === 1 ? '1 month' : $months.' months',
+                    $days === 1 ? '1 day' : $days.' days',
                     $starts->toDateString(),
                     $ends->toDateString(),
                     $reason,

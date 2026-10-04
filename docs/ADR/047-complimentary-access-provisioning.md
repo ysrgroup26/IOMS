@@ -13,6 +13,12 @@ tags: [adr, status/verified, subscription, billing, provisioning, platform]
 
 Accepted, implemented and verified in **v2.93.0**.
 
+> [!important] Revised by ADR [[048-complimentary-access-is-an-evaluation|048]] (v2.97.0)
+> Two decisions below were replaced. Durations are now **days (3–30)**, not months, and a tenant
+> that already exists can be **re-granted** through its subscription rather than being refused.
+> Everything else here — that a grant never fakes a payment, grants nothing extra, and never
+> duplicates an organization — is unchanged and still enforced.
+
 ## The problem
 
 ADR [[041-billing-mode-is-not-entitlement|041]] gave IOMS the vocabulary for a free

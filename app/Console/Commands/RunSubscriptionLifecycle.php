@@ -65,7 +65,7 @@ class RunSubscriptionLifecycle extends Command
             ->whereIn('status', [Subscription::STATUS_ACTIVE, Subscription::STATUS_TRIAL])
             ->get();
 
-        $issued = $applied = $reminded = $emailed = 0;
+        $issued = $applied = $reminded = $emailed = $converted = 0;
 
         foreach ($subscriptions as $subscription) {
             $tenant = $subscription->tenant;
@@ -81,6 +81,33 @@ class RunSubscriptionLifecycle extends Command
                 continue;
             }
 
+            /*
+              * v2.97.0 -- A FREE PERIOD THAT HAS RUN OUT STOPS BEING FREE.
+              *
+              * Checked BEFORE the skip below, because the skip is what used
+              * to make a complimentary grant permanent: the job passed over
+              * these rows forever, so an expired evaluation was never
+              * invoiced and never asked for anything. It simply sat
+              * read-only and non-billable until somebody noticed by hand.
+              *
+              * The conversion changes the billing mode and nothing else --
+              * no period is extended, so nothing auto-renews, and no access
+              * is touched because billing mode grants nothing (ADR 041).
+              * Having become billable, the subscription falls through to the
+              * ordinary invoicing below on this same run, which is exactly
+              * the paid-required state it should now be in.
+              */
+             if ($subscription->isComplimentary() && $subscription->isExpired()) {
+                 if (! $dryRun) {
+                     $lifecycle->expireComplimentary($subscription);
+                     $subscription->refresh();
+                 } else {
+                     $this->line("  would end complimentary access for tenant {$tenant->name}");
+                 }
+
+                 $converted++;
+             }
+
             // v2.80.0: a complimentary subscription is free BY DECISION, so
             // there is nothing to invoice and nobody to chase. Skipped in
             // exactly the same place and for the same reason as the demo
@@ -91,6 +118,9 @@ class RunSubscriptionLifecycle extends Command
             // an end date, that date still ends the period -- billing mode
             // must not become a second way to grant access (ADR 041). A
             // free account meant to run indefinitely is type `lifetime`.
+            //
+            // v2.97.0: reached only by a free period that is still RUNNING,
+            // because an expired one was converted just above.
             if ($subscription->isComplimentary()) {
                 continue;
             }
@@ -186,7 +216,7 @@ class RunSubscriptionLifecycle extends Command
             }
         }
 
-        $this->info("Invoices issued: {$issued}. Plan changes applied: {$applied}. Reminders sent: {$reminded}. Lifecycle emails: {$emailed}.");
+        $this->info("Invoices issued: {$issued}. Plan changes applied: {$applied}. Reminders sent: {$reminded}. Lifecycle emails: {$emailed}. Complimentary periods ended: {$converted}.");
 
         if ($dryRun) {
             $this->comment('Dry run -- nothing was written.');

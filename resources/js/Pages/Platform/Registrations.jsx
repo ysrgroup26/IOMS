@@ -21,7 +21,7 @@ import ComplimentaryGrantDialog from '@/Components/platform/ComplimentaryGrantDi
  * "Provision" is a recovery action, not an activation switch — the server
  * refuses it for anything that is not already paid, and it is idempotent.
  */
-export default function Registrations({ registrations = [], packages = [], complimentaryDurations = [] }) {
+export default function Registrations({ registrations = [], packages = [], complimentaryBounds = {} }) {
     const { flash = {}, errors = {} } = usePage().props;
 
     // null = closed. Holds the registration being granted, so the dialog
@@ -157,7 +157,7 @@ export default function Registrations({ registrations = [], packages = [], compl
                 <ComplimentaryGrantDialog
                     registration={granting}
                     packages={packages}
-                    durations={complimentaryDurations}
+                    bounds={complimentaryBounds}
                     onClose={() => setGranting(null)}
                 />
             )}

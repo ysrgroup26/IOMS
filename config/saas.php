@@ -179,22 +179,31 @@ return [
     'invoice_due_days' => (int) env('SAAS_INVOICE_DUE_DAYS', 14),
 
     /*
-    | v2.93.0 -- COMPLIMENTARY ACCESS: THE DURATIONS AN OPERATOR MAY GRANT.
+    | v2.97.0 -- COMPLIMENTARY ACCESS IS AN EVALUATION, MEASURED IN DAYS.
     |
-    | A closed allow-list, not a minimum and a maximum. Master Admin picks
-    | from these and the server accepts nothing else, so a free grant can
-    | never be for an arbitrary length -- a mistyped duration is a rejected
-    | request rather than a decade of free service nobody notices.
+    | Was a closed list of MONTHS (1/3/6/12), which described a different
+    | product: a long free period that quietly behaved like a plan. A
+    | complimentary grant is an evaluation window, so it is now a number of
+    | DAYS between a floor and a ceiling.
     |
-    | Twelve is the ceiling on purpose. A complimentary arrangement meant to
-    | outlive a year is a different commercial decision, and it should be
-    | re-made deliberately at the end of the period rather than granted once
-    | and forgotten. Extending is the existing subscription edit, which is
-    | already audited.
+    | THREE IS THE FLOOR because anything shorter cannot be evaluated --
+    | a tenant needs to provision, add people and run a day of real work.
     |
-    | A genuinely perpetual free account is NOT expressed here: that is
-    | `type = lifetime`, which has no period to run out (ADR 041).
+    | THIRTY IS THE CEILING because a free arrangement meant to outlast a
+    | month is a commercial decision somebody should re-make deliberately,
+    | with a fresh reason recorded against their name. Re-granting is one
+    | audited action (ADR 048); extending indefinitely by default is how a
+    | free account becomes permanent without anyone choosing it.
+    |
+    | A range rather than a list, because days are a continuum an operator
+    | reasons about directly ("until the end of their trial fortnight").
+    | The bounds are enforced in ONE place and read by the form, so the UI
+    | cannot offer a duration the request would reject.
+    |
+    | A genuinely perpetual free account is still NOT expressed here: that
+    | is `type = lifetime`, which has no period to run out (ADR 041).
     */
-    'complimentary_durations' => [1, 3, 6, 12],
+    'complimentary_min_days' => (int) env('SAAS_COMPLIMENTARY_MIN_DAYS', 3),
+    'complimentary_max_days' => (int) env('SAAS_COMPLIMENTARY_MAX_DAYS', 30),
 
 ];

@@ -160,10 +160,14 @@ class PlatformController extends Controller
                     'can_grant_complimentary' => app(TenantProvisioningService::class)->isGrantable($r),
                 ]),
             // v2.93.0: what a complimentary grant may choose from. Both
-            // lists come from the server, so the dialog cannot offer a
-            // retired plan or a duration the request would reject.
+            // come from the server, so the dialog cannot offer a retired plan
+            // or a duration the request would reject.
             'packages' => Package::active()->orderBy('sort_order')->get(['id', 'name', 'slug']),
-            'complimentaryDurations' => array_values(config('saas.complimentary_durations')),
+            // v2.97.0: days, bounded. See config/saas.php.
+            'complimentaryBounds' => [
+                'min_days' => (int) config('saas.complimentary_min_days'),
+                'max_days' => (int) config('saas.complimentary_max_days'),
+            ],
         ]);
     }
 
@@ -304,7 +308,7 @@ class PlatformController extends Controller
             // plan -- nothing about what that plan GRANTS comes from the
             // browser.
             $request->package(),
-            (int) $validated['months'],
+            (int) $validated['days'],
             $validated['reason'],
             $request->user(),
         );
@@ -317,6 +321,54 @@ class PlatformController extends Controller
 
         return back()->with('success', "Tenant \"{$tenant->name}\" is active on complimentary access.");
     }
+    /**
+     * v2.97.0 -- GRANT COMPLIMENTARY ACCESS TO A TENANT THAT ALREADY EXISTS.
+     *
+     * The registration grant above works exactly once per customer: it
+     * provisions a registration, and a registration that has a tenant is no
+     * longer grantable. A customer whose evaluation ended therefore had no
+     * route back to another one, which is the opposite of what an evaluation
+     * is for.
+     *
+     * This is the same decision applied to the subscription already on
+     * record. Nothing is created: no second tenant, no second subscription,
+     * no parallel store of free access. One row changes state, which is what
+     * keeps a re-grant from forking a customer in two.
+     *
+     * PREVIOUS FREE ACCESS DOES NOT BLOCK IT. Whether somebody has had an
+     * evaluation before is a judgement for the operator making the decision,
+     * and the activity log holds the history for them to read; it is not a
+     * rule to enforce on their behalf. What IS enforced is that every grant
+     * is deliberate, bounded in days, and carries a reason.
+     */
+    public function grantTenantComplimentary(
+        GrantComplimentaryAccessRequest $request,
+        Tenant $tenant,
+        SubscriptionLifecycleService $lifecycle,
+    ): RedirectResponse {
+        $validated = $request->validated();
+        $subscription = $tenant->subscription;
+
+        if (! $subscription) {
+            return back()->withErrors([
+                'complimentary' => 'This organization has no subscription on record, so there is nothing to make complimentary. Create its subscription first.',
+            ]);
+        }
+
+        $lifecycle->grantComplimentary(
+            $subscription,
+            // Re-read from the database. The request carried an id, not a
+            // plan -- nothing about what that plan GRANTS comes from the
+            // browser.
+            $request->package(),
+            (int) $validated['days'],
+            $validated['reason'],
+            $request->user(),
+        );
+
+        return back()->with('success', "Complimentary access granted to \"{$tenant->name}\" for {$validated['days']} day(s).");
+    }
+
     public function tenants(): Response
     {
         return Inertia::render('Platform/Tenants', [
@@ -481,6 +533,13 @@ class PlatformController extends Controller
             ] : null,
             'administrator' => $administrator,
             'packages' => Package::active()->orderBy('sort_order')->get(['id', 'name', 'slug']),
+            // v2.97.0 -- the bounds a complimentary grant must sit inside,
+            // read from the one place that enforces them so the form cannot
+            // offer a duration the request would reject.
+            'complimentaryBounds' => [
+                'min_days' => (int) config('saas.complimentary_min_days'),
+                'max_days' => (int) config('saas.complimentary_max_days'),
+            ],
             'subscriptionTypes' => Subscription::TYPES,
             'subscriptionStatuses' => Subscription::STATUSES,
             'billingModes' => Subscription::BILLING_MODE_LABELS,

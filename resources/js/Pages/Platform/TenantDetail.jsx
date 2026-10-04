@@ -10,8 +10,9 @@ import { Textarea } from '@/Components/ui/textarea';
 import { Select, SelectTrigger, SelectValue, SelectContent, SelectItem } from '@/Components/ui/select';
 import { Table, TableHeader, TableBody, TableRow, TableHead, TableCell } from '@/Components/ui/table';
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogFooter } from '@/Components/ui/dialog';
+import ComplimentaryGrantDialog from '@/Components/platform/ComplimentaryGrantDialog';
 import EmptyState from '@/Components/shared/EmptyState';
-import { ArrowLeft, Pencil, Settings2, FileText, Plus, CheckCircle2 } from 'lucide-react';
+import { ArrowLeft, Pencil, Settings2, FileText, Plus, CheckCircle2, Gift } from 'lucide-react';
 
 /*
  * MASTER ADMIN -- TENANT DETAIL, IN BAHASA INDONESIA (v2.80.0, ADR 040).
@@ -96,9 +97,19 @@ function formatDate(value, withTime = true) {
     return new Date(value).toLocaleString('id-ID', withTime ? { dateStyle: 'medium', timeStyle: 'short' } : { dateStyle: 'medium' });
 }
 
-export default function PlatformTenantDetail({ tenant, subscription, administrator, packages, subscriptionTypes, subscriptionStatuses, billingModes, invoices }) {
+export default function PlatformTenantDetail({ tenant, subscription, administrator, packages, subscriptionTypes, subscriptionStatuses, billingModes, invoices, complimentaryBounds = {} }) {
     const [subOpen, setSubOpen] = useState(false);
     const [invoiceOpen, setInvoiceOpen] = useState(false);
+    /*
+     * v2.97.0 -- RE-GRANTING IS THE SAME DECISION, NOT A DIFFERENT ONE.
+     *
+     * An evaluation that ended should be repeatable: the first grant
+     * provisioned a registration, and a registration that has a tenant can
+     * never be granted again. This offers the same dialog against the
+     * subscription already on record, so nothing is created and no customer
+     * is forked in two.
+     */
+    const [complimentaryOpen, setComplimentaryOpen] = useState(false);
 
     return (
         <PlatformLayout>
@@ -160,7 +171,15 @@ export default function PlatformTenantDetail({ tenant, subscription, administrat
                             <CardTitle>Langganan / Lisensi</CardTitle>
                             <CardDescription>Catatan komersial -- paket, jenis lisensi, status, dan cara penagihan.</CardDescription>
                         </div>
-                        <Button variant="outline" size="sm" onClick={() => setSubOpen(true)}><Pencil className="h-3.5 w-3.5" /> Ubah</Button>
+                        <div className="flex items-center gap-2">
+                            {subscription && (
+                                <Button variant="outline" size="sm" onClick={() => setComplimentaryOpen(true)}>
+                                    <Gift className="h-3.5 w-3.5" />
+                                    {subscription.billing_mode === 'complimentary' ? 'Perpanjang akses gratis' : 'Akses gratis'}
+                                </Button>
+                            )}
+                            <Button variant="outline" size="sm" onClick={() => setSubOpen(true)}><Pencil className="h-3.5 w-3.5" /> Ubah</Button>
+                        </div>
                     </CardHeader>
                     <CardContent className="space-y-3 text-sm">
                         {subscription ? (
@@ -330,6 +349,15 @@ export default function PlatformTenantDetail({ tenant, subscription, administrat
                     </CardContent>
                 </Card>
             </div>
+
+            {complimentaryOpen && (
+                <ComplimentaryGrantDialog
+                    tenant={tenant}
+                    packages={packages}
+                    bounds={complimentaryBounds}
+                    onClose={() => setComplimentaryOpen(false)}
+                />
+            )}
 
             {subOpen && (
                 <SubscriptionDialog

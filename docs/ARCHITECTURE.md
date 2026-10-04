@@ -433,6 +433,28 @@ The division of labour between hiding and refusing is deliberate: **403 is the b
 the courtesy.** Every route re-checks regardless of what the sidebar shows, and the tests assert
 both halves — that the unauthorized row is absent *and* that typing its URL still fails.
 
+### A complimentary period ends itself (v2.97.0)
+
+```
+Complimentary active → expired → paid-required → normal billing
+```
+
+`billing_mode` used to stay `complimentary` forever, and the nightly job **skips** complimentary
+subscriptions — correctly, since a free account should not be invoiced or chased. The two together
+meant an expired evaluation was never invoiced and never asked for anything: it sat read-only and
+permanently non-billable until a human noticed.
+
+`SubscriptionLifecycleService::expireComplimentary()` flips the mode back to `paid` once the period
+has ended, and is checked **before** that skip — the order of those two checks is the whole fix.
+It extends nothing, changes no dates, removes no access and deletes nothing; the subscription then
+falls through to ordinary invoicing in the same run, at catalogue price because `agreed_price_*`
+was never set on a free grant.
+
+Duration is **days, 3 to 30**, bounded in `config/saas.php` and read by both the request and the
+form. Re-granting is a manual operator action on the subscription that already exists
+(`grantComplimentary()`), so it creates no second tenant and no second subscription, and previous
+free access does not block it. Reasoning: ADR [[048-complimentary-access-is-an-evaluation|048]].
+
 ### The support queue (v2.80.0)
 
 Platform-owned, not tenant-scoped, and deliberately separate from notifications. A ticket is a state

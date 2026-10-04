@@ -1302,6 +1302,11 @@ Route::middleware(['auth', 'role:platform_admin'])->prefix('platform')->name('pl
 
     // v1.11.0 (SaaS Finalization Pass).
     Route::put('/tenants/{tenant}/subscription', [PlatformController::class, 'updateSubscription'])->name('tenants.subscription.update');
+    // v2.97.0: grant (or RE-grant) complimentary access to a tenant that
+    // already exists. Separate from the registration grant because that one
+    // provisions a new organization and this one changes an existing
+    // subscription -- one action each, neither doing the other's job.
+    Route::post('/tenants/{tenant}/complimentary', [PlatformController::class, 'grantTenantComplimentary'])->name('tenants.complimentary');
     Route::post('/tenants/{tenant}/invoices', [PlatformController::class, 'storeInvoice'])->name('tenants.invoices.store');
     Route::put('/invoices/{invoice}/mark-paid', [PlatformController::class, 'markInvoicePaid'])->name('invoices.mark-paid');
     // v2.80.0: the payment ledger. The direction support needs -- from a

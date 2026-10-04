@@ -194,7 +194,6 @@ class RegistrationController extends Controller
                 'company_legal_name' => $registration->company_legal_name,
                 'billing_cycle' => $cycle,
                 'is_verified' => $registration->isVerified(),
-                'is_expired' => $registration->isExpired(),
                 'amount' => $this->pricing->format((float) $registration->amount, $registration->currency),
                 'plan_name' => $package?->name,
                 'invoice_number' => $registration->invoice?->invoice_number,

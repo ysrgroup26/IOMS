@@ -71,12 +71,6 @@ export default function RegistrationStatus({ registration, paymentConfigured, co
                     {flash.success && <Notice tone="success">{flash.success}</Notice>}
                     {flash.info && <Notice tone="info">{flash.info}</Notice>}
                     {errors.payment && <Notice tone="danger">{errors.payment}</Notice>}
-                    {registration.is_expired && !isProvisioned && (
-                        <Notice tone="danger">
-                            This registration has expired. Please start again from Get Started, or contact us if
-                            you have already paid.
-                        </Notice>
-                    )}
 
                     {/* Progress. Deliberately three plain steps rather than a
                         percentage bar -- a customer wants to know which gate
@@ -206,7 +200,7 @@ export default function RegistrationStatus({ registration, paymentConfigured, co
                             </p>
 
                             <form onSubmit={pay}>
-                                <Button type="submit" className="mt-5 w-full sm:w-auto" disabled={processing || registration.is_expired}>
+                                <Button type="submit" className="mt-5 w-full sm:w-auto" disabled={processing}>
                                     {processing
                                         ? 'Preparing…'
                                         : paymentConfigured

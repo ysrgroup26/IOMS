@@ -3,6 +3,7 @@
 namespace App\Http\Controllers;
 
 use App\Contracts\PaymentGatewayInterface;
+use App\Models\ActivityLog;
 use App\Models\Invoice;
 use App\Models\PaymentTransaction;
 use App\Models\PaymentWebhookEvent;
@@ -292,32 +293,66 @@ class PaymentWebhookController extends Controller
         }
 
         /*
-         * A settlement notification must actually cover what was owed.
+         * THE AMOUNT MUST MATCH EXACTLY. ANY difference, in either
+         * direction, refuses the settlement and is escalated for review.
          *
-         * v2.94.0 -- CHECKED AGAINST BOTH the invoice and the payment
-         * session, where there is one. The invoice is the contract; the
-         * transaction is the amount the customer was actually SHOWN and sent
-         * to the provider. They are normally identical, and when they are
-         * not, settling against whichever happens to be lower would accept a
-         * payment for a figure nobody agreed to. Taking the higher is the
-         * safe direction: the one thing that must never happen is treating
-         * an underpayment as settlement.
+         * CHECKED AGAINST BOTH the invoice and the payment session. The
+         * invoice is the contract; the transaction is the figure the
+         * customer was actually SHOWN and which was sent to the provider.
+         * They are normally identical, and when they are not, settling
+         * against whichever happens to be lower would accept a payment for a
+         * figure nobody agreed to.
+         *
+         * An OVERPAYMENT is refused too, by decision. It is tempting to
+         * accept one on the grounds that the customer paid at least what was
+         * owed, but an amount IOMS did not ask for means the system's idea
+         * of the price and the provider's have diverged, and the one thing
+         * worse than a delayed activation is quietly keeping money against a
+         * subscription whose price nobody can reconstruct. A human decides.
+         *
+         * A cent of tolerance absorbs float representation, nothing more.
          */
         $expected = max((float) $invoice->amount, (float) ($transaction?->amount ?? 0));
 
-        if ($amount !== null && $amount + 0.01 < $expected) {
-            Log::warning('Payment notification amount is below what was owed; not treating it as settled.', [
+        if ($amount !== null && abs($amount - $expected) > 0.01) {
+            $direction = $amount < $expected ? 'below' : 'above';
+
+            Log::warning('Payment notification amount does not match what was owed; not treating it as settled.', [
                 'invoice' => $invoice->invoice_number,
                 'notified' => $amount,
                 'expected' => $expected,
+                'direction' => $direction,
             ]);
 
-            // Recorded as a refusal rather than left silent: an amount that
-            // does not match is exactly the event somebody needs to find
-            // later, and the log line alone is not queryable.
+            // Recorded on the row, not only in the log: a mismatch is exactly
+            // the event somebody needs to FIND later, and a log line is not
+            // queryable.
             $transaction?->update([
-                'failure_reason' => 'Amount below the expected total (notified '.$amount.', expected '.$expected.').',
+                'failure_reason' => 'Amount '.$direction.' the expected total (notified '.$amount.', expected '.$expected.'). Held for manual review.',
             ]);
+
+            // And escalated. A mismatched amount on a signature-verified
+            // payment is either a pricing bug or a real payment IOMS is
+            // refusing to honour -- both need a person, and neither should
+            // be discoverable only by reading logs.
+            ActivityLog::record(
+                'updated',
+                sprintf(
+                    'Payment for invoice %s was NOT settled: the provider reported %s but %s was expected. Held for manual review.',
+                    $invoice->invoice_number,
+                    $amount,
+                    $expected,
+                ),
+                $invoice,
+            );
+
+            app(\App\Services\NotificationService::class)->notifyPlatformAdmins(
+                \App\Models\Notification::CATEGORY_WARNING,
+                'Pembayaran ditahan: '.($invoice->tenant?->name ?? $invoice->invoice_number),
+                'Nominal pembayaran tidak sama dengan tagihan '.$invoice->invoice_number.'. Tidak ada akses yang berubah. Perlu peninjauan manual.',
+                $invoice->tenant_id ? route('platform.tenants.show', $invoice->tenant_id) : null,
+                $invoice,
+            );
 
             return;
         }

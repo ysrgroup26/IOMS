@@ -114,7 +114,6 @@ export default function Registrations({ registrations = [], packages = [], compl
                                             </TableCell>
                                             <TableCell>
                                                 <StatusBadge value={r.status} />
-                                                {r.is_expired && <span className="block text-[11px] text-graphite-400">kedaluwarsa</span>}
                                             </TableCell>
                                             <TableCell className="whitespace-nowrap text-graphite-500">{fmt(r.email_verified_at)}</TableCell>
                                             <TableCell className="whitespace-nowrap text-graphite-500">

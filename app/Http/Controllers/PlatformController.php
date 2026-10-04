@@ -150,7 +150,6 @@ class PlatformController extends Controller
                     'email_verified_at' => $r->email_verified_at,
                     'paid_at' => $r->paid_at,
                     'provisioned_at' => $r->provisioned_at,
-                    'is_expired' => $r->isExpired(),
                     'invoice_number' => $r->invoice?->invoice_number,
                     'tenant' => $r->tenant ? ['id' => $r->tenant->id, 'name' => $r->tenant->name] : null,
                     'created_at' => $r->created_at,

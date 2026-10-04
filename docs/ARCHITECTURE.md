@@ -369,6 +369,41 @@ a figure nobody agreed to. The refusal is now recorded on the transaction's `fai
 as logged, because an amount mismatch is exactly the event somebody needs to **find** later, and a
 log line is not queryable.
 
+### An unfinished order is always resumable (v2.94.0, decided)
+
+A customer who starts in October and returns in November resumes the **same** registration and the
+**same** invoice, repriced to the current catalogue. There is one order per account and it does not
+lapse.
+
+`expires_at` is still written as a record of when the order was raised, but **nothing reads it to
+decide anything**. It used to be read in three places that did not agree:
+
+| Surface | Did |
+|---|---|
+| Account page | **hid** an order past `expires_at` |
+| Subscribe flow | resumed the same row and pushed the date forward |
+| Public status page | **disabled the pay button** |
+
+So whether a returning customer could pay depended on which link they came back through — the worst
+possible reason for a payment to be unavailable. `STATUS_EXPIRED` (never written by anything) and
+`OPEN_STATUSES` (dead code whose docblock claimed it held an email address against duplicate
+signups, which nothing enforced) were removed with it.
+
+The column is kept rather than dropped: removing it is a destructive migration, and it costs nothing
+to leave a record of intent that no longer governs behaviour.
+
+### Any amount mismatch refuses the settlement (v2.94.0, decided)
+
+Underpayment was already refused. **Overpayment now is too.**
+
+It is tempting to accept an overpayment on the grounds that the customer paid at least what was
+owed. But an amount IOMS did not ask for means its idea of the price and the provider's have
+diverged, and quietly keeping money against a subscription whose price nobody can reconstruct is
+worse than a delayed activation. A refusal is recorded on the transaction, written to the activity
+log, and raised on the platform operator's own notification feed — so it is escalated to a person
+rather than discoverable only by reading logs. Tolerance is one cent, which absorbs float
+representation and nothing else.
+
 ### The support queue (v2.80.0)
 
 Platform-owned, not tenant-scoped, and deliberately separate from notifications. A ticket is a state

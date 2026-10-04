@@ -3,6 +3,7 @@
 namespace Tests\Feature;
 
 use App\Contracts\PaymentGatewayInterface;
+use App\Models\ActivityLog;
 use App\Models\Invoice;
 use App\Models\Package;
 use App\Models\PaymentTransaction;
@@ -102,9 +103,9 @@ class DuitkuPaymentFlowTest extends TestCase
     }
 
     /** A verified registration sitting at the point where it would pay. */
-    private function registration(): TenantRegistration
+    private function registration(array $overrides = []): TenantRegistration
     {
-        return TenantRegistration::create([
+        return TenantRegistration::create([...[
             'token' => TenantRegistration::newToken(),
             'reference' => TenantRegistration::newReference(),
             'status' => TenantRegistration::STATUS_VERIFIED,
@@ -119,7 +120,7 @@ class DuitkuPaymentFlowTest extends TestCase
             'currency' => 'IDR',
             'email_verified_at' => now(),
             'expires_at' => now()->addDays(7),
-        ]);
+        ], ...$overrides]);
     }
 
     /* ==================================================================
@@ -463,6 +464,114 @@ class DuitkuPaymentFlowTest extends TestCase
             $invoice->fresh()->status,
             'A payment below the amount the session was opened for must not settle it.',
         );
+    }
+
+    /* ==================================================================
+     * DECIDED POLICY (v2.94.0)
+     * ================================================================== */
+
+    /**
+     * AN OVERPAYMENT IS REFUSED, not quietly kept.
+     *
+     * The tempting reading is that the customer paid at least what was
+     * owed, so activate them. But an amount IOMS did not ask for means its
+     * idea of the price and the provider's have diverged, and quietly
+     * keeping money against a subscription whose price nobody can
+     * reconstruct is worse than a delayed activation. A human decides.
+     */
+    public function test_an_overpayment_is_refused_and_escalated(): void
+    {
+        [$invoice, $transaction] = $this->pendingPaymentForRegistration();
+
+        $this->post(
+            route('webhooks.payment.duitku'),
+            $this->signedCallback($transaction->gateway_reference, '500000', '00'),
+        )->assertOk();
+
+        $this->assertSame(Invoice::STATUS_ISSUED, $invoice->fresh()->status, 'An overpayment must not settle the invoice.');
+        $this->assertSame(0, $this->tenantsCreated(), 'An overpayment must provision nothing.');
+        $this->assertNull($transaction->fresh()->paid_at);
+        $this->assertStringContainsString('above the expected total', $transaction->fresh()->failure_reason);
+
+        // Escalated, not merely logged.
+        $this->assertNotNull(
+            ActivityLog::withoutGlobalScopes()
+                ->where('description', 'like', '%was NOT settled%')
+                ->latest('id')
+                ->first(),
+            'A refused amount must leave an audit record somebody can find.',
+        );
+    }
+
+    /** The exact amount still settles. The tolerance is a cent, not a policy. */
+    public function test_the_exact_amount_still_settles(): void
+    {
+        [$invoice, $transaction] = $this->pendingPaymentForRegistration();
+
+        $this->post(
+            route('webhooks.payment.duitku'),
+            $this->signedCallback($transaction->gateway_reference, '189000', '00'),
+        )->assertOk();
+
+        $this->assertSame(Invoice::STATUS_PAID, $invoice->fresh()->status);
+        $this->assertNotNull($transaction->fresh()->paid_at);
+        $this->assertNull($transaction->fresh()->failure_reason);
+    }
+
+    /**
+     * AN UNFINISHED ORDER IS ALWAYS RESUMABLE.
+     *
+     * The scenario this was decided for: a customer starts in October,
+     * abandons checkout, and returns weeks later. They resume the SAME
+     * order and the SAME invoice.
+     *
+     * Previously the public status page DISABLED THE PAY BUTTON once
+     * `expires_at` passed, while the subscribe flow resumed the same row
+     * and pushed the date forward -- so whether a returning customer could
+     * pay depended on which link they came back through.
+     */
+    public function test_an_order_abandoned_weeks_ago_can_still_be_paid(): void
+    {
+        $registration = $this->registration(['expires_at' => now()->subDays(13)]);
+
+        // Nineteen days later, the customer comes back to their own status
+        // link and pays.
+        $this->travel(19)->days();
+
+        $this->post(route('register.checkout', $registration->token))
+            ->assertSessionHasNoErrors();
+
+        $registration->refresh();
+        $invoice = $registration->invoice;
+
+        $this->assertNotNull($invoice, 'A returning customer must still reach an invoice.');
+        $this->assertSame(1, PaymentTransaction::where('invoice_id', $invoice->id)->count());
+
+        $transaction = PaymentTransaction::where('invoice_id', $invoice->id)->firstOrFail();
+
+        $this->post(
+            route('webhooks.payment.duitku'),
+            $this->signedCallback($transaction->gateway_reference, (string) (int) $invoice->amount, '00'),
+        )->assertOk();
+
+        $this->assertSame(Invoice::STATUS_PAID, $invoice->fresh()->status);
+        $this->assertNotNull($registration->fresh()->tenant_id);
+    }
+
+    /** Resuming keeps ONE registration and ONE invoice, never a second pair. */
+    public function test_resuming_an_abandoned_order_does_not_create_a_second_invoice(): void
+    {
+        $registration = $this->registration(['expires_at' => now()->subDays(20)]);
+
+        $this->post(route('register.checkout', $registration->token));
+        $firstInvoiceId = $registration->fresh()->invoice_id;
+
+        $this->travel(30)->days();
+        $this->post(route('register.checkout', $registration->token));
+
+        $this->assertSame($firstInvoiceId, $registration->fresh()->invoice_id);
+        $this->assertSame(1, Invoice::withoutGlobalScopes()->where('registration_id', $registration->id)->count());
+        $this->assertSame(1, TenantRegistration::where('contact_email', $registration->contact_email)->count());
     }
 
     /* ==================================================================

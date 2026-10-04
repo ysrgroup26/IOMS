@@ -104,7 +104,7 @@ is signed as the **string Duitku sent**, because re-formatting a number changes 
 |---|---|
 | Duitku is not the configured gateway | `503`, nothing read |
 | Missing / empty / wrong signature | `403`, nothing read |
-| Amount below `max(invoice, session)` | `200`, **not settled**, refusal recorded on the transaction |
+| Amount differs from `max(invoice, session)` **in either direction** | `200`, **not settled**, recorded on the transaction, written to the activity log, and raised on the operator feed |
 | Unknown `merchantOrderId` | `200`, logged, nothing changed |
 | `resultCode` IOMS does not recognise | treated as **pending** — changes nothing |
 | Already-processed event | `200`, re-applied to nothing |
@@ -172,6 +172,7 @@ which IOMS can come to believe it was paid.
 - [ ] Replay the same callback; confirm nothing settles twice and no second tenant appears
 - [ ] Send a callback with a wrong signature; confirm `403` and no state change
 - [ ] Send a callback with a lowered amount; confirm not settled and `failure_reason` recorded
+- [ ] Send a callback with a RAISED amount; confirm it is also refused and escalated
 - [ ] Let a session lapse past `PAYMENT_CHECKOUT_EXPIRY_HOURS`; confirm a new session is minted
 - [ ] Confirm complimentary tenants are untouched by all of the above
 
@@ -227,4 +228,5 @@ code.
 | "Checkout could not be created" | Duitku refused the inquiry — check the logged `statusCode`/`statusMessage`. A wrong merchant code fails here first |
 | Duplicate pending payments on one invoice | Should not occur since v2.94.0. If it does, `liveFor()` is finding nothing — check `checkout_expiry_hours` and that the rows carry a `redirect_url` |
 | Callback `503` | `PAYMENT_GATEWAY` is not `duitku` on that host |
-| Settled for the wrong amount | Cannot happen silently — the amount is signed and re-checked. Look for a `failure_reason` naming the mismatch |
+| Settled for the wrong amount | Cannot happen silently — the amount is signed and re-checked in both directions. Look for a `failure_reason` naming the mismatch, an activity-log entry, and an operator notification |
+| Customer paid but is "held for manual review" | The amount did not match exactly. Compare `transaction.amount`, `invoice.amount` and what the provider reports; correct the price or settle by hand, then provision |

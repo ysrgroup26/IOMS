@@ -65,7 +65,12 @@ class AccountController extends Controller
                 TenantRegistration::STATUS_AWAITING_PAYMENT,
                 TenantRegistration::STATUS_PAID,
             ])
-            ->where(fn ($q) => $q->whereNull('expires_at')->orWhere('expires_at', '>', now()))
+            // v2.94.0: NO EXPIRY FILTER. An unfinished order is always
+            // resumable (see TenantRegistration::$expires_at). This surface
+            // used to hide an order past its `expires_at` while the
+            // subscribe flow happily resumed the same row, so the account
+            // page and the flow it links to disagreed about whether the
+            // customer had an order at all.
             ->latest('id')
             ->first();
 

@@ -19,22 +19,34 @@ use Illuminate\Support\Str;
  */
 class TenantRegistration extends Model
 {
+    /*
+     |-------------------------------------------------------------------
+     | v2.94.0 -- AN UNFINISHED ORDER IS ALWAYS RESUMABLE.
+     |-------------------------------------------------------------------
+     | A customer who starts in October and comes back in November resumes
+     | the SAME registration and the SAME invoice, repriced to the current
+     | catalogue. There is one order per account and it does not lapse.
+     |
+     | `expires_at` is still written, as a record of when the order was
+     | raised plus the checkout window, but NOTHING READS IT to decide
+     | anything. It used to be read in two places that disagreed: the
+     | account page hid an order past it, while the subscribe flow resumed
+     | the same row and pushed the date forward -- and the public status
+     | page DISABLED THE PAY BUTTON on it. So whether a returning customer
+     | could pay depended on which link they came back through, which is
+     | the worst possible way for a payment to be unavailable.
+     |
+     | `STATUS_EXPIRED` and `OPEN_STATUSES` were removed with it. Nothing
+     | ever wrote the status, and `OPEN_STATUSES` was dead code whose
+     | docblock claimed it held an email address against duplicate signups
+     | -- a claim nothing enforced.
+     */
     public const STATUS_PENDING_VERIFICATION = 'pending_verification';
     public const STATUS_VERIFIED = 'verified';
     public const STATUS_AWAITING_PAYMENT = 'awaiting_payment';
     public const STATUS_PAID = 'paid';
     public const STATUS_PROVISIONED = 'provisioned';
-    public const STATUS_EXPIRED = 'expired';
     public const STATUS_CANCELLED = 'cancelled';
-
-    /** A registration in one of these states is still "live" -- it holds its email address against duplicate signups. */
-    public const OPEN_STATUSES = [
-        self::STATUS_PENDING_VERIFICATION,
-        self::STATUS_VERIFIED,
-        self::STATUS_AWAITING_PAYMENT,
-        self::STATUS_PAID,
-        self::STATUS_PROVISIONED,
-    ];
 
     protected $fillable = [
         'token', 'reference', 'status',
@@ -95,14 +107,6 @@ class TenantRegistration extends Model
     public function isProvisioned(): bool
     {
         return $this->status === self::STATUS_PROVISIONED;
-    }
-
-    /** An abandoned checkout stops being actionable rather than lingering forever as a live claim on an email address. */
-    public function isExpired(): bool
-    {
-        return $this->status !== self::STATUS_PROVISIONED
-            && $this->expires_at !== null
-            && $this->expires_at->isPast();
     }
 
     /** The name the tenant/company should actually be called -- display name if the company gave one, otherwise its legal name. */

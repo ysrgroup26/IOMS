@@ -1746,6 +1746,39 @@ Three rules that matter when extending this:
 
 The chip is a LABEL (English); the consequence sentence is PROSE (Indonesian). See ADR 034.
 
+## CRITICAL — Known Pitfall (v2.94.0) — a commercial term that VARIES BY PLAN must never be written as a calendar unit
+
+`TenantProvisioningService` ended a yearly subscription with `now()->addYear()`.
+
+That is correct for Starter and Professional, which both pay for twelve months and receive twelve.
+It is **wrong for Business**, which pays for twelve months and receives **fourteen** — the two extra
+months are the entire Business annual offer, since that tier has no price discount at all.
+
+So a Business customer buying annually got twelve months on their first term. Then
+`SubscriptionLifecycleService` renewed them by `$package->annualMonths()` — fourteen — and every
+term afterwards was correct. The deficit did not accumulate and did not announce itself: it simply
+shifted every future date two months early, and the only way to notice was comparing a renewal date
+against the offer page a year later.
+
+**Why nothing caught it.** Every existing test asserted the dates the code wrote, or asserted the
+PRICES (which were right). None asserted the TERM against the approved commercial model, so twelve
+months looked like a correct answer to "what does a yearly cycle mean".
+
+**The rule.** When a commercial figure differs per plan, read it from the plan:
+
+| Wrong | Right |
+|---|---|
+| `now()->addYear()` | `now()->addMonths($package->annualMonths())` |
+| "a yearly cycle is 12 months" | "a yearly cycle is whatever this plan sells" |
+
+And assert it against the transcribed model (`Tests\Support\ApprovedCatalogue`), never against
+what the code produced. `PricingChainIntegrityTest` now walks catalogue → quote → registration →
+invoice → payment session → the integer on the wire → signed callback → settlement → subscription →
+agreed-price snapshot → **service term**, for every sold plan on both cycles, which is what turned a
+silent two-month shortfall into a failing assertion.
+
+Audited on production before release: **zero subscriptions affected**, so the fix is forward-only.
+
 ## Known Pitfall (v2.78.2) — a service worker caching STABLE filenames pins them forever
 
 `/build/` is content-hashed by Vite: a new build is a new URL, so cache-first can never be stale.

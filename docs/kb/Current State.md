@@ -86,7 +86,7 @@ server-side route allow-list still controls what that account may reach. See [[D
 `2.94.0` (2026-10-04) — three real defects in the payment path, found by driving it: a Duitku payment
 session was reopened rather than reused on every visit, the gateway reference collided within a
 second, and the payment row could settle an invoice but not reconcile one. Amount integrity is now
-checked against the session as well as the invoice. **782 tests / 4152 assertions pass.** Sandbox
+checked against the session as well as the invoice. **800 tests / 4337 assertions pass.** Sandbox
 configuration verified; **no live sandbox transaction was performed** (no credentials on this
 machine). See [[Release History]] and `docs/PAYMENTS-DUITKU.md`.
 

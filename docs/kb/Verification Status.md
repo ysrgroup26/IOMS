@@ -49,7 +49,7 @@ on every phone width.
 
 | | |
 |---|---|
-| Suite | **766 tests, 4091 assertions — all passing** (2026-10-04, v2.93.0) |
+| Suite | **800 tests, 4337 assertions — all passing** (2026-10-04, v2.94.0) |
 | Database | In-memory **SQLite**, so no MySQL or external service is needed |
 | Lint | `npm run lint` — 0 errors (4 existing warnings in `GasTestRecords/Index.jsx` and `Settings/Index.jsx`) |
 | Build | Production build in an isolated output directory succeeded, with the existing 2,031 KB bundle-size advisory |

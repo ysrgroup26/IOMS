@@ -209,7 +209,27 @@ class TenantProvisioningService
             'billing_cycle' => $cycle,
             'billing_mode' => Subscription::BILLING_MODE_PAID,
             'starts_at' => now(),
-            'ends_at' => $cycle === Subscription::CYCLE_MONTHLY ? now()->addMonth() : now()->addYear(),
+            /*
+             * v2.94.0 -- THE PLAN'S OWN SERVICE TERM, not a calendar year.
+             *
+             * This was `addYear()`, which is right for two tiers and WRONG
+             * for Business: that plan is twelve months' money for FOURTEEN
+             * months of access, and the extra two months are the whole
+             * offer rather than a rounding. A Business customer buying
+             * annually therefore received twelve months on their first
+             * term and fourteen on every renewal, because
+             * SubscriptionLifecycleService has always extended by
+             * `annualMonths()` while provisioning did not.
+             *
+             * Nobody would notice for a year, and then only by comparing a
+             * renewal date against an offer page. Caught by
+             * PricingChainIntegrityTest, which asserts the term against the
+             * approved commercial model instead of against the dates the
+             * code happened to write.
+             */
+            'ends_at' => $cycle === Subscription::CYCLE_MONTHLY
+                ? now()->addMonth()
+                : now()->addMonths($package->annualMonths()),
             // v2.60.0 -- the price this customer actually bought at, taken
             // at the moment of activation. Both cycles are stored so a
             // later monthly<->yearly switch does not silently reprice

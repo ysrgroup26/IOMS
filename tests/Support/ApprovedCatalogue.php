@@ -97,6 +97,30 @@ final class ApprovedCatalogue
         return $cases;
     }
 
+    /**
+     * v2.94.0 -- EVERY SOLD COMBINATION, for the pricing-chain tests.
+     *
+     * slug => [slug, cycle, approved amount, paid months, SERVICE months]
+     *
+     * Service months is the column that matters here and is the one that
+     * cannot be derived from a price: Business pays twelve and is owed
+     * FOURTEEN months of access, so a test that assumed a yearly cycle
+     * means a calendar year would pass while the customer was short-changed.
+     */
+    public static function cycleProvider(): array
+    {
+        $cases = [];
+
+        foreach (self::PLANS as $slug => [$monthly, $yearly]) {
+            [$paid, $service] = self::ANNUAL[$slug];
+
+            $cases[$slug.' monthly'] = [$slug, 'monthly', $monthly, 1, 1];
+            $cases[$slug.' yearly'] = [$slug, 'yearly', $yearly, $paid, $service];
+        }
+
+        return $cases;
+    }
+
     /** Just the slugs, in ladder order. */
     public static function slugs(): array
     {

@@ -455,6 +455,43 @@ form. Re-granting is a manual operator action on the subscription that already e
 (`grantComplimentary()`), so it creates no second tenant and no second subscription, and previous
 free access does not block it. Reasoning: ADR [[048-complimentary-access-is-an-evaluation|048]].
 
+### Smart Import: matching a customer's own headings (v2.102.0)
+
+The official template is the golden path. `App\Services\ImportHeaderMatcher` exists for the other
+file: the workforce list a customer already keeps, in their own words, whose headings are not ours.
+Retyping it into our column names is exactly the work that does not get done.
+
+Four stages run most-certain-first, each seeing only what the stage above could not place, so a
+confident answer is never overruled by a speculative one:
+
+| Stage | Decides on | Source |
+|---|---|---|
+| `exact` | the heading IS the field label | `config/mapping_fields.php` |
+| `alias` | a name we have seen before | `config/import_aliases.php` |
+| `fuzzy` | close enough to be a typo | Levenshtein, tolerance **relative to length** |
+| `sample` | the column's own values | shape rules for email, phone and date only |
+
+**It suggests; it does not decide.** Every result carries `matched_by` and a confidence, the mapping
+is shown in the import dialog before anything is written, and an unplaceable heading is reported as
+ignored rather than attached to the nearest field. There is deliberately **no** sample rule for
+`full_name` or `department`: "a short piece of text" describes most columns in the file, and a wrong
+column mapped silently corrupts records while an unmapped one only asks a question.
+
+**Deliberately not an LLM.** Every rule is a lookup or a measurement, so the result is auditable,
+instant, offline and identical on every run. `POST employees/import/inspect` reads the heading row
+and ten sample rows, and writes nothing.
+
+Adding a module: add its aliases under its key, pointing at field keys that exist in that module's
+`mapping_fields` import list. `SmartImportHeaderMatchingTest` pins that correspondence, and that no
+alias is claimed by two fields.
+
+### Employee register PDF (v2.102.0)
+
+`employees.export-pdf` prints the same list the Excel export produces: same tenant scoping, same
+company, department and search filters, same display order. The filters in force are printed in the
+header, because a filtered register that reads as a complete one is a document that misleads. It
+uses the shared letterhead, signature and footer partials like every other IOMS document.
+
 ### Master data from a spreadsheet (v2.101.0)
 
 `MasterDataDetector` owns the one definition of "the same name" for imported master data:

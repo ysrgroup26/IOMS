@@ -11,7 +11,7 @@ import GroupedDepartmentSelect from '@/Components/shared/GroupedDepartmentSelect
 import { Table, TableHeader, TableBody, TableRow, TableHead, TableCell } from '@/Components/ui/table';
 import EmployeeImportDialog from '@/Components/shared/EmployeeImportDialog';
 import PersonChip from '@/Components/shared/PersonChip';
-import { Search, Plus, Download, Upload, ChevronLeft, ChevronRight } from 'lucide-react';
+import { Search, Plus, Download, Upload, ChevronLeft, ChevronRight, FileText } from 'lucide-react';
 
 export default function EmployeesIndex({ employees, companies, departments, filters, can }) {
     const [search, setSearch] = useState(filters.search || '');
@@ -23,13 +23,15 @@ export default function EmployeesIndex({ employees, companies, departments, filt
         }, { preserveState: true, replace: true });
     }
 
-    function exportUrl() {
+    // v2.102.0: one set of filters, two formats -- the spreadsheet and
+    // the printable register must always describe the same list.
+    function exportUrl(routeName) {
         const params = new URLSearchParams({
             ...(filters.company_id ? { company_id: filters.company_id } : {}),
             ...(filters.department_id ? { department_id: filters.department_id } : {}),
             ...(search ? { search } : {}),
         });
-        return route('employees.export') + '?' + params.toString();
+        return route(routeName) + '?' + params.toString();
     }
 
     return (
@@ -38,7 +40,12 @@ export default function EmployeesIndex({ employees, companies, departments, filt
 
             <PageHeader title="Employees" subtitle={`${employees.total} karyawan terdaftar di seluruh perusahaan.`}>
                 <Button variant="outline" asChild>
-                    <a href={exportUrl()}><Download className="h-4 w-4" /> Export Excel</a>
+                    <a href={exportUrl('employees.export')}><Download className="h-4 w-4" /> Export Excel</a>
+                </Button>
+                <Button variant="outline" asChild>
+                    <a href={exportUrl('employees.export-pdf')} target="_blank" rel="noopener noreferrer">
+                        <FileText className="h-4 w-4" /> Export PDF
+                    </a>
                 </Button>
                 {can.manage && (
                     <>

@@ -24,6 +24,9 @@ export default function EmployeeImportDialog({ open, onOpenChange, companies }) 
     const [companyId, setCompanyId] = useState(companies.length === 1 ? String(companies[0].id) : undefined);
     const [file, setFile] = useState(null);
     const [preview, setPreview] = useState(null);
+    // v2.102.0: which of THEIR columns feeds which IOMS field, suggested
+    // by the server and shown before anything is written.
+    const [mapping, setMapping] = useState(null);
     const [result, setResult] = useState(null);
     const [error, setError] = useState(null);
 
@@ -31,6 +34,7 @@ export default function EmployeeImportDialog({ open, onOpenChange, companies }) 
         setStage('upload');
         setFile(null);
         setPreview(null);
+        setMapping(null);
         setResult(null);
         setError(null);
     }
@@ -66,6 +70,30 @@ export default function EmployeeImportDialog({ open, onOpenChange, companies }) 
             }
 
             setPreview(await response.json());
+
+            /*
+             * Asked for alongside the preview rather than as a separate
+             * step: a customer uploading their own spreadsheet wants ONE
+             * answer about whether this file will work, and the columns
+             * are half of that answer. A failure here is not fatal -- the
+             * import still runs on the configured mapping -- so it only
+             * costs the extra panel.
+             */
+            try {
+                const inspectBody = new FormData();
+                inspectBody.append('file', file);
+
+                const inspected = await fetch(route('employees.import.inspect'), {
+                    method: 'POST',
+                    body: inspectBody,
+                    headers: { 'X-CSRF-TOKEN': csrfToken() },
+                });
+
+                setMapping(inspected.ok ? await inspected.json() : null);
+            } catch {
+                setMapping(null);
+            }
+
             setStage('preview');
         } catch (e) {
             setError(e.message);
@@ -168,6 +196,43 @@ export default function EmployeeImportDialog({ open, onOpenChange, companies }) 
                             <PreviewStat label="Positions" value={`${preview.positions.existing.length} Existing / ${preview.positions.new.length} New`} small />
                             <PreviewStat label="Invalid Rows" value={preview.invalid_rows} accent={preview.invalid_rows > 0 ? 'amber' : null} />
                         </div>
+
+                        {mapping && (mapping.unmatched_headings.length > 0 || mapping.missing_fields.length > 0) && (
+                            <div className="rounded-lg border border-graphite-100 bg-graphite-50/60 p-3">
+                                <p className="mb-1.5 text-xs font-semibold text-graphite-600">Column Mapping</p>
+                                <p className="mb-2 text-xs text-graphite-500">
+                                    IOMS mencocokkan kolom pada berkas Anda dengan kolom yang dipakai sistem.
+                                    Periksa bagian di bawah ini sebelum melanjutkan.
+                                </p>
+
+                                {Object.entries(mapping.mapping).map(([field, match]) => (
+                                    <p key={field} className="text-xs text-graphite-500">
+                                        <span className="font-medium text-graphite-700">{match.heading}</span>
+                                        {' '}&rarr;{' '}
+                                        {mapping.field_labels[field] ?? field}
+                                        {match.matched_by !== 'exact' && (
+                                            <span className="text-graphite-400"> ({match.matched_by})</span>
+                                        )}
+                                    </p>
+                                ))}
+
+                                {mapping.unmatched_headings.length > 0 && (
+                                    <p className="mt-2 text-xs text-graphite-500">
+                                        Kolom yang tidak dikenali dan akan diabaikan:{' '}
+                                        <span className="text-graphite-700">{mapping.unmatched_headings.join(', ')}</span>
+                                    </p>
+                                )}
+
+                                {mapping.missing_fields.length > 0 && (
+                                    <p className="mt-1 text-xs text-graphite-500">
+                                        Kolom sistem yang tidak terisi dari berkas ini:{' '}
+                                        <span className="text-graphite-700">
+                                            {mapping.missing_fields.map((f) => mapping.field_labels[f] ?? f).join(', ')}
+                                        </span>
+                                    </p>
+                                )}
+                            </div>
+                        )}
 
                         {(preview.departments.new.length > 0 || preview.positions.new.length > 0) && (
                             <div className="rounded-lg border border-amber-200 bg-amber-50/60 p-3">

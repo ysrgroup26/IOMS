@@ -18,8 +18,11 @@ use App\Models\Position;
 use App\Models\Project;
 use App\Models\RosterPattern;
 use App\Models\Shift;
+use App\Services\DocumentEngine;
 use App\Services\FieldMappingService;
+use App\Services\ImportHeaderMatcher;
 use App\Services\MasterDataDetector;
+use App\Services\PdfGeneratorService;
 use Illuminate\Http\JsonResponse;
 use Illuminate\Http\RedirectResponse;
 use Illuminate\Http\Request;
@@ -28,6 +31,7 @@ use Illuminate\Support\Facades\Storage;
 use Inertia\Inertia;
 use Inertia\Response;
 use Maatwebsite\Excel\Facades\Excel;
+use PhpOffice\PhpSpreadsheet\IOFactory;
 use Symfony\Component\HttpFoundation\BinaryFileResponse;
 
 class EmployeeController extends Controller
@@ -300,6 +304,108 @@ class EmployeeController extends Controller
             new EmployeeExport($departmentId, $search, $companyId, $mapping->exportFields('employees'), Company::query()->pluck('id')),
             'employees.xlsx'
         );
+    }
+
+    /**
+     * v2.102.0 -- THE PRINTABLE COUNTERPART OF THE EXCEL EXPORT.
+     *
+     * Same filters, same tenant scoping and the same display order as
+     * `export()` above, deliberately: a register that disagreed with the
+     * spreadsheet beside it would be worse than not having one. The
+     * filters in force are printed on the document, because a filtered
+     * register that reads as a complete one is a document that misleads.
+     *
+     * The tenant company scoping is the same fail-closed rule the Excel
+     * export carries (v1.10.5): the base filter is the current tenant's
+     * own company ids, never "everyone".
+     */
+    public function exportPdf(Request $request, PdfGeneratorService $pdf, DocumentEngine $documents): \Illuminate\Http\Response
+    {
+        $companyId = $request->input('company_id') ? (int) $request->input('company_id') : null;
+        $departmentId = $request->input('department_id') ? (int) $request->input('department_id') : null;
+        $search = $request->input('search');
+
+        $employees = Employee::query()
+            ->whereIn('employees.company_id', Company::query()->pluck('id'))
+            ->with('company', 'department', 'position')
+            ->search($search)
+            ->inCompany($companyId)
+            ->inDepartment($departmentId)
+            ->orderedForDisplay()
+            ->get();
+
+        // Says what this document covers, so a filtered register cannot be
+        // mistaken for the whole workforce. Named rather than echoing raw
+        // ids, and silent when nothing is filtered.
+        $scope = array_filter([
+            $companyId ? Company::find($companyId)?->name : null,
+            $departmentId ? Department::find($departmentId)?->name : null,
+            $search ? 'Pencarian: '.$search : null,
+        ]);
+
+        ActivityLog::record('exported', 'Exported employee register to PDF.');
+
+        return $pdf->streamInline('pdf.employee-register', [
+            'employees' => $employees,
+            'identity' => $documents->identity(),
+            'scopeLabel' => $scope ? implode(' · ', $scope) : 'Seluruh karyawan terdaftar',
+            'generatedAt' => now(),
+            'preparedBy' => $request->user()->displayName(),
+        ], 'employee-register.pdf');
+    }
+
+    /**
+     * v2.102.0 -- SMART IMPORT: READ THE FILE THE CUSTOMER ALREADY HAS.
+     *
+     * The official template remains the golden path. This endpoint is for
+     * the other file: the workforce list a customer already keeps, in
+     * their own words, whose headings are not ours. It reads only the
+     * heading row and a few sample rows, suggests which column feeds which
+     * field, and WRITES NOTHING. The suggestion is shown for confirmation
+     * before any import runs.
+     *
+     * Read with PhpSpreadsheet directly rather than through an import
+     * class, because at this point there is no mapping yet -- the whole
+     * question is what the columns mean, which `WithHeadingRow` would
+     * already have had to assume.
+     */
+    public function inspectImport(Request $request, ImportHeaderMatcher $matcher): JsonResponse
+    {
+        $request->validate([
+            'file' => ['required', 'file', 'mimes:xlsx,xls'],
+        ]);
+
+        $sheet = IOFactory::load($request->file('file')->getRealPath())->getActiveSheet();
+
+        // A heading row plus a handful of rows beneath it is all the
+        // matcher needs, and reading only that keeps a large roster from
+        // being pulled into memory to answer a question about its columns.
+        $rows = $sheet->rangeToArray(
+            'A1:'.$sheet->getHighestColumn().min($sheet->getHighestRow(), 11),
+            null,
+            true,
+            false
+        );
+
+        $headings = array_values(array_filter(
+            array_map(fn ($value) => trim((string) $value), $rows[0] ?? []),
+            fn (string $heading) => $heading !== ''
+        ));
+
+        $sampleRows = [];
+        foreach (array_slice($rows, 1) as $row) {
+            $sample = [];
+            foreach ($headings as $index => $heading) {
+                $sample[$heading] = $row[$index] ?? null;
+            }
+            $sampleRows[] = $sample;
+        }
+
+        return response()->json([
+            'headings' => $headings,
+            ...$matcher->suggest($headings, $sampleRows, 'employees'),
+            'field_labels' => config('mapping_fields.employees.import', []),
+        ]);
     }
 
     public function importTemplate(): BinaryFileResponse

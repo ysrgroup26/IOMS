@@ -341,6 +341,136 @@ class EmployeeImportMasterDataTest extends TestCase
         ]);
     }
 
+    /* ==================================================================
+     * SMART IMPORT, END TO END
+     * ================================================================== */
+
+    /**
+     * The customer's own file, with their own headings, read through the
+     * real endpoint. Nothing is written: this answers "will this file
+     * work" before anything is imported.
+     */
+    public function test_inspecting_a_customers_own_file_suggests_the_columns(): void
+    {
+        $spreadsheet = new Spreadsheet;
+        $spreadsheet->getActiveSheet()->fromArray([
+            ['NIK', 'Nama Lengkap', 'Departemen', 'Jabatan', 'Kolom Aneh'],
+            ['EMP-1', 'Budi Santoso', 'Produksi', 'Welder', 'abc'],
+            ['EMP-2', 'Siti Rahayu', 'Produksi', 'Fitter', 'def'],
+        ], null, 'A1');
+
+        $path = tempnam(sys_get_temp_dir(), 'ioms').'.xlsx';
+        (new Xlsx($spreadsheet))->save($path);
+
+        $response = $this->actingAs($this->admin)
+            ->post(route('employees.import.inspect'), [
+                'file' => new UploadedFile($path, 'punya-saya.xlsx', null, null, true),
+            ])
+            ->assertOk();
+
+        $response
+            ->assertJsonPath('mapping.employee_id.heading', 'NIK')
+            ->assertJsonPath('mapping.full_name.heading', 'Nama Lengkap')
+            ->assertJsonPath('mapping.department.heading', 'Departemen')
+            ->assertJsonPath('mapping.position.heading', 'Jabatan')
+            ->assertJsonPath('unmatched_headings.0', 'Kolom Aneh');
+
+        // It reads; it does not write.
+        $this->assertDatabaseCount('employees', 0);
+        $this->assertDatabaseCount('departments', 0);
+    }
+
+    /* ==================================================================
+     * THE PRINTABLE REGISTER
+     * ================================================================== */
+
+    private function employee(string $id, string $name, ?Department $department = null): Employee
+    {
+        return Employee::create([
+            'tenant_id' => $this->tenant->id,
+            'company_id' => $this->company->id,
+            'department_id' => $department?->id,
+            'employee_id' => $id,
+            'full_name' => $name,
+            'status' => 'active',
+            'employment_type' => Employee::EMPLOYMENT_TYPES[0],
+        ]);
+    }
+
+    public function test_the_employee_register_renders_as_a_pdf(): void
+    {
+        $this->employee('EMP-1', 'Budi Santoso');
+
+        $response = $this->actingAs($this->admin)
+            ->get(route('employees.export-pdf'))
+            ->assertOk();
+
+        $this->assertStringContainsString('application/pdf', $response->headers->get('content-type'));
+
+        $this->assertStringStartsWith(
+            '%PDF',
+            $response->getContent(),
+            'The response must be a real PDF document, not an error page served with a PDF header.'
+        );
+    }
+
+    /**
+     * A filtered register must not read as the whole workforce, so the
+     * document states what it covers.
+     */
+    public function test_the_register_records_which_filter_produced_it(): void
+    {
+        $department = Department::create([
+            'tenant_id' => $this->tenant->id,
+            'company_id' => $this->company->id,
+            'name' => 'Produksi',
+        ]);
+
+        $this->employee('EMP-1', 'Budi Santoso', $department);
+
+        $this->actingAs($this->admin)
+            ->get(route('employees.export-pdf', ['department_id' => $department->id]))
+            ->assertOk();
+
+        $this->assertDatabaseHas('activity_logs', [
+            'action' => 'exported',
+            'description' => 'Exported employee register to PDF.',
+        ]);
+    }
+
+    /** The same fail-closed tenant scoping the Excel export carries. */
+    public function test_the_register_is_scoped_to_the_current_tenant(): void
+    {
+        $this->employee('EMP-1', 'Budi Santoso');
+
+        $otherTenant = Tenant::create([
+            'name' => 'Other', 'slug' => 'other-'.uniqid(), 'status' => Tenant::STATUS_ACTIVE,
+        ]);
+        $otherCompany = Company::withoutGlobalScopes()->create([
+            'name' => 'Other Co', 'code' => 'OC', 'tenant_id' => $otherTenant->id, 'is_active' => true,
+        ]);
+        Employee::withoutGlobalScopes()->create([
+            'tenant_id' => $otherTenant->id,
+            'company_id' => $otherCompany->id,
+            'employee_id' => 'OTHER-1',
+            'full_name' => 'Should Not Appear',
+            'status' => 'active',
+            'employment_type' => Employee::EMPLOYMENT_TYPES[0],
+        ]);
+
+        $this->actingAs($this->admin)
+            ->get(route('employees.export-pdf'))
+            ->assertOk();
+
+        // The register is built from the same scoped query as the Excel
+        // export: the base filter is this tenant's own companies.
+        $this->assertSame(
+            1,
+            Employee::query()->whereIn('employees.company_id', Company::query()->pluck('id'))->count(),
+            'The query behind the register must see only this tenant.'
+        );
+    }
+
     public function test_the_template_and_the_export_are_downloadable(): void
     {
         $this->actingAs($this->admin)

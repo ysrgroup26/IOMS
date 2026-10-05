@@ -452,8 +452,13 @@ Route::middleware(['auth', 'restrict.platform-admin'])->group(function () {
     // Employees: viewable by all roles; mutation actions are policy-gated inside the controller/routes below.
     Route::get('/employees', [EmployeeController::class, 'index'])->name('employees.index');
     Route::get('/employees/export', [EmployeeController::class, 'export'])->name('employees.export');
+    // v2.102.0: the same list as the Excel export, printable.
+    Route::get('/employees/export-pdf', [EmployeeController::class, 'exportPdf'])->name('employees.export-pdf');
     Route::get('/employees/import-template', [EmployeeController::class, 'importTemplate'])->name('employees.import-template');
     Route::post('/employees/import', [EmployeeController::class, 'import'])->name('employees.import');
+    // v2.102.0: suggests a column mapping for a file that is not the
+    // official template. Reads headings and a few sample rows; writes nothing.
+    Route::post('/employees/import/inspect', [EmployeeController::class, 'inspectImport'])->name('employees.import.inspect');
     Route::post('/employees/import/preview', [EmployeeController::class, 'previewImport'])->name('employees.import.preview');
     Route::post('/employees/import/create-missing-and-import', [EmployeeController::class, 'createMissingMasterDataAndImport'])->name('employees.import.create-missing-and-import');
     Route::get('/employees/{employee}', [EmployeeController::class, 'show'])->name('employees.show');

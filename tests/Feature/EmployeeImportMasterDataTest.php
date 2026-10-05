@@ -342,6 +342,58 @@ class EmployeeImportMasterDataTest extends TestCase
     }
 
     /* ==================================================================
+     * VALIDATION A CUSTOMER CAN ACT ON
+     * ================================================================== */
+
+    /**
+     * The preview used to report a COUNT of invalid rows and nothing else,
+     * so a customer was told "3 rows are invalid" before importing and had
+     * no way to find or fix them. The reasons were already being computed;
+     * only the screen that runs AFTER the import rendered them.
+     */
+    public function test_the_preview_says_which_rows_will_be_skipped_and_why(): void
+    {
+        $file = $this->workbook([
+            $this->row('EMP-1', 'Budi Santoso', 'Produksi'),
+            // No employee id: cannot be identified.
+            $this->row('', 'Tanpa Nomor', 'Produksi'),
+            // Same id twice: the second cannot be told from the first.
+            $this->row('EMP-1', 'Kembar', 'Produksi'),
+        ]);
+
+        $response = $this->actingAs($this->admin)
+            ->post(route('employees.import.preview'), [
+                'file' => $file,
+                'company_id' => $this->company->id,
+            ])
+            ->assertOk();
+
+        $skipped = $response->json('skipped');
+
+        $this->assertNotEmpty($skipped, 'A row that will not import must be reported before the import runs.');
+
+        foreach ($skipped as $entry) {
+            $this->assertArrayHasKey('row', $entry, 'A reader must be told WHICH row.');
+            $this->assertArrayHasKey('reason', $entry, 'A reader must be told WHY.');
+            $this->assertNotSame('', trim((string) $entry['reason']));
+        }
+
+        $this->assertSame(count($skipped), $response->json('invalid_rows'));
+    }
+
+    /** The reasons are rendered before the import, not only after it. */
+    public function test_the_import_dialog_shows_the_skipped_rows_in_the_preview(): void
+    {
+        $jsx = file_get_contents(resource_path('js/Components/shared/EmployeeImportDialog.jsx'));
+
+        $this->assertStringContainsString(
+            'preview.skipped',
+            $jsx,
+            'The preview must render the rows it is about to skip, not just count them.'
+        );
+    }
+
+    /* ==================================================================
      * SMART IMPORT, END TO END
      * ================================================================== */
 

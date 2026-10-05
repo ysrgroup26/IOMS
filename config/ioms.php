@@ -49,7 +49,7 @@ return [
 
     'edition' => 'Enterprise Edition',
 
-    'build' => '2026.10.05.06',
+    'build' => '2026.10.05.07',
 
     'release_date' => '2026-10-05',
 

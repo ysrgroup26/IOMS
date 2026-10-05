@@ -197,6 +197,26 @@ export default function EmployeeImportDialog({ open, onOpenChange, companies }) 
                             <PreviewStat label="Invalid Rows" value={preview.invalid_rows} accent={preview.invalid_rows > 0 ? 'amber' : null} />
                         </div>
 
+                        {preview.skipped?.length > 0 && (
+                            <div>
+                                <p className="mb-1.5 flex items-center gap-1.5 text-xs font-semibold text-graphite-600">
+                                    <AlertTriangle className="h-3.5 w-3.5 text-amber-500" /> Rows That Will Be Skipped
+                                </p>
+                                <p className="mb-2 text-xs text-graphite-500">
+                                    Baris berikut tidak akan diimpor. Perbaiki pada berkas Anda lalu unggah ulang,
+                                    atau lanjutkan tanpa baris tersebut.
+                                </p>
+                                <div className="max-h-40 overflow-y-auto rounded-lg border border-graphite-100">
+                                    {preview.skipped.map((s, i) => (
+                                        <div key={i} className="flex justify-between gap-3 border-b border-graphite-100 px-3 py-1.5 text-xs last:border-0">
+                                            <span className="shrink-0 text-graphite-500">Row {s.row}</span>
+                                            <span className="text-right text-graphite-700">{s.reason}</span>
+                                        </div>
+                                    ))}
+                                </div>
+                            </div>
+                        )}
+
                         {mapping && (mapping.unmatched_headings.length > 0 || mapping.missing_fields.length > 0) && (
                             <div className="rounded-lg border border-graphite-100 bg-graphite-50/60 p-3">
                                 <p className="mb-1.5 text-xs font-semibold text-graphite-600">Column Mapping</p>

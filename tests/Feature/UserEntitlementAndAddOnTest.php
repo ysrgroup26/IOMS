@@ -371,22 +371,33 @@ class UserEntitlementAndAddOnTest extends TestCase
 
         Auth::forgetGuards();
 
-        // The browser sends a QUANTITY. Anything else it sends is ignored,
-        // and every figure is recomputed server-side.
+        /*
+         * v2.104.0 -- moved onto the PURCHASE endpoint, because capacity is
+         * no longer granted by setting a number: it is invoiced first and
+         * granted when the payment settles. The rule this test exists for is
+         * unchanged and is what it still asserts -- the browser sends a
+         * QUANTITY, and every figure is recomputed server-side.
+         */
         $this->actingAs($this->admin)
-            ->put(route('subscription.additional-users'), [
-                'additional_users' => 2,
-                'additional_user_price' => 1,
+            ->post(route('subscription.add-ons.store'), [
+                'type' => \App\Models\SubscriptionAddOn::TYPE_ADDITIONAL_USERS,
+                'quantity' => 2,
+                'unit_price' => 1,
                 'amount' => 1,
             ])
             ->assertRedirect();
 
-        $subscription = $this->tenant->subscription->fresh();
+        $addOn = \App\Models\SubscriptionAddOn::where('tenant_id', $this->tenant->id)->sole();
 
-        $this->assertSame(2, $subscription->additionalUsers());
+        $this->assertSame(2, $addOn->quantity);
+        $this->assertEquals(
+            ApprovedCatalogue::ADDITIONAL_USER_PRICE,
+            (float) $addOn->unit_price,
+            'The price must come from configuration, never from the request.'
+        );
         $this->assertEquals(
             2 * ApprovedCatalogue::ADDITIONAL_USER_PRICE,
-            $subscription->additionalUserCharge(Subscription::CYCLE_MONTHLY),
+            (float) $addOn->invoices()->sole()->amount,
             'The charge must come from configuration, never from the request.'
         );
     }

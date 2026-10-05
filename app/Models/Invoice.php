@@ -65,10 +65,31 @@ class Invoice extends Model
      */
     public const PURPOSE_TOPUP = 'topup';
 
-    public const PURPOSES = [self::PURPOSE_ONBOARDING, self::PURPOSE_RENEWAL, self::PURPOSE_PLAN_CHANGE, self::PURPOSE_TOPUP];
+    /**
+     * v2.104.0 -- CAPACITY BOUGHT AS AN ADD-ON, with its own period and its
+     * own renewal date.
+     *
+     * Separate from `topup`, which is a one-off PTW document credit with no
+     * period at all and keeps the model it already has. Keeping them apart
+     * matters at settlement: the two are applied by different code, and one
+     * purpose answering for both would make an add-on invoice look like a
+     * document credit that happens to grant nothing.
+     */
+    public const PURPOSE_ADD_ON = 'add_on';
+
+    public const PURPOSES = [self::PURPOSE_ONBOARDING, self::PURPOSE_RENEWAL, self::PURPOSE_PLAN_CHANGE, self::PURPOSE_TOPUP, self::PURPOSE_ADD_ON];
+
+    public function subscriptionAddOn()
+    {
+        return $this->belongsTo(SubscriptionAddOn::class, 'subscription_add_on_id');
+    }
 
     protected $fillable = [
-        'invoice_number', 'tenant_id', 'registration_id', 'subscription_id', 'period_start', 'period_end',
+        'invoice_number', 'tenant_id', 'registration_id', 'subscription_id',
+        // v2.104.0 -- which add-on this invoice buys a period of, so
+        // settlement knows what to activate or extend.
+        'subscription_add_on_id',
+        'period_start', 'period_end',
         'purpose', 'target_package_id', 'target_billing_cycle',
         'amount', 'currency', 'status', 'due_date', 'payment_date', 'payment_reference',
         'payment_method', 'notes', 'created_by',

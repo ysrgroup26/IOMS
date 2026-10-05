@@ -3,7 +3,11 @@ import { useEffect, useState } from 'react';
 import { CreditCard, Users, Building2, ShieldCheck, CalendarClock, Receipt, AlertTriangle, FileDown, ArrowUpRight, Clock3, CheckCircle2, Lock, Plus, Minus } from 'lucide-react';
 import AuthenticatedLayout from '@/Layouts/AuthenticatedLayout';
 import PageHeader from '@/Components/shared/PageHeader';
-import { Card, CardContent, CardHeader, CardTitle } from '@/Components/ui/card';
+import { Card, CardContent, CardHeader, CardTitle, CardDescription } from '@/Components/ui/card';
+import { Label } from '@/Components/ui/label';
+import { Input } from '@/Components/ui/input';
+import { Checkbox } from '@/Components/ui/checkbox';
+import { Select, SelectTrigger, SelectValue, SelectContent, SelectItem } from '@/Components/ui/select';
 import { Table, TableHeader, TableBody, TableRow, TableHead, TableCell } from '@/Components/ui/table';
 import StatusBadge from '@/Components/shared/StatusBadge';
 import EmptyState from '@/Components/shared/EmptyState';
@@ -107,6 +111,9 @@ export default function Billing({
     onlinePaymentEnabled,
     graceDays,
     billingEmail,
+    billingCentre,
+    addOns = [],
+    addOnPrices,
 }) {
     const renew = useForm({});
 
@@ -387,6 +394,8 @@ export default function Billing({
                             does not fit their team. */}
                         <Meter icon={Users} label="Active users" {...entitlements.users} />
                         <AdditionalUsers users={entitlements.users} />
+                        <BillingCentre centre={billingCentre} onlinePaymentEnabled={onlinePaymentEnabled} />
+                        <AddOns addOns={addOns} prices={addOnPrices} />
                         {/* v2.54.0: capacity is measured in OPERATING UNITS -- one
                             organization, one subscription, one or more units. */}
                         <Meter icon={Building2} label="Operating Units" {...entitlements.operating_units} />
@@ -493,6 +502,179 @@ export default function Billing({
                 </CardContent>
             </Card>
         </AuthenticatedLayout>
+    );
+}
+
+/**
+ * v2.104.0 -- EVERYTHING STILL OWED, IN ONE PLACE.
+ *
+ * Oldest first, because that is the order invoices fall overdue, and
+ * paying the newest while an older one lapses is the one order a customer
+ * would not choose if the page told them.
+ *
+ * "Pay All Outstanding" and "Pay Selected" both send the customer to the
+ * oldest of the invoices concerned; the next is offered once that one
+ * settles. One payment answers for one invoice on purpose -- every
+ * reconciliation surface IOMS has is built that way, and collapsing them
+ * would make "which invoice did this money settle" unanswerable the first
+ * time an amount did not match.
+ */
+function BillingCentre({ centre, onlinePaymentEnabled }) {
+    const [selected, setSelected] = useState([]);
+
+    if (!centre || centre.count === 0) {
+        return null;
+    }
+
+    function toggle(id) {
+        setSelected((current) => (current.includes(id)
+            ? current.filter((x) => x !== id)
+            : [...current, id]));
+    }
+
+    function pay(ids) {
+        router.post(route('subscription.pay-outstanding'), { invoice_ids: ids });
+    }
+
+    return (
+        <Card>
+            <CardHeader>
+                <CardTitle>Billing Centre</CardTitle>
+                <CardDescription>
+                    Seluruh tagihan yang belum dibayar, diurutkan dari yang paling lama.
+                    Membayar yang terlama lebih dulu mencegah masa aktif terlewat.
+                </CardDescription>
+            </CardHeader>
+            <CardContent className="space-y-3">
+                <div className="flex flex-wrap items-baseline gap-x-4 gap-y-1">
+                    <p className="text-sm text-graphite-500">
+                        {centre.count} tagihan menunggu pembayaran
+                        {centre.overdue_count > 0 && `, ${centre.overdue_count} sudah lewat jatuh tempo`}
+                    </p>
+                    <p className="text-lg font-semibold text-graphite-800">{centre.total_formatted}</p>
+                </div>
+
+                {onlinePaymentEnabled && (
+                    <div className="flex flex-wrap gap-2">
+                        <Button type="button" onClick={() => pay([])}>
+                            Pay All Outstanding
+                        </Button>
+                        <Button
+                            type="button"
+                            variant="outline"
+                            disabled={selected.length === 0}
+                            onClick={() => pay(selected)}
+                        >
+                            Pay Selected ({selected.length})
+                        </Button>
+                    </div>
+                )}
+
+                <div className="space-y-1.5 border-t border-graphite-100 pt-3">
+                    {centre.invoice_ids.map((id) => (
+                        <label key={id} className="flex cursor-pointer items-center gap-2 text-sm text-graphite-600">
+                            <Checkbox checked={selected.includes(id)} onCheckedChange={() => toggle(id)} />
+                            <span>Tagihan #{id}</span>
+                        </label>
+                    ))}
+                </div>
+            </CardContent>
+        </Card>
+    );
+}
+
+/**
+ * v2.104.0 -- CAPACITY BOUGHT, AND WHEN IT RUNS OUT.
+ *
+ * An add-on is a purchase with its own period: paid before it counts, and
+ * renewed on its own date rather than the subscription's. Cancelling stops
+ * the next renewal and keeps the period already paid for, which is why a
+ * cancelled row can still say it counts.
+ */
+function AddOns({ addOns, prices }) {
+    const buy = useForm({ type: 'additional_users', quantity: 1 });
+
+    function submit(e) {
+        e.preventDefault();
+        buy.post(route('subscription.add-ons.store'), { preserveScroll: true });
+    }
+
+    function cancel(addOn) {
+        if (confirm(`Hentikan ${addOn.quantity} x ${addOn.label}? Kapasitas tetap aktif sampai akhir periode yang sudah dibayar dan tidak diperpanjang.`)) {
+            router.delete(route('subscription.add-ons.cancel', addOn.id), { preserveScroll: true });
+        }
+    }
+
+    return (
+        <Card>
+            <CardHeader>
+                <CardTitle>Capacity Add-Ons</CardTitle>
+                <CardDescription>
+                    Kapasitas tambahan dibeli per periode dan aktif setelah pembayaran dikonfirmasi.
+                    Setiap tambahan memiliki tanggal perpanjangan sendiri, terpisah dari langganan utama.
+                </CardDescription>
+            </CardHeader>
+            <CardContent className="space-y-4">
+                <form onSubmit={submit} className="flex flex-wrap items-end gap-2">
+                    <div className="space-y-1.5">
+                        <Label>Type</Label>
+                        <Select value={buy.data.type} onValueChange={(v) => buy.setData('type', v)}>
+                            <SelectTrigger className="w-56"><SelectValue /></SelectTrigger>
+                            <SelectContent>
+                                <SelectItem value="additional_users">Additional Users ({prices?.additional_users} / bulan)</SelectItem>
+                                <SelectItem value="my_work_packs">My Work Packs ({prices?.my_work_packs} / bulan)</SelectItem>
+                            </SelectContent>
+                        </Select>
+                    </div>
+                    <div className="space-y-1.5">
+                        <Label>Quantity</Label>
+                        <Input
+                            type="number"
+                            min={1}
+                            max={1000}
+                            value={buy.data.quantity}
+                            onChange={(e) => buy.setData('quantity', Number(e.target.value))}
+                            className="w-28"
+                        />
+                    </div>
+                    <Button type="submit" disabled={buy.processing}>Buy Capacity</Button>
+                </form>
+
+                <p className="text-xs text-graphite-400">
+                    Satu paket My Work berisi {prices?.my_work_pack_size} pengguna. Tagihan dibuat segera dan
+                    kapasitas belum dihitung sampai pembayaran terverifikasi.
+                </p>
+
+                {addOns.length > 0 && (
+                    <div className="space-y-2 border-t border-graphite-100 pt-3">
+                        {addOns.map((addOn) => (
+                            <div key={addOn.id} className="flex flex-wrap items-center justify-between gap-2 text-sm">
+                                <div>
+                                    <p className="font-medium text-graphite-700">
+                                        {addOn.quantity} x {addOn.label}
+                                        <span className="ml-2 text-xs font-normal text-graphite-400">
+                                            {addOn.period_charge_formatted} / periode
+                                        </span>
+                                    </p>
+                                    <p className="text-xs text-graphite-400">
+                                        {addOn.status === 'pending_payment' && 'Menunggu pembayaran, belum dihitung'}
+                                        {addOn.status === 'active' && `Berjalan sampai ${fmtDate(addOn.ends_at)}`}
+                                        {addOn.status === 'cancelled' && (addOn.counts
+                                            ? `Dihentikan, tetap aktif sampai ${fmtDate(addOn.ends_at)}`
+                                            : 'Dihentikan dan sudah berakhir')}
+                                    </p>
+                                </div>
+                                {addOn.status !== 'cancelled' && (
+                                    <Button type="button" variant="outline" size="sm" onClick={() => cancel(addOn)}>
+                                        Cancel
+                                    </Button>
+                                )}
+                            </div>
+                        ))}
+                    </div>
+                )}
+            </CardContent>
+        </Card>
     );
 }
 

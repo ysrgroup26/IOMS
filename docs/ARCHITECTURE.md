@@ -455,6 +455,39 @@ form. Re-granting is a manual operator action on the subscription that already e
 (`grantComplimentary()`), so it creates no second tenant and no second subscription, and previous
 free access does not block it. Reasoning: ADR [[048-complimentary-access-is-an-evaluation|048]].
 
+### Capacity add-ons (v2.104.0)
+
+Extra capacity is a **purchase with its own period**, not a number on the subscription. See
+`docs/ADR/049-an-add-on-is-a-purchase-with-its-own-clock.md` for the reasoning; the shape:
+
+- `subscription_add_ons` — type, quantity, **snapshotted** unit price, cycle, status, and the
+  add-on's own `starts_at` / `ends_at`.
+- `AddOnPurchaseService` — the only place the four rules live: paid before granted, its own clock,
+  no proration, early payment does not move the schedule.
+- `invoices.subscription_add_on_id` — which add-on an invoice buys a period of, so settlement does
+  not re-derive it from line items. Purpose `add_on`, applied in `applyPaidInvoice()` **before**
+  anything that moves a subscription's dates.
+- The nightly job runs a **second pass** keyed on add-on dates, skipping an add-on that already has
+  an unpaid invoice so a customer is not billed again every night.
+
+**`isCounted()` is the rule every reader depends on.** Capacity counts while it is paid for, which
+is not the same as "not cancelled": a cancelled add-on keeps its capacity until the period it
+already paid for runs out. Ask `counted()` / `isCounted()`, never the status.
+
+**Two sources, added once.** `Subscription::additionalUsers()` sums the legacy column (capacity
+granted under the earlier arrangement, or by an operator) and counted add-ons. No new capacity is
+written to the column; `updateAdditionalUsers()` now refuses increases and releases only.
+
+**PTW usage is not an add-on.** A top-up is a one-off document credit with no period, and keeps its
+own model.
+
+### The Billing Centre (v2.104.0)
+
+Everything still owed, oldest first, with a total. **Pay Selected** and **Pay All Outstanding** both
+send the customer to the oldest invoice concerned and offer the next once it settles: one payment
+answers for one invoice, because every reconciliation surface IOMS has is built that way. See the
+ADR for why collapsing them was rejected.
+
 ### Smart Import: matching a customer's own headings (v2.102.0)
 
 The official template is the golden path. `App\Services\ImportHeaderMatcher` exists for the other

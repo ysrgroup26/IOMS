@@ -55,7 +55,24 @@ class PermitToWorkController extends Controller
         return Inertia::render('PermitsToWork/Index', [
             'permits' => $permits,
             'filters' => $request->only('search', 'status', 'type'),
-            'can' => ['manage' => $request->user()->canManageHse()],
+            /*
+             * v2.103.0 -- THE PROP REPORTS THE GATE, not half of it.
+             *
+             * This was `canManageHse()`, while the server gate for raising
+             * a permit is `canCreatePtw()` -- which is `canManageHse() OR
+             * ptw_access`. The second half is the entire point of PTW
+             * Access: a foreman or supervisor who is not HSE is granted it,
+             * and the grant is quota-checked and billed.
+             *
+             * The only thing this prop gates is the "New Permit" button, so
+             * a granted account could raise a permit by URL and had no
+             * button to do it with. The customer pays for the access and it
+             * appears to do nothing.
+             *
+             * Reported from the same method the route enforces with, so the
+             * page and the server cannot disagree in either direction.
+             */
+            'can' => ['manage' => $request->user()->canCreatePtw()],
         ]);
     }
 

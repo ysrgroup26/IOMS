@@ -347,6 +347,18 @@ class EntitlementService
             return false;
         }
 
+        /*
+         * v2.103.0 -- A MY WORK USER WORKS IN NO OPERATIONAL WORKSPACE.
+         *
+         * `RestrictMyWorkUser` refuses every one of them on the route, so
+         * answering yes here only produced a sidebar full of links that
+         * answer 403. The class is checked before the plan because it is
+         * the narrower question: no plan grants this account a workspace.
+         */
+        if ($user->isMyWorkUser()) {
+            return false;
+        }
+
         if (! $this->tenantCanUseWorkspace($user->tenant, $workspaceKey)) {
             return false;
         }
@@ -371,6 +383,31 @@ class EntitlementService
      * the cost of being wrong is a redirect to their own workspace rather
      * than a lockout.
      */
+    /**
+     * v2.103.0 -- THE SAME QUESTION, ASKED ABOUT A PERSON.
+     *
+     * The Global Company Dashboard is sold by plan, so the tenant-level
+     * method below remains the commercial answer. But a My Work User may
+     * not see it whatever their tenant bought: it is the cross-workspace
+     * company view, and this class works in no workspace at all. Selling a
+     * field account at a fifth of a Full User's price and then showing it
+     * the company dashboard would give away exactly the visibility the
+     * tier is sold for.
+     *
+     * `dashboard` stays on the My Work allow-list because it is the route
+     * sign-in machinery passes through; the controller REDIRECTS this
+     * class to My Work rather than refusing, which is the same treatment
+     * an unentitled tenant already gets (ADR 045).
+     */
+    public function userHasGlobalDashboard(?User $user): bool
+    {
+        if (! $user || $user->isMyWorkUser()) {
+            return false;
+        }
+
+        return $this->tenantHasGlobalDashboard($user->tenant);
+    }
+
     public function tenantHasGlobalDashboard(?Tenant $tenant): bool
     {
         if (! $tenant || ! $this->tenantIsUsable($tenant)) {

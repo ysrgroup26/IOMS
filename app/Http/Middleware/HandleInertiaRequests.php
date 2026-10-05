@@ -124,7 +124,9 @@ class HandleInertiaRequests extends Middleware
                             ->mapWithKeys(fn (string $key) => [$key => $entitlements->userCanUseWorkspace($user, $key)])
                             ->all();
                     })(),
-                    'has_global_dashboard' => app(EntitlementService::class)->tenantHasGlobalDashboard($user->tenant),
+                    // v2.103.0: asked about the PERSON, not only the plan --
+                    // a My Work User never reaches it. See the service.
+                    'has_global_dashboard' => app(EntitlementService::class)->userHasGlobalDashboard($user),
                     // v1.11.3.2 (production UX fix, Part 3): the exact
                     // route-name-prefix allowlist RestrictDepartmentAccess
                     // enforces server-side for this user, straight from

@@ -10,6 +10,8 @@ use App\Models\Invoice;
 use App\Models\Package;
 use App\Models\PaymentTransaction;
 use App\Models\Subscription;
+use App\Services\AddOnPurchaseService;
+use App\Models\SubscriptionAddOn;
 use App\Models\User;
 use App\Services\EntitlementService;
 use App\Services\InvoiceDocumentService;
@@ -129,9 +131,68 @@ class SubscriptionController extends Controller
                 'is_overdue' => $invoice->isOverdue(),
             ]);
 
+        /*
+         * v2.104.0 -- THE BILLING CENTRE: everything still owed, in one
+         * place, oldest first.
+         *
+         * Oldest first because that is the order they fall overdue, and
+         * paying the newest while an older one lapses is the one order a
+         * customer would not choose if the page told them.
+         */
+        $outstandingInvoices = Invoice::where('tenant_id', $tenantId)
+            ->whereIn('status', [Invoice::STATUS_ISSUED, Invoice::STATUS_OVERDUE])
+            ->orderBy('due_date')
+            ->orderBy('id')
+            ->get();
+
+        $billingCentre = [
+            'invoice_ids' => $outstandingInvoices->pluck('id')->all(),
+            'count' => $outstandingInvoices->count(),
+            'total' => (float) $outstandingInvoices->sum('amount'),
+            'total_formatted' => $this->pricing->format(
+                (float) $outstandingInvoices->sum('amount'),
+                $subscription?->agreedCurrency() ?? 'IDR'
+            ),
+            'overdue_count' => $outstandingInvoices->filter(fn (Invoice $i) => $i->isOverdue())->count(),
+        ];
+
+        /*
+         * v2.104.0 -- CAPACITY BOUGHT AS AN ADD-ON, with its own period.
+         *
+         * `counts` is the honest word rather than "active": an add-on that
+         * has been cancelled still counts until the period already paid for
+         * runs out, and the page says so rather than showing it as gone.
+         */
+        $addOns = \App\Models\SubscriptionAddOn::query()
+            ->where('tenant_id', $tenantId)
+            ->orderByDesc('id')
+            ->get()
+            ->map(fn (\App\Models\SubscriptionAddOn $addOn) => [
+                'id' => $addOn->id,
+                'type' => $addOn->type,
+                'label' => $addOn->label(),
+                'quantity' => $addOn->quantity,
+                'status' => $addOn->status,
+                'counts' => $addOn->isCounted(),
+                'starts_at' => $addOn->starts_at,
+                'ends_at' => $addOn->ends_at,
+                'cancelled_at' => $addOn->cancelled_at,
+                'period_charge_formatted' => $this->pricing->format(
+                    $addOn->periodCharge(),
+                    $addOn->currency
+                ),
+            ]);
+
         $outstanding = $subscription ? $this->lifecycle->outstandingRenewalInvoice($subscription) : null;
 
         return Inertia::render('Settings/Billing', [
+            'billingCentre' => $billingCentre,
+            'addOns' => $addOns,
+            'addOnPrices' => [
+                'additional_users' => $this->pricing->format((float) config('saas.additional_user_price')),
+                'my_work_packs' => $this->pricing->format((float) config('saas.my_work_pack_price')),
+                'my_work_pack_size' => (int) config('saas.my_work_pack_size', 10),
+            ],
             'subscription' => $subscription ? [
                 // v2.80.0: every lifecycle fact comes from the ONE snapshot
                 // Master Admin also renders. Do not add a lifecycle key
@@ -449,11 +510,30 @@ class SubscriptionController extends Controller
                 .'Nonaktifkan akun yang tidak terpakai terlebih dahulu.');
         }
 
-        if ($requested === $subscription->additionalUsers()) {
+        /*
+         * v2.104.0 -- THIS PATH RELEASES CAPACITY; IT NO LONGER SELLS IT.
+         *
+         * It used to raise the quantity immediately and let the charge
+         * appear on the next renewal invoice, which is the deferred billing
+         * the approved model removed: capacity was used before it was paid
+         * for, and everything landed on the subscription's anniversary.
+         *
+         * Buying now goes through `purchaseAddOn()` -- invoiced up front,
+         * granted when the payment settles, renewed on its own date.
+         * Releasing stays here, free and immediate, because giving capacity
+         * BACK costs nobody anything and must not be made harder.
+         */
+        if ($requested > $subscription->additional_users) {
+            return back()->with('error',
+                'Penambahan kapasitas kini dilakukan melalui pembelian pada bagian Capacity Add-Ons, '
+                .'sehingga kapasitas aktif setelah pembayaran dikonfirmasi.');
+        }
+
+        if ($requested === (int) $subscription->additional_users) {
             return back()->with('info', 'Jumlah pengguna tambahan tidak berubah.');
         }
 
-        $before = $subscription->additionalUsers();
+        $before = (int) $subscription->additional_users;
 
         $subscription->forceFill(['additional_users' => $requested])->save();
 
@@ -468,6 +548,83 @@ class SubscriptionController extends Controller
         return back()->with('success', $requested > $before
             ? "Kapasitas ditambah menjadi {$requested} pengguna tambahan. Biaya {$charge} per periode akan masuk pada tagihan perpanjangan berikutnya."
             : "Kapasitas tambahan diperbarui menjadi {$requested} pengguna. Perubahan biaya berlaku pada tagihan perpanjangan berikutnya.");
+    }
+
+    /**
+     * v2.104.0 -- BUYING CAPACITY IS A PURCHASE, NOT A SETTING.
+     *
+     * Raises an invoice and grants nothing. The quantity starts counting
+     * when a verified payment settles that invoice, which is the standing
+     * rule everywhere in IOMS, and the add-on then runs on its own period
+     * rather than on the subscription's renewal date.
+     *
+     * THE BROWSER SENDS A QUANTITY AND A TYPE, never an amount. Every price
+     * is read from configuration here and snapshotted onto the add-on, so a
+     * crafted form can change how much is asked for and never what it
+     * costs, and a later catalogue change cannot reprice a customer who
+     * already bought.
+     */
+    public function purchaseAddOn(Request $request, AddOnPurchaseService $addOns): RedirectResponse
+    {
+        $subscription = $this->currentSubscription($request);
+
+        // Same authority as every other commercial change on this page.
+        abort_unless($request->user()->canManageSystemSettings(), 403);
+
+        $validated = $request->validate([
+            'type' => ['required', 'string', Rule::in(SubscriptionAddOn::TYPES)],
+            'quantity' => ['required', 'integer', 'min:1', 'max:1000'],
+        ]);
+
+        if ($validated['type'] === SubscriptionAddOn::TYPE_ADDITIONAL_USERS
+            && $subscription->includedUsers() === null) {
+            return back()->with('info', 'Paket organisasi Anda tidak memiliki batas pengguna, sehingga tidak perlu menambah kapasitas.');
+        }
+
+        $invoice = $addOns->purchase(
+            $subscription,
+            $validated['type'],
+            (int) $validated['quantity'],
+            $request->user()
+        );
+
+        return redirect()->route('subscription.billing')->with('flash', [
+            'success' => "Tagihan {$invoice->invoice_number} dibuat. Kapasitas tambahan aktif setelah pembayaran dikonfirmasi.",
+        ]);
+    }
+
+    /**
+     * v2.104.0 -- CANCELLING STOPS THE NEXT RENEWAL AND NOTHING ELSE.
+     *
+     * The period already paid for is preserved: the capacity keeps counting
+     * until the add-on's own end date, and no refund is computed, because
+     * a period is bought whole and there is no proration in either
+     * direction. Nothing is deleted -- the row and its invoices remain, so
+     * the customer's billing history stays complete.
+     */
+    public function cancelAddOn(Request $request, SubscriptionAddOn $addOn, AddOnPurchaseService $addOns): RedirectResponse
+    {
+        $subscription = $this->currentSubscription($request);
+
+        abort_unless($request->user()->canManageSystemSettings(), 403);
+
+        // The tenant boundary, restated at the write: an add-on id in a URL
+        // must never reach another customer's capacity.
+        abort_unless($addOn->tenant_id === $subscription->tenant_id, 404);
+
+        if ($addOn->status === SubscriptionAddOn::STATUS_CANCELLED) {
+            return back()->with('info', 'Kapasitas tambahan ini memang sudah dihentikan.');
+        }
+
+        $addOns->cancel($addOn, $request->user());
+
+        $until = $addOn->fresh()->ends_at?->format('d M Y');
+
+        return back()->with('flash', [
+            'success' => $until
+                ? "Kapasitas tambahan dihentikan. Tetap aktif sampai {$until} dan tidak akan diperpanjang."
+                : 'Kapasitas tambahan dihentikan sebelum dibayar, sehingga tidak ada yang berjalan.',
+        ]);
     }
 
     /**
@@ -650,6 +807,57 @@ class SubscriptionController extends Controller
      * browser sent. Authorization and ownership are checked exactly as the
      * page that offers the choice checks them.
      */
+    /**
+     * v2.104.0 -- PAY SELECTED / PAY ALL OUTSTANDING.
+     *
+     * Sends the customer to the oldest invoice still owed out of the ones
+     * they chose, and the Billing Centre offers the next when that one is
+     * settled.
+     *
+     * ONE INVOICE, ONE PAYMENT, DELIBERATELY. A single session covering
+     * several invoices would have to send the provider one amount for
+     * several financial records, and every reconciliation surface IOMS has
+     * -- the provider's own dashboard, `payment_transactions`, the
+     * amount check in the callback -- is built on one payment answering for
+     * one invoice. Collapsing them would make "which invoice did this money
+     * settle" unanswerable the first time an amount did not match.
+     *
+     * What the customer gets instead is the thing they actually wanted: one
+     * place that says what is owed in total, and a path through it that
+     * does not require hunting for each invoice.
+     */
+    public function payOutstanding(Request $request): RedirectResponse
+    {
+        abort_unless($request->user()->canManageSystemSettings(), 403);
+
+        $tenantId = app(CurrentTenant::class)->id();
+        abort_if($tenantId === null, 404);
+
+        $validated = $request->validate([
+            'invoice_ids' => ['array'],
+            'invoice_ids.*' => ['integer'],
+        ]);
+
+        $next = Invoice::where('tenant_id', $tenantId)
+            ->whereIn('status', [Invoice::STATUS_ISSUED, Invoice::STATUS_OVERDUE])
+            // An empty selection means "all of them", which is what the Pay
+            // All Outstanding button sends.
+            ->when(
+                ! empty($validated['invoice_ids']),
+                fn ($query) => $query->whereIn('id', $validated['invoice_ids'])
+            )
+            ->orderBy('due_date')
+            ->orderBy('id')
+            ->first();
+
+        if (! $next) {
+            return redirect()->route('subscription.billing')
+                ->with('flash', ['info' => 'Tidak ada tagihan yang menunggu pembayaran.']);
+        }
+
+        return redirect()->route('subscription.pay', $next->id);
+    }
+
     public function startPayment(Request $request, Invoice $invoice): RedirectResponse
     {
         abort_unless($request->user()->canManageSystemSettings(), 403);

@@ -7,6 +7,8 @@ use App\Mail\SubscriptionLifecycleNotice;
 use App\Models\Invoice;
 use App\Models\Notification;
 use App\Models\Subscription;
+use App\Models\SubscriptionAddOn;
+use App\Services\AddOnPurchaseService;
 use App\Models\User;
 use App\Models\Scopes\UserTenantScope;
 use App\Services\NotificationService;
@@ -56,9 +58,74 @@ class RunSubscriptionLifecycle extends Command
 
     protected $description = 'Issue renewal invoices, send renewal reminders, and apply scheduled plan changes.';
 
+    /**
+     * v2.104.0 -- ADD-ONS FALL DUE ON THEIR OWN DATES.
+     *
+     * A separate pass, deliberately, because an add-on's period has nothing
+     * to do with the subscription's: two bought two months apart renew two
+     * months apart, and folding this into the loop above would have meant
+     * finding the add-ons of each subscription on the subscription's
+     * schedule, which is the very coupling this release removes.
+     *
+     * RAISES AN INVOICE AND NOTHING ELSE. The period is extended when that
+     * invoice is PAID, by AddOnPurchaseService, from the existing end date
+     * -- so an unpaid renewal simply lapses, and an early payment does not
+     * move the anniversary.
+     *
+     * One invoice at a time: an add-on that already has an unpaid add-on
+     * invoice is skipped, so a customer who has not paid yet is not sent a
+     * second bill for the same period every night.
+     */
+    private function renewAddOns(AddOnPurchaseService $addOns, bool $dryRun): int
+    {
+        $due = SubscriptionAddOn::query()
+            ->with(['subscription.tenant', 'subscription.package'])
+            ->renewing()
+            ->whereNotNull('ends_at')
+            ->where('ends_at', '<=', now()->addDays((int) config('saas.renewal_lead_days', 7)))
+            ->get();
+
+        $issued = 0;
+
+        foreach ($due as $addOn) {
+            $tenant = $addOn->subscription?->tenant;
+
+            // Same two exclusions the subscription pass makes, for the same
+            // reasons: a demonstration account is not a customer, and a free
+            // period is free by decision.
+            if (! $tenant || $tenant->isDemo() || $addOn->subscription->isComplimentary()) {
+                continue;
+            }
+
+            $alreadyBilled = Invoice::query()
+                ->where('subscription_add_on_id', $addOn->id)
+                ->whereIn('status', [Invoice::STATUS_ISSUED, Invoice::STATUS_OVERDUE])
+                ->exists();
+
+            if ($alreadyBilled) {
+                continue;
+            }
+
+            if ($dryRun) {
+                $this->line("  would issue an add-on renewal for \"{$tenant->name}\" ({$addOn->label()}).");
+                $issued++;
+
+                continue;
+            }
+
+            $invoice = $addOns->raiseRenewalInvoice($addOn);
+            $this->line("Issued {$invoice->invoice_number} for \"{$tenant->name}\" ({$addOn->label()}).");
+            $issued++;
+        }
+
+        return $issued;
+    }
+
     public function handle(SubscriptionLifecycleService $lifecycle, PricingService $pricing, NotificationService $notifications): int
     {
         $dryRun = (bool) $this->option('dry-run');
+
+        $addOnInvoices = $this->renewAddOns(app(AddOnPurchaseService::class), $dryRun);
 
         $subscriptions = Subscription::with(['package', 'pendingPackage', 'tenant'])
             ->whereNotNull('tenant_id')
@@ -216,7 +283,7 @@ class RunSubscriptionLifecycle extends Command
             }
         }
 
-        $this->info("Invoices issued: {$issued}. Plan changes applied: {$applied}. Reminders sent: {$reminded}. Lifecycle emails: {$emailed}. Complimentary periods ended: {$converted}.");
+        $this->info("Invoices issued: {$issued}. Add-on invoices issued: {$addOnInvoices}. Plan changes applied: {$applied}. Reminders sent: {$reminded}. Lifecycle emails: {$emailed}. Complimentary periods ended: {$converted}.");
 
         if ($dryRun) {
             $this->comment('Dry run -- nothing was written.');

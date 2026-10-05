@@ -1027,8 +1027,20 @@ Route::middleware(['auth', 'restrict.platform-admin'])->group(function () {
     // charge, priced server-side from config -- the browser sends only a
     // quantity. See SubscriptionController::updateAdditionalUsers().
     Route::put('/subscription/additional-users', [SubscriptionController::class, 'updateAdditionalUsers'])->name('subscription.additional-users');
+    /*
+     * v2.104.0: capacity is BOUGHT, not set. The purchase raises an invoice
+     * and grants nothing; the add-on starts counting when that invoice is
+     * paid, and renews on its own date. Cancelling stops the next renewal
+     * and preserves the period already paid for.
+     */
+    Route::post('/subscription/add-ons', [SubscriptionController::class, 'purchaseAddOn'])->name('subscription.add-ons.store');
+    Route::delete('/subscription/add-ons/{addOn}', [SubscriptionController::class, 'cancelAddOn'])->name('subscription.add-ons.cancel');
     Route::post('/subscription/plan-change', [SubscriptionController::class, 'changePlan'])->name('subscription.plan-change');
     Route::delete('/subscription/plan-change', [SubscriptionController::class, 'cancelPlanChange'])->name('subscription.plan-change.cancel');
+    // v2.104.0: Pay Selected / Pay All Outstanding. Sends the customer to
+    // the oldest invoice still owed; the Billing Centre offers the next once
+    // that one settles. See SubscriptionController::payOutstanding().
+    Route::post('/subscription/pay-outstanding', [SubscriptionController::class, 'payOutstanding'])->name('subscription.pay-outstanding');
     Route::get('/subscription/invoices/{invoice}/pay', [SubscriptionController::class, 'pay'])->name('subscription.pay');
     // v2.95.0: creates the renewal payment session for the chosen channel.
     // POST because it has a side effect at the provider.

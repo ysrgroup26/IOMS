@@ -404,6 +404,29 @@ class TransitiveTenantIsolationTest extends TestCase
             // buys. Scoping them by company would silently give a tenant one
             // allowance per operating unit.
             'InvoiceItem', 'PtwQuotaGrant', 'PtwQuotaConsumption',
+            /*
+             * v2.104.0 -- `SubscriptionAddOn` sits between `Subscription`
+             * and `Invoice`, both already here, and is in the same category
+             * for the same reason: it carries `tenant_id`, it is commercial
+             * rather than operational, and every read constrains the tenant
+             * explicitly -- `Subscription::countedAddOnQuantity()` filters by
+             * `subscription_id`, the controller filters by `tenant_id` and
+             * re-asserts ownership before cancelling, and the nightly job
+             * reaches them across tenants deliberately, which a scope would
+             * make impossible.
+             *
+             * NOT company-scoped, on purpose and for the same reason the PTW
+             * quota rows are not: capacity is bought and spent by the TENANT.
+             * A seat used at one operating unit consumes the same allowance
+             * as one used at another, which is what the customer buys.
+             * Scoping by company would silently give a tenant one allowance
+             * per operating unit.
+             *
+             * `AddOnBillingFlowTest` asserts the boundary directly: an
+             * add-on id in a URL does not reach another customer's capacity,
+             * and Pay Outstanding does not reach another customer's invoice.
+             */
+            'SubscriptionAddOn',
             // The approval engine walks these across tenants from a
             // scheduled command; the tenancy check lives in
             // ApprovalEngine::authorize(), asserted above.

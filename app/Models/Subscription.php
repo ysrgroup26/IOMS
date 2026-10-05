@@ -476,10 +476,61 @@ class Subscription extends Model
         return $this->seat_limit ?? $this->package?->includedUsers();
     }
 
-    /** Active-user slots this customer has purchased beyond the plan. */
+    /*
+     * v2.104.0 -- TWO SOURCES, ADDED ONCE, AND WHY BOTH EXIST.
+     *
+     * `additional_users` on this row is capacity granted under the EARLIER
+     * arrangement (live immediately, billed at the next renewal) or granted
+     * by an operator from Master Admin. It keeps its value and keeps
+     * counting: it is already in use and already billed that way, and
+     * re-selling it through the new purchase flow would charge a customer
+     * twice for capacity they already have.
+     *
+     * `subscription_add_ons` is capacity BOUGHT: invoiced up front, granted
+     * only once a verified payment settles it, and renewed on its own date.
+     * No new capacity is written to the column any more.
+     *
+     * Counted add-ons include cancelled ones whose paid period has not run
+     * out -- see SubscriptionAddOn::isCounted(). A cancellation stops the
+     * next renewal; it does not take back a period already paid for.
+     */
     public function additionalUsers(): int
     {
-        return max(0, (int) ($this->additional_users ?? 0));
+        return max(0, (int) ($this->additional_users ?? 0))
+            + $this->countedAddOnQuantity(SubscriptionAddOn::TYPE_ADDITIONAL_USERS);
+    }
+
+    /**
+     * Quantity of one add-on type whose paid period is still running.
+     *
+     * Resolved once per instance: `seatLimit()` is consulted on effectively
+     * every user-creation check, and re-running this aggregate each time
+     * would put a query behind a method that reads like an accessor.
+     *
+     * @var array<string, int>|null
+     */
+    private ?array $countedAddOns = null;
+
+    public function countedAddOnQuantity(string $type): int
+    {
+        if ($this->countedAddOns === null) {
+            $this->countedAddOns = SubscriptionAddOn::query()
+                ->where('subscription_id', $this->id)
+                ->counted()
+                ->selectRaw('type, SUM(quantity) as total')
+                ->groupBy('type')
+                ->pluck('total', 'type')
+                ->map(fn ($total) => (int) $total)
+                ->all();
+        }
+
+        return $this->countedAddOns[$type] ?? 0;
+    }
+
+    /** Forgets the cached add-on totals, for a caller that just changed them. */
+    public function forgetCountedAddOns(): void
+    {
+        $this->countedAddOns = null;
     }
 
     /**
@@ -521,7 +572,10 @@ class Subscription extends Model
     /** Packs of ten purchased beyond the plan. */
     public function additionalMyWorkPacks(): int
     {
-        return max(0, (int) ($this->additional_my_work_packs ?? 0));
+        // v2.104.0: the column plus counted add-ons, for the same reasons
+        // as additionalUsers() above.
+        return max(0, (int) ($this->additional_my_work_packs ?? 0))
+            + $this->countedAddOnQuantity(SubscriptionAddOn::TYPE_MY_WORK_PACKS);
     }
 
     /** Those packs expressed as users. */

@@ -95,7 +95,26 @@ class DashboardController extends Controller
          * secret, and every figure it renders is already tenant-scoped and
          * separately reachable from the workspace that owns it.
          */
-        if (! $this->entitlements->tenantHasGlobalDashboard($request->user()?->tenant)) {
+        /*
+         * v2.103.0 -- A MY WORK USER IS SENT TO MY WORK, not to a workspace
+         * overview.
+         *
+         * They may not see the cross-workspace company view: it is the
+         * visibility the Business tier sells, and this class works in no
+         * workspace at all. Redirect rather than refuse, for the same
+         * reason the plan check below does it -- `dashboard` is on that
+         * class's allow-list precisely because sign-in passes through it.
+         *
+         * Sent to their own landing route rather than through
+         * `redirectToWorkspace()`, which resolves to a workspace overview
+         * that `RestrictMyWorkUser` then answers 403 for: a redirect into a
+         * refusal is worse than the page they were trying to leave.
+         */
+        if ($request->user()?->isMyWorkUser()) {
+            return redirect()->route('my-work');
+        }
+
+        if (! $this->entitlements->userHasGlobalDashboard($request->user())) {
             return $this->redirectToWorkspace($request);
         }
 

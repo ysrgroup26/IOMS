@@ -179,7 +179,10 @@ class SubscriptionLifecycleService
         // `Model::preventLazyLoading()` is active outside production, and
         // an N+1 guard throwing mid-settlement would leave a paid invoice
         // unapplied.
-        $invoice->loadMissing(['subscription.tenant', 'subscription.package', 'targetPackage', 'items']);
+        // v2.104.0: `subscriptionAddOn` is loaded here too, because the
+        // add-on branch below reads it and an N+1 guard throwing
+        // mid-settlement would leave a paid invoice unapplied.
+        $invoice->loadMissing(['subscription.tenant', 'subscription.package', 'targetPackage', 'items', 'subscriptionAddOn.subscription']);
 
         $subscription = $invoice->subscription;
 
@@ -214,6 +217,24 @@ class SubscriptionLifecycleService
          * provider that delivers the same notification twice, which they all
          * do, credits once.
          */
+        /*
+         * v2.104.0 -- AN ADD-ON IS APPLIED BEFORE ANYTHING ELSE, and
+         * returned from, for the same reason a PTW top-up is: everything
+         * below moves the SUBSCRIPTION's dates, and an add-on moves none of
+         * them. Falling through would extend the customer's whole
+         * subscription because they bought a seat.
+         *
+         * AddOnPurchaseService decides whether this activates a new add-on
+         * or extends an existing one, and extends from the existing end
+         * date rather than from today so paying early never shifts the
+         * anniversary.
+         */
+        if ($invoice->purpose === Invoice::PURPOSE_ADD_ON) {
+            app(\App\Services\AddOnPurchaseService::class)->applyPaidInvoice($invoice);
+
+            return;
+        }
+
         if ($invoice->purpose === Invoice::PURPOSE_TOPUP) {
             $documents = (int) $invoice->items
                 ->where('kind', \App\Models\InvoiceItem::KIND_PTW_TOPUP)

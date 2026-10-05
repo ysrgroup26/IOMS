@@ -456,6 +456,24 @@ class User extends Authenticatable implements MustVerifyEmail
      */
     public function canAccessAdminSpace(): bool
     {
+        /*
+         * v2.103.0 -- THE ACCOUNT'S CLASS IS PART OF THE ANSWER.
+         *
+         * Class and role are independent fields on the user form, so a My
+         * Work User can hold an operational role. This method asked only
+         * about role, so such an account answered yes and the header
+         * offered it Admin Space -- which `RestrictMyWorkUser`'s allow-list
+         * refuses at the door, every time.
+         *
+         * Same defect as the department confinement below, in a different
+         * place, and the same reasoning: a navigation gate must report the
+         * access the backend actually grants. It removes nothing; the
+         * allow-list was always the boundary.
+         */
+        if ($this->isMyWorkUser()) {
+            return false;
+        }
+
         if (! $this->isTenantAdmin() && ! $this->canManageOperationalSettings()) {
             return false;
         }

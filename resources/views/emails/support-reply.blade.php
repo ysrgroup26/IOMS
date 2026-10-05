@@ -36,7 +36,7 @@
     ])
 
     <p style="margin:0; font-size:12px; line-height:19px; color:#64748b;">
-        Balas email ini untuk melanjutkan percakapan — balasan Anda masuk ke tiket
+        Balas email ini untuk melanjutkan percakapan. Balasan Anda masuk ke tiket
         {{ $ticket->reference }} dan dibaca oleh tim dukungan IOMS. Bila Anda mengirim pesan baru,
         mohon sertakan nomor tiket pada subjek.
     </p>

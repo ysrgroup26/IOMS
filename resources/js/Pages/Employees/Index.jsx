@@ -158,12 +158,12 @@ export default function EmployeesIndex({ employees, companies, departments, filt
                                                 <PersonChip name={emp.full_name} subtitle={emp.employee_id} />
                                             </TableCell>
                                             <TableCell>
-                                                <p className="text-graphite-800">{emp.company?.name ?? '—'}</p>
+                                                <p className="text-graphite-800">{emp.company?.name ?? '-'}</p>
                                                 <p className="text-xs text-graphite-500">
                                                     {emp.department?.name || <Badge variant="destructive">Need Completion</Badge>}
                                                 </p>
                                             </TableCell>
-                                            <TableCell className="text-graphite-500">{emp.position?.name ?? '—'}</TableCell>
+                                            <TableCell className="text-graphite-500">{emp.position?.name ?? '-'}</TableCell>
                                             <TableCell>
                                                 <Badge variant={emp.status === 'active' ? 'success' : 'secondary'} className="capitalize">
                                                     {emp.status}

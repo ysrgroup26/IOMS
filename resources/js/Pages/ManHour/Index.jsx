@@ -40,7 +40,7 @@ export default function ManHourIndex({ logs, employees, projects, companies, fil
     return (
         <AuthenticatedLayout>
             <Head title="Man-Hour" />
-            <PageHeader title="Man-Hour" subtitle="Jam kerja aktual per karyawan per hari — jam reguler ditambah lembur, dicatat langsung, tidak pernah diasumsikan." />
+            <PageHeader title="Man-Hour" subtitle="Jam kerja aktual per karyawan per hari: jam reguler ditambah lembur, dicatat langsung, tidak pernah diasumsikan." />
 
             <div className="mb-4 flex flex-wrap items-center justify-between gap-3">
                 <div className="flex flex-wrap gap-2">
@@ -167,12 +167,12 @@ export default function ManHourIndex({ logs, employees, projects, companies, fil
                                     {logs.data.map((l) => (
                                         <TableRow key={l.id}>
                                             <TableCell>{new Date(l.work_date).toLocaleDateString('en-US', { day: 'numeric', month: 'short', year: 'numeric' })}</TableCell>
-                                            <TableCell><PersonChip name={l.employee?.full_name} subtitle={l.employee?.department?.name ?? '—'} /></TableCell>
-                                            <TableCell>{l.project?.name ?? '—'}</TableCell>
+                                            <TableCell><PersonChip name={l.employee?.full_name} subtitle={l.employee?.department?.name ?? '-'} /></TableCell>
+                                            <TableCell>{l.project?.name ?? '-'}</TableCell>
                                             <TableCell className="text-right tabular-nums">{Number(l.regular_hours).toFixed(1)}</TableCell>
                                             <TableCell className="text-right tabular-nums">{Number(l.overtime_hours).toFixed(1)}</TableCell>
                                             <TableCell className="text-right font-semibold tabular-nums">{(Number(l.regular_hours) + Number(l.overtime_hours)).toFixed(1)}</TableCell>
-                                            <TableCell className="text-xs text-graphite-500">{l.recorded_by?.name ?? '—'}</TableCell>
+                                            <TableCell className="text-xs text-graphite-500">{l.recorded_by?.name ?? '-'}</TableCell>
                                             {can.manage && (
                                                 <TableCell>
                                                     <Button variant="ghost" size="icon" onClick={() => destroy(l.id)}><Trash2 className="h-4 w-4 text-red-500" /></Button>

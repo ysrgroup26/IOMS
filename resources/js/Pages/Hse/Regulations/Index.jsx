@@ -46,7 +46,7 @@ export default function RegulationsIndex({
         router.get(route('hse-regulations.index'), { ...filters, ...next }, { preserveState: true, replace: true });
     };
 
-    const fmt = (v) => (v ? new Date(v).toLocaleDateString('id-ID', { day: 'numeric', month: 'short', year: 'numeric' }) : '—');
+    const fmt = (v) => (v ? new Date(v).toLocaleDateString('id-ID', { day: 'numeric', month: 'short', year: 'numeric' }) : '-');
 
     const startCreate = () => { setEditing(null); setOpen(true); };
     const startEdit = (row) => { setEditing(row); setOpen(true); };
@@ -146,7 +146,7 @@ export default function RegulationsIndex({
                                                 </span>
                                             </TableCell>
                                             <TableCell className="text-graphite-600">{row.category}</TableCell>
-                                            <TableCell className="text-graphite-600">{row.issuing_authority || '—'}</TableCell>
+                                            <TableCell className="text-graphite-600">{row.issuing_authority || '-'}</TableCell>
                                             <TableCell className="whitespace-nowrap text-graphite-500">{fmt(row.effective_date)}</TableCell>
                                             <TableCell className="whitespace-nowrap">
                                                 <span className={row.is_due_for_review ? 'font-semibold text-danger' : 'text-graphite-500'}>
@@ -301,7 +301,7 @@ function RegulationDialog({ open, onOpenChange, editing, categories, documentTyp
                         <div className="space-y-1.5">
                             <Label>Penanggung Jawab (PIC)</Label>
                             <select value={data.owner_employee_id} onChange={(e) => setData('owner_employee_id', e.target.value)} className="h-9 w-full rounded-md border border-steel-200 bg-white px-3 text-sm">
-                                <option value="">—</option>
+                                <option value="">-</option>
                                 {employees.map((e2) => <option key={e2.id} value={e2.id}>{e2.full_name}</option>)}
                             </select>
                         </div>

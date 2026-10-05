@@ -162,7 +162,7 @@ export default function Checkout({ order, payment, billingUrl, invoiceUrl, billi
                         <ShieldCheck className="mt-0.5 h-4 w-4 shrink-0 text-brand-600" />
                         <p className="text-xs leading-relaxed text-graphite-600">
                             Masa aktif diperpanjang setelah penyedia pembayaran mengonfirmasi pembayaran ke server
-                            kami — bukan karena Anda tiba di halaman konfirmasi. Anda dapat menutup halaman ini
+                            kami, bukan karena Anda tiba di halaman konfirmasi. Anda dapat menutup halaman ini
                             dengan aman; statusnya selalu dapat dilihat kembali di halaman Billing.
                         </p>
                     </div>

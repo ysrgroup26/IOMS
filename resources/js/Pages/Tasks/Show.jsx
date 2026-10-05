@@ -16,7 +16,7 @@ function humanize(value) {
 }
 
 function formatDate(value, withTime = false) {
-    if (!value) return '—';
+    if (!value) return '-';
     return new Date(value).toLocaleDateString('en-US', {
         day: 'numeric', month: 'short', year: 'numeric',
         ...(withTime ? { hour: 'numeric', minute: '2-digit' } : {}),
@@ -83,11 +83,11 @@ export default function TaskShow({ task, can }) {
                             <CardContent className="grid grid-cols-2 gap-4 text-sm">
                                 <div>
                                     <p className="text-xs text-graphite-400">Module</p>
-                                    <p className="font-medium text-graphite-800">{task.related_module ? humanize(task.related_module) : '—'}</p>
+                                    <p className="font-medium text-graphite-800">{task.related_module ? humanize(task.related_module) : '-'}</p>
                                 </div>
                                 <div>
                                     <p className="text-xs text-graphite-400">Record ID</p>
-                                    <p className="font-medium text-graphite-800">{task.related_record_id ?? '—'}</p>
+                                    <p className="font-medium text-graphite-800">{task.related_record_id ?? '-'}</p>
                                 </div>
                             </CardContent>
                         </Card>
@@ -129,7 +129,7 @@ export default function TaskShow({ task, can }) {
                                 <UserIcon className="h-4 w-4 shrink-0 text-graphite-400" />
                                 <div>
                                     <p className="text-xs text-graphite-400">Created By</p>
-                                    <p className="font-medium text-graphite-800">{task.creator?.name ?? '—'}</p>
+                                    <p className="font-medium text-graphite-800">{task.creator?.name ?? '-'}</p>
                                 </div>
                             </div>
                             {task.company && (

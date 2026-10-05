@@ -89,6 +89,15 @@ class User extends Authenticatable implements MustVerifyEmail
 
     protected $fillable = [
         'name',
+        /*
+         * v2.100.0 -- WHAT COLLEAGUES SEE, which is not what the account
+         * was registered as.
+         *
+         * Safe to mass-assign for the same reason `name` is: every
+         * controller that writes it validates a plain string first. Null
+         * means "use `name`" -- see displayName().
+         */
+        'display_name',
         'email',
         'password',
         'role',
@@ -759,6 +768,29 @@ class User extends Authenticatable implements MustVerifyEmail
      *   - `platform_admin` now reads "Master" for the same reason.
      * See docs/ADR/015-identity-hierarchy-clarity.md.
      */
+    /**
+     * v2.100.0 -- THE ONE ANSWER TO "what should this person be called".
+     *
+     * `name` is the registered identity: it arrives as the registration's
+     * `contact_name`, it belongs beside the email on an invoice and in
+     * support, and an administrator should be slow to rewrite it.
+     * `display_name` is what a colleague should see in a sidebar, an
+     * approval queue or a timeline, and setting one must not destroy the
+     * other.
+     *
+     * Everything that renders a person goes through here, including the
+     * shared Inertia prop -- so a display name set in Settings reaches
+     * every surface at once, and nothing has to remember which of the two
+     * columns to prefer. A blank or whitespace-only value is treated as
+     * unset rather than stored as the person's name.
+     */
+    public function displayName(): string
+    {
+        return trim((string) $this->display_name) !== ''
+            ? trim($this->display_name)
+            : $this->name;
+    }
+
     public function roleLabel(): string
     {
         return match ($this->role) {

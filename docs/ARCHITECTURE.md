@@ -455,6 +455,35 @@ form. Re-granting is a manual operator action on the subscription that already e
 (`grantComplimentary()`), so it creates no second tenant and no second subscription, and previous
 free access does not block it. Reasoning: ADR [[048-complimentary-access-is-an-evaluation|048]].
 
+### Identity: what somebody is called, and who did the thing (v2.100.0)
+
+Two questions, deliberately answered by two different mechanisms.
+
+**What somebody is called.** `users.name` is the registered identity (the registration's
+`contact_name`; what belongs on an invoice). `users.display_name` is optional and is what
+colleagues see. `User::displayName()` resolves the two — `display_name` when set and not blank,
+otherwise `name` — and the shared Inertia prop sends **that** as `auth.user.name`, so one setting
+in Settings → Users reaches every surface and nothing re-implements the fallback. The users list
+additionally sends `display` (resolved) alongside both raw columns.
+
+**Who did the thing.** Actor identity is a fact about the past, so it is stored when the action
+happens rather than resolved later:
+
+| Column | Written by | Read by |
+|---|---|---|
+| `activity_logs.actor_name` | `ActivityLog::record()` | Activity Timeline, Activity Center, Audit Log, the PTW authorisation stamp |
+| `approvals.requester_name` | `ApprovalEngine::start()` / `createStepApprovals()` | `HasApprovals::requesterDisplayName()`, document signature blocks |
+| `approvals.approver_name` | `ApprovalEngine::decide()` | `HasApprovals::approverDisplayName()` |
+
+The foreign keys remain and remain authoritative for *which account*. Every read falls back to the
+live relation when a snapshot is absent, so rows written before v2.100.0 render exactly as they did.
+See `docs/CONVENTIONS.md` § *an actor resolved through a foreign key is not an audit trail*.
+
+**Still resolved live, and known.** Purchase Order's own `requester`/`approver`/`issuer`
+columns, and the PTW `requester` line, are module-specific and not on the Approval Engine, so they
+read the current account. The PTW *authorisation stamp* — the part that acts as a signature — does
+use the snapshot.
+
 ### A tenant-wide configuration row (v2.99.0)
 
 Three Settings features configure the **whole tenant** rather than one Operating Unit: Approval

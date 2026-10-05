@@ -539,8 +539,28 @@ class PermitToWorkController extends Controller
 
         $approver = $permitToWork->hseApprover;
 
+        /*
+         * v2.100.0 -- THE NAME AS IT WAS WHEN THE PERMIT WAS AUTHORISED.
+         *
+         * This stamp is the compliance artefact on a printed permit, and it
+         * was rendering the approver's CURRENT name: rename that person and
+         * every permit already filed retroactively carried the new name;
+         * remove them and the stamp went blank.
+         *
+         * The authorising entry is the same ActivityLog row this method
+         * already reads the time from, so the name costs no extra query and
+         * comes from the same evidence as the timestamp beside it. The live
+         * relation stays as the fallback for permits authorised before the
+         * actor was captured, which omits nothing it used to show.
+         */
+        $authorisation = ActivityLog::where('subject_type', PermitToWork::class)
+            ->where('subject_id', $permitToWork->id)
+            ->where('action', PermitToWork::STATUS_APPROVED)
+            ->latest()
+            ->first(['actor_name', 'created_at']);
+
         return [
-            'approver' => $approver?->name,
+            'approver' => $authorisation?->actor_name ?: $approver?->name,
             // Guarded on the column rather than calling roleLabel()
             // blind: that method's `default` arm is ucfirst($this->role),
             // which returns '' for a relation loaded without the column
@@ -548,11 +568,7 @@ class PermitToWorkController extends Controller
             // therefore gets no role line -- a fact omitted, never one
             // invented, which is the rule the whole stamp is built on.
             'role' => $approver?->role ? $approver->roleLabel() : null,
-            'at' => ActivityLog::where('subject_type', PermitToWork::class)
-                ->where('subject_id', $permitToWork->id)
-                ->where('action', PermitToWork::STATUS_APPROVED)
-                ->latest()
-                ->value('created_at'),
+            'at' => $authorisation?->created_at,
         ];
     }
 

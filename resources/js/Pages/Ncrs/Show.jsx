@@ -1,4 +1,5 @@
 import { Head, Link, router, useForm } from '@inertiajs/react';
+import { humanizeToken } from '@/lib/humanizeToken';
 import { useState } from 'react';
 import AuthenticatedLayout from '@/Layouts/AuthenticatedLayout';
 import { Card, CardContent, CardHeader, CardTitle } from '@/Components/ui/card';
@@ -71,7 +72,7 @@ export default function NcrShow({ ncr: n, canManage, users }) {
                             ) : (
                                 n.corrective_actions.map((a) => (
                                     <div key={a.id} className="rounded-md border border-graphite-100 p-3 text-sm">
-                                        <p>{a.action}</p>
+                                        <p>{humanizeToken(a.action)}</p>
                                         <p className="mt-1 text-xs text-graphite-500">{a.assignee?.name || 'Unassigned'} {a.due_date && `· due ${new Date(a.due_date).toLocaleDateString('en-US', { day: 'numeric', month: 'short', year: 'numeric' })}`} · <StatusBadge value={a.status} /></p>
                                     </div>
                                 ))

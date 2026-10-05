@@ -14,7 +14,7 @@ export default function DailyReportShow({ report, can }) {
 
     return (
         <AuthenticatedLayout>
-            <Head title={`Daily Report — ${report.project.name}`} />
+            <Head title={`Daily Report: ${report.project.name}`} />
 
             <Link href={route('daily-reports.index')} className="mb-4 inline-flex items-center gap-1 text-sm text-graphite-500 hover:text-graphite-800">
                 <ArrowLeft className="h-4 w-4" /> Back to Daily Reports

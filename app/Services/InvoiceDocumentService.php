@@ -135,7 +135,7 @@ class InvoiceDocumentService
             ?? $invoice->subscription?->billing_cycle;
 
         $description = $package
-            ? 'IOMS '.$package->name.' — Langganan '.($cycle === 'monthly' ? 'Bulanan' : 'Tahunan')
+            ? 'IOMS '.$package->name.', Langganan '.($cycle === 'monthly' ? 'Bulanan' : 'Tahunan')
             : 'Langganan IOMS';
 
         return [

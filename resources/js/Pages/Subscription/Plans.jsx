@@ -42,7 +42,7 @@ export default function SubscriptionPlans({ plans, currentPlan, currentPlanId, c
     // What confirming will actually do, for the plan and cycle in question
     // -- decided by the server (SubscriptionController::changePreview()).
     const preview = confirming ? changePreview?.[confirming.id]?.[interval] : null;
-    const fmtDate = (d) => (d ? new Date(d).toLocaleDateString('en-US', { day: 'numeric', month: 'long', year: 'numeric' }) : '—');
+    const fmtDate = (d) => (d ? new Date(d).toLocaleDateString('en-US', { day: 'numeric', month: 'long', year: 'numeric' }) : '-');
 
     const form = useForm({ package_id: null, billing_cycle: 'monthly' });
 
@@ -212,7 +212,7 @@ export default function SubscriptionPlans({ plans, currentPlan, currentPlanId, c
                     {preview?.kind === 'upgrade' ? (
                         <div className="space-y-2 text-sm leading-relaxed text-graphite-600">
                             <div className="flex items-baseline justify-between gap-3 rounded-lg border border-brand-200 bg-brand-50/50 p-3">
-                                <span className="font-medium text-navy-900">Upgrade — prorated invoice</span>
+                                <span className="font-medium text-navy-900">Upgrade: prorated invoice</span>
                                 <span className="text-base font-semibold tabular-nums text-navy-900">{preview.amount_formatted}</span>
                             </div>
                             <p>

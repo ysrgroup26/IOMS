@@ -119,12 +119,12 @@ export default function CompetencyMaster({ competencyTypes, companies, positions
                                     <TableRow key={t.id}>
                                         <TableCell className="font-medium">{t.name}</TableCell>
                                         <TableCell><Badge variant="outline" className="capitalize">{t.type}</Badge></TableCell>
-                                        <TableCell className="text-graphite-500">{t.issuing_body ?? '—'}</TableCell>
+                                        <TableCell className="text-graphite-500">{t.issuing_body ?? '-'}</TableCell>
                                         <TableCell>{t.validity_months ? `${t.validity_months} months` : <span className="text-graphite-400">No expiry</span>}</TableCell>
                                         <TableCell className="text-graphite-500">
                                             {t.required_by_positions?.length
                                                 ? t.required_by_positions.map((p) => p.name).join(', ')
-                                                : '—'}
+                                                : '-'}
                                         </TableCell>
                                         <TableCell>{t.employee_competencies_count}</TableCell>
                                         <TableCell>

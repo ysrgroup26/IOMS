@@ -33,7 +33,10 @@ export default function ActivityTimeline({ activities }) {
                     <div className="mt-1 h-1.5 w-1.5 shrink-0 rounded-full bg-graphite-300" />
                     <div className="min-w-0">
                         <p className={ACTION_COLOR[a.action] || 'text-graphite-600'}>
-                            <span className="font-medium text-graphite-800">{a.user?.name || 'System'}</span> {a.description}
+{/* v2.100.0: the name recorded WHEN this happened. The live
+                                relation is the fallback for rows written before the
+                                actor was captured. */}
+                            <span className="font-medium text-graphite-800">{a.actor_name || a.user?.name || 'System'}</span> {a.description}
                         </p>
                         <p className="text-[11px] text-graphite-400">
                             {new Date(a.created_at).toLocaleString('en-US', { day: 'numeric', month: 'short', year: 'numeric', hour: 'numeric', minute: '2-digit' })}

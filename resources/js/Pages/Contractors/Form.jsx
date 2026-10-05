@@ -91,7 +91,7 @@ export default function ContractorForm({ companies, contractorCode }) {
                         name="company_id"
                         required
                         error={errors.company_id}
-                        hint="Yours — not the contractor's."
+                        hint="Yours, not the contractor's."
                     >
                         {(control) => (
                             <SearchableSelect

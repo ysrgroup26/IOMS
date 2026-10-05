@@ -33,7 +33,7 @@
     {{-- Says plainly where the customer is in the process. Nothing is
          active yet and the email must not imply otherwise. --}}
     <p style="margin:0; font-size:12px; line-height:19px; color:#64748b;">
-        Your IOMS workspace is not active yet — it is created once your payment is confirmed by the
+        Your IOMS workspace is not active yet. It is created once your payment is confirmed by the
         payment provider. If you did not start this registration you can ignore this email; no account
         has been created.
     </p>

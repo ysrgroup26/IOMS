@@ -20,7 +20,7 @@ const PM_MODULES = [
 ];
 
 function ProgressBar({ percent }) {
-    if (percent === null || percent === undefined) return <span className="text-xs text-graphite-400">—</span>;
+    if (percent === null || percent === undefined) return <span className="text-xs text-graphite-400">-</span>;
     return (
         <div className="flex items-center gap-2">
             <div className="h-1.5 w-16 overflow-hidden rounded-full bg-graphite-100 dark:bg-slate-800">
@@ -56,8 +56,8 @@ export default function ProjectManagementDashboard({
                 <div className="grid grid-cols-2 gap-3 lg:grid-cols-5">
                     <StatCard icon={FolderKanban} value={activeProjectsCount} label="Active Projects" href={route('projects.index')} />
                     <StatCard icon={AlertTriangle} value={delayedProjectsCount} label="Delayed Projects" accent={delayedProjectsCount > 0 ? 'red' : 'green'} href={route('projects.index')} />
-                    <StatCard icon={Flag} value={milestoneCompletionPercent === null ? '—' : `${milestoneCompletionPercent}%`} label="Milestone Completion" href={route('milestones.index')} />
-                    <StatCard icon={ListTodo} value={avgActivityProgressPercent === null ? '—' : `${avgActivityProgressPercent}%`} label="Avg. Activity Progress" />
+                    <StatCard icon={Flag} value={milestoneCompletionPercent === null ? '-' : `${milestoneCompletionPercent}%`} label="Milestone Completion" href={route('milestones.index')} />
+                    <StatCard icon={ListTodo} value={avgActivityProgressPercent === null ? '-' : `${avgActivityProgressPercent}%`} label="Avg. Activity Progress" />
                     <StatCard icon={ClipboardList} value={todaysActivitiesCount} label="Today's Activities" href={route('daily-reports.index')} />
                 </div>
 
@@ -88,11 +88,11 @@ export default function ProjectManagementDashboard({
                                             <td className="py-2 pr-2">
                                                 <Link href={route('projects.show', p.id)} className="font-medium text-graphite-700 hover:text-brand-700 dark:text-slate-200">{p.name}</Link>
                                             </td>
-                                            <td className="py-2 pr-2 text-graphite-500">{p.manager ?? '—'}</td>
+                                            <td className="py-2 pr-2 text-graphite-500">{p.manager ?? '-'}</td>
                                             <td className="py-2 pr-2"><StatusBadge value={p.status} /></td>
                                             <td className="py-2 pr-2"><ProgressBar percent={p.progress_percent} /></td>
-                                            <td className="py-2 pr-2 text-graphite-500">{p.next_milestone ?? '—'}</td>
-                                            <td className="py-2 text-xs text-graphite-400">{p.end_date ? new Date(p.end_date).toLocaleDateString('en-US', { day: 'numeric', month: 'short' }) : '—'}</td>
+                                            <td className="py-2 pr-2 text-graphite-500">{p.next_milestone ?? '-'}</td>
+                                            <td className="py-2 text-xs text-graphite-400">{p.end_date ? new Date(p.end_date).toLocaleDateString('en-US', { day: 'numeric', month: 'short' }) : '-'}</td>
                                         </tr>
                                     ))}
                                 </tbody>

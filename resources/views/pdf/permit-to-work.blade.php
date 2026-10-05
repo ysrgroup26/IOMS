@@ -178,12 +178,12 @@
         // only -- nothing here is decorative and nothing is invented.
         $statePresets = [
             'approved'  => ['label' => 'Approved', 'rule' => '#15803D', 'fill' => '#F0FDF4', 'ink' => '#166534'],
-            'active'    => ['label' => 'Active — Work In Progress', 'rule' => '#15803D', 'fill' => '#F0FDF4', 'ink' => '#166534'],
+            'active'    => ['label' => 'Active: Work In Progress', 'rule' => '#15803D', 'fill' => '#F0FDF4', 'ink' => '#166534'],
             'submitted' => ['label' => 'Awaiting Approval', 'rule' => '#B45309', 'fill' => '#FFFBEB', 'ink' => '#92400E'],
             'rejected'  => ['label' => 'Rejected', 'rule' => '#B91C1C', 'fill' => '#FEF2F2', 'ink' => '#991B1B'],
             'cancelled' => ['label' => 'Cancelled', 'rule' => '#B91C1C', 'fill' => '#FEF2F2', 'ink' => '#991B1B'],
             'closed'    => ['label' => 'Closed', 'rule' => '#475569', 'fill' => '#F8FAFC', 'ink' => '#334155'],
-            'draft'     => ['label' => 'Draft — Not Valid For Work', 'rule' => '#94A3B8', 'fill' => '#F8FAFC', 'ink' => '#475569'],
+            'draft'     => ['label' => 'Draft: Not Valid For Work', 'rule' => '#94A3B8', 'fill' => '#F8FAFC', 'ink' => '#475569'],
         ];
         $state = $statePresets[$permit->status] ?? [
             'label' => ucfirst(str_replace('_', ' ', $permit->status)),

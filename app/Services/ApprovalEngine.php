@@ -56,6 +56,9 @@ class ApprovalEngine
             $approval = $approvable->approvals()->create([
                 'status' => Approval::STATUS_PENDING,
                 'requested_by' => $requester->id,
+                // v2.100.0 -- captured now, never recomputed. See
+                // Approval's own doc comment.
+                'requester_name' => $requester->displayName(),
             ]);
             $this->notifyApprovers($approvable, config('workflow.approvers', []), null);
 
@@ -77,9 +80,17 @@ class ApprovalEngine
             throw ValidationException::withMessages(['approval' => 'This approval has already been decided.']);
         }
 
+        /*
+         * v2.100.0 -- THE DECISION IS WHERE THE SIGNATURE IS GIVEN, so it
+         * is where the name is recorded. Resolving it later, through
+         * `approved_by`, meant a printed permit's approval block changed
+         * whenever that person was renamed and emptied when they were
+         * removed -- on documents that are the compliance record.
+         */
         $approval->update([
             'status' => $decision,
             'approved_by' => $user->id,
+            'approver_name' => $user->displayName(),
             'decided_at' => now(),
             'comments' => $comments,
         ]);
@@ -186,6 +197,7 @@ class ApprovalEngine
         $approvals = $stepDefinitions->map(fn (ApprovalFlowStep $step) => $approvable->approvals()->create([
             'status' => Approval::STATUS_PENDING,
             'requested_by' => $requester->id,
+            'requester_name' => $requester->displayName(),
             'approval_flow_id' => $flow->id,
             'step_number' => $stepNumber,
         ]));

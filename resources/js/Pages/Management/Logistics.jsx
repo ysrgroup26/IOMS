@@ -75,7 +75,7 @@ export default function ManagementLogistics({ logistics }) {
                         rows={logistics.below_minimum}
                         columns={[
                             { key: 'name', label: 'Item' },
-                            { key: 'item_code', label: 'Code', render: (row) => row.item_code ?? '—' },
+                            { key: 'item_code', label: 'Code', render: (row) => row.item_code ?? '-' },
                             { key: 'held', label: 'On Hand', align: 'right', render: (row) => `${row.held} ${row.unit ?? ''}`.trim() },
                             { key: 'min_stock', label: 'Minimum', align: 'right', render: (row) => `${row.min_stock} ${row.unit ?? ''}`.trim() },
                             {
@@ -110,7 +110,7 @@ export default function ManagementLogistics({ logistics }) {
                         <Figure
                             label="Raised This Month"
                             value={requests.available ? requests.this_month : null}
-                            hint={requests.available ? 'permintaan' : '—'}
+                            hint={requests.available ? 'permintaan' : '-'}
                             emphasis
                         />
                     </FigureGroup>

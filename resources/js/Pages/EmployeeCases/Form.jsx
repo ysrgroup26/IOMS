@@ -126,7 +126,7 @@ export default function EmployeeCaseForm({ employeeCase, caseNumber, companies, 
 
                     {editing && (
                         <p className="mt-2 text-xs text-graphite-500">
-                            Karyawan tidak dapat diubah setelah kasus dibuka — buka kasus baru bila orangnya berbeda.
+                            Karyawan tidak dapat diubah setelah kasus dibuka. Buka kasus baru bila orangnya berbeda.
                         </p>
                     )}
                 </FormSection>

@@ -42,7 +42,7 @@ const INVOICE_LABEL = {
     draft: 'Draf', issued: 'Diterbitkan', paid: 'Lunas', overdue: 'Lewat jatuh tempo', void: 'Dibatalkan',
 };
 
-const waktu = (d) => (d ? new Date(d).toLocaleString('id-ID', { dateStyle: 'medium', timeStyle: 'short' }) : '—');
+const waktu = (d) => (d ? new Date(d).toLocaleString('id-ID', { dateStyle: 'medium', timeStyle: 'short' }) : '-');
 
 export default function SupportShow({
     ticket, messages = [], subscription, invoices = [],
@@ -249,12 +249,12 @@ export default function SupportShow({
                                         </div>
                                         <div className="flex items-center justify-between gap-2">
                                             <span className="text-graphite-500">Paket</span>
-                                            <span className="font-medium text-graphite-800">{subscription.plan_name ?? '—'}</span>
+                                            <span className="font-medium text-graphite-800">{subscription.plan_name ?? '-'}</span>
                                         </div>
                                         <div className="flex items-center justify-between gap-2">
                                             <span className="text-graphite-500">Berakhir</span>
                                             <span className="font-medium text-graphite-800">
-                                                {subscription.is_lifetime ? 'Tanpa batas' : (subscription.period_ends_at ?? '—')}
+                                                {subscription.is_lifetime ? 'Tanpa batas' : (subscription.period_ends_at ?? '-')}
                                             </span>
                                         </div>
                                         <div className="flex items-center justify-between gap-2">

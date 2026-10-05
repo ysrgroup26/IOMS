@@ -49,7 +49,11 @@ class HandleInertiaRequests extends Middleware
             'auth' => [
                 'user' => $user ? [
                     'id' => $user->id,
-                    'name' => $user->name,
+                    // v2.100.0 -- the display identity, so one setting
+                    // reaches every surface that renders a person. The
+                    // registered `name` stays on the record for invoices,
+                    // support and the account itself.
+                    'name' => $user->displayName(),
                     'email' => $user->email,
                     'role' => $user->role,
                     'role_label' => $user->roleLabel(),

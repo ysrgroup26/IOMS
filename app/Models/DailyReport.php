@@ -82,9 +82,9 @@ class DailyReport extends Model
     public function shareableSummary(): string
     {
         $lines = [
-            "Daily Report — {$this->project?->name}",
+            "Daily Report: {$this->project?->name}",
             $this->report_date->format('d M Y').' · '.ucfirst($this->report_type),
-            'Department: '.($this->department_name ?? $this->hseOfficer?->full_name ?? '—'),
+            'Department: '.($this->department_name ?? $this->hseOfficer?->full_name ?? '-'),
             '',
             'Activities:',
         ];

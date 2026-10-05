@@ -1,4 +1,5 @@
 import { Head, Link, useForm } from '@inertiajs/react';
+import { humanizeToken } from '@/lib/humanizeToken';
 import { useState } from 'react';
 import AuthenticatedLayout from '@/Layouts/AuthenticatedLayout';
 import { Card, CardContent, CardHeader, CardTitle } from '@/Components/ui/card';
@@ -68,8 +69,8 @@ export default function AssetShow({ asset: a, employees, canManage }) {
                                                 {t.type.replace('_', ' ')}
                                                 {t.type === 'assignment' && ` -- ${t.from_employee?.full_name || 'Unassigned'} -> ${t.to_employee?.full_name}`}
                                                 {t.type === 'transfer' && ` -- ${t.from_location || '-'} -> ${t.to_location}`}
-                                                {t.type === 'inspection' && ` -- ${t.inspection_result}`}
-                                                {t.type === 'status_change' && ` -- ${t.previous_status} -> ${t.new_status}`}
+                                                {t.type === 'inspection' && ` -- ${humanizeToken(t.inspection_result)}`}
+                                                {t.type === 'status_change' && ` -- ${humanizeToken(t.previous_status)} -> ${humanizeToken(t.new_status)}`}
                                             </p>
                                             <p className="text-xs text-graphite-400">{t.performer?.name} · {new Date(t.transaction_date).toLocaleDateString('en-US', { day: 'numeric', month: 'short', year: 'numeric' })}{t.notes && ` · ${t.notes}`}</p>
                                         </li>

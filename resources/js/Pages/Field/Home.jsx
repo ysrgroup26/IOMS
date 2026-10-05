@@ -95,7 +95,7 @@ export default function FieldHome({
                 >
                     <span>
                         <strong>{attentionCount}</strong> hal menunggu Anda
-                        {pendingApprovalsCount > 0 && ` — ${pendingApprovalsCount} persetujuan`}
+                        {pendingApprovalsCount > 0 && `, ${pendingApprovalsCount} persetujuan`}
                         {pendingApprovalsCount > 0 && myTasksCount > 0 && ','}
                         {myTasksCount > 0 && ` ${myTasksCount} tugas`}
                     </span>
@@ -192,7 +192,7 @@ export default function FieldHome({
                                     <span className="block truncate text-sm font-medium text-navy-900 dark:text-slate-100">{task.title}</span>
                                     {task.due_date && (
                                         <span className={cn('block text-[11px]', task.is_overdue ? 'font-semibold text-danger' : 'text-graphite-500')}>
-                                            {task.is_overdue ? 'Terlambat — ' : 'Jatuh tempo '}{fmtDate(task.due_date)}
+                                            {task.is_overdue ? 'Terlambat, ' : 'Jatuh tempo '}{fmtDate(task.due_date)}
                                         </span>
                                     )}
                                 </span>
@@ -214,7 +214,7 @@ function Fact({ icon: Icon, label, value }) {
                 <Icon className="h-3 w-3" />
                 {label}
             </dt>
-            <dd className="truncate text-[13px] text-graphite-700 dark:text-slate-300">{value || '—'}</dd>
+            <dd className="truncate text-[13px] text-graphite-700 dark:text-slate-300">{value || '-'}</dd>
         </div>
     );
 }

@@ -121,10 +121,10 @@ export default function EmployeeProfile({ employee, yearSummary, monthlyBreakdow
                     </div>
                     <CardContent className="flex flex-col items-center p-4 pt-0 text-center">
                         <div className="w-full space-y-2.5 pt-1 text-left text-sm">
-                            <InfoRow icon={Briefcase} label="Operating Unit" value={employee.company?.name ?? '—'} />
+                            <InfoRow icon={Briefcase} label="Operating Unit" value={employee.company?.name ?? '-'} />
                             <InfoRow label="Department" value={employee.department?.name} />
-                            <InfoRow label="Position" value={employee.position?.name ?? '—'} />
-                            <InfoRow label="Workforce Type" value={employee.employment_type_label ?? '—'} />
+                            <InfoRow label="Position" value={employee.position?.name ?? '-'} />
+                            <InfoRow label="Workforce Type" value={employee.employment_type_label ?? '-'} />
                             {employee.nik && <InfoRow label="NIK" value={employee.nik} />}
                             {employee.phone && <InfoRow icon={Phone} label="Phone" value={employee.phone} />}
                             {employee.join_date && (
@@ -309,9 +309,9 @@ export default function EmployeeProfile({ employee, yearSummary, monthlyBreakdow
                                                     {c.competency_type?.name}
                                                     <Badge variant="outline" className="ml-2 capitalize">{c.competency_type?.type}</Badge>
                                                 </TableCell>
-                                                <TableCell className="text-graphite-500">{c.certificate_number ?? '—'}</TableCell>
+                                                <TableCell className="text-graphite-500">{c.certificate_number ?? '-'}</TableCell>
                                                 <TableCell>{c.achieved_date?.slice(0, 10)}</TableCell>
-                                                <TableCell>{c.expiry_date ? c.expiry_date.slice(0, 10) : '—'}</TableCell>
+                                                <TableCell>{c.expiry_date ? c.expiry_date.slice(0, 10) : '-'}</TableCell>
                                                 <TableCell>
                                                     <Badge variant={COMPETENCY_STATUS_VARIANT[c.effective_status] ?? 'secondary'}>
                                                         {COMPETENCY_STATUS_LABEL[c.effective_status] ?? c.effective_status}
@@ -365,7 +365,7 @@ export default function EmployeeProfile({ employee, yearSummary, monthlyBreakdow
                                                 <TableCell className="font-medium">{a.shift?.name} ({a.shift?.code})</TableCell>
                                                 <TableCell>{a.shift?.start_time?.slice(0, 5)} - {a.shift?.end_time?.slice(0, 5)}</TableCell>
                                                 <TableCell>{a.effective_date?.slice(0, 10)}</TableCell>
-                                                <TableCell>{a.end_date ? a.end_date.slice(0, 10) : '—'}</TableCell>
+                                                <TableCell>{a.end_date ? a.end_date.slice(0, 10) : '-'}</TableCell>
                                                 <TableCell><Badge variant="outline" className="capitalize">{a.status}</Badge></TableCell>
                                                 {can.manage && (
                                                     <TableCell>
@@ -412,11 +412,11 @@ export default function EmployeeProfile({ employee, yearSummary, monthlyBreakdow
                                     <TableBody>
                                         {employee.rosters.map((r) => (
                                             <TableRow key={r.id}>
-                                                <TableCell>{r.shift ? `${r.shift.name} (${r.shift.code})` : '—'}</TableCell>
+                                                <TableCell>{r.shift ? `${r.shift.name} (${r.shift.code})` : '-'}</TableCell>
                                                 <TableCell className="text-graphite-500">
-                                                    {r.roster_pattern ? `${r.roster_pattern.name} (${r.roster_pattern.days_on}/${r.roster_pattern.days_off})` : '—'}
+                                                    {r.roster_pattern ? `${r.roster_pattern.name} (${r.roster_pattern.days_on}/${r.roster_pattern.days_off})` : '-'}
                                                 </TableCell>
-                                                <TableCell className="text-graphite-500">{r.project?.name ?? r.site_name ?? '—'}</TableCell>
+                                                <TableCell className="text-graphite-500">{r.project?.name ?? r.site_name ?? '-'}</TableCell>
                                                 <TableCell className="text-xs">{r.start_date?.slice(0, 10)}{r.end_date ? ` - ${r.end_date.slice(0, 10)}` : ' - ongoing'}</TableCell>
                                                 <TableCell><Badge variant="outline" className="capitalize">{r.status}</Badge></TableCell>
                                                 {can.manage && (

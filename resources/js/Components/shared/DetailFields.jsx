@@ -76,7 +76,7 @@ export function Field({ label, value, hint, span = 1, emphasis = false, mono = f
                     isEmpty && 'font-normal text-graphite-300 dark:text-slate-600'
                 )}
             >
-                {isEmpty ? '—' : value}
+                {isEmpty ? '-' : value}
             </dd>
             {hint && <p className="mt-0.5 text-[11px] leading-snug text-graphite-500 dark:text-slate-500">{hint}</p>}
         </div>

@@ -82,7 +82,7 @@ export default function ErrorSummary({ errors, labels = {}, title }) {
                                     className="text-left text-xs text-danger underline-offset-2 hover:underline focus:outline-none focus-visible:underline"
                                 >
                                     <span className="font-medium">{labels[key] ?? humanise(key)}</span>
-                                    {' — '}
+                                    {': '}
                                     {errors[key]}
                                 </button>
                             </li>

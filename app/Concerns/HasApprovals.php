@@ -40,6 +40,38 @@ trait HasApprovals
     }
 
     /**
+     * v2.100.0 -- WHO SIGNED, AS IT READ WHEN THEY SIGNED IT.
+     *
+     * A document's signature block was rendering `requester->name` and
+     * `approver->name`, i.e. whatever those accounts are called TODAY.
+     * Renaming somebody therefore rewrote every document they had ever
+     * raised or approved, including ones already printed and filed.
+     *
+     * `approvals` now captures both names at the moment each is given, so
+     * these two return the snapshot and fall back to the live relation only
+     * for rows raised before it was captured -- which renders exactly what
+     * those documents render today, and nothing is invented for either.
+     */
+    public function requesterDisplayName(): ?string
+    {
+        $approval = $this->approvals()->oldest()->first();
+
+        return $approval?->requester_name
+            ?: ($this->requester?->displayName() ?? null);
+    }
+
+    public function approverDisplayName(): ?string
+    {
+        $approval = $this->approvals()
+            ->whereNotNull('approved_by')
+            ->latest('decided_at')
+            ->first();
+
+        return $approval?->approver_name
+            ?: ($approval?->approver?->displayName() ?? null);
+    }
+
+    /**
      * Module key used to look up an `ApprovalFlow` (and shared with
      * `NumberGeneratorService`'s numbering module keys) -- snake_case of
      * the class basename by default (MaterialRequest -> material_request).

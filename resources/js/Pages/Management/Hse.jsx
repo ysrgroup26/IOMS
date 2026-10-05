@@ -128,7 +128,7 @@ export default function ManagementHse({ hse, compliance }) {
 
                 <Panel
                     title="Controlled Documents"
-                    description="Status dokumen terkendali. IOMS mencatat dokumen yang ada dan statusnya, bukan dokumen apa yang diwajibkan — jadi tidak ada skor kepatuhan di sini."
+                    description="Status dokumen terkendali. IOMS mencatat dokumen yang ada dan statusnya, bukan dokumen apa yang diwajibkan, jadi tidak ada skor kepatuhan di sini."
                 >
                     {compliance?.available ? (
                         <div className="grid grid-cols-1 gap-4 lg:grid-cols-2">

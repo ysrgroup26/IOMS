@@ -92,7 +92,7 @@ export default function ProjectForm({ project, companies }) {
                 >
                     <FormField label="Project name" name="name" required error={errors.name} className="sm:col-span-2">
                         {(control) => (
-                            <Input {...control} value={data.name} onChange={(e) => setData('name', e.target.value)} placeholder="e.g. Tanker drydocking — MT Sinar" />
+                            <Input {...control} value={data.name} onChange={(e) => setData('name', e.target.value)} placeholder="e.g. Tanker drydocking MT Sinar" />
                         )}
                     </FormField>
 

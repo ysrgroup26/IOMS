@@ -104,7 +104,8 @@
     <table class="signatures">
         <tr>
             <td>
-                <div class="sig-line">{{ $replacementRequest->requester->name }}</div>
+                {{-- v2.100.0: see MaterialRequest's signature block. --}}
+                <div class="sig-line">{{ $replacementRequest->requesterDisplayName() }}</div>
                 <div class="sig-role">Requested By</div>
             </td>
             <td>

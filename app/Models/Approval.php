@@ -18,6 +18,14 @@ class Approval extends Model
         'status',
         'requested_by',
         'approved_by',
+        /*
+         * v2.100.0 -- THE TWO SIGNATURES ON THE DOCUMENT, captured when
+         * they are given rather than recomputed when the document is
+         * printed. A signature that re-renders when somebody is renamed is
+         * not a signature. The foreign keys above still say which account.
+         */
+        'requester_name',
+        'approver_name',
         'decided_at',
         'comments',
         // Milestone 3 (Approval Engine v2) -- null approval_flow_id means

@@ -131,7 +131,9 @@
     <table class="signatures">
         <tr>
             <td>
-                <div class="sig-line">{{ $materialRequest->requester->name }}</div>
+                {{-- v2.100.0: the name as it was when the request was
+                     raised, not whatever that account is called today. --}}
+                <div class="sig-line">{{ $materialRequest->requesterDisplayName() }}</div>
                 <div class="sig-role">Requested By</div>
             </td>
             <td>

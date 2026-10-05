@@ -122,14 +122,14 @@ export default function ManagementWorkforce({ workforce }) {
                         <Figure
                             label="Overtime"
                             value={manHours.available ? Math.round(manHours.overtime).toLocaleString('id-ID') : null}
-                            hint={manHours.available ? 'jam' : '—'}
+                            hint={manHours.available ? 'jam' : '-'}
                             emphasis
                             tone={manHours.available && manHours.overtime > manHours.regular * 0.25 ? 'warn' : 'neutral'}
                         />
                         <Figure
                             label="People Logged"
                             value={manHours.available ? manHours.people : null}
-                            hint={manHours.available ? 'karyawan' : '—'}
+                            hint={manHours.available ? 'karyawan' : '-'}
                             emphasis
                         />
                     </FigureGroup>
@@ -145,7 +145,7 @@ export default function ManagementWorkforce({ workforce }) {
                         <Figure
                             label="Approved This Month"
                             value={leave.available ? leave.approved_this_month : null}
-                            hint={leave.available ? 'pengajuan' : '—'}
+                            hint={leave.available ? 'pengajuan' : '-'}
                             emphasis
                         />
                     </FigureGroup>

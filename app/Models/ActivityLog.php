@@ -45,6 +45,8 @@ class ActivityLog extends Model
     }
     protected $fillable = [
         'user_id',
+        // v2.100.0 -- the actor's display identity AS IT WAS. See record().
+        'actor_name',
         'action',
         'subject_type',
         'subject_id',
@@ -90,6 +92,21 @@ class ActivityLog extends Model
     {
         return static::create([
             'user_id' => auth()->id(),
+            /*
+             * v2.100.0 -- WHO DID IT IS A FACT ABOUT THE PAST.
+             *
+             * This used to store only `user_id`, so every actor shown in a
+             * timeline or an audit row was resolved by following that key
+             * to the user's CURRENT name. Renaming one person therefore
+             * rewrote their whole history, and removing them emptied it.
+             *
+             * The key stays, and stays authoritative for "which account".
+             * This answers "what did it say at the time", which is the only
+             * question an audit row can honestly answer. Null for a system
+             * action with no authenticated actor, which is what the read
+             * paths already render as "System".
+             */
+            'actor_name' => auth()->user()?->displayName(),
             'action' => $action,
             'subject_type' => $subject ? get_class($subject) : null,
             'subject_id' => $subject?->getKey(),

@@ -96,7 +96,7 @@ const TONE = {
 };
 
 function fmtDate(v) {
-    return v ? new Date(v).toLocaleDateString('en-US', { day: 'numeric', month: 'long', year: 'numeric' }) : '—';
+    return v ? new Date(v).toLocaleDateString('en-US', { day: 'numeric', month: 'long', year: 'numeric' }) : '-';
 }
 
 export default function Billing({
@@ -169,7 +169,7 @@ export default function Billing({
                                         </Button>
                                     ) : (
                                         <span className="text-xs">
-                                            Tagihan {outstandingInvoice.invoice_number} menunggu pembayaran melalui transfer bank — hubungi {billingEmail}.
+                                            Tagihan {outstandingInvoice.invoice_number} menunggu pembayaran melalui transfer bank. Hubungi {billingEmail}.
                                         </span>
                                     )
                                 ) : (
@@ -240,7 +240,7 @@ export default function Billing({
                                 </Button>
                             ) : (
                                 <span className="text-xs text-graphite-500">
-                                    Pembayaran melalui transfer bank — hubungi {billingEmail}.
+                                    Pembayaran melalui transfer bank. Hubungi {billingEmail}.
                                 </span>
                             )}
                         </div>
@@ -259,7 +259,7 @@ export default function Billing({
                                     <div>
                                         <p className="text-[11px] uppercase tracking-wide text-graphite-400">Plan</p>
                                         <p className="mt-0.5 text-xl font-semibold tracking-tight text-navy-900">
-                                            {subscription.plan_name || '—'}
+                                            {subscription.plan_name || '-'}
                                         </p>
                                     </div>
                                     <div className="text-right">
@@ -267,7 +267,7 @@ export default function Billing({
                                             {subscription.billing_cycle === 'monthly' ? 'Per month' : 'Per year'}
                                         </p>
                                         <p className="mt-0.5 text-xl font-semibold tracking-tight text-navy-900">
-                                            {subscription.price || '—'}
+                                            {subscription.price || '-'}
                                         </p>
                                         {/* v2.60.0: this figure is the price the customer
                                             AGREED to, which after a catalogue change is no
@@ -339,7 +339,7 @@ export default function Billing({
                                     <p className="text-xs leading-relaxed text-graphite-600">
                                         {subscription.is_lifetime
                                             ? 'Lisensi Anda berlaku selamanya, sehingga tidak ada tagihan perpanjangan yang diterbitkan.'
-                                            : `Tagihan perpanjangan diterbitkan sebelum periode berjalan berakhir, dan masa aktif berlanjut segera setelah pembayaran terverifikasi. IOMS tidak pernah menagih kartu tersimpan secara otomatis. Setelah periode berakhir, Anda memiliki ${graceDays} hari akses penuh sebelum pencatatan data baru dijeda — data lama tetap dapat dibuka kapan pun.`}
+                                            : `Tagihan perpanjangan diterbitkan sebelum periode berjalan berakhir, dan masa aktif berlanjut segera setelah pembayaran terverifikasi. IOMS tidak pernah menagih kartu tersimpan secara otomatis. Setelah periode berakhir, Anda memiliki ${graceDays} hari akses penuh sebelum pencatatan data baru dijeda. Data lama tetap dapat dibuka kapan pun.`}
                                     </p>
                                 </div>
 
@@ -402,7 +402,7 @@ export default function Billing({
                         </div>
                         <p className="text-[11px] leading-relaxed text-graphite-400">
                             Dihitung langsung dari workspace ini. Batas yang kosong berarti paket tidak membatasinya.
-                            PTW Access adalah izin yang Anda berikan kepada akun yang sudah ada — bukan kuota yang dibeli.
+                            PTW Access adalah izin yang Anda berikan kepada akun yang sudah ada, bukan kuota yang dibeli.
                         </p>
                     </CardContent>
                 </Card>
@@ -450,11 +450,11 @@ export default function Billing({
                                                 )}
                                             </TableCell>
                                             <TableCell className="text-graphite-500">
-                                                {inv.period_start ? `${fmtDate(inv.period_start)} – ${fmtDate(inv.period_end)}` : '—'}
+                                                {inv.period_start ? `${fmtDate(inv.period_start)} – ${fmtDate(inv.period_end)}` : '-'}
                                             </TableCell>
                                             <TableCell className="text-graphite-500">{fmtDate(inv.due_date)}</TableCell>
                                             <TableCell className="text-graphite-500">
-                                                {inv.payment_date ? fmtDate(inv.payment_date) : '—'}
+                                                {inv.payment_date ? fmtDate(inv.payment_date) : '-'}
                                                 {inv.payment_method && <span className="block text-[11px] text-graphite-400">{inv.payment_method}</span>}
                                             </TableCell>
                                             <TableCell><StatusBadge value={inv.status} /></TableCell>

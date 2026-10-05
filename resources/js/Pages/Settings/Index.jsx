@@ -275,7 +275,7 @@ function BrandingTab({ company }) {
 
             <FormSection
                 title="Document identity"
-                description="The letterhead on every document IOMS generates for you — permits, purchase orders, receipts and work orders."
+                description="The letterhead on every document IOMS generates for you: permits, purchase orders, receipts and work orders."
                 icon={FileSignature}
             >
                 <FormField label="Legal company name" name="company_legal_name" error={errors.company_legal_name} className="sm:col-span-2">
@@ -1412,7 +1412,7 @@ function OperatingUnitsTab({ companies, organization }) {
                 <div>
                     <CardTitle>Operating Units</CardTitle>
                     <CardDescription>
-                        Unit operasional di dalam organisasi {organization?.name ? <span className="font-medium text-graphite-700">{organization.name}</span> : 'Anda'} —
+                        Unit operasional di dalam organisasi {organization?.name ? <span className="font-medium text-graphite-700">{organization.name}</span> : 'Anda'},
                         misalnya galangan, site, atau divisi. Setiap Department berada di bawah satu Operating Unit.
                     </CardDescription>
                 </div>
@@ -1457,7 +1457,7 @@ function OperatingUnitsTab({ companies, organization }) {
                         {companies.map((c) => (
                             <TableRow key={c.id}>
                                 <TableCell className="font-medium">{c.name}</TableCell>
-                                <TableCell>{c.code ?? '—'}</TableCell>
+                                <TableCell>{c.code ?? '-'}</TableCell>
                                 <TableCell>
                                     {c.legal_entity_name
                                         ? <span>{c.legal_entity_name}{c.legal_entity_registration ? <span className="ml-1 text-xs text-graphite-400">{c.legal_entity_registration}</span> : null}</span>
@@ -1588,8 +1588,8 @@ function DepartmentsTab({ departments, companies, filters }) {
                             <TableRow key={d.id}>
                                 <TableCell className="text-graphite-400">{d.sort_order}</TableCell>
                                 <TableCell className="font-medium">{d.name}</TableCell>
-                                <TableCell>{d.company?.name ?? '—'}</TableCell>
-                                <TableCell>{d.code ?? '—'}</TableCell>
+                                <TableCell>{d.company?.name ?? '-'}</TableCell>
+                                <TableCell>{d.code ?? '-'}</TableCell>
                                 <TableCell>{d.employees_count}</TableCell>
                                 <TableCell className="flex gap-1">
                                     <Button variant="ghost" size="icon" onClick={() => openEdit(d)}><Pencil className="h-4 w-4" /></Button>
@@ -1704,7 +1704,7 @@ function PositionsTab({ positions, departments, companies, filters }) {
                             <TableRow key={p.id}>
                                 <TableCell className="text-graphite-400">{p.sort_order}</TableCell>
                                 <TableCell className="font-medium">{p.name}</TableCell>
-                                <TableCell>{p.department?.name ?? '—'}</TableCell>
+                                <TableCell>{p.department?.name ?? '-'}</TableCell>
                                 <TableCell className="flex gap-1">
                                     <Button variant="ghost" size="icon" onClick={() => openEdit(p)}><Pencil className="h-4 w-4" /></Button>
                                     <Button variant="ghost" size="icon" onClick={() => destroy(p.id)}><Trash2 className="h-4 w-4 text-red-500" /></Button>
@@ -1856,8 +1856,8 @@ function KpiCategoriesTab({ kpiCategories, companies }) {
                                 <TableCell>
                                     <Badge variant={cat.is_negative ? 'destructive' : 'success'}>{cat.is_negative ? 'Incident' : 'Positive'}</Badge>
                                 </TableCell>
-                                <TableCell>{cat.show_on_dashboard ? 'Visible' : '—'}</TableCell>
-                                <TableCell>{cat.supports_quick_attendance ? 'Yes' : '—'}</TableCell>
+                                <TableCell>{cat.show_on_dashboard ? 'Visible' : '-'}</TableCell>
+                                <TableCell>{cat.supports_quick_attendance ? 'Yes' : '-'}</TableCell>
                                 <TableCell><Badge variant={cat.is_active ? 'success' : 'secondary'}>{cat.is_active ? 'Active' : 'Inactive'}</Badge></TableCell>
                                 <TableCell className="flex gap-1">
                                     <Button variant="ghost" size="icon" onClick={() => openEdit(cat)}><Pencil className="h-4 w-4" /></Button>
@@ -2098,6 +2098,30 @@ function DepartmentField({ value, onChange, options = [] }) {
  * content, which is why the rest of Settings looked fine). Threaded
  * through as a prop, like every other capability flag on this page.
  */
+/**
+ * v2.100.0 -- THE TWO NAMES A PERSON HAS, kept apart on screen the way
+ * they are kept apart in the table.
+ *
+ * "Name" is the registered identity: it arrives from the registration's
+ * contact name, it belongs beside the email on an invoice and in support,
+ * and it should be slow to change. "Display Name" is what colleagues see
+ * in the sidebar, approval queues and timelines. Leaving it blank shows
+ * the registered name, which is what every account did before this
+ * existed -- so this field adds a choice and takes none away.
+ */
+function DisplayNameField({ value, onChange, placeholder }) {
+    return (
+        <div className="space-y-1.5">
+            <Label>Display Name</Label>
+            <Input value={value} onChange={(e) => onChange(e.target.value)} placeholder={placeholder} />
+            <p className="text-xs text-graphite-400">
+                Nama yang dilihat rekan kerja di sidebar, daftar persetujuan, dan riwayat aktivitas.
+                Kosongkan untuk memakai nama terdaftar.
+            </p>
+        </div>
+    );
+}
+
 function UsersTab({ users, roles, ptwAccess, canManageUsers, canPtwAccess, canFieldAccess, companies, assignableDepartments = [] }) {
     return (
         <div className="space-y-4">
@@ -2113,7 +2137,7 @@ function UserManagementCard({ users, roles, companies, assignableDepartments = [
     const [editingUser, setEditingUser] = useState(null);
     const [editingUnitsFor, setEditingUnitsFor] = useState(null);
     const multiUnit = (companies ?? []).length > 1;
-    const { data, setData, post, processing, reset, errors } = useForm({ name: '', email: '', password: '', role: 'hrd', department_key: '' });
+    const { data, setData, post, processing, reset, errors } = useForm({ name: '', display_name: '', email: '', password: '', role: 'hrd', department_key: '' });
     const customRoles = (roles ?? []).filter((r) => !BUILT_IN_ROLES.includes(r.name));
 
     function submit(e) {
@@ -2145,6 +2169,7 @@ function UserManagementCard({ users, roles, companies, assignableDepartments = [
                                 </div>
                             )}
                             <div className="space-y-1.5"><Label>Name</Label><Input value={data.name} onChange={(e) => setData('name', e.target.value)} /></div>
+                            <DisplayNameField value={data.display_name} onChange={(v) => setData('display_name', v)} placeholder={data.name || 'Sama dengan nama terdaftar'} />
                             <div className="space-y-1.5"><Label>Email</Label><Input type="email" value={data.email} onChange={(e) => setData('email', e.target.value)} />
                                 {errors.email && <p className="text-xs text-red-600">{errors.email}</p>}
                             </div>
@@ -2179,7 +2204,12 @@ function UserManagementCard({ users, roles, companies, assignableDepartments = [
                             const deptLabel = u.department_key ? departmentLabel(u.department_key) : undefined;
                             return (
                                 <TableRow key={u.id}>
-                                    <TableCell className="font-medium">{u.name}</TableCell>
+                                    <TableCell className="font-medium">
+                                        {u.display ?? u.name}
+                                        {u.display_name && u.display_name !== u.name && (
+                                            <span className="block text-xs font-normal text-graphite-400">{u.name}</span>
+                                        )}
+                                    </TableCell>
                                     <TableCell>{u.email}</TableCell>
                                     <TableCell><Badge variant={u.role === 'super_admin' ? 'default' : 'secondary'}>{ROLE_LABELS[u.role] ?? u.role}</Badge></TableCell>
                                     <TableCell>
@@ -2261,11 +2291,11 @@ function UserOperatingUnitsDialog({ user, companies, onClose }) {
     return (
         <Dialog open onOpenChange={onClose}>
             <DialogContent>
-                <DialogHeader><DialogTitle>Operating Unit Access — {user.name}</DialogTitle></DialogHeader>
+                <DialogHeader><DialogTitle>Operating Unit Access: {user.name}</DialogTitle></DialogHeader>
                 <form onSubmit={submit} className="space-y-3">
                     <p className="text-xs leading-relaxed text-graphite-500">
                         Pilih unit yang boleh diakses akun ini. Jika tidak ada satu pun yang dipilih, akun
-                        dapat mengakses seluruh Operating Unit dalam organisasi — pembatasan bersifat opsional
+                        dapat mengakses seluruh Operating Unit dalam organisasi. Pembatasan bersifat opsional
                         dan hanya aktif saat Anda memilih unit tertentu.
                     </p>
                     <div className="space-y-2">
@@ -2517,6 +2547,7 @@ function FieldPtwAccessCard({ users, ptwAccess, canFieldAccess, canManageUsers }
 function EditUserDialog({ user, onClose, assignableDepartments = [] }) {
     const { data, setData, put, processing, errors } = useForm({
         name: user.name,
+        display_name: user.display_name || '',
         email: user.email,
         password: '',
         role: user.role,
@@ -2532,7 +2563,7 @@ function EditUserDialog({ user, onClose, assignableDepartments = [] }) {
     return (
         <Dialog open onOpenChange={(v) => !v && onClose()}>
             <DialogContent>
-                <DialogHeader><DialogTitle>Edit {user.name}</DialogTitle></DialogHeader>
+                <DialogHeader><DialogTitle>Edit {user.display ?? user.name}</DialogTitle></DialogHeader>
                 <form onSubmit={submit} className="space-y-3">
                     {Object.keys(errors).length > 0 && (
                         <div className="rounded-md border border-red-200 bg-red-50 p-2 text-xs text-red-700">
@@ -2540,6 +2571,7 @@ function EditUserDialog({ user, onClose, assignableDepartments = [] }) {
                         </div>
                     )}
                     <div className="space-y-1.5"><Label>Name</Label><Input value={data.name} onChange={(e) => setData('name', e.target.value)} /></div>
+                    <DisplayNameField value={data.display_name} onChange={(v) => setData('display_name', v)} placeholder={data.name || 'Sama dengan nama terdaftar'} />
                     <div className="space-y-1.5"><Label>Email</Label><Input type="email" value={data.email} onChange={(e) => setData('email', e.target.value)} />
                         {errors.email && <p className="text-xs text-red-600">{errors.email}</p>}
                     </div>
@@ -2639,7 +2671,7 @@ function SubscriptionTab({ subscription, invoices }) {
         );
     }
 
-    const formatDate = (v) => (v ? new Date(v).toLocaleDateString(undefined, { dateStyle: 'medium' }) : '—');
+    const formatDate = (v) => (v ? new Date(v).toLocaleDateString(undefined, { dateStyle: 'medium' }) : '-');
 
     return (
         <div className="space-y-4">
@@ -2662,7 +2694,7 @@ function SubscriptionTab({ subscription, invoices }) {
             )}
             {!subscription.is_usable && (
                 <div className="rounded-md border border-red-200 bg-red-50 p-3 text-sm leading-relaxed text-red-800 dark:border-red-900 dark:bg-red-950/30 dark:text-red-300">
-                    Langganan organisasi Anda berstatus {subscription.status}. Data Anda tidak dihapus dan tetap tersimpan — hubungi penyedia platform Anda untuk mengaktifkan kembali.
+                    Langganan organisasi Anda berstatus {subscription.status}. Data Anda tidak dihapus dan tetap tersimpan. Hubungi penyedia platform Anda untuk mengaktifkan kembali.
                 </div>
             )}
             <Card>
@@ -2679,7 +2711,7 @@ function SubscriptionTab({ subscription, invoices }) {
                 </CardHeader>
                 <CardContent className="grid grid-cols-1 gap-4 sm:grid-cols-2">
                     <div className="space-y-3 text-sm">
-                        <div className="flex items-center justify-between border-b border-graphite-100 pb-2 dark:border-slate-800"><span className="text-graphite-500">Plan</span><span className="font-medium">{subscription.package_name ?? '—'}</span></div>
+                        <div className="flex items-center justify-between border-b border-graphite-100 pb-2 dark:border-slate-800"><span className="text-graphite-500">Plan</span><span className="font-medium">{subscription.package_name ?? '-'}</span></div>
                         <div className="flex items-center justify-between border-b border-graphite-100 pb-2 dark:border-slate-800"><span className="text-graphite-500">License Type</span><span className="font-medium capitalize">{subscription.type ?? 'subscription'}</span></div>
                         <div className="flex items-center justify-between border-b border-graphite-100 pb-2 dark:border-slate-800"><span className="text-graphite-500">Status</span><Badge variant={SUB_STATUS_VARIANT[subscription.lifecycle_state] ?? 'secondary'} className="capitalize">{subscription.lifecycle_state}</Badge></div>
                         <div className="flex items-center justify-between border-b border-graphite-100 pb-2 dark:border-slate-800"><span className="text-graphite-500">Seat Limit</span><span className="font-medium">{subscription.seat_limit ?? 'Unlimited'}</span></div>

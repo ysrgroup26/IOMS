@@ -101,7 +101,7 @@ class TenantReadinessService
             [
                 'key' => 'employees',
                 'label' => 'Workforce',
-                'description' => 'Data karyawan — dasar dari PPE, man-hour, KPI, dan PTW.',
+                'description' => 'Data karyawan, dasar dari PPE, man-hour, KPI, dan PTW.',
                 'done' => $hasEmployees,
                 'href' => 'employees.index',
             ],

@@ -93,7 +93,7 @@ const TX_STATUS_LABEL = {
 };
 
 function formatDate(value, withTime = true) {
-    if (!value) return '—';
+    if (!value) return '-';
     return new Date(value).toLocaleString('id-ID', withTime ? { dateStyle: 'medium', timeStyle: 'short' } : { dateStyle: 'medium' });
 }
 
@@ -184,7 +184,7 @@ export default function PlatformTenantDetail({ tenant, subscription, administrat
                     <CardContent className="space-y-3 text-sm">
                         {subscription ? (
                             <>
-                                <Row label="Paket" value={subscription.plan_name ?? subscription.package_name ?? '—'} />
+                                <Row label="Paket" value={subscription.plan_name ?? subscription.package_name ?? '-'} />
                                 <Row label="Jenis lisensi" value={TYPE_LABEL[subscription.type] ?? subscription.type ?? 'Langganan'} />
                                 {/* Status = keputusan. Standing = tanggal. Dipisah,
                                     karena menyatukannya adalah cara support akhirnya
@@ -407,7 +407,7 @@ function InvoiceRow({ invoice }) {
                 )}
             </TableCell>
             <TableCell className="text-xs text-graphite-500">
-                {PURPOSE_LABEL[invoice.purpose] ?? '—'}
+                {PURPOSE_LABEL[invoice.purpose] ?? '-'}
                 {invoice.period_end ? <span className="block text-graphite-400">s.d. {formatDate(invoice.period_end, false)}</span> : null}
             </TableCell>
             <TableCell>{invoice.currency} {Number(invoice.amount).toLocaleString('id-ID')}</TableCell>

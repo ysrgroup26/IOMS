@@ -82,7 +82,7 @@ export default function ActivityCenterIndex({ activities, filters, options }) {
                                     <div className="mt-1 h-1.5 w-1.5 shrink-0 rounded-full bg-graphite-300" />
                                     <div className="min-w-0 flex-1">
                                         <p className={ACTION_COLOR[a.action] || 'text-graphite-600'}>
-                                            <span className="font-medium text-graphite-800">{a.user?.name || 'System'}</span> {a.description}
+                                            <span className="font-medium text-graphite-800">{a.actor_name || a.user?.name || 'System'}</span> {a.description}
                                         </p>
                                         <p className="mt-0.5 flex flex-wrap gap-x-2 text-[11px] text-graphite-400">
                                             <span>{new Date(a.created_at).toLocaleString('en-US', { day: 'numeric', month: 'short', year: 'numeric', hour: 'numeric', minute: '2-digit' })}</span>

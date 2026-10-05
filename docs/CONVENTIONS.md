@@ -1828,6 +1828,66 @@ links to, not the group's write routes.** `php artisan route:list --json` and ma
 grouping by prefix attributes a group's strictest middleware to its index and is how this was got
 wrong the first time.
 
+## CRITICAL — Known Pitfall (v2.100.0) — an actor resolved through a foreign key is not an audit trail
+
+`activity_logs` stored only `user_id`, and `approvals` only `approved_by`/`requested_by`. Every
+actor shown anywhere — a timeline entry, an audit row, an approval stamp, the signature block on a
+printed permit — was resolved by following that key to the account's **current** name.
+
+So renaming one person silently rewrote history. Every approval they had ever granted, on every
+permit already printed and filed, retroactively carried the new name; deactivating or removing them
+emptied the stamp. On a product whose permits and approvals **are** the compliance record, an audit
+trail that changes when somebody marries is not an audit trail.
+
+The names are now captured when the action happens: `activity_logs.actor_name`,
+`approvals.requester_name` and `approvals.approver_name`. **The foreign key stays and stays
+authoritative for "which account"** — the snapshot answers "what did this say at the time", which is
+a different question and the only one a historical document can honestly answer.
+
+Nothing was backfilled, deliberately. A historical row's null means "not captured when it happened",
+which is true; the read paths fall back to the live relation exactly as before, so every existing
+row renders identically. Writing today's names into yesterday's rows would manufacture a historical
+fact out of a value that may already have changed.
+
+**The rule.** When a value is displayed as evidence of something that already happened, store it at
+that moment. A join is the right way to answer "who is this account"; it is the wrong way to answer
+"who signed this".
+
+## Known Pitfall (v2.100.0) — one column was answering two identity questions
+
+`users.name` is the **registered** identity: it arrives as the registration's `contact_name` and
+belongs beside the email on an invoice and in support. What a colleague should see in a sidebar or
+an approval queue is a **different** question, and with one column an administrator could only
+answer the second by destroying the first.
+
+`display_name` is nullable and additive, and `User::displayName()` is the single answer to "what
+should this person be called". The shared Inertia prop sends it as `auth.user.name`, so **one
+setting reaches every surface at once** and no component has to remember which of the two columns to
+prefer.
+
+Keep the two apart when writing anything new: the registered name for records, billing and support;
+`displayName()` for anything a person reads.
+
+## The copy rules, and where they are enforced (v2.100.0)
+
+Two typographic rules now have tests, for the same reason the language hierarchy does — they had
+been stated and then broken.
+
+| Rule | Instead |
+|---|---|
+| **No em dash in user-facing text** | a hyphen for a "no value" placeholder; a comma, colon or full stop in prose, chosen per sentence |
+| **No stored identifier in user-facing text** | `humanizeToken()` — `under_maintenance` reads "Under Maintenance" |
+
+Both apply to what a customer reads, **not** to comments: this codebase's doc comments use em
+dashes heavily and deliberately, and `CopyRulesTest` strips comments before checking. Technical
+identifiers in code, config keys and route names are unaffected.
+
+The underscore rule is easy to break without noticing, because the value looks fine in the database.
+`StatusBadge` had always humanised its input; the activity feeds and the asset history rendered
+`ActivityLog.action` and `previous_status`/`new_status` raw, so real rows printed
+"in_progress" and "under_maintenance" at people. `humanizeToken` is now the one definition, shared
+rather than re-implemented.
+
 ## CRITICAL — Known Pitfall (v2.99.0) — a NULL owner means two different things, and the scope only knew one
 
 `CompanyOwnedScope` (v2.62.0) reads a null `company_id` as "owned by nobody, so visible to

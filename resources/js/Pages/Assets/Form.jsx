@@ -147,7 +147,7 @@ export default function AssetForm({ companies, vendors, purchaseOrders, categori
                         )}
                     </FormField>
 
-                    <FormField label="Location" name="location" error={errors.location} hint="Where it physically sits — dock, workshop, store.">
+                    <FormField label="Location" name="location" error={errors.location} hint="Where it physically sits: dock, workshop, store.">
                         {(control) => (
                             <Input {...control} value={data.location} onChange={(e) => setData('location', e.target.value)} />
                         )}

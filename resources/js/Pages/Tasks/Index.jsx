@@ -123,14 +123,14 @@ export default function TasksIndex({ tasks, users, filters, statuses, priorities
                                     <TableCell className="max-w-xs truncate">{task.title}</TableCell>
                                     <TableCell><Badge variant={PRIORITY_VARIANT[task.priority]}>{humanize(task.priority)}</Badge></TableCell>
                                     <TableCell><Badge variant={STATUS_VARIANT[task.status]}>{humanize(task.status)}</Badge></TableCell>
-                                    <TableCell>{task.assigned_user?.name ?? '—'}</TableCell>
+                                    <TableCell>{task.assigned_user?.name ?? '-'}</TableCell>
                                     <TableCell>
                                         {task.due_date ? (
                                             <span className={task.is_overdue ? 'flex items-center gap-1 text-red-600' : ''}>
                                                 {task.is_overdue && <AlertTriangle className="h-3.5 w-3.5" />}
                                                 {new Date(task.due_date).toLocaleDateString('en-US', { day: 'numeric', month: 'short', year: 'numeric' })}
                                             </span>
-                                        ) : '—'}
+                                        ) : '-'}
                                     </TableCell>
                                     <TableCell className="text-graphite-400">{new Date(task.created_at).toLocaleDateString('en-US', { day: 'numeric', month: 'short', year: 'numeric' })}</TableCell>
                                 </TableRow>

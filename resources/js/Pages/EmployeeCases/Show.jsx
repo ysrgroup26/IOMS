@@ -20,7 +20,7 @@ function humanize(value) {
 }
 
 function formatDate(value) {
-    if (!value) return '—';
+    if (!value) return '-';
     return new Date(value).toLocaleDateString('en-US', { day: 'numeric', month: 'short', year: 'numeric' });
 }
 
@@ -166,7 +166,7 @@ export default function EmployeeCaseShow({ employeeCase, activities, standing, p
                             <div className="grid gap-3 sm:grid-cols-2 border-t border-graphite-100 pt-3 dark:border-slate-800">
                                 <div>
                                     <p className="text-xs uppercase tracking-wide text-graphite-400">Raised by</p>
-                                    <p>{c.reporter?.name || '—'}</p>
+                                    <p>{c.reporter?.name || '-'}</p>
                                 </div>
                                 <div>
                                     <p className="text-xs uppercase tracking-wide text-graphite-400">Handler</p>
@@ -177,7 +177,7 @@ export default function EmployeeCaseShow({ employeeCase, activities, standing, p
                             {(c.status === 'closed' || c.status === 'dismissed') && (
                                 <div className="rounded-lg border border-graphite-200 bg-graphite-50 p-3 dark:border-slate-800 dark:bg-slate-800/50">
                                     <p className="text-xs uppercase tracking-wide text-graphite-400">
-                                        {c.status === 'dismissed' ? 'Dismissed' : 'Closed'} · {formatDate(c.closed_at)} · {c.closer?.name || '—'}
+                                        {c.status === 'dismissed' ? 'Dismissed' : 'Closed'} · {formatDate(c.closed_at)} · {c.closer?.name || '-'}
                                     </p>
                                     {c.outcome && <p className="mt-1 font-medium capitalize">{humanize(c.outcome)}</p>}
                                     {c.closure_note && <p className="mt-1 whitespace-pre-wrap text-graphite-600 dark:text-slate-300">{c.closure_note}</p>}

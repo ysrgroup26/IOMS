@@ -29,7 +29,7 @@ const LEVEL_CLASSES = {
 
 export default function AgingIndicator({ days, level, className }) {
     if (days === null || days === undefined) {
-        return <span className="text-graphite-300 dark:text-slate-600">—</span>;
+        return <span className="text-graphite-300 dark:text-slate-600">-</span>;
     }
 
     const label = days === 0 ? 'Today' : `${days} ${days === 1 ? 'day' : 'days'}`;
@@ -42,7 +42,7 @@ export default function AgingIndicator({ days, level, className }) {
             title={level === 'overdue' ? 'Open longer than expected' : undefined}
         >
             {label}
-            {level === 'overdue' && <span className="sr-only"> — open longer than expected</span>}
+            {level === 'overdue' && <span className="sr-only">, open longer than expected</span>}
         </span>
     );
 }

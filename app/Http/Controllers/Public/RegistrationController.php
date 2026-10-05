@@ -294,7 +294,7 @@ class RegistrationController extends Controller
         // fabricate a checkout it cannot perform.
         if (! $this->paymentConfigured()) {
             return redirect()->route('register.status', $token)
-                ->with('info', 'Your invoice has been issued. Online payment is not enabled on this deployment yet — our team will contact you with payment instructions.');
+                ->with('info', 'Your invoice has been issued. Online payment is not enabled on this deployment yet. Our team will contact you with payment instructions.');
         }
 
         /*
@@ -368,7 +368,7 @@ class RegistrationController extends Controller
             ]);
 
             return redirect()->route('register.status', $token)
-                ->withErrors(['payment' => 'We could not start the payment session. Your invoice has been issued — please try again shortly or contact us.']);
+                ->withErrors(['payment' => 'We could not start the payment session. Your invoice has been issued. Please try again shortly or contact us.']);
         }
     }
 

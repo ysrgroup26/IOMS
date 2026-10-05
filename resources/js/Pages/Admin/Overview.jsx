@@ -87,11 +87,11 @@ export default function AdminOverview({ organization, access, security, structur
                     <div className="grid grid-cols-2 gap-3 text-sm sm:grid-cols-4">
                         <div>
                             <p className="text-[11px] font-medium uppercase tracking-wide text-graphite-400">Name</p>
-                            <p className="font-semibold text-graphite-900 dark:text-slate-100">{organization?.name ?? '—'}</p>
+                            <p className="font-semibold text-graphite-900 dark:text-slate-100">{organization?.name ?? '-'}</p>
                         </div>
                         <div>
                             <p className="text-[11px] font-medium uppercase tracking-wide text-graphite-400">Identifier</p>
-                            <p className="font-mono text-xs text-graphite-600 dark:text-slate-400">{organization?.slug ?? '—'}</p>
+                            <p className="font-mono text-xs text-graphite-600 dark:text-slate-400">{organization?.slug ?? '-'}</p>
                         </div>
                         <div>
                             <p className="text-[11px] font-medium uppercase tracking-wide text-graphite-400">Account Status</p>
@@ -119,7 +119,7 @@ export default function AdminOverview({ organization, access, security, structur
                     surfaces (ADR 043). */}
                 <FigureGroup
                     title="Access"
-                    description="Akun login aktif dan kapasitas yang tersisa. Perangkat tidak dihitung — satu akun boleh masuk dari beberapa perangkat."
+                    description="Akun login aktif dan kapasitas yang tersisa. Perangkat tidak dihitung: satu akun boleh masuk dari beberapa perangkat."
                     columns={5}
                     actions={
                         <Link href={route('settings.index', { tab: 'users' })} className="inline-flex items-center gap-1 text-xs font-medium text-brand-600 hover:underline dark:text-brand-400">
@@ -164,7 +164,7 @@ export default function AdminOverview({ organization, access, security, structur
 
                     <FigureGroup
                         title="Security Posture"
-                        description="Fakta tentang akun yang ada — bukan skor. IOMS hanya melaporkan apa yang dapat dijawabnya."
+                        description="Fakta tentang akun yang ada, bukan skor. IOMS hanya melaporkan apa yang dapat dijawabnya."
                         columns={3}
                     >
                         <Figure
@@ -207,7 +207,7 @@ export default function AdminOverview({ organization, access, security, structur
                         <div className="grid grid-cols-2 gap-3 text-sm sm:grid-cols-5">
                             <div>
                                 <p className="text-[11px] font-medium uppercase tracking-wide text-graphite-400">Plan</p>
-                                <p className="font-semibold text-graphite-900 dark:text-slate-100">{subscription.plan_name ?? '—'}</p>
+                                <p className="font-semibold text-graphite-900 dark:text-slate-100">{subscription.plan_name ?? '-'}</p>
                             </div>
                             <div>
                                 <p className="text-[11px] font-medium uppercase tracking-wide text-graphite-400">Lifecycle</p>
@@ -219,17 +219,17 @@ export default function AdminOverview({ organization, access, security, structur
                                     ('monthly'/'yearly'); this is a display
                                     position, so it is presented as a word
                                     rather than as the column's contents. */}
-                                <p className="font-semibold capitalize text-graphite-900 dark:text-slate-100">{subscription.billing_cycle ?? '—'}</p>
+                                <p className="font-semibold capitalize text-graphite-900 dark:text-slate-100">{subscription.billing_cycle ?? '-'}</p>
                             </div>
                             <div>
                                 <p className="text-[11px] font-medium uppercase tracking-wide text-graphite-400">Period Ends</p>
                                 <p className="font-semibold tabular-nums text-graphite-900 dark:text-slate-100">
-                                    {subscription.is_lifetime ? 'Lifetime' : (subscription.period_ends_at ?? '—')}
+                                    {subscription.is_lifetime ? 'Lifetime' : (subscription.period_ends_at ?? '-')}
                                 </p>
                             </div>
                             <div>
                                 <p className="text-[11px] font-medium uppercase tracking-wide text-graphite-400">Billing Mode</p>
-                                <p className="font-semibold text-graphite-900 dark:text-slate-100">{subscription.billing_mode_label ?? '—'}</p>
+                                <p className="font-semibold text-graphite-900 dark:text-slate-100">{subscription.billing_mode_label ?? '-'}</p>
                             </div>
                             {subscription.lifecycle_state && LIFECYCLE_TONE[subscription.lifecycle_state] !== 'good' && (
                                 <p className="col-span-2 text-[11px] text-amber-700 sm:col-span-5 dark:text-amber-400">

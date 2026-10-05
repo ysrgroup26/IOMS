@@ -38,7 +38,7 @@ export default function HandoverRecordsIndex({
     const apply = (next) =>
         router.get(route('handover-records.index'), { ...filters, ...next }, { preserveState: true, replace: true });
 
-    const fmt = (v) => (v ? new Date(v).toLocaleDateString('id-ID', { day: 'numeric', month: 'short', year: 'numeric' }) : '—');
+    const fmt = (v) => (v ? new Date(v).toLocaleDateString('id-ID', { day: 'numeric', month: 'short', year: 'numeric' }) : '-');
 
     return (
         <AuthenticatedLayout>
@@ -63,7 +63,7 @@ export default function HandoverRecordsIndex({
                 <span>
                     <strong className="text-navy-800">BAST berbeda dengan Goods Receipt.</strong> Goods Receipt mencatat
                     penerimaan fisik barang ke gudang dan memperbarui stok. BAST adalah dokumen serah terima formal antara
-                    dua pihak dan menjadi bukti kontraktual — misalnya penyelesaian pekerjaan berdasarkan SPK. Sebuah BAST
+                    dua pihak dan menjadi bukti kontraktual, misalnya penyelesaian pekerjaan berdasarkan SPK. Sebuah BAST
                     boleh merujuk pada Goods Receipt, tetapi keduanya bukan dokumen yang sama.
                 </span>
             </div>
@@ -222,7 +222,7 @@ function HandoverDialog({ open, onOpenChange, types, statuses, companies, employ
                         <div className="space-y-1.5">
                             <Label>Dokumen Sumber</Label>
                             <select value={data.source_key} onChange={(e) => { setData('source_key', e.target.value); setData('source_id', ''); }} className="h-9 w-full rounded-md border border-steel-200 bg-white px-3 text-sm">
-                                <option value="">—</option>
+                                <option value="">-</option>
                                 <option value="work_order">Work Order (SPK)</option>
                                 <option value="purchase_order">Purchase Order</option>
                                 <option value="project">Proyek</option>
@@ -231,7 +231,7 @@ function HandoverDialog({ open, onOpenChange, types, statuses, companies, employ
                         <div className="space-y-1.5">
                             <Label>Pilih Dokumen</Label>
                             <select value={data.source_id} onChange={(e) => setData('source_id', e.target.value)} disabled={! data.source_key} className="h-9 w-full rounded-md border border-steel-200 bg-white px-3 text-sm disabled:opacity-50">
-                                <option value="">—</option>
+                                <option value="">-</option>
                                 {sourceOptions.map((o) => <option key={o.id} value={o.id}>{o.label}</option>)}
                             </select>
                         </div>
@@ -256,7 +256,7 @@ function HandoverDialog({ open, onOpenChange, types, statuses, companies, employ
                             <div className="space-y-1.5 sm:col-span-2">
                                 <Label>Karyawan (opsional)</Label>
                                 <select value={data.first_party_employee_id} onChange={(e) => setData('first_party_employee_id', e.target.value)} className="h-9 w-full rounded-md border border-steel-200 bg-white px-3 text-sm">
-                                    <option value="">—</option>
+                                    <option value="">-</option>
                                     {employees.map((emp) => <option key={emp.id} value={emp.id}>{emp.full_name}</option>)}
                                 </select>
                             </div>

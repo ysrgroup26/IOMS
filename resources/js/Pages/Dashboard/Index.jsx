@@ -503,7 +503,7 @@ export default function Dashboard({
                         <CardTitle>Employees by Department</CardTitle>
                         <CardDescription>
                             Active headcount, largest first
-                            {remainingDepartments.length > 0 && ` — top ${DEPARTMENT_BAR_LIMIT} shown`}
+                            {remainingDepartments.length > 0 && `, top ${DEPARTMENT_BAR_LIMIT} shown`}
                         </CardDescription>
                     </CardHeader>
                     <CardContent>
@@ -598,15 +598,15 @@ export default function Dashboard({
                         ) : (
                             <div className="grid grid-cols-3 gap-3">
                                 <div className="rounded-lg border border-graphite-100 p-3 text-center dark:border-slate-800">
-                                    <p className="text-base font-semibold text-graphite-900 dark:text-slate-50">{manhours?.today ?? '—'}</p>
+                                    <p className="text-base font-semibold text-graphite-900 dark:text-slate-50">{manhours?.today ?? '-'}</p>
                                     <p className="text-xs text-graphite-400">Today</p>
                                 </div>
                                 <div className="rounded-lg border border-graphite-100 p-3 text-center dark:border-slate-800">
-                                    <p className="text-base font-semibold text-graphite-900 dark:text-slate-50">{manhours?.this_month ?? '—'}</p>
+                                    <p className="text-base font-semibold text-graphite-900 dark:text-slate-50">{manhours?.this_month ?? '-'}</p>
                                     <p className="text-xs text-graphite-400">This Month</p>
                                 </div>
                                 <div className="rounded-lg border border-graphite-100 p-3 text-center dark:border-slate-800">
-                                    <p className="text-base font-semibold text-graphite-900 dark:text-slate-50">{manhours?.ytd ?? '—'}</p>
+                                    <p className="text-base font-semibold text-graphite-900 dark:text-slate-50">{manhours?.ytd ?? '-'}</p>
                                     <p className="text-xs text-graphite-400">YTD</p>
                                 </div>
                             </div>
@@ -727,26 +727,26 @@ export default function Dashboard({
                 <LeaderboardCard
                     icon={Flame}
                     label="Top Department (Incidents)"
-                    value={leaderboards.top_department_incidents?.name ?? '—'}
+                    value={leaderboards.top_department_incidents?.name ?? '-'}
                     sub={leaderboards.top_department_incidents ? `${formatNumber(leaderboards.top_department_incidents.total)} incidents` : 'No incidents recorded'}
                 />
                 <LeaderboardCard
                     icon={Trophy}
                     label="Most Active Employee"
-                    value={leaderboards.most_active_employee?.name ?? '—'}
-                    sub={leaderboards.most_active_employee ? `${formatNumber(leaderboards.most_active_employee.total)} activities` : '—'}
+                    value={leaderboards.most_active_employee?.name ?? '-'}
+                    sub={leaderboards.most_active_employee ? `${formatNumber(leaderboards.most_active_employee.total)} activities` : '-'}
                 />
                 <LeaderboardCard
                     icon={ClipboardList}
                     label="Most BBS Reports"
-                    value={leaderboards.most_bbs_report?.name ?? '—'}
-                    sub={leaderboards.most_bbs_report ? `${formatNumber(leaderboards.most_bbs_report.total)} reports` : '—'}
+                    value={leaderboards.most_bbs_report?.name ?? '-'}
+                    sub={leaderboards.most_bbs_report ? `${formatNumber(leaderboards.most_bbs_report.total)} reports` : '-'}
                 />
                 <LeaderboardCard
                     icon={Users2}
                     label="Most TBM Attendance"
-                    value={leaderboards.most_tbm_attendance?.name ?? '—'}
-                    sub={leaderboards.most_tbm_attendance ? `${formatNumber(leaderboards.most_tbm_attendance.total)} sessions` : '—'}
+                    value={leaderboards.most_tbm_attendance?.name ?? '-'}
+                    sub={leaderboards.most_tbm_attendance ? `${formatNumber(leaderboards.most_tbm_attendance.total)} sessions` : '-'}
                 />
             </div>
 

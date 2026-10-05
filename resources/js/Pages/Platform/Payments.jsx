@@ -53,7 +53,7 @@ const waktu = (d) =>
               hour: '2-digit',
               minute: '2-digit',
           })
-        : '—';
+        : '-';
 
 export default function PlatformPayments({ transactions = [], filter = 'all', statuses = [], gateway }) {
     function setFilter(value) {

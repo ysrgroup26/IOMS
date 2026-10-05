@@ -31,7 +31,7 @@ export default function Registrations({ registrations = [], packages = [], compl
     const stuck = registrations.filter((r) => r.status === 'paid' && !r.provisioned_at);
 
     const fmt = (v) =>
-        v ? new Date(v).toLocaleDateString('id-ID', { day: 'numeric', month: 'short', year: 'numeric' }) : '—';
+        v ? new Date(v).toLocaleDateString('id-ID', { day: 'numeric', month: 'short', year: 'numeric' }) : '-';
 
     const provision = (r) => {
         if (! confirm(`Jalankan ulang provisioning untuk ${r.reference}? Hanya berlaku untuk pendaftaran yang pembayarannya sudah terkonfirmasi.`)) return;
@@ -107,7 +107,7 @@ export default function Registrations({ registrations = [], packages = [], compl
                                                 <span className="block text-[11px] text-graphite-400">{r.contact_email}</span>
                                             </TableCell>
                                             <TableCell className="whitespace-nowrap">
-                                                {r.plan || '—'}
+                                                {r.plan || '-'}
                                                 <span className="block text-[11px] text-graphite-400">
                                                     {r.billing_cycle === 'monthly' ? 'Bulanan' : 'Tahunan'} · {r.amount}
                                                 </span>
@@ -126,7 +126,7 @@ export default function Registrations({ registrations = [], packages = [], compl
                                                         {r.tenant.name} <ExternalLink className="h-3 w-3" />
                                                     </Link>
                                                 ) : (
-                                                    <span className="text-graphite-400">—</span>
+                                                    <span className="text-graphite-400">-</span>
                                                 )}
                                             </TableCell>
                                             <TableCell className="text-right">

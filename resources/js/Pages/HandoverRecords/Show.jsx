@@ -17,7 +17,7 @@ import { Button } from '@/Components/ui/button';
  * not be able to set.
  */
 export default function HandoverRecordShow({ record, canManage }) {
-    const fmt = (v) => (v ? new Date(v).toLocaleDateString('id-ID', { day: 'numeric', month: 'long', year: 'numeric' }) : '—');
+    const fmt = (v) => (v ? new Date(v).toLocaleDateString('id-ID', { day: 'numeric', month: 'long', year: 'numeric' }) : '-');
 
     const accept = () => {
         if (! confirm('Tandai BAST ini sebagai diterima oleh Pihak Kedua?')) return;
@@ -110,7 +110,7 @@ function Party({ label, name, position, org }) {
     return (
         <div className="rounded-lg border border-steel-200/70 bg-gradient-to-b from-steel-100/60 via-white to-white p-4">
             <p className="text-[11px] font-semibold uppercase tracking-wide text-brand-700">{label}</p>
-            <p className="mt-1.5 text-sm font-semibold text-navy-900">{name || '—'}</p>
+            <p className="mt-1.5 text-sm font-semibold text-navy-900">{name || '-'}</p>
             {position && <p className="text-xs text-graphite-500">{position}</p>}
             {org && <p className="text-xs text-graphite-500">{org}</p>}
         </div>
@@ -121,7 +121,7 @@ function Row({ label, value }) {
     return (
         <div>
             <dt className="text-[11px] uppercase tracking-wide text-graphite-400">{label}</dt>
-            <dd className="mt-0.5 text-sm text-graphite-700">{value || '—'}</dd>
+            <dd className="mt-0.5 text-sm text-graphite-700">{value || '-'}</dd>
         </div>
     );
 }

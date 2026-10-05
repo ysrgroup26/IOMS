@@ -126,7 +126,7 @@
                 <tr>
                     <td class="ioms-pad" style="border-top:1px solid #e2e8f0; padding:18px 28px; background-color:#f8fafc;">
                         <p style="margin:0 0 6px; font-size:11px; line-height:18px; color:#64748b;">
-                            Sent by <strong style="color:#334155;">IOMS</strong> — Industrial Operations Platform.
+                            Sent by <strong style="color:#334155;">IOMS</strong>, Industrial Operations Platform.
                             @if ($replyTo)
                                 Replies to this message reach
                                 <a href="mailto:{{ $replyTo }}" style="color:#2166c4; text-decoration:none;">{{ $replyTo }}</a>.

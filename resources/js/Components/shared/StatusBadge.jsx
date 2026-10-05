@@ -1,4 +1,5 @@
 import { Badge } from '@/Components/ui/badge';
+import { humanizeToken } from '@/lib/humanizeToken';
 
 /**
  * Shared Status Badge (v1.6.5 foundation). Several pages (Tasks/Show,
@@ -86,11 +87,7 @@ const STATUS_MAP = {
     inactive: 'secondary',
 };
 
-function humanize(value) {
-    return value.replace(/_/g, ' ').replace(/\b\w/g, (c) => c.toUpperCase());
-}
-
 export default function StatusBadge({ value, label }) {
     if (!value) return null;
-    return <Badge variant={STATUS_MAP[value] || 'outline'}>{label || humanize(value)}</Badge>;
+    return <Badge variant={STATUS_MAP[value] || 'outline'}>{label || humanizeToken(value)}</Badge>;
 }

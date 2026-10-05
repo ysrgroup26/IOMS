@@ -99,7 +99,7 @@ export default function VendorForm({ vendor, companies, types, vendorCode }) {
             </h1>
             <p className="mb-6 text-sm text-graphite-500 dark:text-slate-400">
                 <span className="font-mono font-medium text-navy-800 dark:text-slate-200">{editing ? vendor.vendor_code : vendorCode}</span>
-                {' — '}
+                {': '}
                 purchase requisitions, RFQs and purchase orders are raised against this record.
             </p>
 
@@ -155,7 +155,7 @@ export default function VendorForm({ vendor, companies, types, vendorCode }) {
                     <div className="flex items-center sm:col-span-2">
                         <label className="flex cursor-pointer items-center gap-2 text-[13px] text-graphite-700 dark:text-slate-300">
                             <Checkbox checked={data.is_active} onCheckedChange={(v) => setData('is_active', !!v)} />
-                            Active — an inactive vendor stays on record but cannot be selected on new documents
+                            Active: an inactive vendor stays on record but cannot be selected on new documents
                         </label>
                     </div>
                 </FormSection>

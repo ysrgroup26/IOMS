@@ -45,9 +45,9 @@ export default function PlatformPlans({ plans }) {
                                     <TableRow key={p.id}>
                                         <TableCell className="font-medium">{p.name}</TableCell>
                                         <TableCell><code className="text-xs">{p.slug}</code></TableCell>
-                                        <TableCell>{p.is_custom ? 'Kustom' : (p.price_monthly ? `${p.currency} ${Number(p.price_monthly).toLocaleString('id-ID')}` : '—')}</TableCell>
-                                        <TableCell>{p.is_custom ? 'Kustom' : (p.price_yearly ? `${p.currency} ${Number(p.price_yearly).toLocaleString('id-ID')}` : '—')}</TableCell>
-                                        <TableCell>{p.trial_days ? `${p.trial_days} hari` : '—'}</TableCell>
+                                        <TableCell>{p.is_custom ? 'Kustom' : (p.price_monthly ? `${p.currency} ${Number(p.price_monthly).toLocaleString('id-ID')}` : '-')}</TableCell>
+                                        <TableCell>{p.is_custom ? 'Kustom' : (p.price_yearly ? `${p.currency} ${Number(p.price_yearly).toLocaleString('id-ID')}` : '-')}</TableCell>
+                                        <TableCell>{p.trial_days ? `${p.trial_days} hari` : '-'}</TableCell>
                                         <TableCell>{p.max_users ?? 'Tanpa batas'}</TableCell>
                                         <TableCell>{p.max_companies ?? 'Tanpa batas'}</TableCell>
                                         <TableCell className="space-x-1">

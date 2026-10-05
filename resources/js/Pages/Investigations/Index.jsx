@@ -124,8 +124,8 @@ export default function InvestigationsIndex({ investigations, filters, statuses,
                                                     {v.incident?.title}
                                                 </span>
                                             </TableCell>
-                                            <TableCell className="text-[13px]">{v.investigator?.name || '—'}</TableCell>
-                                            <TableCell className="text-[13px]">{methodLabels[v.method] || '—'}</TableCell>
+                                            <TableCell className="text-[13px]">{v.investigator?.name || '-'}</TableCell>
+                                            <TableCell className="text-[13px]">{methodLabels[v.method] || '-'}</TableCell>
                                             <TableCell><StatusBadge value={v.status} /></TableCell>
                                             <TableCell className="text-right">
                                                 <OpenActions count={v.open_actions_count} />
@@ -170,7 +170,7 @@ export default function InvestigationsIndex({ investigations, filters, statuses,
  */
 function OpenActions({ count }) {
     if (!count) {
-        return <span className="text-[13px] text-graphite-300 dark:text-slate-600">—</span>;
+        return <span className="text-[13px] text-graphite-300 dark:text-slate-600">-</span>;
     }
 
     return (

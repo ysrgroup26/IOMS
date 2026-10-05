@@ -155,9 +155,9 @@ export default function KpiRecords({ records, categories, companies, filters, av
                                             <span className="min-w-0 flex-1 truncate font-medium text-graphite-900">{r.employee.full_name}</span>
                                             <Badge variant={r.kpi_category.is_negative ? 'destructive' : 'secondary'}>{r.kpi_category.short_label}</Badge>
                                         </div>
-                                        <p className="mt-1 truncate text-sm text-graphite-600">{r.department?.name ?? r.employee.company?.name ?? '—'}</p>
+                                        <p className="mt-1 truncate text-sm text-graphite-600">{r.department?.name ?? r.employee.company?.name ?? '-'}</p>
                                         <div className="mt-1.5 flex items-center justify-between gap-2 text-xs text-graphite-400">
-                                            <span className="min-w-0 flex-1 truncate">{r.remarks || '—'}</span>
+                                            <span className="min-w-0 flex-1 truncate">{r.remarks || '-'}</span>
                                             <span className="shrink-0">{new Date(r.record_date).toLocaleDateString('en-US', { day: 'numeric', month: 'short', year: 'numeric' })}</span>
                                         </div>
                                     </div>
@@ -182,12 +182,12 @@ export default function KpiRecords({ records, categories, companies, filters, av
                                             <TableCell className="font-medium">{new Date(r.record_date).toLocaleDateString('en-US', { day: 'numeric', month: 'short', year: 'numeric' })}</TableCell>
                                             <TableCell>
                                                 <p className="text-graphite-900">{r.employee.full_name}</p>
-                                                <p className="text-xs text-graphite-500">{r.employee.company?.name ?? '—'} &middot; {r.department?.name ?? '—'}</p>
+                                                <p className="text-xs text-graphite-500">{r.employee.company?.name ?? '-'} &middot; {r.department?.name ?? '-'}</p>
                                             </TableCell>
                                             <TableCell>
                                                 <Badge variant={r.kpi_category.is_negative ? 'destructive' : 'secondary'}>{r.kpi_category.short_label}</Badge>
                                             </TableCell>
-                                            <TableCell className="max-w-xs truncate text-graphite-500">{r.remarks || '—'}</TableCell>
+                                            <TableCell className="max-w-xs truncate text-graphite-500">{r.remarks || '-'}</TableCell>
                                         </TableRow>
                                     ))}
                                 </TableBody>

@@ -534,7 +534,7 @@ export default function AuthenticatedLayout({ children }) {
                                     // "not yet", and it is decorative -- so the
                                     // row read as a plain, inexplicably
                                     // unreachable label.
-                                    aria-label={`${item.name} — coming soon`}
+                                    aria-label={`${item.name}, coming soon`}
                                 >
                                     <Icon className="h-4 w-4 shrink-0 text-navy-600 dark:text-slate-700" />
                                     <span className="flex-1 truncate">{item.name}</span>
@@ -1114,7 +1114,7 @@ function SandboxBanner() {
                 <FlaskConical className="h-3.5 w-3.5 shrink-0 text-steel-300" />
                 <span>
                     <strong className="font-semibold">IOMS Sandbox</strong>
-                    <span className="text-navy-200"> — demonstration company with sample data. Most actions are read-only.</span>
+                    <span className="text-navy-200">: demonstration company with sample data. Most actions are read-only.</span>
                 </span>
             </span>
             <a
@@ -1226,7 +1226,7 @@ function SubscriptionBanner() {
                 <AlertTriangle className="mt-0.5 h-3.5 w-3.5 shrink-0" />
                 <span className="min-w-0">
                     <strong className="font-semibold">{copy.label}</strong>
-                    <span className="opacity-90"> — {copy.body}</span>
+                    <span className="opacity-90">: {copy.body}</span>
                 </span>
             </span>
             {state.can_manage ? (

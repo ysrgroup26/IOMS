@@ -87,10 +87,10 @@ export default function WarehouseDashboard({
                                                 <p className="font-medium text-graphite-700 dark:text-slate-200">{row.item_name}</p>
                                                 <p className="text-xs text-graphite-400">{row.item_code}</p>
                                             </td>
-                                            <td className="py-2 pr-2 capitalize text-graphite-500">{row.category ?? '—'}</td>
-                                            <td className="py-2 pr-2 text-graphite-500">{row.location ?? '—'}</td>
+                                            <td className="py-2 pr-2 capitalize text-graphite-500">{row.category ?? '-'}</td>
+                                            <td className="py-2 pr-2 text-graphite-500">{row.location ?? '-'}</td>
                                             <td className="py-2 pr-2 tabular-nums text-graphite-700 dark:text-slate-200">{row.quantity} {row.unit}</td>
-                                            <td className="py-2 pr-2 tabular-nums text-graphite-500">{row.min_stock ?? '—'}</td>
+                                            <td className="py-2 pr-2 tabular-nums text-graphite-500">{row.min_stock ?? '-'}</td>
                                             <td className="py-2"><HealthBadge status={row.status} /></td>
                                         </tr>
                                     ))}

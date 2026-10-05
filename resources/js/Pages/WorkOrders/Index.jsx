@@ -90,7 +90,7 @@ export default function WorkOrdersIndex({ workOrders, filters, openCount, overdu
                                                 <p className="text-xs capitalize text-graphite-500">{wo.maintenance_type}</p>
                                             </TableCell>
                                             <TableCell>{wo.asset?.name}</TableCell>
-                                            <TableCell>{wo.technician ? <PersonChip name={wo.technician.full_name} size="sm" /> : <span className="text-graphite-400">—</span>}</TableCell>
+                                            <TableCell>{wo.technician ? <PersonChip name={wo.technician.full_name} size="sm" /> : <span className="text-graphite-400">-</span>}</TableCell>
                                             <TableCell>{new Date(wo.planned_date).toLocaleDateString('en-US', { day: 'numeric', month: 'short', year: 'numeric' })}</TableCell>
                                             <TableCell><StatusBadge value={wo.status} /></TableCell>
                                         </TableRow>

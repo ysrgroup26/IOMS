@@ -50,7 +50,7 @@ const TABS = [
 
 /* Umur tiket dihitung dari pesan pelanggan terakhir, bukan dari tanggal dibuat. */
 function usia(hours) {
-    if (hours === null || hours === undefined) return '—';
+    if (hours === null || hours === undefined) return '-';
     if (hours < 1) return 'baru saja';
     if (hours < 24) return `${hours} jam`;
     return `${Math.floor(hours / 24)} hari`;
@@ -160,7 +160,7 @@ export default function SupportIndex({ tickets = [], filter, counts = {}, priori
                                                 </span>
                                             </TableCell>
                                             <TableCell>
-                                                {t.requester_name || '—'}
+                                                {t.requester_name || '-'}
                                                 <span className="block text-[11px] text-graphite-400">{t.requester_email}</span>
                                             </TableCell>
                                             <TableCell>
@@ -188,9 +188,9 @@ export default function SupportIndex({ tickets = [], filter, counts = {}, priori
                                                         <Clock className={`h-3 w-3 ${t.age_hours >= 48 ? 'text-red-600' : t.age_hours >= 24 ? 'text-amber-600' : 'text-graphite-400'}`} />
                                                         {usia(t.age_hours)}
                                                     </span>
-                                                ) : '—'}
+                                                ) : '-'}
                                             </TableCell>
-                                            <TableCell className="text-sm text-graphite-600">{t.assignee ?? '—'}</TableCell>
+                                            <TableCell className="text-sm text-graphite-600">{t.assignee ?? '-'}</TableCell>
                                         </TableRow>
                                     ))}
                                 </TableBody>

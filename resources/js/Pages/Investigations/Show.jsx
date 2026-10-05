@@ -1,4 +1,5 @@
 import { Head, Link, router, useForm, usePage } from '@inertiajs/react';
+import { humanizeToken } from '@/lib/humanizeToken';
 import { useState } from 'react';
 import AuthenticatedLayout from '@/Layouts/AuthenticatedLayout';
 import { Card, CardContent, CardHeader, CardTitle } from '@/Components/ui/card';
@@ -421,7 +422,7 @@ export default function InvestigationShow({
                             ) : (
                                 actions.map((a) => (
                                     <div key={a.id} className="rounded-lg border border-graphite-100 p-3 text-sm dark:border-slate-800">
-                                        <p>{a.action}</p>
+                                        <p>{humanizeToken(a.action)}</p>
                                         <p className="mt-1 text-xs text-graphite-500 dark:text-slate-400">
                                             {a.assignee?.name || 'Unassigned'}
                                             {a.due_date && ` · due ${formatDate(a.due_date)}`} · <StatusBadge value={a.status} />

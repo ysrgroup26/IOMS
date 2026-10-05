@@ -242,7 +242,7 @@ export default function EmployeeForm({ employee, companies, departments, positio
                         name="department_id"
                         required
                         error={errors.department_id}
-                        hint={data.company_id ? undefined : 'Choose an Operating Unit first — departments belong to one.'}
+                        hint={data.company_id ? undefined : 'Choose an Operating Unit first: departments belong to one.'}
                     >
                         {(control) => (
                             <SearchableSelect
@@ -260,7 +260,7 @@ export default function EmployeeForm({ employee, companies, departments, positio
                         label="Position"
                         name="position_id"
                         error={errors.position_id}
-                        hint={data.department_id ? undefined : 'Choose a Department first — positions belong to one.'}
+                        hint={data.department_id ? undefined : 'Choose a Department first: positions belong to one.'}
                         className="sm:col-span-2"
                     >
                         {(control) => (

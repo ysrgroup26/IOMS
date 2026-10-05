@@ -66,11 +66,11 @@ export default function RosterOverview({ rosters, companies, filters }) {
                                                 </Link>
                                                 <div className="text-xs text-graphite-400">{r.employee_code}</div>
                                             </TableCell>
-                                            <TableCell className="text-graphite-500">{r.company ?? '—'}</TableCell>
-                                            <TableCell className="text-graphite-500">{r.department ?? '—'}</TableCell>
-                                            <TableCell>{r.shift ? `${r.shift.name} (${r.shift.code})` : '—'}</TableCell>
-                                            <TableCell className="text-graphite-500">{r.roster_pattern ?? '—'}</TableCell>
-                                            <TableCell className="text-graphite-500">{r.site ?? '—'}</TableCell>
+                                            <TableCell className="text-graphite-500">{r.company ?? '-'}</TableCell>
+                                            <TableCell className="text-graphite-500">{r.department ?? '-'}</TableCell>
+                                            <TableCell>{r.shift ? `${r.shift.name} (${r.shift.code})` : '-'}</TableCell>
+                                            <TableCell className="text-graphite-500">{r.roster_pattern ?? '-'}</TableCell>
+                                            <TableCell className="text-graphite-500">{r.site ?? '-'}</TableCell>
                                             <TableCell className="text-xs text-graphite-500">{r.start_date}{r.end_date ? ` - ${r.end_date}` : ' - ongoing'}</TableCell>
                                             <TableCell>
                                                 <Badge variant={r.duty_today === 'on' ? 'success' : 'secondary'} className="capitalize">

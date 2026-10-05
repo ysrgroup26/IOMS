@@ -69,8 +69,8 @@ export default function CompetencyExpiringSoon({ items, companies, filters }) {
                                                 </Link>
                                                 <div className="text-xs text-graphite-400">{item.employee_code}</div>
                                             </TableCell>
-                                            <TableCell className="text-graphite-500">{item.company ?? '—'}</TableCell>
-                                            <TableCell className="text-graphite-500">{item.department ?? '—'}</TableCell>
+                                            <TableCell className="text-graphite-500">{item.company ?? '-'}</TableCell>
+                                            <TableCell className="text-graphite-500">{item.department ?? '-'}</TableCell>
                                             <TableCell>
                                                 {item.competency_name}
                                                 <Badge variant="outline" className="ml-2 capitalize">{item.competency_type}</Badge>

@@ -155,7 +155,7 @@ export default function PlatformTenants({ tenants, packages }) {
                                         <TableCell className="text-graphite-500">{tenant.slug}</TableCell>
                                         <TableCell>{tenant.companies_count}</TableCell>
                                         <TableCell>{tenant.users_count}</TableCell>
-                                        <TableCell>{tenant.subscription?.package?.name ?? '—'}</TableCell>
+                                        <TableCell>{tenant.subscription?.package?.name ?? '-'}</TableCell>
                                         {/* Dihitung dari tanggal periode, bukan dari kolom status. */}
                                         <TableCell>
                                             {tenant.lifecycle ? (

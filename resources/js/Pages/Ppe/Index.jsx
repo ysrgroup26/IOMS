@@ -127,8 +127,8 @@ export default function PpeIndex({ assignments, ppeTypes, companies, departments
                             ) : assignments.data.map((a) => (
                                 <TableRow key={a.id}>
                                     <TableCell className="font-medium">{a.employee.full_name}</TableCell>
-                                    <TableCell>{a.employee.company?.name ?? '—'}</TableCell>
-                                    <TableCell>{a.employee.department?.name ?? '—'}</TableCell>
+                                    <TableCell>{a.employee.company?.name ?? '-'}</TableCell>
+                                    <TableCell>{a.employee.department?.name ?? '-'}</TableCell>
                                     <TableCell>{a.ppe_type.name}</TableCell>
                                     <TableCell>{new Date(a.issued_date).toLocaleDateString('en-US', { day: 'numeric', month: 'short', year: 'numeric' })}</TableCell>
                                     <TableCell>
@@ -138,7 +138,7 @@ export default function PpeIndex({ assignments, ppeTypes, companies, departments
                                     </TableCell>
                                     <TableCell>
                                         {a.days_remaining === null ? (
-                                            <span className="text-graphite-400">—</span>
+                                            <span className="text-graphite-400">-</span>
                                         ) : a.days_remaining >= 0 ? (
                                             <span>{a.days_remaining}d left</span>
                                         ) : (

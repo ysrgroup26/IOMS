@@ -47,7 +47,7 @@ const ACCOUNT_LABEL = { active: 'Aktif', trial: 'Uji coba', suspended: 'Ditanggu
 const STATE_LABEL = { grace: 'Masa tenggang', lapsed: 'Read-only', active: 'Aktif' };
 
 const rupiah = (n) => 'Rp' + Math.round(Number(n || 0)).toLocaleString('id-ID');
-const tanggal = (d) => (d ? new Date(d).toLocaleDateString('id-ID', { day: 'numeric', month: 'short', year: 'numeric' }) : '—');
+const tanggal = (d) => (d ? new Date(d).toLocaleDateString('id-ID', { day: 'numeric', month: 'short', year: 'numeric' }) : '-');
 
 export default function PlatformDashboard({ stats, recent_tenants: recentTenants, operations, platform_events: platformEvents = [], schema }) {
     const lifecycle = operations?.subscriptions?.counts ?? {};

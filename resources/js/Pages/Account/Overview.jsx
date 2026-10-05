@@ -282,7 +282,7 @@ function WorkspaceFocusCard({ workspaceFocus }) {
             <CardContent className="space-y-3">
                 <p className="text-xs leading-relaxed text-graphite-500">
                     Pilih workspace yang ingin ditampilkan sebagai fokus saat Anda bekerja. Anda tetap
-                    dapat berpindah ke workspace lain sesuai hak akses Anda — pilihan ini tidak mengubah
+                    dapat berpindah ke workspace lain sesuai hak akses Anda. Pilihan ini tidak mengubah
                     izin apa pun.
                 </p>
                 <form

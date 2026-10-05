@@ -63,7 +63,7 @@ export default function ManagementOverview({ summary, departments, hse, actions,
                 <div className="grid grid-cols-2 gap-3 lg:grid-cols-5">
                     <StatCard
                         icon={Users}
-                        value={summary?.headcount?.available ? summary.headcount.active : '—'}
+                        value={summary?.headcount?.available ? summary.headcount.active : '-'}
                         label="Active Workforce"
                         hint={summary?.headcount?.available ? `${summary.headcount.total} tercatat` : 'Belum ada data karyawan'}
                         href={route('management.workforce')}
@@ -75,7 +75,7 @@ export default function ManagementOverview({ summary, departments, hse, actions,
                     />
                     <StatCard
                         icon={ShieldAlert}
-                        value={incidents.available ? incidents.open : '—'}
+                        value={incidents.available ? incidents.open : '-'}
                         label="Open Incidents"
                         accent={incidents.available ? (incidents.open > 0 ? 'red' : 'green') : undefined}
                         hint={incidents.available ? `${incidents.this_month} bulan ini` : 'Belum ada insiden tercatat'}
@@ -83,7 +83,7 @@ export default function ManagementOverview({ summary, departments, hse, actions,
                     />
                     <StatCard
                         icon={ClipboardCheck}
-                        value={capa.available ? capa.open : '—'}
+                        value={capa.available ? capa.open : '-'}
                         label="Open CAPA"
                         accent={capa.available ? (capa.overdue > 0 ? 'red' : capa.open > 0 ? 'amber' : 'green') : undefined}
                         hint={capa.available ? `${capa.overdue} terlambat` : 'Belum ada tindakan perbaikan'}
@@ -91,7 +91,7 @@ export default function ManagementOverview({ summary, departments, hse, actions,
                     />
                     <StatCard
                         icon={Flame}
-                        value={summary?.permits?.available ? summary.permits.active : '—'}
+                        value={summary?.permits?.available ? summary.permits.active : '-'}
                         label="Active Permits"
                         hint={summary?.permits?.available ? undefined : 'Belum ada izin kerja'}
                     />
@@ -165,7 +165,7 @@ export default function ManagementOverview({ summary, departments, hse, actions,
                         <Figure
                             label="Overtime"
                             value={manHours.available ? Math.round(manHours.overtime).toLocaleString('id-ID') : null}
-                            hint={manHours.available ? 'jam, bulan ini' : '—'}
+                            hint={manHours.available ? 'jam, bulan ini' : '-'}
                             tone={manHours.available && manHours.overtime > manHours.regular * 0.25 ? 'warn' : 'neutral'}
                         />
                     </FigureGroup>
@@ -187,7 +187,7 @@ export default function ManagementOverview({ summary, departments, hse, actions,
                         rows={departments}
                         columns={[
                             { key: 'name', label: 'Department' },
-                            { key: 'code', label: 'Code', render: (row) => row.code ?? '—' },
+                            { key: 'code', label: 'Code', render: (row) => row.code ?? '-' },
                             { key: 'headcount', label: 'Headcount', align: 'right' },
                             { key: 'kpi_total', label: 'KPI Total', align: 'right' },
                             { key: 'open_requests', label: 'Open Requests', align: 'right' },
@@ -218,7 +218,7 @@ export default function ManagementOverview({ summary, departments, hse, actions,
                             rows={actions?.corrective_actions?.rows}
                             columns={[
                                 { key: 'action', label: 'Action', render: (row) => <span className="line-clamp-1">{row.action}</span> },
-                                { key: 'assignee', label: 'Owner', render: (row) => row.assignee ?? '—' },
+                                { key: 'assignee', label: 'Owner', render: (row) => row.assignee ?? '-' },
                                 { key: 'status', label: 'Status', render: (row) => <StatusBadge value={row.status} /> },
                                 {
                                     key: 'due_date',
@@ -226,7 +226,7 @@ export default function ManagementOverview({ summary, departments, hse, actions,
                                     align: 'right',
                                     render: (row) => row.due_date
                                         ? <span className={row.overdue ? 'font-semibold text-red-600 dark:text-red-400' : undefined}>{row.due_date}</span>
-                                        : '—',
+                                        : '-',
                                 },
                             ]}
                             empty={(

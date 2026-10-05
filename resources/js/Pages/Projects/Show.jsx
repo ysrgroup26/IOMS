@@ -56,7 +56,7 @@ export default function ProjectShow({ project, manpowerGrouped, timeline, availa
                         {(project.start_date || project.end_date) && (
                             <span className="flex items-center gap-1">
                                 <Calendar className="h-3.5 w-3.5" />
-                                {project.start_date ? new Date(project.start_date).toLocaleDateString('en-US', { day: 'numeric', month: 'short', year: 'numeric' }) : '—'}
+                                {project.start_date ? new Date(project.start_date).toLocaleDateString('en-US', { day: 'numeric', month: 'short', year: 'numeric' }) : '-'}
                                 {' – '}
                                 {project.end_date ? new Date(project.end_date).toLocaleDateString('en-US', { day: 'numeric', month: 'short', year: 'numeric' }) : 'Ongoing'}
                             </span>

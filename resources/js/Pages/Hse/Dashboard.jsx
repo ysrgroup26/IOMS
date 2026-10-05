@@ -140,7 +140,7 @@ export default function HseDashboard({
                     <Card>
                         <CardHeader className="pb-2">
                             <CardTitle>Action Required</CardTitle>
-                            <CardDescription>Peralatan, P3K, dan CAPA yang terlambat — terlama dahulu</CardDescription>
+                            <CardDescription>Peralatan, P3K, dan CAPA yang terlambat, terlama dahulu</CardDescription>
                         </CardHeader>
                         <CardContent>
                             <ActivityList
@@ -180,16 +180,16 @@ export default function HseDashboard({
                 <Card>
                     <CardHeader className="pb-2">
                         <CardTitle>Man-Hour &amp; Safety KPI Foundation</CardTitle>
-                        <CardDescription>Hanya data nyata — rasio yang memerlukan data belum tercatat ditampilkan sebagai tidak tersedia</CardDescription>
+                        <CardDescription>Hanya data nyata. Rasio yang memerlukan data belum tercatat ditampilkan sebagai tidak tersedia</CardDescription>
                     </CardHeader>
                     <CardContent className="grid grid-cols-2 gap-2 sm:grid-cols-5">
-                        <StatCard size="sm" icon={Clock} value={manHours?.today ?? '—'} label="Man-Hour Today" />
-                        <StatCard size="sm" icon={Clock} value={manHours?.this_month ?? '—'} label="Man-Hour This Month" />
-                        <StatCard size="sm" icon={Clock} value={manHours?.ytd ?? '—'} label="Man-Hour YTD" />
+                        <StatCard size="sm" icon={Clock} value={manHours?.today ?? '-'} label="Man-Hour Today" />
+                        <StatCard size="sm" icon={Clock} value={manHours?.this_month ?? '-'} label="Man-Hour This Month" />
+                        <StatCard size="sm" icon={Clock} value={manHours?.ytd ?? '-'} label="Man-Hour YTD" />
                         <StatCard size="sm" icon={AlertTriangle} value={safetyKpi?.recordable_injuries_ytd ?? 0} label="Recordable Injuries YTD" accent={safetyKpi?.recordable_injuries_ytd > 0 ? 'amber' : 'green'} />
                         <div className="rounded-xl border border-dashed border-graphite-200 p-3 dark:border-slate-700">
                             <p className="text-[11px] font-medium uppercase tracking-wide text-graphite-400">LTI / LTIFR / TRIR</p>
-                            <p className="mt-1 text-[11px] italic leading-snug text-graphite-400">Tidak tersedia — memerlukan data hari-hilang-kerja &amp; klasifikasi tingkat keparahan yang belum tercatat</p>
+                            <p className="mt-1 text-[11px] italic leading-snug text-graphite-400">Tidak tersedia, memerlukan data hari-hilang-kerja &amp; klasifikasi tingkat keparahan yang belum tercatat</p>
                         </div>
                     </CardContent>
                 </Card>
@@ -266,7 +266,7 @@ export default function HseDashboard({
                                 renderItem={(a) => (
                                     <div className="py-2 text-sm">
                                         <p className="text-graphite-700">{a.description}</p>
-                                        <p className="text-xs text-graphite-400">{a.user?.name} · {new Date(a.created_at).toLocaleString('en-US', { day: 'numeric', month: 'short', hour: 'numeric', minute: '2-digit' })}</p>
+                                        <p className="text-xs text-graphite-400">{a.actor_name || a.user?.name} · {new Date(a.created_at).toLocaleString('en-US', { day: 'numeric', month: 'short', hour: 'numeric', minute: '2-digit' })}</p>
                                     </div>
                                 )}
                             />

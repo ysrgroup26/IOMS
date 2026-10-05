@@ -15,7 +15,7 @@
             'heading' => 'Your subscription period has ended',
             'tone' => 'billing',
             'preheader' => 'Full access continues until '.$fmt($graceEndsAt).'. Renew to keep recording.',
-            'state' => 'Renewal overdue — grace period',
+            'state' => 'Renewal overdue, grace period',
             'lead' => 'The paid period for your IOMS subscription ended on '.$fmt($periodEndsAt).'. '
                 .'Your organization keeps full access until '.$fmt($graceEndsAt).'.',
             'next' => 'If the subscription is not renewed by then, IOMS becomes read-only: every record stays '

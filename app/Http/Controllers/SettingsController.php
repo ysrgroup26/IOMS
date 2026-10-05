@@ -111,9 +111,17 @@ class SettingsController extends Controller
             // loading them through the scoped relation would hide the very
             // rows an administrator is trying to review.
             'users' => User::with(['roles:id,name', 'companies' => fn ($q) => $q->withoutGlobalScopes()->select('companies.id')])
-                ->where('tenant_id', $request->user()->tenant_id)->orderBy('name')->get(['id', 'name', 'email', 'role', 'department_key', 'is_active', 'ptw_access', 'is_field_user', 'user_type', 'last_login_at'])
+                ->where('tenant_id', $request->user()->tenant_id)->orderBy('name')->get(['id', 'name', 'display_name', 'email', 'role', 'department_key', 'is_active', 'ptw_access', 'is_field_user', 'user_type', 'last_login_at'])
                 ->map(fn (User $u) => [
-                    ...$u->only(['id', 'name', 'email', 'role', 'department_key', 'is_active', 'ptw_access', 'is_field_user', 'last_login_at']),
+                    ...$u->only(['id', 'name', 'display_name', 'email', 'role', 'department_key', 'is_active', 'ptw_access', 'is_field_user', 'last_login_at']),
+                    /*
+                     * v2.100.0 -- BOTH IDENTITIES, kept apart on purpose.
+                     * `name` is the registered identity, `display_name` is
+                     * what colleagues see, and `display` is the resolved
+                     * answer so a table column never has to re-implement
+                     * the fallback. See User::displayName().
+                     */
+                    'display' => $u->displayName(),
                     'role_ids' => $u->roles->pluck('id'),
                     // Empty means UNRESTRICTED (every operating unit), never "none".
                     'company_ids' => $u->companies->pluck('id'),
@@ -1083,6 +1091,12 @@ class SettingsController extends Controller
     {
         $data = $request->validate([
             'name' => ['required', 'string', 'max:255'],
+            /*
+             * v2.100.0 -- OPTIONAL BY DESIGN. Left blank, the account shows
+             * its registered name, which is what every account did before
+             * this field existed.
+             */
+            'display_name' => ['nullable', 'string', 'max:255'],
             'email' => ['required', 'email', 'unique:users,email'],
             'password' => ['required', 'string', 'min:8'],
             'role' => ['required', 'in:super_admin,hse,hrd,manager,warehouse'],
@@ -1157,7 +1171,10 @@ class SettingsController extends Controller
             return User::create($data);
         });
 
-        ActivityLog::record('created', "User {$user->name} ({$user->role}) was created.", $user);
+        // v2.100.0: `role` is a stored identifier ("super_admin"), not
+        // something to show a person -- roleLabel() is the readable form,
+        // and an audit entry is read by people.
+        ActivityLog::record('created', "User {$user->displayName()} ({$user->roleLabel()}) was created.", $user);
 
         return back()->with('success', 'User created.');
     }
@@ -1175,6 +1192,9 @@ class SettingsController extends Controller
 
         $data = $request->validate([
             'name' => ['required', 'string', 'max:255'],
+            // v2.100.0 -- see storeUser(). Clearing it restores the
+            // registered name rather than leaving the account nameless.
+            'display_name' => ['nullable', 'string', 'max:255'],
             'email' => ['required', 'email', Rule::unique('users', 'email')->ignore($user->id)],
             'password' => ['nullable', 'string', 'min:8'],
             'role' => ['required', 'in:super_admin,hse,hrd,manager,warehouse'],
@@ -1191,7 +1211,7 @@ class SettingsController extends Controller
 
         $user->update($data);
 
-        ActivityLog::record('updated', "User {$user->name} was updated.", $user);
+        ActivityLog::record('updated', "User {$user->displayName()} was updated.", $user);
 
         return back()->with('success', 'User updated.');
     }

@@ -79,8 +79,8 @@ export default function ManagementActions({ actions }) {
                         rows={capa.rows}
                         columns={[
                             { key: 'action', label: 'Action', render: (row) => <span className="line-clamp-2">{row.action}</span> },
-                            { key: 'assignee', label: 'Owner', render: (row) => row.assignee ?? '—' },
-                            { key: 'priority', label: 'Priority', render: (row) => row.priority ? <StatusBadge value={row.priority} /> : '—' },
+                            { key: 'assignee', label: 'Owner', render: (row) => row.assignee ?? '-' },
+                            { key: 'priority', label: 'Priority', render: (row) => row.priority ? <StatusBadge value={row.priority} /> : '-' },
                             { key: 'status', label: 'Status', render: (row) => <StatusBadge value={row.status} /> },
                             {
                                 key: 'due_date',
@@ -88,7 +88,7 @@ export default function ManagementActions({ actions }) {
                                 align: 'right',
                                 render: (row) => row.due_date
                                     ? <span className={row.overdue ? 'font-semibold text-red-600 dark:text-red-400' : undefined}>{row.due_date}</span>
-                                    : '—',
+                                    : '-',
                             },
                         ]}
                         empty={(

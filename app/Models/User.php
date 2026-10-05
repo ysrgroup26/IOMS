@@ -447,7 +447,36 @@ class User extends Authenticatable implements MustVerifyEmail
      */
     public function canAccessAdminSpace(): bool
     {
-        return $this->isTenantAdmin() || $this->canManageOperationalSettings();
+        if (! $this->isTenantAdmin() && ! $this->canManageOperationalSettings()) {
+            return false;
+        }
+
+        /*
+         * v2.98.0 -- A DEPARTMENT USER CONFINED ELSEWHERE CANNOT ENTER IT.
+         *
+         * Role was the only question asked, so an HSE user ASSIGNED to the
+         * HSE department answered yes -- and the header duly offered them
+         * Admin Space. Every page inside it lives under the `settings`
+         * prefix, which `config('departments')` gives to `administration`
+         * alone, so `RestrictDepartmentAccess` refused them at the door:
+         * a navigation entry that could only ever produce a 403.
+         *
+         * Asked through the same map the middleware enforces with, rather
+         * than by naming `administration` here, so the two cannot drift.
+         * An unrestricted administrator (`department_key` null) is
+         * unaffected, which is every account this has ever been true for.
+         *
+         * This REMOVES no authorization: it reports the access the backend
+         * already grants, which is the whole job of a navigation gate.
+         */
+        if ($this->department_key === null) {
+            return true;
+        }
+
+        return collect(config('departments', []))
+            ->filter(fn (array $prefixes) => in_array('settings', $prefixes, true))
+            ->keys()
+            ->contains($this->department_key);
     }
 
     /*

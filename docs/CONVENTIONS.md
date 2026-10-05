@@ -1828,6 +1828,47 @@ links to, not the group's write routes.** `php artisan route:list --json` and ma
 grouping by prefix attributes a group's strictest middleware to its index and is how this was got
 wrong the first time.
 
+## CRITICAL — Known Pitfall (v2.98.0) — two middlewares read ONE prefix map and disagreed about what it meant
+
+`config('departments')` maps a route prefix to the department(s) that own it. **Two** middlewares
+read it, and since v2.46.0 they have read it differently:
+
+| | Reads the map with | Meaning |
+|---|---|---|
+| `RestrictDepartmentAccess` | `filter()` → every owner | multi-owner (fixed in v2.46.0) |
+| `EnforceTenantEntitlement` | `search()` → **the first owner** | single-owner |
+
+So a prefix listed under two departments was entitlement-checked against **whichever happened to be
+listed first**. `employees` sits under `hr`, so a Starter tenant — entitled to HSE and deliberately
+**not** to People / HRD — was refused its own workforce register. A customer could not add the
+people their PPE issues, incidents and permits are about.
+
+Both now accept **any** owning department. That widens nothing: a tenant holding none of the owners
+is still refused, and a single-owner prefix (every other entry) cannot change meaning.
+
+**The rule.** When a capability genuinely spans departments, list it under each and make sure every
+reader of the map handles multiple owners. Grep for other readers before assuming two are all there
+are — and never infer a route's gate from its prefix group, which is a separate pitfall below.
+
+## CRITICAL — Known Pitfall (v2.98.0) — ROLE is not the same question as REACHABILITY
+
+`canAccessAdminSpace()` asked only about role: `isTenantAdmin() || canManageOperationalSettings()`.
+An HSE user **assigned to the HSE department** answered yes, so the header offered them Admin Space.
+
+Every page inside Admin Space is under the `settings` prefix, which the same map gives to
+`administration` **alone** — so `RestrictDepartmentAccess` refused them at the door. The entry could
+only ever produce a 403.
+
+**A capability predicate that drives navigation must answer "can this person actually get there",
+not "does their role normally allow it".** Where a department assignment can block a route, the
+predicate has to ask about that too — through the same map the middleware enforces with, not by
+naming the department, so the two cannot drift. An unrestricted administrator
+(`department_key === null`) is unaffected, which is the overwhelming majority of accounts and why
+this survived so long.
+
+Note what this is **not**: it removes no authorization. It reports the access the backend already
+grants, which is the whole job of a navigation gate.
+
 ## Known Pitfall (v2.78.2) — a service worker caching STABLE filenames pins them forever
 
 `/build/` is content-hashed by Vite: a new build is a new URL, so cache-first can never be stale.

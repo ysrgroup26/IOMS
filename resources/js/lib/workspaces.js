@@ -254,6 +254,24 @@ export const WORKSPACES = [
                 name: 'People & PPE',
                 icon: UserCheck,
                 children: [
+                    /*
+                     * v2.98.0 -- HSE OWNS ITS OWN WORKFORCE REGISTER.
+                     *
+                     * Same shape, and the same reason, as Material Request
+                     * below: the capability is real for HSE and the only
+                     * sidebar entry lived in a workspace lower plans do not
+                     * get. A Starter tenant is entitled to HSE and
+                     * deliberately not to People / HRD, so it had no path to
+                     * the employees its PPE issues, incidents and permits
+                     * are all about.
+                     *
+                     * Same route, same controller, same page HR links to --
+                     * no duplicate anything. The HRD-specific capabilities
+                     * (shifts, rosters, competency, leave, employee cases)
+                     * stay in People / HRD alone, so this does not hand a
+                     * Starter tenant the HRD workspace by the back door.
+                     */
+                    { name: 'Employees', href: 'employees.index', icon: Users, moduleKey: 'employees' },
                     // PPE's own Dashboard/Employee PPE/Master/Reports split
                     // lives in PpeTabNav *within* the module, not as
                     // further sidebar sub-items.

@@ -34,6 +34,28 @@ return [
     // here per their own `canManage*()` gates reusing the HSE role)
     // Contractor/Visitor/Document Control.
     'hse' => [
+        /*
+         * v2.98.0 -- THE WORKFORCE REGISTER IS SHARED, NOT HR'S ALONE.
+         *
+         * `employees` is also listed under 'hr' above, and that is the
+         * point: this capability genuinely spans both departments, which
+         * this map has supported since v2.46.0.
+         *
+         * HSE cannot do its own work without it. PPE is issued to an
+         * employee, an incident involves one, a permit names the workers on
+         * it, man-hours are counted per person. Owning the register
+         * exclusively under 'hr' meant a Starter tenant -- entitled to HSE
+         * and deliberately NOT to People/HRD -- was refused its own
+         * workforce by EnforceTenantEntitlement, which resolved the prefix
+         * to 'hr' and found no grant. A customer could not add the people
+         * their safety records are about.
+         *
+         * Listing it here does NOT give Starter the People workspace: the
+         * HRD-specific prefixes (shifts, rosters, competency, leave,
+         * employee-cases) stay under 'hr' alone, so the plan boundary is
+         * unchanged. Only the register itself is shared.
+         */
+        'employees',
         // v2.52.0: Regulations & Standards Register.
         'hse-regulations',
         'ppe', 'ppe-types', 'incidents', 'kpi-input', 'kpi-records', 'hse',

@@ -131,12 +131,34 @@ class EnforceTenantEntitlement
         // ('departments') top-level keys are the same vocabulary), so no
         // second copy of that mapping was introduced.
         if (config('saas.enforce_workspace_entitlement', false)) {
-            $owningWorkspace = collect(config('departments', []))
-                ->search(fn (array $prefixes) => in_array($prefix, $prefixes, true));
+            /*
+             * v2.98.0 -- ANY OWNING WORKSPACE, NOT THE FIRST ONE FOUND.
+             *
+             * This used `search()`, which returns the FIRST department
+             * listing a prefix -- so the map was effectively single-owner
+             * here even though `RestrictDepartmentAccess` was taught to
+             * read it as multi-owner in v2.46.0. The two middlewares read
+             * one map and disagreed about what it meant.
+             *
+             * The consequence was a capability that genuinely spans two
+             * departments being gated on whichever happened to be listed
+             * first: `employees` resolved to 'hr', so a tenant entitled to
+             * HSE alone was refused its own workforce register.
+             *
+             * A tenant that holds ANY of the owning workspaces may use the
+             * prefix. This widens nothing for a tenant holding none of them
+             * -- the abort still fires -- and it cannot widen anything for a
+             * single-owner prefix, which is every other entry in the map.
+             */
+            $owningWorkspaces = collect(config('departments', []))
+                ->filter(fn (array $prefixes) => in_array($prefix, $prefixes, true))
+                ->keys();
 
-            if ($owningWorkspace !== false) {
+            if ($owningWorkspaces->isNotEmpty()) {
                 abort_unless(
-                    $this->entitlements->tenantCanUseWorkspace($user->tenant, $owningWorkspace),
+                    $owningWorkspaces->contains(
+                        fn (string $workspace) => $this->entitlements->tenantCanUseWorkspace($user->tenant, $workspace)
+                    ),
                     403,
                     'Fitur ini belum tersedia untuk paket perusahaan Anda.'
                 );

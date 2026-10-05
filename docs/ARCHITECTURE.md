@@ -455,6 +455,31 @@ form. Re-granting is a manual operator action on the subscription that already e
 (`grantComplimentary()`), so it creates no second tenant and no second subscription, and previous
 free access does not block it. Reasoning: ADR [[048-complimentary-access-is-an-evaluation|048]].
 
+### A shared capability is listed under every department that owns it (v2.98.0)
+
+`config('departments')` has supported multi-owner prefixes since v2.46.0, but only
+`RestrictDepartmentAccess` read it that way; `EnforceTenantEntitlement` resolved a prefix to its
+**first** owner. Both now accept any owner.
+
+That is what lets **the workforce register be shared without sharing People / HRD**. `employees` is
+listed under `hse` as well as `hr`, because HSE cannot do its own work without it: PPE is issued to
+an employee, an incident involves one, a permit names the workers on it. The HRD-specific prefixes
+(`shifts`, `rosters`, `competency`, `leave-requests`, `employee-cases`) stay under `hr` alone, so a
+Starter tenant reaches its employees and still cannot reach the People workspace.
+
+The sidebar follows the same precedent already set by **Man-Hour** and **Material Request**: one
+route, one controller, one page, linked from each workspace that genuinely owns the capability.
+
+### Admin Space is offered only where it can be entered (v2.98.0)
+
+`canAccessAdminSpace()` now asks whether the person's **department assignment** can reach the
+`settings` prefix, in addition to their role — read from the same map `RestrictDepartmentAccess`
+enforces with, so the two cannot drift. A department-confined user is no longer offered an entry
+that answers 403; an unrestricted administrator is unaffected.
+
+Unchanged: entering the space is still not a permission. `admin.index` remains
+`isTenantAdmin()`-only, and each page inside asks its own question (ADR 046).
+
 ### The support queue (v2.80.0)
 
 Platform-owned, not tenant-scoped, and deliberately separate from notifications. A ticket is a state

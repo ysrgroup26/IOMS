@@ -7,6 +7,7 @@ use App\Models\Employee;
 use App\Models\Position;
 use App\Models\Project;
 use App\Models\ProjectManpower;
+use App\Services\MasterDataDetector;
 use Illuminate\Support\Facades\DB;
 use Maatwebsite\Excel\Concerns\OnEachRow;
 use Maatwebsite\Excel\Concerns\WithChunkReading;
@@ -83,6 +84,55 @@ class EmployeesImport implements OnEachRow, WithChunkReading, WithHeadingRow
         return $data[$key] ?? $data[$field] ?? null;
     }
 
+    /**
+     * v2.101.0 -- built once, not per row. Besides being the only way to
+     * compare on a normalised key without a `whereRaw`, this turns two
+     * queries per row into two per import.
+     *
+     * Rebuilt lazily on first use, which matters because
+     * `createMissingMasterDataAndImport()` creates master data and then
+     * runs the import inside the same transaction -- the map has to be
+     * read after those inserts, not before.
+     *
+     * @var array<string, int>|null
+     */
+    private ?array $departmentMap = null;
+
+    /** @var array<string, list<array{id: int, department_id: int|null}>>|null */
+    private ?array $positionMap = null;
+
+    /** @return array<string, int> */
+    private function departmentMap(): array
+    {
+        return $this->departmentMap ??= Department::where('company_id', $this->companyId)
+            ->get(['id', 'name'])
+            ->reduce(function (array $carry, Department $department) {
+                $key = MasterDataDetector::comparisonKey($department->name);
+
+                // First one wins, so a pre-existing duplicate left behind
+                // by the old behaviour resolves predictably instead of
+                // depending on row order.
+                $carry[$key] ??= $department->id;
+
+                return $carry;
+            }, []);
+    }
+
+    /** @return array<string, list<array{id: int, department_id: int|null}>> */
+    private function positionMap(): array
+    {
+        return $this->positionMap ??= Position::where('company_id', $this->companyId)
+            ->get(['id', 'name', 'department_id'])
+            ->reduce(function (array $carry, Position $position) {
+                $carry[MasterDataDetector::comparisonKey($position->name)][] = [
+                    'id' => $position->id,
+                    'department_id' => $position->department_id,
+                ];
+
+                return $carry;
+            }, []);
+    }
+
     public function chunkSize(): int
     {
         // Comfortably handles "hundreds or thousands" per the spec --
@@ -157,18 +207,41 @@ class EmployeesImport implements OnEachRow, WithChunkReading, WithHeadingRow
             return;
         }
 
-        $departmentId = null;
-        if ($departmentName !== '') {
-            $departmentId = Department::where('company_id', $this->companyId)
-                ->where('name', $departmentName)
-                ->value('id');
-        }
+        /*
+          * v2.101.0 -- RESOLVED FROM A NORMALISED MAP, not a per-row query
+          * against the raw cell.
+          *
+          * `where('name', $cell)` asked the database to decide whether
+          * "hse" is "HSE", and MySQL and SQLite answer differently, so the
+          * behaviour belonged to the connection. It also never forgave the
+          * stray spaces a spreadsheet column collects.
+          *
+          * A POSITION IS NOW FOUND BY NAME WITHIN THE COMPANY, preferring
+          * one that belongs to the row's department. It used to require
+          * `department_id`, which meant the positions
+          * `createMissingMasterDataAndImport()` had just created -- company
+          * scoped, with no department -- could never be found by the import
+          * that ran in the same request. The flow whose entire purpose is
+          * to let blocked rows land was leaving them without a position.
+          * Company scoping is also what MasterDataDetector documents and
+          * classifies against, so all three agree again.
+          */
+        $departmentId = $departmentName !== ''
+            ? ($this->departmentMap()[MasterDataDetector::comparisonKey($departmentName)] ?? null)
+            : null;
 
         $positionId = null;
-        if ($positionId === null && $positionName !== '' && $departmentId) {
-            $positionId = Position::where('department_id', $departmentId)
-                ->where('name', $positionName)
-                ->value('id');
+        if ($positionName !== '') {
+            $candidates = $this->positionMap()[MasterDataDetector::comparisonKey($positionName)] ?? [];
+
+            foreach ($candidates as $candidate) {
+                if ($departmentId !== null && $candidate['department_id'] === $departmentId) {
+                    $positionId = $candidate['id'];
+                    break;
+                }
+            }
+
+            $positionId ??= $candidates[0]['id'] ?? null;
         }
 
         $joinDate = null;

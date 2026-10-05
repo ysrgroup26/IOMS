@@ -522,7 +522,21 @@ export const WORKSPACES = [
             { name: 'Settings', href: 'settings.index', icon: Settings, adminOnly: true },
             // v2.96.0: `settings.modules` is role:super_admin and the tab
             // renders only for `can.manage_system` -- the same dead row.
-            { name: 'Module Management', href: 'settings.index', queryParams: { tab: 'modules' }, icon: Settings, tenantAdminOnly: true },
+            /*
+             * v2.101.0 -- NAMED "Module Management" UNTIL THIS RELEASE.
+             *
+             * It opens the Settings tab labelled "Module Visibility", so one
+             * destination carried two names and the menu item did not read
+             * as the page it opens. "Management" also over-promised: WHICH
+             * modules a tenant has is decided by the plan, and
+             * `updateModules()` can only toggle keys already granted --
+             * its own doc comment calls this a "visibility/labeling only"
+             * boundary.
+             *
+             * AdminSpaceNavigationTest now pins every row here against the
+             * tab it opens, so the two cannot drift apart again.
+             */
+            { name: 'Module Visibility', href: 'settings.index', queryParams: { tab: 'modules' }, icon: Settings, tenantAdminOnly: true },
         ],
     },
 ];

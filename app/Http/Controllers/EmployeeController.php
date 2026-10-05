@@ -352,6 +352,42 @@ class EmployeeController extends Controller
      * newly-created master data rolls back with it rather than being
      * left behind orphaned from a failed import.
      */
+    /**
+     * v2.101.0. Creates only the names that are genuinely absent, comparing
+     * on `MasterDataDetector`'s key so that case and stray whitespace
+     * cannot produce a second record for a department or job title that
+     * already exists.
+     *
+     * A position is created company-wide, with no department, because that
+     * is what this request carries: the dialog collects a list of NAMES,
+     * not name-and-department pairs. The import resolves a position by name
+     * within the company, so one created here is found; a position that
+     * should belong to a specific department can be attached afterwards in
+     * Settings.
+     *
+     * @param  class-string<\Illuminate\Database\Eloquent\Model>  $model
+     * @param  array<int, string>  $names
+     */
+    private function createMissingMasterData(string $model, int $companyId, array $names): void
+    {
+        $existingKeys = $model::where('company_id', $companyId)
+            ->pluck('name')
+            ->map(fn (string $name) => MasterDataDetector::comparisonKey($name))
+            ->all();
+
+        foreach ($names as $rawName) {
+            $name = MasterDataDetector::normalise($rawName);
+            $key = MasterDataDetector::comparisonKey($rawName);
+
+            if ($name === '' || in_array($key, $existingKeys, true)) {
+                continue;
+            }
+
+            $model::create(['company_id' => $companyId, 'name' => $name]);
+            $existingKeys[] = $key;
+        }
+    }
+
     public function createMissingMasterDataAndImport(Request $request, FieldMappingService $mapping): JsonResponse
     {
         $request->validate([
@@ -367,13 +403,29 @@ class EmployeeController extends Controller
         $file = $request->file('file');
 
         $import = DB::transaction(function () use ($request, $companyId, $file, $mapping) {
-            foreach ($request->input('new_departments', []) as $name) {
-                Department::firstOrCreate(['company_id' => $companyId, 'name' => $name]);
-            }
+            /*
+             * v2.101.0 -- NORMALISED, AND MATCHED AGAINST WHAT IS ALREADY
+             * THERE.
+             *
+             * `firstOrCreate(['name' => $name])` matched on the raw cell, so
+             * " Produksi " created a second department whose name begins
+             * with a space, and "produksi" created another beside
+             * "Produksi" on any connection that compares case-sensitively.
+             * The name is now stored normalised, and an existing record is
+             * reused whenever it matches on the same key the detector and
+             * the import compare with.
+             */
+            $this->createMissingMasterData(
+                Department::class,
+                $companyId,
+                $request->input('new_departments', [])
+            );
 
-            foreach ($request->input('new_positions', []) as $name) {
-                Position::firstOrCreate(['company_id' => $companyId, 'name' => $name]);
-            }
+            $this->createMissingMasterData(
+                Position::class,
+                $companyId,
+                $request->input('new_positions', [])
+            );
 
             $import = new EmployeesImport($companyId, $request->user()->id, columnKeys: $mapping->importColumnKeys('employees'));
             Excel::import($import, $file);

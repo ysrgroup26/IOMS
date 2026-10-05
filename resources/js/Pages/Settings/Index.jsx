@@ -126,7 +126,10 @@ export default function SettingsIndex({ company, companies, departments, positio
                     <TabDivider />
 
                     <Tabs.Trigger value="authentication" className={TAB_CLASS}>Authentication</Tabs.Trigger>
-                    {(canSystem || canPtwAccess) && <Tabs.Trigger value="users" className={TAB_CLASS}>Users</Tabs.Trigger>}
+                    {/* v2.101.0: "Users & Access", matching the Admin Space row that
+                        opens it. This tab holds User Management AND Field & PTW
+                        Access, so the longer name is the accurate one. */}
+                    {(canSystem || canPtwAccess) && <Tabs.Trigger value="users" className={TAB_CLASS}>Users &amp; Access</Tabs.Trigger>}
                     {canSystem && <Tabs.Trigger value="roles" className={TAB_CLASS}>Roles &amp; Permissions</Tabs.Trigger>}
                     {canSystem && <TabDivider />}
 

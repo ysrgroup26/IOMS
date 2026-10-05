@@ -1828,6 +1828,42 @@ links to, not the group's write routes.** `php artisan route:list --json` and ma
 grouping by prefix attributes a group's strictest middleware to its index and is how this was got
 wrong the first time.
 
+## CRITICAL — Known Pitfall (v2.101.0) — three places decided whether two names are "the same", and disagreed
+
+Employee Import turns a Department and a Position column into records. Three pieces of code had to
+agree on whether ` HSE ` is the existing **HSE** department, and none of them agreed:
+
+| | Compared with | Result for ` HSE ` |
+|---|---|---|
+| `MasterDataDetector::classify()` | `mb_strtolower()`, **no trim** | NEW |
+| `EmployeesImport` lookup | `where('name', $cell)` — the **database** decides | depends on the connection |
+| `createMissingMasterDataAndImport()` | `firstOrCreate(['name' => $raw])` | creates a department **named with a leading space** |
+
+So a spreadsheet that spelled one department three ways produced three departments, and a stray
+space — which is exactly what a spreadsheet column collects — produced a record nobody could
+distinguish from the real one in a list.
+
+**Worse, matching depended on the database.** `where('name', $name)` is case-insensitive under
+MySQL's default collation and case-SENSITIVE under the SQLite the suite runs on. Production quietly
+forgave a case difference, the tests could not have caught it either way, and the behaviour was a
+property of the connection rather than of the code.
+
+**And the "create missing master data and import" flow could not find what it had just created.**
+The controller creates a Position with a company and a name; the import resolved positions with
+`where('department_id', ...)`. A freshly created position has a null department, so the lookup never
+matched: the one flow whose entire purpose is to let blocked rows land was landing them without a
+position. `MasterDataDetector`'s own doc comment says positions resolve "by name within the
+company" — which the import *used* to do and no longer did, so the comment had quietly become wrong
+about the code beside it.
+
+**The rule.** `MasterDataDetector::normalise()` is what gets **stored and shown** (trimmed, inner
+whitespace collapsed); `comparisonKey()` is what gets **compared** (additionally case-folded).
+Every path uses them, so the answer is the same in detection, resolution and creation, and the same
+on every database. Resolution reads a map built once per import rather than a query per row.
+
+Before adding another importer, reuse these two functions. "Compare in the database" is not a free
+choice: it hands the definition of identity to the connection.
+
 ## CRITICAL — Known Pitfall (v2.100.0) — an actor resolved through a foreign key is not an audit trail
 
 `activity_logs` stored only `user_id`, and `approvals` only `approved_by`/`requested_by`. Every

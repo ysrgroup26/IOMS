@@ -455,6 +455,27 @@ form. Re-granting is a manual operator action on the subscription that already e
 (`grantComplimentary()`), so it creates no second tenant and no second subscription, and previous
 free access does not block it. Reasoning: ADR [[048-complimentary-access-is-an-evaluation|048]].
 
+### Master data from a spreadsheet (v2.101.0)
+
+`MasterDataDetector` owns the one definition of "the same name" for imported master data:
+
+- `normalise()` — what is **stored and displayed**: trimmed, runs of inner whitespace collapsed.
+- `comparisonKey()` — what is **compared**: the above, case-folded.
+
+All three stages use them, which is the point: `classify()` (what the preview offers as existing,
+new or a likely typo), `EmployeesImport`'s lookup, and
+`EmployeeController::createMissingMasterData()`. Previously each decided for itself and they
+disagreed, so one department could become several. See `docs/CONVENTIONS.md`.
+
+`EmployeesImport` resolves from a **normalised map built once per import**, not a query per row.
+A position is found by name **within the company**, preferring one that belongs to the row's
+department — which is what the detector classifies against, and what makes a position created by
+`createMissingMasterDataAndImport()` resolvable by the import running in the same transaction.
+
+**Known limitation.** That flow creates positions company-wide with no department, because the
+dialog collects a list of names rather than name-and-department pairs. A position that should belong
+to a specific department is attached afterwards in Settings.
+
 ### Identity: what somebody is called, and who did the thing (v2.100.0)
 
 Two questions, deliberately answered by two different mechanisms.

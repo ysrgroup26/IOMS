@@ -455,6 +455,25 @@ form. Re-granting is a manual operator action on the subscription that already e
 (`grantComplimentary()`), so it creates no second tenant and no second subscription, and previous
 free access does not block it. Reasoning: ADR [[048-complimentary-access-is-an-evaluation|048]].
 
+### A tenant-wide configuration row (v2.99.0)
+
+Three Settings features configure the **whole tenant** rather than one Operating Unit: Approval
+Flow, Documents and Import/Export Mapping. They express that with a null `company_id`, which
+`ApprovalFlowResolver` relies on ("company-specific flows win over tenant-wide defaults") and
+`FieldMappingService` documents outright.
+
+`CompanyOwnedScope`'s default reading of a null owner is "visible to nobody", so from v2.62.0 until
+v2.99.0 every one of those rows was unreachable the moment it was written — including to the
+resolver, which therefore returned null and dropped every module back to legacy single-step
+approval. See `docs/CONVENTIONS.md` § *a NULL owner means two different things*.
+
+`App\Models\Concerns\IsTenantWideConfiguration` is how a model now states it. It implements the
+scope's existing `companyScopeNullOwnerQuery()` hook to require `tenant_id` = the current tenant,
+so a tenant-wide row is reachable inside its tenant, structurally unreachable outside it, and
+invisible when no tenant is resolved. It is deliberately **not**
+`companyScopeAllowsGlobalRows()`, which means "shared with every tenant" and belongs only to the
+platform-wide defaults in `NumberingFormat`, `NumberingSequence` and `KpiCategory`.
+
 ### A shared capability is listed under every department that owns it (v2.98.0)
 
 `config('departments')` has supported multi-owner prefixes since v2.46.0, but only

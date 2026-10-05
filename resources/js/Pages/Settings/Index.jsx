@@ -60,6 +60,41 @@ export default function SettingsIndex({ company, companies, departments, positio
     const canPtwAccess = can?.manage_ptw_access;
     const canFieldAccess = can?.manage_field_access;
 
+    /*
+     * v2.99.0 -- A TAB THIS USER CANNOT SEE MUST NOT LEAVE THE PAGE BLANK.
+     *
+     * `?tab=` was read straight into Radix's `defaultValue`. Radix renders
+     * no panel at all when the active value matches no `Tabs.Content`, and
+     * every panel below is gated by the same `canSystem`/`canPtwAccess`
+     * check as its trigger -- so an HSE or PTW-only user following a
+     * bookmarked, shared or browser-history `/settings?tab=approval-flows`
+     * link got the page chrome, the tab strip, no selected tab and an
+     * entirely empty body. No console error, no failed request, nothing to
+     * read: the reported "Approval Flow suddenly goes white". A stale or
+     * misspelled value did the same, and because `defaultValue` is only
+     * consulted on mount it stayed blank until another tab was clicked.
+     *
+     * Below is the set of tabs this user actually HAS a panel for, in
+     * display order -- so [0] doubles as the fallback and keeps the
+     * previous behaviour exactly (`branding` for a system admin,
+     * `departments` otherwise). SettingsTabResolutionTest pins it against
+     * the JSX, so a tab cannot be added to the strip without being added
+     * here too.
+     */
+    const availableTabs = [
+        ...(canSystem ? ['branding', 'modules', 'companies'] : []),
+        'departments',
+        'positions',
+        'kpi-categories',
+        'authentication',
+        ...(canSystem || canPtwAccess ? ['users'] : []),
+        ...(canSystem
+            ? ['roles', 'numbering', 'approval-flows', 'notifications', 'documents', 'field-mapping', 'subscription', 'backup']
+            : []),
+    ];
+    const requestedTab = new URLSearchParams(window.location.search).get('tab');
+    const initialTab = availableTabs.includes(requestedTab) ? requestedTab : availableTabs[0];
+
     return (
         <AuthenticatedLayout>
             <Head title="Settings" />
@@ -67,7 +102,7 @@ export default function SettingsIndex({ company, companies, departments, positio
             <PageHeader title="Settings" subtitle="Company info, master data, users, and backups." />
 
             <Tabs.Root
-                defaultValue={new URLSearchParams(window.location.search).get('tab') || (canSystem ? 'branding' : 'departments')}
+                defaultValue={initialTab}
                 className="space-y-4"
             >
                 {/* v2.31.0 (Interior UI Transformation Phase 3, Part 9):

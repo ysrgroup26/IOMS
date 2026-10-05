@@ -3,6 +3,7 @@
 namespace App\Models;
 
 use App\Models\Concerns\BelongsToCompany;
+use App\Models\Concerns\IsTenantWideConfiguration;
 use Illuminate\Database\Eloquent\Model;
 
 /**
@@ -15,6 +16,13 @@ use Illuminate\Database\Eloquent\Model;
 class ApprovalFlow extends Model
 {
     use BelongsToCompany;
+
+    /*
+     * v2.99.0 -- a null `company_id` on this table means "applies to the
+     * whole tenant", not "unowned". Without this trait every row the
+     * feature creates is invisible the moment it is saved.
+     */
+    use IsTenantWideConfiguration;
 
     protected $fillable = [
         'tenant_id',

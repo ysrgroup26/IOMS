@@ -1828,6 +1828,73 @@ links to, not the group's write routes.** `php artisan route:list --json` and ma
 grouping by prefix attributes a group's strictest middleware to its index and is how this was got
 wrong the first time.
 
+## CRITICAL — Known Pitfall (v2.99.0) — a NULL owner means two different things, and the scope only knew one
+
+`CompanyOwnedScope` (v2.62.0) reads a null `company_id` as "owned by nobody, so visible to
+nobody". That is the right default and it is wrong for three tables, because **Approval Flow,
+Documents and Import/Export Mapping use a null `company_id` to mean "applies to the whole
+tenant"** — not by accident of a nullable column, but by design:
+`ApprovalFlowResolver` says "company-specific flows win over tenant-wide defaults" and queries
+`whereNull('company_id')` to find them, and `FieldMappingService::resolve()` is documented
+"tenant-wide only (company_id null)".
+
+Every write site stores null: `storeApprovalFlow`, `storeDocumentTemplate`,
+`FieldMappingService::upsert`. So from v2.62.0 onward the damage was total and completely silent:
+
+- Everything a customer configured **vanished the instant it was saved.** The success message
+  appeared, the list came back empty. Creating it again just added another invisible row — there
+  is no unique constraint to complain.
+- **Route model binding runs through the global scope too**, so `{approvalFlow}`'s own delete and
+  save-steps endpoints answered 404 for a row that plainly existed.
+- Worst, and visible on no screen at all: the resolver's `whereNull('company_id')` branch became
+  **dead code**. `resolve()` returned null for every tenant-wide flow, so every module quietly fell
+  back to legacy single-step approval while Settings presented the feature as configured.
+
+Nothing logged, nothing 500'd, no console error. A static read of either file alone looks correct;
+the bug only exists in the *combination*, which is why it needs writing down.
+
+**The fix, and the distinction that matters.** These models now use
+`IsTenantWideConfiguration`, which implements `companyScopeNullOwnerQuery()` to require
+`tenant_id` = the current tenant. Null-company rows are reachable inside their own tenant and
+structurally unreachable outside it.
+
+Do **not** reach for `companyScopeAllowsGlobalRows()` here. That hook makes null rows visible to
+*everyone*, which is correct only for `NumberingFormat`/`NumberingSequence`/`KpiCategory`, whose
+null rows carry **no tenant at all**. These rows do carry a tenant, so "shared with everyone" would
+be a cross-tenant configuration leak. Task's hook draws the same line: *"shared with everyone" and
+"owned through a different column" are different answers.*
+
+**The rule.** Before adding `BelongsToCompany` to a table whose `company_id` is nullable, decide
+what null *means* on it, and say so on the model. A nullable owner column with no stated meaning is
+how this happened.
+
+## CRITICAL — Known Pitfall (v2.99.0) — a Radix tab value nobody can see renders NO panel, not a fallback
+
+Settings fed `?tab=` straight into `Tabs.Root`'s `defaultValue`:
+
+    defaultValue={new URLSearchParams(window.location.search).get('tab') || (canSystem ? 'branding' : 'departments')}
+
+The `||` only catches a *missing* parameter. **Radix renders no panel at all when the active value
+matches no `Tabs.Content`** — and every panel in Settings is gated by the same
+`canSystem`/`canPtwAccess` check as its trigger. So an HSE or PTW-only user opening a bookmarked,
+shared or back-button `/settings?tab=approval-flows` got the page chrome, the tab strip, **no
+selected tab and an entirely empty body**: the reported "Approval Flow suddenly goes white". Any
+stale or misspelled value did the same, and because `defaultValue` is read only on mount it stayed
+blank until another tab was clicked.
+
+There is **no error of any kind** — no console message, no failed request, nothing to read. Verified
+in the browser: `?tab=does-not-exist` dropped the page body from 1554 characters to 639 with all 16
+tabpanels empty and `aria-selected` set on nothing.
+
+**The rule.** A value that selects UI and arrives from a URL must be validated against what this
+user actually has, not merely against null. Settings now resolves it through `availableTabs`, whose
+`[0]` doubles as the fallback, and `SettingsConfigurationReachabilityTest` pins the list against
+the JSX so a tab cannot be added to the strip without being added there too.
+
+Note the amplifier: **there is no ErrorBoundary anywhere in `resources/js`**, so this class of
+problem presents as a blank page rather than a message. Worth remembering when a user reports a
+white screen.
+
 ## CRITICAL — Known Pitfall (v2.98.0) — two middlewares read ONE prefix map and disagreed about what it meant
 
 `config('departments')` maps a route prefix to the department(s) that own it. **Two** middlewares

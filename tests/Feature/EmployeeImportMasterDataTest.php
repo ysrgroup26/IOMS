@@ -202,9 +202,11 @@ class EmployeeImportMasterDataTest extends TestCase
             ])
             ->assertOk();
 
+        // v2.105.0: a department is stored upper case, so the stray spaces
+        // are gone AND the written form is the one the product displays.
         $this->assertDatabaseHas('departments', [
             'company_id' => $this->company->id,
-            'name' => 'Produksi',
+            'name' => 'PRODUKSI',
         ]);
 
         $this->assertSame(

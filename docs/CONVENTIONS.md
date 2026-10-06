@@ -1828,6 +1828,50 @@ links to, not the group's write routes.** `php artisan route:list --json` and ma
 grouping by prefix attributes a group's strictest middleware to its index and is how this was got
 wrong the first time.
 
+## CRITICAL — Known Pitfall (v2.105.0) — a uniqueness constraint narrower than the tenancy around it
+
+`employees.employee_id` carried a **global** unique index from
+`2024_01_01_000005`, written when IOMS was one company's internal tool. It was never revisited
+when multi-company arrived, and never when multi-tenancy did.
+
+**One customer's `EMP-001` prevented every other customer from ever having one.** EMP-001, 1001
+and 00123 are exactly the sequences every yard starts with, so collisions between unrelated
+customers were not a remote risk — they were the expected case.
+
+What made it hard to see is that **the preview was right**. Employee Import checks for an existing
+number with `Employee::withTrashed()->where('employee_id', $id)->exists()`, which is correctly
+scoped by `CompanyOwnedScope` to the current customer's own data. Another tenant's rows are
+invisible to it, as they should be. So a 141-row file reported **141 valid rows** — a true statement
+about everything that query could see — and the insert then threw against data the customer could
+neither see nor do anything about. The whole import ran in one transaction, so all 141 rows and the
+departments created with them were rolled back, and the screen said "Import failed".
+
+**The rule.** A uniqueness constraint must be scoped no more widely than the data it protects. An
+employee number belongs to a company, so the key is `(company_id, employee_id)`. When a check and
+a constraint disagree about scope, the check will always look correct and the constraint will always
+win.
+
+Narrowing a unique index is safe on populated tables: every set unique globally is also unique
+within each group, so it can only ever permit rows that were previously refused. **The reverse is
+not true** — see that migration's `down()`, which restores the global index *before* dropping the
+per-company one, so a rollback that legitimately fails leaves the stronger constraint in place
+rather than a table with none.
+
+## Known Pitfall (v2.105.0) — a form that silently does nothing when a default is missing
+
+Employee Import's dialog preselected an operating unit only when the account could see exactly one.
+`CompanyAuthorizationScope` means two accounts legitimately see different lists, so an
+administrator who could see several got **nothing** selected — and `runPreview()` opened with
+`if (!file || !companyId) return;`.
+
+The result was two accounts with two behaviours and no message: a user created by the administrator
+imported fine, while the administrator picked a file and watched nothing happen. It was reported,
+reasonably, as "the Admin account does not detect master data".
+
+**The rule.** A guard clause that returns early on missing input must say which input is missing.
+Prefer a sensible default (here, the account's own `company_id`) and treat a disabled control as a
+hint, never as the explanation.
+
 ## CRITICAL — Known Pitfall (v2.101.0) — three places decided whether two names are "the same", and disagreed
 
 Employee Import turns a Department and a Position column into records. Three pieces of code had to

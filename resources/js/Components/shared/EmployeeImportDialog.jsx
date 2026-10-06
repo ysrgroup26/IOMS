@@ -1,4 +1,5 @@
 import { useState } from 'react';
+import { usePage } from '@inertiajs/react';
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogFooter } from '@/Components/ui/dialog';
 import { Button } from '@/Components/ui/button';
 import { Label } from '@/Components/ui/label';
@@ -20,8 +21,13 @@ function csrfToken() {
  * before anything is written to the database.
  */
 export default function EmployeeImportDialog({ open, onOpenChange, companies }) {
+    // v2.105.0: the viewer's own operating unit, when they can see it.
+    const ownCompanyId = usePage().props.auth?.user?.company_id;
+    const defaultCompanyId = companies.find((c) => String(c.id) === String(ownCompanyId))
+        ? String(ownCompanyId)
+        : (companies.length === 1 ? String(companies[0].id) : undefined);
     const [stage, setStage] = useState('upload'); // upload | previewing | preview | processing | summary
-    const [companyId, setCompanyId] = useState(companies.length === 1 ? String(companies[0].id) : undefined);
+    const [companyId, setCompanyId] = useState(defaultCompanyId);
     const [file, setFile] = useState(null);
     const [preview, setPreview] = useState(null);
     // v2.102.0: which of THEIR columns feeds which IOMS field, suggested
@@ -48,7 +54,22 @@ export default function EmployeeImportDialog({ open, onOpenChange, companies }) 
     }
 
     async function runPreview() {
-        if (!file || !companyId) return;
+        /*
+         * v2.105.0: this used to return silently, so an administrator with
+         * more than one operating unit and nothing preselected saw a dialog
+         * where choosing a file simply did nothing. Saying which piece is
+         * missing costs one line and removes an entire class of "it does
+         * not detect anything" reports.
+         */
+        if (!companyId) {
+            setError('Pilih Operating Unit terlebih dahulu sebelum menjalankan preview.');
+            return;
+        }
+
+        if (!file) {
+            setError('Pilih berkas Excel yang akan diimpor.');
+            return;
+        }
 
         setStage('previewing');
         setError(null);

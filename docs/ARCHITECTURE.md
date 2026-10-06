@@ -488,6 +488,36 @@ send the customer to the oldest invoice concerned and offer the next once it set
 answers for one invoice, because every reconciliation surface IOMS has is built that way. See the
 ADR for why collapsing them was rejected.
 
+### How a name is compared, and how it is written (v2.105.0)
+
+`App\Support\NameFormatter` is the single definition, and it answers **two** questions that must
+not be conflated:
+
+| | |
+|---|---|
+| `key()` | **is this the same name?** Trimmed, inner whitespace collapsed, case folded. Everything that detects, matches or de-duplicates compares on this. |
+| `department()` | **how is it written?** `MECHANIC`, `MECHANIC VESSEL` |
+| `title()` | `Mechanic Senior`, `HSE Officer`, `Budi Santoso` — acronyms from `config/naming.php` |
+
+Departments are upper case because they read as labels on an organisation chart, which also makes
+the acronym question disappear. Positions and people are Title Case because they are read as names
+in a table and on a printed permit, where upper case shouts.
+
+**Only case and spacing are collapsed.** `Mechanic` and `Mechanic Vessel` are two departments and
+stay two departments; nothing here does stemming or prefix matching. The only place similarity is
+considered is `MasterDataDetector`'s typo **suggestion**, which proposes and never merges.
+
+Applied at all four stages, which is the entire point — when they disagreed, one department became
+three:
+
+- **detection** — `MasterDataDetector::classify()` returns the form that will be stored, so the
+  preview shows the customer the name they are about to create
+- **matching** — `EmployeesImport`'s normalised maps, built once per import
+- **creation** — `EmployeeController::createMissingMasterData()` (import) **and**
+  `SettingsController`'s department/position store and update (typed by hand). Master data arrives
+  by two doors and both obey the same rules.
+- **storage** — the normalised form is what is written
+
 ### Smart Import: matching a customer's own headings (v2.102.0)
 
 The official template is the golden path. `App\Services\ImportHeaderMatcher` exists for the other

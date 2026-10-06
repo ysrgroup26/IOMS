@@ -23,6 +23,7 @@ use App\Services\FieldMappingService;
 use App\Services\ImportHeaderMatcher;
 use App\Services\MasterDataDetector;
 use App\Services\PdfGeneratorService;
+use App\Support\NameFormatter;
 use Illuminate\Http\JsonResponse;
 use Illuminate\Http\RedirectResponse;
 use Illuminate\Http\Request;
@@ -431,8 +432,17 @@ class EmployeeController extends Controller
 
         $companyId = (int) $request->input('company_id');
 
-        $import = new EmployeesImport($companyId, $request->user()->id, previewOnly: true, columnKeys: $mapping->importColumnKeys('employees'));
-        Excel::import($import, $request->file('file'));
+        try {
+            $import = new EmployeesImport($companyId, $request->user()->id, previewOnly: true, columnKeys: $mapping->importColumnKeys('employees'));
+            Excel::import($import, $request->file('file'));
+        } catch (\Throwable $e) {
+            report($e);
+
+            return response()->json([
+                'message' => 'Berkas ini tidak dapat dibaca. Pastikan formatnya .xlsx dan baris pertama berisi judul kolom. '
+                    .'Penyebab: '.mb_substr($e->getMessage(), 0, 160),
+            ], 422);
+        }
 
         $departments = $detector->detectDepartments($import->departmentNames, $companyId);
         $positions = $detector->detectPositions($import->positionNames, $companyId);
@@ -481,8 +491,22 @@ class EmployeeController extends Controller
             ->map(fn (string $name) => MasterDataDetector::comparisonKey($name))
             ->all();
 
+        /*
+         * v2.105.0 -- STORED IN THE FORM THE PRODUCT DISPLAYS.
+         *
+         * A department is upper case (MECHANIC VESSEL); a job title is
+         * Title Case with acronyms intact (HSE Officer). Matching is still
+         * on the key, which ignores case and spacing, so "mechanic" never
+         * creates a second MECHANIC -- while "Mechanic Vessel" stays its
+         * own department, because it is a different name and not a
+         * different spelling of the same one.
+         */
+        $format = $model === Department::class
+            ? NameFormatter::department(...)
+            : NameFormatter::title(...);
+
         foreach ($names as $rawName) {
-            $name = MasterDataDetector::normalise($rawName);
+            $name = $format($rawName);
             $key = MasterDataDetector::comparisonKey($rawName);
 
             if ($name === '' || in_array($key, $existingKeys, true)) {
@@ -508,7 +532,24 @@ class EmployeeController extends Controller
         $companyId = (int) $request->input('company_id');
         $file = $request->file('file');
 
-        $import = DB::transaction(function () use ($request, $companyId, $file, $mapping) {
+        /*
+         * v2.105.0 -- A FAILURE HERE HAS TO SAY SOMETHING.
+         *
+         * Any exception used to leave the framework to answer with a 500,
+         * which the dialog rendered as the bare words "Import failed" --
+         * after a preview that had just promised every row was valid. The
+         * customer had nothing to act on and no way to tell a bad file from
+         * a bad deployment.
+         *
+         * The per-row failures are handled inside EmployeesImport now and
+         * no longer reach this point, so what IS caught here is a genuine
+         * whole-import failure: an unreadable file, or master data that
+         * could not be created. The transaction still rolls everything back
+         * -- a half-imported workforce is worse than none -- and the
+         * message says which stage failed.
+         */
+        try {
+            $import = DB::transaction(function () use ($request, $companyId, $file, $mapping) {
             /*
              * v2.101.0 -- NORMALISED, AND MATCHED AGAINST WHAT IS ALREADY
              * THERE.
@@ -534,10 +575,18 @@ class EmployeeController extends Controller
             );
 
             $import = new EmployeesImport($companyId, $request->user()->id, columnKeys: $mapping->importColumnKeys('employees'));
-            Excel::import($import, $file);
+                Excel::import($import, $file);
 
-            return $import;
-        });
+                return $import;
+            });
+        } catch (\Throwable $e) {
+            report($e);
+
+            return response()->json([
+                'message' => 'Impor dibatalkan dan tidak ada data yang tersimpan. '
+                    .'Penyebab: '.mb_substr($e->getMessage(), 0, 200),
+            ], 422);
+        }
 
         ActivityLog::record('imported', "Imported {$import->imported} employee(s) from Excel after creating missing master data ({$import->totalRows} rows processed).");
 

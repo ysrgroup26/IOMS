@@ -8,6 +8,7 @@ use App\Models\Position;
 use App\Models\Project;
 use App\Models\ProjectManpower;
 use App\Services\MasterDataDetector;
+use App\Support\NameFormatter;
 use Illuminate\Support\Facades\DB;
 use Maatwebsite\Excel\Concerns\OnEachRow;
 use Maatwebsite\Excel\Concerns\WithChunkReading;
@@ -101,6 +102,32 @@ class EmployeesImport implements OnEachRow, WithChunkReading, WithHeadingRow
     /** @var array<string, list<array{id: int, department_id: int|null}>>|null */
     private ?array $positionMap = null;
 
+    /**
+     * Employee numbers already taken in this company, keyed case-
+     * insensitively because the column's collation is and a spreadsheet is
+     * not consistent about it.
+     *
+     * @var array<string, true>|null
+     */
+    private ?array $existingEmployeeIds = null;
+
+    /** @return array<string, true> */
+    private function existingEmployeeIds(): array
+    {
+        return $this->existingEmployeeIds ??= Employee::withTrashed()
+            ->where('company_id', $this->companyId)
+            ->pluck('employee_id')
+            ->reduce(function (array $carry, ?string $id) {
+                $key = mb_strtolower(trim((string) $id));
+
+                if ($key !== '') {
+                    $carry[$key] = true;
+                }
+
+                return $carry;
+            }, []);
+    }
+
     /** @return array<string, int> */
     private function departmentMap(): array
     {
@@ -133,6 +160,33 @@ class EmployeesImport implements OnEachRow, WithChunkReading, WithHeadingRow
             }, []);
     }
 
+    /**
+     * The database's complaint, in a form a customer can act on.
+     *
+     * Only the shapes that are genuinely recognisable are named; anything
+     * else keeps the driver's own message rather than being relabelled as
+     * something this code did not actually observe. A message that guesses
+     * wrong is worse than one that is merely terse.
+     */
+    private function readableFailure(\Throwable $e): string
+    {
+        $message = $e->getMessage();
+
+        if (str_contains($message, 'Duplicate entry') || str_contains($message, 'UNIQUE constraint')) {
+            return 'Employee ID atau NIK sudah dipakai oleh karyawan lain.';
+        }
+
+        if (str_contains($message, 'Data too long')) {
+            return 'Ada isi kolom yang melebihi panjang maksimum, misalnya nomor telepon atau email.';
+        }
+
+        if (str_contains($message, 'Incorrect date') || str_contains($message, 'Invalid datetime')) {
+            return 'Format tanggal pada baris ini tidak dapat dibaca.';
+        }
+
+        return 'Baris ini ditolak database: '.mb_substr($message, 0, 160);
+    }
+
     public function chunkSize(): int
     {
         // Comfortably handles "hundreds or thousands" per the spec --
@@ -148,7 +202,9 @@ class EmployeesImport implements OnEachRow, WithChunkReading, WithHeadingRow
         $rowNumber = $row->getIndex() + 1;
 
         $employeeId = trim((string) ($this->col($data, 'employee_id') ?? ''));
-        $fullName = trim((string) ($this->col($data, 'full_name') ?? ''));
+        // v2.105.0: written the way the product displays a person --
+        // "budi santoso" and "BUDI SANTOSO" both become "Budi Santoso".
+        $fullName = NameFormatter::title($this->col($data, 'full_name'));
 
         // Critical fields: a row missing either of these can't become a
         // usable employee record at all (both are NOT NULL columns), so
@@ -171,8 +227,31 @@ class EmployeesImport implements OnEachRow, WithChunkReading, WithHeadingRow
             return;
         }
 
-        if (Employee::withTrashed()->where('employee_id', $employeeId)->exists()) {
-            $this->skip($rowNumber, 'Duplicate Employee ID (already exists)');
+        /*
+         * v2.105.0 -- CHECKED AT THE GRANULARITY THE CONSTRAINT ACTUALLY HAS.
+         *
+         * This was `Employee::withTrashed()->where('employee_id', $id)->exists()`:
+         * one query per row, and scoped by the company scope to whatever
+         * companies the CURRENT USER can see. That is the wrong granularity
+         * in both directions. It refused a number another company in the
+         * same tenant happened to use, and it could not see the one case
+         * that actually broke production -- a collision with ANOTHER
+         * TENANT's employee number, which tenant isolation correctly hides
+         * from this query but which the old GLOBAL unique index still
+         * refused at insert.
+         *
+         * That is the 141-row report: the preview said every row was valid,
+         * because within this customer's own data every row WAS valid, and
+         * the insert then threw against numbers belonging to a different
+         * customer entirely.
+         *
+         * The index is now per company (see the migration), and this
+         * predicts exactly that: one query per import, keyed case-
+         * insensitively, including soft-deleted rows because a soft-deleted
+         * employee still occupies its number in the index.
+         */
+        if (isset($this->existingEmployeeIds()[mb_strtolower($employeeId)])) {
+            $this->skip($rowNumber, "Duplicate Employee ID \"{$employeeId}\" (already used in this Operating Unit)");
 
             return;
         }
@@ -266,7 +345,24 @@ class EmployeesImport implements OnEachRow, WithChunkReading, WithHeadingRow
             $status = 'active';
         }
 
-        DB::transaction(function () use ($data, $employeeId, $fullName, $departmentId, $positionId, $joinDate, $status) {
+        /*
+          * v2.105.0 -- ONE BAD ROW MUST NOT COST THE OTHER HUNDRED AND FORTY.
+          *
+          * This class's own doc comment says it never stops on one bad row,
+          * and that was true of every check it performs itself -- but a
+          * failure raised by the DATABASE (a value too long for its column,
+          * a constraint this code did not anticipate) threw straight out of
+          * here. Running inside the caller's transaction, that discarded
+          * every row already imported and every department created with
+          * them.
+          *
+          * Caught per row and recorded with the row number, so the import
+          * finishes and the customer is told exactly which rows did not
+          * land and why. The reason is the database's own message, trimmed:
+          * invented wording would describe a failure nobody observed.
+          */
+        try {
+            DB::transaction(function () use ($data, $employeeId, $fullName, $departmentId, $positionId, $joinDate, $status) {
             $employee = Employee::create([
                 'employee_id' => $employeeId,
                 'full_name' => $fullName,
@@ -283,24 +379,35 @@ class EmployeesImport implements OnEachRow, WithChunkReading, WithHeadingRow
             ]);
 
             // Project is optional and never blocks the import -- if the
-            // name doesn't match an existing project (or is blank),
-            // the employee is simply not assigned to one yet.
-            $projectName = trim((string) ($this->col($data, 'project') ?? ''));
-            if ($projectName !== '') {
-                $projectId = Project::where('company_id', $this->companyId)
-                    ->where('name', $projectName)
-                    ->value('id');
+                // name doesn't match an existing project (or is blank),
+                // the employee is simply not assigned to one yet.
+                $projectName = trim((string) ($this->col($data, 'project') ?? ''));
+                if ($projectName !== '') {
+                    $projectId = Project::where('company_id', $this->companyId)
+                        ->whereRaw('LOWER(TRIM(name)) = ?', [MasterDataDetector::comparisonKey($projectName)])
+                        ->value('id');
 
-                if ($projectId) {
-                    ProjectManpower::create([
-                        'project_id' => $projectId,
-                        'employee_id' => $employee->id,
-                        'assigned_date' => now()->toDateString(),
-                        'added_by' => $this->userId,
-                    ]);
+                    if ($projectId) {
+                        ProjectManpower::create([
+                            'project_id' => $projectId,
+                            'employee_id' => $employee->id,
+                            'assigned_date' => now()->toDateString(),
+                            'added_by' => $this->userId,
+                        ]);
+                    }
                 }
-            }
-        });
+            });
+        } catch (\Throwable $e) {
+            $this->skipped[] = [
+                'row' => $rowNumber,
+                'reason' => $this->readableFailure($e),
+            ];
+
+            return;
+        }
+
+        // Taken now, so a later row in the same file cannot reuse it.
+        $this->existingEmployeeIds[mb_strtolower($employeeId)] = true;
 
         $this->imported++;
         if ($departmentId === null) {

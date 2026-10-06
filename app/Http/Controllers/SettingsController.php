@@ -17,6 +17,7 @@ use App\Models\Position;
 use App\Models\User;
 use App\Models\Workspace;
 use App\Services\EntitlementService;
+use App\Support\NameFormatter;
 use Illuminate\Http\RedirectResponse;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\DB;
@@ -884,6 +885,18 @@ class SettingsController extends Controller
 
     public function storeDepartment(Request $request): RedirectResponse
     {
+        /*
+         * v2.105.0 -- THE SAME NAME RULES AS THE IMPORT.
+         *
+         * Normalised BEFORE validation, so the uniqueness rule below
+         * compares the form that will actually be stored. Typed by hand,
+         * " Mechanic " and "mechanic" used to pass the unique check and
+         * become second and third copies of a department the import writes
+         * as MECHANIC -- master data arriving by two doors and disagreeing
+         * about its own spelling.
+         */
+        $request->merge(['name' => NameFormatter::department($request->input('name'))]);
+
         $data = $request->validate([
             'company_id' => ['required', 'exists:companies,id'],
             'name' => ['required', 'string', 'max:255', Rule::unique('departments', 'name')->where('company_id', $request->input('company_id'))],
@@ -901,6 +914,9 @@ class SettingsController extends Controller
 
     public function updateDepartment(Request $request, Department $department): RedirectResponse
     {
+        // v2.105.0: see storeDepartment().
+        $request->merge(['name' => NameFormatter::department($request->input('name'))]);
+
         $this->assertCompanyInTenant($department->company_id);
 
         $companyId = $request->input('company_id', $department->company_id);
@@ -938,6 +954,10 @@ class SettingsController extends Controller
 
     public function storePosition(Request $request): RedirectResponse
     {
+        // v2.105.0: a job title is Title Case with acronyms intact, the
+        // same form the import writes. See storeDepartment().
+        $request->merge(['name' => NameFormatter::title($request->input('name'))]);
+
         $data = $request->validate([
             'name' => ['required', 'string', 'max:255'],
             'description' => ['nullable', 'string', 'max:2000'],
@@ -955,6 +975,9 @@ class SettingsController extends Controller
 
     public function updatePosition(Request $request, Position $position): RedirectResponse
     {
+        // v2.105.0: see storePosition().
+        $request->merge(['name' => NameFormatter::title($request->input('name'))]);
+
         $this->assertCompanyInTenant($position->company_id);
 
         $data = $request->validate([

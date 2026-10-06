@@ -4,6 +4,7 @@ namespace App\Services;
 
 use App\Models\Department;
 use App\Models\Position;
+use App\Support\NameFormatter;
 
 /**
  * Smart Master Data Detection (v1.6.10). Deliberately its own service,
@@ -51,12 +52,12 @@ class MasterDataDetector
      */
     public static function normalise(?string $name): string
     {
-        return trim(preg_replace('/\s+/u', ' ', (string) $name) ?? '');
+        return NameFormatter::collapse($name);
     }
 
     public static function comparisonKey(?string $name): string
     {
-        return mb_strtolower(self::normalise($name));
+        return NameFormatter::key($name);
     }
 
     /**
@@ -67,7 +68,9 @@ class MasterDataDetector
     {
         $existingNames = Department::where('company_id', $companyId)->pluck('name')->all();
 
-        return $this->classify($names, $existingNames);
+        // v2.105.0: a department is written in upper case, so the names
+        // offered for creation are the names that will be stored.
+        return $this->classify($names, $existingNames, NameFormatter::department(...));
     }
 
     /**
@@ -85,7 +88,8 @@ class MasterDataDetector
     {
         $existingNames = Position::where('company_id', $companyId)->pluck('name')->all();
 
-        return $this->classify($names, $existingNames);
+        // v2.105.0: a job title is written in Title Case, acronyms intact.
+        return $this->classify($names, $existingNames, NameFormatter::title(...));
     }
 
     /**
@@ -93,8 +97,10 @@ class MasterDataDetector
      * @param  array<string>  $existingNames
      * @return array{existing: array<string>, new: array<string>, suggestions: array<string,string>}
      */
-    private function classify(array $names, array $existingNames): array
+    private function classify(array $names, array $existingNames, ?callable $format = null): array
     {
+        $format ??= NameFormatter::collapse(...);
+
         $existing = [];
         $new = [];
         $suggestions = [];
@@ -108,7 +114,10 @@ class MasterDataDetector
         $seen = [];
 
         foreach ($names as $rawName) {
-            $name = self::normalise($rawName);
+            // What would be STORED, so the preview shows the customer the
+            // name they are actually about to create. Matching still
+            // happens on the key, which ignores case and spacing.
+            $name = $format($rawName);
             $key = self::comparisonKey($rawName);
 
             if ($key === '' || isset($seen[$key])) {

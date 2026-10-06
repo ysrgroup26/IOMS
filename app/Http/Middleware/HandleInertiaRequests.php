@@ -74,6 +74,19 @@ class HandleInertiaRequests extends Middleware
                     // User::isDepartmentUser()'s own doc comment.
                     'department_key' => $user->department_key,
                     'is_department_user' => $user->isDepartmentUser(),
+                    /*
+                     * v2.105.0 -- the operating unit this person belongs to.
+                     *
+                     * Not an authorization fact and not used as one: which
+                     * units they may REACH is decided by
+                     * CompanyAuthorizationScope and re-checked server-side.
+                     * This is a sensible default for a form that has to
+                     * pick one, which is what the employee import dialog
+                     * lacked -- an administrator who could see several
+                     * units had none preselected, so the dialog silently
+                     * did nothing.
+                     */
+                    'company_id' => $user->company_id,
 
                     /*
                      * v2.83.0 -- THREE CAPABILITIES AND ONE PREFERENCE.

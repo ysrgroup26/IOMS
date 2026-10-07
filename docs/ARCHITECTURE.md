@@ -488,6 +488,26 @@ send the customer to the oldest invoice concerned and offer the next once it set
 answers for one invoice, because every reconciliation surface IOMS has is built that way. See the
 ADR for why collapsing them was rejected.
 
+### The product's own name for a module (v2.106.0)
+
+Settings' Numbering, Approval Flow, Documents and Import/Export Mapping all let an administrator
+choose a module, and all four rendered the stored key with its underscores swapped for spaces:
+"material request", "permit to work", "hse inspection". Several added the CSS `capitalize` rule on
+top, which upper-cases the first letter of every word and so produced **"Hse Inspection"**, "Jsa"
+and "Loto" — initialisms rendered as if they were words.
+
+No mechanical rule gets these right: **"Permit to Work" has a lower-case "to"**. So the names are
+written down and looked up:
+
+- `config/naming.php` → `module_labels`, read by `NameFormatter::moduleLabel()`
+- `resources/js/lib/moduleLabels.js` → the same map for the client, **mirrored deliberately**
+  rather than sent as a prop: it is a fixed vocabulary, not per-request data
+- `resources/js/lib/humanizeToken.js` → acronym-aware now, for status and action values
+
+`ProductTerminologyTest` fails if the two lists drift, if a module key gains no label, if a page
+renders a module key by swapping underscores, or if an acronym-bearing value is handed to CSS
+`capitalize`.
+
 ### How a name is compared, and how it is written (v2.105.0)
 
 `App\Support\NameFormatter` is the single definition, and it answers **two** questions that must

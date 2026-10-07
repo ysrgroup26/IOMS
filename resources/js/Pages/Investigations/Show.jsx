@@ -316,7 +316,7 @@ export default function InvestigationShow({
                                             <Label>Relationship</Label>
                                             <Select value={interviewForm.data.relationship} onValueChange={(x) => interviewForm.setData('relationship', x)}>
                                                 <SelectTrigger><SelectValue /></SelectTrigger>
-                                                <SelectContent>{relationships.map((r) => <SelectItem key={r} value={r} className="capitalize">{r.replace(/_/g, ' ')}</SelectItem>)}</SelectContent>
+                                                <SelectContent>{relationships.map((r) => <SelectItem key={r} value={r}>{humanizeToken(r)}</SelectItem>)}</SelectContent>
                                             </Select>
                                         </div>
                                         <div className="space-y-1.5">
@@ -347,7 +347,7 @@ export default function InvestigationShow({
                                                     {t.person_name}
                                                     {t.relationship && (
                                                         <span className="ml-2 rounded-full bg-graphite-100 px-1.5 py-0.5 text-[10px] font-medium uppercase tracking-wide text-graphite-600 dark:bg-slate-800 dark:text-slate-300">
-                                                            {t.relationship.replace(/_/g, ' ')}
+                                                            {humanizeToken(t.relationship)}
                                                         </span>
                                                     )}
                                                 </p>

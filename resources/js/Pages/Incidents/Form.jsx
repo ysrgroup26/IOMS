@@ -1,4 +1,5 @@
 import { Head, useForm, Link, usePage } from '@inertiajs/react';
+import { humanizeToken } from '@/lib/humanizeToken';
 import AuthenticatedLayout from '@/Layouts/AuthenticatedLayout';
 import { Button } from '@/Components/ui/button';
 import { Input } from '@/Components/ui/input';
@@ -155,7 +156,7 @@ export default function IncidentForm({
                             {(control) => (
                                 <Select value={data.category} onValueChange={(v) => setData('category', v)}>
                                     <SelectTrigger {...control}><SelectValue /></SelectTrigger>
-                                    <SelectContent>{categories.map((c) => <SelectItem key={c} value={c} className="capitalize">{c.replace(/_/g, ' ')}</SelectItem>)}</SelectContent>
+                                    <SelectContent>{categories.map((c) => <SelectItem key={c} value={c}>{humanizeToken(c)}</SelectItem>)}</SelectContent>
                                 </Select>
                             )}
                         </FormField>

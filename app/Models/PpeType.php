@@ -2,11 +2,33 @@
 
 namespace App\Models;
 
+use App\Models\Concerns\BelongsToCompany;
 use Illuminate\Database\Eloquent\Model;
 
 class PpeType extends Model
 {
-    protected $fillable = ['name', 'replacement_interval_months', 'is_active'];
+    use BelongsToCompany;
+
+    /**
+     * v2.106.0 -- A NULL COMPANY IS THE SHARED BUILT-IN CATALOGUE.
+     *
+     * Same meaning as KpiCategory, NumberingFormat and NumberingSequence:
+     * null is the default every customer starts from, a value is that
+     * customer's own addition. Both are visible to the customer; only the
+     * second is theirs to change (see PpeTypeController).
+     */
+    public function companyScopeAllowsGlobalRows(): bool
+    {
+        return true;
+    }
+
+    /** True for a built-in nobody owns, and therefore nobody may edit. */
+    public function isSharedDefault(): bool
+    {
+        return $this->company_id === null;
+    }
+
+    protected $fillable = ['company_id', 'name', 'replacement_interval_months', 'is_active'];
 
     protected function casts(): array
     {

@@ -15,17 +15,43 @@ use Illuminate\Http\RedirectResponse;
  */
 class PpeTypeController extends Controller
 {
+    /**
+     * v2.106.0 -- A TYPE A CUSTOMER ADDS BELONGS TO THAT CUSTOMER.
+     *
+     * It used to be written with no owner, which put it in the shared
+     * built-in catalogue: one customer adding "Sarung Tangan Las" made it
+     * appear in every other customer's dropdown.
+     */
     public function store(StorePpeTypeRequest $request): RedirectResponse
     {
-        $ppeType = PpeType::create($request->validated());
+        $ppeType = PpeType::create([
+            ...$request->validated(),
+            'company_id' => $request->user()->company_id,
+        ]);
 
         ActivityLog::record('created', "PPE type \"{$ppeType->name}\" was created.", $ppeType);
 
         return back()->with('success', 'PPE type added.');
     }
 
+    /**
+     * v2.106.0 -- THE SHARED BUILT-INS ARE NOT A TENANT'S TO REWRITE.
+     *
+     * This had no ownership check of any kind, and `PpeTypePolicy` only
+     * asks about a role capability -- because on a shared row there was no
+     * ownership to ask about. So any customer's administrator could rename
+     * or re-interval a PPE type every other customer was using, and
+     * renaming is as destructive to the customer reading the other end of
+     * it as deleting would be. `destroy()` below had already noticed half
+     * of this problem.
+     */
     public function update(UpdatePpeTypeRequest $request, PpeType $ppeType): RedirectResponse
     {
+        if ($ppeType->isSharedDefault()) {
+            return back()->with('error',
+                'Jenis APD bawaan tidak dapat diubah. Tambahkan jenis APD milik organisasi Anda bila perlu yang berbeda.');
+        }
+
         $ppeType->update($request->validated());
 
         ActivityLog::record('updated', "PPE type \"{$ppeType->name}\" was updated.", $ppeType);
@@ -36,6 +62,13 @@ class PpeTypeController extends Controller
     public function destroy(PpeType $ppeType): RedirectResponse
     {
         $this->authorize('delete', $ppeType);
+
+        // v2.106.0: the same boundary as update(). A built-in belongs to the
+        // installation, not to whichever customer happens to be looking at it.
+        if ($ppeType->isSharedDefault()) {
+            return back()->with('error',
+                'Jenis APD bawaan tidak dapat dihapus. Nonaktifkan jenis APD milik organisasi Anda bila tidak dipakai.');
+        }
 
         // v2.63.0 -- THIS GUARD ASKS AN INSTALLATION-WIDE QUESTION, so it
         // must ignore the tenant scope.

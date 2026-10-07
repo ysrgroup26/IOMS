@@ -19,6 +19,8 @@ import { Plus, Trash2, Pencil, Download, Upload, Loader2, Lock, Search, AppWindo
 import { FormSection, FormField, FormActions, ErrorSummary, SearchableSelect } from '@/Components/shared/form';
 import { useUnsavedChanges } from '@/lib/useUnsavedChanges';
 import { WORKSPACES } from '@/lib/workspaces';
+import { moduleLabel } from '@/lib/moduleLabels';
+import { humanizeToken } from '@/lib/humanizeToken';
 
 // v2.31.0: added transition-colors so the active-tab tinted surface
 // change reads as a smooth state change, not an instant snap -- the
@@ -628,7 +630,7 @@ function NumberingTab({ numberingFormats }) {
                             <TableBody>
                                 {data.formats.map((row) => (
                                     <TableRow key={row.module_key}>
-                                        <TableCell className="font-medium capitalize">{row.module_key.replace(/_/g, ' ')}</TableCell>
+                                        <TableCell className="font-medium">{moduleLabel(row.module_key)}</TableCell>
                                         <TableCell>
                                             <Input value={row.prefix} onChange={(e) => updateRow(row.module_key, { prefix: e.target.value })} />
                                         </TableCell>
@@ -777,7 +779,7 @@ function DocumentTemplatesTab({ documentTemplates, moduleKeys }) {
                                     <div className="flex items-center justify-between gap-3 p-4">
                                         <div>
                                             <p className="text-sm font-medium text-graphite-800 dark:text-slate-100">
-                                                {t.name} <Badge variant="secondary" className="ml-1">{t.module_key.replace(/_/g, ' ')}</Badge>
+                                                {t.name} <Badge variant="secondary" className="ml-1">{moduleLabel(t.module_key)}</Badge>
                                             </p>
                                             <p className="mt-0.5 text-xs text-graphite-400">
                                                 {[t.show_logo && 'Logo', t.show_qr && 'QR', t.show_signature && 'Signature', t.show_watermark && 'Watermark'].filter(Boolean).join(' · ') || 'No chrome enabled'}
@@ -802,7 +804,7 @@ function DocumentTemplatesTab({ documentTemplates, moduleKeys }) {
                             <Select value={createForm.data.module_key} onValueChange={(v) => createForm.setData('module_key', v)}>
                                 <SelectTrigger><SelectValue /></SelectTrigger>
                                 <SelectContent>
-                                    {(moduleKeys ?? []).map((k) => <SelectItem key={k} value={k}>{k.replace(/_/g, ' ')}</SelectItem>)}
+                                    {(moduleKeys ?? []).map((k) => <SelectItem key={k} value={k}>{moduleLabel(k)}</SelectItem>)}
                                 </SelectContent>
                             </Select>
                         </div>
@@ -868,7 +870,7 @@ function FieldMappingTab({ fieldMappings }) {
             <div className="flex gap-2">
                 {moduleKeys.map((k) => (
                     <Button key={k} size="sm" variant={activeModule === k ? 'default' : 'outline'} onClick={() => setActiveModule(k)} className="capitalize">
-                        {k.replace(/_/g, ' ')}
+                        {moduleLabel(k)}
                     </Button>
                 ))}
             </div>
@@ -932,7 +934,7 @@ function MappingDirectionCard({ title, description, moduleKey, direction, fields
                             {showEnabledToggle && (
                                 <Checkbox checked={row.is_enabled} onCheckedChange={(v) => updateRow(row.field_key, { is_enabled: !!v })} />
                             )}
-                            <span className="w-40 shrink-0 truncate text-xs text-graphite-500 dark:text-slate-400">{row.field_key.replace(/_/g, ' ')}</span>
+                            <span className="w-40 shrink-0 truncate text-xs text-graphite-500 dark:text-slate-400">{humanizeToken(row.field_key)}</span>
                             <Input
                                 value={row.column_label}
                                 onChange={(e) => updateRow(row.field_key, { column_label: e.target.value })}
@@ -1034,7 +1036,7 @@ function ApprovalFlowsTab({ approvalFlows, moduleKeys }) {
                             <Select value={createForm.data.module_key} onValueChange={(v) => createForm.setData('module_key', v)}>
                                 <SelectTrigger className="w-48"><SelectValue /></SelectTrigger>
                                 <SelectContent>
-                                    {(moduleKeys ?? []).map((k) => <SelectItem key={k} value={k}>{k.replace(/_/g, ' ')}</SelectItem>)}
+                                    {(moduleKeys ?? []).map((k) => <SelectItem key={k} value={k}>{moduleLabel(k)}</SelectItem>)}
                                 </SelectContent>
                             </Select>
                         </div>

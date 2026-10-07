@@ -1828,6 +1828,45 @@ links to, not the group's write routes.** `php artisan route:list --json` and ma
 grouping by prefix attributes a group's strictest middleware to its index and is how this was got
 wrong the first time.
 
+## CRITICAL — Known Pitfall (v2.106.0) — shared reference data with no owner has no authorization question to ask
+
+`ppe_types` is installation-wide shared reference data, and v2.63.0 recorded that as deliberate:
+six generic rows holding nothing that identifies a customer. Sharing them for READING is fine.
+
+**What was never asked is who may change them.** Create, update and delete are gated by
+`role:super_admin` — the **tenant** administrator — and `PpeTypePolicy` only ever checks a role
+capability, because on a row with no owner there is nothing else to check. So any customer's
+administrator could rename, re-interval or delete a PPE type every other customer was issuing, and
+a customer adding their own type put it in everybody's dropdown.
+
+`destroy()` had noticed half of it and refuses to delete a type in use *anywhere*; `update()` had
+no guard at all, and a rename is as destructive to the customer reading the other end of it.
+
+**The rule.** Shared reference data that a tenant can MUTATE is a contradiction. Either it is
+platform-owned and tenants only read it, or it carries an owner. IOMS already had the pattern for
+the middle case — `KpiCategory`, `NumberingFormat`, `NumberingSequence` — a nullable
+`company_id` where null means "the built-in default everyone starts from" and a value means "this
+customer's own". `PpeType` now joins them: both are visible, only the second is theirs to change.
+
+**How to find the next one:** sweep every route that binds a model with no global scope. Such a
+model resolves by primary key alone, so the controller must assert ownership — and if there is no
+ownership to assert, the real question is whether that route should exist for a tenant at all.
+
+## Known Pitfall (v2.106.0) — a guard in a shared helper is invisible to a reader checking method bodies
+
+The same sweep flagged `subscription/renew` and both `subscription/plan-change` verbs as having no
+role middleware and no guard in the method body, beside five siblings that check
+`canManageSystemSettings()` inline. **That reading was wrong.** The guard is in
+`currentSubscription()`, which every one of those mutations calls as its first statement.
+
+One guard on the one shared path is better than eight copies. But it is invisible both to a route's
+middleware list and to anyone reading a method body, so it will keep being suspected. The answer is
+not to duplicate it — it is to pin the BEHAVIOUR from outside (`CommercialAuthorizationTest`) and to
+pin that every mutation still resolves through the guarded helper rather than around it.
+
+**The general rule:** when a protection lives somewhere a reader will not look, the test is what
+makes it visible. Verify before "fixing" an absence.
+
 ## CRITICAL — Known Pitfall (v2.105.0) — a uniqueness constraint narrower than the tenancy around it
 
 `employees.employee_id` carried a **global** unique index from

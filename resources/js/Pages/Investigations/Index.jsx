@@ -1,4 +1,5 @@
 import { Head, Link, router } from '@inertiajs/react';
+import { humanizeToken } from '@/lib/humanizeToken';
 import AuthenticatedLayout from '@/Layouts/AuthenticatedLayout';
 import { Card, CardContent } from '@/Components/ui/card';
 import { Input } from '@/Components/ui/input';
@@ -62,7 +63,7 @@ export default function InvestigationsIndex({ investigations, filters, statuses,
                         <SelectTrigger className="sm:w-48"><SelectValue placeholder="All statuses" /></SelectTrigger>
                         <SelectContent>
                             <SelectItem value="all">All statuses</SelectItem>
-                            {statuses.map((s) => <SelectItem key={s} value={s} className="capitalize">{s.replace(/_/g, ' ')}</SelectItem>)}
+                            {statuses.map((s) => <SelectItem key={s} value={s}>{humanizeToken(s)}</SelectItem>)}
                         </SelectContent>
                     </Select>
                     <Select value={filters.method || 'all'} onValueChange={(v) => applyFilter('method', v)}>

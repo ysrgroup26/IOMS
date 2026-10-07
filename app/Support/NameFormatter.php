@@ -120,6 +120,32 @@ class NameFormatter
         return mb_strtoupper(mb_substr($word, 0, 1)).mb_strtolower(mb_substr($word, 1));
     }
 
+    /**
+     * v2.106.0 -- THE PRODUCT'S OWN NAME FOR A MODULE, not a transformation
+     * of its stored key.
+     *
+     * The key is a column value: `permit_to_work`, `hse_inspection`, `jsa`.
+     * Swapping underscores for spaces yields "permit to work"; adding CSS
+     * `capitalize` on top yields "Permit To Work", "Hse Inspection" and
+     * "Jsa". None of those is the product's name for the thing, and no
+     * mechanical rule produces "Permit to Work" with its lower-case "to".
+     *
+     * So the names are written down (`config/naming.php`) and looked up. A
+     * key with no entry falls back to Title Case with acronyms preserved,
+     * which is a reasonable name for a module nobody has got round to
+     * naming, and never an underscore shown to a customer.
+     */
+    public static function moduleLabel(?string $key): string
+    {
+        $key = trim((string) $key);
+
+        if ($key === '') {
+            return '';
+        }
+
+        return config('naming.module_labels')[$key] ?? self::title(str_replace('_', ' ', $key));
+    }
+
     /** @return array<int, string> */
     private static function acronyms(): array
     {

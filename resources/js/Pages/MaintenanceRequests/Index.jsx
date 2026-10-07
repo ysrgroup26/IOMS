@@ -1,4 +1,5 @@
 import { Head, Link, router } from '@inertiajs/react';
+import { humanizeToken } from '@/lib/humanizeToken';
 import AuthenticatedLayout from '@/Layouts/AuthenticatedLayout';
 import PageHeader from '@/Components/shared/PageHeader';
 import { Card, CardContent } from '@/Components/ui/card';
@@ -32,7 +33,7 @@ export default function MaintenanceRequestsIndex({ requests, filters, can }) {
                         <SelectTrigger className="w-44"><SelectValue placeholder="Status" /></SelectTrigger>
                         <SelectContent>
                             <SelectItem value="all">All Statuses</SelectItem>
-                            {['reported', 'approved', 'rejected', 'converted_to_wo', 'cancelled'].map((s) => <SelectItem key={s} value={s} className="capitalize">{s.replace(/_/g, ' ')}</SelectItem>)}
+                            {['reported', 'approved', 'rejected', 'converted_to_wo', 'cancelled'].map((s) => <SelectItem key={s} value={s}>{humanizeToken(s)}</SelectItem>)}
                         </SelectContent>
                     </Select>
                 </CardContent>

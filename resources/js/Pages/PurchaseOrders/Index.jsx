@@ -1,4 +1,5 @@
 import { Head, Link, router } from '@inertiajs/react';
+import { humanizeToken } from '@/lib/humanizeToken';
 import AuthenticatedLayout from '@/Layouts/AuthenticatedLayout';
 import { Card, CardContent } from '@/Components/ui/card';
 import { Button } from '@/Components/ui/button';
@@ -34,7 +35,7 @@ export default function PurchaseOrdersIndex({ orders, filters, can }) {
                         <SelectContent>
                             <SelectItem value="all">All Statuses</SelectItem>
                             {['draft', 'submitted', 'approved', 'rejected', 'issued', 'partially_delivered', 'fully_delivered', 'closed', 'cancelled'].map((s) => (
-                                <SelectItem key={s} value={s} className="capitalize">{s.replace(/_/g, ' ')}</SelectItem>
+                                <SelectItem key={s} value={s}>{humanizeToken(s)}</SelectItem>
                             ))}
                         </SelectContent>
                     </Select>

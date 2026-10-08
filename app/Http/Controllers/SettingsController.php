@@ -1322,16 +1322,72 @@ class SettingsController extends Controller
 
         return back()->with('success', 'Field workspace updated.');
     }
+    /**
+     * v2.107.0 -- AN ACCOUNT WITH A HISTORY IS DEACTIVATED, NOT DELETED.
+     *
+     * `users` has no soft deletes, so this was a hard delete against a
+     * table 93 foreign keys point at. Both outcomes were wrong:
+     *
+     *   27 RESTRICT and 4 NO ACTION keys mean the delete THROWS for any
+     *   account that has approved something, performed an asset
+     *   transaction or owns a controlled document -- which is every
+     *   account that has been used. The administrator got a 500, not an
+     *   explanation.
+     *
+     *   59 SET NULL keys mean that where it DID succeed -- an account with
+     *   little history -- it silently nulled the actor on 59 relationships.
+     *   That erases exactly the attribution v2.100.0 exists to preserve:
+     *   who raised this, who approved that. An audit trail that empties
+     *   itself when somebody leaves the company is not an audit trail.
+     *
+     * So an account that has done anything is refused, and the
+     * administrator is pointed at deactivation -- which the product already
+     * has, which frees the seat because the quota counts ACTIVE users, and
+     * which keeps every record pointing at the person who made it.
+     *
+     * An account that has genuinely done nothing (created by mistake, never
+     * signed in) is still deletable, because there is no history to protect.
+     */
     public function destroyUser(Request $request, User $user): RedirectResponse
     {
         $this->authorize('delete', $user);
 
-        $name = $user->name;
+        if ($this->userHasHistory($user)) {
+            return back()->with('error',
+                'Akun ini sudah memiliki riwayat di dalam sistem, sehingga tidak dapat dihapus. '
+                .'Nonaktifkan akun tersebut agar riwayatnya tetap utuh dan kuota pengguna tetap kembali.');
+        }
+
+        $name = $user->displayName();
         $user->delete();
 
         ActivityLog::record('deleted', "User {$name} was removed.", $user);
 
         return back()->with('success', 'User removed.');
+    }
+
+    /**
+     * Has this account left a mark worth keeping?
+     *
+     * Three questions, cheapest first, and deliberately not an exhaustive
+     * walk of all 93 relationships: signing in at all, acting at all, or
+     * appearing on either side of an approval covers every account that
+     * could orphan a record, and an account that answers no to all three
+     * has nothing for a delete to destroy.
+     */
+    private function userHasHistory(User $user): bool
+    {
+        if ($user->last_login_at !== null) {
+            return true;
+        }
+
+        if (ActivityLog::withoutGlobalScopes()->where('user_id', $user->id)->exists()) {
+            return true;
+        }
+
+        return \App\Models\Approval::where('requested_by', $user->id)
+            ->orWhere('approved_by', $user->id)
+            ->exists();
     }
 
     // --- Backup / Restore (Super Admin only) ---

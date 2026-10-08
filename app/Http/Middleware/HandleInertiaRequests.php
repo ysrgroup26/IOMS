@@ -70,6 +70,14 @@ class HandleInertiaRequests extends Middleware
                     'can_manage_incidents' => $user->canManageIncidents(),
                     'can_manage_milestones' => $user->canManageMilestones(),
                     'can_manage_goods_receipts' => $user->canManageGoodsReceipts(),
+                    /*
+                     * v2.107.0 -- published so the sidebar can ask the same
+                     * question the controller asks. Both pages were offered
+                     * to everyone in their workspace and answered 403 for
+                     * most of them; see workspaces.js's capability gate.
+                     */
+                    'can_manage_employee_cases' => $user->canManageEmployeeCases(),
+                    'can_manage_warehouse' => $user->canManageWarehouse(),
                     // Department User mechanism (v1.10.2) -- see
                     // User::isDepartmentUser()'s own doc comment.
                     'department_key' => $user->department_key,

@@ -488,6 +488,29 @@ send the customer to the oldest invoice concerned and offer the next once it set
 answers for one invoice, because every reconciliation surface IOMS has is built that way. See the
 ADR for why collapsing them was rejected.
 
+### The navigation gates (v2.107.0)
+
+`applyItemGates()` in `resources/js/lib/workspaces.js` applies six, and an item passes only if all
+of them allow it:
+
+| Gate | Asks |
+|---|---|
+| `adminOnly` | is this any administrator (Super Admin or HSE) |
+| `tenantAdminOnly` | is this the tenant administrator |
+| `moduleKey` | is the module enabled for this tenant |
+| `globalDashboardOnly` | does the plan include the Global Company Dashboard |
+| `departmentUserOnly` | is this a department-confined user |
+| `capability` | **v2.107.0** — a named `can_*` boolean from `auth.user` |
+
+The sixth exists because the first five ask about a role *class* or about the *plan*, and neither can
+express "this page needs `canManageWarehouse()`". Two pages were therefore offered to everyone in
+their workspace and refused for most of them.
+
+**Every gate is a courtesy.** The route re-checks, and AccessControlBoundaryTest asserts by direct
+URL that hiding is never the boundary. What the gates owe the customer is the other direction: an
+item that is offered must work. `PackageRoleNavigationMatrixTest` walks every navigation entry
+across all three plans and five roles and fails if any offered item answers 403.
+
 ### The product's own name for a module (v2.106.0)
 
 Settings' Numbering, Approval Flow, Documents and Import/Export Mapping all let an administrator

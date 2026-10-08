@@ -102,6 +102,14 @@ export default function PpeMaster({ ppeTypes, can }) {
                                     )}
                                 </TableRow>
                             ))}
+                            {ppeTypes.length === 0 && (
+                                <TableRow className="hover:bg-transparent">
+                                    <TableCell colSpan={5} className="py-10 text-center">
+                                        <span className="text-sm font-semibold text-navy-800">No PPE types yet</span>
+                                        <span className="mt-0.5 block text-xs text-graphite-500">Tambahkan jenis APD agar dapat dipilih saat pembagian.</span>
+                                    </TableCell>
+                                </TableRow>
+                            )}
                         </TableBody>
                     </Table>
                 </CardContent>

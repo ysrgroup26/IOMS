@@ -51,6 +51,14 @@ export default function GoodsReceiptShow({ goodsReceipt: gr, activities }) {
                                         <TableCell>{item.unit}</TableCell>
                                     </TableRow>
                                 ))}
+                                {gr.items.length === 0 && (
+                                    <TableRow className="hover:bg-transparent">
+                                        <TableCell colSpan={3} className="py-10 text-center">
+                                            <span className="text-sm font-semibold text-navy-800">No items received</span>
+                                            <span className="mt-0.5 block text-xs text-graphite-500">Belum ada barang yang tercatat pada penerimaan ini.</span>
+                                        </TableCell>
+                                    </TableRow>
+                                )}
                             </TableBody>
                         </Table>
                         {gr.notes && (

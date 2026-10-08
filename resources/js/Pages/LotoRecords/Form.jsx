@@ -84,6 +84,14 @@ export default function LotoRecordForm({ companies, permits, lotoNumber }) {
                                             <TableCell><Button type="button" variant="ghost" size="icon" onClick={() => setData('isolation_points', data.isolation_points.filter((_, idx) => idx !== i))}><Trash2 className="h-4 w-4 text-red-500" /></Button></TableCell>
                                         </TableRow>
                                     ))}
+                                    {data.isolation_points.length === 0 && (
+                                        <TableRow className="hover:bg-transparent">
+                                            <TableCell colSpan={5} className="py-10 text-center">
+                                                <span className="text-sm font-semibold text-navy-800">No isolation points yet</span>
+                                                <span className="mt-0.5 block text-xs text-graphite-500">Tambahkan titik isolasi yang harus dikunci sebelum pekerjaan dimulai.</span>
+                                            </TableCell>
+                                        </TableRow>
+                                    )}
                                 </TableBody>
                             </Table>
                         </div>

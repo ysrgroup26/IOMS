@@ -135,6 +135,14 @@ function ShiftSection({ shifts, companies, can }) {
                                 )}
                             </TableRow>
                         ))}
+                        {shifts.length === 0 && (
+                            <TableRow className="hover:bg-transparent">
+                                <TableCell colSpan={9} className="py-10 text-center">
+                                    <span className="text-sm font-semibold text-navy-800">No shifts yet</span>
+                                    <span className="mt-0.5 block text-xs text-graphite-500">Tambahkan shift agar dapat dipakai pada roster karyawan.</span>
+                                </TableCell>
+                            </TableRow>
+                        )}
                     </TableBody>
                 </Table>
             </CardContent>
@@ -282,6 +290,14 @@ function RosterPatternSection({ rosterPatterns, companies, can }) {
                                 )}
                             </TableRow>
                         ))}
+                        {rosterPatterns.length === 0 && (
+                            <TableRow className="hover:bg-transparent">
+                                <TableCell colSpan={5} className="py-10 text-center">
+                                    <span className="text-sm font-semibold text-navy-800">No roster patterns yet</span>
+                                    <span className="mt-0.5 block text-xs text-graphite-500">Tambahkan pola roster untuk mempercepat penjadwalan.</span>
+                                </TableCell>
+                            </TableRow>
+                        )}
                     </TableBody>
                 </Table>
             </CardContent>

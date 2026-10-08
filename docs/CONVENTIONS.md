@@ -1828,6 +1828,47 @@ links to, not the group's write routes.** `php artisan route:list --json` and ma
 grouping by prefix attributes a group's strictest middleware to its index and is how this was got
 wrong the first time.
 
+## CRITICAL — Known Pitfall (v2.107.0) — deleting a row that 93 foreign keys point at
+
+`users` has no soft deletes, and the delete route called `$user->delete()` with no dependency
+check. Both possible outcomes were wrong:
+
+- **27 RESTRICT and 4 NO ACTION keys** mean the delete **throws** for any account that has approved
+  something, performed an asset transaction or owns a controlled document — which is every account
+  that has been used. The administrator got a 500, not an explanation.
+- **59 SET NULL keys** mean that where it *did* succeed, it **silently nulled the actor on 59
+  relationships** — erasing exactly the attribution v2.100.0 exists to preserve. An audit trail that
+  empties itself when somebody leaves the company is not an audit trail.
+
+`projects` is the same shape: `daily_reports.project_id` RESTRICTs, fifteen other keys SET NULL.
+
+**The rule.** Before adding a delete, ask what points at the table and what the database is
+instructed to do about it. Where history exists, the product almost always already has the right
+operation — deactivating an account, closing a project — and the delete should refuse and name it.
+Reserve deletion for a record with no history, where there is nothing to protect.
+
+A quick way to check: `information_schema.REFERENTIAL_CONSTRAINTS` grouped by `DELETE_RULE` for
+the table in question. A mix of RESTRICT and SET NULL on one table means the delete behaves
+differently depending on which records happen to exist, which is the worst of both.
+
+## Known Pitfall (v2.107.0) — navigation could not express "this page needs a capability"
+
+The sidebar had five gates: `adminOnly`, `tenantAdminOnly`, `moduleKey`, `globalDashboardOnly`
+and `departmentUserOnly`. All of them ask about a **role class** or about the **plan**. None could
+say "this page needs `canManageWarehouse()`".
+
+So two pages were offered to everyone in their workspace and answered 403 for most of them:
+**Employee Cases** (needs HRD) and **Stock Out / Transfer / Adjustment** (needs Warehouse). This is
+the fourth time this codebase has shipped a navigation entry that could only produce a refusal
+(v2.98.0 Admin Space, v2.103.0 My Work, v2.103.0 PTW Access in the opposite direction).
+
+`capability` is now a sixth gate naming one of the `can_*` booleans the server already publishes
+on `auth.user`, so the sidebar asks the same question the controller asks.
+
+**The rule.** When adding a page whose controller checks a capability, name that capability on its
+navigation entry. `PackageRoleNavigationMatrixTest` walks every item across every plan and role and
+fails if any offered item answers 403 — it is the sweep that would have caught all four.
+
 ## CRITICAL — Known Pitfall (v2.106.0) — shared reference data with no owner has no authorization question to ask
 
 `ppe_types` is installation-wide shared reference data, and v2.63.0 recorded that as deliberate:

@@ -64,6 +64,14 @@ export default function PpeReplacementRequestShow({ replacementRequest: rr }) {
                                     <TableCell>{item.remarks || '-'}</TableCell>
                                 </TableRow>
                             ))}
+                            {rr.items.length === 0 && (
+                                <TableRow className="hover:bg-transparent">
+                                    <TableCell colSpan={8} className="py-10 text-center">
+                                        <span className="text-sm font-semibold text-navy-800">No items requested</span>
+                                        <span className="mt-0.5 block text-xs text-graphite-500">Belum ada APD yang diajukan pada permintaan ini.</span>
+                                    </TableCell>
+                                </TableRow>
+                            )}
                         </TableBody>
                     </Table>
                 </CardContent>

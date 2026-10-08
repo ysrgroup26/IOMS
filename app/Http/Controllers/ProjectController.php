@@ -164,9 +164,30 @@ class ProjectController extends Controller
         return redirect()->route('projects.show', $project)->with('success', 'Project updated.');
     }
 
+    /**
+     * v2.107.0 -- A PROJECT THAT OTHER MODULES REFER TO IS CANCELLED, NOT
+     * DELETED.
+     *
+     * `projects` has no soft deletes, and `daily_reports.project_id` and
+     * `inspection_requests.project_id` are RESTRICT -- so deleting a
+     * project anybody had reported against threw a database error and the
+     * customer saw a 500. Fifteen further keys are SET NULL, so where it
+     * did succeed it quietly detached the project from records that still
+     * mention it by name.
+     *
+     * The product already has the right answer: `status` carries
+     * "cancelled" and "completed". A project with work recorded against it
+     * is a fact; closing it is the operation, not erasing it.
+     */
     public function destroy(Project $project): RedirectResponse
     {
         $this->authorize('delete', $project);
+
+        if ($project->dailyReports()->exists() || $project->inspectionRequests()->exists()) {
+            return back()->with('error',
+                'Proyek ini sudah memiliki laporan harian atau permintaan inspeksi, sehingga tidak dapat dihapus. '
+                .'Ubah statusnya menjadi selesai atau dibatalkan agar riwayat pekerjaannya tetap tersimpan.');
+        }
 
         $name = $project->name;
         $project->delete();

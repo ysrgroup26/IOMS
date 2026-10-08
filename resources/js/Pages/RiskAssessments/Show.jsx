@@ -81,6 +81,14 @@ export default function RiskAssessmentShow({ riskAssessment: r, activities, canM
                                             </TableRow>
                                         );
                                     })}
+                                    {(r.items || []).length === 0 && (
+                                        <TableRow className="hover:bg-transparent">
+                                            <TableCell colSpan={12} className="py-10 text-center">
+                                                <span className="text-sm font-semibold text-navy-800">No hazards recorded</span>
+                                                <span className="mt-0.5 block text-xs text-graphite-500">Belum ada bahaya yang dinilai pada dokumen ini.</span>
+                                            </TableCell>
+                                        </TableRow>
+                                    )}
                                 </TableBody>
                             </Table>
                         </CardContent>

@@ -99,7 +99,10 @@ export const WORKSPACES = [
             // and this entry only hides a link the server would refuse
             // anyway -- navigation is subordinate to authorization, per
             // ADR/007.
-            { name: 'Employee Cases', href: 'employee-cases.index', icon: ShieldAlert },
+            // v2.107.0: EmployeeCaseController requires canManageEmployeeCases()
+            // (Super Admin or HRD). Offered ungated, it answered 403 for every
+            // other role in this workspace.
+            { name: 'Employee Cases', href: 'employee-cases.index', icon: ShieldAlert, capability: 'can_manage_employee_cases' },
             // Milestone 4, Workstream A3: Shift & Roster Management --
             // real backend (Shift/EmployeeShiftAssignment/RosterPattern/
             // EmployeeRoster). "Shift/Roster belongs to HR/Workforce
@@ -398,7 +401,9 @@ export const WORKSPACES = [
             { name: 'Item Master', href: 'items.index', icon: Box },
             { name: 'Inventory', href: 'stock.index', icon: Boxes },
             { name: 'Goods Receipt', href: 'goods-receipts.index', icon: PackageCheck },
-            { name: 'Stock Out / Transfer / Adjustment', href: 'stock.transactions.create', icon: ArrowRightLeft },
+            // v2.107.0: StockTransactionController::create() requires
+            // canManageWarehouse() (Super Admin or Warehouse).
+            { name: 'Stock Out / Transfer / Adjustment', href: 'stock.transactions.create', icon: ArrowRightLeft, capability: 'can_manage_warehouse' },
             { name: 'Stock Movement History', href: 'stock.movements', icon: ClipboardList },
         ],
     },
@@ -602,7 +607,7 @@ function isDepartmentTier(workspace) {
  * (adminOnly) was grouped -- fixed here instead of narrowly working
  * around it in one workspace.
  */
-function applyItemGates(items, isAdmin, modules, isDepartmentUser = false, isTenantAdmin = false, hasGlobalDashboard = true) {
+function applyItemGates(items, isAdmin, modules, isDepartmentUser = false, isTenantAdmin = false, hasGlobalDashboard = true, user = null) {
     return items
         .filter((item) =>
             (!item.adminOnly || isAdmin)
@@ -622,8 +627,25 @@ function applyItemGates(items, isAdmin, modules, isDepartmentUser = false, isTen
             // Dashboard; it is only meaningful for that audience, so an
             // administrator browsing the same workspace does not see it.
             && (!item.departmentUserOnly || isDepartmentUser)
+            /*
+             * v2.107.0 SIXTH GATE -- A NAMED CAPABILITY.
+             *
+             * The five gates above ask about a ROLE CLASS (any admin, the
+             * tenant admin, a department user) or about the PLAN. Neither
+             * could express "this page needs canManageWarehouse()", so two
+             * items were offered to everyone in their workspace and
+             * answered 403 for most of them: Employee Cases needs HRD, and
+             * Stock Out / Transfer / Adjustment needs Warehouse.
+             *
+             * `capability` names one of the `can_*` booleans the server
+             * already publishes on `auth.user`, so the sidebar asks exactly
+             * the question the controller asks. Adding a gated page now
+             * means naming its capability here rather than discovering the
+             * mismatch from a customer.
+             */
+            && (!item.capability || Boolean(user?.[item.capability]))
         )
-        .map((item) => (item.children ? { ...item, children: applyItemGates(item.children, isAdmin, modules, isDepartmentUser, isTenantAdmin, hasGlobalDashboard) } : item))
+        .map((item) => (item.children ? { ...item, children: applyItemGates(item.children, isAdmin, modules, isDepartmentUser, isTenantAdmin, hasGlobalDashboard, user) } : item))
         // A group whose every child got gated out (no combination does
         // this today -- every HSE group keeps at least one ungated child
         // -- but defensive against a future edit that adds one) renders
@@ -712,7 +734,7 @@ export function getVisibleWorkspaces(user, enabledModules, workspaceCatalog) {
     const hasGlobalDashboard = user?.has_global_dashboard !== false;
 
     return applyCatalog(WORKSPACES, workspaceCatalog)
-        .map((workspace) => ({ ...workspace, items: applyItemGates(workspace.items, isAdmin, modules, isDepartmentUser, isTenantAdmin, hasGlobalDashboard) }))
+        .map((workspace) => ({ ...workspace, items: applyItemGates(workspace.items, isAdmin, modules, isDepartmentUser, isTenantAdmin, hasGlobalDashboard, user) }))
         .filter((workspace) => workspace.items.length > 0)
         .filter((workspace) => ! isDepartmentTier(workspace) || ! access || access[workspace.key] === true)
         // Every operational workspace carries the company chrome. Admin
@@ -720,7 +742,7 @@ export function getVisibleWorkspaces(user, enabledModules, workspaceCatalog) {
         // and mixing the two is what made the old Admin Space read as one
         // giant application dashboard.
         .map((workspace) => (isDepartmentTier(workspace)
-            ? { ...workspace, items: [...workspace.items, withGatedChildren(COMPANY_REPORTS_GROUP, isAdmin, modules, isDepartmentUser, isTenantAdmin, hasGlobalDashboard)] }
+            ? { ...workspace, items: [...workspace.items, withGatedChildren(COMPANY_REPORTS_GROUP, isAdmin, modules, isDepartmentUser, isTenantAdmin, hasGlobalDashboard, user)] }
             : workspace))
         /*
          * v2.83.0 -- Management is a CAPABILITY as well as an entitlement.
@@ -737,8 +759,8 @@ export function getVisibleWorkspaces(user, enabledModules, workspaceCatalog) {
 }
 
 /** Applies the same item gates to a shared group before it is appended. */
-function withGatedChildren(group, isAdmin, modules, isDepartmentUser, isTenantAdmin, hasGlobalDashboard) {
-    return { ...group, children: applyItemGates(group.children, isAdmin, modules, isDepartmentUser, isTenantAdmin, hasGlobalDashboard) };
+function withGatedChildren(group, isAdmin, modules, isDepartmentUser, isTenantAdmin, hasGlobalDashboard, user) {
+    return { ...group, children: applyItemGates(group.children, isAdmin, modules, isDepartmentUser, isTenantAdmin, hasGlobalDashboard, user) };
 }
 
 /**

@@ -1,7 +1,7 @@
 ---
 title: Full System Audit
 type: backlog
-status: PARTIAL (v2.106.0) — four sweeps completed, scope deliberately recorded
+status: PARTIAL (v2.107.0) — eight sweeps completed, remaining scope recorded
 updated: 2026-10-07
 tags: [kb/backlog, status/verified]
 ---
@@ -86,19 +86,73 @@ rows stay null, which is what they are.
 - Browser: Settings → Numbering now reads "Material Request", "Permit to Work", "HSE Inspection",
   "JSA", "LOTO", "NCR"; zero lower-case or mis-capitalised variants on the page
 
-## Not covered, and worth a future pass
+## Second pass (v2.107.0) — the four sections that were outstanding
 
-Stated plainly so nobody mistakes this note for a clean bill of health:
+### Sweep 5 — dead controls
 
-- **CRUD lifecycle completeness** per module (buttons that do nothing, invalid transitions, stale UI
-  after mutation) — brief section 6, not swept
-- **Cross-module data flow** end to end (Material Request → PO → Goods Receipt → Warehouse;
-  Project → Tasks → Work Orders → Assets) — brief section 5, not traced
-- **Responsive and empty-state review** of the 181 pages — brief section 14, not done
-- **Per-package matrix** executed against every plan × role combination — partially covered by the
-  existing `WorkspaceArchitectureTest` and `AccessControlBoundaryTest`, not re-derived
-- `nik` remains globally unique in intent but is now per company (v2.105.0); whether a NIK should be
-  unique across an installation is a product question nobody has asked
+Every `route()` referenced anywhere in the client, resolved against the real route table.
+**447 unique route names across 279 files, 0 dead.** No button or link points at a route that does
+not exist.
+
+### Sweep 6 — CRUD lifecycle and deletions that orphan
+
+Every DELETE route cross-referenced against the 333 foreign keys in the schema, looking for a model
+whose dependents RESTRICT with no check in the controller. **Two were real**, both described in
+`docs/CONVENTIONS.md`: deleting a user either threw (27 RESTRICT keys) or silently nulled the actor
+on 59 relationships, and projects were the same shape. Both now refuse and name the operation the
+product already has — deactivating an account, closing a project.
+
+### Sweep 7 — empty states
+
+All 181 pages scanned for a table that renders rows with no "nothing here yet" branch. **7 of 77
+list pages had none** and now do, in the in-table shape `Ppe/Index` and `Tasks/Index` already used.
+Several are states a brand-new tenant reaches immediately: no shifts, no waste types, a LOTO form
+before its first isolation point.
+
+### Sweep 8 — the package × role matrix
+
+`PackageRoleNavigationMatrixTest` parses the real navigation registry, applies the same gates the
+sidebar applies, and asks the server for every item it concludes a customer would be shown —
+**15 combinations, every navigation entry in each**.
+
+**Two items were offered and refused:** Employee Cases (needs HRD) and Stock Out / Transfer /
+Adjustment (needs Warehouse). The cause was structural — navigation had five gates and all of them
+ask about a role class or about the plan, so none could express "this page needs a capability". A
+sixth gate now names one of the `can_*` booleans the server already publishes.
+
+This is the **fourth** time this codebase has shipped a navigation entry that could only produce a
+refusal (v2.98.0 Admin Space, v2.103.0 My Work, v2.103.0 PTW Access in the opposite direction). This
+matrix is the sweep that would have caught all four, and it was confirmed to fail when the new gate
+is removed.
+
+### Confirmed correct rather than changed
+
+**Project Management, Daily Reports, Milestones and Handover Records are refused on every plan.**
+That is the deliberate v2.84.0 retirement (ADR 045), not a fault — navigation correctly offers none
+of them. Now asserted on the server side too, because "unreachable" and "broken" look identical from
+outside and the difference is the whole point of a retirement.
+
+## Still not covered
+
+Stated plainly so nobody mistakes this note for a clean bill of health. What the second pass
+*did* cover is listed above; this is what it did not.
+
+- **Cross-module data flow driven end to end with real records.** The structural half is done —
+  every foreign key in the schema was cross-referenced against every delete, which is how the two
+  orphaning deletions were found. What has *not* been done is walking a Material Request through
+  Purchase Order → Goods Receipt → Warehouse stock, or a Project through Tasks → Work Orders →
+  Assets → Maintenance, and checking each handover carries what the next step needs. That needs
+  seeded records and a browser, not a sweep.
+- **Invalid state transitions and stale UI after mutation.** Dead controls were swept (0 found) and
+  deletions were swept (2 found), but "can this record move from submitted straight to closed" and
+  "does the list refresh after this dialog" are per-module questions a sweep cannot ask.
+- **Responsive layout at phone and tablet widths.** Empty states are done across all 181 pages;
+  overflow, clipping and unusable dialogs at narrow widths are not, and need a real viewport.
+- **Email and generated-document review.** PDFs were checked for identity and letterhead
+  (v2.100.0, v2.102.0) but not read end to end as business documents across every module.
+- `nik` is now unique per company (v2.105.0). Whether a NIK should instead be unique across an
+  installation is **a product question nobody has asked**, and is the one item here that needs a
+  decision rather than work.
 
 ## Links
 

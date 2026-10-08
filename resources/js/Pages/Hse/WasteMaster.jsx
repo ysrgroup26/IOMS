@@ -106,6 +106,14 @@ function WasteTypesSection({ wasteTypes, companies, can }) {
                                 )}
                             </TableRow>
                         ))}
+                        {wasteTypes.length === 0 && (
+                            <TableRow className="hover:bg-transparent">
+                                <TableCell colSpan={6} className="py-10 text-center">
+                                    <span className="text-sm font-semibold text-navy-800">No waste types yet</span>
+                                    <span className="mt-0.5 block text-xs text-graphite-500">Tambahkan jenis limbah agar dapat dipilih saat mencatat limbah.</span>
+                                </TableCell>
+                            </TableRow>
+                        )}
                     </TableBody>
                 </Table>
             </CardContent>
@@ -217,6 +225,14 @@ function StorageLocationsSection({ storageLocations, companies, can }) {
                                 )}
                             </TableRow>
                         ))}
+                        {storageLocations.length === 0 && (
+                            <TableRow className="hover:bg-transparent">
+                                <TableCell colSpan={6} className="py-10 text-center">
+                                    <span className="text-sm font-semibold text-navy-800">No storage locations yet</span>
+                                    <span className="mt-0.5 block text-xs text-graphite-500">Tambahkan lokasi penyimpanan sementara untuk limbah.</span>
+                                </TableCell>
+                            </TableRow>
+                        )}
                     </TableBody>
                 </Table>
             </CardContent>

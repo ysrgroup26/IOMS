@@ -13,7 +13,7 @@ import { Select, SelectTrigger, SelectValue, SelectContent, SelectItem } from '@
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogFooter } from '@/Components/ui/dialog';
 import { Table, TableHeader, TableBody, TableRow, TableHead, TableCell } from '@/Components/ui/table';
 import KpiSummaryCard from '@/Components/shared/KpiSummaryCard';
-import { ArrowLeft, Pencil, Trash2, Phone, Calendar, Briefcase, FolderKanban, HardHat, GraduationCap, Plus, Clock } from 'lucide-react';
+import { ArrowLeft, Pencil, Trash2, Phone, Calendar, Briefcase, FolderKanban, HardHat, GraduationCap, Plus, Clock, FileText } from 'lucide-react';
 import { MONTH_NAMES, disciplinaryActionLabel } from '@/lib/utils';
 
 const COMPETENCY_STATUS_VARIANT = {
@@ -309,7 +309,23 @@ export default function EmployeeProfile({ employee, yearSummary, monthlyBreakdow
                                                     {c.competency_type?.name}
                                                     <Badge variant="outline" className="ml-2 capitalize">{c.competency_type?.type}</Badge>
                                                 </TableCell>
-                                                <TableCell className="text-graphite-500">{c.certificate_number ?? '-'}</TableCell>
+                                                <TableCell className="text-graphite-500">
+                                                    {c.certificate_number ?? '-'}
+                                                    {/* v2.108.1: the certificate could be uploaded but
+                                                        never read back -- no route offered it at all.
+                                                        The link goes through SecureDocumentController,
+                                                        which checks the session and the tenant. */}
+                                                    {c.attachment_url && (
+                                                        <a
+                                                            href={c.attachment_url}
+                                                            target="_blank"
+                                                            rel="noopener noreferrer"
+                                                            className="ml-2 inline-flex items-center gap-1 text-xs font-medium text-primary hover:underline"
+                                                        >
+                                                            <FileText className="h-3.5 w-3.5" /> Certificate
+                                                        </a>
+                                                    )}
+                                                </TableCell>
                                                 <TableCell>{c.achieved_date?.slice(0, 10)}</TableCell>
                                                 <TableCell>{c.expiry_date ? c.expiry_date.slice(0, 10) : '-'}</TableCell>
                                                 <TableCell>

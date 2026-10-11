@@ -2,8 +2,8 @@
 
 namespace App\Models;
 
+use App\Concerns\HasSecureDocument;
 use App\Models\Concerns\BelongsToCompanyThrough;
-
 use Illuminate\Database\Eloquent\Model;
 use Illuminate\Support\Carbon;
 
@@ -20,6 +20,24 @@ class EmployeeCompetency extends Model
 {
     use BelongsToCompanyThrough;
 
+    /*
+     * v2.108.1 -- A CERTIFICATE YOU COULD UPLOAD AND NEVER READ BACK.
+     *
+     * The attachment on this record is a person's training certificate or
+     * licence -- usually a PDF, scanned from the original. It was stored
+     * on the PUBLIC disk and exposed through no route at all: the file
+     * went up, the app never offered it again, and the only way to reach
+     * it was the unauthenticated `/storage/...` URL its path implies.
+     *
+     * `config/filesystems.php` names "competency certificates" outright as
+     * belonging on the private disk, so this is the documented intent
+     * finally wired up rather than a new capability. The download runs
+     * through SecureDocumentController, which enforces authentication and
+     * the tenant boundary, and streams from EITHER disk -- so certificates
+     * uploaded before this change keep working untouched.
+     */
+    use HasSecureDocument;
+
     /** Ownership resolves through this relation -- see BelongsToCompanyThrough. */
     protected string $companyOwnerRelation = 'employee';
 
@@ -34,6 +52,28 @@ class EmployeeCompetency extends Model
         'notes',
         'created_by',
     ];
+
+    public function secureDocumentPathColumn(): string
+    {
+        return 'attachment_path';
+    }
+
+    /**
+     * Ownership runs through the employee, exactly as
+     * `BelongsToCompanyThrough` already resolves it for every other read
+     * of this model -- a certificate belongs to the person it was issued
+     * to, and that person belongs to an Operating Unit.
+     */
+    public function secureDocumentOwnerCompanyId(): ?int
+    {
+        return $this->employee?->company_id;
+    }
+
+    /** The authenticated, tenant-checked download URL, or null. */
+    public function getAttachmentUrlAttribute(): ?string
+    {
+        return $this->attachment_path ? $this->secureDocumentUrl() : null;
+    }
 
     protected function casts(): array
     {
@@ -61,7 +101,7 @@ class EmployeeCompetency extends Model
         });
     }
 
-    protected $appends = ['effective_status', 'days_remaining'];
+    protected $appends = ['effective_status', 'days_remaining', 'attachment_url'];
 
     public function employee()
     {

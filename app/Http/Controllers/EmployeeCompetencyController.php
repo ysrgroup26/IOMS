@@ -9,6 +9,7 @@ use App\Models\Company;
 use App\Models\Employee;
 use App\Models\EmployeeCompetency;
 use Illuminate\Http\RedirectResponse;
+use Illuminate\Http\UploadedFile;
 use Illuminate\Support\Facades\Storage;
 
 /**
@@ -33,6 +34,42 @@ use Illuminate\Support\Facades\Storage;
  */
 class EmployeeCompetencyController extends Controller
 {
+    /**
+     * v2.108.1 -- CERTIFICATES GO TO THE PRIVATE DISK.
+     *
+     * `config/filesystems.php` names "competency certificates" as one of
+     * the tenant-sensitive documents the `private` disk exists for; they
+     * were being written to the public one, reachable by URL with no
+     * authentication and no tenant check. New uploads land privately and
+     * are served only through SecureDocumentController.
+     *
+     * Files written before this change are NOT moved -- that is an
+     * irreversible bulk operation on production data and needs its own
+     * sign-off (the same reasoning SecureDocumentController records for
+     * the wider migration). They keep working: the controller streams
+     * from whichever disk holds the file.
+     */
+    private function storeCertificate(UploadedFile $file): string
+    {
+        return $file->store('competency', 'private');
+    }
+
+    /** Deletes a stored certificate from whichever disk actually holds it. */
+    private function discardCertificate(?string $path): void
+    {
+        if (! $path) {
+            return;
+        }
+
+        foreach (['private', 'public'] as $disk) {
+            if (Storage::disk($disk)->exists($path)) {
+                Storage::disk($disk)->delete($path);
+
+                return;
+            }
+        }
+    }
+
     public function store(StoreEmployeeCompetencyRequest $request, Employee $employee): RedirectResponse
     {
         $this->assertEmployeeInCurrentTenant($employee);
@@ -40,7 +77,7 @@ class EmployeeCompetencyController extends Controller
         $data = $request->validated();
 
         if ($request->hasFile('attachment')) {
-            $data['attachment_path'] = $request->file('attachment')->store('uploads/competency', 'public');
+            $data['attachment_path'] = $this->storeCertificate($request->file('attachment'));
         }
 
         $data['employee_id'] = $employee->id;
@@ -60,10 +97,8 @@ class EmployeeCompetencyController extends Controller
         $data = $request->validated();
 
         if ($request->hasFile('attachment')) {
-            if ($employeeCompetency->attachment_path) {
-                Storage::disk('public')->delete($employeeCompetency->attachment_path);
-            }
-            $data['attachment_path'] = $request->file('attachment')->store('uploads/competency', 'public');
+            $this->discardCertificate($employeeCompetency->attachment_path);
+            $data['attachment_path'] = $this->storeCertificate($request->file('attachment'));
         }
 
         $employeeCompetency->update($data);
@@ -81,9 +116,10 @@ class EmployeeCompetencyController extends Controller
         $employeeName = $employeeCompetency->employee->full_name;
         $competencyName = $employeeCompetency->competencyType->name;
 
-        if ($employeeCompetency->attachment_path) {
-            Storage::disk('public')->delete($employeeCompetency->attachment_path);
-        }
+        // Either disk: a certificate uploaded before v2.108.1 is public,
+        // one uploaded after is private, and deleting the record must not
+        // leave the file behind in either case.
+        $this->discardCertificate($employeeCompetency->attachment_path);
 
         $employeeCompetency->delete();
 

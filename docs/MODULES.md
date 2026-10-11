@@ -36,6 +36,25 @@ Core master data: `Employee` model, one per person. Belongs to a `Company`, opti
   to the customer as a WARNING against its own row number — the row still imports, because a join
   date was never a critical field. Never `strtotime()`; see
   `docs/ADR/050-a-date-out-of-a-spreadsheet.md` and the pitfall in `CONVENTIONS.md`.
+- **Smart Import applies its own suggestion** (v2.108.1): `/employees/import/inspect` suggests
+  `[field => their heading]`, the dialog shows it, and that mapping is POSTed as `column_mapping`
+  with the preview and the import. Before this it was drawn and discarded — a customer's own
+  Indonesian column names matched on screen and imported nothing. Validated server-side: known
+  fields only, strings only, and no two fields may claim one column. See
+  `docs/ADR/052-a-suggested-mapping-must-be-the-one-that-runs.md`.
+- **NIK (KTP) and Workforce Type** (v2.108.1) are importable, both optional. The column is labelled
+  `NIK (KTP)` because a bare `NIK` heading means the STAFF number in an Indonesian register and is
+  already an alias of `employee_id`. Workforce Type accepts the stored keys and the words people
+  write (`tetap`, `kontrak`, `harian`, `magang`, `alih daya`). A blank NIK stores `NULL`, never
+  `''`, because `unique(company_id, nik)` treats two empty strings as a collision.
+- **Competency certificates** (v2.108.1): uploaded against an employee (`employee_competencies.
+  attachment_path`), stored on the **private** disk and served only through
+  `SecureDocumentController` (type key `employee-competency`). They were previously written to the
+  public disk and offered through no route at all — uploadable, never readable. Files uploaded
+  before v2.108.1 remain on the public disk and still stream, because the controller reads from
+  either; they are not migrated.
+- **No PDF is ever parsed into employee data.** IOMS generates PDFs (the register) and stores them
+  as attachments; it extracts nothing from them. The import is Excel only and refuses a PDF.
 - **Bulk deletion** (v2.108.0): `DELETE /employees/bulk` → `EmployeeController::bulkDestroy()`,
   authorized by `EmployeePolicy::deleteAny()`. Every safety rule lives in
   `BulkDestroyEmployeesRequest`: all-or-nothing (one id outside the tenant refuses the whole

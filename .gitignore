@@ -26,6 +26,12 @@ yarn-error.log
 /.vscode
 /.nova
 /storage/app/backups/*.sql
+
+# v2.108.1: the private disk holds tenant-sensitive operational documents
+# (competency certificates, contractor licences, waste manifests). It is
+# runtime data by definition and must never reach the repository -- unlike
+# storage/app/public, whose committed fixtures predate that disk existing.
+/storage/app/private-documents/
 /storage/framework/cache/*
 !/storage/framework/cache/.gitkeep
 /storage/framework/sessions/*

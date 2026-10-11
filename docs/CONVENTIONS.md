@@ -2137,6 +2137,44 @@ is still refused, and a single-owner prefix (every other entry) cannot change me
 reader of the map handles multiple owners. Grep for other readers before assuming two are all there
 are — and never infer a route's gate from its prefix group, which is a separate pitfall below.
 
+## CRITICAL — Known Pitfall (v2.108.1) — SQLite ACCEPTS a column that does not exist, and MySQL does not
+
+`->with(['permit:id,ptw_number,title'])` names a column `permits_to_work` has never had. On MySQL
+that is a hard error:
+
+```
+SQLSTATE[42S22]: Column not found: 1054 Unknown column 'title' in 'field list'
+```
+
+On SQLite it succeeds. Laravel quotes identifiers with double quotes, and SQLite's documented
+double-quoted-string misfeature turns a double-quoted identifier that matches no column into a
+STRING LITERAL. So `select "id", "title"` returns the word *title* in a column called `title`, the
+relation hydrates, and the page renders.
+
+The whole test suite runs on SQLite. A page that 500s for every production tenant can therefore be
+fully green here. This was found by running the suite against MySQL for the first time, and it is
+the sharpest available illustration of why **SQLite success is not proof of MySQL compatibility**.
+
+**The rule.** A column list in `with([...])`, `select()` or `get([...])` is a schema claim. When you
+add or rename one, check it against the migration, and run anything schema-shaped against MySQL
+before believing it. The reverse case is a pitfall of its own, below.
+
+## CRITICAL — Known Pitfall (v2.108.1) — `->after('column')` must name a column that EXISTS by then, and SQLite will not tell you
+
+`2026_09_30_120000` added a column with `->after('additional_users')`. That column is created by
+`2026_11_09_100350` — two months later in migration order. On a fresh MySQL database the migration
+died; on SQLite everything passed, because SQLite has no column positioning at all and Laravel
+silently drops the clause.
+
+The effect is the worst shape a deployment bug can have: **existing** installations were fine (the
+migration had already run), so nothing looked broken, while **no new MySQL deployment could be
+provisioned at all**.
+
+**The rule.** `after()` is cosmetic — it buys column order in a `DESCRIBE` and nothing else. Prefer
+leaving it out. If you do use it, the anchor must be created by an EARLIER migration, and
+`MigrationPortabilityTest` now checks exactly that across every migration, so this class of break
+fails on SQLite too.
+
 ## CRITICAL — Known Pitfall (v2.108.0) — `date('Y-m-d', strtotime($x))` invents 1 January 1970, and it never throws
 
 `strtotime()` returns `false` for anything it cannot read. `date()` casts `false` to the integer

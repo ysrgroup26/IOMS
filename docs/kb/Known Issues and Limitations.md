@@ -64,6 +64,20 @@ containing none of that markup.
 
 ---
 
+## Findings recorded but NOT acted on (v2.108.1 MySQL verification)
+
+Found by running the suite against a real MySQL 8.0 for the first time. **Not changed here** — the
+first is in a module this task had no business touching, the other two are accepted behaviour worth
+writing down.
+
+| ID | Finding | Severity | Why it was left |
+|---|---|---|---|
+| QA-007 | **`/ptw/quota` returns 500 on MySQL.** `PtwQuotaController::show()` eager-loads `permit:id,ptw_number,title`, and `permits_to_work` has no `title` column (the field is `work_description`). MySQL: `Unknown column 'title' in 'field list'`. SQLite accepts it — a double-quoted identifier matching no column is read as a STRING LITERAL — so the page renders and the test passes. The page breaks for any tenant with at least one quota consumption row, i.e. in production. | **High** | PTW quota is outside this task's scope. The fix is one word (`title` → `work_description`, or drop it from the select list) plus a test that asserts the page renders with a consumption row present. Recorded with the pitfall in `CONVENTIONS.md`. |
+| QA-008 | A soft-deleted employee's **PPE issue records become invisible**. `EmployeePpe` has no `company_id` and reaches its owner via `whereHas('employee')`, which stops matching once the employee is trashed. Nothing is destroyed and a restore brings it all back, but "history is preserved" means preserved in the table, not still readable through the PPE module. | Low | Pre-existing behaviour of single deletion, not introduced by bulk deletion. Changing the scope to include trashed owners is a product decision about what a PPE register should show. Pinned by `EmployeeBulkDeletionDependenciesTest` so a future change has to confront it. |
+| QA-009 | Competency certificates uploaded **before v2.108.1** are still on the public disk. New ones are private. | Low | Moving existing files is an irreversible bulk operation on production data — the same reasoning `SecureDocumentController` already records for the wider migration (SEC-013). They stream correctly either way. |
+
+---
+
 ## Findings recorded but NOT acted on (v2.108.0 inspection)
 
 Found while reading the Employees module and its neighbours during the v2.108.0 work. **Nothing

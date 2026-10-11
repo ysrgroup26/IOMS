@@ -49,7 +49,8 @@ on every phone width.
 
 | | |
 |---|---|
-| Suite | **1100 tests, 5502 assertions — all passing** (2026-10-11, v2.108.0; was 800/4337 at v2.94.0) |
+| Suite | **1161 tests, 5766 assertions — all passing on SQLite** (2026-10-11, v2.108.1; was 800/4337 at v2.94.0) |
+| Suite on **MySQL 8.0** | **1160 of 1161 passing.** The one failure is QA-007, a pre-existing fault in `/ptw/quota` outside that change's scope — see [[Known Issues and Limitations]]. |
 | Database | In-memory **SQLite**, so no MySQL or external service is needed |
 | Lint | `npm run lint` — 0 errors (4 existing warnings in `GasTestRecords/Index.jsx` and `Settings/Index.jsx`) |
 | Build | `npm run build` succeeded (2026-10-11): 2307 modules, 2,055 KB bundle, the existing size advisory unchanged |
@@ -61,6 +62,21 @@ on every phone width.
 > `MissingAppKeyException` on any machine without a `.env`. Both are fixed, and the fix was checked
 > by moving `.env` aside and running the suite. That matters mostly for CI, which **still does not
 > exist** — there is no `.github/workflows`, so nothing runs this suite but a person.
+
+> [!note] MySQL HAS now been run (v2.108.1)
+> For the first time, the whole suite was executed against a real MySQL 8.0 in STRICT mode, on an
+> isolated database with synthetic data. It found three things SQLite structurally cannot:
+>
+> 1. **A fresh MySQL database could not be provisioned at all** — a migration anchored a column with
+>    `after()` on a column created two months later in migration order. SQLite ignores column
+>    positioning, so the suite provisioned happily. Existing deployments were unaffected, which is
+>    why nothing had ever surfaced it.
+> 2. **`/ptw/quota` 500s on MySQL** — an eager load names a column that does not exist, and SQLite
+>    reads an unresolvable double-quoted identifier as a string literal rather than failing.
+> 3. **One test could not run on MySQL at all** — it queried `sqlite_master` directly.
+>
+> Both pitfalls are written up in `CONVENTIONS.md`. The lesson below stands and is now evidenced
+> rather than asserted.
 
 > [!warning] SQLite is not MySQL
 > The suite deliberately runs on SQLite so it needs nothing external. That means it does **not**
@@ -89,6 +105,18 @@ kind was involved.
 > [!note] What this run did *not* cover
 > MySQL (the browser run used SQLite), real data volumes, email and queue side effects, mobile
 > widths, and screen-reader behaviour. It also did not exercise any module outside Employees.
+
+---
+
+### Browser-verified — v2.108.1 (2026-10-11)
+
+Same method as below: `php artisan serve`, isolated SQLite, synthetic employees, Playwright +
+Chromium. No production data.
+
+| Flow | Result |
+|---|---|
+| Smart Import of a customer's own file (their Indonesian column names, their order) | **6/6 checks passed.** The preview reports 2 valid rows (it reported 0 imported before the fix), the mapping panel names all nine of their columns, and both rows import. |
+| What that import actually stored | `Kontrak` → `pkwt`, `Harian` → `daily`, `No. KTP` → 16-digit NIK intact, `15/01/2026` → 2026-01-15, `01/02/2026` → 2026-02-01, phone and email populated from their own column names. Every one of those was wrong or empty before v2.108.0–2.108.1. |
 
 ---
 

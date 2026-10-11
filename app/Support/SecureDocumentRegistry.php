@@ -7,6 +7,7 @@ use App\Models\ContractorDocument;
 use App\Models\ControlledDocument;
 use App\Models\DailyReportPhoto;
 use App\Models\DocumentVersion;
+use App\Models\EmployeeCompetency;
 use App\Models\InspectionEvidence;
 use App\Models\Item;
 use App\Models\MaterialRequestItem;
@@ -69,6 +70,8 @@ class SecureDocumentRegistry
         // tenant-checked download path as every other private document
         // rather than a public URL.
         'regulation-document' => RegulationRegister::class,
+        // v2.108.1: an employee's training certificate / licence scan.
+        'employee-competency' => EmployeeCompetency::class,
     ];
 
     public static function classFor(string $type): ?string

@@ -35,6 +35,40 @@ return [
             'npk', 'badge', 'badge no', 'badge number', 'no badge',
         ],
 
+        /*
+         * v2.108.1 -- THE NATIONAL ID, AND DELIBERATELY NOT "NIK" ALONE.
+         *
+         * Bare "nik" already belongs to `employee_id` above, because in an
+         * Indonesian workforce list it overwhelmingly means Nomor Induk
+         * KARYAWAN -- the company's own staff number. That decision is
+         * already shipped and is not reversed here.
+         *
+         * So this field claims only the spellings that can mean nothing
+         * else: the ones naming KTP or Kependudukan outright. An ambiguous
+         * heading is left to the field that already owns it rather than
+         * fought over, because a column silently claimed by the wrong
+         * field writes a staff number into a national-ID column.
+         */
+        'nik' => [
+            // Distinct once normalised (punctuation and case are stripped),
+            // so "no. ktp" is not listed beside "no ktp" -- the matcher's
+            // own collision test refuses a key claimed twice.
+            'nik ktp', 'no ktp', 'nomor ktp', 'ktp',
+            'nomor induk kependudukan', 'national id', 'id card number',
+        ],
+
+        /*
+         * Workforce Type. "Employment Type" is included, and it is far
+         * enough from "Employment Status" (the OTHER field, which owns
+         * "status" outright) that the fuzzy stage cannot confuse the two
+         * -- they differ by more than the 0.25 tolerance.
+         */
+        'employment_type' => [
+            'workforce type', 'employment type', 'worker type', 'staff type',
+            'jenis karyawan', 'tipe karyawan', 'jenis kepegawaian', 'tipe kepegawaian',
+            'jenis pekerja', 'jenis kontrak', 'tipe kontrak',
+        ],
+
         'full_name' => [
             'full name', 'fullname', 'name', 'employee name', 'nama', 'nama lengkap',
             'nama karyawan', 'nama pegawai', 'nama pekerja',

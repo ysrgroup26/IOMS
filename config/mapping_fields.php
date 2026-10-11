@@ -20,6 +20,31 @@ return [
         'import' => [
             'employee_id' => 'Employee ID',
             'full_name' => 'Full Name',
+            /*
+             * v2.108.1 -- the two real Employee columns the import could
+             * not reach. `nik` is the NATIONAL ID (KTP) and is unique per
+             * company; `employment_type` is Workforce Type, which the
+             * manual form has always required and the import silently
+             * defaulted to `pkwtt` for every row it created.
+             *
+             * Import side only. The export catalogue is deliberately left
+             * alone: adding a column there changes the shape of every
+             * existing tenant's spreadsheet without being asked to.
+             */
+            /*
+             * LABELLED "NIK (KTP)", NOT "NIK", AND THAT IS THE WHOLE POINT.
+             *
+             * A bare "NIK" heading in an Indonesian workforce list means
+             * Nomor Induk KARYAWAN -- the staff number -- and
+             * `import_aliases` has mapped it to `employee_id` since
+             * v2.102.0, pinned by SmartImportHeaderMatchingTest. Labelling
+             * this field "NIK" made the matcher's EXACT stage (which runs
+             * before aliases) hand that heading to the national ID
+             * instead, quietly moving every customer's staff number into
+             * the wrong column. Naming KTP here keeps the two apart.
+             */
+            'nik' => 'NIK (KTP)',
+            'employment_type' => 'Workforce Type',
             'department' => 'Department',
             'position' => 'Position',
             'join_date' => 'Join Date',

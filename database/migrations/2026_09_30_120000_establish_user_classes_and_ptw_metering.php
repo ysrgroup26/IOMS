@@ -91,8 +91,29 @@ return new class extends Migration
          * who bought it, so it survives a plan change instead of being
          * silently discarded by one.
          */
+        /*
+         * v2.108.1 -- NO `after('additional_users')` HERE.
+         *
+         * `subscriptions.additional_users` is created by
+         * 2026_11_09_100350_revise_pricing_and_user_entitlement, which runs
+         * TWO MONTHS LATER in migration order. Naming it as the anchor made
+         * this migration fail on any fresh MySQL database:
+         *
+         *   SQLSTATE[42S22]: Unknown column 'additional_users' in
+         *   'subscriptions'
+         *
+         * SQLite ignores column positioning entirely, so the whole test
+         * suite provisioned happily and nothing ever noticed. MySQL does
+         * not, and `migrate:fresh` on MySQL died here -- meaning a NEW
+         * deployment could not be provisioned at all, while existing ones
+         * (where the migration had already run) were unaffected.
+         *
+         * Column position is cosmetic. The anchor is simply dropped rather
+         * than repointed, because any anchor is one more ordering fact to
+         * keep true. Pinned by MigrationPortabilityTest.
+         */
         Schema::table('subscriptions', function (Blueprint $table) {
-            $table->unsignedInteger('additional_my_work_packs')->default(0)->after('additional_users');
+            $table->unsignedInteger('additional_my_work_packs')->default(0);
         });
 
         /*

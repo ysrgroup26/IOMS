@@ -109,7 +109,11 @@ class EmployeeImportTemplateRoundTripTest extends TestCase
         $sheet = IOFactory::load($path)->getActiveSheet();
 
         $this->assertSame('Employee ID', $sheet->getCell('A1')->getValue());
-        $this->assertSame('Join Date', $sheet->getCell('K1')->getValue());
+        // v2.108.1: NIK (KTP) and Workforce Type were inserted, so Join
+        // Date moved from column K to M. Asserted by position deliberately
+        // -- the point is that the generated file has the shape the
+        // importer reads, not merely the right set of words.
+        $this->assertSame('Join Date', $sheet->getCell('M1')->getValue());
     }
 
     /**
@@ -221,17 +225,45 @@ class EmployeeImportTemplateRoundTripTest extends TestCase
         foreach ($sheet->getRowIterator(1, 1) as $row) {
             foreach ($row->getCellIterator() as $cell) {
                 if ($cell->getValue() !== null) {
-                    $headings[] = \Illuminate\Support\Str::snake(strtolower((string) $cell->getValue()));
+                    /*
+                     * `Str::slug($v, '_')`, NOT `Str::snake`. This is the
+                     * formatter Maatwebsite's heading row actually uses
+                     * (config/excel.php sets 'formatter' => 'slug') and
+                     * the one FieldMappingService resolves against, and
+                     * the two genuinely differ: "NIK (KTP)" snakes to
+                     * `nik(ktp)` and slugs to `nik_ktp`. Using the wrong
+                     * one here made this test disagree with the import it
+                     * is supposed to be checking.
+                     */
+                    $headings[] = \Illuminate\Support\Str::slug((string) $cell->getValue(), '_');
                 }
             }
         }
 
-        $readByTheImport = [
-            'employee_id', 'full_name', 'department', 'position', 'project', 'phone', 'email',
-            'address', 'emergency_contact_name', 'emergency_contact_phone', 'join_date', 'employment_status',
-        ];
+        /*
+         * THE CONTRACT: every heading the template prints must resolve to
+         * a column key the import actually reads, and every importable
+         * field must have a column in the template.
+         *
+         * Compared against `importColumnKeys()` -- the resolved
+         * heading-row keys -- rather than against field names, because
+         * those are two different alphabets: the field is `nik`, its
+         * column is "NIK (KTP)", and the key the importer looks up is
+         * `nik_ktp`. Derived from config either way, so adding a field
+         * without a column (or a column without a field) fails here
+         * instead of silently dropping data.
+         */
+        $readByTheImport = app(\App\Services\FieldMappingService::class)->importColumnKeys('employees');
 
-        $this->assertSame($readByTheImport, $headings);
+        foreach ($headings as $heading) {
+            $this->assertContains($heading, $readByTheImport, "The template prints [{$heading}], which the import does not read.");
+        }
+
+        $this->assertSame(
+            [],
+            array_values(array_diff($readByTheImport, $headings)),
+            'Every importable field should have a column in the official template.'
+        );
     }
 
     /**

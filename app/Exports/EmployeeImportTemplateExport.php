@@ -49,13 +49,26 @@ class EmployeeImportTemplateExport implements FromArray, ShouldAutoSize, WithEve
     public function headings(): array
     {
         return [
-            'Employee ID', 'Full Name', 'Department', 'Position', 'Project', 'Phone', 'Email',
-            'Address', 'Emergency Contact Name', 'Emergency Contact Phone', 'Join Date', 'Employment Status',
+            'Employee ID', 'NIK (KTP)', 'Full Name', 'Department', 'Position', 'Workforce Type', 'Project',
+            'Phone', 'Email', 'Address', 'Emergency Contact Name', 'Emergency Contact Phone',
+            'Join Date', 'Employment Status',
         ];
     }
 
     public function array(): array
     {
+        /*
+         * v2.108.1: NIK and Workforce Type are new columns. Both are
+         * OPTIONAL -- a file saved from the previous template, with
+         * neither column, imports exactly as before (no national ID, and
+         * Workforce Type takes its `pkwtt` default). NIK here is a
+         * correctly shaped example, not a real number.
+         *
+         * Workforce Type accepts the stored keys (pkwtt, pkwt, daily,
+         * intern, pkl, contractor, outsource) and the words people
+         * actually write -- "tetap", "kontrak", "harian", "magang" --
+         * see EmployeesImport::EMPLOYMENT_TYPE_ALIASES.
+         */
         // One example row so the expected format (especially the date)
         // is obvious, not just column names with no guidance. Project
         // is optional -- if it matches an existing project by name, the
@@ -66,7 +79,8 @@ class EmployeeImportTemplateExport implements FromArray, ShouldAutoSize, WithEve
         // uploadable image file, so photos are still added per-employee
         // after import, same as manual employee creation already works.
         return [
-            ['EMP-0001', 'John Doe', 'HSE', 'HSE Officer', '', '081234567890', 'john.doe@example.com', '', '', '', '2026-01-15', 'active'],
+            ['EMP-0001', '3201010101900001', 'John Doe', 'HSE', 'HSE Officer', 'pkwtt', '',
+                '081234567890', 'john.doe@example.com', '', '', '', '2026-01-15', 'active'],
         ];
     }
 

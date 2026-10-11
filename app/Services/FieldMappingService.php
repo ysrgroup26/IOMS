@@ -60,11 +60,38 @@ class FieldMappingService
      * file with a custom-mapped header and comparing the actual
      * resolved keys before trusting this method, not assumed.
      */
-    public function importColumnKeys(string $moduleKey): array
+    public function importColumnKeys(string $moduleKey, array $confirmedHeadings = []): array
     {
         $fields = $this->resolve($moduleKey, FieldMapping::DIRECTION_IMPORT);
 
-        return collect($fields)->map(fn ($f, $fieldKey) => Str::slug(trim($f['label']), '_'))->all();
+        $keys = collect($fields)->map(fn ($f, $fieldKey) => Str::slug(trim($f['label']), '_'))->all();
+
+        /*
+         * v2.108.1 -- THE MAPPING THE CUSTOMER WAS SHOWN, APPLIED.
+         *
+         * `$confirmedHeadings` is [field => the heading in THEIR file],
+         * straight from what `/employees/import/inspect` suggested and the
+         * dialog displayed for confirmation. Smart Import (v2.102.0) drew
+         * that panel and then imported through the configured mapping
+         * anyway, so a customer's own file matched on screen and imported
+         * nothing.
+         *
+         * Converted here, not at the call site, because this class owns the
+         * one rule that makes a heading into a `$data` key: `Str::slug`,
+         * matching Maatwebsite's own slug formatter byte-for-byte -- NOT
+         * `Str::snake`, which turns "Employee ID" into `employee_i_d`. A
+         * second copy of that rule is a second chance to get it wrong.
+         *
+         * Only fields the caller actually confirmed are overridden, so an
+         * import that sends no mapping behaves exactly as before.
+         */
+        foreach ($confirmedHeadings as $field => $heading) {
+            if (array_key_exists($field, $keys) && is_string($heading) && trim($heading) !== '') {
+                $keys[$field] = Str::slug(trim($heading), '_');
+            }
+        }
+
+        return $keys;
     }
 
     /** For export: ordered, enabled [field_key => label] (keys preserved through filter/sort), ready to build headings()/map() from -- see EmployeeExport's constructor. */

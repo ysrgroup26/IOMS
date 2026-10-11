@@ -16,6 +16,7 @@ use App\Models\Workspace;
 use App\Support\CurrentTenant;
 use Illuminate\Foundation\Testing\RefreshDatabase;
 use Illuminate\Support\Facades\DB;
+use Illuminate\Support\Facades\Schema;
 use Illuminate\Support\Facades\Mail;
 use Illuminate\Support\Facades\Route;
 use Tests\TestCase;
@@ -117,8 +118,18 @@ class SubscriptionReadOnlyEnforcementTest extends TestCase
     /** Row counts of every table: a write that got through changes one. */
     private function snapshot(): array
     {
-        $tables = collect(DB::select("SELECT name FROM sqlite_master WHERE type = 'table' AND name NOT LIKE 'sqlite_%'"))
-            ->pluck('name')
+        /*
+         * v2.108.1 -- ASK THE SCHEMA BUILDER, NOT sqlite_master.
+         *
+         * This read `sqlite_master` directly, so the whole test was
+         * SQLite-only: run against MySQL it died with "Table
+         * 'sqlite_master' doesn't exist" rather than checking anything.
+         * A read-only-enforcement test that cannot run on the engine
+         * production actually uses is the one place that matters least.
+         *
+         * `Schema::getTableListing()` answers on every driver.
+         */
+        $tables = collect(Schema::getTableListing())
             // Session and cache bookkeeping move on any request.
             ->reject(fn ($t) => in_array($t, ['sessions', 'cache', 'cache_locks', 'jobs', 'failed_jobs'], true));
 

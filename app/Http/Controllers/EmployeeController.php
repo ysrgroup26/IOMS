@@ -295,6 +295,47 @@ class EmployeeController extends Controller
     }
 
     /**
+     * v2.108.1 -- THE CONFIRMED COLUMN MAPPING, VALIDATED AS THE INPUT IT IS.
+     *
+     * `[field => heading in the customer's own file]`, as
+     * `/employees/import/inspect` suggested it and the import dialog showed
+     * it for confirmation. Absent on the golden path (the official
+     * template), in which case the tenant's configured mapping is used
+     * unchanged -- byte-for-byte the previous behaviour.
+     *
+     * Three refusals, because this decides which column feeds which field
+     * and a wrong one writes a phone number into an address:
+     *
+     *  - only fields IOMS actually imports may appear (`array:` with the
+     *    catalogue's own keys), so a mapping cannot name a column that is
+     *    not part of the import at all;
+     *  - each heading is a plain string, never a nested structure;
+     *  - no two fields may claim the SAME heading, which would copy one
+     *    column into two fields and is exactly the silent field-shifting
+     *    this check exists to stop.
+     *
+     * @return array<string, string>
+     */
+    private function columnMappingRules(): array
+    {
+        $fields = array_keys(config('mapping_fields.employees.import', []));
+
+        return [
+            'column_mapping' => ['sometimes', 'array:'.implode(',', $fields)],
+            'column_mapping.*' => ['string', 'max:255', 'distinct'],
+        ];
+    }
+
+    /** @return array<string, string> field => heading, as confirmed by the user */
+    private function confirmedColumnMapping(Request $request): array
+    {
+        /** @var array<string, string> $mapping */
+        $mapping = $request->input('column_mapping', []);
+
+        return $mapping;
+    }
+
+    /**
      * v2.108.0 -- REMOVING A SET, WITH THE SAFETY RULES WHERE THEY BELONG.
      *
      * Every refusal this action can make has already been made by
@@ -472,12 +513,13 @@ class EmployeeController extends Controller
         $request->validate([
             'file' => ['required', 'file', 'mimes:xlsx,xls'],
             'company_id' => ['required', \Illuminate\Validation\Rule::in(Company::query()->pluck('id'))],
+            ...$this->columnMappingRules(),
         ]);
 
         $companyId = (int) $request->input('company_id');
 
         try {
-            $import = new EmployeesImport($companyId, $request->user()->id, previewOnly: true, columnKeys: $mapping->importColumnKeys('employees'));
+            $import = new EmployeesImport($companyId, $request->user()->id, previewOnly: true, columnKeys: $mapping->importColumnKeys('employees', $this->confirmedColumnMapping($request)));
             Excel::import($import, $request->file('file'));
         } catch (\Throwable $e) {
             report($e);
@@ -572,10 +614,15 @@ class EmployeeController extends Controller
             'new_departments.*' => ['string', 'max:255'],
             'new_positions' => ['array'],
             'new_positions.*' => ['string', 'max:255'],
+            ...$this->columnMappingRules(),
         ]);
 
         $companyId = (int) $request->input('company_id');
         $file = $request->file('file');
+        // Read before the closure: `$request` is captured anyway, but the
+        // mapping is a decided value, not something to re-derive inside a
+        // transaction.
+        $confirmedMapping = $this->confirmedColumnMapping($request);
 
         /*
          * v2.105.0 -- A FAILURE HERE HAS TO SAY SOMETHING.
@@ -594,7 +641,7 @@ class EmployeeController extends Controller
          * message says which stage failed.
          */
         try {
-            $import = DB::transaction(function () use ($request, $companyId, $file, $mapping) {
+            $import = DB::transaction(function () use ($request, $companyId, $file, $mapping, $confirmedMapping) {
             /*
              * v2.101.0 -- NORMALISED, AND MATCHED AGAINST WHAT IS ALREADY
              * THERE.
@@ -619,7 +666,7 @@ class EmployeeController extends Controller
                 $request->input('new_positions', [])
             );
 
-            $import = new EmployeesImport($companyId, $request->user()->id, columnKeys: $mapping->importColumnKeys('employees'));
+                $import = new EmployeesImport($companyId, $request->user()->id, columnKeys: $mapping->importColumnKeys('employees', $confirmedMapping));
                 Excel::import($import, $file);
 
                 return $import;
@@ -660,9 +707,10 @@ class EmployeeController extends Controller
         $request->validate([
             'file' => ['required', 'file', 'mimes:xlsx,xls'],
             'company_id' => ['required', \Illuminate\Validation\Rule::in(Company::query()->pluck('id'))],
+            ...$this->columnMappingRules(),
         ]);
 
-        $import = new EmployeesImport((int) $request->input('company_id'), $request->user()->id, columnKeys: $mapping->importColumnKeys('employees'));
+        $import = new EmployeesImport((int) $request->input('company_id'), $request->user()->id, columnKeys: $mapping->importColumnKeys('employees', $this->confirmedColumnMapping($request)));
         Excel::import($import, $request->file('file'));
 
         ActivityLog::record('imported', "Imported {$import->imported} employee(s) from Excel ({$import->totalRows} rows processed).");

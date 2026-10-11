@@ -139,6 +139,56 @@ class EmployeesImport implements OnEachRow, WithChunkReading, WithHeadingRow
             }, []);
     }
 
+    /**
+     * National IDs already taken in this company, keyed case-insensitively
+     * for the same reason employee numbers are. v2.108.1.
+     *
+     * @var array<string, true>|null
+     */
+    private ?array $existingNiks = null;
+
+    /** @return array<string, true> */
+    private function existingNiks(): array
+    {
+        return $this->existingNiks ??= Employee::withTrashed()
+            ->where('company_id', $this->companyId)
+            ->whereNotNull('nik')
+            ->pluck('nik')
+            ->reduce(function (array $carry, ?string $nik) {
+                $key = mb_strtolower(trim((string) $nik));
+
+                if ($key !== '') {
+                    $carry[$key] = true;
+                }
+
+                return $carry;
+            }, []);
+    }
+
+    /** @var array<string, int> */
+    private array $seenNiks = [];
+
+    /**
+     * v2.108.1 -- WORKFORCE TYPE, IN THE WORDS A SPREADSHEET USES.
+     *
+     * The column stores `pkwtt`/`pkwt`/`daily`/`intern`/`pkl`/
+     * `contractor`/`outsource`, but nobody types those into a workforce
+     * list. The spellings people actually use map onto them here; anything
+     * unrecognised falls back to the column's own default rather than
+     * failing the row, exactly as Employment Status already does.
+     *
+     * @var array<string, string>
+     */
+    private const EMPLOYMENT_TYPE_ALIASES = [
+        'tetap' => 'pkwtt', 'permanent' => 'pkwtt', 'karyawan tetap' => 'pkwtt', 'pegawai tetap' => 'pkwtt',
+        'kontrak' => 'pkwt', 'contract' => 'pkwt', 'karyawan kontrak' => 'pkwt', 'pegawai kontrak' => 'pkwt',
+        'harian' => 'daily', 'harian lepas' => 'daily', 'daily worker' => 'daily', 'buruh harian' => 'daily',
+        'magang' => 'intern', 'internship' => 'intern', 'trainee' => 'intern',
+        'siswa pkl' => 'pkl', 'praktek kerja lapangan' => 'pkl', 'praktik kerja lapangan' => 'pkl',
+        'kontraktor' => 'contractor', 'subkon' => 'contractor', 'subkontraktor' => 'contractor', 'vendor' => 'contractor',
+        'alih daya' => 'outsource', 'alihdaya' => 'outsource', 'outsourcing' => 'outsource',
+    ];
+
     /** @return array<string, int> */
     private function departmentMap(): array
     {
@@ -278,6 +328,39 @@ class EmployeesImport implements OnEachRow, WithChunkReading, WithHeadingRow
 
         $this->seenEmployeeIds[$employeeId] = $rowNumber;
 
+        /*
+         * v2.108.1 -- THE NATIONAL ID, CHECKED AT ITS OWN UNIQUE INDEX.
+         *
+         * `employees` carries unique(company_id, nik), so a repeated NIK
+         * is refused by the database exactly as a repeated employee
+         * number is. Checked here instead of being left to throw, so the
+         * customer gets the row number and the reason rather than the
+         * driver's message.
+         *
+         * BLANK MUST BECOME NULL, NEVER "". The index treats two empty
+         * strings as a collision but ignores NULLs, so an empty cell
+         * written as "" would let exactly one employee have no national ID
+         * and refuse every one after it.
+         */
+        $nik = trim((string) ($this->col($data, 'nik') ?? ''));
+        $nikKey = mb_strtolower($nik);
+
+        if ($nik !== '') {
+            if (isset($this->seenNiks[$nikKey])) {
+                $this->skip($rowNumber, "Duplicate NIK (also row {$this->seenNiks[$nikKey]})");
+
+                return;
+            }
+
+            if (isset($this->existingNiks()[$nikKey])) {
+                $this->skip($rowNumber, "Duplicate NIK \"{$nik}\" (already used in this Operating Unit)");
+
+                return;
+            }
+
+            $this->seenNiks[$nikKey] = $rowNumber;
+        }
+
         // Department is critical in the sense that it's tracked for
         // completion status, but NOT required to import the row --
         // "Unassigned" is genuinely supported (department_id is
@@ -386,6 +469,22 @@ class EmployeesImport implements OnEachRow, WithChunkReading, WithHeadingRow
         }
 
         /*
+         * v2.108.1 -- Workforce Type. Previously unreachable from an
+         * import at all: every imported employee silently took the
+         * column's `pkwtt` default, so a yard whose workforce is mostly
+         * PKWT and daily labour imported as if everyone were permanent.
+         * Same forgiving rule as Employment Status above -- an
+         * unrecognised value falls back to the default rather than
+         * costing the row.
+         */
+        $rawType = mb_strtolower(trim((string) ($this->col($data, 'employment_type') ?? '')));
+        $employmentType = self::EMPLOYMENT_TYPE_ALIASES[$rawType] ?? $rawType;
+
+        if (! in_array($employmentType, Employee::EMPLOYMENT_TYPES, true)) {
+            $employmentType = Employee::EMPLOYMENT_TYPE_PKWTT;
+        }
+
+        /*
           * v2.105.0 -- ONE BAD ROW MUST NOT COST THE OTHER HUNDRED AND FORTY.
           *
           * This class's own doc comment says it never stops on one bad row,
@@ -402,9 +501,12 @@ class EmployeesImport implements OnEachRow, WithChunkReading, WithHeadingRow
           * invented wording would describe a failure nobody observed.
           */
         try {
-            DB::transaction(function () use ($data, $employeeId, $fullName, $departmentId, $positionId, $joinDate, $status) {
+            DB::transaction(function () use ($data, $employeeId, $nik, $employmentType, $fullName, $departmentId, $positionId, $joinDate, $status) {
             $employee = Employee::create([
                 'employee_id' => $employeeId,
+                // Null, never '' -- see the unique-index note above.
+                'nik' => $nik !== '' ? $nik : null,
+                'employment_type' => $employmentType,
                 'full_name' => $fullName,
                 'company_id' => $this->companyId,
                 'department_id' => $departmentId,
@@ -448,6 +550,10 @@ class EmployeesImport implements OnEachRow, WithChunkReading, WithHeadingRow
 
         // Taken now, so a later row in the same file cannot reuse it.
         $this->existingEmployeeIds[mb_strtolower($employeeId)] = true;
+
+        if ($nik !== '') {
+            $this->existingNiks[$nikKey] = true;
+        }
 
         $this->imported++;
         if ($departmentId === null) {

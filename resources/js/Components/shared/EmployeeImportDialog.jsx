@@ -20,6 +20,22 @@ function csrfToken() {
  * existing one -- it's where Smart Master Data Detection surfaces
  * before anything is written to the database.
  */
+/*
+ * v2.108.1 -- [field => the heading in THEIR file], flattened onto the
+ * request exactly as the server validates it. Only entries the inspector
+ * actually matched are sent; anything it could not place is left out so
+ * the configured mapping still answers for that field.
+ */
+function appendColumnMapping(formData, suggested) {
+    if (!suggested?.mapping) return;
+
+    Object.entries(suggested.mapping).forEach(([field, match]) => {
+        if (match?.heading) {
+            formData.append(`column_mapping[${field}]`, match.heading);
+        }
+    });
+}
+
 export default function EmployeeImportDialog({ open, onOpenChange, companies }) {
     // v2.105.0: the viewer's own operating unit, when they can see it.
     const ownCompanyId = usePage().props.auth?.user?.company_id;
@@ -74,9 +90,46 @@ export default function EmployeeImportDialog({ open, onOpenChange, companies }) 
         setStage('previewing');
         setError(null);
 
+        /*
+         * v2.108.1 -- INSPECT BEFORE PREVIEW, AND SEND WHAT IT FOUND.
+         *
+         * These used to run the other way round: the file was previewed
+         * first and the column mapping was fetched afterwards, purely to
+         * draw a panel. So the panel said "IOMS matched your columns" and
+         * then BOTH the preview and the import read the file through the
+         * tenant's configured mapping instead -- for a customer's own
+         * Indonesian column names, that imported nothing at all while the
+         * screen showed a confident match.
+         *
+         * The mapping is now resolved first and travels with every request
+         * that reads the file, so the preview is a promise the import
+         * keeps. A failure to inspect is still not fatal: the mapping is
+         * simply absent and the configured one applies, which is exactly
+         * the official template's path.
+         */
+        let suggested = null;
+
+        try {
+            const inspectBody = new FormData();
+            inspectBody.append('file', file);
+
+            const inspected = await fetch(route('employees.import.inspect'), {
+                method: 'POST',
+                body: inspectBody,
+                headers: { 'X-CSRF-TOKEN': csrfToken() },
+            });
+
+            suggested = inspected.ok ? await inspected.json() : null;
+        } catch {
+            suggested = null;
+        }
+
+        setMapping(suggested);
+
         const formData = new FormData();
         formData.append('file', file);
         formData.append('company_id', companyId);
+        appendColumnMapping(formData, suggested);
 
         try {
             const response = await fetch(route('employees.import.preview'), {
@@ -91,30 +144,6 @@ export default function EmployeeImportDialog({ open, onOpenChange, companies }) 
             }
 
             setPreview(await response.json());
-
-            /*
-             * Asked for alongside the preview rather than as a separate
-             * step: a customer uploading their own spreadsheet wants ONE
-             * answer about whether this file will work, and the columns
-             * are half of that answer. A failure here is not fatal -- the
-             * import still runs on the configured mapping -- so it only
-             * costs the extra panel.
-             */
-            try {
-                const inspectBody = new FormData();
-                inspectBody.append('file', file);
-
-                const inspected = await fetch(route('employees.import.inspect'), {
-                    method: 'POST',
-                    body: inspectBody,
-                    headers: { 'X-CSRF-TOKEN': csrfToken() },
-                });
-
-                setMapping(inspected.ok ? await inspected.json() : null);
-            } catch {
-                setMapping(null);
-            }
-
             setStage('preview');
         } catch (e) {
             setError(e.message);
@@ -129,6 +158,9 @@ export default function EmployeeImportDialog({ open, onOpenChange, companies }) 
         const formData = new FormData();
         formData.append('file', file);
         formData.append('company_id', companyId);
+        // The same mapping the preview ran on and the panel displayed --
+        // the import must not read the file a different way.
+        appendColumnMapping(formData, mapping);
 
         if (createMissing) {
             preview.departments.new.forEach((name) => formData.append('new_departments[]', name));
@@ -250,8 +282,8 @@ export default function EmployeeImportDialog({ open, onOpenChange, companies }) 
                             <div className="rounded-lg border border-graphite-100 bg-graphite-50/60 p-3">
                                 <p className="mb-1.5 text-xs font-semibold text-graphite-600">Column Mapping</p>
                                 <p className="mb-2 text-xs text-graphite-500">
-                                    IOMS mencocokkan kolom pada berkas Anda dengan kolom yang dipakai sistem.
-                                    Periksa bagian di bawah ini sebelum melanjutkan.
+                                    IOMS membaca berkas Anda memakai pencocokan kolom berikut.
+                                    Periksa sebelum melanjutkan; kolom yang tidak cocok tidak akan diimpor.
                                 </p>
 
                                 {Object.entries(mapping.mapping).map(([field, match]) => (

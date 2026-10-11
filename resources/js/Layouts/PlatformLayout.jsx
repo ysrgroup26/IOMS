@@ -1,5 +1,5 @@
 import { Link, usePage, router } from '@inertiajs/react';
-import { LayoutDashboard, Building2, LogOut, Tag, UserPlus, CreditCard, LifeBuoy } from 'lucide-react';
+import { LayoutDashboard, Building2, LogOut, Tag, UserPlus, CreditCard, LifeBuoy, Database } from 'lucide-react';
 import BrandWordmark from '@/Components/shared/BrandWordmark';
 
 const NAV_CLASS = 'flex items-center gap-2 rounded-md px-3 py-2 text-sm font-medium transition-colors';
@@ -41,6 +41,13 @@ export default function PlatformLayout({ children }) {
         // its operator, a ticket is somebody waiting for an answer (ADR 042).
         { name: 'Dukungan', href: route('platform.support'), icon: LifeBuoy, active: currentUrl.startsWith('/platform/support') },
         { name: 'Paket', href: route('platform.plans'), icon: Tag, active: currentUrl.startsWith('/platform/plans') },
+        /*
+         * v2.108.2 (SEC-010): whole-database backup and restore. Last,
+         * because it is maintenance rather than part of the operator's
+         * daily run -- and it is HERE rather than in a customer's Settings
+         * because a dump covers every tenant at once.
+         */
+        { name: 'Database', href: route('platform.database'), icon: Database, active: currentUrl.startsWith('/platform/database') },
     ];
 
     return (

@@ -1390,78 +1390,23 @@ class SettingsController extends Controller
             ->exists();
     }
 
-    // --- Backup / Restore (Super Admin only) ---
-
-    /**
-     * Creates a mysqldump-based backup file and streams it for download.
-     * Requires the `mysqldump` binary to be available on the server PATH.
+    /*
+     * SEC-010 (v2.108.2): `backupDatabase()` and `restoreDatabase()` WERE
+     * HERE, gated only by `role:super_admin` on the route.
+     *
+     * `super_admin` is a CUSTOMER role -- one organization's own
+     * administrator. Both methods shelled out to `mysqldump` and `mysql <`
+     * against the whole connection, which has no notion of a tenant, so a
+     * customer could download every other customer's data and overwrite
+     * the database for all of them.
+     *
+     * They now live in PlatformDatabaseController behind
+     * `role:platform_admin`, with the shell work in
+     * App\Services\DatabaseBackupService and the destructive-action
+     * guards in App\Http\Requests\RestoreDatabaseRequest. Nothing
+     * tenant-facing may grow a whole-database export again: that is what
+     * SecurityBoundaryTest asserts.
      */
-    public function backupDatabase(): mixed
-    {
-        $filename = 'ioms-backup-'.now()->format('Y-m-d_His').'.sql';
-        $path = storage_path('app/backups/'.$filename);
-
-        if (! is_dir(dirname($path))) {
-            mkdir(dirname($path), 0755, true);
-        }
-
-        $db = config('database.connections.mysql');
-        $command = sprintf(
-            'mysqldump -h%s -P%s -u%s %s %s > %s 2>&1',
-            escapeshellarg($db['host']),
-            escapeshellarg($db['port']),
-            escapeshellarg($db['username']),
-            $db['password'] ? '-p'.escapeshellarg($db['password']) : '',
-            escapeshellarg($db['database']),
-            escapeshellarg($path)
-        );
-
-        exec($command, $output, $exitCode);
-
-        if ($exitCode !== 0 || ! file_exists($path)) {
-            return back()->with('error', 'Backup failed. Ensure mysqldump is installed and accessible on the server.');
-        }
-
-        ActivityLog::record('exported', 'Database backup created and downloaded.');
-
-        return response()->download($path)->deleteFileAfterSend(true);
-    }
-
-    /**
-     * Restores the database from an uploaded .sql backup file.
-     * DESTRUCTIVE: overwrites current data. Super-Admin-only, confirmed client-side.
-     */
-    public function restoreDatabase(Request $request): RedirectResponse
-    {
-        $request->validate([
-            'backup_file' => ['required', 'file', 'mimes:sql', 'max:51200'],
-        ]);
-
-        $uploadPath = $request->file('backup_file')->store('restores', 'local');
-        $fullPath = storage_path('app/'.$uploadPath);
-
-        $db = config('database.connections.mysql');
-        $command = sprintf(
-            'mysql -h%s -P%s -u%s %s %s < %s 2>&1',
-            escapeshellarg($db['host']),
-            escapeshellarg($db['port']),
-            escapeshellarg($db['username']),
-            $db['password'] ? '-p'.escapeshellarg($db['password']) : '',
-            escapeshellarg($db['database']),
-            escapeshellarg($fullPath)
-        );
-
-        exec($command, $output, $exitCode);
-        Storage::disk('local')->delete($uploadPath);
-
-        if ($exitCode !== 0) {
-            return back()->with('error', 'Restore failed. Please verify the backup file is valid.');
-        }
-
-        ActivityLog::record('restored', 'Database restored from uploaded backup file.');
-
-        return back()->with('success', 'Database restored.');
-    }
 
     // --- Authentication (self-service: change your OWN email/password) ---
 

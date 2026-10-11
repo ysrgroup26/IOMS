@@ -45,8 +45,10 @@ const routes = {
     'settings.users.store': '/settings/users',
     'settings.users.update': '/settings/users/:user',
     'settings.users.destroy': '/settings/users/:user',
-    'settings.backup': '/settings/backup',
-    'settings.restore': '/settings/restore',
+    // SEC-010 (v2.108.2): backup/restore moved to the platform console.
+    'platform.database': '/platform/database',
+    'platform.database.backup': '/platform/database/backup',
+    'platform.database.restore': '/platform/database/restore',
 };
 
 export function route(name, params) {

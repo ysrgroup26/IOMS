@@ -15,7 +15,7 @@ import { Select, SelectTrigger, SelectValue, SelectContent, SelectItem } from '@
 import { Table, TableHeader, TableBody, TableRow, TableHead, TableCell } from '@/Components/ui/table';
 import { Checkbox } from '@/Components/ui/checkbox';
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogFooter, DialogTrigger } from '@/Components/ui/dialog';
-import { Plus, Trash2, Pencil, Download, Upload, Loader2, Lock, Search, AppWindow, FileSignature, Palette, Info } from 'lucide-react';
+import { Plus, Trash2, Pencil, Loader2, Lock, Search, AppWindow, FileSignature, Palette, Info } from 'lucide-react';
 import { FormSection, FormField, FormActions, ErrorSummary, SearchableSelect } from '@/Components/shared/form';
 import { useUnsavedChanges } from '@/lib/useUnsavedChanges';
 import { WORKSPACES } from '@/lib/workspaces';
@@ -91,7 +91,11 @@ export default function SettingsIndex({ company, companies, departments, positio
         'authentication',
         ...(canSystem || canPtwAccess ? ['users'] : []),
         ...(canSystem
-            ? ['roles', 'numbering', 'approval-flows', 'notifications', 'documents', 'field-mapping', 'subscription', 'backup']
+            // SEC-010 (v2.108.2): the Backup & Restore tab was removed from
+            // here. A whole-database dump is installation-wide and now lives
+            // on the platform console; a customer administrator never had any
+            // business holding a copy of every other customer's data.
+            ? ['roles', 'numbering', 'approval-flows', 'notifications', 'documents', 'field-mapping', 'subscription']
             : []),
     ];
     const requestedTab = new URLSearchParams(window.location.search).get('tab');
@@ -101,7 +105,7 @@ export default function SettingsIndex({ company, companies, departments, positio
         <AuthenticatedLayout>
             <Head title="Settings" />
 
-            <PageHeader title="Settings" subtitle="Company info, master data, users, and backups." />
+            <PageHeader title="Settings" subtitle="Company info, master data, and users." />
 
             <Tabs.Root
                 defaultValue={initialTab}
@@ -143,7 +147,6 @@ export default function SettingsIndex({ company, companies, departments, positio
                     {canSystem && <TabDivider />}
 
                     {canSystem && <Tabs.Trigger value="subscription" className={TAB_CLASS}>Subscription</Tabs.Trigger>}
-                    {canSystem && <Tabs.Trigger value="backup" className={TAB_CLASS}>Backup &amp; Restore</Tabs.Trigger>}
                 </Tabs.List>
 
                 {canSystem && <Tabs.Content value="branding"><BrandingTab company={company} /></Tabs.Content>}
@@ -166,7 +169,6 @@ export default function SettingsIndex({ company, companies, departments, positio
                 {canSystem && <Tabs.Content value="documents"><DocumentTemplatesTab documentTemplates={documentTemplates} moduleKeys={documentModuleKeys} /></Tabs.Content>}
                 {canSystem && <Tabs.Content value="field-mapping"><FieldMappingTab fieldMappings={fieldMappings} /></Tabs.Content>}
                 {canSystem && <Tabs.Content value="subscription"><SubscriptionTab subscription={subscription} invoices={invoices} /></Tabs.Content>}
-                {canSystem && <Tabs.Content value="backup"><BackupTab /></Tabs.Content>}
             </Tabs.Root>
         </AuthenticatedLayout>
     );
@@ -2761,35 +2763,3 @@ function SubscriptionTab({ subscription, invoices }) {
     );
 }
 
-function BackupTab() {
-    const { data, setData, post, processing } = useForm({ backup_file: null });
-
-    function restore(e) {
-        e.preventDefault();
-        if (!confirm('Ini akan menimpa database saat ini. Lanjutkan?')) return;
-        post(route('settings.restore'), { forceFormData: true });
-    }
-
-    return (
-        <div className="grid grid-cols-1 gap-4 sm:grid-cols-2">
-            <Card>
-                <CardHeader><CardTitle>Backup Database</CardTitle><CardDescription>Download a full SQL dump of the database.</CardDescription></CardHeader>
-                <CardContent>
-                    <Button asChild><a href={route('settings.backup')}><Download className="h-4 w-4" /> Download Backup</a></Button>
-                </CardContent>
-            </Card>
-            <Card>
-                <CardHeader><CardTitle>Restore Database</CardTitle><CardDescription>Upload a .sql backup file. This will overwrite current data.</CardDescription></CardHeader>
-                <CardContent>
-                    <form onSubmit={restore} className="space-y-3">
-                        <Input type="file" accept=".sql" onChange={(e) => setData('backup_file', e.target.files[0])} />
-                        <Button type="submit" variant="destructive" disabled={processing || !data.backup_file}>
-                            {processing && <Loader2 className="h-4 w-4 animate-spin" />}
-                            <Upload className="h-4 w-4" /> Restore
-                        </Button>
-                    </form>
-                </CardContent>
-            </Card>
-        </div>
-    );
-}

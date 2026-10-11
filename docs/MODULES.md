@@ -1679,6 +1679,11 @@ convention. Deliberately minimal for now (no comments/attachments/history on tas
 
 ## Settings
 
+> **SEC-010 (v2.108.2): whole-database backup and restore is NOT part of Settings.** It was, gated
+> only by `role:super_admin` — a customer role — while `mysqldump` dumps every tenant at once. It now
+> lives at `/platform/database` behind `role:platform_admin` (`PlatformDatabaseController`), with the
+> shell work in `DatabaseBackupService` and the destructive-action guards in `RestoreDatabaseRequest`.
+
 **Department:** Administration. As of v1.9.0, Administration's sidebar has one item per tab
 (Users, Departments, Positions, Companies, Module Management) plus a plain "Settings" item — all six
 route to this SAME page (`settings.index`) with a different `?tab=` query param, reusing its existing

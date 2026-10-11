@@ -28,9 +28,7 @@ use Inertia\Response;
  */
 class PtwQuotaController extends Controller
 {
-    public function __construct(private readonly PtwQuotaService $quota)
-    {
-    }
+    public function __construct(private readonly PtwQuotaService $quota) {}
 
     /** The balance, the packs, and recent consumption. */
     public function show(Request $request): Response
@@ -42,7 +40,26 @@ class PtwQuotaController extends Controller
 
         $recent = PtwQuotaConsumption::query()
             ->where('tenant_id', $tenant?->id)
-            ->with(['permit:id,ptw_number,title', 'consumer:id,name'])
+            /*
+             * QA-007 (v2.108.2) -- `title` IS NOT A COLUMN ON THIS TABLE.
+             *
+             * This asked for `permit:id,ptw_number,title`. `permits_to_work`
+             * has `ptw_number` and `work_description`; it has never had a
+             * `title`. MySQL refuses the select outright ("Unknown column
+             * 'title' in 'field list'") so this page answered 500 for every
+             * tenant that had ever consumed a document.
+             *
+             * It passed on SQLite -- and so did the whole suite -- because
+             * Laravel quotes identifiers with double quotes and SQLite reads
+             * a double-quoted identifier that matches no column as a STRING
+             * LITERAL. The query returned the word "title" in a column
+             * called `title`, the relation hydrated, the page rendered.
+             *
+             * The column is simply dropped rather than swapped for
+             * `work_description`: nothing below reads it, and a permit's
+             * description is a TEXT column that this list does not show.
+             */
+            ->with(['permit:id,ptw_number', 'consumer:id,name'])
             ->latest('id')
             ->limit(20)
             ->get()

@@ -684,6 +684,39 @@ class UserClassAndPtwQuotaTest extends TestCase
             ->assertInertia(fn ($page) => $page->where('balance.metered', false));
     }
 
+    /**
+     * QA-007 -- THE QUOTA PAGE 500s ON MYSQL AND RENDERS ON SQLITE.
+     *
+     * `PtwQuotaController::show()` eager-loaded `permit:id,ptw_number,title`
+     * and `permits_to_work` has no `title` column (the field is
+     * `work_description`). MySQL answers `Unknown column 'title' in 'field
+     * list'`; SQLite reads an unresolvable double-quoted identifier as a
+     * STRING LITERAL and hands back the word "title", so the page rendered
+     * and the suite stayed green while the page was broken in production
+     * for every tenant with a consumption row.
+     *
+     * This asserts the ordinary path -- a LIVE permit -- and reads the row
+     * back out of the props, so the select list has to be one the database
+     * will actually serve.
+     */
+    public function test_the_quota_page_lists_recent_consumption_of_a_live_permit(): void
+    {
+        $tenant = $this->tenantOn('starter');
+        $admin = $this->userOn($tenant, User::TYPE_FULL, ['role' => 'super_admin']);
+
+        $permit = $this->permitFor($tenant);
+        app(PtwQuotaService::class)->consume($tenant, $permit);
+
+        $response = $this->actingAs($admin)->get(route('permits-to-work.quota'));
+
+        $response->assertOk();
+
+        $recent = $response->viewData('page')['props']['recent'];
+
+        $this->assertCount(1, $recent);
+        $this->assertSame($permit->ptw_number, $recent[0]['ptw_number']);
+    }
+
     public function test_the_quota_page_survives_a_deleted_permit(): void
     {
         $tenant = $this->tenantOn('starter');

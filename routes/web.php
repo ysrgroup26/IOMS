@@ -70,6 +70,7 @@ use App\Http\Controllers\RiskAssessmentController;
 use App\Http\Controllers\SafetyEquipmentController;
 use App\Http\Controllers\NotificationController;
 use App\Http\Controllers\PlatformController;
+use App\Http\Controllers\PlatformDatabaseController;
 use App\Http\Controllers\PlatformSupportController;
 use App\Http\Controllers\PpeController;
 use App\Http\Controllers\PaymentWebhookController;
@@ -1107,8 +1108,22 @@ Route::middleware(['auth', 'restrict.platform-admin'])->group(function () {
         Route::put('/settings/users/{user}', [SettingsController::class, 'updateUser'])->name('settings.users.update');
         Route::delete('/settings/users/{user}', [SettingsController::class, 'destroyUser'])->name('settings.users.destroy');
 
-        Route::get('/settings/backup', [SettingsController::class, 'backupDatabase'])->name('settings.backup');
-        Route::post('/settings/restore', [SettingsController::class, 'restoreDatabase'])->name('settings.restore');
+        /*
+         * SEC-010 (v2.108.2): `/settings/backup` and `/settings/restore`
+         * USED TO BE HERE, and that was the whole fault.
+         *
+         * `super_admin` is a CUSTOMER role. The handlers behind these two
+         * routes ran `mysqldump` and `mysql <` against the entire
+         * connection, which knows nothing about tenancy -- so one
+         * customer's administrator could download every other customer's
+         * data and overwrite the database for all of them.
+         *
+         * They now live on the platform surface behind
+         * `role:platform_admin`: see PlatformDatabaseController and
+         * `platform.database.*` further down this file. Deliberately left
+         * as a comment rather than deleted silently, so the next person to
+         * look for them finds out where they went and why.
+         */
     });
 
     // v2.19.0 (PTW Access Management Correction pass, Part 1/2). Was
@@ -1355,6 +1370,17 @@ Route::middleware(['auth', 'role:platform_admin'])->prefix('platform')->name('pl
     Route::post('/support/{ticket}/reply', [PlatformSupportController::class, 'reply'])->name('support.reply');
     Route::put('/support/{ticket}', [PlatformSupportController::class, 'update'])->name('support.update');
     Route::put('/support/{ticket}/associate', [PlatformSupportController::class, 'associate'])->name('support.associate');
+
+    /*
+     * SEC-010 (v2.108.2): whole-database backup and restore. Installation
+     * wide by nature -- mysqldump has no notion of a tenant -- so it sits
+     * behind this group's `role:platform_admin` gate and nowhere else.
+     * Moved out of the customer-facing Settings page, where any tenant
+     * administrator could reach it. See PlatformDatabaseController.
+     */
+    Route::get('/database', [PlatformDatabaseController::class, 'show'])->name('database');
+    Route::get('/database/backup', [PlatformDatabaseController::class, 'backup'])->name('database.backup');
+    Route::post('/database/restore', [PlatformDatabaseController::class, 'restore'])->name('database.restore');
 
     Route::get('/plans', [PlatformController::class, 'plans'])->name('plans');
     Route::post('/plans', [PlatformController::class, 'storePlan'])->name('plans.store');

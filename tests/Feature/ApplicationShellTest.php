@@ -75,9 +75,16 @@ class ApplicationShellTest extends TestCase
 
         $header = substr($layout, $start, $end - $start);
 
+        /*
+         * v2.109.0: the Calendar shortcut was removed from the header --
+         * the calendar is a real month grid inside the HSE Overview now,
+         * not a link in the top bar. Its marker is dropped from this list
+         * because the control no longer exists; the RULE this test exists
+         * for (every fixed header control carries `shrink-0`) is unchanged
+         * and still asserted against every control that remains.
+         */
         foreach ([
             'Menu className',            // hamburger
-            'CalendarDays className',     // Calendar
         ] as $marker) {
             $this->assertStringContainsString($marker, $header, "The header no longer contains {$marker}.");
         }

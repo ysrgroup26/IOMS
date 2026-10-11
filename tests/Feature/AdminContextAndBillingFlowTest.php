@@ -113,8 +113,23 @@ class AdminContextAndBillingFlowTest extends TestCase
 
         $this->assertStringContainsString("auth?.user?.has_global_dashboard && space !== 'admin'", $layout,
             'The Global Dashboard link must not be offered inside Admin Space.');
-        $this->assertStringContainsString("{space !== 'admin' && (\n                <Link\n                    href={route('calendar.index')}", $layout,
-            'The Calendar link must not be offered inside Admin Space.');
+        /*
+         * v2.109.0 -- THE CALENDAR LINK LEFT THE HEADER ENTIRELY.
+         *
+         * This used to assert the link was wrapped in `space !== 'admin'`,
+         * which was the only way to express "not offered inside Admin
+         * Space" while it still existed in the top bar. The HSE Overview
+         * redesign removed it from the header altogether and put a real
+         * month grid inside the Overview instead.
+         *
+         * The assertion is STRONGER now, not weaker: "absent from the
+         * header everywhere" implies "absent inside Admin Space", and it
+         * cannot be satisfied by a link that is merely conditional. The
+         * route itself is untouched and still reachable from the sidebar
+         * and from the Overview's calendar.
+         */
+        $this->assertStringNotContainsString("route('calendar.index')", $layout,
+            'The header must not carry a Calendar shortcut at all -- the calendar lives inside the HSE Overview.');
     }
 
     /** Exactly one of the two contexts is lit, and the state is announced. */

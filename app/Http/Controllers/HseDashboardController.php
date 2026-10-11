@@ -16,6 +16,9 @@ use App\Models\WasteRecord;
 use App\Models\WasteType;
 use App\Services\CalendarService;
 use App\Services\DashboardStatsService;
+use Illuminate\Http\Request;
+use Illuminate\Support\Carbon;
+use Illuminate\Support\Collection;
 use Inertia\Inertia;
 use Inertia\Response;
 
@@ -49,9 +52,21 @@ class HseDashboardController extends Controller
         private readonly CalendarService $calendar,
     ) {}
 
-    public function index(): Response
+    public function index(Request $request): Response
     {
-        $companyIds = $this->dashboardStats->resolveCompanyIds(null);
+        /*
+         * v2.109.0 -- THE OVERVIEW CAN NOW BE NARROWED TO ONE OPERATING UNIT.
+         *
+         * `resolveCompanyIds()` already took an optional company id and is
+         * the same tenant-safe helper the main Dashboard filters with; this
+         * page simply never passed one. Nothing about the scoping rules
+         * changed: a null company id still means "every company this tenant
+         * owns", and an id belonging to another tenant resolves to an empty
+         * list rather than that tenant's data.
+         */
+        $user = $request->user();
+        $companyId = $request->input('company_id') ? (int) $request->input('company_id') : null;
+        $companyIds = $this->dashboardStats->resolveCompanyIds($companyId);
 
         $openIncidents = Incident::where(fn ($q) => $q->whereIn('company_id', $companyIds)->orWhereNull('company_id'))
             ->whereIn('status', [Incident::STATUS_REPORTED, Incident::STATUS_INVESTIGATING]);
@@ -176,11 +191,180 @@ class HseDashboardController extends Controller
                         ->count(),
                 ];
             })(),
+            /*
+             * v2.109.0 -- THE FILTER'S OWN INPUTS.
+             *
+             * `Company::active()` is tenant-scoped by TenantScope, so this
+             * list can only ever name companies the viewer already sees.
+             */
+            'companies' => Company::active()->orderBy('name')->get(['id', 'name']),
+            'filters' => ['company_id' => $companyId],
+
+            /*
+             * v2.109.0 -- TWELVE MONTHS OF REAL ACTIVITY, GROUPED IN PHP.
+             *
+             * Four series the Overview already counts as "open right now",
+             * read here as "raised per month" so the page can show a trend
+             * rather than four more totals. Each row carries the date the
+             * module itself treats as the operational one: an incident's
+             * `incident_date`, an observation's `observed_at`, a permit's
+             * `start_datetime`, and a CAPA's `created_at` -- CAPA has no
+             * raised-date column, and `due_date` is a different fact, so
+             * the honest answer is when the record was made.
+             *
+             * GROUPED IN PHP ON PURPOSE. The obvious implementation is
+             * `DATE_FORMAT(date, '%Y-%m')`, which is MySQL-only and would
+             * make this page untestable on the suite's SQLite connection --
+             * exactly the portability trap recorded in CONVENTIONS.md. One
+             * date column over twelve months is a small read.
+             *
+             * `has_data` lets the chart tell an empty system from a quiet
+             * one, rather than drawing twelve months of zeroes.
+             */
+            'safetyTrend' => $this->safetyTrend($companyIds),
+
+            /*
+             * v2.109.0 -- THE CALENDAR MOVED INTO THIS PAGE.
+             *
+             * The Overview used to receive `departmentEvents()`: the next
+             * six HSE events in twenty-one days, which is a list, not a
+             * calendar. A month grid needs a month, and navigating needs
+             * the months either side, so this asks the SAME aggregation for
+             * a three-month window. No new source, no new filter: it is
+             * `CalendarService::departmentEventsBetween()`, which is
+             * `departmentEvents()` with the window passed in rather than
+             * assumed.
+             *
+             * Three months, not twelve: the widget navigates within what it
+             * was given and links to the full Calendar for anything beyond,
+             * so the page never pays for months nobody opens.
+             */
+            'calendar' => [
+                'events' => $this->calendar->departmentEventsBetween(
+                    $companyIds,
+                    'hse',
+                    now()->startOfMonth()->subMonth(),
+                    now()->endOfMonth()->addMonth(),
+                ),
+                'window' => [
+                    'start' => now()->startOfMonth()->subMonth()->toDateString(),
+                    'end' => now()->endOfMonth()->addMonth()->toDateString(),
+                ],
+                'today' => now()->toDateString(),
+            ],
+
+            /*
+             * v2.109.0 -- QUICK ACCESS, GATED SERVER-SIDE.
+             *
+             * Built here rather than in the page because authorization is
+             * a server question: each entry uses the SAME predicate the
+             * destination route already enforces, so a visible tile can
+             * never lead to a 403 and a hidden one never hides a route the
+             * account could use. The page maps `key` to an icon and an
+             * accent; it decides nothing about access.
+             *
+             * CAPA LINKS TO ITS REGISTER, NOT TO A CREATE FORM. There is no
+             * `corrective-actions.create` route -- a CAPA is raised FROM an
+             * incident, observation or inspection, never from nothing -- so
+             * offering "New CAPA" would be a button for a page that does
+             * not exist.
+             */
+            'quickAccess' => collect([
+                ['key' => 'incident', 'label' => 'Report Incident', 'href' => route('incidents.create'), 'allowed' => $user->canManageIncidents()],
+                ['key' => 'observation', 'label' => 'Create Observation', 'href' => route('safety-observations.create'), 'allowed' => $user->canManageSafetyObservations()],
+                ['key' => 'capa', 'label' => 'CAPA Register', 'href' => route('corrective-actions.index'), 'allowed' => true],
+                ['key' => 'ptw', 'label' => 'Create PTW', 'href' => route('permits-to-work.create'), 'allowed' => $user->canCreatePtw()],
+                ['key' => 'ppe', 'label' => 'PPE Management', 'href' => route('ppe.dashboard'), 'allowed' => true],
+                ['key' => 'reports', 'label' => 'View Reports', 'href' => route('reports.index'), 'allowed' => true],
+            ])->filter(fn (array $a) => $a['allowed'])
+                ->map(fn (array $a) => ['key' => $a['key'], 'label' => $a['label'], 'href' => $a['href']])
+                ->values()
+                ->all(),
+
             // v2.71.0: gates the Overview's own HSE Administration row.
             // Same capability the destination routes enforce themselves --
             // this only decides whether the shortcut is worth showing, and
             // shows nothing an ordinary viewer could act on anyway.
             'canManageHse' => auth()->user()->canManageHse(),
         ]);
+    }
+
+    /**
+     * Twelve months of "raised per month" for the four HSE record types
+     * this Overview already reports on.
+     *
+     * @param  Collection<int, int>|array<int, int>  $companyIds
+     * @return array{labels: list<string>, series: list<array{key: string, label: string, data: list<int>}>, has_data: bool}
+     */
+    private function safetyTrend($companyIds): array
+    {
+        $start = now()->startOfMonth()->subMonths(11);
+
+        $months = [];
+        for ($i = 0; $i < 12; $i++) {
+            $months[] = $start->copy()->addMonths($i)->format('Y-m');
+        }
+
+        /** Counts one date column into the month buckets above. */
+        $bucket = function (iterable $dates) use ($months): array {
+            $counts = array_fill_keys($months, 0);
+
+            foreach ($dates as $date) {
+                if ($date === null) {
+                    continue;
+                }
+
+                $key = Carbon::parse($date)->format('Y-m');
+
+                if (array_key_exists($key, $counts)) {
+                    $counts[$key]++;
+                }
+            }
+
+            return array_values($counts);
+        };
+
+        $incidents = $bucket(
+            Incident::where(fn ($q) => $q->whereIn('company_id', $companyIds)->orWhereNull('company_id'))
+                ->whereNotNull('incident_date')
+                ->where('incident_date', '>=', $start)
+                ->pluck('incident_date')
+        );
+
+        $observations = $bucket(
+            SafetyObservation::whereIn('company_id', $companyIds)
+                ->whereNotNull('observed_at')
+                ->where('observed_at', '>=', $start)
+                ->pluck('observed_at')
+        );
+
+        $permits = $bucket(
+            PermitToWork::whereIn('company_id', $companyIds)
+                ->whereNotNull('start_datetime')
+                ->where('start_datetime', '>=', $start)
+                ->pluck('start_datetime')
+        );
+
+        $capa = $bucket(
+            CorrectiveAction::whereIn('company_id', $companyIds)
+                ->where('created_at', '>=', $start)
+                ->pluck('created_at')
+        );
+
+        $series = [
+            ['key' => 'incidents', 'label' => 'Incidents', 'data' => $incidents],
+            ['key' => 'observations', 'label' => 'Observations', 'data' => $observations],
+            ['key' => 'capa', 'label' => 'CAPA', 'data' => $capa],
+            ['key' => 'permits', 'label' => 'Permits to Work', 'data' => $permits],
+        ];
+
+        return [
+            'labels' => $months,
+            'series' => $series,
+            // False when every series is empty for the whole window: the
+            // chart then says so instead of drawing a flat line at zero,
+            // which an empty system must never be shown as.
+            'has_data' => collect($series)->flatMap(fn (array $s) => $s['data'])->sum() > 0,
+        ];
     }
 }

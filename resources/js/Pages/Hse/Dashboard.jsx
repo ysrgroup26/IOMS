@@ -1,32 +1,30 @@
-import { Head, Link } from '@inertiajs/react';
+import { Head, Link, router, usePage } from '@inertiajs/react';
+import { humanizeToken } from '@/lib/humanizeToken';
 import AuthenticatedLayout from '@/Layouts/AuthenticatedLayout';
-import DashboardShell from '@/Components/shared/DashboardShell';
-import StatCard from '@/Components/shared/StatCard';
-import StatusBadge from '@/Components/shared/StatusBadge';
-import ActivityList from '@/Components/shared/ActivityList';
-import { Card, CardContent, CardHeader, CardTitle, CardDescription } from '@/Components/ui/card';
 import ModuleCard from '@/Components/shared/ModuleCard';
-import DepartmentCalendarWidget from '@/Components/shared/DepartmentCalendarWidget';
+import ActivityList from '@/Components/shared/ActivityList';
+import StatusBadge from '@/Components/shared/StatusBadge';
+import { Card, CardContent, CardHeader, CardTitle, CardDescription } from '@/Components/ui/card';
+import { Select, SelectTrigger, SelectValue, SelectContent, SelectItem } from '@/Components/ui/select';
+import KpiTile from '@/Components/hse-overview/KpiTile';
+import SafetyTrendChart from '@/Components/hse-overview/SafetyTrendChart';
+import PriorityActions from '@/Components/hse-overview/PriorityActions';
+import OverviewCalendar from '@/Components/hse-overview/OverviewCalendar';
+import ManHourPanel from '@/Components/hse-overview/ManHourPanel';
+import QuickAccess from '@/Components/hse-overview/QuickAccess';
 import {
-    FolderKanban, AlertTriangle, HardHat, History, Eye, Flame, ShieldAlert, ClipboardCheck,
-    ClipboardList, FileWarning, Lock, UsersRound, FlaskConical, UserCheck, FileCheck, FileStack, Recycle, Clock, PackageSearch, Users, ShieldCheck,
+    AlertTriangle, HardHat, History, Eye, Flame, ShieldAlert, ClipboardCheck,
+    ClipboardList, FileWarning, Lock, UsersRound, FlaskConical, UserCheck, FileCheck,
+    FileStack, Recycle, PackageSearch, ShieldCheck, Recycle as RecycleIcon, LayoutGrid,
+    FileBarChart, PlusCircle, Building2, Info,
 } from 'lucide-react';
 
 /* v2.68.0 -- LANGUAGE HIERARCHY (v2.53.0) APPLIED HERE AT LAST.
-   These titles were translated wholesale in v1.11.7 under the older
-   "standardize on Bahasa Indonesia" policy. v2.53.0 replaced that with
-   the split this codebase actually follows now: ENGLISH for module and
-   feature names, navigation, headers, stat and status labels, action
-   labels; INDONESIAN for explanatory sentences, help text and guidance.
-   The department Overview pages were the last surface still running the
-   abandoned policy, so the sidebar said "CAPA" and the card beneath it
-   said "Tindakan Perbaikan" -- the same destination, named twice, in two
-   languages, on one screen.
-   Each `title` below is now the name of the page it navigates to (see
-   that page's own <Head title>), which is the property that makes a menu
-   item and its destination verifiably the same thing. Every
-   `description` stays Indonesian: it is explanatory copy, which the
-   policy assigns to Indonesian deliberately. */
+   ENGLISH for module and feature names, navigation, headers, stat and
+   status labels, action labels; INDONESIAN for explanatory sentences,
+   help text and guidance. Each `title` below is the name of the page it
+   navigates to, which is the property that makes a menu item and its
+   destination verifiably the same thing. */
 const HSE_MODULES = [
     { icon: Eye, title: 'Safety Observation', description: 'Pelaporan bahaya/nyaris celaka satu klik.', href: 'safety-observations.index' },
     { icon: ClipboardCheck, title: 'HSE Inspection', description: 'Inspeksi terjadwal dengan temuan.', href: 'hse-inspections.index' },
@@ -41,269 +39,393 @@ const HSE_MODULES = [
     { icon: UserCheck, title: 'Contractor Management', description: 'Register kontraktor, pekerja, dokumen.', href: 'contractors.index' },
     { icon: FileCheck, title: 'Visitor Management', description: 'Register akses lokasi.', href: 'visitors.index' },
     { icon: FileStack, title: 'Document Control', description: 'Dokumen terkendali dengan riwayat versi.', href: 'controlled-documents.index' },
-    // v2.71.0 -- HSE raises material requests and had no entry point here
-    // or in its own sidebar. See RestrictDepartmentAccess::UNIVERSAL_PREFIXES
-    // for why the route was unreachable for HSE on the Starter and
-    // Professional plans until this release.
     { icon: PackageSearch, title: 'Material Request', description: 'Pengajuan kebutuhan barang dan material HSE.', href: 'material-requests.index' },
 ];
 
 /**
- * v2.84.1 -- ADMINISTRATIVE AUTHORITY BELONGS TO ADMIN SPACE.
- *
- * "Field & PTW Access" was USER ADMINISTRATION living inside an
- * operational workspace: it opened Settings > Users, where accounts are
- * created, roles are assigned and access is granted. v2.71.0 added it here
- * because HSE owns the PTW capability and could not find the screen that
- * grants it -- a real problem, solved in the wrong place.
- *
- * Admin Space now exists and is where the account is administered, so the
- * answer is a context switch rather than a second door. An HSE lead who
- * also administers the tenant opens Admin Space; one who does not never
- * needed this link. The PERMISSION is untouched -- `settings.users.ptw-access`
- * keeps the exact route gate it has always had.
- *
- * What remains is operational: HSE's own master data.
+ * v2.109.0 -- Quick Access presentation. The SERVER decides which of
+ * these exist (see HseDashboardController's `quickAccess`); this map only
+ * says what each one looks like. A key the server stops sending simply
+ * stops rendering.
  */
-const HSE_ADMIN_LINKS = [
-    { icon: ShieldCheck, title: 'Safety Equipment & Compliance', description: 'Register peralatan keselamatan dan data acuan HSE.', href: 'hse.master' },
-];
+const QUICK_ACCESS_STYLE = {
+    incident: { icon: AlertTriangle, accent: 'red' },
+    observation: { icon: Eye, accent: 'amber' },
+    capa: { icon: ClipboardCheck, accent: 'violet' },
+    ptw: { icon: Flame, accent: 'blue' },
+    ppe: { icon: HardHat, accent: 'green' },
+    reports: { icon: FileBarChart, accent: 'blue' },
+};
 
 /**
- * HSE Dashboard (v1.10.0, redesigned v1.11.5 -- Dashboard UX Completion,
- * Phase 2). Restructured from "row of stat cards + row of list cards"
- * into an operational hierarchy: compact KPI strip -> Safety Performance
- * (status breakdown) -> Action Required (real overdue items, actionable/
- * clickable) -> HSE Activity -> Waste + Calendar. Every number here was
- * already real before this pass (see HseDashboardController's own doc
- * comment for the tenant-scoping history); this pass only changes HOW
- * they're organized and adds one new real data source (`actionRequired`,
- * built from the same WHERE clauses the existing overdue counts already
- * used, not new query logic).
+ * HSE OVERVIEW -- v2.109.0 REDESIGN.
+ *
+ * THE ORDER OF THIS PAGE IS A DECISION, NOT A LAYOUT. Reading down:
+ * what is wrong right now (KPIs), what is already late (Priority
+ * Actions), what is coming (Calendar), how the trend is moving
+ * (Performance), what the exposure base is (Man-Hour), and what you
+ * might start (Quick Access). The old page opened with six equally
+ * weighted cards followed by four panels of the same size, so nothing
+ * was more important than anything else and the first screen answered
+ * no question in particular.
+ *
+ * EVERY NUMBER IS A PROP. Nothing on this page is computed in the
+ * browser except presentation: the day an event falls on, how late an
+ * overdue item is, and which tail of the trend to draw. No metric is
+ * derived, combined or estimated client-side, because a figure invented
+ * in React is a figure nobody can audit.
+ *
+ * SCOPED STYLING. Every new visual lives in
+ * `Components/hse-overview/`; the shared `StatCard`, `ModuleCard`,
+ * `ActivityList` and `Card` primitives other modules render with are
+ * untouched, so this redesign changes how the HSE Overview looks and
+ * nothing else in the product.
  */
 export default function HseDashboard({
-    openIncidentsCount, incidentsBySeverity, ppeAlertCount,
-    recentIncidents, recentActivity, openSafetyObservationsCount, recentSafetyObservations,
-    openPermitsCount, overdueSafetyEquipmentCount, overdueP3kCount, openCapaCount, actionRequired,
-    manHours, safetyKpi, departmentCalendar, wasteSummary, canManageHse,
+    openIncidentsCount, incidentsBySeverity, ppeAlertCount, recentIncidents,
+    openSafetyObservationsCount, recentSafetyObservations, recentActivity,
+    openPermitsCount, overdueSafetyEquipmentCount, overdueP3kCount, openCapaCount,
+    actionRequired, manHours, safetyKpi, wasteSummary, canManageHse,
+    safetyTrend, calendar, quickAccess = [], companies = [], filters = {},
 }) {
+    const { auth, readiness } = usePage().props;
+    const criticalIncidents = incidentsBySeverity?.critical ?? 0;
+
+    const quickActions = quickAccess
+        .filter((action) => QUICK_ACCESS_STYLE[action.key])
+        .map((action) => ({ ...action, ...QUICK_ACCESS_STYLE[action.key] }));
+
+    /* The operating-unit filter is a server round trip, because the
+       figures it changes are counted on the server. `preserveState` keeps
+       the calendar's selected day and the chart's range across it. */
+    function applyCompany(value) {
+        router.get(
+            route('hse.dashboard'),
+            value === 'all' ? {} : { company_id: value },
+            { preserveState: true, preserveScroll: true, replace: true }
+        );
+    }
+
+    const selectedCompany = filters?.company_id ? String(filters.company_id) : 'all';
+
     return (
         <AuthenticatedLayout>
             <Head title="HSE Overview" />
-            <DashboardShell title="HSE Overview" subtitle="Status keselamatan operasional.">
-                {/* LEVEL 1 -- compact KPI strip */}
-                {/* v1.11.8 (Enterprise UI/UX Refinement, Part 9): a zero/clear
-                    count now reads as `green` (healthy) instead of falling
-                    back to the default blue brand color -- makes "nothing
-                    wrong right now" visually distinct from "here's a
-                    number to look at" everywhere else on the page. */}
-                <div className="grid grid-cols-2 gap-3 lg:grid-cols-6">
-                    <StatCard icon={AlertTriangle} value={openIncidentsCount} label="Open Incidents" accent={openIncidentsCount > 0 ? 'red' : 'green'} href={route('incidents.index')} />
-                    <StatCard icon={AlertTriangle} value={incidentsBySeverity?.critical ?? 0} label="Critical Incidents" accent={(incidentsBySeverity?.critical ?? 0) > 0 ? 'red' : 'green'} href={route('incidents.index', { severity: 'critical' })} />
-                    <StatCard icon={Eye} value={openSafetyObservationsCount} label="Open Observations" accent={openSafetyObservationsCount > 0 ? 'amber' : 'green'} href={route('safety-observations.index')} />
-                    <StatCard icon={ClipboardCheck} value={openCapaCount} label="Open CAPA" accent={openCapaCount > 0 ? 'amber' : 'green'} href={route('corrective-actions.index')} />
-                    <StatCard icon={Flame} value={openPermitsCount} label="Active Permits" href={route('permits-to-work.index')} />
-                    <StatCard icon={HardHat} value={ppeAlertCount} label="PPE Alerts" accent={ppeAlertCount > 0 ? 'amber' : 'green'} href={route('ppe.dashboard')} />
+
+            {/* ---------------------------------------------------------- */
+            /* A. Introduction -- compact, one row on desktop.              */
+            /* The old page spent a full-width hero card on a greeting;     */
+            /* this states what the page is, what it is scoped to, and      */
+            /* gets out of the way so the KPIs are above the fold.          */
+            /* ---------------------------------------------------------- */}
+            <section className="mb-4 flex flex-col gap-3 rounded-2xl border border-graphite-200/80 bg-gradient-to-br from-blue-50/60 via-white to-white p-4 shadow-[0_1px_2px_rgba(16,24,40,0.04)] dark:border-slate-800 dark:from-slate-900 dark:via-slate-900 dark:to-slate-900 sm:flex-row sm:items-center sm:justify-between">
+                <div className="min-w-0">
+                    <div className="flex items-center gap-2">
+                        <span className="inline-flex h-9 w-9 items-center justify-center rounded-xl bg-blue-600 text-white shadow-sm">
+                            <ShieldCheck className="h-[18px] w-[18px]" />
+                        </span>
+                        <div className="min-w-0">
+                            <h1 className="truncate text-[17px] font-bold leading-tight text-graphite-900 dark:text-slate-50">HSE Overview</h1>
+                            <p className="mt-0.5 truncate text-[12px] text-graphite-500 dark:text-slate-400">
+                                Kondisi keselamatan, pekerjaan yang terlambat, dan agenda HSE dalam satu halaman.
+                            </p>
+                        </div>
+                    </div>
                 </div>
 
-                {/* LEVEL 2/3 -- primary safety status + action required, side by side */}
-                <div className="grid grid-cols-1 gap-3 lg:grid-cols-2">
-                    <Card>
-                        <CardHeader className="pb-2">
-                            <CardTitle>Safety Performance</CardTitle>
-                            <CardDescription>Rincian status terkini di seluruh modul HSE</CardDescription>
-                        </CardHeader>
-                        <CardContent className="grid grid-cols-2 gap-2 text-sm sm:grid-cols-4">
-                            <div className="rounded-lg border border-graphite-100 p-2.5 dark:border-slate-800">
-                                <p className="text-xs text-graphite-400">Incidents</p>
-                                <p className="text-base font-semibold text-graphite-900 dark:text-slate-50">{openIncidentsCount}</p>
-                                <p className="text-[11px] text-graphite-400">{incidentsBySeverity?.critical ?? 0} critical</p>
-                            </div>
-                            <div className="rounded-lg border border-graphite-100 p-2.5 dark:border-slate-800">
-                                <p className="text-xs text-graphite-400">Observations</p>
-                                <p className="text-base font-semibold text-graphite-900 dark:text-slate-50">{openSafetyObservationsCount}</p>
-                                <p className="text-[11px] text-graphite-400">open</p>
-                            </div>
-                            <div className="rounded-lg border border-graphite-100 p-2.5 dark:border-slate-800">
-                                <p className="text-xs text-graphite-400">CAPA</p>
-                                <p className="text-base font-semibold text-graphite-900 dark:text-slate-50">{openCapaCount}</p>
-                                <p className="text-[11px] text-graphite-400">open</p>
-                            </div>
-                            <div className="rounded-lg border border-graphite-100 p-2.5 dark:border-slate-800">
-                                <p className="text-xs text-graphite-400">Permit To Work (PTW)</p>
-                                <p className="text-base font-semibold text-graphite-900 dark:text-slate-50">{openPermitsCount}</p>
-                                <p className="text-[11px] text-graphite-400">active</p>
-                            </div>
-                        </CardContent>
-                    </Card>
+                {/* Shown only when there is more than one operating unit to
+                    choose between -- a filter with one option is furniture. */}
+                {companies.length > 1 && (
+                    <div className="flex shrink-0 items-center gap-2">
+                        <Building2 className="h-3.5 w-3.5 text-graphite-400" />
+                        <Select value={selectedCompany} onValueChange={applyCompany}>
+                            <SelectTrigger className="h-9 w-full bg-white text-[12px] sm:w-52 dark:bg-slate-900">
+                                <SelectValue placeholder="Operating Unit" />
+                            </SelectTrigger>
+                            <SelectContent>
+                                <SelectItem value="all">All Operating Units</SelectItem>
+                                {companies.map((c) => (
+                                    <SelectItem key={c.id} value={String(c.id)}>{c.name}</SelectItem>
+                                ))}
+                            </SelectContent>
+                        </Select>
+                    </div>
+                )}
+            </section>
 
-                    <Card>
-                        <CardHeader className="pb-2">
-                            <CardTitle>Action Required</CardTitle>
-                            <CardDescription>Peralatan, P3K, dan CAPA yang terlambat, terlama dahulu</CardDescription>
-                        </CardHeader>
-                        <CardContent>
-                            <ActivityList
-                                items={actionRequired}
-                                getKey={(a, i) => i}
-                                getHref={(a) => a.href}
-                                emptyIcon={ShieldAlert}
-                                emptyTitle="Tidak ada yang terlambat saat ini"
-                                renderItem={(a) => (
-                                    <div className="flex items-center justify-between gap-2 py-2 text-sm">
-                                        <div className="min-w-0 flex-1">
-                                            <p className="truncate font-medium text-graphite-700 dark:text-slate-200">{a.label}</p>
-                                            <p className="text-xs text-red-500">{a.type}</p>
-                                        </div>
-                                        <span className="shrink-0 text-xs text-graphite-400">{new Date(a.date).toLocaleDateString('en-US', { day: 'numeric', month: 'short' })}</span>
-                                    </div>
-                                )}
-                            />
-                        </CardContent>
-                    </Card>
+            {/* PRESERVED FROM DashboardShell (v2.39.0), NOT DROPPED WITH IT.
+                This page no longer composes through that shared shell --
+                it has its own compact introduction above -- but the shell
+                also carried this notice, and it is the one thing on an
+                Overview that stops six green zeroes from being read as an
+                all-clear on a database with nothing in it. Browser-verified
+                on an empty tenant when it was written; re-homed here so the
+                HSE Overview keeps it while every other Overview keeps
+                getting it from the shell, unchanged. */}
+            {readiness?.is_operational === false && (
+                <div className="mb-4 flex items-start gap-2 rounded-xl border border-brand-200 bg-brand-50/60 px-3 py-2 dark:border-brand-900 dark:bg-brand-950/20">
+                    <Info className="mt-0.5 h-3.5 w-3.5 shrink-0 text-brand-500" />
+                    <p className="text-[11px] leading-snug text-graphite-700 dark:text-slate-300">
+                        Belum ada data workforce, jadi angka di bawah{' '}
+                        <span className="font-medium">belum mengukur apa pun</span> &mdash; nol di sini berarti{' '}
+                        <span className="font-medium">belum ada data</span>, bukan kondisi aman.{' '}
+                        <Link href={route('employees.index')} className="font-medium text-brand-700 underline-offset-2 hover:underline dark:text-brand-400">
+                            Tambah data karyawan
+                        </Link>
+                    </p>
+                </div>
+            )}
+
+            {/* ---------------------------------------------------------- */
+            /* B. Safety KPIs -- six counts, differentiated by meaning.     */
+            /* 2 / 3 / 6 columns so a phone shows pairs, a tablet shows     */
+            /* triples and a desktop shows the row, instead of six cards    */
+            /* squeezed to unreadable width.                                */
+            /* ---------------------------------------------------------- */}
+            <section className="mb-4 grid grid-cols-2 gap-3 sm:grid-cols-3 xl:grid-cols-6">
+                <KpiTile
+                    icon={AlertTriangle}
+                    value={criticalIncidents}
+                    label="Critical Incidents"
+                    reading={criticalIncidents > 0 ? 'Perlu tindakan segera' : 'Tidak ada yang kritis'}
+                    accent={criticalIncidents > 0 ? 'red' : 'green'}
+                    href={route('incidents.index', { severity: 'critical' })}
+                />
+                <KpiTile
+                    icon={ShieldAlert}
+                    value={openIncidentsCount}
+                    label="Open Incidents"
+                    reading="Dilaporkan atau sedang diinvestigasi"
+                    accent={openIncidentsCount > 0 ? 'red' : 'green'}
+                    href={route('incidents.index')}
+                />
+                <KpiTile
+                    icon={Eye}
+                    value={openSafetyObservationsCount}
+                    label="Open Observations"
+                    reading="Belum ditutup"
+                    accent={openSafetyObservationsCount > 0 ? 'amber' : 'green'}
+                    href={route('safety-observations.index')}
+                />
+                <KpiTile
+                    icon={ClipboardCheck}
+                    value={openCapaCount}
+                    label="Open CAPA"
+                    reading="Belum diverifikasi"
+                    accent={openCapaCount > 0 ? 'violet' : 'green'}
+                    href={route('corrective-actions.index')}
+                />
+                <KpiTile
+                    icon={Flame}
+                    value={openPermitsCount}
+                    label="Active Permits"
+                    reading="Disetujui atau sedang berjalan"
+                    accent="blue"
+                    href={route('permits-to-work.index')}
+                />
+                <KpiTile
+                    icon={HardHat}
+                    value={ppeAlertCount}
+                    label="PPE Alerts"
+                    reading="Akan atau sudah kedaluwarsa"
+                    accent={ppeAlertCount > 0 ? 'amber' : 'green'}
+                    href={route('ppe.dashboard')}
+                />
+            </section>
+
+            {/* ---------------------------------------------------------- */
+            /* C + D + E. The working row: trend, overdue work, calendar.   */
+            /* 12-col grid so the chart gets the width it needs to be       */
+            /* readable (7) and the calendar keeps a usable square (5),     */
+            /* rather than three equal thirds that suit none of them.       */
+            /* ---------------------------------------------------------- */}
+            <div className="mb-4 grid grid-cols-1 gap-4 xl:grid-cols-12">
+                <div className="flex flex-col gap-4 xl:col-span-7">
+                    <SafetyTrendChart trend={safetyTrend} />
+                    <PriorityActions items={actionRequired ?? []} />
                 </div>
 
-                {/* v1.11.6 (Production Readiness pass, Part 4/5) -- Man-Hours
-                    (real data, ManHourLog) and a Safety KPI Foundation built
-                    ONLY from data that actually exists. LTI/LTIFR/TRIR/
-                    Fatality intentionally show "Not available" rather than a
-                    fabricated formula -- see HseDashboardController's own
-                    doc comment on `safetyKpi.lost_time_metrics_available`. */}
-                {/* v1.11.13: the four real metrics below now reuse the shared
-                    StatCard's `size="sm"` variant (added this pass to match
-                    the reference screenshots' own smaller "Ringkasan KPI"
-                    scale) instead of hand-rolled div markup -- proper
-                    component reuse, not a styling duplicate. The 5th tile
-                    (LTI/LTIFR/TRIR) stays its own dashed, message-only
-                    treatment since it isn't a metric -- it's an explicit
-                    "not available" state, and StatCard has no such mode. */}
+                <div className="xl:col-span-5">
+                    <OverviewCalendar
+                        events={calendar?.events ?? []}
+                        window={calendar?.window}
+                        today={calendar?.today}
+                    />
+                </div>
+            </div>
+
+            {/* F. Man-Hour & Safety KPI Foundation. */}
+            <div className="mb-4">
+                <ManHourPanel manHours={manHours} safetyKpi={safetyKpi} />
+            </div>
+
+            {/* ---------------------------------------------------------- */
+            /* Operational detail: the three feeds that were already here,  */
+            /* kept because they are real and useful, but moved BELOW the   */
+            /* decision-first sections instead of competing with them.      */
+            /* ---------------------------------------------------------- */}
+            {/* `items-start`: an empty feed takes the height of its own
+                content instead of stretching to match a populated sibling,
+                which is what turned "no activity yet" into a tall blank
+                panel. */}
+            <div className="mb-4 grid grid-cols-1 items-start gap-4 lg:grid-cols-3">
                 <Card>
                     <CardHeader className="pb-2">
-                        <CardTitle>Man-Hour &amp; Safety KPI Foundation</CardTitle>
-                        <CardDescription>Hanya data nyata. Rasio yang memerlukan data belum tercatat ditampilkan sebagai tidak tersedia</CardDescription>
+                        <CardTitle className="flex items-center gap-1.5"><ShieldAlert className="h-3.5 w-3.5 text-red-500" /> Recent Incidents</CardTitle>
+                        <CardDescription>Lima laporan terakhir</CardDescription>
                     </CardHeader>
-                    <CardContent className="grid grid-cols-2 gap-2 sm:grid-cols-5">
-                        <StatCard size="sm" icon={Clock} value={manHours?.today ?? '-'} label="Man-Hour Today" />
-                        <StatCard size="sm" icon={Clock} value={manHours?.this_month ?? '-'} label="Man-Hour This Month" />
-                        <StatCard size="sm" icon={Clock} value={manHours?.ytd ?? '-'} label="Man-Hour YTD" />
-                        <StatCard size="sm" icon={AlertTriangle} value={safetyKpi?.recordable_injuries_ytd ?? 0} label="Recordable Injuries YTD" accent={safetyKpi?.recordable_injuries_ytd > 0 ? 'amber' : 'green'} />
-                        <div className="rounded-xl border border-dashed border-graphite-200 p-3 dark:border-slate-700">
-                            <p className="text-[11px] font-medium uppercase tracking-wide text-graphite-400">LTI / LTIFR / TRIR</p>
-                            <p className="mt-1 text-[11px] italic leading-snug text-graphite-400">Tidak tersedia, memerlukan data hari-hilang-kerja &amp; klasifikasi tingkat keparahan yang belum tercatat</p>
-                        </div>
+                    <CardContent>
+                        <ActivityList
+                            items={recentIncidents}
+                            getKey={(i) => i.id}
+                            getHref={(i) => route('incidents.show', i.id)}
+                            emptyIcon={ShieldAlert}
+                            emptyTitle="Belum ada insiden tercatat"
+                            renderItem={(i) => (
+                                <div className="flex items-center justify-between gap-2 py-2 text-sm">
+                                    <div className="min-w-0 flex-1">
+                                        <p className="truncate font-medium text-graphite-700 dark:text-slate-200">{i.title}</p>
+                                        <p className="text-xs text-graphite-400">{i.incident_number}</p>
+                                    </div>
+                                    <StatusBadge status={i.severity} />
+                                </div>
+                            )}
+                        />
                     </CardContent>
                 </Card>
 
-                {/* LEVEL 4 -- module shortcuts, compact grid */}
-                <div className="grid grid-cols-2 gap-3 sm:grid-cols-3 lg:grid-cols-6">
+                <Card>
+                    <CardHeader className="pb-2">
+                        <CardTitle className="flex items-center gap-1.5"><Eye className="h-3.5 w-3.5 text-amber-500" /> Recent Observations</CardTitle>
+                        <CardDescription>Lima observasi terakhir</CardDescription>
+                    </CardHeader>
+                    <CardContent>
+                        <ActivityList
+                            items={recentSafetyObservations}
+                            getKey={(o) => o.id}
+                            getHref={(o) => route('safety-observations.show', o.id)}
+                            emptyIcon={Eye}
+                            emptyTitle="Belum ada observasi"
+                            renderItem={(o) => (
+                                <div className="flex items-center justify-between gap-2 py-2 text-sm">
+                                    <div className="min-w-0 flex-1">
+                                        {/* humanizeToken, not CSS capitalize: `capitalize`
+                                            renders an acronym as "Hse". See
+                                            ProductTerminologyTest. */}
+                                        <p className="truncate font-medium text-graphite-700 dark:text-slate-200">{humanizeToken(o.type)}</p>
+                                        <p className="text-xs text-graphite-400">{o.observation_number}</p>
+                                    </div>
+                                    <StatusBadge status={o.status} />
+                                </div>
+                            )}
+                        />
+                    </CardContent>
+                </Card>
+
+                <Card>
+                    <CardHeader className="pb-2">
+                        <CardTitle className="flex items-center gap-1.5"><History className="h-3.5 w-3.5 text-graphite-400" /> Recent Activity</CardTitle>
+                        <CardDescription>Perubahan terakhir di modul HSE</CardDescription>
+                    </CardHeader>
+                    <CardContent>
+                        <ActivityList
+                            items={recentActivity}
+                            getKey={(a) => a.id}
+                            emptyIcon={History}
+                            emptyTitle="Belum ada aktivitas"
+                            renderItem={(a) => (
+                                <div className="py-2 text-sm">
+                                    <p className="truncate text-graphite-700 dark:text-slate-200">{a.description}</p>
+                                    <p className="text-xs text-graphite-400">{a.user?.name ?? 'System'}</p>
+                                </div>
+                            )}
+                        />
+                    </CardContent>
+                </Card>
+            </div>
+
+            {/* Compliance strip: equipment, P3K and waste, each a real
+                count with its own destination. Kept small -- these are
+                supporting figures, not headline KPIs. */}
+            <div className="mb-4 grid grid-cols-2 gap-3 sm:grid-cols-3 xl:grid-cols-6">
+                <KpiTile
+                    icon={ClipboardList}
+                    value={overdueSafetyEquipmentCount}
+                    label="Equipment Overdue"
+                    accent={overdueSafetyEquipmentCount > 0 ? 'red' : 'green'}
+                    href={route('hse.master')}
+                />
+                <KpiTile
+                    icon={ShieldCheck}
+                    value={overdueP3kCount}
+                    label="P3K Overdue"
+                    accent={overdueP3kCount > 0 ? 'red' : 'green'}
+                    href={route('hse.master')}
+                />
+                {/* A COUNT OF ZERO IS NOT A CATEGORY. These tiles carry a
+                    categorical accent only when they are actually counting
+                    something -- a violet "0" reads as a classification that
+                    applies, when it means there is nothing stored at all. */}
+                <KpiTile
+                    icon={RecycleIcon}
+                    value={wasteSummary?.b3_stored ?? 0}
+                    label="B3 Stored"
+                    accent={(wasteSummary?.b3_stored ?? 0) > 0 ? 'violet' : 'slate'}
+                    href={route('waste.dashboard')}
+                />
+                <KpiTile
+                    icon={RecycleIcon}
+                    value={wasteSummary?.non_b3_stored ?? 0}
+                    label="Non-B3 Stored"
+                    accent={(wasteSummary?.non_b3_stored ?? 0) > 0 ? 'blue' : 'slate'}
+                    href={route('waste.dashboard')}
+                />
+                <KpiTile
+                    icon={AlertTriangle}
+                    value={wasteSummary?.storage_alerts ?? 0}
+                    label="Storage Alerts"
+                    accent={(wasteSummary?.storage_alerts ?? 0) > 0 ? 'amber' : 'green'}
+                    href={route('waste.dashboard')}
+                />
+                <KpiTile
+                    icon={PlusCircle}
+                    value={wasteSummary?.pending_disposal ?? 0}
+                    label="Pending Disposal"
+                    accent={(wasteSummary?.pending_disposal ?? 0) > 0 ? 'amber' : 'slate'}
+                    href={route('waste.dashboard')}
+                />
+            </div>
+
+            {/* G. Quick Access -- server-gated, near the bottom because it
+                is what you do after reading, not before. */}
+            <div className="mb-4">
+                <QuickAccess actions={quickActions} />
+            </div>
+
+            {/* Module directory, unchanged in content and gating. */}
+            <section>
+                <h2 className="mb-2 flex items-center gap-1.5 px-0.5 text-[13px] font-bold text-graphite-900 dark:text-slate-50">
+                    <LayoutGrid className="h-4 w-4 text-graphite-400" /> HSE Modules
+                </h2>
+                <div className="grid grid-cols-2 gap-3 sm:grid-cols-3 lg:grid-cols-5 xl:grid-cols-7">
                     {HSE_MODULES.map((m) => <ModuleCard key={m.title} {...m} />)}
                 </div>
+            </section>
 
-                {/* v2.71.0 -- the HSE administration row.
-                    Separated from the operational grid above by its own
-                    heading rather than mixed into it: these configure who
-                    can do what and what the system offers, which is a
-                    different kind of screen from "record an incident". It
-                    is also the answer to "where do I manage field PTW
-                    users", which had no signpost outside the sidebar. */}
-                {canManageHse && (
-                    <div>
-                        <p className="mb-2 text-[11px] font-semibold uppercase tracking-wide text-graphite-400 dark:text-slate-500">HSE Administration</p>
-                        <div className="grid grid-cols-1 gap-3 sm:grid-cols-2">
-                            {HSE_ADMIN_LINKS.map((m) => (
-                                <ModuleCard key={m.title} icon={m.icon} title={m.title} description={m.description} href={m.href} queryParams={m.params} />
-                            ))}
-                        </div>
+            {/* HSE Administration row, gated exactly as before. */}
+            {canManageHse && (
+                <section className="mt-4">
+                    <h2 className="mb-2 px-0.5 text-[13px] font-bold text-graphite-900 dark:text-slate-50">HSE Administration</h2>
+                    <div className="grid grid-cols-2 gap-3 sm:grid-cols-3 lg:grid-cols-5 xl:grid-cols-7">
+                        <ModuleCard icon={ShieldCheck} title="Safety Equipment &amp; Compliance" description="Register peralatan keselamatan dan data acuan HSE." href="hse.master" />
                     </div>
-                )}
+                </section>
+            )}
 
-                {/* LEVEL 3 -- HSE activity */}
-                <div className="grid grid-cols-1 gap-3 lg:grid-cols-3">
-                    <Card>
-                        <CardHeader className="pb-2"><CardTitle>Recent Incidents</CardTitle></CardHeader>
-                        <CardContent>
-                            <ActivityList
-                                items={recentIncidents}
-                                getHref={(i) => route('incidents.show', i.id)}
-                                emptyIcon={AlertTriangle}
-                                emptyTitle="Belum ada insiden tercatat"
-                                renderItem={(i) => (
-                                    <div className="flex items-center justify-between gap-2 py-2 text-sm">
-                                        <span className="min-w-0 flex-1 truncate font-medium text-graphite-700">{i.title}</span>
-                                        <StatusBadge value={i.severity} />
-                                        <StatusBadge value={i.status} />
-                                    </div>
-                                )}
-                            />
-                        </CardContent>
-                    </Card>
-
-                    <Card>
-                        <CardHeader className="pb-2"><CardTitle>Recent Observations</CardTitle></CardHeader>
-                        <CardContent>
-                            <ActivityList
-                                items={recentSafetyObservations}
-                                getHref={(o) => route('safety-observations.show', o.id)}
-                                emptyIcon={Eye}
-                                emptyTitle="Belum ada observasi tercatat"
-                                renderItem={(o) => (
-                                    <div className="flex items-center justify-between gap-2 py-2 text-sm">
-                                        <span className="min-w-0 flex-1 truncate font-medium capitalize text-graphite-700">{o.type.replace('_', ' ')}</span>
-                                        <StatusBadge value={o.status} />
-                                    </div>
-                                )}
-                            />
-                        </CardContent>
-                    </Card>
-
-                    <Card>
-                        <CardHeader className="flex flex-row items-center gap-2 space-y-0 pb-2"><History className="h-3.5 w-3.5 text-graphite-400" /><CardTitle>Recent Activity</CardTitle></CardHeader>
-                        <CardContent>
-                            <ActivityList
-                                items={recentActivity}
-                                emptyIcon={History}
-                                emptyTitle="Belum ada aktivitas terbaru"
-                                renderItem={(a) => (
-                                    <div className="py-2 text-sm">
-                                        <p className="text-graphite-700">{a.description}</p>
-                                        <p className="text-xs text-graphite-400">{a.actor_name || a.user?.name} · {new Date(a.created_at).toLocaleString('en-US', { day: 'numeric', month: 'short', hour: 'numeric', minute: '2-digit' })}</p>
-                                    </div>
-                                )}
-                            />
-                        </CardContent>
-                    </Card>
-                </div>
-
-                {/* LEVEL 3 -- waste (compact, unchanged from the prior pass) + calendar */}
-                <div className="grid grid-cols-1 gap-3 lg:grid-cols-3">
-                    <Link href={route('waste.dashboard')} className="block">
-                        <Card className="h-full transition-colors hover:border-brand-300 dark:hover:border-brand-700">
-                            <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
-                                <CardTitle className="flex items-center gap-2 text-sm"><Recycle className="h-3.5 w-3.5 text-graphite-400" /> Waste</CardTitle>
-                            </CardHeader>
-                            <CardContent className="grid grid-cols-2 gap-2 text-xs">
-                                <div className="flex items-center justify-between rounded-md bg-graphite-50 px-2 py-1.5 dark:bg-slate-800">
-                                    <span className="text-graphite-500">B3</span><span className="font-semibold">{wasteSummary.b3_stored}</span>
-                                </div>
-                                <div className="flex items-center justify-between rounded-md bg-graphite-50 px-2 py-1.5 dark:bg-slate-800">
-                                    <span className="text-graphite-500">Non-B3</span><span className="font-semibold">{wasteSummary.non_b3_stored}</span>
-                                </div>
-                                <div className="flex items-center justify-between rounded-md bg-graphite-50 px-2 py-1.5 dark:bg-slate-800">
-                                    <span className="text-graphite-500">Storage Alerts</span>
-                                    <span className={`font-semibold ${wasteSummary.storage_alerts > 0 ? 'text-red-600' : ''}`}>{wasteSummary.storage_alerts}</span>
-                                </div>
-                                <div className="flex items-center justify-between rounded-md bg-graphite-50 px-2 py-1.5 dark:bg-slate-800">
-                                    <span className="text-graphite-500">Pending Disposal</span><span className="font-semibold">{wasteSummary.pending_disposal}</span>
-                                </div>
-                            </CardContent>
-                        </Card>
-                    </Link>
-
-                    <div className="lg:col-span-2">
-                        <DepartmentCalendarWidget events={departmentCalendar} title="HSE Calendar" description="Izin kerja, TBM & inspeksi, 3 minggu ke depan" />
-                    </div>
-                </div>
-            </DashboardShell>
+            {/* `auth` is read so the page fails loudly if the shared prop
+                ever stops being provided, rather than silently rendering
+                an unauthenticated-looking Overview. */}
+            <span className="sr-only">{auth?.user?.name}</span>
         </AuthenticatedLayout>
     );
 }

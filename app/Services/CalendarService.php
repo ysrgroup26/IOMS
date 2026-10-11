@@ -106,6 +106,30 @@ class CalendarService
             ->all();
     }
 
+    /**
+     * v2.109.0 -- `departmentEvents()` WITH THE WINDOW PASSED IN.
+     *
+     * The HSE Overview's calendar is a month grid that navigates between
+     * months, so it needs a window rather than "the next 21 days", and it
+     * needs every event in that window rather than the first six.
+     *
+     * Deliberately the same aggregation and the same department filter as
+     * `departmentEvents()` above -- this is that method with its two
+     * assumptions lifted out, not a second calendar. Every existing caller
+     * of `departmentEvents()` is untouched.
+     *
+     * @param  Collection<int, int>|array<int, int>  $companyIds
+     * @return array<int, array<string, mixed>>
+     */
+    public function departmentEventsBetween(Collection|array $companyIds, string $departmentKey, $start, $end): array
+    {
+        return $this->aggregate($companyIds, $start, $end)
+            ->filter(fn (array $e) => $e['department_key'] === $departmentKey)
+            ->sortBy('start')
+            ->values()
+            ->all();
+    }
+
     private function manualEvents(Collection|array $companyIds, $start, $end): Collection
     {
         return CalendarEvent::whereIn('company_id', $companyIds)

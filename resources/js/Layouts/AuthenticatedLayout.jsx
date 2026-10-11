@@ -3,7 +3,7 @@ import { useEffect, useRef, useState } from 'react';
 import {
     LogOut, Menu, X,
     Bell, User as UserIcon, ChevronDown, Sun, Moon, ChevronRight,
-    ClipboardCheck, CheckSquare, HardHat, Inbox, Lock, LayoutDashboard, CalendarDays,
+    ClipboardCheck, CheckSquare, HardHat, Inbox, Lock, LayoutDashboard,
     FlaskConical, AlertTriangle,
     // v2.83.0 -- the Admin Space entry in the header.
     Settings,
@@ -837,22 +837,19 @@ function TopBar({ onOpenSidebar, sidebarOpen, isDepartmentUser, departments, act
                 </Link>
             )}
 
-            {/* Calendar (v1.11.0): same "pinned, not a department" reasoning
-                as Dashboard above -- it aggregates events across several
-                departments by design (see CalendarController's own doc
-                comment), so it isn't owned by any single one of them. */}
-            {/* Also operational, and also hidden inside Admin Space: a
-                company calendar is how the business RUNS, not how the
-                account is configured. */}
-            {space !== 'admin' && (
-                <Link
-                    href={route('calendar.index')}
-                    className="flex h-8 shrink-0 items-center gap-1.5 rounded-md px-2.5 text-xs font-medium text-navy-200 transition-colors hover:bg-white/[0.08] hover:text-white dark:text-slate-300 dark:hover:bg-slate-800"
-                >
-                    <CalendarDays className="h-3.5 w-3.5 shrink-0" />
-                    <span className="hidden sm:inline">Calendar</span>
-                </Link>
-            )}
+            {/* v2.109.0 -- THE CALENDAR SHORTCUT WAS REMOVED FROM THE TOP BAR.
+                It was a link to a page, sitting in the one strip that has to
+                stay readable at every width, and it answered nothing on its
+                own: a shortcut cannot tell you what is scheduled. The
+                calendar is now a real month grid INSIDE the HSE Overview
+                (see Components/hse-overview/OverviewCalendar.jsx), where it
+                shows the events instead of promising them.
+
+                NOTHING LOST ACCESS. `calendar` is a UNIVERSAL prefix in
+                RestrictDepartmentAccess, the route is unchanged, the sidebar
+                still carries Calendar in the company navigation, and the
+                Overview's own widget links straight to the full page. This
+                removed a link, not a capability. */}
 
             {/* Department Selector -- a single dropdown at every breakpoint,
                 Departments only (Reports/Administration moved to the

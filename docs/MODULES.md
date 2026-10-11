@@ -571,6 +571,23 @@ and no copy in the product says it does.
 
 ## HSE Investigation
 
+> **HSE Overview redesign (v2.109.0).** `Hse/Dashboard.jsx` is the product's reference dashboard
+> design and the only page using the `Components/hse-overview/` kit. Order is deliberate: KPIs →
+> trend + priority actions + calendar → man-hours → quick access → module directory. The accent
+> system lives in `hse-overview/accents.js` (red critical, amber warning, green clear, violet
+> categorical, blue operational, **grey = unknown, never a status**).
+>
+> - **Calendar** is a month grid inside the page, fed by `CalendarService::departmentEventsBetween()`
+>   over a three-month window; navigation is bounded by that window and the full Calendar page is
+>   unchanged. The top-bar Calendar shortcut was removed in the same change — the route, its
+>   universal-prefix access and the sidebar entry are untouched.
+> - **`safetyTrend`** is 12 months of incidents/observations/CAPA/permits, bucketed in PHP (not
+>   `DATE_FORMAT`, which is MySQL-only). `has_data: false` renders an explicit empty state.
+> - **Still unavailable, deliberately:** LTI, LTIFR and TRIR — see
+>   `safetyKpi.lost_time_metrics_available`. Man-hours remain `null` rather than `0` when unlogged.
+> - Do **not** adopt this kit in other modules yet; `HseOverviewDashboardTest` asserts no other
+>   Overview imports it.
+
 **Department:** HSE (v2.73.0). Route prefix `investigations`, registered in `config/departments.php`
 in the same change — see `docs/CONVENTIONS.md` for why that is a three-edit checklist.
 

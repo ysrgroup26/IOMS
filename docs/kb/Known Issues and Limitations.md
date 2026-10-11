@@ -1,7 +1,7 @@
 ---
 title: Known Issues and Limitations
 type: register
-updated: 2026-09-16
+updated: 2026-10-11
 tags: [kb/issues]
 ---
 
@@ -61,6 +61,25 @@ See [[Verification Status]] for the full picture. The headline: **the v2.67.0 sh
 work is contract-tested and reviewed, not interaction-verified** — signing in could not be automated
 at the time, and the shell is React that never runs server-side, so an Inertia response is a prop bag
 containing none of that markup.
+
+---
+
+## Findings recorded but NOT acted on (v2.108.0 inspection)
+
+Found while reading the Employees module and its neighbours during the v2.108.0 work. **Nothing
+below was changed**, deliberately: each sits in a module that work had no business touching, and
+two of them are decisions for the product owner rather than fixes. Recorded here so they are not
+rediscovered as news.
+
+| ID | Finding | Severity | Why it was left |
+|---|---|---|---|
+| SEC-010 | `GET /settings/backup` and `POST /settings/restore` are in the `role:super_admin` group. `super_admin` is a **customer** role (`isTenantAdmin()` = that role *plus* a tenant), and the handlers `mysqldump` and restore the **entire connection**, not one tenant. A customer's own administrator can therefore download every other tenant's data and overwrite the database for all of them. Shell arguments are properly escaped — this is an authorization problem, not injection. | **High** | Out of scope, and the fix is a product decision: move it behind `role:platform_admin`, or replace whole-database restore with a tenant-scoped export. Both change what a customer can do. |
+| SEC-011 | The DB password is passed to `mysqldump`/`mysql` on the command line, so it is visible in the host's process list. | Medium | Same module as SEC-010; should be fixed in the same change (use `MYSQL_PWD` or a defaults file). |
+| SEC-012 | Branding accepts `svg` for `logo`, `favicon`, `wordmark` and `brand_icon` and stores it on the **public** disk, served from the app's own origin. An SVG carrying `<script>` executes there. No sanitisation step was found. | Medium | Settings/branding module. Fix is to drop `svg`, sanitise on upload, or serve branding with `Content-Disposition: attachment`. |
+| SEC-013 | Most operational uploads still go to the **public** disk (`uploads/contractor-documents`, `uploads/competency`, `uploads/controlled-documents`, `uploads/inspection-evidence`, …) although the `private` disk exists for exactly them. Only `regulations` uses it. | High | **Already known and deliberately deferred** — `SecureDocumentController`'s own doc comment explains why (the file migration is irreversible on production data). The UI already routes through `secureDocumentUrl()`, so exposure needs a URL leak. Unchanged here. |
+| QA-004 | `AnalyticsService` interpolates `{$def['group_by']}` and `{$def['date_field']}` into `selectRaw()`. Not injectable today — the keys resolve from `config/analytics.php` and `definition()` aborts on an unknown key — but it becomes one the moment a dataset definition is made dynamic. `DATE_FORMAT()` is also MySQL-only, so `trend()` cannot run on the test connection. | Low | Analytics module; no defect to fix today, only a shape worth not copying. |
+| QA-005 | There is **no CI**: no `.github/workflows`. 1100 tests encoding tenant-isolation and authorization invariants are run only when a person remembers to. | Medium | Infrastructure decision. The fresh-clone blockers that would have stopped CI from working at all *were* fixed in v2.108.0 (see [[Verification Status]]), so adding a workflow is now a small change. |
+| QA-006 | `CLAUDE.md` states "Current version: 2.71.0 Beta"; `config/ioms.php` says 2.108.0. [[Current State]] says 2.94.0. | Low | Documentation drift across three places; not touched because a correct fix is a re-measure sweep, not a number edit. |
 
 ---
 

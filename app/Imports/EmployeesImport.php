@@ -9,12 +9,12 @@ use App\Models\Project;
 use App\Models\ProjectManpower;
 use App\Services\MasterDataDetector;
 use App\Support\NameFormatter;
+use App\Support\SpreadsheetDate;
 use Illuminate\Support\Facades\DB;
 use Maatwebsite\Excel\Concerns\OnEachRow;
 use Maatwebsite\Excel\Concerns\WithChunkReading;
 use Maatwebsite\Excel\Concerns\WithHeadingRow;
 use Maatwebsite\Excel\Row;
-use PhpOffice\PhpSpreadsheet\Shared\Date;
 
 /**
  * Employee Import Engine (v1.6.8) -- built as the foundation a future
@@ -51,6 +51,17 @@ class EmployeesImport implements OnEachRow, WithChunkReading, WithHeadingRow
     public int $needsCompletion = 0;
 
     public array $skipped = []; // [['row' => 5, 'reason' => 'Duplicate Employee ID'], ...]
+
+    /**
+     * Rows that DID import but carry something the customer should know
+     * about -- today, a join date that could not be read and was left
+     * empty. Deliberately separate from `$skipped`: a warning never
+     * means a row was refused, and conflating the two would make a
+     * successful import look like a partial one.
+     *
+     * @var list<array{row: int, reason: string}>
+     */
+    public array $warnings = [];
 
     /** Distinct, non-blank Department/Position names encountered while
      *  scanning -- what MasterDataDetector classifies as existing/new.
@@ -199,7 +210,16 @@ class EmployeesImport implements OnEachRow, WithChunkReading, WithHeadingRow
     {
         $this->totalRows++;
         $data = $row->toArray();
-        $rowNumber = $row->getIndex() + 1;
+        /*
+         * v2.108.0 -- THE ROW NUMBER THE CUSTOMER'S SPREADSHEET SHOWS.
+         *
+         * This was `getIndex() + 1`. `Row::getIndex()` already returns the
+         * real sheet row (the header is row 1, so the first record is row
+         * 2), and the extra `+ 1` sent every customer one row past the
+         * one they had to fix. On a 141-row file that is 141 wrong
+         * line references.
+         */
+        $rowNumber = $row->getIndex();
 
         $employeeId = trim((string) ($this->col($data, 'employee_id') ?? ''));
         // v2.105.0: written the way the product displays a person --
@@ -272,6 +292,38 @@ class EmployeesImport implements OnEachRow, WithChunkReading, WithHeadingRow
             $this->positionNames[] = $positionName;
         }
 
+        /*
+         * v2.108.0 -- AN UNREADABLE DATE IS EMPTY, NOT 1970.
+         *
+         * This was `date('Y-m-d', strtotime($cell))`. `strtotime()`
+         * answers `false` for anything it cannot read, `date()` casts
+         * `false` to 0, and 0 is the Unix epoch -- so every unreadable
+         * cell became a join date of 1 January 1970. Nothing threw, so
+         * the per-row `catch` below never saw it, and the row imported
+         * carrying a date no human had typed.
+         *
+         * It also read a slashed date month-first, which is the wrong way
+         * round for this product's customers: `15/01/2026` was month 15
+         * (so, 1970 again) and `01/02/2026` -- 1 February -- was stored
+         * as 2 January. See App\Support\SpreadsheetDate for the rules.
+         *
+         * A join date is not a critical field, so an unreadable one does
+         * not cost the row. It is recorded as a WARNING instead: the row
+         * lands, and the customer is told which rows arrived without a
+         * date they will need to fill in. Silently dropping it would be
+         * its own kind of lie.
+         */
+        $rawJoinDate = $this->col($data, 'join_date');
+        $joinDate = SpreadsheetDate::parse($rawJoinDate);
+
+        if ($joinDate === null && trim((string) ($rawJoinDate ?? '')) !== '') {
+            $this->warnings[] = [
+                'row' => $rowNumber,
+                'reason' => 'Tanggal masuk "'.mb_substr(trim((string) $rawJoinDate), 0, 40).'" tidak dapat dibaca, '
+                    .'jadi dikosongkan. Gunakan format 15/01/2026 atau 2026-01-15.',
+            ];
+        }
+
         // Preview mode stops here -- every check above (critical fields,
         // duplicates) has already run, which is exactly what the
         // preview's "Invalid Rows"/"Duplicate Employee IDs" counts need.
@@ -321,18 +373,6 @@ class EmployeesImport implements OnEachRow, WithChunkReading, WithHeadingRow
             }
 
             $positionId ??= $candidates[0]['id'] ?? null;
-        }
-
-        $joinDate = null;
-        $rawJoinDate = $this->col($data, 'join_date');
-        if ($rawJoinDate) {
-            try {
-                $joinDate = is_numeric($rawJoinDate)
-                    ? Date::excelToDateTimeObject($rawJoinDate)->format('Y-m-d')
-                    : date('Y-m-d', strtotime((string) $rawJoinDate));
-            } catch (\Throwable) {
-                $joinDate = null;
-            }
         }
 
         // Employment Status is validated against the real enum

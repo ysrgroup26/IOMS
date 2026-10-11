@@ -2137,6 +2137,38 @@ is still refused, and a single-owner prefix (every other entry) cannot change me
 reader of the map handles multiple owners. Grep for other readers before assuming two are all there
 are — and never infer a route's gate from its prefix group, which is a separate pitfall below.
 
+## CRITICAL — Known Pitfall (v2.108.0) — `date('Y-m-d', strtotime($x))` invents 1 January 1970, and it never throws
+
+`strtotime()` returns `false` for anything it cannot read. `date()` casts `false` to the integer
+`0`. `0` is the Unix epoch. So this expression, which reads as obviously fine:
+
+```php
+$joinDate = date('Y-m-d', strtotime((string) $cell));   // NEVER do this
+```
+
+turns every unreadable value — `belum tahu`, `-`, `n/a`, an employee number in the wrong column —
+into **1 January 1970**: a real-looking date, in a date column, that nobody typed. It raises no
+exception, so a surrounding `try/catch` (the employee import had one, added in v2.105.0 for exactly
+this class of problem) never sees it.
+
+It also reads a slashed date **American-first**, which is the wrong way round for this product.
+`15/01/2026`, the id-ID Excel default, is month fifteen and so becomes 1970 too; `01/02/2026` —
+1 February to every customer here — is silently stored as 2 January. The second one is the
+dangerous half, because a plausible wrong date is one nobody goes looking for.
+
+This reached production data through IOMS's **own** Excel export, which writes an empty join date
+as `-`: re-importing a file IOMS generated itself turned every blank date into 1970.
+
+**The rule.** Any date read from a spreadsheet, a CSV, or any other source outside the database goes
+through `App\Support\SpreadsheetDate::parse()`, which returns `?string` and answers `null` rather
+than guessing. Never `strtotime()`. The day-first rule and the reasoning are in
+`docs/ADR/050-a-date-out-of-a-spreadsheet.md`. If you add a new importer, this is not optional — the
+expression above is the one a reviewer waves through.
+
+**And the smaller one beside it.** `Maatwebsite\Excel\Row::getIndex()` already returns the real
+sheet row number (header is row 1, first record is row 2). The import did `getIndex() + 1`, so every
+customer told to fix a bad row was sent to the row below it. Do not add the `+ 1`.
+
 ## CRITICAL — Known Pitfall (v2.98.0) — ROLE is not the same question as REACHABILITY
 
 `canAccessAdminSpace()` asked only about role: `isTenantAdmin() || canManageOperationalSettings()`.

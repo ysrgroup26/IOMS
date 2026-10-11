@@ -11,13 +11,66 @@ import GroupedDepartmentSelect from '@/Components/shared/GroupedDepartmentSelect
 import { Table, TableHeader, TableBody, TableRow, TableHead, TableCell } from '@/Components/ui/table';
 import EmployeeImportDialog from '@/Components/shared/EmployeeImportDialog';
 import PersonChip from '@/Components/shared/PersonChip';
-import { Search, Plus, Download, Upload, ChevronLeft, ChevronRight, FileText } from 'lucide-react';
+import { Checkbox } from '@/Components/ui/checkbox';
+import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogDescription, DialogFooter } from '@/Components/ui/dialog';
+import { Search, Plus, Download, Upload, ChevronLeft, ChevronRight, FileText, Trash2, AlertTriangle } from 'lucide-react';
+
+/*
+ * v2.108.0 -- the word the server requires, typed by hand. Kept in one
+ * place so the hint and the check can never drift apart; the authority
+ * is BulkDestroyEmployeesRequest::CONFIRMATION, this is only the client
+ * side of the same agreement.
+ */
+const DELETE_CONFIRMATION = 'HAPUS';
 
 export default function EmployeesIndex({ employees, companies, departments, filters, can }) {
     const [search, setSearch] = useState(filters.search || '');
     const [importOpen, setImportOpen] = useState(false);
 
+    /*
+     * Selection is held as an array of ids rather than a page-shaped
+     * structure, because the thing being confirmed is "these people",
+     * not "these rows". It is cleared whenever the list is refetched:
+     * a selection that outlived the page it was made on is exactly what
+     * the server's agreed-count check refuses, and offering it here
+     * would only produce a rejected request.
+     */
+    const [selected, setSelected] = useState([]);
+    const [deleteOpen, setDeleteOpen] = useState(false);
+    const [confirmation, setConfirmation] = useState('');
+    const [deleting, setDeleting] = useState(false);
+
+    const pageIds = employees.data.map((e) => e.id);
+    const allOnPageSelected = pageIds.length > 0 && pageIds.every((id) => selected.includes(id));
+
+    function toggle(id) {
+        setSelected((current) => (current.includes(id) ? current.filter((x) => x !== id) : [...current, id]));
+    }
+
+    function togglePage() {
+        setSelected((current) => (allOnPageSelected ? current.filter((id) => !pageIds.includes(id)) : [...new Set([...current, ...pageIds])]));
+    }
+
+    function closeDelete() {
+        setDeleteOpen(false);
+        setConfirmation('');
+    }
+
+    function confirmDelete() {
+        setDeleting(true);
+        router.delete(route('employees.bulk-destroy'), {
+            data: { ids: selected, expected_count: selected.length, confirmation },
+            preserveScroll: true,
+            onFinish: () => {
+                setDeleting(false);
+                closeDelete();
+                setSelected([]);
+            },
+        });
+    }
+
     function applyFilters(overrides = {}) {
+        setSelected([]);
         router.get(route('employees.index'), {
             search, company_id: filters.company_id, department_id: filters.department_id, status: filters.status, profile_status: filters.profile_status, ...overrides,
         }, { preserveState: true, replace: true });
@@ -101,6 +154,23 @@ export default function EmployeesIndex({ employees, companies, departments, filt
                 <Button variant="secondary" onClick={() => applyFilters()}>Search</Button>
             </div>
 
+            {/* v2.108.0: appears only once something is selected, so the
+                ordinary list stays uncluttered, and it states the count
+                it is about to act on rather than just "Delete". */}
+            {can.manage && selected.length > 0 && (
+                <div className="mb-3 flex flex-wrap items-center justify-between gap-2 rounded-xl border border-amber-200 bg-amber-50/70 px-3 py-2.5 dark:border-amber-900/50 dark:bg-amber-950/30">
+                    <p className="text-sm font-semibold text-amber-900 dark:text-amber-200">
+                        {selected.length} Selected
+                    </p>
+                    <div className="flex items-center gap-2">
+                        <Button variant="ghost" size="sm" onClick={() => setSelected([])}>Clear Selection</Button>
+                        <Button variant="destructive" size="sm" onClick={() => setDeleteOpen(true)}>
+                            <Trash2 className="h-4 w-4" /> Delete Selected
+                        </Button>
+                    </div>
+                </div>
+            )}
+
             <Card>
                 <CardContent className="p-0">
                     {employees.data.length === 0 ? (
@@ -152,6 +222,15 @@ export default function EmployeesIndex({ employees, companies, departments, filt
                             <Table className="hidden md:table">
                                 <TableHeader>
                                     <TableRow>
+                                        {can.manage && (
+                                            <TableHead className="w-10">
+                                                <Checkbox
+                                                    checked={allOnPageSelected}
+                                                    onCheckedChange={togglePage}
+                                                    aria-label="Select all employees on this page"
+                                                />
+                                            </TableHead>
+                                        )}
                                         <TableHead>Employee</TableHead>
                                         <TableHead>Company / Department</TableHead>
                                         <TableHead>Position</TableHead>
@@ -161,6 +240,18 @@ export default function EmployeesIndex({ employees, companies, departments, filt
                                 <TableBody>
                                     {employees.data.map((emp) => (
                                         <TableRow key={emp.id} className="cursor-pointer" onClick={() => router.visit(route('employees.show', emp.id))}>
+                                            {can.manage && (
+                                                /* Stops the click from opening the profile: a
+                                                   checkbox inside a navigating row has to swallow
+                                                   its own event or selecting is impossible. */
+                                                <TableCell onClick={(e) => e.stopPropagation()}>
+                                                    <Checkbox
+                                                        checked={selected.includes(emp.id)}
+                                                        onCheckedChange={() => toggle(emp.id)}
+                                                        aria-label={`Select ${emp.full_name}`}
+                                                    />
+                                                </TableCell>
+                                            )}
                                             <TableCell>
                                                 <PersonChip name={emp.full_name} subtitle={emp.employee_id} />
                                             </TableCell>
@@ -206,6 +297,55 @@ export default function EmployeesIndex({ employees, companies, departments, filt
                     </div>
                 </div>
             )}
+
+            {/* v2.108.0 -- DELIBERATE CONFIRMATION.
+                The count is stated, the consequence is stated, and the
+                word has to be typed. The server checks all three again
+                (BulkDestroyEmployeesRequest): this dialog is the honest
+                explanation, not the enforcement. */}
+            <Dialog open={deleteOpen} onOpenChange={(open) => (open ? setDeleteOpen(true) : closeDelete())}>
+                <DialogContent>
+                    <DialogHeader>
+                        <DialogTitle className="flex items-center gap-2">
+                            <AlertTriangle className="h-5 w-5 text-destructive" />
+                            Delete {selected.length} Employee{selected.length === 1 ? '' : 's'}
+                        </DialogTitle>
+                        <DialogDescription>
+                            {selected.length} karyawan akan dihapus dari daftar aktif. Riwayat KPI, man-hour, PPE dan
+                            persetujuan mereka tetap tersimpan dan tidak ikut terhapus. Tindakan ini tidak dapat
+                            dibatalkan sendiri dari halaman ini.
+                        </DialogDescription>
+                    </DialogHeader>
+
+                    <div className="space-y-2">
+                        <label htmlFor="bulk-delete-confirmation" className="text-sm font-medium text-graphite-700">
+                            Type {DELETE_CONFIRMATION} to confirm
+                        </label>
+                        <Input
+                            id="bulk-delete-confirmation"
+                            value={confirmation}
+                            autoComplete="off"
+                            placeholder={DELETE_CONFIRMATION}
+                            onChange={(e) => setConfirmation(e.target.value)}
+                        />
+                        <p className="text-xs text-graphite-500">
+                            Konfirmasi ini diminta karena penghapusan massal tidak bisa dibatalkan dari halaman ini.
+                        </p>
+                    </div>
+
+                    <DialogFooter>
+                        <Button type="button" variant="outline" onClick={closeDelete} disabled={deleting}>Cancel</Button>
+                        <Button
+                            type="button"
+                            variant="destructive"
+                            disabled={confirmation !== DELETE_CONFIRMATION || deleting}
+                            onClick={confirmDelete}
+                        >
+                            {deleting ? 'Deleting...' : `Delete ${selected.length} Employee${selected.length === 1 ? '' : 's'}`}
+                        </Button>
+                    </DialogFooter>
+                </DialogContent>
+            </Dialog>
         </AuthenticatedLayout>
     );
 }

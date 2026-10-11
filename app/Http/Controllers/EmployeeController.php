@@ -4,6 +4,7 @@ namespace App\Http\Controllers;
 
 use App\Exports\EmployeeExport;
 use App\Exports\EmployeeImportTemplateExport;
+use App\Http\Requests\BulkDestroyEmployeesRequest;
 use App\Http\Requests\StoreEmployeeRequest;
 use App\Http\Requests\UpdateEmployeeRequest;
 use App\Imports\EmployeesImport;
@@ -293,6 +294,49 @@ class EmployeeController extends Controller
         return redirect()->route('employees.index')->with('success', 'Employee removed.');
     }
 
+    /**
+     * v2.108.0 -- REMOVING A SET, WITH THE SAFETY RULES WHERE THEY BELONG.
+     *
+     * Every refusal this action can make has already been made by
+     * BulkDestroyEmployeesRequest: authority (`deleteAny`), the bound on
+     * how many, the typed confirmation, the count the human agreed to,
+     * and the tenant boundary -- all or nothing. By the time this method
+     * runs, `$request->employees()` is a complete, tenant-owned set that
+     * may be deleted, so there is deliberately no second opinion here
+     * and no path on which some rows go and others stay.
+     *
+     * SOFT DELETE, one record at a time, inside a transaction. Soft
+     * because KPI history, man-hours, PPE issues and approvals all point
+     * at the person -- the same reason `destroy()` has always soft
+     * deleted. One at a time rather than a mass `whereIn()->delete()`
+     * because each removal is recorded in the audit trail against its own
+     * subject, which a bulk query cannot do; the transaction is what
+     * keeps the set atomic anyway.
+     */
+    public function bulkDestroy(BulkDestroyEmployeesRequest $request): RedirectResponse
+    {
+        $employees = $request->employees();
+
+        DB::transaction(function () use ($employees) {
+            foreach ($employees as $employee) {
+                $name = $employee->full_name;
+                $number = $employee->employee_id;
+
+                $employee->delete();
+
+                ActivityLog::record('deleted', "Employee {$name} ({$number}) was removed in a bulk deletion.", $employee);
+            }
+
+            // The act itself, as one line, so the Activity Center shows a
+            // bulk removal as the single decision it was rather than only
+            // as N unrelated deletions.
+            ActivityLog::record('deleted', "Removed {$employees->count()} employee(s) in one bulk deletion.");
+        });
+
+        return redirect()->route('employees.index')
+            ->with('success', "{$employees->count()} employee(s) removed.");
+    }
+
     public function export(Request $request, FieldMappingService $mapping)
     {
         $companyId = $request->input('company_id') ? (int) $request->input('company_id') : null;
@@ -452,6 +496,7 @@ class EmployeeController extends Controller
             'valid_rows' => $import->imported,
             'invalid_rows' => count($import->skipped),
             'skipped' => $import->skipped,
+            'warnings' => $import->warnings,
             'departments' => $departments,
             'positions' => $positions,
             'has_missing_master_data' => count($departments['new']) > 0 || count($positions['new']) > 0,
@@ -595,6 +640,10 @@ class EmployeeController extends Controller
             'imported' => $import->imported,
             'needs_completion' => $import->needsCompletion,
             'skipped' => $import->skipped,
+            // v2.108.0: rows that landed but need a human to finish
+            // something -- an unreadable join date, today. Never a
+            // refusal; see EmployeesImport::$warnings.
+            'warnings' => $import->warnings,
         ]);
     }
 
@@ -623,6 +672,10 @@ class EmployeeController extends Controller
             'imported' => $import->imported,
             'needs_completion' => $import->needsCompletion,
             'skipped' => $import->skipped,
+            // v2.108.0: rows that landed but need a human to finish
+            // something -- an unreadable join date, today. Never a
+            // refusal; see EmployeesImport::$warnings.
+            'warnings' => $import->warnings,
         ]);
     }
 

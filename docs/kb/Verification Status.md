@@ -1,7 +1,7 @@
 ---
 title: Verification Status
 type: register
-updated: 2026-10-04
+updated: 2026-10-11
 tags: [kb/verification]
 ---
 
@@ -49,10 +49,18 @@ on every phone width.
 
 | | |
 |---|---|
-| Suite | **800 tests, 4337 assertions — all passing** (2026-10-04, v2.94.0) |
+| Suite | **1100 tests, 5502 assertions — all passing** (2026-10-11, v2.108.0; was 800/4337 at v2.94.0) |
 | Database | In-memory **SQLite**, so no MySQL or external service is needed |
 | Lint | `npm run lint` — 0 errors (4 existing warnings in `GasTestRecords/Index.jsx` and `Settings/Index.jsx`) |
-| Build | Production build in an isolated output directory succeeded, with the existing 2,031 KB bundle-size advisory |
+| Build | `npm run build` succeeded (2026-10-11): 2307 modules, 2,055 KB bundle, the existing size advisory unchanged |
+
+> [!note] The suite now runs on a fresh clone (v2.108.0)
+> It previously did not, and this was found the first time anyone tried. Two things blocked it:
+> `bootstrap/cache/` was not tracked (no `.gitkeep`), so `composer install` failed at
+> `package:discover`; and `phpunit.xml` pinned no `APP_KEY`, so **535 of 1022 tests** failed with
+> `MissingAppKeyException` on any machine without a `.env`. Both are fixed, and the fix was checked
+> by moving `.env` aside and running the suite. That matters mostly for CI, which **still does not
+> exist** — there is no `.github/workflows`, so nothing runs this suite but a person.
 
 > [!warning] SQLite is not MySQL
 > The suite deliberately runs on SQLite so it needs nothing external. That means it does **not**
@@ -64,6 +72,25 @@ on every phone width.
 > multi-table `UPDATE … JOIN` and anything reading `information_schema`, or guard it with
 > `DB::getDriverName() === 'mysql'`. Six migrations had to be made portable before the suite could
 > provision at all.
+
+### Browser-verified — v2.108.0 (2026-10-11)
+
+Run against a **real running application**: `php artisan serve`, an isolated SQLite database,
+synthetic employees, driven with Playwright + the preinstalled Chromium. No production data of any
+kind was involved.
+
+| Flow | Result |
+|---|---|
+| Employee bulk deletion, end to end | **16/16 checks passed.** Selection bar appears only once something is selected; header checkbox selects/clears the page; the confirm button stays disabled until `HAPUS` is typed exactly; deleting two of six leaves four; the unselected four remain; zero JavaScript errors. |
+| Bulk deletion, in the database afterwards | Exactly the two selected rows soft-deleted, **all six rows still present**, 3 audit lines (2 per-record + 1 summary). |
+| Employee import of a malformed file | **7/7 checks passed.** The preview names the skipped row *and* the unreadable date, with row numbers matching the spreadsheet exactly (Row 3, Row 5); the summary repeats both. |
+| The dates that import produced | `15/01/2026` → `2026-01-15`, `01/02/2026` → `2026-02-01`, `belum tahu` → `NULL` + warning. Before v2.108.0 the first and third were **1970-01-01** and the second was 2 January. |
+
+> [!note] What this run did *not* cover
+> MySQL (the browser run used SQLite), real data volumes, email and queue side effects, mobile
+> widths, and screen-reader behaviour. It also did not exercise any module outside Employees.
+
+---
 
 ### Test-covered, not browser-reviewed
 

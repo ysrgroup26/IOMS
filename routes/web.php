@@ -862,6 +862,19 @@ Route::middleware(['auth', 'restrict.platform-admin'])->group(function () {
         Route::post('/employees', [EmployeeController::class, 'store'])->name('employees.store');
         Route::get('/employees/{employee}/edit', [EmployeeController::class, 'edit'])->name('employees.edit');
         Route::put('/employees/{employee}', [EmployeeController::class, 'update'])->name('employees.update');
+        /*
+         * v2.108.0 -- DECLARED BEFORE `employees/{employee}`, AND THAT IS
+         * NOT COSMETIC. Laravel matches routes in declaration order, so
+         * with the parameterised route first, `DELETE /employees/bulk`
+         * binds "bulk" as an employee id and 404s. Pinned by
+         * EmployeeBulkDeletionTest.
+         *
+         * Inside the same `role:super_admin,hse` group as single deletion:
+         * bulk removal is the same authority applied to a set, never a
+         * wider one. The set is bounded, tenant-checked and
+         * confirmation-gated in BulkDestroyEmployeesRequest.
+         */
+        Route::delete('/employees/bulk', [EmployeeController::class, 'bulkDestroy'])->name('employees.bulk-destroy');
         Route::delete('/employees/{employee}', [EmployeeController::class, 'destroy'])->name('employees.destroy');
 
         Route::get('/kpi-input', [KpiInputController::class, 'index'])->name('kpi-input.index');

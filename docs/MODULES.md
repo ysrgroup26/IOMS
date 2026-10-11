@@ -27,7 +27,23 @@ Core master data: `Employee` model, one per person. Belongs to a `Company`, opti
   fully derivable from existing data, so it can never drift out of sync. `employee_id`/`full_name`
   are enforced `NOT NULL` at the database level, so an already-saved record can never be missing
   either — completion status only ever concerns the department.
-- **Export**: `EmployeeExport`, filterable by department/search/company.
+- **Export**: `EmployeeExport`, filterable by department/search/company. Writes a join date as
+  `d M Y` and an empty one as `-`; both are read back correctly by the importer, which is asserted
+  as a round trip in `tests/Feature/EmployeeExportRoundTripTest.php`.
+- **Dates on import** (v2.108.0): every date cell goes through `App\Support\SpreadsheetDate`.
+  **Day comes first** (`15/01/2026`, `15-01-2026`, `15.01.2026`, Indonesian month names), ISO only
+  when the value opens with a four-digit year. Anything unreadable becomes `null` and is reported
+  to the customer as a WARNING against its own row number — the row still imports, because a join
+  date was never a critical field. Never `strtotime()`; see
+  `docs/ADR/050-a-date-out-of-a-spreadsheet.md` and the pitfall in `CONVENTIONS.md`.
+- **Bulk deletion** (v2.108.0): `DELETE /employees/bulk` → `EmployeeController::bulkDestroy()`,
+  authorized by `EmployeePolicy::deleteAny()`. Every safety rule lives in
+  `BulkDestroyEmployeesRequest`: all-or-nothing (one id outside the tenant refuses the whole
+  request, so nothing is ever partially deleted), an `expected_count` the user agreed to, a typed
+  `HAPUS` confirmation checked server-side, a 500-record bound, and a soft delete so KPI/man-hour/
+  PPE/approval history survives. Reasoning in
+  `docs/ADR/051-bulk-deletion-is-all-or-nothing.md`. The route **must** stay declared before
+  `employees/{employee}` or `"bulk"` binds as an employee id.
 - Dashboard surfaces an "Employee Profiles Need Completion" task card (only rendered when the count
   is actually nonzero), linking to the Employees list pre-filtered.
 - **Workforce classification** (Milestone 4, Workstream A): `employment_type` — one of

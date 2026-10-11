@@ -238,6 +238,14 @@ export default function EmployeeImportDialog({ open, onOpenChange, companies }) 
                             </div>
                         )}
 
+                        {preview.warnings?.length > 0 && (
+                            <RowNotes
+                                title="Dates That Could Not Be Read"
+                                hint="Baris ini tetap diimpor, tetapi tanggal masuknya dikosongkan karena formatnya tidak dapat dibaca. Gunakan format 15/01/2026 atau 2026-01-15."
+                                rows={preview.warnings}
+                            />
+                        )}
+
                         {mapping && (mapping.unmatched_headings.length > 0 || mapping.missing_fields.length > 0) && (
                             <div className="rounded-lg border border-graphite-100 bg-graphite-50/60 p-3">
                                 <p className="mb-1.5 text-xs font-semibold text-graphite-600">Column Mapping</p>
@@ -349,6 +357,14 @@ export default function EmployeeImportDialog({ open, onOpenChange, companies }) 
                             </div>
                         )}
 
+                        {result.warnings?.length > 0 && (
+                            <RowNotes
+                                title="Dates That Could Not Be Read"
+                                hint="Baris ini berhasil diimpor tanpa tanggal masuk. Lengkapi pada profil karyawan, atau perbaiki berkas lalu impor ulang."
+                                rows={result.warnings}
+                            />
+                        )}
+
                         <DialogFooter>
                             <Button type="button" onClick={close}>Done</Button>
                         </DialogFooter>
@@ -356,6 +372,32 @@ export default function EmployeeImportDialog({ open, onOpenChange, companies }) 
                 )}
             </DialogContent>
         </Dialog>
+    );
+}
+
+/*
+ * v2.108.0 -- a row-numbered note list. The import already had two
+ * near-identical copies of this markup for skipped rows (preview and
+ * summary); warnings reuse this one rather than adding a third and a
+ * fourth. A warning is not a refusal, so it is styled as information
+ * rather than as an error.
+ */
+function RowNotes({ title, hint, rows }) {
+    return (
+        <div>
+            <p className="mb-1.5 flex items-center gap-1.5 text-xs font-semibold text-graphite-600">
+                <AlertTriangle className="h-3.5 w-3.5 text-amber-500" /> {title}
+            </p>
+            <p className="mb-2 text-xs text-graphite-500">{hint}</p>
+            <div className="max-h-40 overflow-y-auto rounded-lg border border-graphite-100">
+                {rows.map((r, i) => (
+                    <div key={i} className="flex justify-between gap-3 border-b border-graphite-100 px-3 py-1.5 text-xs last:border-0">
+                        <span className="shrink-0 text-graphite-500">Row {r.row}</span>
+                        <span className="text-right text-graphite-700">{r.reason}</span>
+                    </div>
+                ))}
+            </div>
+        </div>
     );
 }
 

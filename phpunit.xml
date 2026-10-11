@@ -31,6 +31,22 @@
     </source>
     <php>
         <env name="APP_ENV" value="testing"/>
+        <!--
+            v2.108.0: pinned so the suite runs on a FRESH CLONE.
+
+            Nothing here set APP_KEY, so `composer install && php artisan
+            test` on a machine with no `.env` failed every test that
+            touches the session or the encrypter with
+            MissingAppKeyException: 535 of them. That is a checkout which
+            cannot verify itself, and it is the state CI would start from.
+
+            This is a throwaway value for the `testing` environment only.
+            It encrypts nothing that outlives a test run, it is not a
+            secret, and it reaches no other environment. A real
+            deployment's key comes from its own .env, which this file
+            never touches.
+        -->
+        <env name="APP_KEY" value="base64:SU9NU3BocHVuaXRUZXN0aW5nS2V5XzMyYnl0ZXMhISE="/>
         <env name="APP_MAINTENANCE_DRIVER" value="file"/>
         <env name="BCRYPT_ROUNDS" value="4"/>
         <env name="CACHE_STORE" value="array"/>

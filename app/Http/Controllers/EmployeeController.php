@@ -595,6 +595,35 @@ class EmployeeController extends Controller
      * worse failure than a refusal.
      */
     /**
+     * v2.114.0 -- the audit line, when some rows reinstated somebody.
+     *
+     * "Imported 0 employee(s)" is what the old wording produced for a
+     * customer who deleted their workforce and imported the same file
+     * again: every row restored an existing record, so nothing was
+     * "imported" and the trail said nothing happened. Restorations are
+     * named separately because they ARE a different act -- a deleted
+     * person came back, carrying their old history with them.
+     */
+    private function importOutcome(EmployeesImport $import): string
+    {
+        $parts = [];
+
+        if ($import->imported > 0 || $import->restored === 0) {
+            $parts[] = "imported {$import->imported} employee(s)";
+        }
+
+        if ($import->restored > 0) {
+            $parts[] = "restored {$import->restored} previously deleted employee(s)";
+        }
+
+        if ($import->skipped !== []) {
+            $parts[] = count($import->skipped).' row(s) skipped';
+        }
+
+        return ucfirst(implode(', ', $parts));
+    }
+
+    /**
      * The Maatwebsite reader for a detected format.
      *
      * Only the two spreadsheet formats reach this: everything else has
@@ -764,6 +793,10 @@ class EmployeeController extends Controller
         return response()->json([
             'total_rows' => $import->totalRows,
             'valid_rows' => $import->imported,
+            // v2.114.0: rows that will REINSTATE an employee the customer
+            // previously deleted. Reported separately, because the preview
+            // must promise what the import will actually do.
+            'restored_rows' => $import->restored,
             'invalid_rows' => count($import->skipped),
             'skipped' => $import->skipped,
             'warnings' => $import->warnings,
@@ -913,11 +946,12 @@ class EmployeeController extends Controller
             ], 422);
         }
 
-        ActivityLog::record('imported', "Imported {$import->imported} employee(s) from Excel after creating missing master data ({$import->totalRows} rows processed).");
+        ActivityLog::record('imported', $this->importOutcome($import)." from Excel after creating missing master data ({$import->totalRows} rows processed).");
 
         return response()->json([
             'total_rows' => $import->totalRows,
             'imported' => $import->imported,
+            'restored' => $import->restored,
             'needs_completion' => $import->needsCompletion,
             'skipped' => $import->skipped,
             // v2.108.0: rows that landed but need a human to finish
@@ -955,11 +989,12 @@ class EmployeeController extends Controller
         // history harder to trust, not easier.
         $source = app(FormatDetector::class)->label(app(FormatDetector::class)->detectUploaded($request->file('file')));
 
-        ActivityLog::record('imported', "Imported {$import->imported} employee(s) from {$source} ({$import->totalRows} rows processed).");
+        ActivityLog::record('imported', $this->importOutcome($import)." from {$source} ({$import->totalRows} rows processed).");
 
         return response()->json([
             'total_rows' => $import->totalRows,
             'imported' => $import->imported,
+            'restored' => $import->restored,
             'needs_completion' => $import->needsCompletion,
             'skipped' => $import->skipped,
             // v2.108.0: rows that landed but need a human to finish

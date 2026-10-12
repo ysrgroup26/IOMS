@@ -929,6 +929,21 @@ against their own tables. Typo detection is a plain Levenshtein distance check (
 name within that distance of an existing one is *suggested*, never silently auto-created as a
 duplicate.
 
+**Three answers to "does this already exist", not two** (v2.114.0): `Employee` soft deletes, so an
+employee number can be held by a LIVE employee (refuse the row, named), by a DELETED one (the
+identifier is reserved but nobody is employed: `restore()` the row and fill it from the file, keeping
+its primary key so its KPI, man-hour, PPE and approval history stays attached), or by nobody (create).
+Both registries query with `withoutGlobalScopes()` and an explicit `company_id` filter, since the
+soft-delete scope has to be dropped to see trashed rows at all. Restorations are counted separately
+from new employees (`$restored` vs `$imported`) in the preview, the result summary and the audit
+trail. See `docs/ADR/054-a-deleted-employee-is-restored-not-duplicated.md`.
+
+**The importer never supplies a column default** (v2.114.0): where the file is silent or the value is
+unrecognised, the importer writes `null` and reports a warning on the row. `employment_type` is
+nullable for this reason while keeping its `pkwtt` default, so every non-import path is unchanged.
+A column default describes rows the schema creates; an importer asserting it would be stating
+something about a person that nothing in their file said.
+
 **Not yet generalized**: there's no `ImportEngine` base class extracting the common shape from
 `EmployeesImport` — deliberately deferred, since abstracting a reusable pattern from a single
 real example tends to guess the wrong shape. Build the second real import, then extract what's

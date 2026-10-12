@@ -174,7 +174,15 @@ class EmployeeImportFieldIntegrityTest extends TestCase
         $this->assertNull($employee->join_date);
         $this->assertNull($employee->nik);
         $this->assertSame('active', $employee->status);
-        $this->assertSame('pkwtt', $employee->employment_type);
+
+        /*
+         * v2.114.0 -- this test is called "absent optional columns leave
+         * their fields empty", and this was the one field that did not.
+         * An absent workforce type used to become `pkwtt`, asserting a
+         * permanent contract the file never mentioned. It is now empty
+         * like every other absent optional field.
+         */
+        $this->assertNull($employee->employment_type);
     }
 
     /**

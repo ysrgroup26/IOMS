@@ -11,9 +11,12 @@ use App\Models\Tenant;
 use App\Models\User;
 use App\Models\Workspace;
 use App\Support\CurrentTenant;
+use Database\Seeders\ModuleSeeder;
+use Database\Seeders\WorkspaceSeeder;
 use Illuminate\Foundation\Testing\RefreshDatabase;
 use Illuminate\Http\UploadedFile;
 use Illuminate\Support\Facades\Mail;
+use PhpOffice\PhpSpreadsheet\IOFactory;
 use PhpOffice\PhpSpreadsheet\Spreadsheet;
 use PhpOffice\PhpSpreadsheet\Writer\Xlsx;
 use Tests\TestCase;
@@ -53,8 +56,8 @@ class EmployeeImportIdentityAndWorkforceTypeTest extends TestCase
         parent::setUp();
 
         Mail::fake();
-        $this->seed(\Database\Seeders\WorkspaceSeeder::class);
-        $this->seed(\Database\Seeders\ModuleSeeder::class);
+        $this->seed(WorkspaceSeeder::class);
+        $this->seed(ModuleSeeder::class);
 
         $package = Package::where('slug', 'business')->sole();
 
@@ -166,15 +169,36 @@ class EmployeeImportIdentityAndWorkforceTypeTest extends TestCase
         $this->assertSame('outsource', $this->employee('E-5')->employment_type);
     }
 
-    public function test_an_unknown_workforce_type_falls_back_without_costing_the_row(): void
+    /**
+     * v2.114.0 -- THE EXPECTATION CHANGED BECAUSE THE BEHAVIOUR WAS WRONG.
+     *
+     * This asserted `pkwtt`. An unrecognised value was being silently
+     * rewritten into a contract type the file never stated, in a field
+     * that feeds payroll, BPJS registration and government reporting.
+     * The row still imports -- workforce type was never critical -- but
+     * the value is now left UNKNOWN and the customer is told which row
+     * said what, so they can correct the file.
+     */
+    public function test_an_unknown_workforce_type_is_left_unknown_and_reported(): void
     {
         $result = $this->import([$this->row('E-1', '', 'A Satu', 'sesuatu yang lain')]);
 
-        $this->assertSame(1, $result['imported']);
-        $this->assertSame('pkwtt', $this->employee('E-1')->employment_type);
+        $this->assertSame(1, $result['imported'], 'An unreadable workforce type must not cost the row.');
+        $this->assertNull(
+            $this->employee('E-1')->employment_type,
+            'An unrecognised workforce type was rewritten into a contract the file never stated.'
+        );
+
+        $this->assertCount(1, $result['warnings']);
+        $this->assertStringContainsString('sesuatu yang lain', $result['warnings'][0]['reason']);
     }
 
-    public function test_a_file_without_the_column_still_imports_as_permanent(): void
+    /**
+     * v2.114.0 -- likewise: a file with NO workforce-type column at all
+     * used to label every person PERMANENT. That is the exact shape a
+     * customer reported after importing 75 people. Absent is now null.
+     */
+    public function test_a_file_without_the_column_leaves_the_type_unknown(): void
     {
         $oldHeadings = [
             'Employee ID', 'Full Name', 'Department', 'Position', 'Project', 'Phone', 'Email',
@@ -188,7 +212,15 @@ class EmployeeImportIdentityAndWorkforceTypeTest extends TestCase
         );
 
         $this->assertSame(1, $result['imported']);
-        $this->assertSame('pkwtt', $this->employee('E-1')->employment_type);
+        $this->assertNull(
+            $this->employee('E-1')->employment_type,
+            'A file that never mentioned a contract type produced one anyway.'
+        );
+
+        // Absent is not an error, so it is NOT warned about -- only a
+        // value that was present and unreadable is.
+        $this->assertSame([], $result['warnings']);
+
         $this->assertNull($this->employee('E-1')->nik);
         $this->assertSame('2026-01-15', $this->employee('E-1')->join_date?->toDateString());
     }
@@ -284,7 +316,7 @@ class EmployeeImportIdentityAndWorkforceTypeTest extends TestCase
         $path = tempnam(sys_get_temp_dir(), 'tpl').'.xlsx';
         file_put_contents($path, $response->streamedContent());
 
-        $rows = \PhpOffice\PhpSpreadsheet\IOFactory::load($path)->getActiveSheet()->toArray();
+        $rows = IOFactory::load($path)->getActiveSheet()->toArray();
 
         $this->assertSame(self::HEADINGS, array_slice($rows[0], 0, count(self::HEADINGS)));
         $this->assertSame('3201010101900001', (string) $rows[1][1], 'The example NIK must be shown as digits.');

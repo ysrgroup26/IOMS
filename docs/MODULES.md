@@ -16,11 +16,13 @@ Core master data: `Employee` model, one per person. Belongs to a `Company`, opti
 
 - **Import**: `EmployeesImport` + `EmployeeImportTemplateExport`, with a Preview step (Smart Master
   Data Detection — see `ARCHITECTURE.md`) before committing anything. Critical fields: Employee ID,
-  Full Name (missing either skips the row; duplicate Employee ID also skips). Department is
+  Full Name (missing either skips the row; an Employee ID held by a **live** employee also skips —
+  one held by a **deleted** one is restored, see below). Department is
   tracked but not required — "Unassigned" is a real, supported state. Optional fields (photo,
   phone, email, address, emergency contact) never block a row. Employment Status is read from the
-  file and validated against the real enum (`active`/`inactive`/`resigned`), falling back to
-  `active` for blank/unrecognized values rather than failing the row. Project (optional) creates a
+  file and validated against the real enum (`active`/`inactive`/`resigned`); a blank value becomes
+  `active`, and a value that is present but unrecognised becomes `active` **with a warning naming
+  the row**, rather than failing it. Project (optional) creates a
   `ProjectManpower` assignment if the name matches an existing project in the company.
 - **An employee with no department is still an employee** (v2.113.0): `scopeOrderedForDisplay()`
   LEFT JOINs `departments`. It used to INNER JOIN, which made every department-less employee
@@ -32,6 +34,23 @@ Core master data: `Employee` model, one per person. Belongs to a `Company`, opti
   `3.20101010194E+15` and two different NIKs render identically — which stored scientific notation
   and rejected the second person as a duplicate. `EmployeesImport::identifier()` writes an integral
   float out in full.
+- **Re-importing after a deletion RESTORES, it does not duplicate** (v2.114.0): `Employee` soft
+  deletes, and the unique indexes on `(company_id, employee_id)` and `(company_id, nik)` are plain
+  SQL indexes that know nothing about `deleted_at`. The importer keeps **two** registries: live
+  employee numbers (a duplicate, refused and named) and trashed ones (the identifier is reserved,
+  the person is not employed). A trashed match is `restore()`d and then filled from the file, so the
+  record keeps **its own primary key** and its KPI records, man-hour logs, PPE issues, approvals and
+  `ActivityLog` entries stay attached. Restorations are counted separately from new employees in the
+  preview, the result summary and the audit trail. Before this, deleting a mis-imported roster and
+  re-importing the corrected file reported every row as a duplicate while the Employees page showed
+  nobody. A NIK held by a *different* deleted employee is refused with that employee's number in the
+  message, since restoring the wrong person is not a recoverable mistake. See `CONVENTIONS.md`.
+- **An unknown Workforce Type stays unknown** (v2.114.0): `employees.employment_type` is nullable
+  (migration `2026_12_14_100800`) and **keeps** its `pkwtt` default, so the forms, `EmployeeFactory`
+  and the seeders are unchanged. Only the importer writes an explicit `null`, and only when the file
+  is silent or the value is unrecognised — which it reports as a warning on the row. It used to
+  stamp `pkwtt` on every such row, asserting a legal employment classification nothing in the file
+  said. The row is never refused over it: a missing classification is a gap to complete later.
 - **Profile completion**: `Employee::profile_status` is a *computed accessor*
   (`needs_completion` if `department_id` is null, `complete` otherwise), not a stored column —
   fully derivable from existing data, so it can never drift out of sync. `employee_id`/`full_name`

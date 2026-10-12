@@ -1,7 +1,7 @@
 ---
 title: Current State
 type: snapshot
-product-version: 2.113.0
+product-version: 2.114.0
 product-stage: Beta
 measured: 2026-10-12
 tags: [kb/state]
@@ -25,8 +25,8 @@ the date in the frontmatter, not remembered.
 |---|---|
 | Product | **IOMS — Industrial Operations Platform** |
 | Public company identity | **Tahada Group**; legal entity **PT Tahada Vistara Bersama** |
-| Version | **2.113.0**, stage **Beta**, edition **Enterprise Edition** |
-| Build | `2026.10.12.04`, release date `2026-10-12` |
+| Version | **2.114.0**, stage **Beta**, edition **Enterprise Edition** |
+| Build | `2026.10.12.05`, release date `2026-10-12` |
 | Stack | Laravel 12 · Inertia.js · React 18 · Tailwind · MySQL · Sanctum |
 
 The naming rules are not cosmetic — see [[Product Identity and Principles]].
@@ -38,9 +38,9 @@ The naming rules are not cosmetic — see [[Product Identity and Principles]].
 | Eloquent models | 118 |
 | Controllers | 102 |
 | Inertia pages | 183 |
-| Migrations | 195 |
-| Feature test files | 105 |
-| Tests / assertions | **1261 / 6354**, all passing on SQLite (see [[Verification Status]] for the MySQL run) |
+| Migrations | 196 |
+| Feature test files | 108 |
+| Tests / assertions | **1273 / 6455**, all passing on SQLite and on MySQL 8.0 (see [[Verification Status]]) |
 | ADRs | 51 files (numbering has known gaps — see [[Decision Register]]) |
 | Workspaces in the navigation registry | 12 |
 
@@ -82,6 +82,18 @@ replace the role. A My Work User authenticates through the same login and lands 
 server-side route allow-list still controls what that account may reach. See [[Domain Glossary]].
 
 ## What shipped most recently
+
+`2.114.0` (2026-10-12) — the reported import failure, fixed at its cause. Deleting a mis-imported
+roster and importing the corrected file refused **every row as a duplicate** while the Employees page
+showed nobody: the duplicate check read soft-deleted rows, the list did not, and both were right on
+their own terms. A **live** employee number is still refused; a **deleted** one is now RESTORED IN
+PLACE, keeping its primary key so its KPI records, man-hours, PPE issues and approvals stay attached
+rather than being stranded beside a duplicate. Restorations are counted separately in the preview,
+the summary and the audit trail. Separately, an absent or unrecognised Workforce Type was being
+stamped `pkwtt` — a legal classification under Indonesian employment law that nothing in the file
+said — and is now left unknown and reported. **1273 tests / 6455 assertions pass on SQLite and on
+MySQL 8.0**, and the reported sequence was reproduced and then driven through the browser (**22/22**).
+See [[Release History]] and [[Verification Status]].
 
 `2.94.0` (2026-10-04) — three real defects in the payment path, found by driving it: a Duitku payment
 session was reopened rather than reused on every visit, the gateway reference collided within a

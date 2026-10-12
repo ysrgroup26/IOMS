@@ -70,6 +70,9 @@ Older completions live in [[Release History]].
 
 | Item | Version | Status | Evidence |
 |---|---|---|---|
+| **Re-importing after a deletion restores instead of refusing** | 2.114.0 | `#status/verified` | Reported from use: 75 rows refused as duplicates by a page showing no employees. Reproduced with counts, then driven through the browser (22/22). `EmployeeReimportAfterDeletionTest` (12 tests) pins the restored record keeping its primary key |
+| **An unknown Workforce Type is left unknown, not stamped PKWTT** | 2.114.0 | `#status/verified` | `employment_type` made nullable with its default kept, so only the importer writes an explicit null. Warned on the row; verified in the browser that a blank column stays null |
+| **The import summary distinguishes new, restored and skipped** | 2.114.0 | `#status/verified` | Preview, result summary and audit trail each count restorations separately; `0 imported successfully · 75 restored` observed in the dialog |
 | **An employee with no department is visible again** — list, search, profile filter, both exports, library register | 2.113.0 | `#status/verified` | Pre-existing INNER JOIN in an ordering scope; 9 call sites. `UnassignedEmployeeVisibilityTest`; 29/29 browser sweep |
 | **A 16-digit NIK typed as a number survives import** | 2.113.0 | `#status/verified` | Excel's displayed value collapsed two different NIKs into one string and rejected the second as a duplicate. Importer now reads raw cells |
 | **Legacy .xls and semicolon CSV import** | 2.113.0 | `#status/verified` | Reader type derived from the sniffed format, not hardcoded; driven through the dialog |

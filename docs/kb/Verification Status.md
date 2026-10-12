@@ -49,8 +49,8 @@ on every phone width.
 
 | | |
 |---|---|
-| Suite | **1261 tests, 6354 assertions — all passing on SQLite** (2026-10-12, v2.113.0; was 1248/6298 at v2.112.0) |
-| Suite on **MySQL 8.0** | **1261 of 1261 passing** (2026-10-12), on an isolated `ioms_test` database with synthetic data. MySQL and SQLite agree completely. |
+| Suite | **1273 tests, 6455 assertions — all passing on SQLite** (2026-10-12, v2.114.0; was 1261/6354 at v2.113.0) |
+| Suite on **MySQL 8.0** | **1273 of 1273 passing** (2026-10-12), on an isolated `ioms_mysql_test` database with synthetic data. MySQL and SQLite agree completely. The v2.114.0 migration was additionally rolled back and re-applied on MySQL to confirm `employment_type` returns to NOT NULL and its index survives `change()`. |
 | Database | In-memory **SQLite**, so no MySQL or external service is needed |
 | Lint | `npm run lint` — 0 errors (4 existing warnings in `GasTestRecords/Index.jsx` and `Settings/Index.jsx`) |
 | Build | `npm run build` succeeded (2026-10-12): 2319 modules, 2,085 KB bundle, the existing size advisory unchanged |
@@ -88,6 +88,49 @@ on every phone width.
 > multi-table `UPDATE … JOIN` and anything reading `information_schema`, or guard it with
 > `DB::getDriverName() === 'mysql'`. Six migrations had to be made portable before the suite could
 > provision at all.
+
+### Browser-verified — v2.114.0 The reported import failure, reproduced and then driven to work (2026-10-12)
+
+This run exists because the defect was **reported from use**, not found by review: 75 rows refused as
+duplicates by a page that said there were no employees at all. The sequence was reproduced before
+anything was changed, and then the same sequence was driven through the real UI afterwards.
+
+**Reproduced first, with counts, on an isolated SQLite database and a synthetic 75-person roster:**
+
+| Before the fix | Observed |
+|---|---|
+| Re-import after deleting everyone | 75 rows read, **0 imported, 75 skipped**, 0 live employees — exactly the report |
+| A file with no Workforce Type column | every row stored `pkwtt`, which nothing in the file said |
+| 8 genuinely different join dates under an `mmm-yy` display format | collapsed to **5** distinct displayed values (the v2.113.0 raw-value read already prevents this; confirmed still correct) |
+
+**Then 22/22 end-to-end checks passed through the browser**, zero JavaScript errors, against a tenant
+whose departments and positions **already existed** before any import:
+
+| Step | Result |
+|---|---|
+| Import 75 | `75 imported successfully`; all 75 on the Employees page |
+| Accuracy | **15 distinct join dates on page 1 alone**; workforce types `{pkwtt:15, pkwt:15, daily:15, intern:15, contractor:15}` — read from the file, not invented |
+| Delete all 75 | through the real `DELETE /employees/bulk` endpoint with its `HAPUS` confirmation; list shows nobody |
+| Re-import the same file | preview announces the restorations in Indonesian; result `0 imported successfully · 75 restored`, **none skipped**; all 75 back on the page |
+| Mixed file (3 deleted + 2 live + 3 new) | `3 imported successfully · 3 restored · 2 skipped`, and the refusal names the real reason: `EMP-0040" (already used in this Operating Unit)` |
+| The 3 new people | each findable by search; a blank Workforce Type stayed **null**, not PKWTT; join date `2026-03-08` as written; a leading-zero NIK `32010101019900001` survived |
+| Consistency | list total equals what the database holds; **5 departments, not duplicated**; **0 trashed rows left**; another tenant's 60 employees untouched |
+
+Confirmed directly in the database afterwards: the restored `EMP-0001` kept **primary key 61** — the
+id it was first imported with — so nothing that references `employees.id` was stranded. `EMP-0040`,
+which was *live* when the mixed file named it, kept its original join date rather than being silently
+overwritten by the file.
+
+> [!important] What reproducing first bought
+> The naive fix — dropping `withTrashed()` from the duplicate check — would have replaced a readable
+> per-row skip with a `UniqueConstraintViolationException` that rolls the whole import back, because
+> the unique indexes include soft-deleted rows. That was established by inspecting the index, not
+> guessed at. See the v2.114.0 pitfall in `CONVENTIONS.md`.
+
+> [!note] Still not covered
+> **Production was not reached from this session.** The proof above ran against an isolated SQLite
+> database on `127.0.0.1:8188` with synthetic data only; no production system, credential or dataset
+> was touched.
 
 ### Browser-verified — v2.113.0 Full sweep of every promised import and export (2026-10-12)
 

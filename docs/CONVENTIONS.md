@@ -1951,6 +1951,83 @@ Three rules that matter when extending this:
 
 The chip is a LABEL (English); the consequence sentence is PROSE (Indonesian). See ADR 034.
 
+## CRITICAL — Known Pitfall (v2.114.0) — a soft-deleted row is invisible to the LIST and visible to the IMPORT, and the customer sees both answers at once
+
+Reported from production, and the two halves of the report read like they cannot both be true:
+
+> I imported 75 employees, every row came back **"Duplicate Employee ID"**, and the Employees page
+> says **"Belum ada data karyawan"**.
+
+Both were accurate. `Employee` uses `SoftDeletes`, so deleting a mis-imported roster sets
+`deleted_at` and leaves the rows in the table. The Employees list applies the soft-delete scope and
+showed nothing. `EmployeesImport` built its duplicate registry with `Employee::withTrashed()` and saw
+all 75. One screen was answering "who works here", the other "which employee numbers are taken", and
+nothing on screen told the customer those were different questions.
+
+**The rule.** Whenever you check "does this already exist" against a soft-deleting model, decide
+explicitly which of the three cases you mean, and say which one in the code:
+
+| State | What it means | What a duplicate check should do |
+|---|---|---|
+| live row | the record is in use | refuse, and name the live record |
+| trashed row | the identifier is reserved, the record is not in use | **do not refuse** — restore, or say the row is deleted |
+| no row | free | proceed |
+
+**Why dropping `withTrashed()` is NOT the fix, and would have been worse.** The unique indexes
+`employees_company_employee_id_unique` and `employees_company_nik_unique` are plain SQL indexes: they
+know nothing about `deleted_at`, so the trashed row still occupies the number. Querying only live
+rows would have turned a readable per-row skip into a `UniqueConstraintViolationException` that rolls
+the whole transaction back — the same failure mode as the v2.105.0 pitfall below, and one the
+customer cannot act on.
+
+**What the import does instead: it RESTORES IN PLACE.** A trashed employee with that number is
+`restore()`d and then filled from the file, so the record keeps **its own primary key**. That is the
+point, not a convenience: KPI records, man-hour logs, PPE issues, approvals and `ActivityLog` entries
+all reference `employees.id`, which is the entire reason this model soft-deletes in the first place.
+Creating a second row for the same person would strand every one of those against a record nobody
+can find.
+
+A restoration is counted and reported SEPARATELY from an import, in the preview, in the result
+summary and in the audit trail, because "we brought 75 records back" and "we created 75 records" are
+different events and the customer has to be able to tell which one happened. `EmployeesImport`
+carries `$restored` alongside `$imported` for exactly that reason; a counter that merged them would
+make the fix untestable from the outside.
+
+Pinned by `tests/Feature/EmployeeReimportAfterDeletionTest.php`, which walks the reported sequence
+(import 75 → delete all → re-import the same file) and asserts the restored record keeps its id, that
+a LIVE duplicate is still refused, and that another tenant's deleted employee is never restored.
+
+## CRITICAL — Known Pitfall (v2.114.0) — a column default chosen for a BACKFILL is a fabricated value when an import reaches it
+
+`employees.employment_type` was added with `->default('pkwtt')`, and the migration says why: every
+employee already in the system when workforce classification arrived was being managed as ordinary
+permanent staff, so PKWTT preserved their behaviour exactly. That reasoning is sound **for rows that
+already existed**.
+
+It is wrong the moment a new row arrives without the value. A roster whose file has no Workforce Type
+column, or a type IOMS does not recognise, had every row stamped `pkwtt` — and under Indonesian
+employment law PKWTT is a legal classification, not a display preference. The import was not
+defaulting, it was **asserting something about each person that nothing in the file said**.
+
+**The rule.** A column default is a statement about rows the schema creates. An importer is not the
+schema: when the source is silent or unreadable, the importer must write **nothing** and say so on
+the row, never the default.
+
+Two things make this safe to do without disturbing anything else:
+
+- The migration `2026_12_14_100800_allow_an_unknown_workforce_type` makes the column **nullable and
+  keeps the default**. Every path that does not mention the column (the forms, `EmployeeFactory`,
+  every seeder) is unaffected and still produces `pkwtt`; only an explicit `null` from the importer
+  means "the file did not say".
+- The row is not refused over it. A missing classification is a gap to complete later, not a reason
+  to reject a person's record, so the import warns and continues. The same applies to an
+  unrecognised Employment Status: it is reported, not silently coerced.
+
+The general shape, and the thing to look for elsewhere: **a default that encodes "what was true of
+the data we already had" becomes a lie the first time a new source writes through it.** Ask of every
+`->default()` whether an importer, an API or a webhook can reach that column without supplying a
+value, and if it can, whether the default is a fact or a guess.
+
 ## CRITICAL — Known Pitfall (v2.94.0) — a commercial term that VARIES BY PLAN must never be written as a calendar unit
 
 `TenantProvisioningService` ended a yearly subscription with `now()->addYear()`.

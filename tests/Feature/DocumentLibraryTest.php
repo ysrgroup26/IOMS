@@ -248,6 +248,21 @@ class DocumentLibraryTest extends TestCase
     }
 
     /**
+     * A document a client reads must not show the database's spelling.
+     * `permanent` and `active` are enum VALUES, not labels.
+     */
+    public function test_stored_tokens_are_printed_as_labels_not_as_enum_values(): void
+    {
+        $this->employee();
+
+        $text = $this->pdfText($this->download('employee-register', 'pdf'));
+
+        $this->assertStringContainsString('Permanent', $text);
+        $this->assertStringContainsString('Active', $text);
+        $this->assertStringNotContainsString('permanent', $text);
+    }
+
+    /**
      * An empty register must SAY it is empty. A blank table reads as "we
      * checked and there is nobody", which is a different claim.
      */

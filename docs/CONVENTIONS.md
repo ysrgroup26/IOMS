@@ -3,6 +3,54 @@
 House style, and a deliberately honest list of mistakes that have actually happened in this
 codebase's history — kept here so they don't get repeated in a slightly different shape.
 
+## Known Pitfall (v2.111.0): a heading row is often FULLER than the rows beneath it, and a
+## width-based "support" signal reads that as a data row
+
+`TableLocator` scored a candidate heading row partly on **support**: how many of the rows beneath
+it were about as wide. On the commonest template shape of all — twelve declared columns of which a
+customer fills five — the real heading row scored **zero** support, and the first DATA row, whose
+neighbours are exactly as sparse as it is, scored full support and won. The located "headings" were
+then `EMP-1 | budi santoso | Mechanic | Kolom 4 | …`, and the import wrote nothing.
+
+The relationship that actually defines a heading row is **containment, not width**: data sits in the
+columns the headings named. A row supports the candidate when the columns it fills are a *subset* of
+the candidate's and it fills at least two of them.
+
+> [!warning] Two green tests went red, and that was the only warning
+> This shipped inside a change whose own 13 tests all passed. What caught it was the FULL suite —
+> `EmployeeImportProductionDefectsTest`, written for a different release entirely. Run the whole
+> suite before believing a parser change is safe; the file you are editing is not where the damage
+> shows up.
+
+Pinned by `DocumentImportBridgeTest::test_a_wide_template_with_sparse_rows_is_not_broken_by_the_locator`.
+
+## Convention (v2.111.0): a heuristic may improve a path, never become a new way to lose it
+
+The locator is a measurement, but it is still a heuristic, and when it is wrong about a spreadsheet
+the cost is total: the file imported fine before, and the normalisation built from a misread heading
+row imports nothing.
+
+So `EmployeeController::withImportSpreadsheet()` takes the bridge for a **spreadsheet** only when
+the headings it located map to at least two real IOMS fields (`mappableHeadings()`). Headings that
+map to nothing cannot produce a usable import anyway, so the original file is handed over and the
+path that worked yesterday still works. CSV, Word and PDF get no such fallback, because for them
+there is no older path to fall back *to*.
+
+Generalise it: when you put a heuristic in front of something that already worked, give it a
+**fail-open** condition expressed in terms of what the heuristic was FOR.
+
+## Convention (v2.111.0): a reported row number must name a line in the file the user has
+
+`EmployeesImport` reports skipped rows and date warnings by row number, and the dialog prints them
+beside "perbaiki pada berkas Anda". Once the Document Platform started normalising a source into a
+temporary spreadsheet, those numbers counted rows in a file the customer has never seen — on a
+roster whose headings are on row 5, "Row 5 — Missing Full Name" pointed at the heading row.
+
+`EmployeesImport` therefore takes a `rowOffset` that shifts only what is **reported**; nothing about
+reading, validating or writing a row depends on it. Any future normalisation must set it.
+
+A wrong line reference beside the words "fix this in your file" is worse than no line reference.
+
 ## Known Pitfall (v2.110.0): a PDF's heading row is often CENTRED, and a distance-based column
 ## clustering reads that as twice as many columns
 

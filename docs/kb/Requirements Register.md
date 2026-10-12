@@ -70,6 +70,10 @@ Older completions live in [[Release History]].
 
 | Item | Version | Status | Evidence |
 |---|---|---|---|
+| **Employee import, eight steps through the real UI** — Excel and CSV | 2.111.0 | `#status/verified` | 19/19 + 6/6 browser checks on a deliberately awkward synthetic workbook; see [[Verification Status]] |
+| **A located heading row now reaches the importer, not just the preview** | 2.111.0 | `#status/verified` | Real defect: a roster with a title block above the table was mapped correctly and imported NOTHING. `DocumentImportBridgeTest`; ADR 053 amendment |
+| **The locator no longer misreads a wide template with sparse rows** | 2.111.0 | `#status/test-covered` | Regression caught by the FULL suite, not by the change's own tests. `TableLocator::supportBelow()` measures containment, not width; pitfall in `CONVENTIONS.md` |
+| **Reported row numbers name the customer's own file** | 2.111.0 | `#status/verified` | `EmployeesImport::$rowOffset`; seen in the dialog as "Row 9" for a record on row 9 of the upload |
 | **Document Library** — one registry, four documents, three output formats each | 2.110.0 | `#status/verified` | ADR [[053-a-document-is-a-definition-not-an-export\|053]]; `DocumentLibraryTest` (11 tests, asserting on files read back with a different library than wrote them); 16/16 browser checks incl. magic-byte verification of six downloads |
 | **Four input formats reach the existing employee importer** — Excel, CSV, Word, PDF | 2.110.0 | `#status/test-covered` | `DocumentImportBridgeTest` (8 tests, asserting on the DATABASE after each import); the Word and PDF paths were exercised against generated fixtures, not against a real customer file |
 | **HSE Inspection report PDF** — the one HSE record with no printable output | 2.110.0 | `#status/verified` | `DocumentPlatformTest`; re-parsed with `smalot/pdfparser` AND rasterised with `pdftoppm` and read visually |

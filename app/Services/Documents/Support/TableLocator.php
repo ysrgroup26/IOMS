@@ -92,7 +92,7 @@ class TableLocator
 
         $distinct = count(array_unique(array_map('mb_strtolower', $filled))) / count($filled);
 
-        $support = $this->supportBelow($grid, $index, count($filled));
+        $support = $this->supportBelow($grid, $index, $cells);
 
         /*
          * Weighted so `support` cannot be outvoted: a decorative row can
@@ -102,27 +102,59 @@ class TableLocator
         return (0.25 * $fill) + (0.2 * $textual) + (0.15 * $distinct) + (0.4 * $support);
     }
 
-    /** Fraction of the next rows that are about as wide as the candidate. */
-    private function supportBelow(array $grid, int $index, int $headerWidth): float
+    /**
+     * Fraction of the next rows that sit UNDER this candidate's columns.
+     *
+     * v2.111.0 -- this used to compare WIDTHS: a row supported the
+     * candidate only if it filled at least half as many cells. That is
+     * wrong for the commonest template of all, where a sheet declares
+     * twelve columns and the customer fills five. The real heading row
+     * scored zero support, and a DATA row -- whose neighbours happen to
+     * be exactly as sparse as it is -- scored full support and won.
+     *
+     * The relationship that actually defines a heading row is
+     * CONTAINMENT, not width: data sits in the columns the headings
+     * named. A row supports the candidate when the columns it fills are
+     * a subset of the candidate's, and it fills at least two of them.
+     *
+     * @param  list<string>  $headerCells  the candidate row, trimmed, positionally indexed
+     */
+    private function supportBelow(array $grid, int $index, array $headerCells): float
     {
+        $headerColumns = [];
+
+        foreach ($headerCells as $column => $value) {
+            if ($value !== '') {
+                $headerColumns[$column] = true;
+            }
+        }
+
         $checked = 0;
         $supporting = 0;
 
         for ($i = $index + 1; $i < count($grid) && $checked < 5; $i++) {
-            $cells = array_filter(
-                array_map(fn ($c) => trim((string) ($c ?? '')), $grid[$i]),
-                fn (string $c) => $c !== ''
-            );
+            $filledColumns = [];
+
+            foreach ($grid[$i] as $column => $value) {
+                if (trim((string) ($value ?? '')) !== '') {
+                    $filledColumns[] = $column;
+                }
+            }
 
             // Blank rows are skipped rather than counted against: a gap
             // between the headings and the first record is common.
-            if ($cells === []) {
+            if ($filledColumns === []) {
                 continue;
             }
 
             $checked++;
 
-            if (count($cells) >= max(2, (int) ceil($headerWidth * 0.5))) {
+            $inside = count(array_filter($filledColumns, fn ($c) => isset($headerColumns[$c])));
+
+            // Every filled cell under a heading, and at least two of
+            // them. A row that spills into columns the candidate never
+            // named is not sitting under it.
+            if ($inside >= 2 && $inside === count($filledColumns)) {
                 $supporting++;
             }
         }

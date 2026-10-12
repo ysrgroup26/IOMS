@@ -75,18 +75,39 @@ class EmployeesImport implements OnEachRow, WithChunkReading, WithHeadingRow
 
     /**
      * @param  array<string,string>|null  $columnKeys  Milestone 3 (Import
-     *         Mapping, Task #67): target field => actual heading-row key
-     *         to read it from, resolved by
-     *         `App\Services\FieldMappingService::importColumnKeys()`.
-     *         Null (or a field missing from the map) falls back to the
-     *         field's own name -- byte-for-byte the original behavior,
-     *         so an unconfigured tenant's import is unaffected.
+     *                                                 Mapping, Task #67): target field => actual heading-row key
+     *                                                 to read it from, resolved by
+     *                                                 `App\Services\FieldMappingService::importColumnKeys()`.
+     *                                                 Null (or a field missing from the map) falls back to the
+     *                                                 field's own name -- byte-for-byte the original behavior,
+     *                                                 so an unconfigured tenant's import is unaffected.
      */
     public function __construct(
         private readonly int $companyId,
         private readonly int $userId,
         private readonly bool $previewOnly = false,
         private readonly ?array $columnKeys = null,
+        /*
+         * v2.111.0 -- HOW FAR THE FILE WE ARE READING SITS FROM THE ONE
+         * THE CUSTOMER HAS.
+         *
+         * Zero for a workbook read directly, which is every import this
+         * class has ever done. It is non-zero only when the Document
+         * Platform has normalised a source whose table did not start at
+         * row 1 -- a roster with a company header above it, say -- into a
+         * clean spreadsheet with its headings on row 1.
+         *
+         * Without it, every row number this class reports is a row in a
+         * temporary file the customer has never seen. On that roster the
+         * dialog said "Row 5 -- Missing Full Name" and told them to fix
+         * their file, where row 5 is the heading row. A wrong line
+         * reference beside the words "fix this in your file" is worse
+         * than no line reference.
+         *
+         * It shifts only what is REPORTED. Nothing about reading,
+         * validating or writing a row depends on it.
+         */
+        private readonly int $rowOffset = 0,
     ) {}
 
     private function col(array $data, string $field): mixed
@@ -269,7 +290,7 @@ class EmployeesImport implements OnEachRow, WithChunkReading, WithHeadingRow
          * one they had to fix. On a 141-row file that is 141 wrong
          * line references.
          */
-        $rowNumber = $row->getIndex();
+        $rowNumber = $row->getIndex() + $this->rowOffset;
 
         $employeeId = trim((string) ($this->col($data, 'employee_id') ?? ''));
         // v2.105.0: written the way the product displays a person --
@@ -502,25 +523,25 @@ class EmployeesImport implements OnEachRow, WithChunkReading, WithHeadingRow
           */
         try {
             DB::transaction(function () use ($data, $employeeId, $nik, $employmentType, $fullName, $departmentId, $positionId, $joinDate, $status) {
-            $employee = Employee::create([
-                'employee_id' => $employeeId,
-                // Null, never '' -- see the unique-index note above.
-                'nik' => $nik !== '' ? $nik : null,
-                'employment_type' => $employmentType,
-                'full_name' => $fullName,
-                'company_id' => $this->companyId,
-                'department_id' => $departmentId,
-                'position_id' => $positionId,
-                'status' => $status,
-                'join_date' => $joinDate,
-                'phone' => trim((string) ($this->col($data, 'phone') ?? '')) ?: null,
-                'email' => trim((string) ($this->col($data, 'email') ?? '')) ?: null,
-                'address' => trim((string) ($this->col($data, 'address') ?? '')) ?: null,
-                'emergency_contact_name' => trim((string) ($this->col($data, 'emergency_contact_name') ?? '')) ?: null,
-                'emergency_contact_phone' => trim((string) ($this->col($data, 'emergency_contact_phone') ?? '')) ?: null,
-            ]);
+                $employee = Employee::create([
+                    'employee_id' => $employeeId,
+                    // Null, never '' -- see the unique-index note above.
+                    'nik' => $nik !== '' ? $nik : null,
+                    'employment_type' => $employmentType,
+                    'full_name' => $fullName,
+                    'company_id' => $this->companyId,
+                    'department_id' => $departmentId,
+                    'position_id' => $positionId,
+                    'status' => $status,
+                    'join_date' => $joinDate,
+                    'phone' => trim((string) ($this->col($data, 'phone') ?? '')) ?: null,
+                    'email' => trim((string) ($this->col($data, 'email') ?? '')) ?: null,
+                    'address' => trim((string) ($this->col($data, 'address') ?? '')) ?: null,
+                    'emergency_contact_name' => trim((string) ($this->col($data, 'emergency_contact_name') ?? '')) ?: null,
+                    'emergency_contact_phone' => trim((string) ($this->col($data, 'emergency_contact_phone') ?? '')) ?: null,
+                ]);
 
-            // Project is optional and never blocks the import -- if the
+                // Project is optional and never blocks the import -- if the
                 // name doesn't match an existing project (or is blank),
                 // the employee is simply not assigned to one yet.
                 $projectName = trim((string) ($this->col($data, 'project') ?? ''));

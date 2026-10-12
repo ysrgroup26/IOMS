@@ -102,7 +102,10 @@ export default function EmployeesIndex({ employees, companies, departments, filt
                 </Button>
                 {can.manage && (
                     <>
-                        <Button variant="outline" onClick={() => setImportOpen(true)}><Upload className="h-4 w-4" /> Import Excel</Button>
+                        {/* v2.111.0: "Import Excel" named one of the four formats the
+                            dialog now opens. A button that names a format is a
+                            promise about which files are accepted. */}
+                        <Button variant="outline" onClick={() => setImportOpen(true)}><Upload className="h-4 w-4" /> Import Employees</Button>
                         <Button asChild>
                             <Link href={route('employees.create')}><Plus className="h-4 w-4" /> Add Employee</Link>
                         </Button>

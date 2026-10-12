@@ -49,8 +49,8 @@ on every phone width.
 
 | | |
 |---|---|
-| Suite | **1226 tests, 6071 assertions — all passing on SQLite** (2026-10-12, v2.110.0; was 1161/5766 at v2.108.1) |
-| Suite on **MySQL 8.0** | **1226 of 1226 passing** (2026-10-12), on an isolated `ioms_test` database with synthetic data. QA-007 is fixed, so MySQL and SQLite now agree completely. |
+| Suite | **1236 tests, 6115 assertions — all passing on SQLite** (2026-10-12, v2.111.0; was 1226/6071 at v2.110.0) |
+| Suite on **MySQL 8.0** | **1236 of 1236 passing** (2026-10-12), on an isolated `ioms_test` database with synthetic data. MySQL and SQLite agree completely. |
 | Database | In-memory **SQLite**, so no MySQL or external service is needed |
 | Lint | `npm run lint` — 0 errors (4 existing warnings in `GasTestRecords/Index.jsx` and `Settings/Index.jsx`) |
 | Build | `npm run build` succeeded (2026-10-12): 2319 modules, 2,085 KB bundle, the existing size advisory unchanged |
@@ -88,6 +88,30 @@ on every phone width.
 > multi-table `UPDATE … JOIN` and anything reading `information_schema`, or guard it with
 > `DB::getDriverName() === 'mysql'`. Six migrations had to be made portable before the suite could
 > provision at all.
+
+### Browser-verified — v2.111.0 Employee import, end to end (2026-10-12)
+
+The eight steps of the import flow, driven through the **real dialog** with Playwright + Chromium
+against `php artisan serve` on an isolated SQLite file database. The fixture is a synthetic customer
+workbook, deliberately awkward: a summary tab in front of the data, a company name and report title
+above the table, the customer's own Indonesian column names, a row with no name, a missing join
+date, and one genuine Excel date cell. No production data of any kind was involved.
+
+| Step | Result |
+|---|---|
+| 1. Upload | **19/19 checks passed.** The picker offers `.xlsx,.xls,.csv,.docx,.pdf`; the button no longer names one format. |
+| 2–3. Read and map | The **second worksheet** was chosen, the heading row **located on row 5**, and the customer's own headings (`No. Induk`, `Nama Lengkap`, `Tgl Masuk`…) mapped to IOMS fields. All of it stated on screen in a "Detected Source" panel. |
+| 4. Preview | 5 rows found, 4 valid, 1 invalid; the nameless record listed as skipped **at row 9 — its position in the uploaded workbook**; nothing written. |
+| 5–6. Confirm and write | New master data created and the import committed. |
+| 7. In the module | `Hendra Gunawan` / `0090001` visible on `/employees`, the leading zero intact; the genuine Excel date cell survived the normalisation. |
+| 8. Summary | "5 Rows Found · 4 imported successfully · 1 skipped", with the reason and the customer's own row number. Zero JavaScript errors. |
+
+A **CSV** chosen through the same widened picker was separately driven end to end (6/6 checks): read,
+previewed, imported, and visible in the module.
+
+> [!note] What this run did NOT cover
+> Word and PDF were exercised through the SERVER by the test suite, not dragged into the dialog by
+> hand. Scanned-document OCR remains unexercised and disabled.
 
 ### Browser-verified — v2.110.0 Document Platform (2026-10-12)
 

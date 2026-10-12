@@ -2,6 +2,7 @@
 
 namespace Tests\Feature;
 
+use App\Http\Controllers\EmployeeController;
 use App\Models\ActivityLog;
 use App\Models\Company;
 use App\Models\Employee;
@@ -18,7 +19,9 @@ use Illuminate\Foundation\Testing\RefreshDatabase;
 use Illuminate\Http\UploadedFile;
 use Illuminate\Support\Facades\Mail;
 use Illuminate\Testing\TestResponse;
+use PhpOffice\PhpSpreadsheet\Cell\Coordinate;
 use PhpOffice\PhpSpreadsheet\Cell\DataType;
+use PhpOffice\PhpSpreadsheet\Shared\Date;
 use PhpOffice\PhpSpreadsheet\Spreadsheet;
 use PhpOffice\PhpSpreadsheet\Writer\Xlsx;
 use PhpOffice\PhpWord\IOFactory;
@@ -171,6 +174,78 @@ class DocumentImportBridgeTest extends TestCase
         return new UploadedFile($path, 'roster.pdf', 'application/pdf', null, true);
     }
 
+    /**
+     * The roster as a real customer workbook: a company name, a report
+     * title and a blank line ABOVE the table, which is what a roster
+     * exported from a payroll system or typed by an admin actually looks
+     * like.
+     */
+    private function messyXlsxFixture(): UploadedFile
+    {
+        $spreadsheet = new Spreadsheet;
+        $sheet = $spreadsheet->getActiveSheet();
+
+        $sheet->setCellValue('A1', 'PT Galangan Aliran Jaya');
+        $sheet->setCellValue('A2', 'Daftar Tenaga Kerja Produksi');
+        $sheet->setCellValue('A3', 'Periode Januari 2026');
+
+        foreach (self::HEADINGS as $index => $heading) {
+            $sheet->setCellValue(
+                Coordinate::stringFromColumnIndex($index + 1).'5',
+                $heading
+            );
+        }
+
+        foreach (self::ROWS as $offset => $row) {
+            foreach ($row as $index => $value) {
+                $sheet->getCell(
+                    Coordinate::stringFromColumnIndex($index + 1).(6 + $offset)
+                )->setValueExplicit((string) $value, DataType::TYPE_STRING);
+            }
+        }
+
+        $path = tempnam(sys_get_temp_dir(), 'ioms-fx-').'.xlsx';
+        (new Xlsx($spreadsheet))->save($path);
+        $spreadsheet->disconnectWorksheets();
+
+        return new UploadedFile($path, 'daftar-karyawan.xlsx', null, null, true);
+    }
+
+    /** The same roster, but on the SECOND sheet behind a summary tab. */
+    private function secondSheetXlsxFixture(): UploadedFile
+    {
+        $spreadsheet = new Spreadsheet;
+
+        $summary = $spreadsheet->getActiveSheet();
+        $summary->setTitle('Ringkasan');
+        $summary->setCellValue('A1', 'Total Karyawan');
+        $summary->setCellValue('B1', '2');
+
+        $data = $spreadsheet->createSheet();
+        $data->setTitle('Data Karyawan');
+
+        foreach (self::HEADINGS as $index => $heading) {
+            $data->setCellValue(
+                Coordinate::stringFromColumnIndex($index + 1).'1',
+                $heading
+            );
+        }
+
+        foreach (self::ROWS as $offset => $row) {
+            foreach ($row as $index => $value) {
+                $data->getCell(
+                    Coordinate::stringFromColumnIndex($index + 1).(2 + $offset)
+                )->setValueExplicit((string) $value, DataType::TYPE_STRING);
+            }
+        }
+
+        $path = tempnam(sys_get_temp_dir(), 'ioms-fx-').'.xlsx';
+        (new Xlsx($spreadsheet))->save($path);
+        $spreadsheet->disconnectWorksheets();
+
+        return new UploadedFile($path, 'rekap-karyawan.xlsx', null, null, true);
+    }
+
     private function import(UploadedFile $file): TestResponse
     {
         return $this->actingAs($this->admin)->postJson(route('employees.import'), [
@@ -251,6 +326,276 @@ class DocumentImportBridgeTest extends TestCase
 
         $this->assertSame(2, $response->json('imported'));
         $this->assertRosterLanded();
+    }
+
+    // --- XLSX must reach the importer the way INSPECT described it ------
+
+    /**
+     * THE DIVERGENCE THIS TEST EXISTS FOR.
+     *
+     * `inspect` locates the heading row; `import` used to hand the raw
+     * workbook to a reader that assumes row 1. So a customer could be
+     * shown a correct mapping from row 5 and then import nothing at all
+     * — the worst possible shape of failure, because the preview said it
+     * would work.
+     */
+    public function test_a_spreadsheet_with_rows_above_the_table_actually_imports(): void
+    {
+        $response = $this->import($this->messyXlsxFixture());
+        $response->assertOk();
+
+        $this->assertSame(2, $response->json('imported'), 'The located heading row was not the one the import read.');
+        $this->assertRosterLanded();
+    }
+
+    /** The same divergence, in the other shape: data behind a summary tab. */
+    public function test_a_roster_on_the_second_sheet_actually_imports(): void
+    {
+        $response = $this->import($this->secondSheetXlsxFixture());
+        $response->assertOk();
+
+        $this->assertSame(2, $response->json('imported'), 'Only the first sheet was read.');
+        $this->assertRosterLanded();
+    }
+
+    /**
+     * A ROW NUMBER MUST NAME A LINE THE CUSTOMER CAN GO AND LOOK AT.
+     *
+     * The skipped-row list is shown beside the words "fix this in your
+     * file", so a row number counted in the temporary spreadsheet IOMS
+     * built is worse than none: on a roster whose headings are on row 5,
+     * it pointed at the heading row.
+     */
+    public function test_a_skipped_row_is_reported_at_its_position_in_the_customers_own_file(): void
+    {
+        $spreadsheet = new Spreadsheet;
+        $sheet = $spreadsheet->getActiveSheet();
+
+        $sheet->setCellValue('A1', 'PT Galangan Aliran Jaya');
+        $sheet->setCellValue('A2', 'Daftar Tenaga Kerja');
+        $sheet->setCellValue('A3', 'Periode Januari 2026');
+
+        foreach (self::HEADINGS as $index => $heading) {
+            $sheet->setCellValue(
+                Coordinate::stringFromColumnIndex($index + 1).'5',
+                $heading
+            );
+        }
+
+        // Row 6 is good; row 7 has no name and must be skipped.
+        foreach ([
+            ['0012345', 'Budi Santoso', '3201010101900001', 'Produksi', 'Welder', '15/01/2026'],
+            ['0012346', '', '3201010101900002', 'Produksi', 'Helper', '03/02/2026'],
+        ] as $offset => $row) {
+            foreach ($row as $index => $value) {
+                if ($value === '') {
+                    continue;
+                }
+
+                $sheet->getCell(
+                    Coordinate::stringFromColumnIndex($index + 1).(6 + $offset)
+                )->setValueExplicit((string) $value, DataType::TYPE_STRING);
+            }
+        }
+
+        $path = tempnam(sys_get_temp_dir(), 'ioms-fx-').'.xlsx';
+        (new Xlsx($spreadsheet))->save($path);
+        $spreadsheet->disconnectWorksheets();
+
+        $response = $this->import(new UploadedFile($path, 'daftar.xlsx', null, null, true));
+        $response->assertOk();
+
+        $skipped = $response->json('skipped');
+
+        $this->assertCount(1, $skipped);
+        $this->assertSame(
+            7,
+            $skipped[0]['row'],
+            'The nameless record is on row 7 of the uploaded workbook; any other number points at a file the customer has never seen.'
+        );
+    }
+
+    /** An ordinary workbook's row numbers are unchanged by the offset. */
+    public function test_an_ordinary_spreadsheet_still_reports_its_own_row_numbers(): void
+    {
+        $spreadsheet = new Spreadsheet;
+        $sheet = $spreadsheet->getActiveSheet();
+
+        foreach (self::HEADINGS as $index => $heading) {
+            $sheet->setCellValue(
+                Coordinate::stringFromColumnIndex($index + 1).'1',
+                $heading
+            );
+        }
+
+        // Row 2 good, row 3 nameless.
+        $sheet->getCell('A2')->setValueExplicit('0012345', DataType::TYPE_STRING);
+        $sheet->setCellValue('B2', 'Budi Santoso');
+        $sheet->getCell('A3')->setValueExplicit('0012346', DataType::TYPE_STRING);
+
+        $path = tempnam(sys_get_temp_dir(), 'ioms-fx-').'.xlsx';
+        (new Xlsx($spreadsheet))->save($path);
+        $spreadsheet->disconnectWorksheets();
+
+        $response = $this->import(new UploadedFile($path, 'roster.xlsx', null, null, true));
+        $response->assertOk();
+
+        $this->assertSame(3, $response->json('skipped.0.row'));
+    }
+
+    /**
+     * THE REGRESSION THIS GUARD EXISTS FOR.
+     *
+     * A twelve-column template whose records fill only five columns: the
+     * heading row is FULLER than its data, which is the commonest shape
+     * of all and the one the locator originally misread, picking the
+     * first data row as the headings. A workbook that imported perfectly
+     * before the Document Platform must still import perfectly after it.
+     */
+    public function test_a_wide_template_with_sparse_rows_is_not_broken_by_the_locator(): void
+    {
+        $headings = [
+            'Employee ID', 'Full Name', 'Department', 'Position', 'Project', 'Phone',
+            'Email', 'Address', 'Emergency Contact Name', 'Emergency Contact Phone',
+            'Join Date', 'Employment Status',
+        ];
+
+        $spreadsheet = new Spreadsheet;
+        $spreadsheet->getActiveSheet()->fromArray([
+            $headings,
+            // Only five of twelve columns carry anything.
+            ['0012345', 'Budi Santoso', 'Produksi', '', '', '', '', '', '', '', '15/01/2026', 'active'],
+            ['0012346', 'Siti Aminah', 'QA/QC', '', '', '', '', '', '', '', '03/02/2026', 'active'],
+        ], null, 'A1');
+
+        $path = tempnam(sys_get_temp_dir(), 'ioms-fx-').'.xlsx';
+        (new Xlsx($spreadsheet))->save($path);
+        $spreadsheet->disconnectWorksheets();
+
+        $response = $this->import(new UploadedFile($path, 'template.xlsx', null, null, true));
+        $response->assertOk();
+
+        $this->assertSame(2, $response->json('imported'));
+        $this->assertNotNull(Employee::where('full_name', 'Budi Santoso')->first());
+
+        // Row 1 really is the heading row, and the import said so.
+        $this->assertSame(0, $response->json('skipped') === null ? 0 : count($response->json('skipped')));
+    }
+
+    /**
+     * And the belt-and-braces half of it: even if the locator DOES
+     * misread a workbook, the bridge is refused unless the headings it
+     * found map to something, so the file the customer uploaded is the
+     * one the importer reads.
+     */
+    public function test_a_spreadsheet_whose_located_headings_map_to_nothing_is_read_as_uploaded(): void
+    {
+        $spreadsheet = new Spreadsheet;
+        $spreadsheet->getActiveSheet()->fromArray([
+            ['Employee ID', 'Full Name', 'Department'],
+            ['0012345', 'Budi Santoso', 'Produksi'],
+        ], null, 'A1');
+
+        $path = tempnam(sys_get_temp_dir(), 'ioms-fx-').'.xlsx';
+        (new Xlsx($spreadsheet))->save($path);
+        $spreadsheet->disconnectWorksheets();
+
+        $controller = new EmployeeController;
+        $reflection = new \ReflectionMethod($controller, 'mappableHeadings');
+
+        $this->assertTrue($reflection->invoke($controller, ['Employee ID', 'Full Name', 'Department']));
+        // A row of DATA, which is what a misread picks up.
+        $this->assertFalse($reflection->invoke($controller, ['0012345', 'Budi Santoso', 'Produksi']));
+        // One accidental match is noise, not a column layout.
+        $this->assertFalse($reflection->invoke($controller, ['Status', '12', 'xyz']));
+    }
+
+    /** Preview must agree with the import it is a preview OF. */
+    public function test_the_preview_of_a_messy_spreadsheet_counts_the_same_rows_the_import_writes(): void
+    {
+        $preview = $this->actingAs($this->admin)->postJson(route('employees.import.preview'), [
+            'file' => $this->messyXlsxFixture(),
+            'company_id' => $this->yard->id,
+        ]);
+
+        $preview->assertOk();
+        $this->assertSame(2, $preview->json('total_rows'));
+        $this->assertSame(2, $preview->json('valid_rows'));
+        $this->assertSame(0, Employee::count(), 'Preview wrote to the database.');
+    }
+
+    // --- the plain spreadsheet path must not have changed ----------------
+
+    public function test_an_ordinary_spreadsheet_still_imports_exactly_as_before(): void
+    {
+        $spreadsheet = new Spreadsheet;
+        $sheet = $spreadsheet->getActiveSheet();
+
+        foreach (self::HEADINGS as $index => $heading) {
+            $sheet->setCellValue(
+                Coordinate::stringFromColumnIndex($index + 1).'1',
+                $heading
+            );
+        }
+
+        foreach (self::ROWS as $offset => $row) {
+            foreach ($row as $index => $value) {
+                $sheet->getCell(
+                    Coordinate::stringFromColumnIndex($index + 1).(2 + $offset)
+                )->setValueExplicit((string) $value, DataType::TYPE_STRING);
+            }
+        }
+
+        $path = tempnam(sys_get_temp_dir(), 'ioms-fx-').'.xlsx';
+        (new Xlsx($spreadsheet))->save($path);
+        $spreadsheet->disconnectWorksheets();
+
+        $response = $this->import(new UploadedFile($path, 'roster.xlsx', null, null, true));
+        $response->assertOk();
+
+        $this->assertSame(2, $response->json('imported'));
+        $this->assertRosterLanded();
+    }
+
+    /**
+     * A REAL Excel date cell -- a serial number, not text -- must survive
+     * whatever path the workbook takes. This is what "converting the file
+     * could lose something" meant, so it is pinned rather than assumed.
+     */
+    public function test_a_real_excel_date_cell_survives_a_messy_workbook(): void
+    {
+        $spreadsheet = new Spreadsheet;
+        $sheet = $spreadsheet->getActiveSheet();
+
+        $sheet->setCellValue('A1', 'PT Galangan Aliran Jaya');
+        $sheet->setCellValue('A2', 'Daftar Tenaga Kerja');
+
+        foreach (self::HEADINGS as $index => $heading) {
+            $sheet->setCellValue(
+                Coordinate::stringFromColumnIndex($index + 1).'4',
+                $heading
+            );
+        }
+
+        $sheet->getCell('A5')->setValueExplicit('0012345', DataType::TYPE_STRING);
+        $sheet->setCellValue('B5', 'Budi Santoso');
+        $sheet->getCell('C5')->setValueExplicit('3201010101900001', DataType::TYPE_STRING);
+        $sheet->setCellValue('D5', 'Produksi');
+        $sheet->setCellValue('E5', 'Welder');
+
+        // 15 January 2026 as a genuine Excel serial, formatted day-first.
+        $sheet->setCellValue('F5', Date::PHPToExcel(strtotime('2026-01-15')));
+        $sheet->getStyle('F5')->getNumberFormat()->setFormatCode('dd/mm/yyyy');
+
+        $path = tempnam(sys_get_temp_dir(), 'ioms-fx-').'.xlsx';
+        (new Xlsx($spreadsheet))->save($path);
+        $spreadsheet->disconnectWorksheets();
+
+        $this->import(new UploadedFile($path, 'tanggal.xlsx', null, null, true))->assertOk();
+
+        $budi = Employee::where('full_name', 'Budi Santoso')->first();
+        $this->assertNotNull($budi);
+        $this->assertSame('2026-01-15', $budi->join_date->format('Y-m-d'));
     }
 
     /** The audit trail names the format the rows actually came from. */

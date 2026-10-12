@@ -25,6 +25,7 @@ use App\Services\Documents\FormatDetector;
 use App\Services\Documents\Support\ExtractedDocument;
 use App\Services\Documents\TabularBridge;
 use App\Services\FieldMappingService;
+use App\Services\ImportHeaderMatcher;
 use App\Services\MasterDataDetector;
 use App\Services\PdfGeneratorService;
 use App\Support\NameFormatter;
@@ -500,14 +501,52 @@ class EmployeeController extends Controller
             ]);
         }
 
-        if (in_array($format, [FormatDetector::XLSX, FormatDetector::XLS], true)) {
-            return $work($file->getRealPath(), null);
+        $document = app(DocumentIngestionService::class)->extract($file->getRealPath(), $format);
+        $isSpreadsheet = in_array($format, [FormatDetector::XLSX, FormatDetector::XLS], true);
+
+        if ($isSpreadsheet && $this->readableAsIs($document)) {
+            return $work($file->getRealPath(), 0);
         }
 
-        $document = app(DocumentIngestionService::class)->extract($file->getRealPath(), $format);
         $table = $document->primaryTable();
 
+        /*
+         * v2.111.0 -- THE BRIDGE MUST EARN ITS PLACE.
+         *
+         * `readableAsIs()` trusts the locator, and the locator is a
+         * heuristic. When it is wrong about a SPREADSHEET the cost is
+         * total: the original file imported fine, and the normalisation
+         * built from a misread heading row imports nothing. That is not
+         * hypothetical -- a twelve-column template whose rows fill only
+         * five columns made exactly that mistake and cost two passing
+         * tests before the locator was corrected.
+         *
+         * So for a spreadsheet the bridge is taken only when the headings
+         * it found MAP TO SOMETHING. Headings that match no IOMS field
+         * cannot produce a usable import anyway, so the original file is
+         * handed over and the path that worked before still works. The
+         * locator stays an improvement on the old behaviour; it never
+         * becomes a new way to lose.
+         *
+         * Word, CSV and PDF get no such fallback, because for them there
+         * is no older path to fall back TO.
+         */
+        if ($isSpreadsheet && $table !== null && ! $this->mappableHeadings($table->headings)) {
+            return $work($file->getRealPath(), 0);
+        }
+
         if ($table === null) {
+            if ($isSpreadsheet) {
+                /*
+                 * Our locator found nothing, but Maatwebsite might still
+                 * read the file. Failing OPEN here keeps a workbook that
+                 * imported yesterday importing today: the locator is an
+                 * improvement on the old path, not a new gate in front of
+                 * it.
+                 */
+                return $work($file->getRealPath(), 0);
+            }
+
             throw ValidationException::withMessages([
                 'file' => 'Tidak ada tabel yang dapat dibaca dari berkas ini. '
                     .($document->warnings[0] ?? 'Pastikan berkas memuat tabel dengan baris judul kolom.'),
@@ -516,11 +555,73 @@ class EmployeeController extends Controller
 
         $path = app(TabularBridge::class)->toSpreadsheet($table);
 
+        /*
+         * The bridge puts the headings on row 1, so a record that sat on
+         * source row N is now on row N - (headerRowNumber - 1).
+         */
+        $rowOffset = $table->headerRowNumber - 1;
+
         try {
-            return $work($path, $document);
+            return $work($path, $rowOffset);
         } finally {
             @unlink($path);
         }
+    }
+
+    /**
+     * v2.111.0 -- CAN THE EXISTING IMPORTER READ THIS WORKBOOK AS IT IS?
+     *
+     * Only when EVERY located table already has its headings on row 1,
+     * because that is the single assumption `EmployeesImport` makes
+     * (`WithHeadingRow` with no `headingRow()` override). When that holds,
+     * the ORIGINAL file is handed over untouched, which matters for two
+     * reasons that are easy to lose:
+     *
+     *  - Maatwebsite reads EVERY sheet of a workbook. The bridge carries
+     *    one table, so bridging a workbook whose rosters are split across
+     *    sheets would silently import fewer people than before.
+     *  - A real Excel date cell stays a date cell rather than becoming a
+     *    string on its way through.
+     *
+     * When it does NOT hold -- a company name and a report title above the
+     * table, which is what a roster exported from a payroll system
+     * actually looks like -- the file goes through the bridge, because
+     * the alternative is what this method was written to fix: `inspect`
+     * locating the headings on row 5, showing the customer a correct
+     * mapping, and then the import reading row 1 and writing NOTHING.
+     * A preview that promises rows and an import that writes none is a
+     * worse failure than a refusal.
+     */
+    /**
+     * Do these headings name at least two things IOMS can import?
+     *
+     * Two rather than one because a single accidental match ("Status",
+     * say) is noise; two is a column layout. The same matcher the preview
+     * shows the customer answers it, so the decision and the explanation
+     * it is shown beside cannot disagree.
+     *
+     * @param  list<string>  $headings
+     */
+    private function mappableHeadings(array $headings): bool
+    {
+        $suggestion = app(ImportHeaderMatcher::class)->suggest($headings, [], 'employees');
+
+        return count($suggestion['mapping'] ?? []) >= 2;
+    }
+
+    private function readableAsIs(ExtractedDocument $document): bool
+    {
+        if ($document->tables === []) {
+            return true;
+        }
+
+        foreach ($document->tables as $table) {
+            if ($table->headerRowNumber !== 1) {
+                return false;
+            }
+        }
+
+        return true;
     }
 
     /**
@@ -627,8 +728,8 @@ class EmployeeController extends Controller
             // v2.110.0: the file reaching EmployeesImport is always a
             // spreadsheet, whatever the customer uploaded. See
             // withImportSpreadsheet().
-            $import = $this->withImportSpreadsheet($request, function (string $path) use ($companyId, $request, $mapping) {
-                $import = new EmployeesImport($companyId, $request->user()->id, previewOnly: true, columnKeys: $mapping->importColumnKeys('employees', $this->confirmedColumnMapping($request)));
+            $import = $this->withImportSpreadsheet($request, function (string $path, int $rowOffset) use ($companyId, $request, $mapping) {
+                $import = new EmployeesImport($companyId, $request->user()->id, previewOnly: true, columnKeys: $mapping->importColumnKeys('employees', $this->confirmedColumnMapping($request)), rowOffset: $rowOffset);
                 Excel::import($import, $path, null, \Maatwebsite\Excel\Excel::XLSX);
 
                 return $import;
@@ -758,7 +859,7 @@ class EmployeeController extends Controller
             // transaction -- extracting a Word or PDF table is reading,
             // not writing, and holding a transaction open across it would
             // keep row locks for the length of a parse.
-            $import = $this->withImportSpreadsheet($request, fn (string $path) => DB::transaction(function () use ($request, $companyId, $path, $mapping, $confirmedMapping) {
+            $import = $this->withImportSpreadsheet($request, fn (string $path, int $rowOffset) => DB::transaction(function () use ($request, $companyId, $path, $rowOffset, $mapping, $confirmedMapping) {
                 /*
                  * v2.101.0 -- NORMALISED, AND MATCHED AGAINST WHAT IS ALREADY
                  * THERE.
@@ -783,7 +884,7 @@ class EmployeeController extends Controller
                     $request->input('new_positions', [])
                 );
 
-                $import = new EmployeesImport($companyId, $request->user()->id, columnKeys: $mapping->importColumnKeys('employees', $confirmedMapping));
+                $import = new EmployeesImport($companyId, $request->user()->id, columnKeys: $mapping->importColumnKeys('employees', $confirmedMapping), rowOffset: $rowOffset);
                 Excel::import($import, $path, null, \Maatwebsite\Excel\Excel::XLSX);
 
                 return $import;
@@ -829,8 +930,8 @@ class EmployeeController extends Controller
             ...$this->columnMappingRules(),
         ]);
 
-        $import = $this->withImportSpreadsheet($request, function (string $path) use ($request, $mapping) {
-            $import = new EmployeesImport((int) $request->input('company_id'), $request->user()->id, columnKeys: $mapping->importColumnKeys('employees', $this->confirmedColumnMapping($request)));
+        $import = $this->withImportSpreadsheet($request, function (string $path, int $rowOffset) use ($request, $mapping) {
+            $import = new EmployeesImport((int) $request->input('company_id'), $request->user()->id, columnKeys: $mapping->importColumnKeys('employees', $this->confirmedColumnMapping($request)), rowOffset: $rowOffset);
             Excel::import($import, $path, null, \Maatwebsite\Excel\Excel::XLSX);
 
             return $import;

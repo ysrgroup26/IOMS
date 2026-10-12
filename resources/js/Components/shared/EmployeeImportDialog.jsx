@@ -83,7 +83,7 @@ export default function EmployeeImportDialog({ open, onOpenChange, companies }) 
         }
 
         if (!file) {
-            setError('Pilih berkas Excel yang akan diimpor.');
+            setError('Pilih berkas yang akan diimpor.');
             return;
         }
 
@@ -190,13 +190,14 @@ export default function EmployeeImportDialog({ open, onOpenChange, companies }) 
     return (
         <Dialog open={open} onOpenChange={(v) => (v ? onOpenChange(true) : close())}>
             <DialogContent className={stage === 'preview' ? 'max-w-lg' : undefined}>
-                <DialogHeader><DialogTitle>Import Employees from Excel</DialogTitle></DialogHeader>
+                <DialogHeader><DialogTitle>Import Employees</DialogTitle></DialogHeader>
 
                 {stage === 'upload' && (
                     <div className="space-y-4">
                         <div className="rounded-lg border border-graphite-100 bg-graphite-50/60 p-3">
                             <p className="mb-2 text-[13px] text-graphite-600">
-                                Download the template, fill in your employees, then upload it below.
+                                Unduh templat, isi data karyawan, lalu unggah di bawah. Berkas Anda sendiri
+                                juga dapat diunggah langsung tanpa templat.
                             </p>
                             <Button variant="outline" size="sm" asChild>
                                 <a href={route('employees.import-template')}><Download className="h-3.5 w-3.5" /> Download Template</a>
@@ -214,12 +215,31 @@ export default function EmployeeImportDialog({ open, onOpenChange, companies }) 
                         </div>
 
                         <div className="space-y-1.5">
-                            <Label>Excel File (.xlsx or .xls)</Label>
+                            <Label>Source File</Label>
                             <label className="flex h-24 cursor-pointer flex-col items-center justify-center gap-1 rounded-lg border border-dashed border-graphite-300 text-graphite-400 hover:border-brand-400 hover:text-brand-600">
                                 <Upload className="h-5 w-5" />
                                 <span className="text-xs">{file ? file.name : 'Click to choose a file'}</span>
-                                <input type="file" accept=".xlsx,.xls" className="hidden" onChange={(e) => setFile(e.target.files[0])} />
+                                {/*
+                                    v2.111.0 -- the picker now offers what the
+                                    SERVER accepts. It offered .xlsx and .xls
+                                    only, so the CSV, Word and PDF the import
+                                    endpoints had already been reading since
+                                    v2.110.0 were unreachable from the one
+                                    screen a customer actually uses. A
+                                    capability no file picker will open is not
+                                    a capability.
+                                */}
+                                <input
+                                    type="file"
+                                    accept=".xlsx,.xls,.csv,.docx,.pdf"
+                                    className="hidden"
+                                    onChange={(e) => setFile(e.target.files[0])}
+                                />
                             </label>
+                            <p className="text-xs text-graphite-500">
+                                Menerima Excel (.xlsx, .xls), CSV, Word (.docx) dan PDF. Baris judul kolom
+                                tidak harus berada di baris pertama.
+                            </p>
                         </div>
 
                         {error && <p className="text-xs text-red-600">{error}</p>}
@@ -241,6 +261,44 @@ export default function EmployeeImportDialog({ open, onOpenChange, companies }) 
                 {stage === 'preview' && preview && (
                     <div className="space-y-4">
                         <p className="text-xs uppercase tracking-wide text-graphite-400">Employee Import Preview</p>
+
+                        {/*
+                            v2.111.0 -- WHAT IOMS ACTUALLY READ.
+                            The reader detects the format by content, picks a
+                            worksheet or table, and LOCATES the heading row
+                            rather than assuming row 1. All of that was
+                            invisible, so a customer could only find out which
+                            sheet had been read by comparing the row count
+                            afterwards. A table recovered from a PDF is a
+                            reconstruction, so its confidence is stated too --
+                            never presented as a certainty.
+                        */}
+                        {mapping?.format_label && (
+                            <div className="rounded-lg border border-graphite-100 bg-graphite-50/60 p-3">
+                                <p className="mb-1.5 text-xs font-semibold text-graphite-600">Detected Source</p>
+                                <p className="text-xs text-graphite-500">
+                                    <span className="text-graphite-700">{mapping.format_label}</span>
+                                    {mapping.source && <> &middot; {mapping.source}</>}
+                                    {mapping.header_row > 1 && <> &middot; judul kolom di baris {mapping.header_row}</>}
+                                    {mapping.confidence < 1 && <> &middot; keyakinan {Math.round(mapping.confidence * 100)}%</>}
+                                </p>
+
+                                {mapping.tables?.length > 1 && (
+                                    <p className="mt-1 text-xs text-graphite-500">
+                                        Berkas memuat {mapping.tables.length} tabel; yang dibaca adalah{' '}
+                                        <span className="text-graphite-700">{mapping.source}</span>.
+                                    </p>
+                                )}
+
+                                {mapping.warnings?.map((w) => (
+                                    <p key={w} className="mt-1 text-xs text-amber-700">{w}</p>
+                                ))}
+
+                                {mapping.notes?.map((n) => (
+                                    <p key={n} className="mt-1 text-xs text-graphite-500">{n}</p>
+                                ))}
+                            </div>
+                        )}
 
                         <div className="grid grid-cols-2 gap-3">
                             <PreviewStat label="Total Rows" value={preview.total_rows} />

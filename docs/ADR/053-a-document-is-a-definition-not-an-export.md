@@ -96,6 +96,32 @@ document leaves the server.
 unavailable it says so, **with the reason**, and the UI prints that reason. It explicitly refuses
 cloud OCR: a customer's confidential document is not sent to a third party to be read.
 
+## Amendment (v2.111.0) — the bridge is a fallback, not a front door
+
+The original rule was "a `.xlsx`/`.xls` is passed through untouched; everything else is bridged".
+Running the flow through the UI showed that it split the wrong way.
+
+**What was wrong.** `inspect` located the heading row, but `preview` and `import` handed the raw
+workbook to a reader that assumes row 1. A customer could be shown a correct mapping read from row
+5 and then import **nothing** — a preview that promises rows and an import that writes none, which
+is a worse failure than a refusal.
+
+**What it is now.** The decision is made per FILE, not per format:
+
+1. A spreadsheet whose located tables all start at row 1 → **passed through untouched**. This keeps
+   two properties the bridge cannot: Maatwebsite reads every sheet (the bridge carries one table),
+   and a real Excel date cell stays a date cell.
+2. A spreadsheet whose table starts further down → **bridged**, but only when the located headings
+   map to at least two real IOMS fields. A heuristic may improve a path; it must not become a new
+   way to lose it. The locator proved it can be wrong — a twelve-column template whose rows fill
+   five columns made it pick the first data row as the headings — so the fallback is not optional.
+3. CSV, Word, PDF → **always bridged**. There is no older path to fall back to.
+
+**And the row numbers moved with it.** `EmployeesImport` gained a `rowOffset` that shifts only what
+is REPORTED, so a skipped row names a line in the file the customer actually has. Without it the
+dialog said "Row 5 — Missing Full Name" about a roster whose row 5 is the heading row, directly
+beside the words "fix this in your file".
+
 ## Consequences
 
 **Good**

@@ -36,13 +36,26 @@ Core master data: `Employee` model, one per person. Belongs to a `Company`, opti
   to the customer as a WARNING against its own row number — the row still imports, because a join
   date was never a critical field. Never `strtotime()`; see
   `docs/ADR/050-a-date-out-of-a-spreadsheet.md` and the pitfall in `CONVENTIONS.md`.
-- **Four input formats** (v2.110.0): all four import endpoints (`inspect`, `preview`,
-  `create-missing-and-import`, `import`) accept **Excel, CSV, Word (.docx) and PDF**. A
-  non-spreadsheet file is extracted by the Document Platform and written out as a clean `.xlsx` by
-  `TabularBridge`; `EmployeesImport` itself is unchanged and is still the only place employee
-  validation lives. The heading row is **located**, not assumed, so a roster with a company header
-  above the table now imports. Macro-enabled workbooks are refused outright. The audit trail names
-  the format the rows actually came from. See `docs/ADR/053-a-document-is-a-definition-not-an-export.md`.
+- **Four input formats** (v2.110.0, reachable from the UI since v2.111.0): all four import
+  endpoints (`inspect`, `preview`, `create-missing-and-import`, `import`) accept **Excel, CSV,
+  Word (.docx) and PDF**, and the dialog's file picker now offers all four — before v2.111.0 it
+  offered `.xlsx,.xls` only, so three of the formats the server could read were unreachable from
+  the one screen a customer uses. Macro-enabled workbooks are refused outright. The audit trail
+  names the format the rows actually came from.
+- **How a file reaches the importer** (v2.111.0): `EmployeesImport` is unchanged and is still the
+  only place employee validation lives. A **spreadsheet whose headings are already on row 1** is
+  handed to it untouched — that path reads every sheet and keeps real Excel date cells as dates.
+  Anything else (CSV, Word, PDF, or a spreadsheet whose table starts further down) is extracted and
+  written out as a clean `.xlsx` by `TabularBridge`. The bridge is taken for a spreadsheet **only
+  when the located headings map to at least two IOMS fields**, so a locator mistake can never
+  replace a workbook that already imported with one that does not. See
+  `docs/ADR/053-a-document-is-a-definition-not-an-export.md` and `CONVENTIONS.md`.
+- **Row numbers are the customer's** (v2.111.0): `EmployeesImport` takes a `rowOffset` so a skipped
+  row or an unreadable date is reported at its position in the **uploaded** file, not in the
+  temporary spreadsheet IOMS may have built. It shifts only what is reported.
+- **The preview says what was read** (v2.111.0): a "Detected Source" panel names the format, the
+  worksheet or table, the located heading row, and — for a PDF — the reconstruction's confidence.
+  Before it, a customer could only work out which sheet had been read by comparing row counts.
 - **Smart Import applies its own suggestion** (v2.108.1): `/employees/import/inspect` suggests
   `[field => their heading]`, the dialog shows it, and that mapping is POSTed as `column_mapping`
   with the preview and the import. Before this it was drawn and discarded — a customer's own

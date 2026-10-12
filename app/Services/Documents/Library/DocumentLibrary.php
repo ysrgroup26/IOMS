@@ -5,7 +5,14 @@ namespace App\Services\Documents\Library;
 use App\Models\User;
 use App\Services\Documents\Library\Definitions\EmployeeRegisterDocument;
 use App\Services\Documents\Library\Definitions\HseInspectionRegisterDocument;
+use App\Services\Documents\Library\Definitions\IncidentInvestigationRegisterDocument;
+use App\Services\Documents\Library\Definitions\IncidentRegisterDocument;
+use App\Services\Documents\Library\Definitions\LeaveRegisterDocument;
+use App\Services\Documents\Library\Definitions\ManHourRegisterDocument;
+use App\Services\Documents\Library\Definitions\MaterialRequestRegisterDocument;
+use App\Services\Documents\Library\Definitions\PermitToWorkRegisterDocument;
 use App\Services\Documents\Library\Definitions\ProjectManpowerDocument;
+use App\Services\Documents\Library\Definitions\StockMovementRegisterDocument;
 use App\Services\Documents\Library\Definitions\StockPositionDocument;
 use RuntimeException;
 
@@ -31,10 +38,24 @@ class DocumentLibrary
 {
     /** @var list<class-string<DocumentDefinition>> */
     private const DEFINITIONS = [
-        EmployeeRegisterDocument::class,
+        // Health, Safety & Environment
         HseInspectionRegisterDocument::class,
+        PermitToWorkRegisterDocument::class,
+        IncidentRegisterDocument::class,
+        IncidentInvestigationRegisterDocument::class,
+
+        // People / HRD
+        EmployeeRegisterDocument::class,
+        LeaveRegisterDocument::class,
+
+        // Warehouse & Logistics
         StockPositionDocument::class,
+        StockMovementRegisterDocument::class,
+        MaterialRequestRegisterDocument::class,
+
+        // Management
         ProjectManpowerDocument::class,
+        ManHourRegisterDocument::class,
     ];
 
     /** @return list<DocumentDefinition> */

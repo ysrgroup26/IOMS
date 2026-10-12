@@ -2,7 +2,6 @@
 
 namespace App\Services\Documents\Export;
 
-use App\Models\CompanySetting;
 use App\Services\DocumentEngine;
 use PhpOffice\PhpWord\Element\Section;
 use PhpOffice\PhpWord\IOFactory;
@@ -263,17 +262,19 @@ class BrandedWordDocument
         return $this;
     }
 
+    /**
+     * v2.112.0: reads `identity['logo_path']`, which DocumentEngine now
+     * resolves once and checks once. This method used to re-read
+     * `CompanySetting` itself, so the three document formats each decided
+     * independently where the logo lived -- and the XLSX decided it had
+     * none at all. One source, one existence check, three documents that
+     * agree.
+     */
     private function logoPath(array $identity): ?string
     {
-        $stored = CompanySetting::get('company_logo_path');
+        $path = $identity['logo_path'] ?? null;
 
-        if (! $stored) {
-            return null;
-        }
-
-        $path = storage_path('app/public/'.$stored);
-
-        return is_file($path) && is_readable($path) ? $path : null;
+        return $path && is_file($path) && is_readable($path) ? $path : null;
     }
 
     public function save(string $path): string

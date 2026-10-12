@@ -11,6 +11,7 @@ use App\Models\Subscription;
 use App\Models\Tenant;
 use App\Models\User;
 use App\Models\Workspace;
+use App\Services\Documents\DocumentIngestionService;
 use App\Support\CurrentTenant;
 use Barryvdh\DomPDF\Facade\Pdf;
 use Database\Seeders\ModuleSeeder;
@@ -596,6 +597,85 @@ class DocumentImportBridgeTest extends TestCase
         $budi = Employee::where('full_name', 'Budi Santoso')->first();
         $this->assertNotNull($budi);
         $this->assertSame('2026-01-15', $budi->join_date->format('Y-m-d'));
+    }
+
+    /**
+     * THE REGRESSION THE CO-OCCUPANCY GUARD EXISTS FOR.
+     *
+     * A landscape PDF with a title block above the table -- a shape this
+     * application itself prints. The column merge that fixed centred
+     * headings used to force the cluster count down to the modal fragment
+     * count, and here that welded `Bagian` and `Jabatan` into one cell
+     * reading "Produksi Welder"; the heading row was then mistaken for
+     * data and the import wrote nothing.
+     *
+     * Two clusters some single row uses at the same time are two columns,
+     * whatever the distance between them.
+     */
+    public function test_a_landscape_pdf_with_a_title_block_keeps_its_columns_apart(): void
+    {
+        $headings = ['No. Induk', 'Nama Lengkap', 'NIK KTP', 'Bagian', 'Jabatan', 'Tgl Masuk'];
+        $rows = [
+            ['0092001', 'Teguh Wibowo', '3201010101930001', 'Produksi', 'Welder', '07/01/2026'],
+            ['0092002', 'Ratna Juwita', '3201010101930002', 'QA/QC', 'Inspector', '18/02/2026'],
+            ['0092003', 'Slamet Riyadi', '3201010101930003', 'Logistik', 'Storeman', '09/03/2026'],
+        ];
+
+        $cells = '';
+
+        foreach ($rows as $row) {
+            $cells .= '<tr>'.implode('', array_map(fn ($v) => '<td>'.$v.'</td>', $row)).'</tr>';
+        }
+
+        $html = '<html><body><h3>PT GALANGAN ALIRAN JAYA</h3><p>Daftar Tenaga Kerja Produksi</p>'
+            .'<table width="100%"><tr>'
+            .implode('', array_map(fn ($h) => '<th>'.$h.'</th>', $headings))
+            .'</tr>'.$cells.'</table></body></html>';
+
+        $path = tempnam(sys_get_temp_dir(), 'ioms-fx-').'.pdf';
+        file_put_contents($path, Pdf::loadHTML($html)->setPaper('a4', 'landscape')->output());
+
+        $table = app(DocumentIngestionService::class)
+            ->extract($path, 'pdf')
+            ->primaryTable();
+
+        $this->assertNotNull($table, 'No table was recovered from the PDF.');
+        $this->assertSame($headings, $table->headings, 'The PDF columns were merged or mis-located.');
+        $this->assertSame(3, $table->rowCount());
+
+        // The two adjacent columns that used to be welded together.
+        $this->assertSame('Produksi', $table->rows[0][3]);
+        $this->assertSame('Welder', $table->rows[0][4]);
+
+        /*
+         * And it still imports end to end -- through the SAME two steps
+         * the dialog takes: inspect to resolve the customer's own column
+         * names, then import carrying that mapping. Posting the file
+         * without a mapping would test a flow the UI never performs, and
+         * these headings are Indonesian, so nothing would match.
+         */
+        $suggestion = $this->actingAs($this->admin)->postJson(route('employees.import.inspect'), [
+            'file' => new UploadedFile($path, 'roster.pdf', 'application/pdf', null, true),
+        ]);
+        $suggestion->assertOk();
+
+        $columnMapping = [];
+
+        foreach ($suggestion->json('mapping') as $field => $match) {
+            $columnMapping[$field] = $match['heading'];
+        }
+
+        $this->assertSame('Nama Lengkap', $columnMapping['full_name'] ?? null);
+
+        $response = $this->actingAs($this->admin)->postJson(route('employees.import'), [
+            'file' => new UploadedFile($path, 'roster.pdf', 'application/pdf', null, true),
+            'company_id' => $this->yard->id,
+            'column_mapping' => $columnMapping,
+        ]);
+
+        $response->assertOk();
+        $this->assertSame(3, $response->json('imported'));
+        $this->assertNotNull(Employee::where('full_name', 'Teguh Wibowo')->first());
     }
 
     /** The audit trail names the format the rows actually came from. */

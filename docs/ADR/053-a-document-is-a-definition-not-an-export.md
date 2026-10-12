@@ -122,6 +122,36 @@ is REPORTED, so a skipped row names a line in the file the customer actually has
 dialog said "Row 5 — Missing Full Name" about a roster whose row 5 is the heading row, directly
 beside the words "fix this in your file".
 
+## Amendment (v2.112.0) — the library reaches the modules it was built for
+
+Four documents proved the engine; they were not the scope. The library now publishes **eleven**,
+covering every module the owner named: Permit to Work, HSE Inspection, Incident & Accident,
+Accident Investigation, Material Request, Employee, Leave, Stock Position, Stock Movement, Project
+Manpower and Man-Hour. Each one is a single class — the claim that adding a document costs no route,
+controller, export class or Blade view is now demonstrated eleven times rather than asserted.
+
+Three things the new definitions settled, which the first four did not have to:
+
+1. **A register reports the stored state and derives nothing.** The PTW register prints the recorded
+   approver and leaves it EMPTY on an `approved` permit with no `hse_approver_id`, because that row
+   genuinely records nobody. The Man-Hour register reports hours and never a rate, so nothing in it
+   can quietly become the LTIFR this product deliberately does not publish.
+2. **The ADR 036 boundary holds inside a document.** The incident register says only whether an
+   investigation EXISTS; the incident REPORT links to it by number and refuses to print its root
+   cause. A finding of record must live in exactly one document.
+3. **A shared `DocumentLabel`.** Each definition had been writing its own
+   `ucwords(str_replace('_', ' ', …))`, which is eleven chances to spell one enum two ways. It is now
+   one helper, routed through `NameFormatter`, so documents and screens share the acronym list in
+   `config/naming.php`.
+
+**The logo moved to disk.** `DocumentEngine::identity()` now also returns `logo_path`, an absolute
+local path that is null unless the file is really there. The PDF letterhead used a URL, which made
+dompdf fetch over HTTP from our own public host while rendering; the spreadsheet embedded nothing at
+all, on the reasoning that decoding a customer-supplied image inside an export request is where a
+malformed upload becomes a failed download. That reasoning was right about the risk and wrong about
+the remedy: the drawing is now attempted inside a try/catch in all three formats, so a broken logo
+costs the picture and never the report.
+
 ## Consequences
 
 **Good**

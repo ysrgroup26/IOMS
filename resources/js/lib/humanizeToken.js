@@ -32,6 +32,9 @@ const ACRONYMS = new Set([
     'PPIC', 'SDM', 'RND', 'EHS',
     'GAJ', 'PT', 'CV', 'UD', 'PLN', 'BUMN', 'KSO',
     'ABK', 'ROV', 'NDT', 'WPS', 'PQR', 'AC', 'DC', 'HVAC',
+    // v2.112.0 -- the employment-type vocabulary. Kept in step with
+    // config/naming.php, which ProductTerminologyTest pins.
+    'PKWTT', 'PKWT', 'PKL',
 ]);
 
 export function humanizeToken(value) {

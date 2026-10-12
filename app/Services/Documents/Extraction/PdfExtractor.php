@@ -217,7 +217,7 @@ class PdfExtractor implements DocumentExtractor
         arsort($counts);
         $expectedColumns = (int) array_key_first($counts);
 
-        $columns = $this->clusterColumns($anchors, $expectedColumns);
+        $columns = $this->clusterColumns($anchors, $expectedColumns, $byRow);
 
         if (count($columns) < 2) {
             return null;
@@ -294,7 +294,7 @@ class PdfExtractor implements DocumentExtractor
      * @param  list<float>  $positions
      * @return list<float>
      */
-    private function clusterColumns(array $positions, ?int $expected = null): array
+    private function clusterColumns(array $positions, ?int $expected = null, array $rows = []): array
     {
         sort($positions);
 
@@ -316,26 +316,58 @@ class PdfExtractor implements DocumentExtractor
         $clusters[] = $current;
 
         if ($expected !== null && $expected >= 2) {
-            $clusters = $this->mergeTo($clusters, $expected);
+            $clusters = $this->mergeTo($clusters, $expected, $rows);
         }
 
         return array_map(fn (array $cluster) => array_sum($cluster) / count($cluster), $clusters);
     }
 
     /**
-     * Agglomerative merge of adjacent clusters, closest pair first,
-     * until `$target` clusters remain.
+     * Agglomerative merge of adjacent clusters, closest pair first, down
+     * to `$target` -- but ONLY where merging cannot destroy a real column.
+     *
+     * v2.112.0 -- THE GUARD, WHICH THE FIRST VERSION DID NOT HAVE.
+     *
+     * Merging purely by distance until the count matched the modal
+     * fragment count was right for the case it was written for (a centred
+     * heading sitting at a different x from its left-aligned data) and
+     * wrong in general: when the modal count UNDERSTATES the number of
+     * columns -- a row where two neighbouring cells' glyphs came out as
+     * one fragment is enough -- it forced two genuine columns together. On
+     * a landscape roster printed from this very application it merged
+     * `Bagian` and `Jabatan` into one cell reading "Produksi Welder", and
+     * the heading row was then mistaken for data.
+     *
+     * The exact test is co-occupancy: TWO CLUSTERS THAT SOME SINGLE ROW
+     * USES AT THE SAME TIME ARE DIFFERENT COLUMNS, and no distance makes
+     * them one. A heading at one x and its data at another are never both
+     * present in one row, so the original case still merges; `Bagian` and
+     * `Jabatan`, which every data row fills together, now cannot.
+     *
+     * When no pair is eligible the loop stops above `$target` rather than
+     * forcing it. Reporting more columns than a page really has costs a
+     * stray empty "Kolom N" the reader can see and ignore; silently
+     * welding two columns together corrupts the data.
      *
      * @param  list<list<float>>  $clusters
+     * @param  array<string, list<array{x: float, text: string}>>  $rows
      * @return list<list<float>>
      */
-    private function mergeTo(array $clusters, int $target): array
+    private function mergeTo(array $clusters, int $target, array $rows = []): array
     {
         while (count($clusters) > $target) {
+            $anchors = array_map(fn (array $c) => array_sum($c) / count($c), $clusters);
+            $occupancy = $this->occupancy($anchors, $rows);
+
             $bestIndex = null;
             $bestGap = PHP_FLOAT_MAX;
 
             for ($i = 0; $i < count($clusters) - 1; $i++) {
+                // Any row using both sides proves they are two columns.
+                if (array_intersect_key($occupancy[$i] ?? [], $occupancy[$i + 1] ?? []) !== []) {
+                    continue;
+                }
+
                 $gap = min($clusters[$i + 1]) - max($clusters[$i]);
 
                 if ($gap < $bestGap) {
@@ -352,6 +384,26 @@ class PdfExtractor implements DocumentExtractor
         }
 
         return array_values($clusters);
+    }
+
+    /**
+     * Which rows put a fragment in which column.
+     *
+     * @param  list<float>  $anchors
+     * @param  array<string, list<array{x: float, text: string}>>  $rows
+     * @return array<int, array<string, true>>
+     */
+    private function occupancy(array $anchors, array $rows): array
+    {
+        $occupancy = [];
+
+        foreach ($rows as $key => $fragments) {
+            foreach ($fragments as $fragment) {
+                $occupancy[$this->nearestColumn($anchors, (float) $fragment['x'])][(string) $key] = true;
+            }
+        }
+
+        return $occupancy;
     }
 
     /** @param list<float> $columns */

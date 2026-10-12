@@ -260,6 +260,23 @@ class DocumentLibraryTest extends TestCase
         $this->assertStringContainsString('Permanent', $text);
         $this->assertStringContainsString('Active', $text);
         $this->assertStringNotContainsString('permanent', $text);
+
+        /*
+         * And an acronym stays an acronym. `pkwtt` is the stored value
+         * for a permanent Indonesian employment contract; title-casing it
+         * to "Pkwtt" produces a word that does not exist.
+         */
+        $this->employee([
+            'employee_id' => '0012399',
+            'nik' => '3201010101900099',
+            'full_name' => 'Agus Wijaya',
+            'employment_type' => 'pkwtt',
+        ]);
+
+        $withAcronym = $this->pdfText($this->download('employee-register', 'pdf'));
+
+        $this->assertStringContainsString('PKWTT', $withAcronym);
+        $this->assertStringNotContainsString('Pkwtt', $withAcronym);
     }
 
     /**

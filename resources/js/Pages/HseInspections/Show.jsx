@@ -10,7 +10,7 @@ import { Select, SelectTrigger, SelectValue, SelectContent, SelectItem } from '@
 import { Table, TableHeader, TableBody, TableRow, TableHead, TableCell } from '@/Components/ui/table';
 import ActivityTimeline from '@/Components/shared/ActivityTimeline';
 import StatusBadge from '@/Components/shared/StatusBadge';
-import { ArrowLeft, AlertTriangle } from 'lucide-react';
+import { ArrowLeft, AlertTriangle, FileText } from 'lucide-react';
 
 export default function HseInspectionShow({ inspection: i, activities, canManage, users }) {
     const [raiseFor, setRaiseFor] = useState(null);
@@ -29,12 +29,23 @@ export default function HseInspectionShow({ inspection: i, activities, canManage
                 <ArrowLeft className="h-4 w-4" /> Back to HSE Inspection
             </Link>
 
-            <div className="mb-4">
-                <h1 className="flex items-center gap-2 text-[22px] font-semibold tracking-tight text-graphite-900">
-                    {i.inspection_number}
-                    <StatusBadge value={i.overall_result === 'fail' ? 'rejected' : 'approved'} label={i.overall_result} />
-                </h1>
-                <p className="text-xs capitalize text-graphite-500">{i.inspection_type.replace('_', ' ')} · {new Date(i.inspection_date).toLocaleDateString('en-US', { day: 'numeric', month: 'long', year: 'numeric' })}{i.location && ` · ${i.location}`}</p>
+            <div className="mb-4 flex flex-wrap items-start justify-between gap-3">
+                <div>
+                    <h1 className="flex items-center gap-2 text-[22px] font-semibold tracking-tight text-graphite-900">
+                        {i.inspection_number}
+                        <StatusBadge value={i.overall_result === 'fail' ? 'rejected' : 'approved'} label={i.overall_result} />
+                    </h1>
+                    <p className="text-xs capitalize text-graphite-500">{i.inspection_type.replace('_', ' ')} · {new Date(i.inspection_date).toLocaleDateString('en-US', { day: 'numeric', month: 'long', year: 'numeric' })}{i.location && ` · ${i.location}`}</p>
+                </div>
+
+                {/* v2.112.0 -- the inspection report, on paper. The route
+                    carries the same tenant gate as this page and no extra
+                    role gate, so the button does not need one either. */}
+                <Button variant="outline" asChild>
+                    <a href={route('hse-inspections.pdf', i.id)} target="_blank" rel="noopener">
+                        <FileText className="h-4 w-4" /> Download PDF
+                    </a>
+                </Button>
             </div>
 
             <div className="grid grid-cols-1 gap-4 lg:grid-cols-3">

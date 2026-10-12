@@ -11,6 +11,7 @@ use PhpOffice\PhpSpreadsheet\Style\Alignment;
 use PhpOffice\PhpSpreadsheet\Style\Border;
 use PhpOffice\PhpSpreadsheet\Style\Fill;
 use PhpOffice\PhpSpreadsheet\Style\NumberFormat;
+use PhpOffice\PhpSpreadsheet\Worksheet\Drawing;
 use PhpOffice\PhpSpreadsheet\Worksheet\PageSetup;
 use PhpOffice\PhpSpreadsheet\Worksheet\Worksheet;
 use PhpOffice\PhpSpreadsheet\Writer\Xlsx;
@@ -84,12 +85,19 @@ class BrandedWorkbook
     /**
      * The tenant's identity block.
      *
-     * THE LOGO IS NOT EMBEDDED, DELIBERATELY. A tenant logo lives on a
-     * disk this process can read, but embedding it means decoding an
-     * arbitrary customer-supplied image inside the export request -- the
-     * one place a malformed upload becomes a failed download. The company
-     * NAME is always rendered, which is the text fallback the brief asks
-     * for, and the PDF and Word documents carry the logo instead.
+     * v2.112.0 -- THE LOGO IS NOW EMBEDDED, AND THE RISK IS CONTAINED.
+     *
+     * It deliberately was not, because decoding an arbitrary
+     * customer-supplied image inside the export request is the one place
+     * a malformed upload turns into a failed download. That reasoning was
+     * right about the risk and wrong about the remedy: a spreadsheet
+     * handed to a client should carry the company's mark exactly as the
+     * PDF and the Word document do, and the failure mode is handled by
+     * CATCHING it rather than by never trying.
+     *
+     * So the drawing is attempted inside a try/catch and any failure
+     * leaves the letterhead text-only. A broken logo costs the picture;
+     * it never costs the report.
      *
      * @return int the row the table's header will occupy
      */
@@ -99,6 +107,8 @@ class BrandedWorkbook
         $lastColumn = Coordinate::stringFromColumnIndex(max($columnCount, 3));
 
         $row = 1;
+
+        $this->drawLogo($sheet, $identity);
 
         $sheet->setCellValue('A'.$row, $identity['name'] ?? config('ioms.name'));
         $sheet->mergeCells('A'.$row.':'.$lastColumn.$row);
@@ -147,6 +157,41 @@ class BrandedWorkbook
         }
 
         return $row + 1;
+    }
+
+    /**
+     * Floats the tenant logo over the letterhead rows.
+     *
+     * An Excel drawing is anchored to a cell and does NOT occupy it, so
+     * nothing below has to move and the letterhead keeps its row
+     * numbering whether a tenant has a logo or not. The height is capped
+     * so a large upload cannot push the table off the first screen; the
+     * width follows from it.
+     */
+    private function drawLogo(Worksheet $sheet, array $identity): void
+    {
+        $path = $identity['logo_path'] ?? null;
+
+        if (! $path || ! is_file($path) || ! is_readable($path)) {
+            return;
+        }
+
+        try {
+            $drawing = new Drawing;
+            $drawing->setPath($path, false);
+            $drawing->setName((string) ($identity['name'] ?? 'Logo'));
+            $drawing->setDescription((string) ($identity['name'] ?? 'Logo'));
+            $drawing->setHeight(48);
+            $drawing->setCoordinates('A1');
+            $drawing->setOffsetX(2);
+            $drawing->setOffsetY(2);
+            $drawing->setWorksheet($sheet);
+
+            // Room for the mark beside the first column's text.
+            $sheet->getRowDimension(1)->setRowHeight(42);
+        } catch (\Throwable) {
+            // A corrupt or unsupported image must not cost the report.
+        }
     }
 
     /**

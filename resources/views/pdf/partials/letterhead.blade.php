@@ -34,9 +34,21 @@
 
 <table class="doc-letterhead">
     <tr>
-        @if (! empty($identity['logo_url']))
+        {{--
+            v2.112.0 -- the LOCAL file first, the URL only as a fallback.
+
+            dompdf resolves a filesystem path directly; a URL makes it
+            fetch over HTTP from our own public host while rendering,
+            which is slow on shared hosting and draws nothing at all when
+            the host is unreachable or APP_URL is wrong. `logo_path` is
+            null unless the file is really there, so a tenant whose logo
+            row is stale gets the clean typographic header rather than a
+            broken image box.
+        --}}
+        @php $logoSrc = $identity['logo_path'] ?? $identity['logo_url'] ?? null; @endphp
+        @if (! empty($logoSrc))
             <td class="logo-cell">
-                <img src="{{ $identity['logo_url'] }}" alt="">
+                <img src="{{ $logoSrc }}" alt="">
             </td>
         @endif
         <td>

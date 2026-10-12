@@ -85,8 +85,18 @@ export default function IncidentShow({ incident: i, activities, canManage, users
                 title={<>{i.incident_number} <StatusBadge value={i.severity} /> <StatusBadge value={i.status} /></>}
                 subtitle={<>Laporan awal kejadian. Investigasi dicatat terpisah pada workspace HSE Investigation.</>}
             >
+                <div className="flex flex-wrap items-center gap-2">
+                    {/* v2.112.0 -- the initial report, on paper. Outside the
+                        canManage gate on purpose: anybody who may READ the
+                        incident may print it, which is the same rule the
+                        route itself enforces. */}
+                    <Button variant="outline" asChild>
+                        <a href={route('incidents.pdf', i.id)} target="_blank" rel="noopener">
+                            <FileText className="h-4 w-4" /> Download PDF
+                        </a>
+                    </Button>
                 {canManage && (
-                    <div className="flex flex-wrap items-center gap-2">
+                    <>
                         {!inv && (
                             <Button variant="outline" onClick={() => setOpenOpen((v) => !v)}>
                                 <SearchCheck className="h-4 w-4" /> {openOpen ? 'Cancel' : 'Open Investigation'}
@@ -97,8 +107,9 @@ export default function IncidentShow({ incident: i, activities, canManage, users
                                 <CheckCircle2 className="h-4 w-4" /> Close
                             </Button>
                         )}
-                    </div>
+                    </>
                 )}
+                </div>
             </PageHeader>
 
             {/* Where this report sits in the chain. Rendered from the

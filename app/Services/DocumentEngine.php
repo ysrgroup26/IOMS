@@ -84,6 +84,18 @@ class DocumentEngine
      * company name at all -- an empty letterhead is worse than a generic
      * one, but nothing is ever invented beyond that.
      */
+    /** The tenant logo on local disk, or null when there is nothing to draw. */
+    private function readableLogoPath(?string $stored): ?string
+    {
+        if (! $stored) {
+            return null;
+        }
+
+        $path = storage_path('app/public/'.ltrim($stored, '/'));
+
+        return is_file($path) && is_readable($path) ? $path : null;
+    }
+
     public function identity(): array
     {
         $logoPath = CompanySetting::get('company_logo_path');
@@ -104,6 +116,22 @@ class DocumentEngine
             'name' => CompanySetting::get('company_name', config('ioms.name')),
             'legal_name' => CompanySetting::get('company_legal_name'),
             'logo_url' => $logoPath ? asset('storage/'.$logoPath) : null,
+            /*
+             * v2.112.0 -- THE LOGO AS A FILE, NOT AS A URL.
+             *
+             * `logo_url` is right for an on-screen surface and wrong for
+             * a document generator: rendering a PDF would then make an
+             * outbound HTTP request to our own public host, which on
+             * shared hosting is slow at best and, behind a firewall or a
+             * wrong APP_URL, silently draws nothing. A PDF that quietly
+             * loses the customer's logo looks like a product that never
+             * had one.
+             *
+             * Null unless the file is actually there and readable, so a
+             * stale `company_logo_path` row degrades to the typographic
+             * letterhead instead of a broken image box.
+             */
+            'logo_path' => $this->readableLogoPath($logoPath),
             'address' => CompanySetting::get('company_address'),
             'locality' => $locality ?: null,
             'city' => $city,

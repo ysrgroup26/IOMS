@@ -106,6 +106,14 @@ return [
         // Marine and yard work, where IOMS actually operates.
         'ABK', 'ROV', 'NDT', 'WPS', 'PQR', 'AC', 'DC', 'HVAC',
 
+        /*
+         * v2.112.0 -- the employment-type vocabulary. These are stored
+         * `employment_type` values (Employee::EMPLOYMENT_TYPE_*), and a
+         * register that title-cased them printed "Pkwtt" and "Pkl" --
+         * which are not words, and not what the contract is called.
+         */
+        'PKWTT', 'PKWT', 'PKL',
+
     ],
 
 ];

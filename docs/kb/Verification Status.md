@@ -49,8 +49,8 @@ on every phone width.
 
 | | |
 |---|---|
-| Suite | **1236 tests, 6115 assertions — all passing on SQLite** (2026-10-12, v2.111.0; was 1226/6071 at v2.110.0) |
-| Suite on **MySQL 8.0** | **1236 of 1236 passing** (2026-10-12), on an isolated `ioms_test` database with synthetic data. MySQL and SQLite agree completely. |
+| Suite | **1248 tests, 6298 assertions — all passing on SQLite** (2026-10-12, v2.112.0; was 1236/6115 at v2.111.0) |
+| Suite on **MySQL 8.0** | **1248 of 1248 passing** (2026-10-12), on an isolated `ioms_test` database with synthetic data. MySQL and SQLite agree completely. |
 | Database | In-memory **SQLite**, so no MySQL or external service is needed |
 | Lint | `npm run lint` — 0 errors (4 existing warnings in `GasTestRecords/Index.jsx` and `Settings/Index.jsx`) |
 | Build | `npm run build` succeeded (2026-10-12): 2319 modules, 2,085 KB bundle, the existing size advisory unchanged |
@@ -88,6 +88,34 @@ on every phone width.
 > multi-table `UPDATE … JOIN` and anything reading `information_schema`, or guard it with
 > `DB::getDriverName() === 'mysql'`. Six migrations had to be made portable before the suite could
 > provision at all.
+
+### Browser-verified — v2.112.0 Release gate (2026-10-12)
+
+The whole document platform driven through a running application (`php artisan serve`, isolated
+SQLite file database, synthetic HSE/HR/logistics records, Playwright + Chromium). **27/27 checks
+passed, zero JavaScript errors.** No production data of any kind was involved.
+
+| Area | Result |
+|---|---|
+| **Word import** | A .docx roster chosen in the real dialog: table extracted (`Tabel 1`), the customer's Indonesian headings mapped, 3 rows previewed and validated, confirmed, and all three people found in the Employees module afterwards. |
+| **Digital PDF import** | Extracted at a stated confidence of **75%** with its reconstruction note; re-importing the same people was correctly refused as `Duplicate Employee ID`, which is itself proof the Word rows had landed. |
+| **Exports** | All **11** library documents fetched in all **3** formats — 33 files, each checked by magic bytes (`PK\x03\x04` / `%PDF`) and size, not by status code. |
+| **Record documents** | Permit to Work, HSE Inspection, Incident Report and Investigation Report all returned real PDFs, and each page offers a Download PDF button. |
+| **Branding** | The tenant logo verified **in the output**: an `/Subtype /Image` object in the PDFs, `xl/media/` in the XLSX, `word/media/` in the DOCX. |
+| **Authorization** | Unauthenticated download → 302 to login (both a register and a record document); unknown document key → 404, not 500. |
+
+> [!note] What this run did NOT cover
+> **Scanned-PDF OCR remains unsupported and unexercised** — `tesseract`/`pdftoppm` need root, which
+> the cPanel host does not provide, and cloud OCR is refused on confidentiality grounds. The product
+> reports a scanned page as scanned rather than returning an empty table.
+> **Production itself was not reached from this session** — see the deployment note below.
+
+> [!warning] Production deployment was NOT performed from this session
+> The build container has no `ssh`, `scp`, `sftp`, `rsync` or `lftp`, no `~/.ssh` key material, and
+> its egress proxy refuses `iomsuite.com` (HTTP 403 on CONNECT). The release is pushed to
+> `claude/eloquent-newton-pbxxdg`; the documented `./deploy.sh` flow (ADR 027) must be run **on the
+> server** by the owner. Nothing here should be read as a claim that production is running this
+> release.
 
 ### Browser-verified — v2.111.0 Employee import, end to end (2026-10-12)
 

@@ -385,9 +385,20 @@ The most complete example of the reusable-engine pattern — read this section t
 Report Center, with no `moduleKey`.
 
 `/documents/library` publishes every registered `DocumentDefinition`, grouped by the workspace that
-owns the data, each downloadable as **Excel, Word or PDF** from one definition and one query. Four
-documents ship: Employee Register (People / HRD), HSE Inspection Register (HSE), Stock Position
-Report (Warehouse & Logistics) and Project Manpower Summary (Management).
+owns the data, each downloadable as **Excel, Word or PDF** from one definition and one query.
+**Eleven** documents ship (v2.112.0):
+
+| Workspace | Documents |
+|---|---|
+| HSE | HSE Inspection Register, Permit to Work Register, Incident & Accident Register, Accident Investigation Register |
+| People / HRD | Employee Register, Leave Register |
+| Warehouse & Logistics | Stock Position Report, Stock Movement Register, Material Request Register |
+| Management | Project Manpower Summary, Man-Hour Register |
+
+Beside them sit the **per-record documents**, which are forms rather than registers and keep their
+own Blade views: Permit to Work, HSE Inspection Report, Incident Report and Accident Investigation
+Report (`/incidents/{id}/pdf`, `/investigations/{id}/pdf`), each reachable from a Download PDF
+button on its own page.
 
 The same page states, honestly, which **input** formats this deployment can read, with the reason
 when one is unavailable, and offers a read-only "Inspect a Document" upload that reports the tables
@@ -406,6 +417,10 @@ Business rules worth knowing before changing it:
   complete one.
 - Registers wider than six columns print landscape.
 - Identifiers are written as explicit text so a leading zero or a 16-digit NIK survives Excel.
+- Stored tokens go through `DocumentLabel`, which uses `NameFormatter` and therefore the ONE acronym
+  list in `config/naming.php` — `pkwtt` prints as `PKWTT`, not `Pkwtt`.
+- The tenant logo is resolved once by `DocumentEngine::identity()['logo_path']` (local disk, never a
+  URL) and drawn in all three formats; a stale path degrades to the typographic letterhead.
 
 Reasoning: `docs/ADR/053-a-document-is-a-definition-not-an-export.md`.
 

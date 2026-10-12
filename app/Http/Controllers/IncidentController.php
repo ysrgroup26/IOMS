@@ -9,6 +9,8 @@ use App\Models\Employee;
 use App\Models\Incident;
 use App\Models\Project;
 use App\Models\User;
+use App\Services\DocumentEngine;
+use App\Services\PdfGeneratorService;
 use App\Support\CurrentTenant;
 use Illuminate\Http\RedirectResponse;
 use Illuminate\Http\Request;
@@ -285,5 +287,38 @@ class IncidentController extends Controller
             return;
         }
         abort_unless(Company::query()->pluck('id')->contains($incident->company_id), 404);
+    }
+
+    /**
+     * v2.112.0 -- THE INITIAL REPORT AS A FILEABLE DOCUMENT.
+     *
+     * An incident report is the document an insurer, a client auditor or
+     * a labour inspector asks for on paper, and IOMS could not produce
+     * one. Same tenant gate as `show()` and deliberately NO extra role
+     * gate: anyone who may read the incident may print it, because
+     * hiding a document from somebody already reading its contents on
+     * screen protects nothing.
+     *
+     * The eager load matches `show()`'s exactly, including the
+     * investigation -- loaded to LINK to, never to print from. See the
+     * view's own comment and ADR 036.
+     */
+    public function pdf(Incident $incident, PdfGeneratorService $pdf, DocumentEngine $documents): \Illuminate\Http\Response
+    {
+        $this->assertInCurrentTenant($incident);
+
+        $incident->load(
+            'company:id,name', 'project:id,name', 'reporter:id,name',
+            'injuredEmployee:id,full_name',
+            'investigation:id,incident_id,investigation_number,status',
+        );
+
+        ActivityLog::record('exported', "Generated the PDF for incident {$incident->incident_number}.", $incident);
+
+        return $pdf->streamInline('pdf.incident-report', [
+            'incident' => $incident,
+            'identity' => $documents->identity(),
+            'generatedAt' => now(),
+        ], "{$incident->incident_number}.pdf");
     }
 }

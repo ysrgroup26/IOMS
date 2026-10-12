@@ -15,7 +15,7 @@ import RecordChain from '@/Components/shared/RecordChain';
 import { FieldGrid, Field, DetailSection } from '@/Components/shared/DetailFields';
 import {
     ArrowLeft, Save, Send, CheckCircle2, XCircle, RotateCcw, Users, MessageSquare,
-    Trash2, AlertTriangle, GitBranch, ListTree, FileSearch, Plus,
+    Trash2, AlertTriangle, GitBranch, ListTree, FileSearch, Plus, FileText,
 } from 'lucide-react';
 
 /**
@@ -129,7 +129,17 @@ export default function InvestigationShow({
                 title={<>{v.investigation_number} <StatusBadge value={v.status} /></>}
                 subtitle={<>Analisis penyebab atas {incident?.incident_number}. Laporan awal tetap menjadi sumber fakta dan tidak diubah dari sini.</>}
             >
-                {can.manage && <WorkflowActions status={v.status} openActionCount={openActionCount} onTransition={transition} />}
+                <div className="flex flex-wrap items-center gap-2">
+                    {/* v2.112.0 -- the investigation, on paper. Outside the
+                        manage gate: reading the record and printing it are
+                        the same permission. */}
+                    <Button variant="outline" asChild>
+                        <a href={route('investigations.pdf', v.id)} target="_blank" rel="noopener">
+                            <FileText className="h-4 w-4" /> Download PDF
+                        </a>
+                    </Button>
+                    {can.manage && <WorkflowActions status={v.status} openActionCount={openActionCount} onTransition={transition} />}
+                </div>
             </PageHeader>
 
             {/* The same chain the incident renders, from the same facts --

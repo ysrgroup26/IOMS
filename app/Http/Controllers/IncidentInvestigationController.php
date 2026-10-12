@@ -10,6 +10,8 @@ use App\Models\Incident;
 use App\Models\IncidentInvestigation;
 use App\Models\InvestigationInterview;
 use App\Models\User;
+use App\Services\DocumentEngine;
+use App\Services\PdfGeneratorService;
 use App\Support\CurrentTenant;
 use Illuminate\Http\RedirectResponse;
 use Illuminate\Http\Request;
@@ -426,5 +428,40 @@ class IncidentInvestigationController extends Controller
         }
 
         abort_unless(Company::query()->pluck('id')->contains($incident->company_id), 404);
+    }
+
+    /**
+     * v2.112.0 -- THE INVESTIGATION AS A FILEABLE DOCUMENT.
+     *
+     * Same tenant gate as `show()` and no extra role gate, for the same
+     * reason the incident report has none: a document of a record
+     * somebody is already reading on screen must not be harder to reach
+     * than the screen.
+     *
+     * `correctiveActions` is eager-loaded because the view renders the
+     * CAPA section only when the relation IS loaded -- an unloaded
+     * relation would lazily fetch inside the template, and a missing
+     * section would silently drop real actions from a report that is
+     * meant to prove the investigation changed something.
+     */
+    public function pdf(IncidentInvestigation $investigation, PdfGeneratorService $pdf, DocumentEngine $documents): \Illuminate\Http\Response
+    {
+        $this->assertInCurrentTenant($investigation);
+
+        $investigation->load([
+            'incident:id,incident_number,title,incident_date',
+            'investigator:id,name',
+            'reviewer:id,name',
+            'closer:id,name',
+            'correctiveActions.assignee:id,name',
+        ]);
+
+        ActivityLog::record('exported', "Generated the PDF for investigation {$investigation->investigation_number}.", $investigation);
+
+        return $pdf->streamInline('pdf.incident-investigation', [
+            'investigation' => $investigation,
+            'identity' => $documents->identity(),
+            'generatedAt' => now(),
+        ], "{$investigation->investigation_number}.pdf");
     }
 }

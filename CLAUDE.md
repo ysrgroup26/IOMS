@@ -39,6 +39,10 @@ authorization path. See `docs/ADR/008-tenancy-foundation.md` for the reasoning a
   `DocumentDefinition`, `DocumentRenderer`, `DocumentLibrary`, `Library/Definitions/`), and
   `TabularBridge`, which is how a CSV, Word or PDF table reaches the EXISTING employee importer
   instead of a second one. Read `docs/ADR/053-...` before adding a parser or an export class.
+  Eleven documents are registered in `Library/DocumentLibrary::DEFINITIONS` (v2.112.0), one class
+  each; adding a register needs no route, controller, export class or Blade view. Per-RECORD
+  documents (Permit to Work, HSE Inspection, Incident, Investigation) stay as their own Blade views
+  in `resources/views/pdf/` — the library renders registers, not forms.
 - `app/Imports/`, `app/Exports/` — Maatwebsite Excel import/export classes.
 - `resources/js/Pages/` — one Inertia page per route, grouped by module folder (`Employees/`,
   `MaterialRequests/`, `Ppe/`, etc.).

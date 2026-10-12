@@ -90,16 +90,11 @@ class EmployeeRegisterDocument implements DocumentDefinition
                 // The stored token, made readable. `permanent` and
                 // `active` are enum VALUES, not labels, and a document a
                 // client reads should not show the database's spelling.
-                'employment_type' => $this->humanize($employee->employment_type),
-                'status' => $this->humanize($employee->status),
+                'employment_type' => DocumentLabel::humanize($employee->employment_type),
+                'status' => DocumentLabel::humanize($employee->status),
                 'join_date' => $employee->join_date,
             ];
         }
-    }
-
-    private function humanize(?string $token): ?string
-    {
-        return $token === null || $token === '' ? null : ucwords(str_replace('_', ' ', $token));
     }
 
     public function refs(array $filters = []): array

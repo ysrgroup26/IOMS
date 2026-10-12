@@ -1256,6 +1256,7 @@ Route::middleware(['auth', 'restrict.platform-admin'])->group(function () {
     Route::get('/incidents/create', [IncidentController::class, 'create'])->name('incidents.create');
     Route::post('/incidents', [IncidentController::class, 'store'])->name('incidents.store');
     Route::get('/incidents/{incident}', [IncidentController::class, 'show'])->name('incidents.show');
+    Route::get('/incidents/{incident}/pdf', [IncidentController::class, 'pdf'])->name('incidents.pdf');
     Route::post('/incidents/{incident}/transition', [IncidentController::class, 'transition'])->name('incidents.transition');
     Route::post('/incidents/{incident}/raise-finding', [IncidentController::class, 'raiseFinding'])->name('incidents.raise-finding');
 
@@ -1281,6 +1282,7 @@ Route::middleware(['auth', 'restrict.platform-admin'])->group(function () {
     Route::get('/investigations', [IncidentInvestigationController::class, 'index'])->name('investigations.index');
     Route::post('/incidents/{incident}/investigations', [IncidentInvestigationController::class, 'store'])->name('investigations.store');
     Route::get('/investigations/{investigation}', [IncidentInvestigationController::class, 'show'])->name('investigations.show');
+    Route::get('/investigations/{investigation}/pdf', [IncidentInvestigationController::class, 'pdf'])->name('investigations.pdf');
     Route::put('/investigations/{investigation}', [IncidentInvestigationController::class, 'update'])->name('investigations.update');
     Route::post('/investigations/{investigation}/transition', [IncidentInvestigationController::class, 'transition'])->name('investigations.transition');
     Route::post('/investigations/{investigation}/interviews', [IncidentInvestigationController::class, 'storeInterview'])->name('investigations.interviews.store');

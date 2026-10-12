@@ -3,6 +3,50 @@
 House style, and a deliberately honest list of mistakes that have actually happened in this
 codebase's history — kept here so they don't get repeated in a slightly different shape.
 
+## Known Pitfall (v2.112.0): forcing a cluster count down welds two real columns together
+
+`PdfExtractor` reconstructs columns from glyph x positions. v2.110.0 added a merge step so that a
+**centred heading** and its left-aligned data would not count as two columns, and it merged by
+distance until the cluster count matched the **modal fragment count**.
+
+That count can be an underestimate — one row where two neighbouring cells' glyphs came out as a
+single fragment is enough — and then the merge destroys a genuine column. On a landscape roster
+printed by this very application it produced one cell reading `Produksi Welder`, after which the
+heading row was mistaken for data and the import wrote nothing.
+
+The exact test is **co-occupancy**: two clusters that some single row uses at the same time are two
+columns, and no distance makes them one. A heading at one x and its data at another are never both
+present in one row, so the original fix still applies; two adjacent columns every row fills together
+now cannot be merged. When no pair is eligible the merge stops ABOVE the target rather than forcing
+it — a stray empty `Kolom N` is visible and ignorable, a welded column is silent corruption.
+
+Pinned by `DocumentImportBridgeTest::test_a_landscape_pdf_with_a_title_block_keeps_its_columns_apart`.
+
+## Known Pitfall (v2.112.0): an image dompdf cannot decode disappears without an error
+
+A tenant logo that `getimagesize()` parses but GD cannot load is dropped from the PDF silently —
+no exception, no placeholder, just a document that looks like it never had a logo. This cost half an
+hour of chasing the renderer before the fixture turned out to be the problem.
+
+Two consequences worth keeping:
+
+- **Generate image fixtures with GD, never paste a hand-written base64 blob.** A blob that survives
+  `getimagesize()` is not proof of a decodable image.
+- **Assert on the OUTPUT, not the input.** The release gate checks the produced PDF for an
+  `/Subtype /Image` object and the XLSX/DOCX for a `media/` entry, which is the only evidence that
+  the logo actually reached the page.
+
+## Convention (v2.112.0): a document renders the tenant logo from DISK, never from a URL
+
+`DocumentEngine::identity()` returns both `logo_url` (for on-screen chrome) and `logo_path` (an
+absolute local path, null unless the file is really there and readable). Document generators use
+`logo_path`.
+
+A URL makes dompdf fetch over HTTP from our own public host **while rendering** — slow on shared
+hosting, and silently blank when the host is unreachable or `APP_URL` is wrong. The three formats
+also used to resolve the logo independently, which is how the spreadsheet ended up with none at all.
+One source, one existence check, three documents that agree.
+
 ## Known Pitfall (v2.111.0): a heading row is often FULLER than the rows beneath it, and a
 ## width-based "support" signal reads that as a data row
 

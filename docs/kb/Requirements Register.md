@@ -70,6 +70,11 @@ Older completions live in [[Release History]].
 
 | Item | Version | Status | Evidence |
 |---|---|---|---|
+| **Document Library across every named module** — 11 documents x 3 formats | 2.112.0 | `#status/verified` | `DocumentLibraryCoverageTest` renders every document in every format it advertises; 33 files magic-byte checked in the browser gate |
+| **Incident Report and Accident Investigation Report PDFs** | 2.112.0 | `#status/verified` | ADR 036 boundary asserted: the incident report links to the investigation and refuses to print its root cause |
+| **Tenant logo in XLSX, DOCX and PDF, resolved from disk** | 2.112.0 | `#status/verified` | Asserted in the OUTPUT (`/Subtype /Image`, `xl/media/`, `word/media/`), and a stale path proven survivable |
+| **Word and digital-PDF import through the real dialog** | 2.112.0 | `#status/verified` | 27/27 browser checks; the PDF leg states a 75% confidence and refuses duplicates |
+| **A PDF column merge can no longer weld two real columns** | 2.112.0 | `#status/test-covered` | Real defect on a landscape PDF this app prints; co-occupancy guard, pitfall in `CONVENTIONS.md` |
 | **Employee import, eight steps through the real UI** — Excel and CSV | 2.111.0 | `#status/verified` | 19/19 + 6/6 browser checks on a deliberately awkward synthetic workbook; see [[Verification Status]] |
 | **A located heading row now reaches the importer, not just the preview** | 2.111.0 | `#status/verified` | Real defect: a roster with a title block above the table was mapped correctly and imported NOTHING. `DocumentImportBridgeTest`; ADR 053 amendment |
 | **The locator no longer misreads a wide template with sparse rows** | 2.111.0 | `#status/test-covered` | Regression caught by the FULL suite, not by the change's own tests. `TableLocator::supportBelow()` measures containment, not width; pitfall in `CONVENTIONS.md` |

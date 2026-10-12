@@ -22,6 +22,16 @@ Core master data: `Employee` model, one per person. Belongs to a `Company`, opti
   file and validated against the real enum (`active`/`inactive`/`resigned`), falling back to
   `active` for blank/unrecognized values rather than failing the row. Project (optional) creates a
   `ProjectManpower` assignment if the name matches an existing project in the company.
+- **An employee with no department is still an employee** (v2.113.0): `scopeOrderedForDisplay()`
+  LEFT JOINs `departments`. It used to INNER JOIN, which made every department-less employee
+  invisible in the list, both exports, the printed register, the Document Library register, KPI
+  input, Man-Hour, Projects and PPE — the reported symptom was an import that said it succeeded and
+  a list that did not change. Unassigned people sort last. See `CONVENTIONS.md`.
+- **Long numeric identifiers survive** (v2.113.0): the importer reads RAW cell values
+  (`toArray(null, false, false)`), because Excel's *displayed* value for a 16-digit NIK is
+  `3.20101010194E+15` and two different NIKs render identically — which stored scientific notation
+  and rejected the second person as a duplicate. `EmployeesImport::identifier()` writes an integral
+  float out in full.
 - **Profile completion**: `Employee::profile_status` is a *computed accessor*
   (`needs_completion` if `department_id` is null, `complete` otherwise), not a stored column —
   fully derivable from existing data, so it can never drift out of sync. `employee_id`/`full_name`

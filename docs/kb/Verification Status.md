@@ -49,8 +49,8 @@ on every phone width.
 
 | | |
 |---|---|
-| Suite | **1248 tests, 6298 assertions — all passing on SQLite** (2026-10-12, v2.112.0; was 1236/6115 at v2.111.0) |
-| Suite on **MySQL 8.0** | **1248 of 1248 passing** (2026-10-12), on an isolated `ioms_test` database with synthetic data. MySQL and SQLite agree completely. |
+| Suite | **1261 tests, 6354 assertions — all passing on SQLite** (2026-10-12, v2.113.0; was 1248/6298 at v2.112.0) |
+| Suite on **MySQL 8.0** | **1261 of 1261 passing** (2026-10-12), on an isolated `ioms_test` database with synthetic data. MySQL and SQLite agree completely. |
 | Database | In-memory **SQLite**, so no MySQL or external service is needed |
 | Lint | `npm run lint` — 0 errors (4 existing warnings in `GasTestRecords/Index.jsx` and `Settings/Index.jsx`) |
 | Build | `npm run build` succeeded (2026-10-12): 2319 modules, 2,085 KB bundle, the existing size advisory unchanged |
@@ -88,6 +88,33 @@ on every phone width.
 > multi-table `UPDATE … JOIN` and anything reading `information_schema`, or guard it with
 > `DB::getDriverName() === 'mysql'`. Six migrations had to be made portable before the suite could
 > provision at all.
+
+### Browser-verified — v2.113.0 Full sweep of every promised import and export (2026-10-12)
+
+This run did not test the new feature; it swept **every import and export entry point the UI
+promises**, on a running application with a record of every printable document type seeded. That is
+what surfaced four defects the feature's own tests could not see, three of which pre-date the
+Document Platform entirely.
+
+**29/29 end-to-end checks passed** after the fixes, zero JavaScript errors:
+
+| Area | Result |
+|---|---|
+| **Import, through the dialog** | Indonesian semicolon CSV, legacy `.xls` (BIFF), `.xlsx` with a blank column, Word table and digital PDF — each detected, previewed, confirmed, and the roster **verified to grow by exactly the expected number** (6 → 8 → 10 → 11 → 14), with each new person found by searching the module. The PDF leg correctly added **0** because it carries the same people as the Word file. |
+| **Exports** | All 11 library documents × 3 formats = **33 files**, each checked by magic bytes and size. |
+| **Record documents** | All 8 entitled per-record PDFs render (PTW, HSE Inspection, Incident, Investigation, PPE Replacement, Material Request, Goods Receipt, Waste Manifest). |
+| **Branding** | Tenant logo verified in the OUTPUT of all three formats. |
+| **Authorization** | Anonymous export and record document → redirect; unknown key → 404; a document in a workspace the plan does not grant → **403, which is correct** (ADR 045 retired those departments). |
+| **Profile filter** | Responds instead of 500ing, and its two halves partition the roster exactly. |
+
+> [!important] What the sweep found that feature tests did not
+> Four of the five defects fixed in v2.113.0 were invisible to tests written for the feature,
+> because each test seeded its own tidy fixture. Three pre-date the Document Platform. The lesson is
+> in `CONVENTIONS.md`: sweep what the UI PROMISES, against data shaped like a customer's.
+
+> [!note] Still not covered
+> **Scanned-PDF OCR remains unsupported** (root-only binaries; cloud OCR refused on confidentiality
+> grounds). **Production was not reached from this session** — see the deployment note below.
 
 ### Browser-verified — v2.112.0 Release gate (2026-10-12)
 

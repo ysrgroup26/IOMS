@@ -110,6 +110,34 @@ class EmployeesImport implements OnEachRow, WithChunkReading, WithHeadingRow
         private readonly int $rowOffset = 0,
     ) {}
 
+    /**
+     * v2.113.0 -- AN IDENTIFIER THAT ARRIVED AS A NUMBER, WRITTEN OUT IN FULL.
+     *
+     * A customer who types a 16-digit NIK into Excel gets a NUMBER,
+     * because that is what Excel does unless the column was formatted as
+     * text first. PHP then renders that float with the default
+     * `precision=14`, so `(string) 3201010101940001.0` is
+     * `"3.20101010194E+15"` -- and `3201010101940002` stringifies to
+     * EXACTLY THE SAME THING.
+     *
+     * Two consequences, both seen on a real file: every such NIK was
+     * stored as scientific notation, and the second person onwards was
+     * rejected as a "Duplicate NIK" against somebody they share no digits
+     * with past the eleventh.
+     *
+     * `%.0F` writes the integer out in full, locale-independently. A
+     * value that is not an integral float is left exactly as it came, so
+     * nothing here reinterprets a genuine decimal or a string.
+     */
+    private function identifier(mixed $value): string
+    {
+        if (is_float($value) && is_finite($value) && floor($value) === $value && abs($value) < 1.0e18) {
+            return sprintf('%.0F', $value);
+        }
+
+        return trim((string) ($value ?? ''));
+    }
+
     private function col(array $data, string $field): mixed
     {
         $key = $this->columnKeys[$field] ?? $field;
@@ -280,7 +308,24 @@ class EmployeesImport implements OnEachRow, WithChunkReading, WithHeadingRow
     public function onRow(Row $row): void
     {
         $this->totalRows++;
-        $data = $row->toArray();
+        /*
+         * v2.113.0 -- RAW VALUES, NOT FORMATTED ONES.
+         *
+         * `toArray()` defaults to `$formatData = true`, which runs every
+         * cell through `NumberFormat::toFormattedString()` -- i.e. it
+         * hands over what EXCEL WOULD DISPLAY rather than what the cell
+         * holds. For a 16-digit NIK in a General-format column that
+         * display is `3.20101010194E+15`, so the real digits were gone
+         * before this class ever saw them: the value was stored as
+         * scientific notation and the second person was rejected as a
+         * duplicate of the first.
+         *
+         * Reading raw also means a date cell arrives as its Excel serial
+         * rather than as a rendered string, which `SpreadsheetDate`
+         * already handles explicitly and more reliably than re-parsing
+         * somebody's display format.
+         */
+        $data = $row->toArray(null, false, false);
         /*
          * v2.108.0 -- THE ROW NUMBER THE CUSTOMER'S SPREADSHEET SHOWS.
          *
@@ -292,7 +337,7 @@ class EmployeesImport implements OnEachRow, WithChunkReading, WithHeadingRow
          */
         $rowNumber = $row->getIndex() + $this->rowOffset;
 
-        $employeeId = trim((string) ($this->col($data, 'employee_id') ?? ''));
+        $employeeId = $this->identifier($this->col($data, 'employee_id'));
         // v2.105.0: written the way the product displays a person --
         // "budi santoso" and "BUDI SANTOSO" both become "Budi Santoso".
         $fullName = NameFormatter::title($this->col($data, 'full_name'));
@@ -363,7 +408,7 @@ class EmployeesImport implements OnEachRow, WithChunkReading, WithHeadingRow
          * written as "" would let exactly one employee have no national ID
          * and refuse every one after it.
          */
-        $nik = trim((string) ($this->col($data, 'nik') ?? ''));
+        $nik = $this->identifier($this->col($data, 'nik'));
         $nikKey = mb_strtolower($nik);
 
         if ($nik !== '') {
@@ -534,11 +579,11 @@ class EmployeesImport implements OnEachRow, WithChunkReading, WithHeadingRow
                     'position_id' => $positionId,
                     'status' => $status,
                     'join_date' => $joinDate,
-                    'phone' => trim((string) ($this->col($data, 'phone') ?? '')) ?: null,
+                    'phone' => $this->identifier($this->col($data, 'phone')) ?: null,
                     'email' => trim((string) ($this->col($data, 'email') ?? '')) ?: null,
                     'address' => trim((string) ($this->col($data, 'address') ?? '')) ?: null,
                     'emergency_contact_name' => trim((string) ($this->col($data, 'emergency_contact_name') ?? '')) ?: null,
-                    'emergency_contact_phone' => trim((string) ($this->col($data, 'emergency_contact_phone') ?? '')) ?: null,
+                    'emergency_contact_phone' => $this->identifier($this->col($data, 'emergency_contact_phone')) ?: null,
                 ]);
 
                 // Project is optional and never blocks the import -- if the

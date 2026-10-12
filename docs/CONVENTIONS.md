@@ -3,6 +3,66 @@
 House style, and a deliberately honest list of mistakes that have actually happened in this
 codebase's history — kept here so they don't get repeated in a slightly different shape.
 
+## Known Pitfall (v2.113.0): an INNER JOIN in an ORDERING scope is a FILTER nobody reads as one
+
+`Employee::scopeOrderedForDisplay()` INNER JOINed `departments` to sort by the department's display
+order. `department_id` is nullable on purpose -- "Unassigned" is a supported state, which is why
+`profile_status` reports `needs_completion` -- so that join silently dropped every employee who did
+not have one.
+
+It read as an ordering concern, so nobody audited it as a visibility concern. **Nine call sites**
+used it: the Employees list, the Excel export, the printed register, the Document Library register,
+KPI input, Man-Hour, Projects and PPE twice. The symptom reached a customer as *"the import says it
+worked and the list is empty"* -- the rows were in the database throughout.
+
+> [!important] The rule
+> A scope whose job is ORDERING must only ever `leftJoin`. If you need an inner join to sort, the
+> rows you are excluding are a product decision, and it belongs in a scope with a name that says so.
+
+Order NULLs deliberately rather than by accident: `orderByRaw('CASE WHEN departments.id IS NULL THEN
+1 ELSE 0 END')` puts unassigned people last on both MySQL and SQLite, because NULL sorts first on
+both and a roster that opens with everybody missing a department is a different kind of wrong.
+
+Pinned by `tests/Feature/UnassignedEmployeeVisibilityTest.php`, which checks the list, the search,
+the profile filter, both exports and the library register separately -- the scope is shared, so one
+surface passing proves nothing about the others.
+
+## Known Pitfall (v2.113.0): the THIRD unqualified column in the same class
+
+`scopeInDepartment()` was fixed for this in v1.3.2 and `scopeInCompany()` in v2.2.0, each with a
+comment explaining that `positions.department_id` and `departments.company_id` exist and make an
+unqualified column ambiguous once `scopeOrderedForDisplay()` joins those tables. `scopeProfileStatus()`
+and `scopeSearch()` were never fixed, so filtering the Employees list by profile status was a hard
+500 on every use, on MySQL and SQLite alike.
+
+When you fix an ambiguous column, **grep the whole class** for the others. Two fixes and two
+comments did not stop the third instance shipping.
+
+## Known Pitfall (v2.113.0): a spreadsheet import must read RAW values, not displayed ones
+
+`Row::toArray()` defaults to `$formatData = true`, which runs every cell through
+`NumberFormat::toFormattedString()` -- it hands over **what Excel would display**, not what the cell
+holds.
+
+Excel stores a 16-digit NIK typed into a General column as a float. Its display is
+`3.20101010194E+15`, and PHP's default `precision=14` renders the next NIK -- differing only in the
+last digit -- as *the identical string*. So the value was stored as scientific notation **and** the
+second person was rejected as a "Duplicate NIK" against somebody they share no digits with past the
+eleventh. The precision was gone before the importer saw it, so no amount of normalising downstream
+could recover it.
+
+Read with `toArray(null, false, false)` and normalise in PHP, where the precision is yours to
+control: `sprintf('%.0F', $value)` writes an integral float out in full, locale-independently. Date
+cells then arrive as Excel serials, which `SpreadsheetDate` already handles and which are more
+reliable than re-parsing somebody's display format.
+
+## Known Pitfall (v2.113.0): an uploaded file has no extension, so the reader type must be passed
+
+A file arrives at `/tmp/phpXXXXXX` with no suffix, so Maatwebsite cannot infer the format. Passing a
+hardcoded `Excel::XLSX` makes a genuine `.xls` (BIFF -- not a zip at all) fail with *"Could not find
+zip member #_rels/.rels"*: a 500 with nothing in it a customer could act on. Derive the reader from
+the format the content sniffer detected, never from the path and never from a constant.
+
 ## Known Pitfall (v2.112.0): forcing a cluster count down welds two real columns together
 
 `PdfExtractor` reconstructs columns from glyph x positions. v2.110.0 added a merge step so that a

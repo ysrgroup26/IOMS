@@ -11,6 +11,7 @@ use App\Models\Incident;
 use App\Models\IncidentInvestigation;
 use App\Models\Package;
 use App\Models\PermitToWork;
+use App\Models\PpeReplacementRequest;
 use App\Models\Subscription;
 use App\Models\Tenant;
 use App\Models\User;
@@ -425,6 +426,61 @@ class DocumentLibraryCoverageTest extends TestCase
         ));
 
         $this->assertStringContainsString('belum mencatat penyebab', $text);
+    }
+
+    /**
+     * EVERY PER-RECORD DOCUMENT ROUTE RENDERS.
+     *
+     * The PPE Replacement Request PDF returned a 500 for three releases
+     * (`BadMethodCallException: requesterDisplayName()` -- see that
+     * model's own note), and nothing caught it because each document had
+     * only its own module's tests. This walks the whole set, so a
+     * template that calls a method its model does not have fails here
+     * rather than in front of a customer.
+     */
+    public function test_every_per_record_document_route_renders(): void
+    {
+        $inspection = $this->inspection($this->yard);
+        $incident = $this->incident($this->yard);
+
+        $investigation = IncidentInvestigation::create([
+            'investigation_number' => 'INV-2026-00009',
+            'incident_id' => $incident->id,
+            'company_id' => $this->yard->id,
+            'status' => 'draft',
+            'investigator_id' => $this->admin->id,
+            'started_at' => '2026-03-02',
+        ]);
+
+        $permit = $this->permit($this->yard, 'PTW-DOC-0001');
+
+        $ppe = PpeReplacementRequest::withoutGlobalScopes()->create([
+            'request_number' => 'PPR-2026-00009',
+            'request_date' => '2026-02-18',
+            'company_id' => $this->yard->id,
+            'requested_by' => $this->admin->id,
+            'status' => 'submitted',
+        ]);
+
+        $routes = [
+            'hse-inspections.pdf' => $inspection,
+            'incidents.pdf' => $incident,
+            'investigations.pdf' => $investigation,
+            'permits-to-work.pdf' => $permit,
+            'ppe.replacement-requests.pdf' => $ppe,
+        ];
+
+        foreach ($routes as $name => $record) {
+            $response = $this->actingAs($this->admin)->get(route($name, $record));
+
+            $response->assertOk();
+
+            $this->assertStringStartsWith(
+                '%PDF-',
+                $this->body($response),
+                "[{$name}] did not return a PDF."
+            );
+        }
     }
 
     // --- fixtures ------------------------------------------------------------

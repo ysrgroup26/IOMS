@@ -70,6 +70,10 @@ Older completions live in [[Release History]].
 
 | Item | Version | Status | Evidence |
 |---|---|---|---|
+| **An employee with no department is visible again** — list, search, profile filter, both exports, library register | 2.113.0 | `#status/verified` | Pre-existing INNER JOIN in an ordering scope; 9 call sites. `UnassignedEmployeeVisibilityTest`; 29/29 browser sweep |
+| **A 16-digit NIK typed as a number survives import** | 2.113.0 | `#status/verified` | Excel's displayed value collapsed two different NIKs into one string and rejected the second as a duplicate. Importer now reads raw cells |
+| **Legacy .xls and semicolon CSV import** | 2.113.0 | `#status/verified` | Reader type derived from the sniffed format, not hardcoded; driven through the dialog |
+| **PPE Replacement Request PDF renders again** | 2.113.0 | `#status/verified` | 500 since v2.100.0; every per-record document route now has a rendering guard |
 | **Document Library across every named module** — 11 documents x 3 formats | 2.112.0 | `#status/verified` | `DocumentLibraryCoverageTest` renders every document in every format it advertises; 33 files magic-byte checked in the browser gate |
 | **Incident Report and Accident Investigation Report PDFs** | 2.112.0 | `#status/verified` | ADR 036 boundary asserted: the incident report links to the investigation and refuses to print its root cause |
 | **Tenant logo in XLSX, DOCX and PDF, resolved from disk** | 2.112.0 | `#status/verified` | Asserted in the OUTPUT (`/Subtype /Image`, `xl/media/`, `word/media/`), and a stale path proven survivable |

@@ -273,12 +273,22 @@ class Employee extends Model
      */
     public function scopeProfileStatus($query, ?string $status)
     {
+        /*
+         * v2.113.0 -- fully-qualified, for the third time in this class.
+         * `positions.department_id` also exists, so once this is combined
+         * with scopeOrderedForDisplay() (which joins positions) an
+         * unqualified column here is genuinely ambiguous -- the same root
+         * cause already written up on scopeInDepartment() (v1.3.2) and
+         * scopeInCompany() (v2.2.0), which were fixed while this scope
+         * was not. Filtering the Employees list by profile status was a
+         * hard 500 on every use, on MySQL and on SQLite alike.
+         */
         if ($status === 'complete') {
-            return $query->whereNotNull('department_id');
+            return $query->whereNotNull('employees.department_id');
         }
 
         if ($status === 'needs_completion') {
-            return $query->whereNull('department_id');
+            return $query->whereNull('employees.department_id');
         }
 
         return $query;
@@ -290,9 +300,11 @@ class Employee extends Model
             return $query;
         }
 
+        // Qualified for the same reason as every other scope in this
+        // class: this one runs beside two joined tables.
         return $query->where(function ($q) use ($term) {
-            $q->where('full_name', 'like', "%{$term}%")
-                ->orWhere('employee_id', 'like', "%{$term}%");
+            $q->where('employees.full_name', 'like', "%{$term}%")
+                ->orWhere('employees.employee_id', 'like', "%{$term}%");
         });
     }
 
@@ -330,10 +342,37 @@ class Employee extends Model
      */
     public function scopeOrderedForDisplay($query)
     {
+        /*
+         * v2.113.0 -- THIS WAS AN INNER JOIN, AND IT HID PEOPLE.
+         *
+         * `department_id` is nullable on purpose: "Unassigned" is a real,
+         * supported state, which is the entire reason `profile_status`
+         * exists and reports `needs_completion`. An INNER JOIN on
+         * `departments` therefore did not order the list -- it FILTERED
+         * it, silently, dropping every employee who had no department
+         * yet.
+         *
+         * Nine call sites read this scope, so the same row vanished from
+         * the Employees list, the Excel export, the printed register, the
+         * Document Library register, KPI input, Man-Hour, Projects and
+         * PPE. The visible symptom was an import that reported "50
+         * imported successfully" and then showed nothing: the records
+         * were in the database the whole time, and the list was refusing
+         * to admit it. Filtering a `profile_status` of `needs_completion`
+         * could likewise only ever return nothing.
+         *
+         * A LEFT JOIN orders without filtering. Unassigned people sort
+         * LAST rather than first, because `sort_order` is NULL for them
+         * and NULL sorts first on both MySQL and SQLite -- a roster that
+         * opened with everybody who is missing a department would be a
+         * different kind of wrong. The CASE expression is plain SQL and
+         * needs no driver guard (see CONVENTIONS.md on driver-aware SQL).
+         */
         return $query
-            ->join('departments', 'departments.id', '=', 'employees.department_id')
+            ->leftJoin('departments', 'departments.id', '=', 'employees.department_id')
             ->leftJoin('positions', 'positions.id', '=', 'employees.position_id')
             ->select('employees.*')
+            ->orderByRaw('CASE WHEN departments.id IS NULL THEN 1 ELSE 0 END')
             ->orderBy('departments.sort_order')
             ->orderBy('departments.name')
             ->orderBy('positions.sort_order')

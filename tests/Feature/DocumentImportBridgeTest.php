@@ -24,9 +24,11 @@ use PhpOffice\PhpSpreadsheet\Cell\Coordinate;
 use PhpOffice\PhpSpreadsheet\Cell\DataType;
 use PhpOffice\PhpSpreadsheet\Shared\Date;
 use PhpOffice\PhpSpreadsheet\Spreadsheet;
+use PhpOffice\PhpSpreadsheet\Writer\Xls;
 use PhpOffice\PhpSpreadsheet\Writer\Xlsx;
 use PhpOffice\PhpWord\IOFactory;
 use PhpOffice\PhpWord\PhpWord;
+use PHPUnit\Framework\Attributes\DataProvider;
 use Tests\TestCase;
 
 /**
@@ -676,6 +678,132 @@ class DocumentImportBridgeTest extends TestCase
         $response->assertOk();
         $this->assertSame(3, $response->json('imported'));
         $this->assertNotNull(Employee::where('full_name', 'Teguh Wibowo')->first());
+    }
+
+    /**
+     * REAL CUSTOMER FILE SHAPES, EACH ONE A WAY AN IMPORT HAS FAILED.
+     *
+     * `legacy.xls` is the one that was broken: an uploaded file arrives
+     * at a temporary path with no extension, so Maatwebsite cannot infer
+     * the format, and the reader type was hardcoded to XLSX. A genuine
+     * BIFF workbook -- which is not a zip at all -- died with "Could not
+     * find zip member #_rels/.rels", a 500 with nothing in it a customer
+     * could act on. Indonesian Excel's semicolon delimiter and a UTF-8
+     * BOM are the other two shapes a roster actually arrives in.
+     */
+    #[DataProvider('realWorldFileShapes')]
+    public function test_a_real_world_file_shape_imports(string $shape): void
+    {
+        $headings = ['Employee ID', 'Full Name', 'NIK (KTP)', 'Department', 'Position', 'Join Date'];
+        $rows = [
+            ['0093001', 'Dimas Prakoso', '3201010101940001', 'Produksi', 'Welder', '12/01/2026'],
+            ['0093002', 'Nurul Hidayah', '3201010101940002', 'QA/QC', 'Inspector', '23/02/2026'],
+        ];
+
+        $path = tempnam(sys_get_temp_dir(), 'ioms-fx-');
+        $name = 'roster';
+
+        switch ($shape) {
+            case 'semicolon-csv':
+                $path .= '.csv';
+                $name .= '.csv';
+                $handle = fopen($path, 'w');
+                fputcsv($handle, $headings, ';');
+                foreach ($rows as $row) {
+                    fputcsv($handle, $row, ';');
+                }
+                fclose($handle);
+                break;
+
+            case 'bom-csv':
+                $path .= '.csv';
+                $name .= '.csv';
+                $out = "\xEF\xBB\xBF".implode(',', $headings)."\n";
+                foreach ($rows as $row) {
+                    $out .= implode(',', $row)."\n";
+                }
+                file_put_contents($path, $out);
+                break;
+
+            case 'legacy-xls':
+                $path .= '.xls';
+                $name .= '.xls';
+                $spreadsheet = new Spreadsheet;
+                $spreadsheet->getActiveSheet()->fromArray([$headings, ...$rows], null, 'A1');
+                (new Xls($spreadsheet))->save($path);
+                $spreadsheet->disconnectWorksheets();
+                break;
+
+            case 'tab-separated':
+                $path .= '.csv';
+                $name .= '.csv';
+                $out = implode("\t", $headings)."\n";
+                foreach ($rows as $row) {
+                    $out .= implode("\t", $row)."\n";
+                }
+                file_put_contents($path, $out);
+                break;
+        }
+
+        $response = $this->import(new UploadedFile($path, $name, null, null, true));
+
+        $response->assertOk();
+        $this->assertSame(2, $response->json('imported'), "[{$shape}] did not import its rows.");
+
+        $budi = Employee::where('full_name', 'Dimas Prakoso')->first();
+        $this->assertNotNull($budi, "[{$shape}] wrote nothing.");
+        $this->assertSame('0093001', $budi->employee_id, "[{$shape}] lost the leading zero.");
+        $this->assertSame('2026-01-12', $budi->join_date->format('Y-m-d'), "[{$shape}] misread the date.");
+    }
+
+    public static function realWorldFileShapes(): array
+    {
+        return [
+            'Indonesian Excel semicolon CSV' => ['semicolon-csv'],
+            'CSV with a UTF-8 BOM' => ['bom-csv'],
+            'legacy .xls (BIFF, not a zip)' => ['legacy-xls'],
+            'tab-separated, named .csv' => ['tab-separated'],
+        ];
+    }
+
+    /**
+     * A NIK TYPED INTO EXCEL IS A NUMBER, AND TWO OF THEM ARE NOT THE SAME.
+     *
+     * Excel stores a 16-digit NIK as a float unless the column was
+     * formatted as text first, which customers do not do. PHP's default
+     * `precision=14` then renders `3201010101940001` and
+     * `3201010101940002` as the identical string `3.20101010194E+15`, so
+     * the value was stored as scientific notation AND the second person
+     * was rejected as a duplicate of the first.
+     */
+    public function test_two_long_numeric_niks_are_not_read_as_the_same_person(): void
+    {
+        $spreadsheet = new Spreadsheet;
+        $spreadsheet->getActiveSheet()->fromArray([
+            ['Employee ID', 'Full Name', 'NIK (KTP)'],
+            // Written as NUMBERS, exactly as Excel would store them.
+            [930001, 'Dimas Prakoso', 3201010101940001],
+            [930002, 'Nurul Hidayah', 3201010101940002],
+        ], null, 'A1');
+
+        $path = tempnam(sys_get_temp_dir(), 'ioms-fx-').'.xlsx';
+        (new Xlsx($spreadsheet))->save($path);
+        $spreadsheet->disconnectWorksheets();
+
+        $response = $this->import(new UploadedFile($path, 'numeric.xlsx', null, null, true));
+        $response->assertOk();
+
+        $this->assertSame(2, $response->json('imported'), 'A second long NIK was rejected as a duplicate of the first.');
+
+        $this->assertSame(
+            '3201010101940001',
+            Employee::where('full_name', 'Dimas Prakoso')->value('nik'),
+            'The NIK was stored in scientific notation.'
+        );
+        $this->assertSame(
+            '3201010101940002',
+            Employee::where('full_name', 'Nurul Hidayah')->value('nik')
+        );
     }
 
     /** The audit trail names the format the rows actually came from. */

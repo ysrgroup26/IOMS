@@ -39,6 +39,7 @@ use Illuminate\Validation\Rule;
 use Illuminate\Validation\ValidationException;
 use Inertia\Inertia;
 use Inertia\Response;
+use Maatwebsite\Excel\Excel as ExcelFacadeType;
 use Maatwebsite\Excel\Facades\Excel;
 use Symfony\Component\HttpFoundation\BinaryFileResponse;
 
@@ -505,7 +506,7 @@ class EmployeeController extends Controller
         $isSpreadsheet = in_array($format, [FormatDetector::XLSX, FormatDetector::XLS], true);
 
         if ($isSpreadsheet && $this->readableAsIs($document)) {
-            return $work($file->getRealPath(), 0);
+            return $work($file->getRealPath(), 0, $this->readerFor($format));
         }
 
         $table = $document->primaryTable();
@@ -532,7 +533,7 @@ class EmployeeController extends Controller
          * is no older path to fall back TO.
          */
         if ($isSpreadsheet && $table !== null && ! $this->mappableHeadings($table->headings)) {
-            return $work($file->getRealPath(), 0);
+            return $work($file->getRealPath(), 0, $this->readerFor($format));
         }
 
         if ($table === null) {
@@ -544,7 +545,7 @@ class EmployeeController extends Controller
                  * improvement on the old path, not a new gate in front of
                  * it.
                  */
-                return $work($file->getRealPath(), 0);
+                return $work($file->getRealPath(), 0, $this->readerFor($format));
             }
 
             throw ValidationException::withMessages([
@@ -562,7 +563,8 @@ class EmployeeController extends Controller
         $rowOffset = $table->headerRowNumber - 1;
 
         try {
-            return $work($path, $rowOffset);
+            // The bridge always writes .xlsx, whatever came in.
+            return $work($path, $rowOffset, ExcelFacadeType::XLSX);
         } finally {
             @unlink($path);
         }
@@ -592,6 +594,17 @@ class EmployeeController extends Controller
      * A preview that promises rows and an import that writes none is a
      * worse failure than a refusal.
      */
+    /**
+     * The Maatwebsite reader for a detected format.
+     *
+     * Only the two spreadsheet formats reach this: everything else has
+     * already been normalised to .xlsx by the bridge.
+     */
+    private function readerFor(string $format): string
+    {
+        return $format === FormatDetector::XLS ? ExcelFacadeType::XLS : ExcelFacadeType::XLSX;
+    }
+
     /**
      * Do these headings name at least two things IOMS can import?
      *
@@ -728,9 +741,9 @@ class EmployeeController extends Controller
             // v2.110.0: the file reaching EmployeesImport is always a
             // spreadsheet, whatever the customer uploaded. See
             // withImportSpreadsheet().
-            $import = $this->withImportSpreadsheet($request, function (string $path, int $rowOffset) use ($companyId, $request, $mapping) {
+            $import = $this->withImportSpreadsheet($request, function (string $path, int $rowOffset, string $reader) use ($companyId, $request, $mapping) {
                 $import = new EmployeesImport($companyId, $request->user()->id, previewOnly: true, columnKeys: $mapping->importColumnKeys('employees', $this->confirmedColumnMapping($request)), rowOffset: $rowOffset);
-                Excel::import($import, $path, null, \Maatwebsite\Excel\Excel::XLSX);
+                Excel::import($import, $path, null, $reader);
 
                 return $import;
             });
@@ -859,7 +872,7 @@ class EmployeeController extends Controller
             // transaction -- extracting a Word or PDF table is reading,
             // not writing, and holding a transaction open across it would
             // keep row locks for the length of a parse.
-            $import = $this->withImportSpreadsheet($request, fn (string $path, int $rowOffset) => DB::transaction(function () use ($request, $companyId, $path, $rowOffset, $mapping, $confirmedMapping) {
+            $import = $this->withImportSpreadsheet($request, fn (string $path, int $rowOffset, string $reader) => DB::transaction(function () use ($request, $companyId, $path, $rowOffset, $reader, $mapping, $confirmedMapping) {
                 /*
                  * v2.101.0 -- NORMALISED, AND MATCHED AGAINST WHAT IS ALREADY
                  * THERE.
@@ -885,7 +898,7 @@ class EmployeeController extends Controller
                 );
 
                 $import = new EmployeesImport($companyId, $request->user()->id, columnKeys: $mapping->importColumnKeys('employees', $confirmedMapping), rowOffset: $rowOffset);
-                Excel::import($import, $path, null, \Maatwebsite\Excel\Excel::XLSX);
+                Excel::import($import, $path, null, $reader);
 
                 return $import;
             }));
@@ -930,9 +943,9 @@ class EmployeeController extends Controller
             ...$this->columnMappingRules(),
         ]);
 
-        $import = $this->withImportSpreadsheet($request, function (string $path, int $rowOffset) use ($request, $mapping) {
+        $import = $this->withImportSpreadsheet($request, function (string $path, int $rowOffset, string $reader) use ($request, $mapping) {
             $import = new EmployeesImport((int) $request->input('company_id'), $request->user()->id, columnKeys: $mapping->importColumnKeys('employees', $this->confirmedColumnMapping($request)), rowOffset: $rowOffset);
-            Excel::import($import, $path, null, \Maatwebsite\Excel\Excel::XLSX);
+            Excel::import($import, $path, null, $reader);
 
             return $import;
         });

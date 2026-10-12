@@ -121,7 +121,67 @@ inventing an approver — an unsigned box is a real instruction on a printed con
 actually renders; anything there that looks dated is dated on purpose.
 
 **Documents on this system**: Purchase Order (Surat Pesanan), Purchase Requisition (FPB), Goods
-Receipt (BAST), Work Order (SPK), plus the existing Permit To Work.
+Receipt (BAST), Work Order (SPK), the Employee Register, the HSE Inspection Report (v2.110.0) and
+the generic `pdf.document-register` the Document Library renders, plus the existing Permit To Work.
+
+### The Document Platform (v2.110.0) — reading and writing documents, as one layer
+
+Full reasoning in `docs/ADR/053-a-document-is-a-definition-not-an-export.md`. Read it before adding
+a parser, an export class or a second import path.
+
+**The problem it solves**: documents were per-module one-offs in both directions. The Excel export
+and the PDF of the same list were written months apart from two separate queries and agreed only by
+luck; HSE Inspection had no printable output at all; and exactly one input format was accepted, with
+the heading row assumed to be row 1 of the first sheet.
+
+#### Writing: a document is described once (`app/Services/Documents/Library/`)
+
+| Piece | What it does |
+|---|---|
+| `DocumentDefinition` (interface) | What a document IS: columns (typed), rows (already tenant-scoped), reference lines, who may read it. Says nothing about a format. |
+| `DocumentRenderer` | Turns one definition into XLSX, DOCX or PDF from ONE materialised set of rows. Never filters, never re-authorizes. |
+| `DocumentLibrary` | The registry. `resolveFor()` fails closed on key AND user, and answers an unauthorized key exactly as an unknown one. |
+| `Definitions/*` | One class per published document. Four shipped: Employee Register (hr), HSE Inspection Register (hse), Stock Position (logistics), Project Manpower (management). |
+
+The output engines sit beside them in `app/Services/Documents/Export/`: `BrandedWorkbook`
+(PhpSpreadsheet — tenant letterhead, typed cells, freeze/filter/repeat-header, print setup) and
+`BrandedWordDocument` (PhpWord — IOMS's first DOCX output). Both resolve branding through
+`DocumentEngine::identity()`, so a document can only carry the identity of the tenant that made it.
+
+**Convention for a new register**: write one `DocumentDefinition` and add it to
+`DocumentLibrary::DEFINITIONS`. No route, no controller, no export class, no Blade view. Scope the
+query on `Company::query()` — that pluck IS the tenant boundary, and nothing downstream re-checks it.
+
+Purpose-built forms (Permit to Work, Material Request, an individual HSE Inspection Report) stay as
+their own Blade views. The library is for REGISTERS — a list of records — not for every document.
+
+#### Reading: a pipeline of replaceable extractors (`app/Services/Documents/`)
+
+`FormatDetector` (content sniffing, macro-enabled containers refused outright) →
+`Extraction\*Extractor` (spreadsheet / Word / PDF, each behind `Contracts\DocumentExtractor`) →
+`Support\TableLocator` (SCORES candidate rows to find the heading row rather than assuming it) →
+`ImportHeaderMatcher` (the existing Smart Import matcher, reused). `DocumentIngestionService` is the
+front door and `capabilities()` reports, honestly, what this deployment can actually read.
+
+`OcrExtractor` is an adapter that detects `tesseract`/`pdftoppm` at runtime, is off by default, and
+states its reason when unavailable. It explicitly refuses cloud OCR — a customer document is never
+sent to a third party.
+
+**A PDF has no tables.** `PdfExtractor` reconstructs one from `getDataTm()` glyph positions, returns
+a confidence below certainty, and attaches a note saying where the structure came from. Treat it as
+a reading of a drawing, never as a structured source.
+
+#### The bridge: every format reaches the importer that already exists
+
+`TabularBridge` writes an extracted table out as a clean, minimal `.xlsx` (headings on row 1, every
+cell an explicit string) and `EmployeeController::withImportSpreadsheet()` hands THAT to the
+unchanged `EmployeesImport`. One set of validation rules, four input formats. **Do not write a second
+import path for a new format** — extract it to an `ExtractedTable` and bridge it.
+
+**Why pure PHP throughout**: Carbone, Docxtemplater, pdfmake, SheetJS, Apache Tika and OCRmyPDF were
+each evaluated and each ruled out — they need Node.js, a JVM, LibreOffice or system binaries, none of
+which exist on the cPanel shared host (ADR 027/028). PhpSpreadsheet, PhpWord, dompdf and
+smalot/pdfparser need only extensions the host already has.
 
 ### The public site's components (v2.59.0, extended v2.61.0)
 

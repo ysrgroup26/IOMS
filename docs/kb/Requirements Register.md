@@ -1,7 +1,7 @@
 ---
 title: Requirements Register
 type: register
-updated: 2026-09-16
+updated: 2026-10-12
 tags: [kb/requirements]
 ---
 
@@ -53,6 +53,9 @@ These are **not** forgotten. Each has a reason, and a condition that would chang
 | **Report Configuration UI** | `report_configurations` table and model exist; no controller, routes or Settings page. No schema change needed first | `#status/planned` |
 | **Finance workspace** | Registered in navigation, routes to Coming Soon. No capability behind it | `#status/planned` |
 | **HR placeholders** — Recruitment, Performance, HR KPI, Documents, Reports | `disabled: true` navigation entries advertising intent | `#status/planned` |
+| **Scanned-document OCR** — reading a PDF that carries no text layer | `OcrExtractor` is written, tested for its REFUSAL path, and disabled. It needs `tesseract` and `pdftoppm`, whose installation needs root, which the cPanel host does not provide. It explicitly refuses cloud OCR, because a customer document must not be sent to a third party to be read. Today the product reports a scanned page as scanned rather than returning an empty table | `#status/planned` |
+| **Customer-supplied document templates** — a letterhead .docx the tenant uploads | `BrandedWordDocument` composes its structure in code and resolves branding per tenant, which is the right answer for a register of unknown length. PhpWord's `TemplateProcessor` could fill a customer's own fixed form without changing that class, but nothing has asked for it yet. ADR [[053-a-document-is-a-definition-not-an-export\|053]] |
+| **Migrating the per-module documents onto the library** — Permit to Work, Material Request, Purchase Order and the rest | They are purpose-built FORMS, not registers, and the library renders registers. Rewriting working documents to prove a point would risk them for no gain. New registers go in the library; the old forms stay as their own Blade views | `#status/planned` |
 
 ## Known limitations accepted for now
 
@@ -67,6 +70,10 @@ Older completions live in [[Release History]].
 
 | Item | Version | Status | Evidence |
 |---|---|---|---|
+| **Document Library** — one registry, four documents, three output formats each | 2.110.0 | `#status/verified` | ADR [[053-a-document-is-a-definition-not-an-export\|053]]; `DocumentLibraryTest` (11 tests, asserting on files read back with a different library than wrote them); 16/16 browser checks incl. magic-byte verification of six downloads |
+| **Four input formats reach the existing employee importer** — Excel, CSV, Word, PDF | 2.110.0 | `#status/test-covered` | `DocumentImportBridgeTest` (8 tests, asserting on the DATABASE after each import); the Word and PDF paths were exercised against generated fixtures, not against a real customer file |
+| **HSE Inspection report PDF** — the one HSE record with no printable output | 2.110.0 | `#status/verified` | `DocumentPlatformTest`; re-parsed with `smalot/pdfparser` AND rasterised with `pdftoppm` and read visually |
+| **A PDF's centred heading row no longer doubles its columns** | 2.110.0 | `#status/test-covered` | Real defect, found by generating the fixture with dompdf rather than by hand; `PdfExtractor::clusterColumns()` now merges to the modal column count. Pitfall recorded in `CONVENTIONS.md` |
 | Material Request reachable by HSE — the department whose permission has always owned it | 2.71.0 | `#status/verified` | ADR [[034-capability-reach-and-navigation-hierarchy\|034]]; `DepartmentCapabilityReachTest`; opened from the HSE rail in a browser |
 | Requester-facing Material Request lifecycle — what happened, who holds it, what is next | 2.71.0 | `#status/verified` | `RequestStage` in `Pages/MaterialRequests/Show.jsx`; exercised for submitted / consolidating / completed |
 | Sidebar scroll position survives navigation | 2.71.0 | `#status/verified` | `lib/navigationMemory.js`; `NavigationBehaviourTest`; restore, clamp and per-department isolation measured in a browser |

@@ -1,7 +1,7 @@
 ---
 title: Release History
 type: index
-updated: 2026-10-04
+updated: 2026-10-12
 tags: [kb/releases]
 ---
 
@@ -46,8 +46,14 @@ Roughly, the history falls into eras:
 
 ## Index
 
+> [!warning] This index skips `2.95.0` – `2.109.0`
+> Those fifteen releases shipped and are recorded in full in `config/ioms.php` → `version_history`,
+> which remains the authoritative source. They are not indexed here yet; regenerating the index is
+> tracked in [[Requirements Register]]. The row below was added by hand on release.
+
 | Version | Date | Headline |
 |---|---|---|
+| `2.110.0` | 2026-10-12 | THE DOCUMENT PLATFORM: ONE DEFINITION, THREE OUTPUT FORMATS, FOUR INPUT FORMATS |
 | `2.94.0` | 2026-10-04 | THREE REAL DEFECTS IN THE PAYMENT PATH, FOUND BY DRIVING IT |
 | `2.93.0` | 2026-10-04 | MASTER ADMIN CAN GRANT ACCESS WITHOUT PAYMENT, AND IT IS NOT A PAYMENT |
 | `2.92.0` | 2026-10-01 | THE HERO COPY CONNECTS FIELD ACTIVITY TO MANAGEMENT |

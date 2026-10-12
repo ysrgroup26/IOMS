@@ -33,6 +33,12 @@ authorization path. See `docs/ADR/008-tenancy-foundation.md` for the reasoning a
   the "engine" pattern lives on the backend. See `docs/ARCHITECTURE.md`.
 - `app/Services/` — stateless service classes (`PdfGeneratorService`, `MasterDataDetector`,
   `ReportTemplateResolver`, `TenantContext`).
+- `app/Services/Documents/` — the **Document Platform** (v2.110.0): reading (`FormatDetector`,
+  `Extraction/`, `Support/TableLocator`, `DocumentIngestionService`), writing
+  (`Export/BrandedWorkbook`, `Export/BrandedWordDocument`), the document registry (`Library/` —
+  `DocumentDefinition`, `DocumentRenderer`, `DocumentLibrary`, `Library/Definitions/`), and
+  `TabularBridge`, which is how a CSV, Word or PDF table reaches the EXISTING employee importer
+  instead of a second one. Read `docs/ADR/053-...` before adding a parser or an export class.
 - `app/Imports/`, `app/Exports/` — Maatwebsite Excel import/export classes.
 - `resources/js/Pages/` — one Inertia page per route, grouped by module folder (`Employees/`,
   `MaterialRequests/`, `Ppe/`, etc.).
@@ -101,6 +107,7 @@ not happen — `CHANGELOG.md` fell 71 releases behind exactly that way.
 | **CLAUDE.md** (this file) | Where to start, how the pieces fit together at a glance. |
 | `docs/kb/` | Current product state, tracked work, decisions, terminology, release history. |
 | `docs/ARCHITECTURE.md` | How the reusable engines work (Approval, Workflow, Timeline, Import, PDF, Report Export), the multi-tenant/company-scoping model, and the authorization approach. Read before building anything that might duplicate an existing engine. |
+| `docs/ADR/053-a-document-is-a-definition-not-an-export.md` | **Read before adding a document export, a file parser, or a new import format.** A document is described ONCE (columns, rows, who may read it) and rendered as XLSX/DOCX/PDF from that one definition; the registry is code, not config; tenant scoping lives in the definition and nowhere else; and every input format is normalised into a spreadsheet so it reaches the ONE employee importer rather than a second copy of its rules. |
 | `docs/ADR/038-account-organization-subscription.md` | **Read before touching registration, login, `isPlatformAdmin()`, or anything that creates a tenant-less user.** Account / Organization / Subscription are three separate things since v2.74.0, and `tenant_id IS NULL` no longer means "platform operator". |
 | `docs/PAYMENTS-DUITKU.md` | **Read before touching checkout, the payment callback, or anything about Duitku.** The sandbox runbook, the signature formulas, what the callback refuses and why, the three idempotency layers, reconciliation, and the production cutover checklist. No credential appears in it. |
 | `docs/ADR/049-an-add-on-is-a-purchase-with-its-own-clock.md` | **Read before touching capacity add-ons, `updateAdditionalUsers`, the Billing Centre, or the nightly add-on renewal pass.** An add-on is PAID BEFORE IT IS GRANTED, runs on ITS OWN period, is never prorated in either direction, and a renewal paid early extends from the existing end date. Cancelling stops the next renewal and keeps the period already paid for, which is why a cancelled add-on still counts. |

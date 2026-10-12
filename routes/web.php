@@ -1,96 +1,99 @@
 <?php
 
+use App\Http\Controllers\AccountController;
 use App\Http\Controllers\ActivityCenterController;
 use App\Http\Controllers\AdminSpaceController;
 use App\Http\Controllers\AnalyticsController;
 use App\Http\Controllers\ApprovalController;
 use App\Http\Controllers\AssetController;
 use App\Http\Controllers\AssetDashboardController;
-use App\Http\Controllers\AccountController;
 use App\Http\Controllers\Auth\AuthenticatedSessionController;
 use App\Http\Controllers\Auth\EmailVerificationController;
 use App\Http\Controllers\Auth\GoogleAuthController;
-use App\Http\Controllers\Auth\RegisteredUserController;
-use App\Http\Controllers\SubscribeController;
 use App\Http\Controllers\Auth\NewPasswordController;
 use App\Http\Controllers\Auth\PasswordResetLinkController;
-use App\Http\Controllers\ComingSoonController;
+use App\Http\Controllers\Auth\RegisteredUserController;
 use App\Http\Controllers\CalendarController;
-use App\Http\Controllers\HseChecklistTemplateController;
-use App\Http\Controllers\HseEquipmentTypeController;
+use App\Http\Controllers\ComingSoonController;
 use App\Http\Controllers\CompetencyController;
+use App\Http\Controllers\CompetencyTypeController;
 use App\Http\Controllers\ContractorController;
 use App\Http\Controllers\ControlledDocumentController;
-use App\Http\Controllers\CompetencyTypeController;
 use App\Http\Controllers\CorrectiveActionController;
 use App\Http\Controllers\DailyReportController;
 use App\Http\Controllers\DashboardController;
-use App\Http\Controllers\ManagementController;
+use App\Http\Controllers\DocumentLibraryController;
+use App\Http\Controllers\EmployeeCaseController;
 use App\Http\Controllers\EmployeeCompetencyController;
 use App\Http\Controllers\EmployeeController;
+use App\Http\Controllers\EmployeeLookupController;
 use App\Http\Controllers\EmployeeRosterController;
 use App\Http\Controllers\EmployeeShiftAssignmentController;
-use App\Http\Controllers\GlobalSearchController;
 use App\Http\Controllers\GasTestRecordController;
+use App\Http\Controllers\GlobalSearchController;
 use App\Http\Controllers\GoodsReceiptController;
+use App\Http\Controllers\HandoverRecordController;
 use App\Http\Controllers\HazardCategoryController;
-use App\Http\Controllers\HseMaterialController;
 use App\Http\Controllers\HrDashboardController;
+use App\Http\Controllers\HseChecklistTemplateController;
 use App\Http\Controllers\HseDashboardController;
+use App\Http\Controllers\HseEquipmentTypeController;
 use App\Http\Controllers\HseInspectionController;
+use App\Http\Controllers\HseMaterialController;
 use App\Http\Controllers\IncidentController;
 use App\Http\Controllers\IncidentInvestigationController;
 use App\Http\Controllers\InspectionRequestController;
 use App\Http\Controllers\ItemController;
 use App\Http\Controllers\JobSafetyAnalysisController;
-use App\Http\Controllers\StockController;
-use App\Http\Controllers\StockTransactionController;
-use App\Http\Controllers\WarehouseController;
-use App\Http\Controllers\WarehouseDashboardController;
 use App\Http\Controllers\KpiInputController;
 use App\Http\Controllers\KpiRecordController;
-use App\Http\Controllers\EmployeeCaseController;
 use App\Http\Controllers\LeaveRequestController;
-use App\Http\Controllers\ManHourController;
 use App\Http\Controllers\LogisticsDashboardController;
 use App\Http\Controllers\LotoRecordController;
 use App\Http\Controllers\MaintenanceDashboardController;
 use App\Http\Controllers\MaintenanceRequestController;
+use App\Http\Controllers\ManagementController;
+use App\Http\Controllers\ManHourController;
 use App\Http\Controllers\MaterialRequestController;
 use App\Http\Controllers\MilestoneController;
 use App\Http\Controllers\NcrController;
-use App\Http\Controllers\P3kBoxController;
-use App\Http\Controllers\PermitToWorkController;
-use App\Http\Controllers\ProcurementDashboardController;
-use App\Http\Controllers\PtwQuotaController;
-use App\Http\Controllers\PurchaseOrderController;
-use App\Http\Controllers\PurchaseRequisitionController;
-use App\Http\Controllers\RfqController;
-use App\Http\Controllers\RiskAssessmentController;
-use App\Http\Controllers\SafetyEquipmentController;
 use App\Http\Controllers\NotificationController;
+use App\Http\Controllers\P3kBoxController;
+use App\Http\Controllers\PaymentWebhookController;
+use App\Http\Controllers\PermitToWorkController;
 use App\Http\Controllers\PlatformController;
 use App\Http\Controllers\PlatformDatabaseController;
 use App\Http\Controllers\PlatformSupportController;
 use App\Http\Controllers\PpeController;
-use App\Http\Controllers\PaymentWebhookController;
-use App\Http\Controllers\Public\RegistrationController;
-use App\Http\Controllers\PublicController;
-use App\Http\Controllers\SandboxController;
-use App\Http\Controllers\HandoverRecordController;
-use App\Http\Controllers\RegulationRegisterController;
 use App\Http\Controllers\PpeTypeController;
+use App\Http\Controllers\ProcurementDashboardController;
 use App\Http\Controllers\ProjectActivityController;
 use App\Http\Controllers\ProjectController;
 use App\Http\Controllers\ProjectManagementDashboardController;
+use App\Http\Controllers\PtwQuotaController;
+use App\Http\Controllers\Public\RegistrationController;
+use App\Http\Controllers\Public\SiteIdentityController;
+use App\Http\Controllers\Public\WebAppManifestController;
+use App\Http\Controllers\PublicController;
+use App\Http\Controllers\PurchaseOrderController;
+use App\Http\Controllers\PurchaseRequisitionController;
 use App\Http\Controllers\QualityControlDashboardController;
+use App\Http\Controllers\RegulationRegisterController;
 use App\Http\Controllers\ReportCenterController;
 use App\Http\Controllers\ReportController;
+use App\Http\Controllers\RfqController;
+use App\Http\Controllers\RiskAssessmentController;
 use App\Http\Controllers\RosterController;
 use App\Http\Controllers\RosterPatternController;
+use App\Http\Controllers\SafetyEquipmentController;
 use App\Http\Controllers\SafetyObservationController;
+use App\Http\Controllers\SandboxController;
+use App\Http\Controllers\SecureDocumentController;
 use App\Http\Controllers\SettingsController;
 use App\Http\Controllers\ShiftController;
+use App\Http\Controllers\StockController;
+use App\Http\Controllers\StockTransactionController;
+use App\Http\Controllers\SubscribeController;
 use App\Http\Controllers\SubscriptionController;
 use App\Http\Controllers\TaskController;
 use App\Http\Controllers\TbmMeetingController;
@@ -98,15 +101,16 @@ use App\Http\Controllers\VendorController;
 use App\Http\Controllers\VendorPerformanceController;
 use App\Http\Controllers\VendorQuotationController;
 use App\Http\Controllers\VisitorController;
+use App\Http\Controllers\WarehouseController;
+use App\Http\Controllers\WarehouseDashboardController;
 use App\Http\Controllers\WasteContainerController;
 use App\Http\Controllers\WasteDashboardController;
-use App\Http\Controllers\EmployeeLookupController;
-use App\Http\Controllers\SecureDocumentController;
 use App\Http\Controllers\WasteMasterController;
 use App\Http\Controllers\WasteMovementController;
 use App\Http\Controllers\WasteRecordController;
-use App\Http\Controllers\WorkOrderController;
 use App\Http\Controllers\WorkCenterController;
+use App\Http\Controllers\WorkOrderController;
+use App\Services\Documents\Library\DocumentRenderer;
 use Illuminate\Support\Facades\Route;
 
 /*
@@ -131,14 +135,14 @@ Route::get('/', [PublicController::class, 'home'])->name('home');
 // v2.72.0: search-engine identity. Served as routes rather than static
 // files because the canonical host is only known from the live request --
 // see SiteIdentityController's own note.
-Route::get('/robots.txt', [\App\Http\Controllers\Public\SiteIdentityController::class, 'robots'])->name('robots');
+Route::get('/robots.txt', [SiteIdentityController::class, 'robots'])->name('robots');
 
 // v2.73.0: the web app manifest. A route rather than a static file for the
 // same reason robots/sitemap are -- start_url and scope are only knowable
 // from the live request behind the hosting proxy. Public and unauthenticated
 // by design: it names the app and its icons, and carries no tenant data.
-Route::get('/manifest.webmanifest', \App\Http\Controllers\Public\WebAppManifestController::class)->name('manifest');
-Route::get('/sitemap.xml', [\App\Http\Controllers\Public\SiteIdentityController::class, 'sitemap'])->name('sitemap');
+Route::get('/manifest.webmanifest', WebAppManifestController::class)->name('manifest');
+Route::get('/sitemap.xml', [SiteIdentityController::class, 'sitemap'])->name('sitemap');
 // v2.50.0: the public SaaS journey -- landing -> pricing -> get started.
 // Both are guest-reachable by design; `home()` already redirects an
 // authenticated user away from the public site, and these two pages carry
@@ -482,6 +486,18 @@ Route::middleware(['auth', 'restrict.platform-admin'])->group(function () {
     Route::post('/report-center/schedules', [ReportCenterController::class, 'storeSchedule'])->name('report-center.schedules.store');
     Route::delete('/report-center/schedules/{reportSchedule}', [ReportCenterController::class, 'destroySchedule'])->name('report-center.schedules.destroy');
 
+    // Document Library (v2.110.0) -- the document platform's own surface.
+    // One registry of document definitions, each renderable as XLSX, DOCX
+    // or PDF from the SAME tenant-scoped query, plus a module-agnostic
+    // read-only inspector for an uploaded document. Authorization lives
+    // on each definition (DocumentLibrary::resolveFor fails closed on
+    // both the key and the user), not in a route group here.
+    Route::get('/documents/library', [DocumentLibraryController::class, 'index'])->name('documents.library');
+    Route::post('/documents/inspect', [DocumentLibraryController::class, 'inspect'])->name('documents.inspect');
+    Route::get('/documents/{key}/{format}', [DocumentLibraryController::class, 'export'])
+        ->whereIn('format', DocumentRenderer::FORMATS)
+        ->name('documents.export');
+
     // Projects: viewable by all roles (Manager + HRD are view-only here); mutation below is admin-scoped.
     Route::get('/projects', [ProjectController::class, 'index'])->name('projects.index');
     Route::get('/projects/{project}', [ProjectController::class, 'show'])->name('projects.show');
@@ -653,6 +669,7 @@ Route::middleware(['auth', 'restrict.platform-admin'])->group(function () {
     Route::get('/hse-inspections/create', [HseInspectionController::class, 'create'])->name('hse-inspections.create');
     Route::post('/hse-inspections', [HseInspectionController::class, 'store'])->name('hse-inspections.store');
     Route::get('/hse-inspections/{hseInspection}', [HseInspectionController::class, 'show'])->name('hse-inspections.show');
+    Route::get('/hse-inspections/{hseInspection}/pdf', [HseInspectionController::class, 'pdf'])->name('hse-inspections.pdf');
     Route::post('/hse-inspections/{hseInspection}/raise-finding', [HseInspectionController::class, 'raiseFinding'])->name('hse-inspections.raise-finding');
 
     // Corrective Actions / CAPA (Milestone 4, Workstream B15) -- standalone
@@ -1145,9 +1162,9 @@ Route::middleware(['auth', 'restrict.platform-admin'])->group(function () {
     // docs/CONVENTIONS.md's Known Pitfalls.
     Route::middleware('role:super_admin,hse')->group(function () {
         Route::put('/settings/users/{user}/ptw-access', [SettingsController::class, 'updatePtwAccess'])->name('settings.users.ptw-access');
-    // v2.52.0: My Work (field workspace) -- a workspace preference,
-    // separate from PTW Access, which is a permission.
-    Route::put('/settings/users/{user}/field-access', [SettingsController::class, 'updateFieldAccess'])->name('settings.users.field-access');
+        // v2.52.0: My Work (field workspace) -- a workspace preference,
+        // separate from PTW Access, which is a permission.
+        Route::put('/settings/users/{user}/field-access', [SettingsController::class, 'updateFieldAccess'])->name('settings.users.field-access');
     });
 
     // v1.6.8 fix: these were previously (incorrectly) nested inside the

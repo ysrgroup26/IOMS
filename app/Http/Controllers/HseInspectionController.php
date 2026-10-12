@@ -9,6 +9,8 @@ use App\Models\HseChecklistTemplate;
 use App\Models\HseInspection;
 use App\Models\Project;
 use App\Models\User;
+use App\Services\DocumentEngine;
+use App\Services\PdfGeneratorService;
 use App\Support\CurrentTenant;
 use Illuminate\Http\RedirectResponse;
 use Illuminate\Http\Request;
@@ -142,5 +144,47 @@ class HseInspectionController extends Controller
         ActivityLog::record('created', "Raised a corrective action from {$hseInspection->inspection_number}.", $hseInspection);
 
         return back()->with('success', 'Corrective action raised.');
+    }
+
+    /**
+     * v2.110.0 -- THE INSPECTION AS A FILEABLE DOCUMENT.
+     *
+     * HSE Inspection was the one HSE record with no printable output:
+     * Permit to Work, Material Request, Goods Receipt and the Employee
+     * Register all had one, and an inspection -- the record a client
+     * auditor is most likely to ask for on paper -- did not.
+     *
+     * Deliberately the SAME tenant gate as `show()` (membership of the
+     * current tenant's own company ids, 404 otherwise) and deliberately
+     * NO extra role gate: anyone who may view the inspection may print
+     * it. Gating the PDF behind `canManageHse()` while leaving `show()`
+     * open would hide a document from someone already reading its
+     * contents on screen.
+     *
+     * `streamInline()` so one URL serves both the Download link and the
+     * Print button, exactly as PermitToWorkController::pdf() does.
+     */
+    public function pdf(HseInspection $hseInspection, PdfGeneratorService $pdf, DocumentEngine $documents): \Illuminate\Http\Response
+    {
+        abort_unless(Company::query()->pluck('id')->contains($hseInspection->company_id), 404);
+
+        // correctiveActions is eager-loaded here because the Blade view
+        // renders the CAPA section only when the relation is LOADED --
+        // an unloaded relation would lazily fetch inside the template,
+        // and a missing section would silently drop real findings.
+        $hseInspection->load(
+            'company:id,name',
+            'project:id,name',
+            'inspector:id,name',
+            'correctiveActions.assignee:id,name',
+        );
+
+        ActivityLog::record('exported', "Generated the PDF for HSE Inspection {$hseInspection->inspection_number}.", $hseInspection);
+
+        return $pdf->streamInline('pdf.hse-inspection', [
+            'inspection' => $hseInspection,
+            'identity' => $documents->identity(),
+            'generatedAt' => now(),
+        ], "{$hseInspection->inspection_number}.pdf");
     }
 }

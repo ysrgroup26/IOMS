@@ -1,7 +1,7 @@
 ---
 title: Verification Status
 type: register
-updated: 2026-10-11
+updated: 2026-10-12
 tags: [kb/verification]
 ---
 
@@ -49,11 +49,11 @@ on every phone width.
 
 | | |
 |---|---|
-| Suite | **1161 tests, 5766 assertions — all passing on SQLite** (2026-10-11, v2.108.1; was 800/4337 at v2.94.0) |
-| Suite on **MySQL 8.0** | **1160 of 1161 passing.** The one failure is QA-007, a pre-existing fault in `/ptw/quota` outside that change's scope — see [[Known Issues and Limitations]]. |
+| Suite | **1226 tests, 6071 assertions — all passing on SQLite** (2026-10-12, v2.110.0; was 1161/5766 at v2.108.1) |
+| Suite on **MySQL 8.0** | **1226 of 1226 passing** (2026-10-12), on an isolated `ioms_test` database with synthetic data. QA-007 is fixed, so MySQL and SQLite now agree completely. |
 | Database | In-memory **SQLite**, so no MySQL or external service is needed |
 | Lint | `npm run lint` — 0 errors (4 existing warnings in `GasTestRecords/Index.jsx` and `Settings/Index.jsx`) |
-| Build | `npm run build` succeeded (2026-10-11): 2307 modules, 2,055 KB bundle, the existing size advisory unchanged |
+| Build | `npm run build` succeeded (2026-10-12): 2319 modules, 2,085 KB bundle, the existing size advisory unchanged |
 
 > [!note] The suite now runs on a fresh clone (v2.108.0)
 > It previously did not, and this was found the first time anyone tried. Two things blocked it:
@@ -88,6 +88,24 @@ on every phone width.
 > multi-table `UPDATE … JOIN` and anything reading `information_schema`, or guard it with
 > `DB::getDriverName() === 'mysql'`. Six migrations had to be made portable before the suite could
 > provision at all.
+
+### Browser-verified — v2.110.0 Document Platform (2026-10-12)
+
+Run against a **real running application**: `php artisan serve`, an isolated SQLite file database,
+synthetic company/employee/inspection/stock/project data, driven with Playwright + the preinstalled
+Chromium. No production data of any kind was involved.
+
+| Flow | Result |
+|---|---|
+| Document Library page | **16/16 checks passed.** All four operational workspaces are grouped and labelled; all four documents listed; each offers Excel/Word/PDF; the supported INPUT formats are stated; OCR's unavailability is explained in Indonesian rather than hidden; no horizontal overflow at 390px; zero JavaScript errors. |
+| Downloads | Six files fetched over HTTP and checked by **magic bytes and size**, not by status code alone: XLSX/DOCX begin `PK\x03\x04`, PDFs begin `%PDF`. |
+| HSE Inspection report | `GET /hse-inspections/1/pdf` returned a **883 KB `%PDF-1.7`**, one page. Re-parsed with `smalot/pdfparser` and **rasterised with `pdftoppm` and read visually** — letterhead, checklist with per-line verdicts, the unanswered line printed as N/A, the overall result, notes, CAPA and signature boxes all present. |
+| Read-only inspector | A CSV uploaded through the page's own control returned the format label and the located heading row, and **wrote nothing**. |
+
+> [!note] What this run did NOT cover
+> Word and PDF *import* were exercised by the test suite against generated fixtures, not by a human
+> dragging a real customer file into the dialog. Scanned-document OCR was **not** exercised at all:
+> it is disabled and the binaries are absent, which the product reports rather than hides.
 
 ### Browser-verified — v2.108.0 (2026-10-11)
 

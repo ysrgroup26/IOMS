@@ -3,6 +3,59 @@
 House style, and a deliberately honest list of mistakes that have actually happened in this
 codebase's history — kept here so they don't get repeated in a slightly different shape.
 
+## Known Pitfall (v2.110.0): a PDF's heading row is often CENTRED, and a distance-based column
+## clustering reads that as twice as many columns
+
+`PdfExtractor` reconstructs a table from `getDataTm()` glyph positions: fragments sharing a y are a
+row, and the x values rows agree on are the columns. That worked on a fixture whose cells were all
+left aligned, and produced **twelve columns for a six-column table** the first time it met a real
+document — because the `<th>` text was centred inside its cell while the data beneath it was left
+aligned, so each column contributed *two* x clusters, one for its heading and one for its data. The
+extra ones came back as `Kolom 1`, `Kolom 3`, `Kolom 5`…, every one of them empty.
+
+The fix is not a bigger tolerance, which would merge genuinely adjacent columns on a dense table.
+It is to work out **how many columns the rows themselves agree on** (the modal fragment count) and
+then agglomeratively merge the closest adjacent clusters down to that number. It never merges below
+the expected count and never splits.
+
+> [!warning] A fixture you generated is not a document you received
+> This was invisible until the fixture was produced by dompdf — the same engine IOMS itself prints
+> with — instead of being hand-built to be easy to parse. If you are testing an extractor, generate
+> the fixture the way a real document is produced.
+
+Pinned by `tests/Feature/DocumentImportBridgeTest::test_a_pdf_table_is_recovered_and_reported_as_a_reconstruction`.
+
+## Convention (v2.110.0): a document's rows are materialised ONCE before rendering
+
+`DocumentRenderer::render()` walks `$definition->rows()` into an array before handing it to any
+format. A definition is allowed to `yield` — all four shipped ones do, so a large register never
+loads whole models into memory at once — and **a generator cannot be walked twice**. The PDF path
+iterates the rows for the table and again for the row count; on a generator the second pass yields
+nothing and the document prints an empty table under a header that says how many rows it has.
+
+If you add a format to the renderer, take the rows it is given. Do not re-call `rows()`.
+
+## Convention (v2.110.0): a new input format is an extractor, never a second import path
+
+The employee importer holds the day-first date parser, the NIK registry, the employment-type
+aliases, the master-data detection and the row-accurate error reporting. There is exactly one of it.
+
+When a format needs importing, write an extractor that produces an `ExtractedTable`, and let
+`TabularBridge` normalise it into a spreadsheet the existing importer reads. Writing a second
+import path would mean a second copy of every validation rule, and the two would drift — which is
+the failure this file already records twice in other shapes. See
+ADR `053-a-document-is-a-definition-not-an-export.md`.
+
+## Known Pitfall (v2.110.0): an "unavailable" message is help text, and help text is Indonesian
+
+`OcrExtractor::unavailableReason()` was written in English because it reads like a deployment note.
+It is not one: it is rendered on the Document Library and in the import dialog, to the storeman who
+just uploaded a scan. The language hierarchy below puts help text, hints and empty-state guidance in
+Indonesian, and a capability-reporting string is all three. It also has to say **what to do
+instead**, not only what is missing.
+
+The same applies to every `unavailableReason()` and every extractor `warning`.
+
 ## Convention (v2.53.0, written down properly in v2.68.0): THE LANGUAGE HIERARCHY
 
 **IOMS is bilingual on purpose, and the split is by SLOT, not by page.**

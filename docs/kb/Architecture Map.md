@@ -93,6 +93,24 @@ dashboards reuse), `CalendarService`, `StockService`.
 
 ---
 
+### The Document Platform — `app/Services/Documents/` (v2.110.0)
+
+Both directions of a document, as one layer. Reasoning:
+ADR [[053-a-document-is-a-definition-not-an-export\|053]].
+
+| Piece | Purpose |
+|---|---|
+| `FormatDetector` | Decides what a file IS by **content**, not extension. Refuses macro-enabled containers outright |
+| `Extraction/SpreadsheetExtractor` · `WordExtractor` · `PdfExtractor` · `OcrExtractor` | One per format, all behind `Contracts\DocumentExtractor`, so adding or swapping a format touches one class |
+| `Support/TableLocator` | **Scores** candidate rows to find the heading row instead of assuming row 1 — the reason a roster with a company header above the table now imports |
+| `DocumentIngestionService` | The front door: detect → extract → suggest a mapping (reusing `ImportHeaderMatcher`). `capabilities()` reports honestly what this deployment can read |
+| `TabularBridge` | Writes an extracted table out as a clean `.xlsx` so **every input format reaches the ONE existing importer** rather than a second copy of its rules |
+| `Export/BrandedWorkbook` · `Export/BrandedWordDocument` | The output engines (PhpSpreadsheet, PhpWord). Branding resolved per call through `DocumentEngine::identity()` |
+| `Library/DocumentDefinition` · `DocumentRenderer` · `DocumentLibrary` | A document described ONCE and rendered three ways from one materialised query. Tenant scoping and authorization live in the definition and nowhere else |
+
+Everything is pure PHP on purpose: Carbone, Docxtemplater, pdfmake, Tika and OCRmyPDF each need
+Node, a JVM or LibreOffice, and the cPanel host has none of them (ADRs 027/028).
+
 ## Scheduled work — `routes/console.php`
 
 Three commands, all requiring the server's cron to reach `php artisan schedule:run` every minute.

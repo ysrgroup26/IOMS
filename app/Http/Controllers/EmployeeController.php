@@ -20,20 +20,25 @@ use App\Models\Project;
 use App\Models\RosterPattern;
 use App\Models\Shift;
 use App\Services\DocumentEngine;
+use App\Services\Documents\DocumentIngestionService;
+use App\Services\Documents\FormatDetector;
+use App\Services\Documents\Support\ExtractedDocument;
+use App\Services\Documents\TabularBridge;
 use App\Services\FieldMappingService;
-use App\Services\ImportHeaderMatcher;
 use App\Services\MasterDataDetector;
 use App\Services\PdfGeneratorService;
 use App\Support\NameFormatter;
+use Illuminate\Database\Eloquent\Model;
 use Illuminate\Http\JsonResponse;
 use Illuminate\Http\RedirectResponse;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Facades\Storage;
+use Illuminate\Validation\Rule;
+use Illuminate\Validation\ValidationException;
 use Inertia\Inertia;
 use Inertia\Response;
 use Maatwebsite\Excel\Facades\Excel;
-use PhpOffice\PhpSpreadsheet\IOFactory;
 use Symfony\Component\HttpFoundation\BinaryFileResponse;
 
 class EmployeeController extends Controller
@@ -441,6 +446,84 @@ class EmployeeController extends Controller
     }
 
     /**
+     * v2.110.0 -- EVERY IMPORT ENDPOINT ACCEPTS THE SAME FOUR FORMATS.
+     *
+     * The validation rule for an uploaded workforce file. Widened from
+     * xlsx/xls to the formats the document platform can genuinely READ,
+     * and no wider: a format listed here must have a working extractor,
+     * or the customer is offered a door that does not open.
+     *
+     * `txt` is present only because a .csv frequently arrives with a
+     * text/plain MIME type; the real decision is made by content, in
+     * `FormatDetector`, not by this list.
+     *
+     * The size cap is the document platform's own, so one number governs
+     * every upload rather than each endpoint inventing a limit.
+     *
+     * @return list<string>
+     */
+    private function importFileRules(): array
+    {
+        return ['required', 'file', 'mimes:xlsx,xls,csv,txt,docx,pdf', 'max:'.((int) config('documents.max_upload_mb') * 1024)];
+    }
+
+    /**
+     * Runs `$work` against a SPREADSHEET, whatever the customer uploaded.
+     *
+     * A .xlsx or .xls is passed through untouched -- the existing
+     * importer already reads it, and converting it would be a chance to
+     * lose something for no gain.
+     *
+     * Anything else (CSV, Word, PDF) is extracted by the document
+     * platform and written out as a clean, normalised .xlsx by
+     * `TabularBridge`, and THAT is what the importer sees. The reason is
+     * the one in TabularBridge's own doc comment: there is exactly one
+     * set of employee validation rules in this codebase, and a second
+     * import path would become a second, drifting copy of them.
+     *
+     * The temporary file is removed in `finally`, so a failed import does
+     * not leave customer data in the system temp directory.
+     *
+     * @template T
+     *
+     * @param  \Closure(string, ?ExtractedDocument): T  $work
+     * @return T
+     */
+    private function withImportSpreadsheet(Request $request, \Closure $work)
+    {
+        $file = $request->file('file');
+        $format = app(FormatDetector::class)->detectUploaded($file);
+
+        if ($format === null) {
+            throw ValidationException::withMessages([
+                'file' => 'Format berkas ini tidak dikenali. Format yang diterima: Excel (.xlsx/.xls), CSV, Word (.docx) dan PDF.',
+            ]);
+        }
+
+        if (in_array($format, [FormatDetector::XLSX, FormatDetector::XLS], true)) {
+            return $work($file->getRealPath(), null);
+        }
+
+        $document = app(DocumentIngestionService::class)->extract($file->getRealPath(), $format);
+        $table = $document->primaryTable();
+
+        if ($table === null) {
+            throw ValidationException::withMessages([
+                'file' => 'Tidak ada tabel yang dapat dibaca dari berkas ini. '
+                    .($document->warnings[0] ?? 'Pastikan berkas memuat tabel dengan baris judul kolom.'),
+            ]);
+        }
+
+        $path = app(TabularBridge::class)->toSpreadsheet($table);
+
+        try {
+            return $work($path, $document);
+        } finally {
+            @unlink($path);
+        }
+    }
+
+    /**
      * v2.102.0 -- SMART IMPORT: READ THE FILE THE CUSTOMER ALREADY HAS.
      *
      * The official template remains the golden path. This endpoint is for
@@ -455,42 +538,64 @@ class EmployeeController extends Controller
      * question is what the columns mean, which `WithHeadingRow` would
      * already have had to assume.
      */
-    public function inspectImport(Request $request, ImportHeaderMatcher $matcher): JsonResponse
+    public function inspectImport(Request $request, DocumentIngestionService $ingestion): JsonResponse
     {
-        $request->validate([
-            'file' => ['required', 'file', 'mimes:xlsx,xls'],
-        ]);
+        $request->validate(['file' => $this->importFileRules()]);
 
-        $sheet = IOFactory::load($request->file('file')->getRealPath())->getActiveSheet();
+        /*
+         * v2.110.0: this used to call PhpSpreadsheet directly, read the
+         * ACTIVE SHEET ONLY, and assume the headings were on row 1.
+         * Three real customer files break every one of those
+         * assumptions -- a roster with a title and a logo above the
+         * table, a workbook whose data is on the second sheet, and a
+         * list that only exists as a Word document or a PDF.
+         *
+         * `DocumentIngestionService` answers all three: it detects the
+         * format by CONTENT, extracts every table from every sheet, and
+         * LOCATES the heading row rather than assuming it. The response
+         * keeps the original keys so the existing dialog keeps working,
+         * and adds `tables` for the files that genuinely have more than
+         * one.
+         */
+        try {
+            $inspection = $ingestion->inspect($request->file('file'), 'employees');
+        } catch (\RuntimeException $e) {
+            throw ValidationException::withMessages(['file' => $e->getMessage()]);
+        }
 
-        // A heading row plus a handful of rows beneath it is all the
-        // matcher needs, and reading only that keeps a large roster from
-        // being pulled into memory to answer a question about its columns.
-        $rows = $sheet->rangeToArray(
-            'A1:'.$sheet->getHighestColumn().min($sheet->getHighestRow(), 11),
-            null,
-            true,
-            false
-        );
+        $primary = $inspection['tables'][0] ?? null;
 
-        $headings = array_values(array_filter(
-            array_map(fn ($value) => trim((string) $value), $rows[0] ?? []),
-            fn (string $heading) => $heading !== ''
-        ));
-
-        $sampleRows = [];
-        foreach (array_slice($rows, 1) as $row) {
-            $sample = [];
-            foreach ($headings as $index => $heading) {
-                $sample[$heading] = $row[$index] ?? null;
-            }
-            $sampleRows[] = $sample;
+        if ($primary === null) {
+            throw ValidationException::withMessages([
+                'file' => 'Tidak ada tabel yang dapat dibaca dari berkas ini. '
+                    .($inspection['warnings'][0] ?? 'Pastikan berkas memuat tabel dengan baris judul kolom.'),
+            ]);
         }
 
         return response()->json([
-            'headings' => $headings,
-            ...$matcher->suggest($headings, $sampleRows, 'employees'),
+            // --- the original contract, unchanged ---
+            'headings' => $primary['headings'],
+            ...$primary['mapping'],
             'field_labels' => config('mapping_fields.employees.import', []),
+
+            // --- what the document platform adds ---
+            'format' => $inspection['format'],
+            'format_label' => $inspection['format_label'],
+            // Stated so a user can see WHY a heading row was taken from
+            // row 5, and so a low-confidence PDF reconstruction is
+            // offered for confirmation rather than trusted.
+            'header_row' => $primary['header_row_number'] ?? 1,
+            'confidence' => $primary['confidence'] ?? 1.0,
+            'source' => $primary['source'] ?? null,
+            'notes' => $primary['notes'] ?? [],
+            'warnings' => $inspection['warnings'],
+            'tables' => array_map(fn (array $t) => [
+                'index' => $t['index'],
+                'source' => $t['source'],
+                'headings' => $t['headings'],
+                'row_count' => $t['row_count'] ?? null,
+                'confidence' => $t['confidence'] ?? null,
+            ], $inspection['tables']),
         ]);
     }
 
@@ -511,21 +616,30 @@ class EmployeeController extends Controller
     public function previewImport(Request $request, MasterDataDetector $detector, FieldMappingService $mapping): JsonResponse
     {
         $request->validate([
-            'file' => ['required', 'file', 'mimes:xlsx,xls'],
-            'company_id' => ['required', \Illuminate\Validation\Rule::in(Company::query()->pluck('id'))],
+            'file' => $this->importFileRules(),
+            'company_id' => ['required', Rule::in(Company::query()->pluck('id'))],
             ...$this->columnMappingRules(),
         ]);
 
         $companyId = (int) $request->input('company_id');
 
         try {
-            $import = new EmployeesImport($companyId, $request->user()->id, previewOnly: true, columnKeys: $mapping->importColumnKeys('employees', $this->confirmedColumnMapping($request)));
-            Excel::import($import, $request->file('file'));
+            // v2.110.0: the file reaching EmployeesImport is always a
+            // spreadsheet, whatever the customer uploaded. See
+            // withImportSpreadsheet().
+            $import = $this->withImportSpreadsheet($request, function (string $path) use ($companyId, $request, $mapping) {
+                $import = new EmployeesImport($companyId, $request->user()->id, previewOnly: true, columnKeys: $mapping->importColumnKeys('employees', $this->confirmedColumnMapping($request)));
+                Excel::import($import, $path, null, \Maatwebsite\Excel\Excel::XLSX);
+
+                return $import;
+            });
+        } catch (ValidationException $e) {
+            throw $e;
         } catch (\Throwable $e) {
             report($e);
 
             return response()->json([
-                'message' => 'Berkas ini tidak dapat dibaca. Pastikan formatnya .xlsx dan baris pertama berisi judul kolom. '
+                'message' => 'Berkas ini tidak dapat dibaca. Pastikan berkas memuat satu tabel dengan baris judul kolom. '
                     .'Penyebab: '.mb_substr($e->getMessage(), 0, 160),
             ], 422);
         }
@@ -568,7 +682,7 @@ class EmployeeController extends Controller
      * should belong to a specific department can be attached afterwards in
      * Settings.
      *
-     * @param  class-string<\Illuminate\Database\Eloquent\Model>  $model
+     * @param  class-string<Model>  $model
      * @param  array<int, string>  $names
      */
     private function createMissingMasterData(string $model, int $companyId, array $names): void
@@ -608,8 +722,8 @@ class EmployeeController extends Controller
     public function createMissingMasterDataAndImport(Request $request, FieldMappingService $mapping): JsonResponse
     {
         $request->validate([
-            'file' => ['required', 'file', 'mimes:xlsx,xls'],
-            'company_id' => ['required', \Illuminate\Validation\Rule::in(Company::query()->pluck('id'))],
+            'file' => $this->importFileRules(),
+            'company_id' => ['required', Rule::in(Company::query()->pluck('id'))],
             'new_departments' => ['array'],
             'new_departments.*' => ['string', 'max:255'],
             'new_positions' => ['array'],
@@ -618,7 +732,6 @@ class EmployeeController extends Controller
         ]);
 
         $companyId = (int) $request->input('company_id');
-        $file = $request->file('file');
         // Read before the closure: `$request` is captured anyway, but the
         // mapping is a decided value, not something to re-derive inside a
         // transaction.
@@ -641,36 +754,42 @@ class EmployeeController extends Controller
          * message says which stage failed.
          */
         try {
-            $import = DB::transaction(function () use ($request, $companyId, $file, $mapping, $confirmedMapping) {
-            /*
-             * v2.101.0 -- NORMALISED, AND MATCHED AGAINST WHAT IS ALREADY
-             * THERE.
-             *
-             * `firstOrCreate(['name' => $name])` matched on the raw cell, so
-             * " Produksi " created a second department whose name begins
-             * with a space, and "produksi" created another beside
-             * "Produksi" on any connection that compares case-sensitively.
-             * The name is now stored normalised, and an existing record is
-             * reused whenever it matches on the same key the detector and
-             * the import compare with.
-             */
-            $this->createMissingMasterData(
-                Department::class,
-                $companyId,
-                $request->input('new_departments', [])
-            );
+            // v2.110.0: normalised to a spreadsheet FIRST, outside the
+            // transaction -- extracting a Word or PDF table is reading,
+            // not writing, and holding a transaction open across it would
+            // keep row locks for the length of a parse.
+            $import = $this->withImportSpreadsheet($request, fn (string $path) => DB::transaction(function () use ($request, $companyId, $path, $mapping, $confirmedMapping) {
+                /*
+                 * v2.101.0 -- NORMALISED, AND MATCHED AGAINST WHAT IS ALREADY
+                 * THERE.
+                 *
+                 * `firstOrCreate(['name' => $name])` matched on the raw cell, so
+                 * " Produksi " created a second department whose name begins
+                 * with a space, and "produksi" created another beside
+                 * "Produksi" on any connection that compares case-sensitively.
+                 * The name is now stored normalised, and an existing record is
+                 * reused whenever it matches on the same key the detector and
+                 * the import compare with.
+                 */
+                $this->createMissingMasterData(
+                    Department::class,
+                    $companyId,
+                    $request->input('new_departments', [])
+                );
 
-            $this->createMissingMasterData(
-                Position::class,
-                $companyId,
-                $request->input('new_positions', [])
-            );
+                $this->createMissingMasterData(
+                    Position::class,
+                    $companyId,
+                    $request->input('new_positions', [])
+                );
 
                 $import = new EmployeesImport($companyId, $request->user()->id, columnKeys: $mapping->importColumnKeys('employees', $confirmedMapping));
-                Excel::import($import, $file);
+                Excel::import($import, $path, null, \Maatwebsite\Excel\Excel::XLSX);
 
                 return $import;
-            });
+            }));
+        } catch (ValidationException $e) {
+            throw $e;
         } catch (\Throwable $e) {
             report($e);
 
@@ -705,15 +824,24 @@ class EmployeeController extends Controller
     public function import(Request $request, FieldMappingService $mapping): JsonResponse
     {
         $request->validate([
-            'file' => ['required', 'file', 'mimes:xlsx,xls'],
-            'company_id' => ['required', \Illuminate\Validation\Rule::in(Company::query()->pluck('id'))],
+            'file' => $this->importFileRules(),
+            'company_id' => ['required', Rule::in(Company::query()->pluck('id'))],
             ...$this->columnMappingRules(),
         ]);
 
-        $import = new EmployeesImport((int) $request->input('company_id'), $request->user()->id, columnKeys: $mapping->importColumnKeys('employees', $this->confirmedColumnMapping($request)));
-        Excel::import($import, $request->file('file'));
+        $import = $this->withImportSpreadsheet($request, function (string $path) use ($request, $mapping) {
+            $import = new EmployeesImport((int) $request->input('company_id'), $request->user()->id, columnKeys: $mapping->importColumnKeys('employees', $this->confirmedColumnMapping($request)));
+            Excel::import($import, $path, null, \Maatwebsite\Excel\Excel::XLSX);
 
-        ActivityLog::record('imported', "Imported {$import->imported} employee(s) from Excel ({$import->totalRows} rows processed).");
+            return $import;
+        });
+
+        // The format is NAMED in the audit trail, because "imported from
+        // Excel" on a row that actually came out of a PDF would make the
+        // history harder to trust, not easier.
+        $source = app(FormatDetector::class)->label(app(FormatDetector::class)->detectUploaded($request->file('file')));
+
+        ActivityLog::record('imported', "Imported {$import->imported} employee(s) from {$source} ({$import->totalRows} rows processed).");
 
         return response()->json([
             'total_rows' => $import->totalRows,

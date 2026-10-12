@@ -144,6 +144,8 @@ finance capability.
 | Platform Super Admin surface | Built | `/platform/*`, entirely separate from tenant surfaces |
 | **Admin Space** | Built (v2.83.0) | The CUSTOMER's own administration: users, roles, operating units, security posture, audit trail, subscription. One new route (`admin.index`); every existing administrative form kept its own. Not Master Admin, and not sold. ADR [[044-management-workspace-and-admin-space\|044]] |
 | **Workspace focus** | Built (v2.83.0) | Where a person starts, not what they may reach. One nullable column no middleware, policy or capability method reads; a stale focus degrades to All Workspaces |
+| **Document Library** | Built (v2.110.0) | `/documents/library`. One registry of document definitions across all four operational workspaces, each rendered as **Excel, Word or PDF from ONE tenant-scoped query**, plus a read-only inspector that reports what is inside an uploaded document and writes nothing. Adding a document is one class plus one line. ADR [[053-a-document-is-a-definition-not-an-export\|053]] |
+| **Document ingestion (4 input formats)** | Built (v2.110.0) | Excel, CSV, Word and PDF all reach the **existing** employee importer via `TabularBridge`; format detected by content, macro-enabled containers refused, the heading row LOCATED rather than assumed, a PDF table reconstructed from glyph positions at a stated confidence. OCR is an adapter that reports honestly that it is unavailable. ADR [[053-a-document-is-a-definition-not-an-export\|053]] |
 
 ---
 

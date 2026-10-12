@@ -26,25 +26,32 @@ use Illuminate\Http\Response;
  */
 class PdfGeneratorService
 {
+    /*
+     * v2.110.0 -- `$orientation`. Every document was A4 portrait, which
+     * is right for a form and wrong for a register: nine columns of
+     * employee data in portrait wrap every cell onto two lines and the
+     * widest ones run off the page. Portrait remains the default, so no
+     * existing document changes; a wide register asks for landscape.
+     */
     /**
      * Render a Blade view to PDF and return it as a browser-viewable
      * (inline) response -- what "Print" and "view before downloading"
      * both want.
      */
-    public function streamInline(string $view, array $data, string $filename): Response
+    public function streamInline(string $view, array $data, string $filename, string $orientation = 'portrait'): Response
     {
         return Pdf::loadView($view, $data)
-            ->setPaper('a4', 'portrait')
+            ->setPaper('a4', $orientation)
             ->stream($filename);
     }
 
     /**
      * Render a Blade view to PDF and force a file download.
      */
-    public function download(string $view, array $data, string $filename): Response
+    public function download(string $view, array $data, string $filename, string $orientation = 'portrait'): Response
     {
         return Pdf::loadView($view, $data)
-            ->setPaper('a4', 'portrait')
+            ->setPaper('a4', $orientation)
             ->download($filename);
     }
 }

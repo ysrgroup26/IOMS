@@ -6,6 +6,12 @@ import {
     ShieldAlert, FileWarning, Flame, Lock, UsersRound, Stethoscope, Siren, ClipboardCheck,
     FileStack, FileQuestion, Building2, TrendingUp, Boxes, ArrowRightLeft, UserCheck, FileCheck,
     FlaskConical, Recycle,
+    // v2.110.0 -- the Document Library. Deliberately NOT FileStack,
+    // which already means Document Control: one is the register of the
+    // company's controlled documents, the other is the catalogue of
+    // documents IOMS can generate, and the sidebar must not say they are
+    // the same thing.
+    Library,
     Scale,
     FileSignature,
     // v2.73.0 -- HSE Investigation. A magnifier, not another shield:
@@ -445,6 +451,13 @@ export const WORKSPACES = [
             // reasoning -- it's a generic download/schedule surface over
             // the same dataset registry Analytics reads from.
             { name: 'Report Center', href: 'report-center.index', icon: FileDown },
+            // v2.110.0 (Document Platform): same "no moduleKey" reasoning
+            // again -- the library publishes whichever document
+            // definitions are registered, across every workspace, and
+            // each definition carries its own authorization. Gating the
+            // surface on one module toggle would hide documents whose
+            // own module is enabled.
+            { name: 'Document Library', href: 'documents.library', icon: Library },
         ],
     },
     {
@@ -580,6 +593,7 @@ const COMPANY_REPORTS_GROUP = {
         { name: 'Reports', href: 'reports.index', icon: FileBarChart, moduleKey: 'reports', global: true },
         { name: 'Analytics', href: 'analytics.index', icon: BarChart3, global: true },
         { name: 'Report Center', href: 'report-center.index', icon: FileDown, global: true },
+        { name: 'Document Library', href: 'documents.library', icon: Library, global: true },
     ],
 };
 

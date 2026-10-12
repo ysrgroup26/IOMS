@@ -36,6 +36,13 @@ Core master data: `Employee` model, one per person. Belongs to a `Company`, opti
   to the customer as a WARNING against its own row number — the row still imports, because a join
   date was never a critical field. Never `strtotime()`; see
   `docs/ADR/050-a-date-out-of-a-spreadsheet.md` and the pitfall in `CONVENTIONS.md`.
+- **Four input formats** (v2.110.0): all four import endpoints (`inspect`, `preview`,
+  `create-missing-and-import`, `import`) accept **Excel, CSV, Word (.docx) and PDF**. A
+  non-spreadsheet file is extracted by the Document Platform and written out as a clean `.xlsx` by
+  `TabularBridge`; `EmployeesImport` itself is unchanged and is still the only place employee
+  validation lives. The heading row is **located**, not assumed, so a roster with a company header
+  above the table now imports. Macro-enabled workbooks are refused outright. The audit trail names
+  the format the rows actually came from. See `docs/ADR/053-a-document-is-a-definition-not-an-export.md`.
 - **Smart Import applies its own suggestion** (v2.108.1): `/employees/import/inspect` suggests
   `[field => their heading]`, the dialog shows it, and that mapping is POSTed as `column_mapping`
   with the preview and the import. Before this it was drawn and discarded — a customer's own
@@ -358,6 +365,36 @@ The most complete example of the reusable-engine pattern — read this section t
   assumes HSE; `department_id` is a plain nullable foreign key.
 - PDF generation and Activity Timeline both go through the shared engines described in
   `ARCHITECTURE.md` — this module doesn't have its own parallel PDF or logging logic.
+
+## Document Library (v2.110.0)
+
+**Department:** none — it is cross-workspace chrome, listed under Reports & Analytics alongside
+Report Center, with no `moduleKey`.
+
+`/documents/library` publishes every registered `DocumentDefinition`, grouped by the workspace that
+owns the data, each downloadable as **Excel, Word or PDF** from one definition and one query. Four
+documents ship: Employee Register (People / HRD), HSE Inspection Register (HSE), Stock Position
+Report (Warehouse & Logistics) and Project Manpower Summary (Management).
+
+The same page states, honestly, which **input** formats this deployment can read, with the reason
+when one is unavailable, and offers a read-only "Inspect a Document" upload that reports the tables
+found and the confidence of each — and writes nothing.
+
+`GET /documents/{key}/{format}` serves the file; `POST /documents/inspect` is the module-agnostic
+reader. An unknown key and a key the user may not read both answer **404**, so the library cannot be
+used to enumerate other roles' documents.
+
+Business rules worth knowing before changing it:
+
+- Adding a document is **one class plus one line** in `DocumentLibrary::DEFINITIONS`.
+- A definition's query IS the tenant boundary (`Company::query()`); nothing downstream re-filters.
+- An empty result prints a sentence saying it is deliberately empty, never a blank table.
+- The filters in force are printed in the document header, so a filtered list cannot read as a
+  complete one.
+- Registers wider than six columns print landscape.
+- Identifiers are written as explicit text so a leading zero or a 16-digit NIK survives Excel.
+
+Reasoning: `docs/ADR/053-a-document-is-a-definition-not-an-export.md`.
 
 ## Task Engine
 
@@ -1183,6 +1220,17 @@ query later (e.g. a future attendance/compliance report). Numbered `TBM-{year}-{
 `CorrectiveAction` row directly from the Show page — reuses the existing polymorphic CAPA entity
 (see Safety Observation's own section above), not a second findings-tracking system. Numbered
 `HSE-INS-{year}-{00001}`.
+
+**Printable report** (v2.110.0): `GET /hse-inspections/{id}/pdf` renders `pdf.hse-inspection`
+through `PdfGeneratorService` — letterhead, inspection details, every checklist line with its
+verdict, the overall result, inspector notes, the CAPA raised from it, and signature boxes. Same
+tenant gate as `show()` and deliberately **no** extra role gate: anyone who may read the inspection
+may print it. A checklist line with no recorded verdict prints as **N/A**, never as a pass — an
+unanswered line that printed as answered would be a false safety record.
+
+**Inspection register** (v2.110.0): the HSE entry in the Document Library
+(`hse-inspection-register`), downloadable as XLSX/DOCX/PDF. Open corrective actions are COUNTED from
+real `CorrectiveAction` rows, never stored.
 
 ## Incident Investigation + CAPA (cross-module)
 

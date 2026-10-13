@@ -73,8 +73,16 @@ writing down.
 | ID | Finding | Severity | Why it was left |
 |---|---|---|---|
 | QA-007 | ~~`/ptw/quota` returned 500 on MySQL~~ — **FIXED in v2.108.2.** `PtwQuotaController::show()` eager-loaded `permit:id,ptw_number,title`; `permits_to_work` has no `title` (the field is `work_description`), and nothing read it. The column was dropped from the select list. Reproduced on MySQL 8 before the fix and re-verified after; the regression test now reads the row back out of the page props, so the select list has to be one MySQL will actually serve. | ~~High~~ Fixed | — |
-| QA-008 | A soft-deleted employee's **PPE issue records become invisible**. `EmployeePpe` has no `company_id` and reaches its owner via `whereHas('employee')`, which stops matching once the employee is trashed. Nothing is destroyed and a restore brings it all back, but "history is preserved" means preserved in the table, not still readable through the PPE module. | Low | Pre-existing behaviour of single deletion, not introduced by bulk deletion. Changing the scope to include trashed owners is a product decision about what a PPE register should show. Pinned by `EmployeeBulkDeletionDependenciesTest` so a future change has to confront it. |
+| QA-008 | ~~A soft-deleted employee's **PPE issue records become invisible**~~ — **RESOLVED in v2.115.0, by the product decision rather than by a scope change.** `EmployeePpe` reaches its owner via `whereHas('employee')`, which stopped matching once the employee was trashed: the rows were in the table and unreachable through the PPE module, which is the worst of the available outcomes. Employee deletion is now permanent (ADR 055), so the rows go with the person and no unreachable row is left. `EmployeeBulkDeletionDependenciesTest` now asserts the absence of orphans across every dependent table instead. | ~~Low~~ Resolved | — |
 | QA-009 | Competency certificates uploaded **before v2.108.1** are still on the public disk. New ones are private. | Low | Moving existing files is an irreversible bulk operation on production data — the same reasoning `SecureDocumentController` already records for the wider migration (SEC-013). They stream correctly either way. |
+
+---
+
+## Findings recorded but NOT acted on (v2.115.0 permanent deletion)
+
+| ID | Finding | Severity | Why it was left |
+|---|---|---|---|
+| QA-010 | **`2026_10_05_100290_complete_subscription_lifecycle::down()` cannot run on SQLite.** It drops `invoices.purpose`, which `up()` created with `->index()`, without dropping that index first; SQLite then refuses with `error in index invoices_purpose_index after drop column`. Observed while a test was briefly using `DatabaseMigrations`, whose rollback walks every `down()`. `up()` is unaffected, so no deploy and no fresh install is touched — only a `migrate:rollback` that reaches this far back, and `migrate:fresh` (which drops tables rather than rolling back) is fine too. | Low | Out of scope: it is in the subscription module, nothing in this task touches it, and fixing a rollback path blind is how the v2.105.0 half-applied-index problem happened. The fix is a `dropIndex` before the `dropColumn`, guarded on `Schema::hasIndex`. Recorded here so the next person does not spend the same hour finding it. |
 
 ---
 

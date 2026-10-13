@@ -41,9 +41,17 @@ use Tests\TestCase;
  *     checked server-side. A click-through dialog alone is not consent
  *     for this.
  *
- *  4. SOFT DELETE, ALWAYS. The same reason `destroy()` has always soft
- *     deleted one employee: KPI history, man-hours, PPE issue records and
- *     approvals all reference the person. Nothing here destroys history.
+ *  4. PERMANENT, ALWAYS -- and this rule was the opposite until v2.115.0.
+ *     Bulk deletion was a SOFT delete, to protect the KPI history,
+ *     man-hours, PPE issues and approvals that reference the person. What
+ *     that produced was a workforce the customer had deleted still
+ *     holding its employee numbers, so the corrected file could not be
+ *     imported: 75 rows refused as duplicates of employees the Employees
+ *     page said did not exist. The owner's decision is that deletion is
+ *     permanent, and `EmployeeEraser` is what answers for each reference
+ *     (ADR 055). What that engine must and must not take with it is
+ *     pinned in `EmployeeBulkDeletionDependenciesTest`; this file pins
+ *     rules 1-3 and the fact that the rows are really gone.
  */
 class EmployeeBulkDeletionTest extends TestCase
 {
@@ -154,24 +162,36 @@ class EmployeeBulkDeletionTest extends TestCase
         $response->assertSessionHas('success');
 
         foreach ($employees as $employee) {
-            $this->assertSoftDeleted('employees', ['id' => $employee->id]);
+            $this->assertDatabaseMissing('employees', ['id' => $employee->id]);
         }
 
-        $this->assertNotSoftDeleted('employees', ['id' => $keep->id]);
+        $this->assertDatabaseHas('employees', ['id' => $keep->id]);
     }
 
-    public function test_the_records_are_soft_deleted_so_history_survives(): void
+    /**
+     * The point of the whole release: the number comes back.
+     *
+     * A removed employee used to go on occupying `(company_id,
+     * employee_id)` in the unique index, which is what made re-importing
+     * a corrected roster impossible.
+     */
+    public function test_the_records_are_really_gone_so_the_employee_number_is_free_again(): void
     {
         $employee = $this->employee('EMP-1');
 
         $this->actingAs($this->admin)
             ->delete(route('employees.bulk-destroy'), $this->deleteRequest([$employee->id]));
 
-        $this->assertSoftDeleted('employees', ['id' => $employee->id]);
-        $this->assertNotNull(
-            Employee::withoutGlobalScopes()->withTrashed()->find($employee->id),
-            'The row itself must still exist -- KPI and man-hour history point at it.'
+        $this->assertDatabaseMissing('employees', ['id' => $employee->id]);
+        $this->assertSame(
+            0,
+            Employee::withoutGlobalScopes()->where('company_id', $this->yard->id)->where('employee_id', 'EMP-1')->count(),
+            'The number must be free, not held by a row nothing can see.'
         );
+
+        // And the proof that it is free: the same number can be used again.
+        $again = $this->employee('EMP-1');
+        $this->assertTrue($again->exists);
     }
 
     public function test_every_removal_is_recorded_individually_in_the_audit_trail(): void
@@ -212,8 +232,8 @@ class EmployeeBulkDeletionTest extends TestCase
             ->delete(route('employees.bulk-destroy'), $this->deleteRequest([$yardEmployee->id, $dockEmployee->id]))
             ->assertRedirect(route('employees.index'));
 
-        $this->assertSoftDeleted('employees', ['id' => $yardEmployee->id]);
-        $this->assertSoftDeleted('employees', ['id' => $dockEmployee->id]);
+        $this->assertDatabaseMissing('employees', ['id' => $yardEmployee->id]);
+        $this->assertDatabaseMissing('employees', ['id' => $dockEmployee->id]);
     }
 
     // --- the tenant boundary ---------------------------------------------
@@ -234,7 +254,7 @@ class EmployeeBulkDeletionTest extends TestCase
             ->delete(route('employees.bulk-destroy'), $this->deleteRequest([$foreign->id]))
             ->assertSessionHasErrors('ids');
 
-        $this->assertNotSoftDeleted('employees', ['id' => $foreign->id]);
+        $this->assertDatabaseHas('employees', ['id' => $foreign->id]);
     }
 
     /**
@@ -260,8 +280,8 @@ class EmployeeBulkDeletionTest extends TestCase
             ->delete(route('employees.bulk-destroy'), $this->deleteRequest([$mine->id, $foreign->id]))
             ->assertSessionHasErrors();
 
-        $this->assertNotSoftDeleted('employees', ['id' => $mine->id]);
-        $this->assertNotSoftDeleted('employees', ['id' => $foreign->id]);
+        $this->assertDatabaseHas('employees', ['id' => $mine->id]);
+        $this->assertDatabaseHas('employees', ['id' => $foreign->id]);
     }
 
     public function test_an_id_that_does_not_exist_refuses_the_whole_request(): void
@@ -272,20 +292,27 @@ class EmployeeBulkDeletionTest extends TestCase
             ->delete(route('employees.bulk-destroy'), $this->deleteRequest([$mine->id, 999999]))
             ->assertSessionHasErrors();
 
-        $this->assertNotSoftDeleted('employees', ['id' => $mine->id]);
+        $this->assertDatabaseHas('employees', ['id' => $mine->id]);
     }
 
-    public function test_an_already_deleted_employee_refuses_the_whole_request(): void
+    /**
+     * A selection made on a page whose employee has since been deleted by
+     * somebody else. Nothing about that id resolves any more, so the
+     * request is refused in one piece -- same answer as an id that never
+     * existed, deliberately, so the response cannot be used to tell the
+     * two apart.
+     */
+    public function test_an_id_whose_employee_has_since_been_deleted_refuses_the_whole_request(): void
     {
         $gone = $this->employee('EMP-GONE');
-        $gone->delete();
+        app(\App\Services\EmployeeEraser::class)->erase($gone);
         $mine = $this->employee('EMP-1');
 
         $this->actingAs($this->admin)
             ->delete(route('employees.bulk-destroy'), $this->deleteRequest([$mine->id, $gone->id]))
             ->assertSessionHasErrors();
 
-        $this->assertNotSoftDeleted('employees', ['id' => $mine->id]);
+        $this->assertDatabaseHas('employees', ['id' => $mine->id]);
     }
 
     // --- deliberate confirmation -----------------------------------------
@@ -298,7 +325,7 @@ class EmployeeBulkDeletionTest extends TestCase
             ->delete(route('employees.bulk-destroy'), $this->deleteRequest([$employee->id], ['confirmation' => '']))
             ->assertSessionHasErrors('confirmation');
 
-        $this->assertNotSoftDeleted('employees', ['id' => $employee->id]);
+        $this->assertDatabaseHas('employees', ['id' => $employee->id]);
     }
 
     public function test_a_wrong_confirmation_word_is_refused(): void
@@ -309,7 +336,7 @@ class EmployeeBulkDeletionTest extends TestCase
             ->delete(route('employees.bulk-destroy'), $this->deleteRequest([$employee->id], ['confirmation' => 'ya']))
             ->assertSessionHasErrors('confirmation');
 
-        $this->assertNotSoftDeleted('employees', ['id' => $employee->id]);
+        $this->assertDatabaseHas('employees', ['id' => $employee->id]);
     }
 
     /**
@@ -329,7 +356,7 @@ class EmployeeBulkDeletionTest extends TestCase
             ->assertSessionHasErrors('expected_count');
 
         foreach ($employees as $employee) {
-            $this->assertNotSoftDeleted('employees', ['id' => $employee->id]);
+            $this->assertDatabaseHas('employees', ['id' => $employee->id]);
         }
     }
 
@@ -348,7 +375,7 @@ class EmployeeBulkDeletionTest extends TestCase
             ->delete(route('employees.bulk-destroy'), $this->deleteRequest([$employee->id, $employee->id]))
             ->assertSessionHasErrors();
 
-        $this->assertNotSoftDeleted('employees', ['id' => $employee->id]);
+        $this->assertDatabaseHas('employees', ['id' => $employee->id]);
     }
 
     public function test_the_request_is_bounded(): void
@@ -369,7 +396,7 @@ class EmployeeBulkDeletionTest extends TestCase
             ->delete(route('employees.bulk-destroy'), $this->deleteRequest([$employee->id]))
             ->assertForbidden();
 
-        $this->assertNotSoftDeleted('employees', ['id' => $employee->id]);
+        $this->assertDatabaseHas('employees', ['id' => $employee->id]);
     }
 
     public function test_a_warehouse_account_may_not_bulk_delete(): void
@@ -381,7 +408,7 @@ class EmployeeBulkDeletionTest extends TestCase
             ->delete(route('employees.bulk-destroy'), $this->deleteRequest([$employee->id]))
             ->assertForbidden();
 
-        $this->assertNotSoftDeleted('employees', ['id' => $employee->id]);
+        $this->assertDatabaseHas('employees', ['id' => $employee->id]);
     }
 
     public function test_a_guest_is_sent_to_login(): void
@@ -391,7 +418,7 @@ class EmployeeBulkDeletionTest extends TestCase
         $this->delete(route('employees.bulk-destroy'), $this->deleteRequest([$employee->id]))
             ->assertRedirect(route('login'));
 
-        $this->assertNotSoftDeleted('employees', ['id' => $employee->id]);
+        $this->assertDatabaseHas('employees', ['id' => $employee->id]);
     }
 
     /**

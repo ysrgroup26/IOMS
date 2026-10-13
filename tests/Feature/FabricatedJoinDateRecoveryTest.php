@@ -138,16 +138,28 @@ class FabricatedJoinDateRecoveryTest extends TestCase
         $this->assertDatabaseHas('activity_logs', ['action' => 'updated']);
     }
 
-    public function test_a_removed_employee_is_included_so_a_restore_is_not_poisoned(): void
+    /**
+     * v2.115.0 -- this test used to assert the OPPOSITE, and had to.
+     *
+     * Deletion was a soft delete, so a removed employee was still a row
+     * carrying a fabricated 1970 join date, and the sweep had to include
+     * trashed records or a later restore would bring the bad value back
+     * with the person. Deletion is permanent now (ADR 055): there is no
+     * row to sweep and no restore to poison, so the expectation is that
+     * the sweep finds NOTHING -- which is a stronger statement than the
+     * old one, not a weaker one.
+     */
+    public function test_a_deleted_employee_is_gone_so_the_sweep_has_nothing_to_clear(): void
     {
         $employee = $this->employee('EMP-GONE', '1970-01-01');
-        $employee->delete();
+
+        app(\App\Services\EmployeeEraser::class)->erase($employee);
 
         $this->artisan('employees:audit-join-dates --clear')
-            ->expectsConfirmation('Set 1 join date(s) to NULL? No other field is touched.', 'yes')
+            ->expectsOutputToContain('No employee carries a join date of')
             ->assertSuccessful();
 
-        $this->assertNull(Employee::withoutGlobalScopes()->withTrashed()->find($employee->id)->join_date);
+        $this->assertDatabaseMissing('employees', ['id' => $employee->id]);
     }
 
     public function test_the_sweep_can_be_narrowed_to_one_import_window(): void

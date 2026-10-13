@@ -1,7 +1,15 @@
 # ADR 054 — A deleted employee is RESTORED by an import, never duplicated
 
-- **Status:** Accepted
+- **Status:** **Superseded by [ADR 055](055-deleting-an-employee-is-permanent.md)** (v2.115.0)
 - **Date:** 2026-10-12 (v2.114.0)
+
+> [!warning] The decision below no longer holds; the CONTEXT still does.
+> This ADR answered the reported defect by RESTORING a soft-deleted employee instead of refusing
+> their row. The owner then decided that employee deletion must be PERMANENT, which removes the
+> state this document is about: there is no deleted-but-present employee left to restore, so the
+> importer's two registries, the restore-in-place write and the separate "restored" counter are all
+> gone. Read it for why the defect happened and why ignoring trashed rows was not the fix — both are
+> still true and still worth knowing. Read ADR 055 for what the product does now.
 
 ## Context
 

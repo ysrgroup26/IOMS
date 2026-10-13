@@ -1,9 +1,9 @@
 ---
 title: Current State
 type: snapshot
-product-version: 2.114.0
+product-version: 2.115.0
 product-stage: Beta
-measured: 2026-10-12
+measured: 2026-10-13
 tags: [kb/state]
 ---
 
@@ -25,8 +25,8 @@ the date in the frontmatter, not remembered.
 |---|---|
 | Product | **IOMS — Industrial Operations Platform** |
 | Public company identity | **Tahada Group**; legal entity **PT Tahada Vistara Bersama** |
-| Version | **2.114.0**, stage **Beta**, edition **Enterprise Edition** |
-| Build | `2026.10.12.05`, release date `2026-10-12` |
+| Version | **2.115.0**, stage **Beta**, edition **Enterprise Edition** |
+| Build | `2026.10.13.01`, release date `2026-10-13` |
 | Stack | Laravel 12 · Inertia.js · React 18 · Tailwind · MySQL · Sanctum |
 
 The naming rules are not cosmetic — see [[Product Identity and Principles]].
@@ -38,10 +38,10 @@ The naming rules are not cosmetic — see [[Product Identity and Principles]].
 | Eloquent models | 118 |
 | Controllers | 102 |
 | Inertia pages | 183 |
-| Migrations | 196 |
-| Feature test files | 108 |
-| Tests / assertions | **1273 / 6455**, all passing on SQLite and on MySQL 8.0 (see [[Verification Status]]) |
-| ADRs | 51 files (numbering has known gaps — see [[Decision Register]]) |
+| Migrations | 198 |
+| Feature test files | 111 |
+| Tests / assertions | **1293 / 6611**, all passing on SQLite and on MySQL 8.0 (see [[Verification Status]]) |
+| ADRs | 53 files (numbering has known gaps — see [[Decision Register]]) |
 | Workspaces in the navigation registry | 12 |
 
 ## Workspaces
@@ -82,6 +82,21 @@ replace the role. A My Work User authenticates through the same login and lands 
 server-side route allow-list still controls what that account may reach. See [[Domain Glossary]].
 
 ## What shipped most recently
+
+`2.115.0` (2026-10-13) — **employee deletion is permanent**, by the owner's decision, and one class
+answers for every one of the twenty-four references to an employee rather than leaving it to whichever
+`onDelete` rule was written in whichever migration. Records that only describe the person go with
+them; records of their own keep themselves and lose the pointer; the two documents that PRINT the
+name (a Permit to Work's accountable party, a pre-v1.5.1 Daily Report's filing officer) keep it as a
+tombstone written only at erasure. Departments, positions and operating units are never touched. The
+confirmation dialogs stopped promising preserved history, because that promise was true of a soft
+delete and false of this; the single-record dialog now counts the dependent records from the
+database. The audit entry carries a snapshot of who was deleted, since `activity_logs` outlives its
+subject. v2.114.0's restore-in-place is superseded and its machinery removed, which left the importer
+simpler: one live registry, no restored counter. **1293 tests / 6611 assertions pass on SQLite and on
+MySQL 8.0**, and the whole sequence — import 75, delete all, import again, mixed file, permanent
+single delete, re-import the freed number — was driven through the real UI (**28/28**). See
+[[Release History]], [[055-deleting-an-employee-is-permanent|ADR 055]] and [[Verification Status]].
 
 `2.114.0` (2026-10-12) — the reported import failure, fixed at its cause. Deleting a mis-imported
 roster and importing the corrected file refused **every row as a duplicate** while the Employees page

@@ -66,7 +66,6 @@ class AuditFabricatedJoinDates extends Command
          * to the right customer.
          */
         $query = Employee::withoutGlobalScopes()
-            ->withTrashed()
             ->whereDate('join_date', self::EPOCH);
 
         if ($since = $this->option('since')) {
@@ -96,14 +95,13 @@ class AuditFabricatedJoinDates extends Command
         $this->newLine();
 
         $this->table(
-            ['Tenant', 'Operating Unit', 'Employee ID', 'Name', 'Imported at', 'Removed'],
+            ['Tenant', 'Operating Unit', 'Employee ID', 'Name', 'Imported at'],
             $affected->map(fn (Employee $e) => [
                 $companies[$e->company_id]->tenant_id ?? '?',
                 $companies[$e->company_id]->name ?? '?',
                 $e->employee_id,
                 $e->full_name,
                 $e->created_at?->toDateString() ?? '?',
-                $e->deleted_at ? 'yes' : '',
             ])->all()
         );
 
@@ -127,7 +125,6 @@ class AuditFabricatedJoinDates extends Command
 
         DB::transaction(function () use ($affected) {
             Employee::withoutGlobalScopes()
-                ->withTrashed()
                 ->whereIn('id', $affected->pluck('id'))
                 ->update(['join_date' => null]);
 

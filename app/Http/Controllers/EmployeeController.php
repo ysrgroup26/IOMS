@@ -20,6 +20,7 @@ use App\Models\Project;
 use App\Models\RosterPattern;
 use App\Models\Shift;
 use App\Services\DocumentEngine;
+use App\Services\EmployeeEraser;
 use App\Services\Documents\DocumentIngestionService;
 use App\Services\Documents\FormatDetector;
 use App\Services\Documents\Support\ExtractedDocument;
@@ -173,6 +174,25 @@ class EmployeeController extends Controller
             ],
 
             /*
+             * v2.115.0 -- WHAT DELETING THIS PERSON WOULD ACTUALLY TAKE.
+             *
+             * Deletion is permanent now, so the confirmation has to state
+             * the real consequence instead of the reassurance the old
+             * dialog gave ("their history is preserved", which stopped
+             * being true). Counted here rather than described in the
+             * component, because a number the server took from the
+             * database is a fact and a sentence a component wrote is a
+             * guess.
+             *
+             * Resolved for an admin only: it is the only role that can
+             * reach the action, and a dependent-record census is not
+             * something to put in every viewer's page payload.
+             */
+            'erasureImpact' => request()->user()->isAdmin()
+                ? app(EmployeeEraser::class)->impact([$employee->id])
+                : null,
+
+            /*
              * v2.69.0 -- EMPLOYEE RELATIONS, AND WHY IT IS CONDITIONAL.
              *
              * This page is readable by anyone who can view employees --
@@ -288,17 +308,65 @@ class EmployeeController extends Controller
             ->all();
     }
 
-    public function destroy(Employee $employee): RedirectResponse
+    /**
+     * v2.115.0 -- PERMANENT, AND THE AUDIT ROW HAS TO SURVIVE IT.
+     *
+     * This used to be a soft delete, with the comment "KPI history is
+     * preserved" next to it. The history was preserved and the employee
+     * number was preserved with it, which is what made a corrected
+     * import impossible (ADR 055).
+     *
+     * `ActivityLog` has no foreign key to the subject, so the row
+     * outlives the record -- but `subject_id` then points at nothing, so
+     * the identity has to be IN the entry. The snapshot below is what
+     * makes the audit trail still answer "who was removed, by whom, and
+     * what went with them" after the record itself is gone.
+     */
+    public function destroy(Employee $employee, EmployeeEraser $eraser): RedirectResponse
     {
         $this->authorize('delete', $employee);
         $this->assertInCurrentTenant($employee);
 
+        $snapshot = $this->erasureSnapshot($employee);
         $name = $employee->full_name;
-        $employee->delete(); // soft delete: KPI history is preserved
+        $number = $employee->employee_id;
 
-        ActivityLog::record('deleted', "Employee {$name} was removed.", $employee);
+        $removed = $eraser->erase($employee);
 
-        return redirect()->route('employees.index')->with('success', 'Employee removed.');
+        ActivityLog::record(
+            'deleted',
+            "Employee {$name} ({$number}) was permanently deleted, with {$removed['total_dependents']} dependent record(s).",
+            $employee,
+            ['employee' => $snapshot, 'removed' => $removed]
+        );
+
+        return redirect()->route('employees.index')
+            ->with('success', "{$name} permanently deleted.");
+    }
+
+    /**
+     * The identity of an employee as it was at the moment of erasure.
+     *
+     * Names, not ids: a department id in an audit row about a deleted
+     * person is one more lookup that may itself be gone. This is the
+     * same reasoning as `ActivityLog.actor_name` (v2.100.0) applied to
+     * the subject instead of the actor.
+     *
+     * @return array<string, string|null>
+     */
+    private function erasureSnapshot(Employee $employee): array
+    {
+        return [
+            'employee_id' => $employee->employee_id,
+            'nik' => $employee->nik,
+            'full_name' => $employee->full_name,
+            'department' => $employee->department?->name,
+            'position' => $employee->position?->name,
+            'company' => $employee->company?->name,
+            'status' => $employee->status,
+            'employment_type' => $employee->employment_type,
+            'join_date' => $employee->join_date?->toDateString(),
+        ];
     }
 
     /**
@@ -361,28 +429,48 @@ class EmployeeController extends Controller
      * subject, which a bulk query cannot do; the transaction is what
      * keeps the set atomic anyway.
      */
-    public function bulkDestroy(BulkDestroyEmployeesRequest $request): RedirectResponse
+    public function bulkDestroy(BulkDestroyEmployeesRequest $request, EmployeeEraser $eraser): RedirectResponse
     {
         $employees = $request->employees();
+        $employees->load('department:id,name', 'position:id,name', 'company:id,name');
 
-        DB::transaction(function () use ($employees) {
+        $removed = DB::transaction(function () use ($employees, $eraser) {
+            /*
+             * Every per-employee audit row is written BEFORE the erasure,
+             * so the entry is in the database whether or not the set
+             * erases cleanly -- and if it does not, the whole
+             * transaction including these rows rolls back together. The
+             * old code wrote each row after deleting its employee, which
+             * worked only because a soft delete leaves the model
+             * populated; it would be a quiet lie here.
+             */
             foreach ($employees as $employee) {
-                $name = $employee->full_name;
-                $number = $employee->employee_id;
-
-                $employee->delete();
-
-                ActivityLog::record('deleted', "Employee {$name} ({$number}) was removed in a bulk deletion.", $employee);
+                ActivityLog::record(
+                    'deleted',
+                    "Employee {$employee->full_name} ({$employee->employee_id}) was permanently deleted in a bulk deletion.",
+                    $employee,
+                    ['employee' => $this->erasureSnapshot($employee)]
+                );
             }
+
+            $removed = $eraser->eraseMany($employees);
 
             // The act itself, as one line, so the Activity Center shows a
             // bulk removal as the single decision it was rather than only
             // as N unrelated deletions.
-            ActivityLog::record('deleted', "Removed {$employees->count()} employee(s) in one bulk deletion.");
+            ActivityLog::record(
+                'deleted',
+                "Permanently deleted {$employees->count()} employee(s) in one bulk deletion, "
+                ."with {$removed['total_dependents']} dependent record(s).",
+                null,
+                ['removed' => $removed]
+            );
+
+            return $removed;
         });
 
         return redirect()->route('employees.index')
-            ->with('success', "{$employees->count()} employee(s) removed.");
+            ->with('success', "{$employees->count()} employee(s) permanently deleted.");
     }
 
     public function export(Request $request, FieldMappingService $mapping)
@@ -595,26 +683,20 @@ class EmployeeController extends Controller
      * worse failure than a refusal.
      */
     /**
-     * v2.114.0 -- the audit line, when some rows reinstated somebody.
+     * The audit line for an import.
      *
-     * "Imported 0 employee(s)" is what the old wording produced for a
-     * customer who deleted their workforce and imported the same file
-     * again: every row restored an existing record, so nothing was
-     * "imported" and the trail said nothing happened. Restorations are
-     * named separately because they ARE a different act -- a deleted
-     * person came back, carrying their old history with them.
+     * Names the rows that did NOT land as well as the ones that did:
+     * "Imported 72 employee(s), 3 row(s) skipped" is a usable record of
+     * what happened to a file, and "Imported 72 employee(s)" on its own
+     * quietly loses the three the customer still has to deal with.
+     *
+     * v2.115.0 dropped the separate "restored" clause this carried in
+     * v2.114.0: deletion is permanent, so no row can reinstate anybody
+     * and every row that lands is a new employee.
      */
     private function importOutcome(EmployeesImport $import): string
     {
-        $parts = [];
-
-        if ($import->imported > 0 || $import->restored === 0) {
-            $parts[] = "imported {$import->imported} employee(s)";
-        }
-
-        if ($import->restored > 0) {
-            $parts[] = "restored {$import->restored} previously deleted employee(s)";
-        }
+        $parts = ["imported {$import->imported} employee(s)"];
 
         if ($import->skipped !== []) {
             $parts[] = count($import->skipped).' row(s) skipped';
@@ -796,7 +878,6 @@ class EmployeeController extends Controller
             // v2.114.0: rows that will REINSTATE an employee the customer
             // previously deleted. Reported separately, because the preview
             // must promise what the import will actually do.
-            'restored_rows' => $import->restored,
             'invalid_rows' => count($import->skipped),
             'skipped' => $import->skipped,
             'warnings' => $import->warnings,
@@ -951,7 +1032,6 @@ class EmployeeController extends Controller
         return response()->json([
             'total_rows' => $import->totalRows,
             'imported' => $import->imported,
-            'restored' => $import->restored,
             'needs_completion' => $import->needsCompletion,
             'skipped' => $import->skipped,
             // v2.108.0: rows that landed but need a human to finish
@@ -994,7 +1074,6 @@ class EmployeeController extends Controller
         return response()->json([
             'total_rows' => $import->totalRows,
             'imported' => $import->imported,
-            'restored' => $import->restored,
             'needs_completion' => $import->needsCompletion,
             'skipped' => $import->skipped,
             // v2.108.0: rows that landed but need a human to finish

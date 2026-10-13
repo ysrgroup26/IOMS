@@ -303,23 +303,10 @@ export default function EmployeeImportDialog({ open, onOpenChange, companies }) 
                         <div className="grid grid-cols-2 gap-3">
                             <PreviewStat label="Total Rows" value={preview.total_rows} />
                             <PreviewStat label="Valid Employees" value={preview.valid_rows} />
-                            {/* v2.114.0 -- rows that will reinstate somebody the
-                                customer deleted. Shown only when there are any,
-                                because a zero here is noise on an ordinary import. */}
-                            {preview.restored_rows > 0 && (
-                                <PreviewStat label="Restored Employees" value={preview.restored_rows} />
-                            )}
                             <PreviewStat label="Departments" value={`${preview.departments.existing.length} Existing / ${preview.departments.new.length} New`} small />
                             <PreviewStat label="Positions" value={`${preview.positions.existing.length} Existing / ${preview.positions.new.length} New`} small />
                             <PreviewStat label="Invalid Rows" value={preview.invalid_rows} accent={preview.invalid_rows > 0 ? 'amber' : null} />
                         </div>
-
-                        {preview.restored_rows > 0 && (
-                            <p className="text-xs text-graphite-500">
-                                {preview.restored_rows} karyawan pada berkas ini pernah dihapus. Data mereka akan
-                                dipulihkan beserta riwayat lamanya, bukan dibuat ganda.
-                            </p>
-                        )}
 
                         {preview.skipped?.length > 0 && (
                             <div>
@@ -438,7 +425,6 @@ export default function EmployeeImportDialog({ open, onOpenChange, companies }) 
                                 <p className="text-sm font-semibold text-graphite-800">{result.total_rows} Rows Found</p>
                                 <p className="text-xs text-graphite-500">
                                     {result.imported} imported successfully
-                                    {result.restored > 0 && ` · ${result.restored} restored`}
                                     {result.needs_completion > 0 && ` (${result.needs_completion} need profile completion)`}
                                     {result.skipped.length > 0 && ` · ${result.skipped.length} skipped`}
                                 </p>

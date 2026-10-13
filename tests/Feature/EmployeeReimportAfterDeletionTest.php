@@ -25,17 +25,25 @@ use PhpOffice\PhpSpreadsheet\Writer\Xlsx;
 use Tests\TestCase;
 
 /**
- * v2.114.0 -- THE REPORTED SEQUENCE, END TO END.
+ * THE REPORTED SEQUENCE, END TO END: IMPORT, DELETE, IMPORT AGAIN.
  *
  * A customer imported their workforce, deleted every employee, and then
  * could not import the file again: all 75 rows came back as "Duplicate
  * Employee ID" while the Employees page correctly showed nobody. The
  * duplicate check read soft-deleted rows; the list does not.
  *
+ * v2.114.0 answered that by RESTORING the deleted record in place, which
+ * worked but kept the underlying oddity: a deleted employee still existed
+ * and still owned their number. v2.115.0 settled it at the source -- the
+ * owner's decision is that deletion is PERMANENT, so a deleted employee
+ * is gone, their number and NIK are free, and a re-import simply creates
+ * employees again. This file now pins THAT, and the restore cases it used
+ * to carry are deliberately gone rather than left as dead expectations.
+ *
  * Their master data survived the deletion, as it should, so the second
- * failure mode had to be ruled out at the same time: existing departments
- * and positions must be REUSED, never duplicated and never a reason to
- * refuse a row.
+ * failure mode is ruled out at the same time: existing departments and
+ * positions must be REUSED, never duplicated and never a reason to refuse
+ * a row.
  *
  * Every test here drives the real HTTP endpoints, and the headline one
  * reproduces the exact sequence with the exact row count.
@@ -163,6 +171,38 @@ class EmployeeReimportAfterDeletionTest extends TestCase
             ->viewData('page')['props']['employees']['total'];
     }
 
+    /**
+     * Delete employees the way the owner does: the real bulk endpoint,
+     * with the agreed count and the typed confirmation.
+     *
+     * Deliberately NOT `EmployeeEraser` directly -- the defect being
+     * pinned here is about what the customer can do from the screens, so
+     * the deletion half of the sequence has to go through the same
+     * request the Employees page sends.
+     *
+     * @param  list<int>  $ids
+     */
+    private function deleteThroughTheUi(array $ids): void
+    {
+        $this->actingAs($this->admin)
+            ->delete(route('employees.bulk-destroy'), [
+                'ids' => $ids,
+                'expected_count' => count($ids),
+                'confirmation' => \App\Http\Requests\BulkDestroyEmployeesRequest::CONFIRMATION,
+            ])
+            ->assertSessionHasNoErrors();
+    }
+
+    /** @return list<int> */
+    private function everyEmployeeId(): array
+    {
+        return Employee::withoutGlobalScopes()
+            ->where('company_id', $this->yard->id)
+            ->pluck('id')
+            ->map(fn ($id) => (int) $id)
+            ->all();
+    }
+
     // --- the reported sequence ---------------------------------------------
 
     public function test_seventy_five_employees_import_then_delete_then_import_again(): void
@@ -171,20 +211,20 @@ class EmployeeReimportAfterDeletionTest extends TestCase
         $first = $this->import($this->roster(), createMasterData: true);
 
         $this->assertSame(75, $first['imported']);
-        $this->assertSame(0, $first['restored']);
         $this->assertSame([], $first['skipped']);
         $this->assertSame(75, $this->listTotal());
 
         $departments = Department::where('company_id', $this->yard->id)->count();
         $positions = Position::where('company_id', $this->yard->id)->count();
 
-        // 2. the owner deletes every employee
-        Employee::withoutGlobalScopes()->where('company_id', $this->yard->id)->get()->each->delete();
+        // 2. the owner deletes every employee, through the real screen
+        $this->deleteThroughTheUi($this->everyEmployeeId());
 
         $this->assertSame(0, $this->listTotal(), 'The list must show nobody after the deletion.');
         $this->assertSame(
-            75,
-            Employee::withoutGlobalScopes()->onlyTrashed()->where('company_id', $this->yard->id)->count()
+            0,
+            Employee::withoutGlobalScopes()->where('company_id', $this->yard->id)->count(),
+            'Deletion is permanent: no row may be left holding those employee numbers.'
         );
 
         // The master data survives a deletion, as it should.
@@ -201,15 +241,14 @@ class EmployeeReimportAfterDeletionTest extends TestCase
             .implode(' | ', array_column($second['skipped'], 'reason'))
         );
 
-        $this->assertSame(0, $second['imported'], 'A returning employee must not be created as a second record.');
-        $this->assertSame(75, $second['restored']);
+        $this->assertSame(75, $second['imported'], 'Every row should have been imported as a new employee.');
 
         // 4. and they are back, visible, with no duplicates
-        $this->assertSame(75, $this->listTotal(), 'The restored employees are not on the Employees page.');
+        $this->assertSame(75, $this->listTotal(), 'The re-imported employees are not on the Employees page.');
         $this->assertSame(
             75,
-            Employee::withoutGlobalScopes()->withTrashed()->where('company_id', $this->yard->id)->count(),
-            'The re-import created duplicate rows instead of reinstating the originals.'
+            Employee::withoutGlobalScopes()->where('company_id', $this->yard->id)->count(),
+            'The re-import created duplicate rows.'
         );
 
         // 5. master data was reused, not duplicated
@@ -218,36 +257,55 @@ class EmployeeReimportAfterDeletionTest extends TestCase
     }
 
     /**
-     * The audit trail said "Imported 0 employee(s)" for the re-import,
-     * because nothing was imported -- everything was restored.
+     * The deletion and the re-import are two acts, and the trail has to
+     * show both -- including WHO was deleted, since the record itself is
+     * gone and `subject_id` points at nothing afterwards.
      */
-    public function test_the_audit_trail_names_a_restoration(): void
+    public function test_the_audit_trail_records_the_deletion_and_the_re_import(): void
     {
         $this->import($this->roster(3), createMasterData: true);
-        Employee::withoutGlobalScopes()->where('company_id', $this->yard->id)->get()->each->delete();
+
+        $deleted = Employee::where('employee_id', 'EMP-0001')->firstOrFail();
+        $this->deleteThroughTheUi($this->everyEmployeeId());
+
+        $deletion = ActivityLog::withoutGlobalScopes()
+            ->where('action', 'deleted')
+            ->where('subject_id', $deleted->id)
+            ->latest('id')
+            ->firstOrFail();
+
+        $this->assertStringContainsString('permanently deleted', $deletion->description);
+        $this->assertSame('EMP-0001', $deletion->meta['employee']['employee_id'] ?? null);
+        $this->assertSame($deleted->full_name, $deletion->meta['employee']['full_name'] ?? null);
 
         $this->import($this->roster(3));
 
         $entry = ActivityLog::where('action', 'imported')->latest('id')->firstOrFail();
 
-        $this->assertStringContainsString('3 previously deleted employee(s)', $entry->description);
-        $this->assertStringNotContainsString('Imported 0 employee(s)', $entry->description);
+        $this->assertStringContainsString('Imported 3 employee(s)', $entry->description);
     }
 
-    /** A restored employee keeps its primary key, so its history survives. */
-    public function test_a_restored_employee_keeps_the_record_its_history_points_at(): void
+    /**
+     * A re-imported employee is a NEW record. v2.114.0 asserted the
+     * opposite -- that the row kept its primary key -- because a deleted
+     * employee was still there to reinstate. There is nothing to reinstate
+     * now, and the old id must not come back from anywhere.
+     */
+    public function test_a_re_imported_employee_is_a_fresh_record(): void
     {
         $this->import($this->roster(3), createMasterData: true);
 
         $before = Employee::where('employee_id', 'EMP-0001')->firstOrFail();
-        $before->delete();
+        $this->deleteThroughTheUi([$before->id]);
+
+        $this->assertDatabaseMissing('employees', ['id' => $before->id]);
 
         $this->import($this->roster(3));
 
         $after = Employee::where('employee_id', 'EMP-0001')->firstOrFail();
 
-        $this->assertSame($before->id, $after->id, 'The returning employee was given a new record.');
-        $this->assertNull($after->deleted_at);
+        $this->assertNotSame($before->id, $after->id, 'The old row was resurrected instead of a new one created.');
+        $this->assertSame('Karyawan 01', $after->full_name);
     }
 
     // --- accuracy -----------------------------------------------------------
@@ -308,7 +366,6 @@ class EmployeeReimportAfterDeletionTest extends TestCase
         $second = $this->import($this->roster(3));
 
         $this->assertSame(0, $second['imported']);
-        $this->assertSame(0, $second['restored']);
         $this->assertCount(3, $second['skipped']);
         $this->assertStringContainsString('already used in this Operating Unit', $second['skipped'][0]['reason']);
 
@@ -316,34 +373,39 @@ class EmployeeReimportAfterDeletionTest extends TestCase
     }
 
     /**
-     * One deleted and one live employee in the same file: the file must
+     * One deleted and two live employees in the same file: the file must
      * not be refused wholesale, and each row must get its own answer.
      */
-    public function test_a_mixed_file_restores_one_row_and_refuses_the_other(): void
+    public function test_a_mixed_file_imports_the_deleted_one_and_refuses_the_live_ones(): void
     {
         $this->import($this->roster(3), createMasterData: true);
 
-        Employee::where('employee_id', 'EMP-0002')->firstOrFail()->delete();
+        $gone = Employee::where('employee_id', 'EMP-0002')->firstOrFail();
+        $this->deleteThroughTheUi([$gone->id]);
 
         $result = $this->import($this->roster(3));
 
-        $this->assertSame(1, $result['restored'], 'The deleted employee was not reinstated.');
-        $this->assertSame(0, $result['imported']);
+        $this->assertSame(1, $result['imported'], 'The freed employee number was not importable again.');
         $this->assertCount(2, $result['skipped'], 'The two live employees should be the only refusals.');
+        $this->assertStringContainsString('already used in this Operating Unit', $result['skipped'][0]['reason']);
 
         $this->assertSame(3, $this->listTotal());
     }
 
     /**
-     * A NIK still held by a DIFFERENT deleted employee cannot be written,
-     * and the customer is told whose it is rather than "already used".
+     * The NIK is freed too, and by somebody ELSE's employee number -- the
+     * case v2.114.0 had to refuse with "masih dipakai oleh karyawan yang
+     * sudah dihapus", because a deleted row still occupied the
+     * `(company_id, nik)` index. Nothing occupies it now.
      */
-    public function test_a_nik_held_by_another_deleted_employee_is_named(): void
+    public function test_a_nik_freed_by_a_deletion_can_be_claimed_by_a_new_employee(): void
     {
         $this->import($this->roster(3), createMasterData: true);
 
         $holder = Employee::where('employee_id', 'EMP-0001')->firstOrFail();
-        $holder->delete();
+        $this->assertSame('32010101019000001', $holder->nik);
+
+        $this->deleteThroughTheUi([$holder->id]);
 
         // A NEW employee number claiming the deleted person's NIK.
         $spreadsheet = new Spreadsheet;
@@ -358,10 +420,9 @@ class EmployeeReimportAfterDeletionTest extends TestCase
 
         $result = $this->import(new UploadedFile($path, 'nik.xlsx', null, null, true));
 
-        $this->assertSame(0, $result['imported']);
-        $this->assertCount(1, $result['skipped']);
-        $this->assertStringContainsString('EMP-0001', $result['skipped'][0]['reason']);
-        $this->assertStringContainsString('sudah dihapus', $result['skipped'][0]['reason']);
+        $this->assertSame(1, $result['imported']);
+        $this->assertSame([], $result['skipped']);
+        $this->assertSame('32010101019000001', Employee::where('employee_id', 'EMP-9999')->firstOrFail()->nik);
     }
 
     // --- existing master data ------------------------------------------------
@@ -408,10 +469,10 @@ class EmployeeReimportAfterDeletionTest extends TestCase
 
     // --- the preview promises what the import does ---------------------------
 
-    public function test_the_preview_counts_restorations_before_anything_is_written(): void
+    public function test_the_preview_counts_what_it_will_create_without_writing_it(): void
     {
         $this->import($this->roster(5), createMasterData: true);
-        Employee::withoutGlobalScopes()->where('company_id', $this->yard->id)->get()->each->delete();
+        $this->deleteThroughTheUi($this->everyEmployeeId());
 
         $preview = $this->actingAs($this->admin)->postJson(route('employees.import.preview'), [
             'file' => $this->roster(5),
@@ -421,8 +482,7 @@ class EmployeeReimportAfterDeletionTest extends TestCase
         $preview->assertOk();
 
         $this->assertSame(5, $preview->json('total_rows'));
-        $this->assertSame(5, $preview->json('restored_rows'));
-        $this->assertSame(0, $preview->json('valid_rows'));
+        $this->assertSame(5, $preview->json('valid_rows'), 'After a permanent deletion every row is a new employee again.');
         $this->assertSame(0, $preview->json('invalid_rows'));
 
         $this->assertSame(0, $this->listTotal(), 'The preview wrote to the database.');
@@ -430,8 +490,11 @@ class EmployeeReimportAfterDeletionTest extends TestCase
 
     // --- tenant isolation ----------------------------------------------------
 
-    /** Another tenant's deleted employee is not ours to restore. */
-    public function test_a_deleted_employee_in_another_tenant_is_never_restored(): void
+    /**
+     * Another tenant's employee with the SAME number is neither a
+     * duplicate of ours nor ours to touch.
+     */
+    public function test_another_tenants_employee_is_never_touched_by_our_import(): void
     {
         $other = Tenant::create(['name' => 'Tetangga', 'slug' => 't-'.uniqid(), 'status' => Tenant::STATUS_ACTIVE]);
 
@@ -445,16 +508,14 @@ class EmployeeReimportAfterDeletionTest extends TestCase
             'company_id' => $otherYard->id,
             'status' => 'active',
         ]);
-        $theirs->delete();
 
         $result = $this->import($this->roster(3), createMasterData: true);
 
-        $this->assertSame(3, $result['imported'], 'Another tenant\'s deleted row blocked or hijacked this import.');
-        $this->assertSame(0, $result['restored']);
+        $this->assertSame(3, $result['imported'], 'Another tenant\'s row blocked this import.');
 
-        $this->assertNotNull(
-            Employee::withoutGlobalScopes()->onlyTrashed()->whereKey($theirs->id)->first(),
-            'Another tenant\'s employee was restored by this import.'
-        );
+        $theirs->refresh();
+
+        $this->assertSame('Karyawan Tetangga', $theirs->full_name, 'Another tenant\'s employee was overwritten by this import.');
+        $this->assertSame($otherYard->id, $theirs->company_id);
     }
 }

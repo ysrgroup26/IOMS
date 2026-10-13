@@ -212,22 +212,34 @@ class TransitiveTenantIsolationTest extends TestCase
     }
 
     /**
-     * Soft deletion is not an ownership question. Scoping through the
-     * employee must not quietly erase the history of a departed one --
-     * that would change historical HSE totals as a side effect of a
-     * security fix.
+     * v2.115.0 -- this asserted the opposite while deletion was a soft
+     * delete, and the invariant it was protecting has moved rather than
+     * disappeared.
+     *
+     * Then: a departed employee's KPI history had to stay visible to its
+     * own tenant, because scoping through the employee would otherwise
+     * hide it and change historical HSE totals.
+     *
+     * Now: deletion is permanent and the KPI records go with the person
+     * (ADR 055). The thing that must not happen is an ORPHAN -- a
+     * `kpi_records` row whose employee is gone is scoped through nothing,
+     * so it is invisible to every tenant while still being counted by any
+     * raw total. The erasure has to leave none.
      */
-    public function test_a_soft_deleted_employees_kpi_history_is_still_visible_to_its_own_tenant(): void
+    public function test_erasing_an_employee_leaves_no_orphaned_kpi_history_behind(): void
     {
         $record = $this->kpiRecordFor($this->employeeA, $this->adminA);
-        $this->employeeA->delete();
+
+        app(\App\Services\EmployeeEraser::class)->erase($this->employeeA);
+
+        $this->assertDatabaseMissing('kpi_records', ['id' => $record->id]);
+        $this->assertSame(0, \Illuminate\Support\Facades\DB::table('kpi_records')->count());
 
         $this->asTenantOf($this->adminA);
-
-        $this->assertSame([$record->id], KpiRecord::pluck('id')->all());
+        $this->assertCount(0, KpiRecord::all());
 
         $this->asTenantOf($this->adminB);
-        $this->assertCount(0, KpiRecord::all(), 'A soft-deleted employee\'s records became visible to another tenant.');
+        $this->assertCount(0, KpiRecord::all(), 'An erased employee\'s records became visible to another tenant.');
     }
 
     /* ================================================================

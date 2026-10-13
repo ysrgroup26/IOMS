@@ -16,8 +16,9 @@ Core master data: `Employee` model, one per person. Belongs to a `Company`, opti
 
 - **Import**: `EmployeesImport` + `EmployeeImportTemplateExport`, with a Preview step (Smart Master
   Data Detection — see `ARCHITECTURE.md`) before committing anything. Critical fields: Employee ID,
-  Full Name (missing either skips the row; an Employee ID held by a **live** employee also skips —
-  one held by a **deleted** one is restored, see below). Department is
+  Full Name (missing either skips the row; an Employee ID already registered in this Operating Unit
+  also skips — a DELETED employee's number is free, because deletion is permanent, see below).
+  Department is
   tracked but not required — "Unassigned" is a real, supported state. Optional fields (photo,
   phone, email, address, emergency contact) never block a row. Employment Status is read from the
   file and validated against the real enum (`active`/`inactive`/`resigned`); a blank value becomes
@@ -34,23 +35,39 @@ Core master data: `Employee` model, one per person. Belongs to a `Company`, opti
   `3.20101010194E+15` and two different NIKs render identically — which stored scientific notation
   and rejected the second person as a duplicate. `EmployeesImport::identifier()` writes an integral
   float out in full.
-- **Re-importing after a deletion RESTORES, it does not duplicate** (v2.114.0): `Employee` soft
-  deletes, and the unique indexes on `(company_id, employee_id)` and `(company_id, nik)` are plain
-  SQL indexes that know nothing about `deleted_at`. The importer keeps **two** registries: live
-  employee numbers (a duplicate, refused and named) and trashed ones (the identifier is reserved,
-  the person is not employed). A trashed match is `restore()`d and then filled from the file, so the
-  record keeps **its own primary key** and its KPI records, man-hour logs, PPE issues, approvals and
-  `ActivityLog` entries stay attached. Restorations are counted separately from new employees in the
-  preview, the result summary and the audit trail. Before this, deleting a mis-imported roster and
-  re-importing the corrected file reported every row as a duplicate while the Employees page showed
-  nobody. A NIK held by a *different* deleted employee is refused with that employee's number in the
-  message, since restoring the wrong person is not a recoverable mistake. See `CONVENTIONS.md`.
+- **Deletion is PERMANENT, and re-importing just works** (v2.115.0): `Employee` no longer soft
+  deletes. `App\Services\EmployeeEraser` is the one place that answers for all twenty-four
+  references to an employee -- dependents deleted, references cleared, documents keeping the name as
+  text (see *Deleting an employee* below). The importer is back to ONE live registry as a result: a
+  number in it belongs to a real, present employee, so there is no third state where a number is
+  held by somebody who does not exist. Deleting a mis-imported roster and re-importing the corrected
+  file now imports every row. v2.114.0 answered the same report by RESTORING the soft-deleted
+  record; ADR 055 supersedes that and says why.
 - **An unknown Workforce Type stays unknown** (v2.114.0): `employees.employment_type` is nullable
   (migration `2026_12_14_100800`) and **keeps** its `pkwtt` default, so the forms, `EmployeeFactory`
   and the seeders are unchanged. Only the importer writes an explicit `null`, and only when the file
   is silent or the value is unrecognised — which it reports as a warning on the row. It used to
   stamp `pkwtt` on every such row, asserting a legal employment classification nothing in the file
   said. The row is never refused over it: a missing classification is a gap to complete later.
+- **Deleting an employee** (v2.115.0, ADR 055): permanent, for one record
+  (`DELETE /employees/{employee}`) and for a set (`DELETE /employees/bulk`, with ADR 051's
+  all-or-nothing + agreed count + typed `HAPUS`, unchanged). Both go through
+  `App\Services\EmployeeEraser`, which splits every reference three ways: **dependents** (KPI
+  records, man-hours, PPE issues, competencies, rosters, shift assignments, internships, disciplinary
+  cases, leave requests, project manpower, permit personnel rows, TBM attendance) are deleted with
+  the person; **references** (incidents, permits, assets, asset transfers, handover records,
+  investigation interviews, project activities, regulation registers, visitor logs, work orders,
+  daily reports) keep themselves and lose the pointer; and the documents that PRINT the name keep it
+  as text first -- `permits_to_work.pic_name`, `daily_reports.hse_officer_name` and the existing
+  `incidents.injured_person_name`, each a **tombstone** written only at erasure (never `$fillable`,
+  never written on create or update), read after the relation by `PermitToWork::picDisplayName()` and
+  `lib/permitPicName.js`. Departments, positions, operating units, projects, shifts, PPE types and
+  KPI categories are **never** touched. The confirmation dialogs state the consequence, and the
+  single-record one counts the dependent records server-side (`erasureImpact`). The audit entry
+  carries a snapshot of who was deleted, because `activity_logs` outlives its subject.
+  `EmployeeErasureCoverageTest` reads the live schema and fails if a new foreign key to `employees`
+  has no policy. **An employee whose history must be kept should not be deleted** -- set their status
+  to `inactive` or `resigned`, which is what those values are for.
 - **Profile completion**: `Employee::profile_status` is a *computed accessor*
   (`needs_completion` if `department_id` is null, `complete` otherwise), not a stored column —
   fully derivable from existing data, so it can never drift out of sync. `employee_id`/`full_name`

@@ -10,10 +10,10 @@ import { Button } from '@/Components/ui/button';
 import { Input } from '@/Components/ui/input';
 import { Label } from '@/Components/ui/label';
 import { Select, SelectTrigger, SelectValue, SelectContent, SelectItem } from '@/Components/ui/select';
-import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogFooter } from '@/Components/ui/dialog';
+import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogDescription, DialogFooter } from '@/Components/ui/dialog';
 import { Table, TableHeader, TableBody, TableRow, TableHead, TableCell } from '@/Components/ui/table';
 import KpiSummaryCard from '@/Components/shared/KpiSummaryCard';
-import { ArrowLeft, Pencil, Trash2, Phone, Calendar, Briefcase, FolderKanban, HardHat, GraduationCap, Plus, Clock, FileText } from 'lucide-react';
+import { ArrowLeft, Pencil, Trash2, Phone, Calendar, Briefcase, FolderKanban, HardHat, GraduationCap, Plus, Clock, FileText, AlertTriangle } from 'lucide-react';
 import { MONTH_NAMES, disciplinaryActionLabel } from '@/lib/utils';
 
 const COMPETENCY_STATUS_VARIANT = {
@@ -30,6 +30,29 @@ const COMPETENCY_STATUS_LABEL = {
     no_expiry: 'No Expiry',
 };
 
+/**
+ * v2.115.0 -- WHAT A PERMANENT DELETION TAKES, NAMED IN THE CUSTOMER'S TERMS.
+ *
+ * The server counts the rows (`EmployeeEraser::impact()`); this maps each
+ * table to the thing the customer recognises. A table name is not a
+ * consequence anybody can weigh, and a dialog that lists "employee_ppe: 4"
+ * has not actually told them anything.
+ */
+const ERASURE_LABELS = {
+    kpi_records: 'KPI records',
+    man_hour_logs: 'Man-hour logs',
+    employee_ppe: 'PPE issues',
+    employee_competencies: 'Competency certificates',
+    employee_rosters: 'Roster entries',
+    employee_shift_assignments: 'Shift assignments',
+    employee_internships: 'Internship record',
+    employee_cases: 'Disciplinary cases',
+    leave_requests: 'Leave requests',
+    project_manpower: 'Project assignments',
+    permit_to_work_personnel: 'Permit personnel entries',
+    tbm_attendees: 'Toolbox meeting attendance',
+};
+
 const CATEGORY_META = [
     { code: 'fatality', label: 'Fatality', negative: true },
     { code: 'lti', label: 'LTI', negative: true },
@@ -41,15 +64,30 @@ const CATEGORY_META = [
     { code: 'tbm', label: 'TBM', negative: false },
 ];
 
-export default function EmployeeProfile({ employee, yearSummary, monthlyBreakdown, year, yearsOfService, projects, competencyTypes, shifts, rosterPatterns, availableProjects, can, disciplinary }) {
+export default function EmployeeProfile({ employee, yearSummary, monthlyBreakdown, year, yearsOfService, projects, competencyTypes, shifts, rosterPatterns, availableProjects, can, disciplinary, erasureImpact }) {
     const [competencyDialogOpen, setCompetencyDialogOpen] = useState(false);
     const [shiftDialogOpen, setShiftDialogOpen] = useState(false);
     const [rosterDialogOpen, setRosterDialogOpen] = useState(false);
+    const [deleteOpen, setDeleteOpen] = useState(false);
+    const [deleting, setDeleting] = useState(false);
+
+    /*
+     * v2.115.0 -- a native confirm() was not an honest confirmation for this.
+     *
+     * It read "Remove X? This cannot be undone." while the action was a SOFT
+     * delete that could be undone trivially. The action is now permanent and
+     * takes dependent records with it, so the dialog states exactly which
+     * records, counted by the server, and says what survives.
+     */
+    const dependents = Object.entries(erasureImpact?.dependents ?? {})
+        .map(([table, count]) => ({ label: ERASURE_LABELS[table] ?? table, count }))
+        .sort((a, b) => b.count - a.count);
 
     function destroy() {
-        if (confirm(`Remove ${employee.full_name}? This cannot be undone.`)) {
-            router.delete(route('employees.destroy', employee.id));
-        }
+        setDeleting(true);
+        router.delete(route('employees.destroy', employee.id), {
+            onFinish: () => setDeleting(false),
+        });
     }
 
     function removeCompetency(id) {
@@ -155,8 +193,8 @@ export default function EmployeeProfile({ employee, yearSummary, monthlyBreakdow
                                 <Button variant="outline" className="flex-1" asChild>
                                     <Link href={route('employees.edit', employee.id)}><Pencil className="h-4 w-4" /> Edit</Link>
                                 </Button>
-                                <Button variant="destructive" className="flex-1" onClick={destroy}>
-                                    <Trash2 className="h-4 w-4" /> Remove
+                                <Button variant="destructive" className="flex-1" onClick={() => setDeleteOpen(true)}>
+                                    <Trash2 className="h-4 w-4" /> Delete
                                 </Button>
                             </div>
                         )}
@@ -493,6 +531,58 @@ export default function EmployeeProfile({ employee, yearSummary, monthlyBreakdow
                 rosterPatterns={rosterPatterns}
                 availableProjects={availableProjects}
             />
+
+            {/* The consequence, stated before it happens. The counts come
+                from the server (EmployeeEraser::impact), so this dialog
+                reports what is in the database rather than a sentence the
+                component made up. */}
+            <Dialog open={deleteOpen} onOpenChange={(open) => (open ? setDeleteOpen(true) : setDeleteOpen(false))}>
+                <DialogContent>
+                    <DialogHeader>
+                        <DialogTitle className="flex items-center gap-2">
+                            <AlertTriangle className="h-5 w-5 text-destructive" />
+                            Delete {employee.full_name}
+                        </DialogTitle>
+                        <DialogDescription>
+                            Karyawan ini akan dihapus secara permanen beserta catatan yang hanya menjelaskan mereka.
+                            Nomor karyawan dan NIK menjadi bebas dan dapat dipakai lagi, termasuk oleh impor Excel.
+                            Tindakan ini tidak dapat dibatalkan.
+                        </DialogDescription>
+                    </DialogHeader>
+
+                    {dependents.length > 0 ? (
+                        <div className="space-y-2">
+                            <p className="text-sm font-medium text-graphite-700">Records that will be deleted</p>
+                            <ul className="space-y-1">
+                                {dependents.map((d) => (
+                                    <li key={d.label} className="flex items-center justify-between text-sm text-graphite-600">
+                                        <span>{d.label}</span>
+                                        <span className="font-semibold text-graphite-800">{d.count}</span>
+                                    </li>
+                                ))}
+                            </ul>
+                            <p className="text-xs text-graphite-500">
+                                Dokumen seperti Permit to Work, laporan insiden dan berita acara tetap tersimpan
+                                beserta nama karyawan ini, hanya tautan ke berkas karyawannya yang hilang.
+                            </p>
+                        </div>
+                    ) : (
+                        <p className="text-sm text-graphite-600">
+                            Tidak ada catatan lain yang menempel pada karyawan ini, jadi hanya berkas karyawannya
+                            yang terhapus.
+                        </p>
+                    )}
+
+                    <DialogFooter>
+                        <Button type="button" variant="outline" onClick={() => setDeleteOpen(false)} disabled={deleting}>
+                            Cancel
+                        </Button>
+                        <Button type="button" variant="destructive" onClick={destroy} disabled={deleting}>
+                            {deleting ? 'Deleting...' : 'Delete Permanently'}
+                        </Button>
+                    </DialogFooter>
+                </DialogContent>
+            </Dialog>
         </AuthenticatedLayout>
     );
 }

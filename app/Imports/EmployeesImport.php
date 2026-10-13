@@ -51,15 +51,6 @@ class EmployeesImport implements OnEachRow, WithChunkReading, WithHeadingRow
 
     public int $needsCompletion = 0;
 
-    /**
-     * v2.114.0 -- rows that reinstated an employee the customer had
-     * previously deleted, rather than creating a second record for the
-     * same person. Reported separately from `imported`, because
-     * "75 imported" and "75 restored" are different facts and the
-     * summary must not merge them.
-     */
-    public int $restored = 0;
-
     public array $skipped = []; // [['row' => 5, 'reason' => 'Duplicate Employee ID'], ...]
 
     /**
@@ -182,22 +173,15 @@ class EmployeesImport implements OnEachRow, WithChunkReading, WithHeadingRow
     private ?array $existingEmployeeIds = null;
 
     /**
-     * v2.114.0 -- SPLIT, BECAUSE A DELETED EMPLOYEE IS NOT A DUPLICATE.
+     * The employee numbers this company has already registered.
      *
-     * This was one `withTrashed()` registry, so an employee number
-     * belonging to a SOFT-DELETED record was reported as "already used in
-     * this Operating Unit". The customer had deleted their whole workforce
-     * and could not import it again: all 75 rows were refused while the
-     * Employees page correctly showed nobody, because the list excludes
-     * trashed rows and the duplicate check did not.
-     *
-     * The unique index `(company_id, employee_id)` is a plain SQL index
-     * and knows nothing about `deleted_at`, so the trashed rows DO still
-     * hold those numbers -- dropping `withTrashed()` alone would just move
-     * the failure from a readable skip to a constraint violation. The two
-     * cases need different ANSWERS, so they need different registries:
-     * a live match is genuinely already registered, a trashed match is the
-     * same person returning and is restored (see `restoreEmployee()`).
+     * ONE registry, and there is now only one case to answer. v2.114.0
+     * briefly kept two -- live numbers and numbers held by soft-deleted
+     * rows, which the unique index still counts -- because a deleted
+     * employee was not a duplicate but was still refused as one. v2.115.0
+     * removed soft deletion from `Employee` entirely (ADR 055): a deleted
+     * employee no longer exists, so their number is free, and there is no
+     * second case left to distinguish.
      *
      * Global scopes are dropped deliberately. `company_id` is the tightest
      * possible filter -- a company belongs to exactly one tenant, and the
@@ -212,34 +196,9 @@ class EmployeesImport implements OnEachRow, WithChunkReading, WithHeadingRow
     {
         return $this->existingEmployeeIds ??= $this->keyed(
             Employee::withoutGlobalScopes()
-                ->whereNull('deleted_at')
                 ->where('company_id', $this->companyId)
                 ->pluck('employee_id')
         );
-    }
-
-    /** @var array<string, int>|null employee number => trashed employee id */
-    private ?array $trashedEmployeeIds = null;
-
-    /** @return array<string, int> */
-    private function trashedEmployeeIds(): array
-    {
-        return $this->trashedEmployeeIds ??= Employee::withoutGlobalScopes()
-            ->whereNotNull('deleted_at')
-            ->where('company_id', $this->companyId)
-            ->orderByDesc('deleted_at')
-            ->get(['id', 'employee_id'])
-            ->reduce(function (array $carry, Employee $employee) {
-                $key = mb_strtolower(trim((string) $employee->employee_id));
-
-                // Most recently deleted wins, which is the one a customer
-                // means when the same number was used twice over the years.
-                if ($key !== '') {
-                    $carry[$key] ??= $employee->id;
-                }
-
-                return $carry;
-            }, []);
     }
 
     /**
@@ -272,44 +231,10 @@ class EmployeesImport implements OnEachRow, WithChunkReading, WithHeadingRow
     {
         return $this->existingNiks ??= $this->keyed(
             Employee::withoutGlobalScopes()
-                ->whereNull('deleted_at')
                 ->where('company_id', $this->companyId)
                 ->whereNotNull('nik')
                 ->pluck('nik')
         );
-    }
-
-    /** @var array<string, string>|null NIK => the employee number holding it */
-    private ?array $trashedNiks = null;
-
-    /**
-     * NIKs held by deleted records, and WHO holds each one.
-     *
-     * A NIK on a trashed row still occupies the `(company_id, nik)` unique
-     * index, so it cannot simply be ignored. But the customer is owed the
-     * truth about which case they are in: their own returning employee
-     * (restored, no message), or a different deleted person who happens to
-     * hold that national ID (named, so they can decide).
-     *
-     * @return array<string, string>
-     */
-    private function trashedNiks(): array
-    {
-        return $this->trashedNiks ??= Employee::withoutGlobalScopes()
-            ->whereNotNull('deleted_at')
-            ->where('company_id', $this->companyId)
-            ->whereNotNull('nik')
-            ->orderByDesc('deleted_at')
-            ->get(['employee_id', 'nik'])
-            ->reduce(function (array $carry, Employee $employee) {
-                $key = mb_strtolower(trim((string) $employee->nik));
-
-                if ($key !== '') {
-                    $carry[$key] ??= (string) $employee->employee_id;
-                }
-
-                return $carry;
-            }, []);
     }
 
     /** @var array<string, int> */
@@ -483,9 +408,9 @@ class EmployeesImport implements OnEachRow, WithChunkReading, WithHeadingRow
          * predicts exactly that: one query per import, keyed case-
          * insensitively.
          *
-         * v2.114.0 -- a LIVE match only. A soft-deleted employee still
-         * occupies the number in the index, but it is not a duplicate: it
-         * is the same person returning, and it is restored below.
+         * v2.115.0 -- every row in this registry is a REAL, present
+         * employee. Deletion is permanent, so there is no third state
+         * where the number is taken by somebody who does not exist.
          */
         if (isset($this->existingEmployeeIds()[mb_strtolower($employeeId)])) {
             $this->skip($rowNumber, "Duplicate Employee ID \"{$employeeId}\" (already used in this Operating Unit)");
@@ -494,20 +419,6 @@ class EmployeesImport implements OnEachRow, WithChunkReading, WithHeadingRow
         }
 
         $this->seenEmployeeIds[$employeeId] = $rowNumber;
-
-        /*
-         * v2.114.0 -- THE EMPLOYEE THE CUSTOMER DELETED, COMING BACK.
-         *
-         * `destroy()` soft deletes precisely because KPI history,
-         * man-hours, PPE issues and approvals point at the person (see
-         * EmployeeController::destroy). Inserting a second row for the
-         * same number would orphan all of that AND violate the unique
-         * index, so the record is REINSTATED and updated from the file.
-         *
-         * Resolved here, before the preview returns, so the preview can
-         * say "will be restored" rather than promising a fresh import.
-         */
-        $restoringId = $this->trashedEmployeeIds()[mb_strtolower($employeeId)] ?? null;
 
         /*
          * v2.108.1 -- THE NATIONAL ID, CHECKED AT ITS OWN UNIQUE INDEX.
@@ -535,28 +446,6 @@ class EmployeesImport implements OnEachRow, WithChunkReading, WithHeadingRow
 
             if (isset($this->existingNiks()[$nikKey])) {
                 $this->skip($rowNumber, "Duplicate NIK \"{$nik}\" (already used in this Operating Unit)");
-
-                return;
-            }
-
-            /*
-             * v2.114.0 -- a NIK on a DELETED record still occupies the
-             * unique index, so it cannot be ignored. Which case it is
-             * decides the answer: when it belongs to the very employee we
-             * are restoring, it is the same person's own national ID and
-             * nothing is wrong. When it belongs to somebody else's deleted
-             * record, the row genuinely cannot be written, and the
-             * customer is told WHOSE number it is rather than the
-             * misleading "already used in this Operating Unit".
-             */
-            $trashedNikHolder = $this->trashedNiks()[$nikKey] ?? null;
-
-            if ($trashedNikHolder !== null && mb_strtolower($trashedNikHolder) !== mb_strtolower($employeeId)) {
-                $this->skip(
-                    $rowNumber,
-                    "NIK \"{$nik}\" masih dipakai oleh karyawan yang sudah dihapus ({$trashedNikHolder}). "
-                    .'Pulihkan atau hapus permanen karyawan tersebut lebih dulu.'
-                );
 
                 return;
             }
@@ -616,13 +505,7 @@ class EmployeesImport implements OnEachRow, WithChunkReading, WithHeadingRow
         // What it deliberately skips is resolving department/position
         // IDs and writing anything to the database.
         if ($this->previewOnly) {
-            // v2.114.0: counted as a restoration in the preview too, so
-            // the screen promises what the import will actually do.
-            if ($restoringId !== null) {
-                $this->restored++;
-            } else {
-                $this->imported++;
-            }
+            $this->imported++;
 
             if ($departmentName === '') {
                 $this->needsCompletion++;
@@ -754,7 +637,7 @@ class EmployeesImport implements OnEachRow, WithChunkReading, WithHeadingRow
           * invented wording would describe a failure nobody observed.
           */
         try {
-            DB::transaction(function () use ($data, $employeeId, $nik, $employmentType, $fullName, $departmentId, $positionId, $joinDate, $status, $restoringId) {
+            DB::transaction(function () use ($data, $employeeId, $nik, $employmentType, $fullName, $departmentId, $positionId, $joinDate, $status) {
                 $attributes = [
                     'employee_id' => $employeeId,
                     // Null, never '' -- see the unique-index note above.
@@ -773,21 +656,7 @@ class EmployeesImport implements OnEachRow, WithChunkReading, WithHeadingRow
                     'emergency_contact_phone' => $this->identifier($this->col($data, 'emergency_contact_phone')) ?: null,
                 ];
 
-                if ($restoringId !== null) {
-                    /*
-                     * v2.114.0 -- REINSTATED, not duplicated. The record
-                     * keeps its primary key, so every KPI row, man-hour
-                     * log, PPE issue and approval that points at this
-                     * person still does. The file's values overwrite the
-                     * old ones, because the file is what the customer is
-                     * asserting now.
-                     */
-                    $employee = Employee::withoutGlobalScopes()->withTrashed()->findOrFail($restoringId);
-                    $employee->restore();
-                    $employee->fill($attributes)->save();
-                } else {
-                    $employee = Employee::create($attributes);
-                }
+                $employee = Employee::create($attributes);
 
                 // Project is optional and never blocks the import -- if the
                 // name doesn't match an existing project (or is blank),
@@ -824,19 +693,7 @@ class EmployeesImport implements OnEachRow, WithChunkReading, WithHeadingRow
             $this->existingNiks[$nikKey] = true;
         }
 
-        // v2.114.0: the number and NIK are no longer held by a deleted
-        // record, so a later row must not try to restore it again.
-        unset($this->trashedEmployeeIds[mb_strtolower($employeeId)]);
-
-        if ($nik !== '') {
-            unset($this->trashedNiks[$nikKey]);
-        }
-
-        if ($restoringId !== null) {
-            $this->restored++;
-        } else {
-            $this->imported++;
-        }
+        $this->imported++;
 
         if ($departmentId === null) {
             $this->needsCompletion++;

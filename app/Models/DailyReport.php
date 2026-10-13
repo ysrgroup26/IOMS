@@ -84,7 +84,9 @@ class DailyReport extends Model
         $lines = [
             "Daily Report: {$this->project?->name}",
             $this->report_date->format('d M Y').' · '.ucfirst($this->report_type),
-            'Department: '.($this->department_name ?? $this->hseOfficer?->full_name ?? '-'),
+            // v2.115.0 -- `hse_officer_name` is the tombstone left when a
+            // permanent erasure clears `hse_officer_id`; see EmployeeEraser.
+            'Department: '.($this->department_name ?? $this->hseOfficer?->full_name ?? $this->hse_officer_name ?? '-'),
             '',
             'Activities:',
         ];

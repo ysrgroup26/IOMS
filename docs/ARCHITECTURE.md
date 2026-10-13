@@ -929,14 +929,26 @@ against their own tables. Typo detection is a plain Levenshtein distance check (
 name within that distance of an existing one is *suggested*, never silently auto-created as a
 duplicate.
 
-**Three answers to "does this already exist", not two** (v2.114.0): `Employee` soft deletes, so an
-employee number can be held by a LIVE employee (refuse the row, named), by a DELETED one (the
-identifier is reserved but nobody is employed: `restore()` the row and fill it from the file, keeping
-its primary key so its KPI, man-hour, PPE and approval history stays attached), or by nobody (create).
-Both registries query with `withoutGlobalScopes()` and an explicit `company_id` filter, since the
-soft-delete scope has to be dropped to see trashed rows at all. Restorations are counted separately
-from new employees (`$restored` vs `$imported`) in the preview, the result summary and the audit
-trail. See `docs/ADR/054-a-deleted-employee-is-restored-not-duplicated.md`.
+**Two answers to "does this already exist", because deletion is permanent** (v2.115.0): an employee
+number is either held by a real, present employee of this company (refuse the row, named, with the
+reason) or free (create). v2.114.0 briefly needed a third answer — a number held by a SOFT-DELETED
+employee, which the unique index still counted — and ADR 055 removed that state instead of keeping
+the machinery for it. The registry queries with `withoutGlobalScopes()` and an explicit `company_id`
+filter, so it is correct without depending on ambient tenant state a queue or console run may not
+have.
+
+**The Erasure engine** (`app/Services/EmployeeEraser.php`, v2.115.0): the one place that knows what
+removing an employee reaches. `employees` is the target of twenty-four foreign keys with four
+different delete rules between them, so the policy is stated in code rather than left to whichever
+`onDelete` clause was written in whichever migration: DEPENDENTS (records that only describe the
+person) are deleted, REFERENCES (records of their own) keep themselves and lose the pointer, and the
+subset of references that PRINTS the name keeps it as a text tombstone written at erasure time.
+Deleting children before the parent means the two RESTRICT keys and the one NO ACTION key never
+fire, so no delete rule had to change — which matters because SQLite cannot alter a constraint
+without rebuilding the table, and the suite and production must agree about what deletion means.
+`impact()` counts the same sets without removing anything, which is what the confirmation dialog
+states. `EmployeeErasureCoverageTest` reads the live schema and fails if a new reference has no
+policy. See `docs/ADR/055-deleting-an-employee-is-permanent.md`.
 
 **The importer never supplies a column default** (v2.114.0): where the file is silent or the value is
 unrecognised, the importer writes `null` and reports a warning on the row. `employment_type` is

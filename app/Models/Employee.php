@@ -5,7 +5,6 @@ namespace App\Models;
 use App\Models\Concerns\BelongsToCompany;
 use Illuminate\Database\Eloquent\Factories\HasFactory;
 use Illuminate\Database\Eloquent\Model;
-use Illuminate\Database\Eloquent\SoftDeletes;
 
 class Employee extends Model
 {
@@ -16,7 +15,27 @@ class Employee extends Model
     // -- this trait was simply missing, so db:seed failed on any run that
     // actually needed to seed demo employees (a fresh/empty database).
     // Unrelated to the Multi-Company migration; a separate, pre-existing gap.
-    use HasFactory, SoftDeletes;
+    //
+    // v2.115.0 -- `SoftDeletes` IS DELIBERATELY ABSENT.
+    //
+    // It was here, and the reasoning was defensible: `employees` is the
+    // target of a long row of cascading keys, so a hard delete takes a
+    // person's operational history with it. What it actually produced was
+    // a product that could not recover from a bad import -- nothing in
+    // IOMS ever showed a deleted employee or offered to restore one, so
+    // the only observable effect was that a row the customer had
+    // deliberately removed went on holding its employee number and NIK
+    // against unique indexes that know nothing about `deleted_at`. An
+    // import of 75 people was refused row by row as duplicates of
+    // employees the Employees page said did not exist.
+    //
+    // Deletion is now PERMANENT, and `App\Services\EmployeeEraser` is the
+    // one place that answers for every reference to the row: records that
+    // only describe the employee go with them, records of their own keep
+    // themselves and lose the pointer, and the two documents that PRINT
+    // the name keep it as text. Do not re-add this trait without reading
+    // ADR 055 -- it would restore the defect, not the safety.
+    use HasFactory;
 
     // Milestone 4, Workstream A. Plain string constants, not a DB enum
     // (see the 2026_08_09_100101 migration's own doc comment for why) --

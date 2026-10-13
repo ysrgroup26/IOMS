@@ -70,6 +70,10 @@ Older completions live in [[Release History]].
 
 | Item | Version | Status | Evidence |
 |---|---|---|---|
+| **Employee deletion is permanent, single and bulk** | 2.115.0 | `#status/verified` | Owner decision. `EmployeeEraser` answers all 24 references; `EmployeePermanentDeletionTest` (14 tests) covers the three formerly-blocking keys, the document tombstones, the audit snapshot and isolation; driven through the real UI (28/28) |
+| **A deleted employee's number and NIK are free again** | 2.115.0 | `#status/verified` | Proven by re-import: delete 75 through the real bulk endpoint, re-import the same file, 75 imported with none skipped; a freed NIK claimed by a different employee number |
+| **Documents keep the name when the person is erased** | 2.115.0 | `#status/verified` | `permits_to_work.pic_name` + `daily_reports.hse_officer_name` tombstones; the permit PDF asserted to still print its Penanggung Jawab, and the name a human typed is never overwritten |
+| **A new foreign key to `employees` cannot be forgotten** | 2.115.0 | `#status/verified` | `EmployeeErasureCoverageTest` reads `information_schema` on MySQL and `PRAGMA foreign_key_list` on SQLite and fails naming any reference the eraser has no policy for |
 | **Re-importing after a deletion restores instead of refusing** | 2.114.0 | `#status/verified` | Reported from use: 75 rows refused as duplicates by a page showing no employees. Reproduced with counts, then driven through the browser (22/22). `EmployeeReimportAfterDeletionTest` (12 tests) pins the restored record keeping its primary key |
 | **An unknown Workforce Type is left unknown, not stamped PKWTT** | 2.114.0 | `#status/verified` | `employment_type` made nullable with its default kept, so only the importer writes an explicit null. Warned on the row; verified in the browser that a blank column stays null |
 | **The import summary distinguishes new, restored and skipped** | 2.114.0 | `#status/verified` | Preview, result summary and audit trail each count restorations separately; `0 imported successfully · 75 restored` observed in the dialog |

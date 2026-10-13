@@ -162,6 +162,34 @@ class PermitToWork extends Model
     }
 
     /**
+     * The accountable person as this permit should PRINT them.
+     *
+     * v2.115.0. Employee deletion is permanent, so `pic_employee_id` can
+     * be cleared long after a permit was signed. `pic_name` is the
+     * tombstone `EmployeeEraser` writes at that moment -- deliberately
+     * not in `$fillable`, because nothing but an erasure may set it, and
+     * a request that could would be able to put any name on a safety
+     * document.
+     *
+     * Relation first: while the employee exists, their record is the
+     * truth and a rename follows them. Only once they are gone does the
+     * stored text answer, which is the one case where there is nothing
+     * better to say.
+     */
+    public function picDisplayName(): ?string
+    {
+        $live = trim((string) $this->pic?->full_name);
+
+        if ($live !== '') {
+            return $live;
+        }
+
+        $kept = trim((string) $this->pic_name);
+
+        return $kept === '' ? null : $kept;
+    }
+
+    /**
      * v2.17.0 (PTW Field Workflow Foundation, Part 9). The permit's
      * overall planned workforce -- distinct from, and never duplicated
      * into, any JSA-level manpower concept (JSA has none today, confirmed

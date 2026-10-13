@@ -2,6 +2,7 @@
 
 namespace Tests\Feature;
 
+use App\Models\ActivityLog;
 use App\Models\Company;
 use App\Models\Department;
 use App\Models\Employee;
@@ -27,23 +28,52 @@ use RuntimeException;
 use Tests\TestCase;
 
 /**
- * WHAT BULK DELETION MUST NOT TAKE WITH IT.
+ * WHAT PERMANENT DELETION TAKES, AND WHAT IT MUST NOT.
  *
- * `employees` is the target of a long row of `cascadeOnDelete` foreign
- * keys — KPI records, PPE issues, man-hour logs, project manpower,
- * competencies, shift assignments, internships. A HARD delete of one
- * employee would therefore destroy that person's entire operational
- * history, silently, as a side effect of the database doing exactly what
- * it was told.
+ * This file used to assert the opposite of most of what it asserts now,
+ * and the reason is worth keeping in front of whoever reads it next.
  *
- * Bulk deletion is a SOFT delete, so none of those cascades ever fire.
- * That is the single most important property of the feature and nothing
- * pinned it: a later change from `delete()` to `forceDelete()` would look
- * like a one-word simplification and would quietly erase the KPI history
- * of everybody removed.
+ * `employees` is the target of twenty-four foreign keys. Deletion was
+ * therefore a SOFT delete, so none of the cascades could fire and no
+ * safety record could be destroyed by an HR action. What that produced
+ * was a product that could not recover from a bad import: a workforce the
+ * customer had deliberately deleted still held its employee numbers
+ * against unique indexes that know nothing about `deleted_at`, so the
+ * corrected file was refused row by row as duplicates of employees the
+ * Employees page said did not exist.
  *
- * This file also pins atomicity (a failure part-way through must leave
- * NOTHING deleted) and the full-authorized-scope case.
+ * The owner's decision is that deletion is PERMANENT. So the property to
+ * pin is no longer "nothing is destroyed" -- it is that the RIGHT things
+ * are, and only those:
+ *
+ *  1. DEPENDENTS GO. Records that exist only to describe the person --
+ *     KPI entries, man-hours, PPE issues, competencies, rosters, shifts,
+ *     leave, project manpower, permit personnel, TBM attendance -- are
+ *     removed with them. A KPI score belonging to nobody is not a record
+ *     of anything, and leaving one is strictly worse than deleting it:
+ *     `EmployeePpe` and `KpiRecord` reach their owner THROUGH the
+ *     employee, so an orphan is invisible to every tenant while still
+ *     being counted by any raw total.
+ *
+ *  2. DOCUMENTS STAY, AND KEEP THE NAME. A permit, an incident report, a
+ *     handover record is a document in its own right. It survives with
+ *     its pointer cleared, and where it PRINTS the person's name that
+ *     name is written into it as text first.
+ *
+ *  3. THE ORGANISATION IS NOT TOUCHED. Departments, positions, projects,
+ *     shifts, PPE types, KPI categories, companies: master data that
+ *     existed before this person was hired and outlives them. The
+ *     reported defect was partly about this -- deleting employees left
+ *     the departments and positions behind, which is correct, and no
+ *     attempt to fix the import may "clean them up".
+ *
+ *  4. THE NUMBER COMES BACK. The whole point: the employee number and
+ *     NIK are free again and the file can be imported.
+ *
+ * It also pins atomicity -- a failure anywhere in the erasure must leave
+ * NOTHING deleted -- and the full-authorized-scope case. `EmployeeEraser`
+ * is the engine under all of it, and `EmployeeErasureCoverageTest` makes
+ * sure it knows about every reference the schema actually has.
  */
 class EmployeeBulkDeletionDependenciesTest extends TestCase
 {
@@ -188,11 +218,14 @@ class EmployeeBulkDeletionDependenciesTest extends TestCase
     }
 
     /**
-     * THE ONE THAT MATTERS MOST. Every dependent table carries
-     * `cascadeOnDelete`, so this is the assertion that stands between a
-     * bulk removal and a destroyed safety record.
+     * RULE 1. The records that only describe this person go with them,
+     * and the assertion is made WITHOUT global scopes on purpose: the
+     * question is whether the row is in the table, not whether a scope
+     * happens to be hiding it. An orphan that a scope hides is the worst
+     * of the available outcomes, because nothing in the product can find
+     * it and every raw total still includes it.
      */
-    public function test_a_bulk_removal_destroys_no_operational_history(): void
+    public function test_a_bulk_removal_takes_the_records_that_only_describe_those_people(): void
     {
         [$employee, $before] = $this->employeeWithHistory('EMP-1');
 
@@ -202,105 +235,161 @@ class EmployeeBulkDeletionDependenciesTest extends TestCase
             ->delete(route('employees.bulk-destroy'), $this->deleteRequest([$employee->id]))
             ->assertRedirect(route('employees.index'));
 
-        $this->assertSoftDeleted('employees', ['id' => $employee->id]);
+        $this->assertDatabaseMissing('employees', ['id' => $employee->id]);
 
-        $this->assertSame(1, ProjectManpower::where('employee_id', $employee->id)->count(), 'Project manpower must survive.');
-        $this->assertSame(1, KpiRecord::where('employee_id', $employee->id)->count(), 'KPI history must survive.');
-        $this->assertSame(1, ManHourLog::where('employee_id', $employee->id)->count(), 'Man-hour logs must survive.');
-        /*
-         * PPE is asserted WITHOUT its global scope, deliberately, and the
-         * difference is a real property of the system worth stating.
-         *
-         * `EmployeePpe` has no `company_id`; it reaches its owner through
-         * `whereHas('employee')` (v2.62.0). `Employee` soft-deletes, so
-         * `whereHas` stops matching the moment the person is removed and
-         * every PPE issue of theirs becomes INVISIBLE to ordinary queries.
-         *
-         * The row is still there -- nothing cascaded, nothing was
-         * destroyed, and a restore brings the whole issue history back
-         * with the person. But "preserved" here means preserved in the
-         * table, not still readable through the PPE module. That is
-         * pre-existing behaviour of single deletion too, not something
-         * bulk deletion introduced, and it is recorded in the knowledge
-         * base rather than changed under this task.
-         */
-        $this->assertSame(
-            1,
-            EmployeePpe::withoutGlobalScopes()->where('employee_id', $employee->id)->count(),
-            'PPE issue records must survive in the database.'
-        );
-
-        $this->assertSame(
-            0,
-            EmployeePpe::where('employee_id', $employee->id)->count(),
-            'And they are hidden by the ownership scope while the employee is removed -- stated so a '
-            .'future change to that scope has to confront this assertion rather than surprise somebody.'
-        );
-    }
-
-    /** The employee row itself is still there to point at. */
-    public function test_the_employee_row_survives_so_its_history_still_resolves(): void
-    {
-        [$employee] = $this->employeeWithHistory('EMP-1');
-
-        $this->actingAs($this->admin)
-            ->delete(route('employees.bulk-destroy'), $this->deleteRequest([$employee->id]));
-
-        $kpi = KpiRecord::where('employee_id', $employee->id)->sole();
-
-        $this->assertNotNull(
-            Employee::withoutGlobalScopes()->withTrashed()->find($kpi->employee_id),
-            'A KPI record whose employee cannot be resolved is an orphan in all but name.'
-        );
+        foreach (['project_manpower', 'kpi_records', 'man_hour_logs', 'employee_ppe'] as $table) {
+            $this->assertSame(
+                0,
+                DB::table($table)->where('employee_id', $employee->id)->count(),
+                "{$table} must not keep a row pointing at an employee who no longer exists."
+            );
+        }
     }
 
     /**
-     * The soft-deleted employee still occupies its number, which is what
-     * the importer's duplicate check already assumes (`withTrashed()`).
+     * RULE 1, stated as the thing that must never be true afterwards.
+     *
+     * Every one of these tables reaches its owning tenant THROUGH the
+     * employee (`BelongsToCompanyThrough`), so a surviving row with a
+     * dangling `employee_id` is unreachable for every tenant at once.
      */
-    public function test_a_removed_employees_number_is_still_taken(): void
+    public function test_no_orphan_is_left_pointing_at_a_person_who_is_gone(): void
     {
-        $employee = $this->employee('EMP-1');
+        [$employee] = $this->employeeWithHistory('EMP-1');
+        [$kept] = $this->employeeWithHistory('EMP-KEPT');
 
         $this->actingAs($this->admin)
             ->delete(route('employees.bulk-destroy'), $this->deleteRequest([$employee->id]));
 
-        $this->assertTrue(
-            Employee::withoutGlobalScopes()->withTrashed()->where('employee_id', 'EMP-1')->exists()
+        $liveIds = DB::table('employees')->pluck('id')->all();
+
+        foreach (array_keys(\App\Services\EmployeeEraser::DEPENDENTS) as $table) {
+            $dangling = DB::table($table)->whereNotIn('employee_id', $liveIds)->count();
+
+            $this->assertSame(0, $dangling, "{$table} holds a row whose employee is gone.");
+        }
+
+        // And the employee who was NOT selected keeps everything.
+        $this->assertSame(1, DB::table('kpi_records')->where('employee_id', $kept->id)->count());
+        $this->assertSame(1, DB::table('employee_ppe')->where('employee_id', $kept->id)->count());
+    }
+
+    /**
+     * RULE 4, and the reason this release exists. The number and the NIK
+     * are free, and the proof is that the same ones can be used again --
+     * which is exactly what a corrected import does.
+     */
+    public function test_a_removed_employees_number_and_nik_are_free_again(): void
+    {
+        $employee = $this->employee('EMP-1');
+        $employee->forceFill(['nik' => '3201010101900001'])->save();
+
+        $this->actingAs($this->admin)
+            ->delete(route('employees.bulk-destroy'), $this->deleteRequest([$employee->id]));
+
+        $this->assertFalse(
+            Employee::withoutGlobalScopes()->where('employee_id', 'EMP-1')->exists(),
+            'Nothing may still hold the number.'
         );
+
+        $reimported = Employee::create([
+            'employee_id' => 'EMP-1',
+            'nik' => '3201010101900001',
+            'full_name' => 'Orang Baru',
+            'company_id' => $this->yard->id,
+            'department_id' => $this->department->id,
+            'status' => 'active',
+        ]);
+
+        $this->assertTrue($reimported->exists);
+        $this->assertNotSame($employee->id, $reimported->id, 'A fresh record, not the old row brought back.');
+    }
+
+    /**
+     * RULE 3. The reported defect included this: deleting employees left
+     * the departments, positions and operating units behind, which is
+     * CORRECT, and no fix to the import may tidy them away.
+     */
+    public function test_the_organisations_own_master_data_is_never_touched(): void
+    {
+        [$employee] = $this->employeeWithHistory('EMP-1');
+
+        $before = [
+            'departments' => DB::table('departments')->count(),
+            'positions' => DB::table('positions')->count(),
+            'projects' => DB::table('projects')->count(),
+            'companies' => DB::table('companies')->count(),
+            'kpi_categories' => DB::table('kpi_categories')->count(),
+            'ppe_types' => DB::table('ppe_types')->count(),
+        ];
+
+        $this->assertGreaterThan(0, $before['departments']);
+        $this->assertGreaterThan(0, $before['projects']);
+
+        $this->actingAs($this->admin)
+            ->delete(route('employees.bulk-destroy'), $this->deleteRequest([$employee->id]));
+
+        foreach ($before as $table => $count) {
+            $this->assertSame($count, DB::table($table)->count(), "{$table} must be untouched by an employee deletion.");
+        }
     }
 
     // --- atomicity --------------------------------------------------------
 
     /**
-     * A failure part-way through must leave NOTHING deleted. Without the
-     * transaction the first employees would be gone and the rest would
-     * not, with no way for the customer to tell which.
+     * A failure ANYWHERE in the erasure must leave NOTHING deleted.
+     *
+     * The failure is injected on the summary audit row, which the
+     * controller writes LAST -- after the dependents are deleted, the
+     * references are cleared and the employees themselves are gone. So
+     * this does not only prove the three deletions roll back together: it
+     * proves the whole erasure does, across all the tables it reaches.
+     *
+     * TWO TRAPS, both of which this test fell into first:
+     *
+     * 1. The previous version threw from `Employee::deleting`, which
+     *    worked while the controller deleted models one by one.
+     *    `EmployeeEraser` deletes through the QUERY BUILDER, where
+     *    Eloquent model events do not fire at all -- so the hook was
+     *    never called and no failure was ever simulated.
+     *
+     * 2. `$this->fail()` inside a `try` whose `catch` names
+     *    `RuntimeException` is swallowed by that catch: PHPUnit's
+     *    `AssertionFailedError` IS a `RuntimeException`. The test then
+     *    reports the symptom (rows missing) and hides the cause (no
+     *    exception was raised). The flag below keeps the two apart.
      */
     public function test_a_failure_part_way_through_deletes_nothing(): void
     {
-        $employees = collect(['EMP-1', 'EMP-2', 'EMP-3'])->map(fn ($id) => $this->employee($id));
-        $doomed = $employees->last()->id;
+        [$first] = $this->employeeWithHistory('EMP-1');
+        $employees = collect([$first])
+            ->concat(collect(['EMP-2', 'EMP-3'])->map(fn ($id) => $this->employee($id)));
 
-        Employee::deleting(function (Employee $employee) use ($doomed) {
-            if ($employee->id === $doomed) {
-                throw new RuntimeException('Simulated failure on the last record.');
+        ActivityLog::creating(function (ActivityLog $log) {
+            if (str_contains((string) $log->description, 'in one bulk deletion')) {
+                throw new RuntimeException('Simulated failure after the rows were erased.');
             }
         });
+
+        $propagated = false;
 
         try {
             $this->withoutExceptionHandling()
                 ->actingAs($this->admin)
                 ->delete(route('employees.bulk-destroy'), $this->deleteRequest($employees->pluck('id')->all()));
-
-            $this->fail('The simulated failure should have propagated.');
-        } catch (RuntimeException) {
-            // expected
+        } catch (RuntimeException $e) {
+            $propagated = str_contains($e->getMessage(), 'Simulated failure');
         }
+
+        $this->assertTrue($propagated, 'The simulated failure should have propagated out of the request.');
 
         foreach ($employees as $employee) {
-            $this->assertNotSoftDeleted('employees', ['id' => $employee->id]);
+            $this->assertDatabaseHas('employees', ['id' => $employee->id]);
         }
+
+        $this->assertSame(1, DB::table('kpi_records')->where('employee_id', $first->id)->count(), 'The dependent records must come back too.');
+        $this->assertSame(1, DB::table('employee_ppe')->where('employee_id', $first->id)->count());
+        $this->assertSame(1, DB::table('man_hour_logs')->where('employee_id', $first->id)->count());
 
         $this->assertSame(
             0,
@@ -328,7 +417,7 @@ class EmployeeBulkDeletionDependenciesTest extends TestCase
         $response->assertSessionHas('success');
 
         $this->assertSame(0, Employee::query()->whereIn('company_id', [$this->yard->id])->count());
-        $this->assertSame(25, Employee::withoutGlobalScopes()->withTrashed()->count());
+        $this->assertSame(0, Employee::withoutGlobalScopes()->count(), 'Permanent means the rows are not there at all.');
 
         // One audit line per person, plus one for the act itself.
         $this->assertSame(26, DB::table('activity_logs')->where('action', 'deleted')->count());
@@ -342,7 +431,7 @@ class EmployeeBulkDeletionDependenciesTest extends TestCase
             ->delete(route('employees.bulk-destroy'), $this->deleteRequest([$employee->id]))
             ->assertSessionHas('success');
 
-        $this->assertSoftDeleted('employees', ['id' => $employee->id]);
+        $this->assertDatabaseMissing('employees', ['id' => $employee->id]);
     }
 
     /**

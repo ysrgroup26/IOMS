@@ -383,7 +383,7 @@
         <div class="section-body">
             <table class="meta-table">
                 <tr>
-                    <td class="meta-label">Penanggung Jawab</td><td class="meta-colon"></td><td>{{ $permit->pic->full_name ?? '-' }}</td>
+                    <td class="meta-label">Penanggung Jawab</td><td class="meta-colon"></td><td>{{ $permit->picDisplayName() ?? '-' }}</td>
                     <td class="meta-label">Requester</td><td class="meta-colon"></td><td>{{ $permit->requester->name ?? '-' }}</td>
                 </tr>
             </table>

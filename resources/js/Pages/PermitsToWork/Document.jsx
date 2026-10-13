@@ -5,6 +5,7 @@ import StatusBadge from '@/Components/shared/StatusBadge';
 import ApprovalStamp from '@/Components/shared/ApprovalStamp';
 import PersonChip from '@/Components/shared/PersonChip';
 import { ArrowLeft, Printer, Download, FlaskConical, Users, ShieldCheck, FileCheck2, Gavel } from 'lucide-react';
+import { picName } from '@/lib/permitPicName';
 
 /**
  * v2.6.0 (PTW Document View pass). The actual product gap this pass
@@ -296,8 +297,8 @@ export default function PermitToWorkDocument({ permit: p, company, documentTempl
                             <div>
                                 <FieldLabel>Penanggung Jawab Pekerjaan</FieldLabel>
                                 <div className="mt-2">
-                                    {p.pic ? (
-                                        <PersonChip name={p.pic.full_name} />
+                                    {picName(p) ? (
+                                        <PersonChip name={picName(p)} />
                                     ) : (
                                         <p className="text-sm italic text-graphite-400">Belum ditentukan.</p>
                                     )}

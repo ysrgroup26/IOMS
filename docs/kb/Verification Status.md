@@ -49,8 +49,8 @@ on every phone width.
 
 | | |
 |---|---|
-| Suite | **1273 tests, 6455 assertions — all passing on SQLite** (2026-10-12, v2.114.0; was 1261/6354 at v2.113.0) |
-| Suite on **MySQL 8.0** | **1273 of 1273 passing** (2026-10-12), on an isolated `ioms_mysql_test` database with synthetic data. MySQL and SQLite agree completely. The v2.114.0 migration was additionally rolled back and re-applied on MySQL to confirm `employment_type` returns to NOT NULL and its index survives `change()`. |
+| Suite | **1293 tests, 6611 assertions — all passing on SQLite** (2026-10-13, v2.115.0; was 1273/6455 at v2.114.0) |
+| Suite on **MySQL 8.0** | **1293 of 1293 passing** (2026-10-13), on an isolated `ioms_mysql_test` database with synthetic data. MySQL and SQLite agree completely. `EmployeeErasureCoverageTest` reads the foreign keys through `information_schema` on MySQL and `PRAGMA foreign_key_list` on SQLite, so the erasure policy is checked against BOTH engines' real schema. |
 | Database | In-memory **SQLite**, so no MySQL or external service is needed |
 | Lint | `npm run lint` — 0 errors (4 existing warnings in `GasTestRecords/Index.jsx` and `Settings/Index.jsx`) |
 | Build | `npm run build` succeeded (2026-10-12): 2319 modules, 2,085 KB bundle, the existing size advisory unchanged |
@@ -88,6 +88,44 @@ on every phone width.
 > multi-table `UPDATE … JOIN` and anything reading `information_schema`, or guard it with
 > `DB::getDriverName() === 'mysql'`. Six migrations had to be made portable before the suite could
 > provision at all.
+
+### Browser-verified — v2.115.0 Permanent deletion, and the import that follows it (2026-10-13)
+
+The owner's decision replaced the v2.114.0 answer: deletion is permanent, so the question is no
+longer "does a re-import restore" but "is the number actually free, and did the right things go with
+the person". **28/28 end-to-end checks passed through the real UI**, zero JavaScript errors, against
+an isolated SQLite database whose departments and positions existed before any import.
+
+| Step | Result |
+|---|---|
+| Import 75 | `75 imported successfully`; all 75 on the Employees page; 15 distinct join dates on page 1; types `{pkwtt:15, pkwt:15, daily:15, intern:15, contractor:15}` |
+| Delete all 75 | through the real `DELETE /employees/bulk` with its `HAPUS` confirmation; list shows nobody |
+| Re-import the same file | `75 imported successfully`, **none skipped** — the numbers were genuinely free; all 75 back on the page |
+| Mixed file (3 deleted + 2 live + 3 new) | `6 imported successfully · 2 skipped`, and the refusal names the real reason: `EMP-0040" (already used in this Operating Unit)` |
+| The 3 new people | each findable by search; blank Workforce Type stayed **null**, not PKWTT; join date `2026-03-08` as written; leading-zero NIK `32010101019900001` intact |
+| Single permanent delete, through the profile dialog | the dialog reports what would be removed from the server's own count, says `dihapus secara permanen`, and **no longer claims the history is preserved**; the roster drops by exactly one and the person cannot be found by search |
+| The freed number, immediately | re-imported from the same file: `1 imported successfully · 7 skipped` |
+| Consistency | list total equals the database; **5 departments, not duplicated**; other companies' 60 employees untouched |
+
+Confirmed directly in the database afterwards: **zero orphans** across all twelve dependent tables
+(`select count(*) ... where employee_id not in (select id from employees)` for each), the
+`deleted_at` column gone, and the audit row for the erased employee carrying their full snapshot
+(`{"employee_id":"NEW-0003","nik":"...","full_name":"Orang Baru C","department":"Logistik",...}`).
+
+> [!important] Two harness faults this run exposed, both now written up
+> The browser proof initially failed at the delete step because the paged `fetch` followed the
+> controller's 302 **with the DELETE method**, so `DELETE /employees` answered 405 and a successful
+> deletion looked like a failed one. And the atomicity test in
+> `EmployeeBulkDeletionDependenciesTest` was simulating its failure through `Employee::deleting`,
+> which **never fires** for the query-builder deletes the eraser uses — so the simulation did
+> nothing and the test reported a symptom instead of a cause. Both are in `CONVENTIONS.md`; the
+> second is the kind of green test that is worse than no test.
+
+> [!note] Still not covered
+> **Production was not reached from this session** — see the deployment note below; the container
+> still has no `ssh`/`scp`/`sftp`/`rsync`/`lftp`, no key material, and its egress proxy still
+> answers 403 to `iomsuite.com` (re-checked 2026-10-12). Everything above ran against an isolated
+> SQLite database on `127.0.0.1:8188` with synthetic data only.
 
 ### Browser-verified — v2.114.0 The reported import failure, reproduced and then driven to work (2026-10-12)
 

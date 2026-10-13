@@ -13,6 +13,7 @@ import ApprovalStamp from '@/Components/shared/ApprovalStamp';
 import EmptyState from '@/Components/shared/EmptyState';
 import PersonChip from '@/Components/shared/PersonChip';
 import { ArrowLeft, Send, CheckCircle2, XCircle, PlayCircle, FlaskConical, Wind, Download, Printer, FileText, RotateCcw } from 'lucide-react';
+import { picName } from '@/lib/permitPicName';
 
 /**
  * v2.73.0. Renders nothing at all when a permit carries no PPE -- an
@@ -284,10 +285,10 @@ export default function PermitToWorkShow({ permit: p, activities, canManage, rej
                                 avatar chip there. */}
                             {(p.pic || (p.personnel && p.personnel.length > 0)) && (
                                 <div className="grid grid-cols-1 gap-3 border-t border-graphite-100 pt-3 sm:grid-cols-2 dark:border-slate-800">
-                                    {p.pic && (
+                                    {picName(p) && (
                                         <div>
                                             <span className="text-xs uppercase text-graphite-400">Penanggung Jawab</span>
-                                            <div className="mt-1.5"><PersonChip name={p.pic.full_name} size="sm" /></div>
+                                            <div className="mt-1.5"><PersonChip name={picName(p)} size="sm" /></div>
                                         </div>
                                     )}
                                     {p.personnel && p.personnel.length > 0 && (

@@ -313,10 +313,18 @@ export default function EmployeesIndex({ employees, companies, departments, filt
                             <AlertTriangle className="h-5 w-5 text-destructive" />
                             Delete {selected.length} Employee{selected.length === 1 ? '' : 's'}
                         </DialogTitle>
+                        {/* v2.115.0 -- THE COPY HAD TO CHANGE WITH THE BEHAVIOUR.
+                            This said their KPI, man-hour, PPE and approval history
+                            "tetap tersimpan dan tidak ikut terhapus", which was true
+                            of a soft delete and is a lie about a permanent one. A
+                            confirmation that understates what it does is worse than
+                            none, because the customer agrees to something else. */}
                         <DialogDescription>
-                            {selected.length} karyawan akan dihapus dari daftar aktif. Riwayat KPI, man-hour, PPE dan
-                            persetujuan mereka tetap tersimpan dan tidak ikut terhapus. Tindakan ini tidak dapat
-                            dibatalkan sendiri dari halaman ini.
+                            {selected.length} karyawan akan dihapus secara permanen. Catatan yang hanya menjelaskan
+                            mereka (KPI, man-hour, APD, kompetensi, roster, shift, cuti, penugasan proyek dan
+                            kehadiran TBM) ikut terhapus. Dokumen seperti Permit to Work, laporan insiden dan berita
+                            acara tetap tersimpan beserta namanya, hanya tautan ke berkas karyawan yang hilang.
+                            Tindakan ini tidak dapat dibatalkan.
                         </DialogDescription>
                     </DialogHeader>
 
@@ -332,7 +340,8 @@ export default function EmployeesIndex({ employees, companies, departments, filt
                             onChange={(e) => setConfirmation(e.target.value)}
                         />
                         <p className="text-xs text-graphite-500">
-                            Konfirmasi ini diminta karena penghapusan massal tidak bisa dibatalkan dari halaman ini.
+                            Konfirmasi ini diminta karena penghapusan permanen tidak dapat dibatalkan dan tidak dapat
+                            dipulihkan oleh siapa pun.
                         </p>
                     </div>
 

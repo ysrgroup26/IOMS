@@ -11,6 +11,7 @@ import { Table, TableHeader, TableBody, TableRow, TableHead, TableCell } from '@
 import StatusBadge from '@/Components/shared/StatusBadge';
 import EmptyState from '@/Components/shared/EmptyState';
 import { Plus, Search, FileWarning, ChevronLeft, ChevronRight, ArrowRight } from 'lucide-react';
+import { picName } from '@/lib/permitPicName';
 
 /**
  * v2.8.0 (PTW Mobile / Task-First pass, Phase 3B, Part 3). PREVIOUSLY:
@@ -133,10 +134,10 @@ export default function PermitsToWorkIndex({ permits, filters, can }) {
                                         {/* v2.17.1 (Part 2/6): PIC/Workforce -- only shown
                                             when actually set, wraps naturally rather than
                                             forcing a single truncated line. */}
-                                        {(p.pic || p.personnel_count > 0) && (
+                                        {(picName(p) || p.personnel_count > 0) && (
                                             <p className="mt-0.5 truncate text-xs text-graphite-500 dark:text-slate-400">
-                                                {p.pic && <>PIC: {p.pic.full_name}</>}
-                                                {p.pic && p.personnel_count > 0 && ' · '}
+                                                {picName(p) && <>PIC: {picName(p)}</>}
+                                                {picName(p) && p.personnel_count > 0 && ' · '}
                                                 {p.personnel_count > 0 && `${p.personnel_count} personel`}
                                             </p>
                                         )}
@@ -179,7 +180,7 @@ export default function PermitsToWorkIndex({ permits, filters, can }) {
                                             </TableCell>
                                             <TableCell className="max-w-[160px]">
                                                 <p className="truncate text-graphite-800 dark:text-slate-200">{p.requester?.name || '-'}</p>
-                                                <p className="truncate text-xs text-graphite-500 dark:text-slate-400">{p.pic ? `PIC: ${p.pic.full_name}` : 'PIC belum ditentukan'}</p>
+                                                <p className="truncate text-xs text-graphite-500 dark:text-slate-400">{picName(p) ? `PIC: ${picName(p)}` : 'PIC belum ditentukan'}</p>
                                             </TableCell>
                                             <TableCell className="text-graphite-500 dark:text-slate-400">{p.personnel_count > 0 ? `${p.personnel_count} orang` : '-'}</TableCell>
                                             <TableCell className="text-graphite-500 dark:text-slate-400">{new Date(p.start_datetime).toLocaleString('en-US', { day: 'numeric', month: 'short', hour: 'numeric', minute: '2-digit' })}</TableCell>

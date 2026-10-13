@@ -1951,6 +1951,94 @@ Three rules that matter when extending this:
 
 The chip is a LABEL (English); the consequence sentence is PROSE (Indonesian). See ADR 034.
 
+## CRITICAL — Known Pitfall (v2.115.0) — soft deletion that nothing can undo is not safety, it is a row that blocks the recovery
+
+The v2.114.0 entry below is the same defect's first half, and it is worth reading in order.
+
+`Employee` soft-deleted so that a hard delete could not cascade away a person's KPI history. Then
+look at what the product actually had:
+
+- **no screen ever showed a deleted employee.** No "Deleted" tab, no `onlyTrashed()` filter, no
+  restore action. Nothing in 183 pages.
+- **the unique indexes still counted them.** `(company_id, employee_id)` and `(company_id, nik)`
+  are plain SQL indexes, so a deleted employee kept their number.
+
+So the trait's only observable effect was to make a deliberately deleted employee block the import
+of their own replacement, with a message about a duplicate of somebody the list said did not exist.
+The "preserved" history was unreachable too: `EmployeePpe` and `KpiRecord` reach their owner
+*through* the employee, so the moment the person was trashed their PPE issues disappeared from the
+PPE module while remaining in the table.
+
+**The rule.** Soft deletion is only protection if something can SEE and USE the soft-deleted state.
+Before adding `SoftDeletes` to a model, answer three questions, and if any answer is no, do not add
+it:
+
+1. Is there a screen that lists trashed records, or a restore action a user can reach?
+2. Do the uniqueness constraints on that table account for `deleted_at` (a partial index, or a
+   nullable-aware composite), so a trashed row does not reserve an identifier forever?
+3. Does the ownership scope still resolve for a trashed parent, so the children stay readable?
+
+For `employees` the answers were no, no and no, which is why v2.115.0 removed the trait and made
+deletion permanent (ADR 055). `Tenant`, `MaterialRequest` and the other soft-deleting models are
+different cases: they are reached through operator screens or workflow states that DO show them.
+
+**What permanent deletion then requires, and the shape to copy.** `App\Services\EmployeeEraser`
+answers every one of the twenty-four references explicitly — dependents deleted, references cleared,
+and the two documents that PRINT the name keep it as text. Three things in that design are the
+transferable part:
+
+- **Do it in application code, not by rewriting delete rules.** SQLite cannot alter a constraint
+  without rebuilding the table, so a migration that changes `onDelete` makes the suite and
+  production disagree about what deletion means. Deleting children before the parent also means
+  RESTRICT never fires, so the existing rules can stay exactly as they are.
+- **Guard a hand-written list of foreign keys with a schema-reading test.**
+  `EmployeeErasureCoverageTest` reads `information_schema` on MySQL and `PRAGMA foreign_key_list` on
+  SQLite and fails naming any reference the eraser has no policy for. A list of two dozen keys is
+  correct the day it is written and silently wrong three releases later.
+- **A tombstone is written at erasure time and never before.** `permits_to_work.pic_name` is not a
+  denormalised copy of a live name — nothing writes it on create or update, it is not `$fillable`,
+  and the read paths ask the relation first. A second copy of a LIVE value is the v2.101.0 pitfall;
+  a value written only when the original is being destroyed is not.
+
+## CRITICAL — Known Pitfall (v2.115.0) — Eloquent model events do not fire for a query-builder delete, and a test built on one passes by doing nothing
+
+`EmployeeBulkDeletionDependenciesTest` simulated a mid-operation failure by throwing from
+`Employee::deleting`. That worked while the controller deleted models one at a time. `EmployeeEraser`
+deletes set-wise through `DB::table(...)->delete()` — twenty-four statements for four hundred people
+instead of twenty-four times four hundred — and **no model event fires for that at all.**
+
+The hook was simply never called. The test still "passed its catch block" and then asserted against
+a database where the deletion had in fact completed, so it reported rows missing and said nothing
+about the reason.
+
+Two rules out of it:
+
+- **Know which layer you are on.** `DB::table()`, `->update()` and `->delete()` on a query builder
+  bypass events, observers, `$fillable`, casts and global scopes. That is often exactly what you
+  want for a bulk operation; it is never what you want if something is listening.
+- **Never let the simulation of a failure be invisible.** Assert that the failure actually happened
+  (`$this->assertTrue($propagated, ...)`), and see the next pitfall for why that assertion cannot
+  live inside the `try`.
+
+## Known Pitfall (v2.115.0) — `$this->fail()` inside a `try { } catch (RuntimeException)` is swallowed by the catch
+
+PHPUnit's `AssertionFailedError` extends `PHPUnit\Framework\Exception`, which **extends
+`RuntimeException`**. So this reports the wrong thing:
+
+```php
+try {
+    $this->doSomethingThatShouldThrow();
+    $this->fail('It should have thrown.');   // AssertionFailedError ...
+} catch (RuntimeException) {
+    // ... caught HERE, silently
+}
+```
+
+When the code under test stops throwing, the test does not fail with "It should have thrown" — it
+carries on and fails later on a symptom, with the cause hidden. Set a flag in the `catch` and assert
+it after the block, or catch the specific exception class, never the base type PHPUnit's own errors
+also descend from.
+
 ## CRITICAL — Known Pitfall (v2.114.0) — a soft-deleted row is invisible to the LIST and visible to the IMPORT, and the customer sees both answers at once
 
 Reported from production, and the two halves of the report read like they cannot both be true:

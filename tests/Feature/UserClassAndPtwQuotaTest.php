@@ -765,6 +765,8 @@ class UserClassAndPtwQuotaTest extends TestCase
             'user_type' => User::TYPE_MY_WORK,
         ])->assertRedirect();
 
+        $created = User::where('email', 'like', 'crew-%@yard.test')->sole();
+        $this->assertSame(User::TYPE_MY_WORK, $created->user_type);
         $this->assertSame(1, app(EntitlementService::class)->myWorkUsersUsedCount($tenant->fresh()));
         // The Full pool is untouched by that creation.
         $this->assertSame(3, app(EntitlementService::class)->usersUsedCount($tenant->fresh()));

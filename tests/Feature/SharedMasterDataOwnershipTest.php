@@ -357,7 +357,7 @@ class SharedMasterDataOwnershipTest extends TestCase
 
         $this->actingAs($this->adminA)
             ->delete(route('ppe-types.destroy', $type->id), ['company_id' => $this->companyA->id])
-            ->assertSessionHas('error', 'Cannot delete a PPE type that has been issued to employees.');
+            ->assertSessionHas('error', 'Cannot delete a PPE type that has been issued to employees. Deactivate it to keep its issue history.');
 
         $this->assertNotNull($type->fresh());
         $this->assertNotNull($assignment->fresh());

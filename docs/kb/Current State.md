@@ -1,7 +1,7 @@
 ---
 title: Current State
 type: snapshot
-product-version: 2.108.0
+product-version: 2.117.0
 product-stage: Beta
 measured: 2026-10-13
 tags: [kb/state]
@@ -25,8 +25,8 @@ the date in the frontmatter, not remembered.
 |---|---|
 | Product | **IOMS — Industrial Operations Platform** |
 | Public company identity | **Tahada Group**; legal entity **PT Tahada Vistara Bersama** |
-| Version | **2.108.0**, stage **Beta**, edition **Enterprise Edition** |
-| Build | `2026.10.13.01`, release date `2026-10-13` |
+| Version | **2.117.0**, stage **Beta**, edition **Enterprise Edition** |
+| Build | `2026.10.13.02`, release date `2026-10-13` |
 | Stack | Laravel 12 · Inertia.js · React 18 · Tailwind · MySQL · Sanctum |
 
 The naming rules are not cosmetic — see [[Product Identity and Principles]].
@@ -83,13 +83,15 @@ server-side route allow-list still controls what that account may reach. See [[D
 
 ## What shipped most recently
 
-`2.108.0` (2026-10-13) — My Work users display as a separate account class and seat pool; PPE
-defaults can be overridden per Operating Unit without changing shared templates or past issue dates;
-PTW examples identify work references and physical locations across three industries. **1,027 tests /
-5,375 assertions pass** on in-memory SQLite. Production build and lint succeeded. Browser verification
-confirmed PPE interval editing, account class and quotas, the landing-preference label, billing meters,
-and neutral PTW examples. The final account-creation submit and destructive deactivation action were
-not performed in the browser; see [[Verification Status]].
+`2.117.0` (2026-10-13) — Corrective My Work navigation now follows department membership, the Full
+User landing preference, or the My Work account class, while route authorization remains unchanged.
+The existing Add User selector, class display, quota meters, company-scoped PPE overrides and PTW
+examples are retained. Browser verified saving Safety Shoes at six months, adding a PPE type, the
+account-class selector, account-class/quota displays, administrator My Work navigation and PTW
+examples. SQLite suite, release build and lint results are recorded in [[Verification Status]]. The
+live public banner reports v2.116.0, not origin/main's v2.108.0; the public page exposes no commit SHA.
+The PPE deactivation click timed out before its outcome could be verified in the browser; server-side
+deactivation and safe-delete/history behavior are covered by tests.
 
 `2.93.0` (2026-10-04) — Master Admin can grant complimentary access to a verified registration:
 it provisions that registration through the same body a payment uses, with different commercial

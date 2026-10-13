@@ -1,7 +1,7 @@
 ---
 title: Project Board
 type: board
-updated: 2026-10-01
+updated: 2026-10-13
 tags: [kb/board]
 ---
 
@@ -59,6 +59,7 @@ Full definitions and the update loop: [[Working with This Knowledge Base]].
 
 | Work | Shipped | Verified by |
 |---|---|---|
+| Corrective My Work navigation, class creation and PPE master behavior | v2.117.0 | Full SQLite suite 1,030 / 5,415; production build succeeded; lint 0 errors and 4 existing warnings. Browser verified six-month Safety Shoes save, PPE addition, Add User class selector, class/quota display, admin My Work navigation on department and company dashboards, and PTW examples. Backend tests cover class persistence/entitlements, company-scoped deactivation, safe-delete/history refusal. Browser deactivation confirmation timed out; production commit SHA remains unknown |
 | My Work account visibility, company-specific PPE templates, and industry-neutral PTW examples | v2.108.0 | Full SQLite suite 1,027 / 5,375; production build succeeded; lint has 0 errors and 4 existing warnings. Browser verified account class/quota display, billing meter, PPE interval editing, and PTW examples. Account creation UI submit remains pending required action-time confirmation; no isolated MySQL database is configured |
 | [[Full System Audit]] second pass - dead controls, deletions that orphan, empty states, and the package x role navigation matrix | v2.107.0 | Navigation could not express a capability, so two pages were offered and refused; deleting a user either threw or nulled the actor on 59 relationships; 7 list pages had no empty state. PackageRoleNavigationMatrixTest walks 15 package/role combinations and was confirmed to fail without the new gate. Full suite 1022 / 5326 |
 | [[Full System Audit]] - four systematic sweeps over the whole surface: nav reachability, route-model binding without an isolation scope, user-facing terminology, and mutations without an authorization gate | v2.106.0 | One real defect: any tenant admin could rename or delete a PPE type every other customer was issuing. Module keys were shown to customers, several mis-capitalised as words. 26 tests, ownership guard confirmed failing when removed. Full suite 999 / 5274. **The audit note records what was NOT swept** |

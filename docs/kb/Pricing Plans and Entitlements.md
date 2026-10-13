@@ -280,6 +280,9 @@ stated ceiling" on this table. Its subscribers are unmetered and uncapped, uncha
 
 1. **`user_type` is the billable class. `is_field_user` is a landing preference.** They are separate
    columns answering different questions, and merging them would demote every existing field account.
+   My Work appears in the sidebar for department users, Full Users with the landing preference on,
+   and My Work Users by class. That navigation hint grants no route or action permission; the server
+   route allow-list and capability checks remain authoritative.
 2. **PTW quota is MONTHLY on every billing cycle.** An annual plan receives twelve allocations, one
    per monthly window anchored to the subscription start day, never a lump sum. Business annual gets
    fourteen months of platform ACCESS and twelve PTW allocations.

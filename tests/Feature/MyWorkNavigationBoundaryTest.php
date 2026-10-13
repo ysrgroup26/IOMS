@@ -201,4 +201,46 @@ class MyWorkNavigationBoundaryTest extends TestCase
             ->assertOk()
             ->assertInertia(fn ($page) => $page->where('auth.user.workspace_access.hse', true));
     }
+
+    /** The preference is separate from class, but should expose the workspace. */
+    public function test_a_full_administrator_with_my_work_landing_preference_is_offered_my_work(): void
+    {
+        $admin = $this->user(User::ROLE_SUPER_ADMIN);
+        $admin->update(['is_field_user' => true]);
+
+        $this->actingAs($admin)
+            ->get(route('hse.dashboard'))
+            ->assertOk()
+            ->assertInertia(fn ($page) => $page
+                ->where('auth.user.user_type', User::TYPE_FULL)
+                ->where('auth.user.is_field_user', true)
+                ->where('auth.user.my_work_navigation_available', true));
+    }
+
+    /** A My Work account always sees its home even when the preference is false. */
+    public function test_a_my_work_account_is_offered_my_work_independently_of_landing_preference(): void
+    {
+        $fieldUser = $this->user('hse', User::TYPE_MY_WORK);
+
+        $this->actingAs($fieldUser)
+            ->get(route('my-work'))
+            ->assertOk()
+            ->assertInertia(fn ($page) => $page
+                ->where('auth.user.is_field_user', false)
+                ->where('auth.user.user_type', User::TYPE_MY_WORK)
+                ->where('auth.user.my_work_navigation_available', true));
+    }
+
+    public function test_a_full_administrator_without_my_work_preference_is_not_offered_it(): void
+    {
+        $admin = $this->user(User::ROLE_SUPER_ADMIN);
+
+        $this->actingAs($admin)
+            ->get(route('hse.dashboard'))
+            ->assertOk()
+            ->assertInertia(fn ($page) => $page
+                ->where('auth.user.user_type', User::TYPE_FULL)
+                ->where('auth.user.is_field_user', false)
+                ->where('auth.user.my_work_navigation_available', false));
+    }
 }

@@ -123,7 +123,7 @@ class PpeTypeController extends Controller
         // their PPE records. "Is anyone anywhere using this row" is the
         // only correct question to ask about a shared row.
         if ($ppeType->assignments()->withoutGlobalScopes()->exists()) {
-            return back()->with('error', 'Cannot delete a PPE type that has been issued to employees.');
+            return back()->with('error', 'Cannot delete a PPE type that has been issued to employees. Deactivate it to keep its issue history.');
         }
 
         $name = $ppeType->name;

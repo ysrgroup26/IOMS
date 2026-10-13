@@ -1,7 +1,7 @@
 ---
 title: Requirements Register
 type: register
-updated: 2026-09-16
+updated: 2026-10-13
 tags: [kb/requirements]
 ---
 
@@ -67,6 +67,7 @@ Older completions live in [[Release History]].
 
 | Item | Version | Status | Evidence |
 |---|---|---|---|
+| Production corrections: My Work account class creation and navigation; PPE default overrides, additions, deactivation and history-safe deletion | 2.117.0 | `#status/implemented` | `UserClassAndPtwQuotaTest`, `MyWorkNavigationBoundaryTest`, and `SharedMasterDataOwnershipTest`; full suite 1,030 / 5,415. Local browser verified the Add User class selector, six-month Safety Shoes edit/save, PPE addition, account class and seat meters, admin My Work entry on the company dashboard and HSE workspace, and industry-neutral PTW examples. Browser deactivation confirmation timed out; server behavior is test-covered. Public production banner reports v2.116.0; its exact commit is not public |
 | My Work account class and quota visibility; company-owned PPE overrides; neutral PTW work-reference/location examples | 2.108.0 | `#status/implemented` | Full suite 1,027 / 5,375, including `UserClassAndPtwQuotaTest` and `SharedMasterDataOwnershipTest`; isolated browser verified account class/quota displays, PPE edit, Billing meter, and PTW examples. Account-create submit awaits action-time confirmation; no isolated MySQL test database |
 | Material Request reachable by HSE — the department whose permission has always owned it | 2.71.0 | `#status/verified` | ADR [[034-capability-reach-and-navigation-hierarchy\|034]]; `DepartmentCapabilityReachTest`; opened from the HSE rail in a browser |
 | Requester-facing Material Request lifecycle — what happened, who holds it, what is next | 2.71.0 | `#status/verified` | `RequestStage` in `Pages/MaterialRequests/Show.jsx`; exercised for submitted / consolidating / completed |

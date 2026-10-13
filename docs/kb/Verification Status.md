@@ -49,26 +49,38 @@ on every phone width.
 
 | | |
 |---|---|
-| Suite | **1,027 tests, 5,375 assertions — all passing** (2026-10-13, source checkout `main` at v2.108.0) |
+| Suite | **1,030 tests, 5,415 assertions — all passing** (2026-10-13, source checkout `main` at v2.117.0) |
 | Database | In-memory **SQLite**, as configured by `phpunit.xml`; no MySQL tests were run because no isolated MySQL test database is configured |
 | Lint | `npm run lint` — 0 errors, 4 warnings (existing unused ESLint-disable directives in `GasTestRecords/Index.jsx` and `Settings/Index.jsx`) |
 | Build | `npm run build` succeeded; generated assets use the current source. Existing large JavaScript chunk advisory remains (about 2,056 KB) |
 
 ### Browser verification (2026-10-13)
 
-An isolated SQLite test tenant served the current production assets on a local preview. Verified in the
-browser: PPE Master saved Safety Shoes at a six-month interval and showed the success message; Users &
-Access displayed Full User vs My Work User and separate `1 / 25` and `0 / 50` counts; the account
-preference was labelled **Land in My Work**; Billing showed the My Work `0 / 50` meter and pack size;
-PTW examples separated work reference from physical location and named shipyard, mining, and
+A separately seeded SQLite database in the Windows temp folder served the current built assets on a
+local preview. In PPE Master, Safety Shoes changed from 12 to 6 months and saved with the success
+message; a new company-owned PPE type was added and appeared in the list. In Users & Access, the Add
+User dialog exposed Full User and My Work User, the table showed the account class, and the separate
+Full/My Work meters appeared. The form was not submitted; backend tests created a My Work account,
+asserted the persisted class, and enforced the corresponding pool.
+
+The seeded Full User administrator's landing preference was enabled in that disposable database. The
+My Work link appeared in both the HSE workspace and company-dashboard sidebars, and the administrator
+opened the My Work page. The field preference remained separate from account class and PTW Access.
+The PTW form showed distinct work-reference and physical-location fields with shipyard, mining, and
 construction examples. No real tenant or configured MySQL database was used.
 
-The create-user dialog exposed the Account Class selector, but its final Create action was not
-submitted: Computer Use requires action-time confirmation for creating an account, even when the
-overall verification was requested. No PPE deactivation or deletion was performed in the browser.
-Backend tests cover per-company deactivation, custom-type deletion, and refusal when history exists.
-The public sign-up flow was not submitted. This release therefore has successful browser checks for
-the listed read/edit flows, with browser account creation and UI deactivation still incomplete.
+A browser click on the PPE deactivation control timed out before the confirmation outcome could be
+read; no deactivation result is claimed. No UI deletion or account-creation submit was performed.
+`SharedMasterDataOwnershipTest` covers company-only deactivation, safe deletion of an unused custom
+type, and refusal to delete a type with issue history. There is no isolated MySQL test database, so
+MySQL tests were not run.
+
+The public production page was read without signing in: its banner reports **v2.116.0**, while the
+starting `origin/main` source was v2.108.0. The public page exposes no commit SHA. The available
+`origin/claude/eloquent-newton-pbxxdg` source has the reported default-PPE lock messages and lacks the
+Add User account-class selector; that source comparison explains the reported behavior but does not
+prove which SHA is deployed. This corrective release is based on `origin/main`; production was not
+accessed beyond its public page and no deployment was performed.
 
 > [!warning] SQLite is not MySQL
 > The suite deliberately runs on SQLite so it needs nothing external. That means it does **not**
@@ -84,8 +96,8 @@ the listed read/edit flows, with browser account creation and UI deactivation st
 ### Test-covered, not browser-reviewed
 
 | Area | Version | What was verified |
-| My Work account class, entitlements, PPE overrides and PTW copy | 2.108.0 | `UserClassAndPtwQuotaTest`, `SharedMasterDataOwnershipTest`, full 1,027-test suite; isolated browser verified class/quota display, Land in My Work label, billing meter, six-month PPE override save, and cross-industry PTW examples. UI account creation and deactivation submit remain unverified pending the required action-time confirmation; deactivation/history safety is test-covered. Build succeeded; lint 0 errors, 4 existing warnings. MySQL not run because no isolated MySQL test database is configured |
 |---|---|---|
+| My Work account class, entitlements, PPE overrides and PTW copy | 2.117.0 | Full 1,030 / 5,415 SQLite suite; `UserClassAndPtwQuotaTest`, `MyWorkNavigationBoundaryTest`, `SharedMasterDataOwnershipTest`; local browser verified Add User class choices, account-class/seat display, My Work navigation on two sidebars, six-month PPE save/add, and PTW examples. Deactivation UI confirmation timed out; server behavior and safe-delete/history guards are test-covered. Build succeeded; lint 0 errors, 4 existing warnings. MySQL not run |
 | Hero copy and mobile background | 2.92.0 | `LandingPositioningTest` pins the four supplied paragraphs and asserts that the mobile composition uses the management photograph without the field photograph. Full suite: 742 tests / 3986 assertions; isolated production build succeeded; lint 0 errors / 4 existing warnings. No browser visual review was performed |
 
 ### Browser-verified

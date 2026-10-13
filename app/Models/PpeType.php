@@ -22,7 +22,11 @@ class PpeType extends Model
         return true;
     }
 
-    /** True for a built-in nobody owns, and therefore nobody may edit. */
+    /**
+     * True for a shared catalogue template. The template itself is not
+     * rewritten; administrators edit its effective value through a
+     * company-owned override, so each Operating Unit can customize it.
+     */
     public function isSharedDefault(): bool
     {
         return $this->company_id === null;

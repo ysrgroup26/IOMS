@@ -1,7 +1,7 @@
 ---
 title: Verification Status
 type: register
-updated: 2026-10-04
+updated: 2026-10-13
 tags: [kb/verification]
 ---
 
@@ -49,10 +49,14 @@ on every phone width.
 
 | | |
 |---|---|
-| Suite | **800 tests, 4337 assertions — all passing** (2026-10-04, v2.94.0) |
-| Database | In-memory **SQLite**, so no MySQL or external service is needed |
-| Lint | `npm run lint` — 0 errors (4 existing warnings in `GasTestRecords/Index.jsx` and `Settings/Index.jsx`) |
-| Build | Production build in an isolated output directory succeeded, with the existing 2,031 KB bundle-size advisory |
+| Suite | **1,022 tests, 5,326 assertions — all passing** (2026-10-13, source checkout `main` at v2.107.0) |
+| Database | In-memory **SQLite**, as configured by `phpunit.xml`; no MySQL tests were run because no isolated MySQL test database is configured |
+| Lint | `npm run lint` — 0 errors, 4 warnings (existing unused ESLint-disable directives in `GasTestRecords/Index.jsx` and `Settings/Index.jsx`) |
+| Build | `npm run build` succeeded; generated assets use the current source. Existing large JavaScript chunk advisory remains (about 2,052 KB) |
+
+### Browser check attempted (2026-10-13)
+
+The local SQLite preview was reachable. The public registration form rendered without submitting account creation or accepting the terms; public pricing showed plan allowances; the signed-in account landed in My Work; Settings exposed user-role and My Work/PTW grants; and PPE Master plus its edit form rendered. This is **partial inspection only**. Account-class/quota management display, landing preference changes, PTW examples, and the PPE deletion/deactivation outcomes were not completed. The browser tool interrupted the PPE deletion prompt, and its subsequent accessibility-state request timed out. No deletion was confirmed and no browser pass is claimed. Do not treat the seeded preview as production data.
 
 > [!warning] SQLite is not MySQL
 > The suite deliberately runs on SQLite so it needs nothing external. That means it does **not**

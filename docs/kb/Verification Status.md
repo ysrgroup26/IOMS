@@ -49,14 +49,26 @@ on every phone width.
 
 | | |
 |---|---|
-| Suite | **1,022 tests, 5,326 assertions — all passing** (2026-10-13, source checkout `main` at v2.107.0) |
+| Suite | **1,027 tests, 5,375 assertions — all passing** (2026-10-13, source checkout `main` at v2.108.0) |
 | Database | In-memory **SQLite**, as configured by `phpunit.xml`; no MySQL tests were run because no isolated MySQL test database is configured |
 | Lint | `npm run lint` — 0 errors, 4 warnings (existing unused ESLint-disable directives in `GasTestRecords/Index.jsx` and `Settings/Index.jsx`) |
-| Build | `npm run build` succeeded; generated assets use the current source. Existing large JavaScript chunk advisory remains (about 2,052 KB) |
+| Build | `npm run build` succeeded; generated assets use the current source. Existing large JavaScript chunk advisory remains (about 2,056 KB) |
 
-### Browser check attempted (2026-10-13)
+### Browser verification (2026-10-13)
 
-The local SQLite preview was reachable. The public registration form rendered without submitting account creation or accepting the terms; public pricing showed plan allowances; the signed-in account landed in My Work; Settings exposed user-role and My Work/PTW grants; and PPE Master plus its edit form rendered. This is **partial inspection only**. Account-class/quota management display, landing preference changes, PTW examples, and the PPE deletion/deactivation outcomes were not completed. The browser tool interrupted the PPE deletion prompt, and its subsequent accessibility-state request timed out. No deletion was confirmed and no browser pass is claimed. Do not treat the seeded preview as production data.
+An isolated SQLite test tenant served the current production assets on a local preview. Verified in the
+browser: PPE Master saved Safety Shoes at a six-month interval and showed the success message; Users &
+Access displayed Full User vs My Work User and separate `1 / 25` and `0 / 50` counts; the account
+preference was labelled **Land in My Work**; Billing showed the My Work `0 / 50` meter and pack size;
+PTW examples separated work reference from physical location and named shipyard, mining, and
+construction examples. No real tenant or configured MySQL database was used.
+
+The create-user dialog exposed the Account Class selector, but its final Create action was not
+submitted: Computer Use requires action-time confirmation for creating an account, even when the
+overall verification was requested. No PPE deactivation or deletion was performed in the browser.
+Backend tests cover per-company deactivation, custom-type deletion, and refusal when history exists.
+The public sign-up flow was not submitted. This release therefore has successful browser checks for
+the listed read/edit flows, with browser account creation and UI deactivation still incomplete.
 
 > [!warning] SQLite is not MySQL
 > The suite deliberately runs on SQLite so it needs nothing external. That means it does **not**
@@ -72,6 +84,7 @@ The local SQLite preview was reachable. The public registration form rendered wi
 ### Test-covered, not browser-reviewed
 
 | Area | Version | What was verified |
+| My Work account class, entitlements, PPE overrides and PTW copy | 2.108.0 | `UserClassAndPtwQuotaTest`, `SharedMasterDataOwnershipTest`, full 1,027-test suite; isolated browser verified class/quota display, Land in My Work label, billing meter, six-month PPE override save, and cross-industry PTW examples. UI account creation and deactivation submit remain unverified pending the required action-time confirmation; deactivation/history safety is test-covered. Build succeeded; lint 0 errors, 4 existing warnings. MySQL not run because no isolated MySQL test database is configured |
 |---|---|---|
 | Hero copy and mobile background | 2.92.0 | `LandingPositioningTest` pins the four supplied paragraphs and asserts that the mobile composition uses the management photograph without the field photograph. Full suite: 742 tests / 3986 assertions; isolated production build succeeded; lint 0 errors / 4 existing warnings. No browser visual review was performed |
 

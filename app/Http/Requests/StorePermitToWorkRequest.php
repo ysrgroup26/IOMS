@@ -33,6 +33,10 @@ class StorePermitToWorkRequest extends FormRequest
         $tenantProjectIds = Project::whereIn('company_id', $tenantCompanyIds)->pluck('id');
         $tenantRaIds = RiskAssessment::whereIn('company_id', $tenantCompanyIds)->pluck('id');
         $tenantJsaIds = JobSafetyAnalysis::whereIn('company_id', $tenantCompanyIds)->pluck('id');
+        $companyId = (int) $this->input('company_id', 0);
+        $effectivePpeIds = $companyId
+            ? PpeType::effectiveForCompany($companyId)->where('is_active', true)->pluck('id')
+            : collect();
         // v2.17.0 (Part 8/9/11/21): tenant-scoped, active-only -- the
         // same allow-list backs both the optional PIC and the Workforce
         // list below, so neither can ever reference another tenant's
@@ -91,7 +95,7 @@ class StorePermitToWorkRequest extends FormRequest
              * split exists to prevent.
              */
             'required_ppe_ids' => ['nullable', 'array', 'max:40'],
-            'required_ppe_ids.*' => [Rule::in(PpeType::where('is_active', true)->pluck('id'))],
+            'required_ppe_ids.*' => [Rule::in($effectivePpeIds)],
             'additional_ppe' => ['nullable', 'array', 'max:20'],
             'additional_ppe.*' => ['string', 'max:120'],
             'hazards' => ['nullable', 'array', 'max:30'],

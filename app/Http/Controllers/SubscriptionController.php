@@ -105,6 +105,7 @@ class SubscriptionController extends Controller
         // server ENFORCES must be one count, or a customer is told they have
         // room they do not have.
         $userCount = app(EntitlementService::class)->usersUsedCount($request->user()->tenant);
+        $myWorkUserCount = app(EntitlementService::class)->myWorkUsersUsedCount($request->user()->tenant);
         $ptwUserCount = User::where('tenant_id', $tenantId)->where('ptw_access', true)->count();
         $companyCount = Company::withoutGlobalScopes()->where('tenant_id', $tenantId)->count();
 
@@ -258,6 +259,15 @@ class SubscriptionController extends Controller
                     'additional_charge_formatted' => $subscription
                         ? $this->pricing->format($subscription->additionalUserCharge())
                         : null,
+                ],
+                'my_work_users' => [
+                    'used' => $myWorkUserCount,
+                    'limit' => $subscription?->myWorkSeatLimit(),
+                    'included' => $subscription?->includedMyWorkUsers(),
+                    'additional' => $subscription?->additionalMyWorkUsers() ?? 0,
+                    'additional_pack_size' => (int) config('saas.my_work_pack_size', 10),
+                    'additional_pack_price' => (float) config('saas.my_work_pack_price', 0),
+                    'additional_pack_price_formatted' => $this->pricing->format((float) config('saas.my_work_pack_price', 0)),
                 ],
                 // Shown for information -- how many accounts hold PTW Access
                 // -- with no limit, because it is not a purchased capacity.

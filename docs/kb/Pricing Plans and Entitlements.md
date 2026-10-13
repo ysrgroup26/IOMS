@@ -231,11 +231,10 @@ See also: [[Product Strategy and Positioning]] · [[Data Ownership and Boundarie
 
 ---
 
-## Approved future model: metered PTW and a second user class (2026-09-30)
+## Historical proposal: metered PTW and a second user class (2026-09-30)
 
-**Approved. Not implemented. Not published.** Everything above this heading describes the model the
-code enforces today and the website publishes. This section records an approved direction that
-changes it.
+**Implemented in v2.86.0.** This proposal record is retained for its decision history. The live
+model and current published allowances are below.
 
 Two billable user classes, Full User and My Work User, counted separately, plus a metered PTW
 document quota with two pools: an included monthly allowance that expires at the period boundary, and
@@ -246,18 +245,16 @@ Full detail, including the figures, the conflicts with the current architecture 
 decisions, lives in `docs/IOMS Website Redesign/02 - Product & Pricing Truth.md` and
 `04 - Implementation Log.md`.
 
-> [!warning] Two documented decisions are reversed by this
-> **v2.53.0** retired a second seat pool because two capacity numbers made a plan card a
-> reconciliation exercise. **v2.82.0** defined a user as one active login account of any kind. Both
-> reasonings still live in `EntitlementService`. The new direction is the owner's to take; it is
-> recorded as a reversal so whoever implements it re-solves those problems rather than rediscovering
-> them.
+> [!note] The original proposal has shipped
+> `user_type` and `is_field_user` remain separate: one selects the billable and capability class,
+> the other is the optional landing preference. PTW Access remains a permission, not a user class or
+> seat.
 
 > [!important] The restriction is the product
 > A My Work User is priced at an effective Rp10.000 per month against Rp50.000 for a Full User. Today
 > `is_field_user` chooses a landing route and restricts nothing, so the cheaper class does not yet
 > exist as a distinct product. Publishing that price before the restriction is enforced is a
-> five-to-one arbitrage, not a rollout detail. This is blocking decision **D-1**, on [[Project Board]].
+> five-to-one arbitrage, not a rollout detail. The server-side class boundary shipped in v2.86.0.
 
 ---
 

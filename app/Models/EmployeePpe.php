@@ -110,8 +110,26 @@ class EmployeePpe extends Model
         // Expiry is always derived from the PPE type's replacement interval
         // at issuance time, never entered manually -- one source of truth.
         static::creating(function (EmployeePpe $record) {
+            $employee = Employee::find($record->employee_id);
+            $type = $record->ppe_type_id ? PpeType::withoutGlobalScopes()->find($record->ppe_type_id) : null;
+
+            // A selected shared template resolves to this company's
+            // override for new issues. Existing records and their expiry
+            // snapshots remain attached to their original type.
+            if ($employee && $type?->isSharedDefault()) {
+                $override = PpeType::withoutGlobalScopes()
+                    ->where('company_id', $employee->company_id)
+                    ->where('source_default_id', $type->id)
+                    ->where('is_active', true)
+                    ->first();
+
+                if ($override) {
+                    $record->ppe_type_id = $override->id;
+                    $type = $override;
+                }
+            }
+
             if (! $record->expiry_date && $record->issued_date) {
-                $type = PpeType::find($record->ppe_type_id);
                 if ($type && $type->replacement_interval_months) {
                     $record->expiry_date = Carbon::parse($record->issued_date)
                         ->addMonths($type->replacement_interval_months);

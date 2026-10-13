@@ -197,10 +197,11 @@ class PermitToWorkController extends Controller
             'ptwNumber' => PermitToWork::generateNumber(),
             'types' => PermitToWork::TYPES,
             // v2.73.0 -- the EXISTING PPE master, not a new one.
-            // `ppe_types` is installation-wide reference data with no
-            // company_id (see PpeType's own doc comment), so there is no
-            // tenant filter to apply -- active types are the whole list.
-            'ppeTypes' => PpeType::active()->get(['id', 'name']),
+            'ppeTypes' => $tenantCompanyIds->flatMap(fn ($companyId) =>
+                PpeType::effectiveForCompany((int) $companyId)->active()->get(['id', 'name'])->map(fn (PpeType $type) => [
+                    'id' => $type->id, 'name' => $type->name, 'company_id' => (int) $companyId,
+                ])
+            )->values(),
             // v2.38.0: the `employees` prop is GONE. It used to ship this
             // tenant's entire active employee directory into the page
             // payload just to populate two <select> elements -- fine for
@@ -368,7 +369,7 @@ class PermitToWorkController extends Controller
             'reason' => ['required_if:status,'.PermitToWork::STATUS_REJECTED, 'nullable', 'string', 'max:500'],
             // v2.73.0 -- only meaningful on approval; ignored otherwise.
             'confirmed_ppe_ids' => ['nullable', 'array', 'max:40'],
-            'confirmed_ppe_ids.*' => [Rule::in(PpeType::pluck('id'))],
+            'confirmed_ppe_ids.*' => [Rule::in(PpeType::effectiveForCompany($permitToWork->company_id)->pluck('id'))],
         ]);
 
         try {

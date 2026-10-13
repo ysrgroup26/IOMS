@@ -55,9 +55,9 @@ use Illuminate\Database\Eloquent\Scope;
  * -- ask for it by name with `withoutGlobalScope(CompanyOwnedScope::class)`,
  * which is greppable in a way that "forgot to add a where clause" is not.
  *
- * GLOBAL MASTER ROWS. Three tables use a null `company_id` to mean "the
- * built-in default, shared by everyone" rather than "unowned": KPI
- * categories, numbering formats and numbering sequences. A model opts
+ * GLOBAL MASTER ROWS. KPI categories, numbering formats, numbering
+ * sequences and PPE templates use a null `company_id` to mean "the built-in
+ * default, shared by everyone" rather than "unowned". A model opts
  * into that by returning true from `companyScopeAllowsGlobalRows()`, and
  * then null rows stay visible while owned rows are still restricted.
  * Every other table treats a null owner as unreachable, which is the

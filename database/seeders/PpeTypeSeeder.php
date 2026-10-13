@@ -25,7 +25,10 @@ class PpeTypeSeeder extends Seeder
         ];
 
         foreach ($types as $type) {
-            PpeType::updateOrCreate(['name' => $type['name']], $type + ['is_active' => true]);
+            PpeType::withoutGlobalScopes()->updateOrCreate(
+                ['company_id' => null, 'name' => $type['name']],
+                $type + ['is_active' => true]
+            );
         }
     }
 }

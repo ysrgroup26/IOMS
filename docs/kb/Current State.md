@@ -1,7 +1,7 @@
 ---
 title: Current State
 type: snapshot
-product-version: 2.107.0
+product-version: 2.108.0
 product-stage: Beta
 measured: 2026-10-13
 tags: [kb/state]
@@ -25,8 +25,8 @@ the date in the frontmatter, not remembered.
 |---|---|
 | Product | **IOMS — Industrial Operations Platform** |
 | Public company identity | **Tahada Group**; legal entity **PT Tahada Vistara Bersama** |
-| Version | **2.107.0**, stage **Beta**, edition **Enterprise Edition** |
-| Build | `2026.10.07.03`, release date `2026-10-07` |
+| Version | **2.108.0**, stage **Beta**, edition **Enterprise Edition** |
+| Build | `2026.10.13.01`, release date `2026-10-13` |
 | Stack | Laravel 12 · Inertia.js · React 18 · Tailwind · MySQL · Sanctum |
 
 The naming rules are not cosmetic — see [[Product Identity and Principles]].
@@ -40,8 +40,8 @@ The naming rules are not cosmetic — see [[Product Identity and Principles]].
 | Inertia pages | 181 |
 | Migrations | 195 |
 | Feature test files | 90 |
-| Tests / assertions | **1,022 / 5,326**, all passing on in-memory SQLite |
-| ADRs | 44 files (numbering has known gaps — see [[Decision Register]]) |
+| Tests / assertions | **1,027 / 5,375**, all passing on in-memory SQLite |
+| ADRs | 48 files (numbering has known gaps — see [[Decision Register]]) |
 | Workspaces in the navigation registry | 12 |
 
 ## Workspaces
@@ -83,11 +83,13 @@ server-side route allow-list still controls what that account may reach. See [[D
 
 ## What shipped most recently
 
-`2.107.0` (2026-10-07) — navigation now gates pages by the capabilities they require, user deletion
-preserves attribution by requiring deactivation when history exists, and project deletion closes
-projects with history. **1,022 tests / 5,326 assertions pass** on SQLite. A fresh production build
-succeeded on 2026-10-13. Browser verification of the remaining account-class, quota, PPE deletion,
-and PTW-example flows is incomplete; see [[Verification Status]].
+`2.108.0` (2026-10-13) — My Work users display as a separate account class and seat pool; PPE
+defaults can be overridden per Operating Unit without changing shared templates or past issue dates;
+PTW examples identify work references and physical locations across three industries. **1,027 tests /
+5,375 assertions pass** on in-memory SQLite. Production build and lint succeeded. Browser verification
+confirmed PPE interval editing, account class and quotas, the landing-preference label, billing meters,
+and neutral PTW examples. The final account-creation submit and destructive deactivation action were
+not performed in the browser; see [[Verification Status]].
 
 `2.93.0` (2026-10-04) — Master Admin can grant complimentary access to a verified registration:
 it provisions that registration through the same body a payment uses, with different commercial

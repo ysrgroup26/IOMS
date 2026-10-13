@@ -5,8 +5,10 @@ namespace App\Http\Controllers;
 use App\Http\Requests\StorePpeTypeRequest;
 use App\Http\Requests\UpdatePpeTypeRequest;
 use App\Models\ActivityLog;
+use App\Models\Company;
 use App\Models\PpeType;
 use Illuminate\Http\RedirectResponse;
+use Illuminate\Validation\ValidationException;
 
 /**
  * PPE Master. Table-driven per spec -- Super Admin can add/edit any PPE
@@ -24,9 +26,13 @@ class PpeTypeController extends Controller
      */
     public function store(StorePpeTypeRequest $request): RedirectResponse
     {
+        $data = $request->validated();
+        $this->assertCompanyAccess((int) $data['company_id']);
+        $this->assertNameAvailable($data['name'], (int) $data['company_id']);
+
         $ppeType = PpeType::create([
-            ...$request->validated(),
-            'company_id' => $request->user()->company_id,
+            ...$data,
+            'source_default_id' => null,
         ]);
 
         ActivityLog::record('created', "PPE type \"{$ppeType->name}\" was created.", $ppeType);
@@ -47,27 +53,63 @@ class PpeTypeController extends Controller
      */
     public function update(UpdatePpeTypeRequest $request, PpeType $ppeType): RedirectResponse
     {
-        if ($ppeType->isSharedDefault()) {
-            return back()->with('error',
-                'Jenis APD bawaan tidak dapat diubah. Tambahkan jenis APD milik organisasi Anda bila perlu yang berbeda.');
-        }
+        $data = $request->validated();
+        $companyId = (int) $data['company_id'];
+        $this->assertCompanyAccess($companyId);
 
-        $ppeType->update($request->validated());
+        if ($ppeType->isSharedDefault()) {
+            $override = PpeType::withoutGlobalScopes()
+                ->where('company_id', $companyId)
+                ->where('source_default_id', $ppeType->id)
+                ->first();
+            $this->assertNameAvailable($data['name'], $companyId, $override?->id, $ppeType->id);
+
+            $override ??= new PpeType(['company_id' => $companyId, 'source_default_id' => $ppeType->id]);
+            $override->fill(collect($data)->except('company_id')->all());
+            $override->save();
+            $ppeType = $override;
+        } else {
+            abort_unless($ppeType->company_id === $companyId, 404);
+            $this->assertNameAvailable($data['name'], $companyId, $ppeType->id);
+            $ppeType->update(collect($data)->except('company_id')->all());
+        }
 
         ActivityLog::record('updated', "PPE type \"{$ppeType->name}\" was updated.", $ppeType);
 
         return back()->with('success', 'PPE type updated.');
     }
 
-    public function destroy(PpeType $ppeType): RedirectResponse
+    public function destroy(\Illuminate\Http\Request $request, PpeType $ppeType): RedirectResponse
     {
         $this->authorize('delete', $ppeType);
 
-        // v2.106.0: the same boundary as update(). A built-in belongs to the
-        // installation, not to whichever customer happens to be looking at it.
+        $companyId = (int) $request->input('company_id');
+        $this->assertCompanyAccess($companyId);
+
         if ($ppeType->isSharedDefault()) {
-            return back()->with('error',
-                'Jenis APD bawaan tidak dapat dihapus. Nonaktifkan jenis APD milik organisasi Anda bila tidak dipakai.');
+            $override = PpeType::withoutGlobalScopes()
+                ->where('company_id', $companyId)
+                ->where('source_default_id', $ppeType->id)
+                ->first();
+            $override ??= new PpeType([
+                'company_id' => $companyId,
+                'source_default_id' => $ppeType->id,
+                'name' => $ppeType->name,
+                'replacement_interval_months' => $ppeType->replacement_interval_months,
+            ]);
+            $override->is_active = false;
+            $override->save();
+
+            return back()->with('success', 'PPE type deactivated for this Operating Unit.');
+        }
+
+        abort_unless($ppeType->company_id === $companyId, 404);
+
+        if ($ppeType->source_default_id) {
+            $ppeType->is_active = false;
+            $ppeType->save();
+
+            return back()->with('success', 'PPE type deactivated for this Operating Unit.');
         }
 
         // v2.63.0 -- THIS GUARD ASKS AN INSTALLATION-WIDE QUESTION, so it
@@ -90,5 +132,28 @@ class PpeTypeController extends Controller
         ActivityLog::record('deleted', "PPE type \"{$name}\" was removed.");
 
         return back()->with('success', 'PPE type removed.');
+    }
+
+    private function assertCompanyAccess(int $companyId): void
+    {
+        abort_unless(Company::query()->whereKey($companyId)->exists(), 404);
+    }
+
+    private function assertNameAvailable(string $name, int $companyId, ?int $ignoreId = null, ?int $sharedId = null): void
+    {
+        $duplicate = PpeType::withoutGlobalScopes()
+            ->where('company_id', $companyId)
+            ->where('name', $name)
+            ->when($ignoreId, fn ($q) => $q->whereKeyNot($ignoreId))
+            ->exists();
+
+        $sharedDuplicate = PpeType::withoutGlobalScopes()
+            ->whereNull('company_id')->where('name', $name)
+            ->when($sharedId, fn ($q) => $q->whereKeyNot($sharedId))
+            ->exists();
+
+        if ($duplicate || $sharedDuplicate) {
+            throw ValidationException::withMessages(['name' => 'A PPE type with this name already exists in this Operating Unit.']);
+        }
     }
 }

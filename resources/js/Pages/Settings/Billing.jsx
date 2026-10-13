@@ -394,6 +394,8 @@ export default function Billing({
                             does not fit their team. */}
                         <Meter icon={Users} label="Active users" {...entitlements.users} />
                         <AdditionalUsers users={entitlements.users} />
+                        <Meter icon={Users} label="My Work users" {...entitlements.my_work_users} />
+                        <div className="text-[11px] text-graphite-500">Included {entitlements.my_work_users?.included ?? 'Unlimited'} + {entitlements.my_work_users?.additional ?? 0} additional. Pack size: {entitlements.my_work_users?.additional_pack_size ?? 10} users.</div>
                         <BillingCentre centre={billingCentre} onlinePaymentEnabled={onlinePaymentEnabled} />
                         <AddOns addOns={addOns} prices={addOnPrices} />
                         {/* v2.54.0: capacity is measured in OPERATING UNITS -- one

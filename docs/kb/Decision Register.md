@@ -40,6 +40,7 @@ implementation and verification notes: [[IOMS Website Redesign/04 - Implementati
 
 | ADR | Settled | Status |
 |---|---|---|
+| [[050-company-specific-ppe-template-overrides\|050 — PPE defaults are templates; company edits are overrides]] | Shared PPE defaults stay immutable; each authorized Operating Unit receives its own override, and historical issue dates remain unchanged | `#status/implemented` — v2.108.0; tested and PPE edit browser-verified |
 | [[001-approval-engine\|001 — Universal Approval Engine]] | One polymorphic `approvals` table + `HasApprovals`, not per-module approval code | `#status/implemented` — **extended by 010** |
 | [[004-timeline-engine\|004 — Activity Timeline]] | The recording mechanism already existed; only the viewer was built | `#status/implemented` |
 | [[006-material-request-workflow\|006 — Material Request Workflow]] | The full lifecycle, and **why "Pending Approval" is not a stored status** | `#status/implemented` — **extended by 030** |

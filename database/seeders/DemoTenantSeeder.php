@@ -293,7 +293,7 @@ class DemoTenantSeeder extends Seeder
         $projects = [];
 
         foreach ([
-            ['MV Twin Sister 307 Docking', 'TS-307', 'MV Twin Sister 307', 'Graving Dock 2'],
+            ['Hull Block A-12 Fabrication', 'HB-A12', null, 'Workshop Zone B'],
             ['Yard Expansion Phase 2', 'YE-02', null, 'North Yard'],
         ] as [$name, $code, $vessel, $location]) {
             $projects[] = Project::firstOrCreate(
@@ -397,10 +397,10 @@ class DemoTenantSeeder extends Seeder
             [
                 'ptw_number' => 'PTW-'.now()->year.'-00001',
                 'project_id' => $projects[0]->id ?? null,
-                'work_reference' => null,
+                'work_reference' => 'Hull Block A-12',
                 'permit_type' => 'hot_work',
-                'work_description' => 'Hot work for shell plate replacement at starboard side.',
-                'location' => 'Graving Dock 2 — Starboard Hull',
+                'work_description' => 'Hot work for shell plate replacement on Hull Block A-12.',
+                'location' => 'Workshop Zone B',
                 'status' => PermitToWork::STATUS_ACTIVE,
                 'offset' => 0,
             ],

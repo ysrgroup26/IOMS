@@ -10,12 +10,12 @@ class PpeType extends Model
     use BelongsToCompany;
 
     /**
-     * v2.106.0 -- A NULL COMPANY IS THE SHARED BUILT-IN CATALOGUE.
+     * A NULL COMPANY IS THE SHARED BUILT-IN CATALOGUE.
      *
      * Same meaning as KpiCategory, NumberingFormat and NumberingSequence:
      * null is the default every customer starts from, a value is that
-     * customer's own addition. Both are visible to the customer; only the
-     * second is theirs to change (see PpeTypeController).
+     * customer's override or addition. Effective queries hide a replaced
+     * template for that company; the shared source is never changed.
      */
     public function companyScopeAllowsGlobalRows(): bool
     {
@@ -28,7 +28,23 @@ class PpeType extends Model
         return $this->company_id === null;
     }
 
-    protected $fillable = ['company_id', 'name', 'replacement_interval_months', 'is_active'];
+    /** Effective catalogue: tenant-owned overrides replace a shared template in this company only. */
+    public function scopeEffectiveForCompany($query, int $companyId)
+    {
+        $overridden = static::withoutGlobalScopes()
+            ->where('company_id', $companyId)
+            ->whereNotNull('source_default_id')
+            ->select('source_default_id');
+
+        return $query->where(function ($catalogue) use ($companyId, $overridden) {
+            $catalogue->where('company_id', $companyId)
+                ->orWhere(function ($defaults) use ($overridden) {
+                    $defaults->whereNull('company_id')->whereNotIn('id', $overridden);
+                });
+        });
+    }
+
+    protected $fillable = ['company_id', 'source_default_id', 'name', 'replacement_interval_months', 'is_active'];
 
     protected function casts(): array
     {
@@ -39,18 +55,12 @@ class PpeType extends Model
     }
 
     /**
-     * v2.63.0 -- CAREFUL: `employee_ppe` IS TENANT-SCOPED, THIS TABLE IS NOT.
+     * `employee_ppe` is tenant-scoped; defaults are shared and custom PPE
+     * rows are company-owned. Deletion must preserve all issuance history.
      *
-     * `ppe_types` is deliberately installation-wide reference data -- six
-     * generic rows ("Safety Helmet", "Coverall") with a replacement
-     * interval, holding nothing that identifies a customer. It carries no
-     * `company_id` and no isolation scope, and the audit recorded that as
-     * an intentional decision rather than an oversight.
-     *
-     * But this relation crosses INTO scoped data, so it answers a
-     * per-tenant question by default. A caller asking "is anyone anywhere
-     * using this type" -- deleting a shared row, for instance -- must say
-     * `->withoutGlobalScopes()` explicitly. See PpeTypeController::destroy().
+     * A caller asking whether any assignment uses an owned row still must
+     * say `->withoutGlobalScopes()` explicitly, since historical records
+     * belonging to other authorized companies also protect it.
      */
     public function assignments()
     {

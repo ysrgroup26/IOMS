@@ -119,8 +119,8 @@ export default function AdminOverview({ organization, access, security, structur
                     surfaces (ADR 043). */}
                 <FigureGroup
                     title="Access"
-                    description="Akun login aktif dan kapasitas yang tersisa. Perangkat tidak dihitung: satu akun boleh masuk dari beberapa perangkat."
-                    columns={5}
+                    description="Akun login aktif dan kapasitas terpisah untuk Full User dan My Work User. Perangkat tidak dihitung."
+                    columns={6}
                     actions={
                         <Link href={route('settings.index', { tab: 'users' })} className="inline-flex items-center gap-1 text-xs font-medium text-brand-600 hover:underline dark:text-brand-400">
                             Manage users <ArrowRight className="h-3 w-3" />
@@ -128,6 +128,7 @@ export default function AdminOverview({ organization, access, security, structur
                     }
                 >
                     <Figure label="Active Users" value={access?.active_users ?? 0} hint="akun login aktif" emphasis />
+                    <Figure label="My Work Users" value={`${access?.active_my_work_users ?? 0} / ${access?.my_work_seat_limit ?? 'Unlimited'}`} hint={`${access?.included_my_work_users ?? 'Unlimited'} included + ${access?.additional_my_work_users ?? 0} additional`} emphasis />
                     <Figure
                         label="Capacity"
                         value={seatLimit === null || seatLimit === undefined ? 'Unlimited' : seatLimit}

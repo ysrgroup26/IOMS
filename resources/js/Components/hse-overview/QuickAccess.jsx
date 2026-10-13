@@ -1,7 +1,7 @@
 import { Link } from '@inertiajs/react';
 import { cn } from '@/lib/utils';
 import { accentFor } from './accents';
-import { Zap } from 'lucide-react';
+import { Zap, ArrowRight } from 'lucide-react';
 
 /**
  * v2.109.0 -- THE SIX THINGS AN HSE USER STARTS.
@@ -17,6 +17,13 @@ import { Zap } from 'lucide-react';
  * emerald, reports blue. The point of the colour is recognition at a
  * glance, not decoration -- which is why the set is fixed rather than
  * cycled from a palette.
+ *
+ * v2.116.0 -- TEXT-FORWARD, PER THE APPROVED REFERENCE. These were icon
+ * tiles with a label underneath: a filled container, a glyph, and the
+ * words as a caption. The action is the words, so the words lead, the
+ * icon shrinks to an outline marker and a directional arrow says the tile
+ * goes somewhere. One row of six decorative containers was the single
+ * heaviest piece of furniture on the page.
  */
 export default function QuickAccess({ actions = [] }) {
     if (actions.length === 0) {
@@ -34,7 +41,7 @@ export default function QuickAccess({ actions = [] }) {
                 </p>
             </header>
 
-            <div className="mt-3 grid grid-cols-2 gap-2 sm:grid-cols-3 lg:grid-cols-6">
+            <div className="mt-3 grid grid-cols-1 gap-2 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-6">
                 {actions.map((action) => {
                     const tone = accentFor(action.accent);
                     const Icon = action.icon;
@@ -44,21 +51,23 @@ export default function QuickAccess({ actions = [] }) {
                             key={action.label}
                             href={action.href}
                             className={cn(
-                                'group flex flex-col items-start gap-2 rounded-xl border border-graphite-200/70 bg-white p-3',
-                                'transition-all duration-200 hover:-translate-y-0.5 hover:border-graphite-300 hover:shadow-[0_6px_18px_rgba(16,24,40,0.07)]',
+                                'group flex items-center gap-2.5 rounded-xl border border-graphite-200/70 bg-white px-3 py-2.5',
+                                'transition-all duration-200 hover:border-graphite-300 hover:shadow-[0_6px_18px_rgba(16,24,40,0.07)]',
                                 'dark:border-slate-800 dark:bg-slate-900 dark:hover:border-slate-700'
                             )}
                         >
-                            <span className={cn('inline-flex h-8 w-8 items-center justify-center rounded-lg ring-1', tone.icon)}>
-                                <Icon className="h-4 w-4" />
-                            </span>
-                            <span className="text-[11.5px] font-semibold leading-tight text-graphite-700 dark:text-slate-200">
+                            <Icon className={cn('h-4 w-4 shrink-0', tone.value)} />
+
+                            <span className="min-w-0 flex-1 truncate text-[12px] font-semibold leading-tight text-graphite-800 dark:text-slate-100">
                                 {action.label}
                             </span>
+
+                            <ArrowRight className="h-3.5 w-3.5 shrink-0 text-graphite-300 transition-transform duration-200 group-hover:translate-x-0.5 group-hover:text-graphite-500 dark:text-slate-700" />
                         </Link>
                     );
                 })}
             </div>
+
         </section>
     );
 }

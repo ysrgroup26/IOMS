@@ -5,8 +5,12 @@ import ModuleCard from '@/Components/shared/ModuleCard';
 import ActivityList from '@/Components/shared/ActivityList';
 import StatusBadge from '@/Components/shared/StatusBadge';
 import { Card, CardContent, CardHeader, CardTitle, CardDescription } from '@/Components/ui/card';
-import { Select, SelectTrigger, SelectValue, SelectContent, SelectItem } from '@/Components/ui/select';
 import KpiTile from '@/Components/hse-overview/KpiTile';
+import OverviewHero from '@/Components/hse-overview/OverviewHero';
+import OperationalKpiCard from '@/Components/hse-overview/OperationalKpiCard';
+import AccidentClassificationPanel from '@/Components/hse-overview/AccidentClassificationPanel';
+import FrequencyRatePanel from '@/Components/hse-overview/FrequencyRatePanel';
+import NotificationsPanel from '@/Components/hse-overview/NotificationsPanel';
 import SafetyTrendChart from '@/Components/hse-overview/SafetyTrendChart';
 import PriorityActions from '@/Components/hse-overview/PriorityActions';
 import OverviewCalendar from '@/Components/hse-overview/OverviewCalendar';
@@ -16,7 +20,7 @@ import {
     AlertTriangle, HardHat, History, Eye, Flame, ShieldAlert, ClipboardCheck,
     ClipboardList, FileWarning, Lock, UsersRound, FlaskConical, UserCheck, FileCheck,
     FileStack, Recycle, PackageSearch, ShieldCheck, Recycle as RecycleIcon, LayoutGrid,
-    FileBarChart, PlusCircle, Building2, Info,
+    FileBarChart, PlusCircle, Info, CalendarCheck,
 } from 'lucide-react';
 
 /* v2.68.0 -- LANGUAGE HIERARCHY (v2.53.0) APPLIED HERE AT LAST.
@@ -48,6 +52,22 @@ const HSE_MODULES = [
  * says what each one looks like. A key the server stops sending simply
  * stops rendering.
  */
+/**
+ * v2.116.0 -- Operational KPI presentation. The SERVER decides what the
+ * five cards are, what they count and where they lead (see
+ * `HseDashboardController::operationalKpis()`); this map says only what
+ * each one looks like. The ORDER is the server's too, because the
+ * approved design fixes it: permits, incidents, PPE, inspections,
+ * material requests, left to right.
+ */
+const OPERATIONAL_KPI_STYLE = {
+    permits: { icon: Flame, accent: 'blue' },
+    incidents: { icon: AlertTriangle, accent: 'red' },
+    ppe: { icon: HardHat, accent: 'amber' },
+    inspections: { icon: CalendarCheck, accent: 'green' },
+    material: { icon: PackageSearch, accent: 'violet' },
+};
+
 const QUICK_ACCESS_STYLE = {
     incident: { icon: AlertTriangle, accent: 'red' },
     observation: { icon: Eye, accent: 'amber' },
@@ -87,6 +107,7 @@ export default function HseDashboard({
     openPermitsCount, overdueSafetyEquipmentCount, overdueP3kCount, openCapaCount,
     actionRequired, manHours, safetyKpi, wasteSummary, canManageHse,
     safetyTrend, calendar, quickAccess = [], companies = [], filters = {},
+    operationalKpis = [], accidentClassification, frequencyRates,
 }) {
     const { auth, readiness } = usePage().props;
     const criticalIncidents = incidentsBySeverity?.critical ?? 0;
@@ -94,6 +115,10 @@ export default function HseDashboard({
     const quickActions = quickAccess
         .filter((action) => QUICK_ACCESS_STYLE[action.key])
         .map((action) => ({ ...action, ...QUICK_ACCESS_STYLE[action.key] }));
+
+    const kpiCards = operationalKpis
+        .filter((kpi) => OPERATIONAL_KPI_STYLE[kpi.key])
+        .map((kpi) => ({ ...kpi, ...OPERATIONAL_KPI_STYLE[kpi.key] }));
 
     /* The operating-unit filter is a server round trip, because the
        figures it changes are counted on the server. `preserveState` keeps
@@ -113,45 +138,17 @@ export default function HseDashboard({
             <Head title="HSE Overview" />
 
             {/* ---------------------------------------------------------- */
-            /* A. Introduction -- compact, one row on desktop.              */
-            /* The old page spent a full-width hero card on a greeting;     */
-            /* this states what the page is, what it is scoped to, and      */
-            /* gets out of the way so the KPIs are above the fold.          */
+            /* A. Header band -- the approved dark industrial opening.      */
+            /* It states where you are and what the page is scoped to, and  */
+            /* carries the one filter that genuinely narrows every figure   */
+            /* below it.                                                    */
             /* ---------------------------------------------------------- */}
-            <section className="mb-4 flex flex-col gap-3 rounded-2xl border border-graphite-200/80 bg-gradient-to-br from-blue-50/60 via-white to-white p-4 shadow-[0_1px_2px_rgba(16,24,40,0.04)] dark:border-slate-800 dark:from-slate-900 dark:via-slate-900 dark:to-slate-900 sm:flex-row sm:items-center sm:justify-between">
-                <div className="min-w-0">
-                    <div className="flex items-center gap-2">
-                        <span className="inline-flex h-9 w-9 items-center justify-center rounded-xl bg-blue-600 text-white shadow-sm">
-                            <ShieldCheck className="h-[18px] w-[18px]" />
-                        </span>
-                        <div className="min-w-0">
-                            <h1 className="truncate text-[17px] font-bold leading-tight text-graphite-900 dark:text-slate-50">HSE Overview</h1>
-                            <p className="mt-0.5 truncate text-[12px] text-graphite-500 dark:text-slate-400">
-                                Kondisi keselamatan, pekerjaan yang terlambat, dan agenda HSE dalam satu halaman.
-                            </p>
-                        </div>
-                    </div>
-                </div>
-
-                {/* Shown only when there is more than one operating unit to
-                    choose between -- a filter with one option is furniture. */}
-                {companies.length > 1 && (
-                    <div className="flex shrink-0 items-center gap-2">
-                        <Building2 className="h-3.5 w-3.5 text-graphite-400" />
-                        <Select value={selectedCompany} onValueChange={applyCompany}>
-                            <SelectTrigger className="h-9 w-full bg-white text-[12px] sm:w-52 dark:bg-slate-900">
-                                <SelectValue placeholder="Operating Unit" />
-                            </SelectTrigger>
-                            <SelectContent>
-                                <SelectItem value="all">All Operating Units</SelectItem>
-                                {companies.map((c) => (
-                                    <SelectItem key={c.id} value={String(c.id)}>{c.name}</SelectItem>
-                                ))}
-                            </SelectContent>
-                        </Select>
-                    </div>
-                )}
-            </section>
+            <OverviewHero
+                companies={companies}
+                selectedCompany={selectedCompany}
+                onCompanyChange={applyCompany}
+                fullCalendarHref={route('calendar.index')}
+            />
 
             {/* PRESERVED FROM DashboardShell (v2.39.0), NOT DROPPED WITH IT.
                 This page no longer composes through that shared shell --
@@ -177,86 +174,92 @@ export default function HseDashboard({
             )}
 
             {/* ---------------------------------------------------------- */
-            /* B. Safety KPIs -- six counts, differentiated by meaning.     */
-            /* 2 / 3 / 6 columns so a phone shows pairs, a tablet shows     */
-            /* triples and a desktop shows the row, instead of six cards    */
-            /* squeezed to unreadable width.                                */
+            /* B. Operational KPIs -- five cards, in the approved order.    */
+            /*                                                              */
+            /* What is open RIGHT NOW, and nothing else. The six tiles this */
+            /* replaced mixed operational state (open permits) with         */
+            /* categorical counts (open CAPA) at equal weight; the counts    */
+            /* that are not operational conditions moved to the compliance   */
+            /* strip lower down, where supporting figures belong.            */
+            /*                                                              */
+            /* 1 / 2 / 3 / 5 columns: five cards squeezed onto a phone are   */
+            /* five unreadable cards.                                       */
             /* ---------------------------------------------------------- */}
-            <section className="mb-4 grid grid-cols-2 gap-3 sm:grid-cols-3 xl:grid-cols-6">
-                <KpiTile
-                    icon={AlertTriangle}
-                    value={criticalIncidents}
-                    label="Critical Incidents"
-                    reading={criticalIncidents > 0 ? 'Perlu tindakan segera' : 'Tidak ada yang kritis'}
-                    accent={criticalIncidents > 0 ? 'red' : 'green'}
-                    href={route('incidents.index', { severity: 'critical' })}
-                />
-                <KpiTile
-                    icon={ShieldAlert}
-                    value={openIncidentsCount}
-                    label="Open Incidents"
-                    reading="Dilaporkan atau sedang diinvestigasi"
-                    accent={openIncidentsCount > 0 ? 'red' : 'green'}
-                    href={route('incidents.index')}
-                />
-                <KpiTile
-                    icon={Eye}
-                    value={openSafetyObservationsCount}
-                    label="Open Observations"
-                    reading="Belum ditutup"
-                    accent={openSafetyObservationsCount > 0 ? 'amber' : 'green'}
-                    href={route('safety-observations.index')}
-                />
-                <KpiTile
-                    icon={ClipboardCheck}
-                    value={openCapaCount}
-                    label="Open CAPA"
-                    reading="Belum diverifikasi"
-                    accent={openCapaCount > 0 ? 'violet' : 'green'}
-                    href={route('corrective-actions.index')}
-                />
-                <KpiTile
-                    icon={Flame}
-                    value={openPermitsCount}
-                    label="Active Permits"
-                    reading="Disetujui atau sedang berjalan"
-                    accent="blue"
-                    href={route('permits-to-work.index')}
-                />
-                <KpiTile
-                    icon={HardHat}
-                    value={ppeAlertCount}
-                    label="PPE Alerts"
-                    reading="Akan atau sudah kedaluwarsa"
-                    accent={ppeAlertCount > 0 ? 'amber' : 'green'}
-                    href={route('ppe.dashboard')}
-                />
+            <section className="mb-4 grid grid-cols-2 gap-3 lg:grid-cols-3 xl:grid-cols-5">
+                {kpiCards.map((kpi) => (
+                    <OperationalKpiCard
+                        key={kpi.key}
+                        icon={kpi.icon}
+                        accent={kpi.accent}
+                        label={kpi.label}
+                        value={kpi.value}
+                        detail={kpi.detail}
+                        href={kpi.href}
+                        alert={kpi.alert}
+                    />
+                ))}
             </section>
 
             {/* ---------------------------------------------------------- */
-            /* C + D + E. The working row: trend, overdue work, calendar.   */
-            /* 12-col grid so the chart gets the width it needs to be       */
-            /* readable (7) and the calendar keeps a usable square (5),     */
-            /* rather than three equal thirds that suit none of them.       */
+            /* C. Trend, calendar and notifications, side by side.          */
+            /*                                                              */
+            /* 5 / 4 / 3 of twelve: the chart needs width to stay readable,  */
+            /* the calendar needs a near-square to hold a month grid, and a  */
+            /* notification list is a column of short rows that reads fine    */
+            /* narrow. Three equal thirds would suit none of them.           */
             /* ---------------------------------------------------------- */}
-            <div className="mb-4 grid grid-cols-1 gap-4 xl:grid-cols-12">
-                <div className="flex flex-col gap-4 xl:col-span-7">
+            <div className="mb-4 grid grid-cols-1 gap-4 lg:grid-cols-2 xl:grid-cols-12">
+                <div className="xl:col-span-5">
                     <SafetyTrendChart trend={safetyTrend} />
-                    <PriorityActions items={actionRequired ?? []} />
                 </div>
 
-                <div className="xl:col-span-5">
+                <div className="xl:col-span-4">
                     <OverviewCalendar
                         events={calendar?.events ?? []}
                         window={calendar?.window}
                         today={calendar?.today}
+                        companies={companies}
                     />
+                </div>
+
+                <div className="lg:col-span-2 xl:col-span-3">
+                    <NotificationsPanel />
                 </div>
             </div>
 
-            {/* F. Man-Hour & Safety KPI Foundation. */}
+            {/* ---------------------------------------------------------- */
+            /* D. Safety KPIs -- classification, then rates, then exposure. */
+            /*                                                              */
+            /* THE ORDER IS THE ARGUMENT. A classification is a count of     */
+            /* cases; a frequency rate divides those cases by exposure       */
+            /* hours; the exposure base is what it divides by. Reading left   */
+            /* to right you meet the numerator, the rate, then the           */
+            /* denominator -- which is also why they are three cards and not  */
+            /* one panel of eight numbers.                                   */
+            /* ---------------------------------------------------------- */}
+            <div className="mb-4 grid grid-cols-1 items-stretch gap-4 lg:grid-cols-2 xl:grid-cols-12">
+                <div className="xl:col-span-5">
+                    <AccidentClassificationPanel classification={accidentClassification} />
+                </div>
+
+                <div className="xl:col-span-3">
+                    <FrequencyRatePanel rates={frequencyRates} />
+                </div>
+
+                <div className="lg:col-span-2 xl:col-span-4">
+                    <ManHourPanel manHours={manHours} safetyKpi={safetyKpi} />
+                </div>
+            </div>
+
+            {/* E. Quick Access -- what you start after reading the page. */}
             <div className="mb-4">
-                <ManHourPanel manHours={manHours} safetyKpi={safetyKpi} />
+                <QuickAccess actions={quickActions} />
+            </div>
+
+            {/* F. What is already late. Below the headline sections because
+                it is a worklist rather than a reading of the operation. */}
+            <div className="mb-4">
+                <PriorityActions items={actionRequired ?? []} />
             </div>
 
             {/* ---------------------------------------------------------- */
@@ -344,6 +347,43 @@ export default function HseDashboard({
                 </Card>
             </div>
 
+            {/* ---------------------------------------------------------- */
+            /* G. The counts that are NOT operational conditions.           */
+            /*                                                              */
+            /* Critical incidents, open observations and open CAPA were in   */
+            /* the headline row and are still real, still counted the same   */
+            /* way and still click through to the same registers -- they are  */
+            /* simply not what "open right now" means on an operations       */
+            /* dashboard, so they read here at supporting weight instead of   */
+            /* competing with the five above. Nothing was dropped.           */
+            /* ---------------------------------------------------------- */}
+            <div className="mb-4 grid grid-cols-2 gap-3 sm:grid-cols-3">
+                <KpiTile
+                    icon={AlertTriangle}
+                    value={criticalIncidents}
+                    label="Critical Incidents"
+                    reading={criticalIncidents > 0 ? 'Perlu tindakan segera' : 'Tidak ada yang kritis'}
+                    accent={criticalIncidents > 0 ? 'red' : 'green'}
+                    href={route('incidents.index', { severity: 'critical' })}
+                />
+                <KpiTile
+                    icon={Eye}
+                    value={openSafetyObservationsCount}
+                    label="Open Observations"
+                    reading="Belum ditutup"
+                    accent={openSafetyObservationsCount > 0 ? 'amber' : 'green'}
+                    href={route('safety-observations.index')}
+                />
+                <KpiTile
+                    icon={ClipboardCheck}
+                    value={openCapaCount}
+                    label="Open CAPA"
+                    reading="Belum diverifikasi"
+                    accent={openCapaCount > 0 ? 'violet' : 'green'}
+                    href={route('corrective-actions.index')}
+                />
+            </div>
+
             {/* Compliance strip: equipment, P3K and waste, each a real
                 count with its own destination. Kept small -- these are
                 supporting figures, not headline KPIs. */}
@@ -394,12 +434,6 @@ export default function HseDashboard({
                     accent={(wasteSummary?.pending_disposal ?? 0) > 0 ? 'amber' : 'slate'}
                     href={route('waste.dashboard')}
                 />
-            </div>
-
-            {/* G. Quick Access -- server-gated, near the bottom because it
-                is what you do after reading, not before. */}
-            <div className="mb-4">
-                <QuickAccess actions={quickActions} />
             </div>
 
             {/* Module directory, unchanged in content and gating. */}

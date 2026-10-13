@@ -56,6 +56,9 @@ estimated:
 - **No inventory value.** `items` carries no unit cost. A number here would be fabricated.
 - **No TRIR or safety index.** Both need exposure hours across contractors as well as employees, and
   a rate from a partial denominator is worse than no rate, because it gets quoted.
+  *(v2.116.0: this still holds for Management. The HSE Overview now publishes TRIR and LTIFR with
+  every input visible beside them — see [ADR 056](056-a-rate-is-published-with-its-arithmetic.md) for
+  why the same number is responsible on one surface and not the other.)*
 - **No compliance score.** IOMS records which documents exist and what state each is in; it does not
   know which documents a company is legally *required* to hold. There is no denominator.
 

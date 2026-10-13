@@ -7,6 +7,7 @@ use App\Models\Company;
 use App\Models\CorrectiveAction;
 use App\Models\EmployeePpe;
 use App\Models\Incident;
+use App\Models\MaterialRequest;
 use App\Models\P3kBox;
 use App\Models\PermitToWork;
 use App\Models\Project;
@@ -78,15 +79,24 @@ class HseDashboardController extends Controller
         // set; it only stops those from leaking cross-tenant, which is the
         // actual bug.
 
+        /*
+         * v2.116.0 -- counted once and reused, because the KPI card's
+         * detail line has to partition the very same number it sits under.
+         */
+        $openIncidentsCount = (clone $openIncidents)->count();
+
+        $ppeAlertCount = EmployeePpe::query()->whereHas('employee', fn ($q) => $q->whereIn('company_id', $companyIds))->effectiveStatus('expiring_soon')->count()
+            + EmployeePpe::query()->whereHas('employee', fn ($q) => $q->whereIn('company_id', $companyIds))->effectiveStatus('expired')->count();
+
         return Inertia::render('Hse/Dashboard', [
             'activeProjectsCount' => Project::whereIn('company_id', $companyIds)->whereIn('status', ['planned', 'ongoing'])->count(),
-            'openIncidentsCount' => (clone $openIncidents)->count(),
+            'openIncidentsCount' => $openIncidentsCount,
+            'operationalKpis' => $this->operationalKpis($companyIds, $openIncidentsCount, $ppeAlertCount),
             'incidentsBySeverity' => (clone $openIncidents)
                 ->selectRaw('severity, count(*) as total')
                 ->groupBy('severity')
                 ->pluck('total', 'severity'),
-            'ppeAlertCount' => EmployeePpe::query()->whereHas('employee', fn ($q) => $q->whereIn('company_id', $companyIds))->effectiveStatus('expiring_soon')->count()
-                + EmployeePpe::query()->whereHas('employee', fn ($q) => $q->whereIn('company_id', $companyIds))->effectiveStatus('expired')->count(),
+            'ppeAlertCount' => $ppeAlertCount,
             'recentIncidents' => Incident::where(fn ($q) => $q->whereIn('company_id', $companyIds)->orWhereNull('company_id'))
                 ->with('reporter:id,name')
                 ->latest('incident_date')
@@ -163,13 +173,35 @@ class HseDashboardController extends Controller
                 'this_month' => $this->dashboardStats->sumManHours($companyIds, now()->startOfMonth()->toDateString(), now()->toDateString()),
                 'ytd' => $this->dashboardStats->sumManHours($companyIds, now()->startOfYear()->toDateString(), now()->toDateString()),
             ],
+            /*
+             * v2.116.0 -- ACCIDENT CLASSIFICATION AND FREQUENCY RATES ARE
+             * TWO DIFFERENT MEASURES, SO THEY ARE TWO DIFFERENT PROPS.
+             *
+             * A classification is a COUNT OF CASES. A frequency rate is
+             * cases divided by exposure hours. Merging them into one panel
+             * of numbers is how a reader ends up quoting a case count as a
+             * rate, so the page gets them separately and each states its
+             * own period, numerator and denominator.
+             */
+            'accidentClassification' => $this->accidentClassification($companyIds),
+            'frequencyRates' => $this->frequencyRates($companyIds),
+
             'safetyKpi' => [
                 'man_hours_ytd' => $this->dashboardStats->sumManHours($companyIds, now()->startOfYear()->toDateString(), now()->toDateString()),
-                'recordable_injuries_ytd' => Incident::where(fn ($q) => $q->whereIn('company_id', $companyIds)->orWhereNull('company_id'))
-                    ->where('category', 'injury')
-                    ->whereYear('incident_date', now()->year)
-                    ->count(),
-                'lost_time_metrics_available' => false,
+                /*
+                 * v2.116.0 -- THIS NUMBER WAS MISLABELLED, AND THE FIX IS
+                 * THE WHOLE POINT OF THE CLASSIFICATION WORK.
+                 *
+                 * It counted every incident whose CATEGORY is `injury`,
+                 * under the label "Recordable Injuries". Those are not the
+                 * same set: a first-aid case is an injury and is NOT
+                 * recordable, so the figure overstated the recordable
+                 * count by however many first-aid cases a tenant had
+                 * recorded. It now reads the classification the reporter
+                 * actually selected -- see `accidentClassification()` for
+                 * which values are recordable and why.
+                 */
+                'recordable_injuries_ytd' => $this->accidentClassification($companyIds)['recordable'],
             ],
             'departmentCalendar' => $this->calendar->departmentEvents($companyIds, 'hse'),
             // v1.11.4 (HSE Waste Management, Part 20) -- compact summary
@@ -287,6 +319,293 @@ class HseDashboardController extends Controller
             // shows nothing an ordinary viewer could act on anyway.
             'canManageHse' => auth()->user()->canManageHse(),
         ]);
+    }
+
+    /**
+     * The five operational KPIs across the top of the Overview, in the
+     * order the approved design fixes them.
+     *
+     * BUILT ON THE SERVER, deliberately, and not six loose props the page
+     * arranges. Each card carries a value AND the two-part detail line
+     * underneath it, and both halves have to be counted with the same
+     * WHERE clause or the detail contradicts the number above it. The page
+     * maps `key` to an icon and an accent and decides nothing else.
+     *
+     * EVERY DETAIL LINE PARTITIONS ITS OWN VALUE. "1 active, 0 past end
+     * time" adds up to the 1 above it. A detail that counted a different
+     * set would read as a breakdown and not be one, which is worse than
+     * having no detail at all.
+     *
+     * @param  Collection<int, int>|array<int, int>  $companyIds
+     * @return list<array<string, mixed>>
+     */
+    private function operationalKpis($companyIds, int $openIncidentsCount, int $ppeAlertCount): array
+    {
+        $now = now();
+
+        // --- Permits: open now, split by whether their window has passed.
+        $openPermits = PermitToWork::whereIn('company_id', $companyIds)
+            ->whereIn('status', [PermitToWork::STATUS_APPROVED, PermitToWork::STATUS_ACTIVE]);
+
+        $permitsPastEnd = (clone $openPermits)->whereNotNull('end_datetime')->where('end_datetime', '<', $now)->count();
+        $permitsOpen = (clone $openPermits)->count();
+
+        // --- Incidents: the same two statuses the headline count uses.
+        $reported = Incident::where(fn ($q) => $q->whereIn('company_id', $companyIds)->orWhereNull('company_id'))
+            ->where('status', Incident::STATUS_REPORTED)->count();
+
+        // --- PPE: the two states the alert count is the sum of.
+        $ppeExpiring = EmployeePpe::query()
+            ->whereHas('employee', fn ($q) => $q->whereIn('company_id', $companyIds))
+            ->effectiveStatus('expiring_soon')->count();
+
+        /*
+         * --- Inspections: THE ONLY SCHEDULED INSPECTIONS IOMS HAS.
+         *
+         * `hse_inspections` records inspections that HAPPENED -- it has an
+         * `inspection_date` and a pass/fail result, and no scheduled or
+         * planned date anywhere. What IS scheduled is the next inspection
+         * due on a piece of safety equipment and on a P3K box, both real
+         * date columns the Overview already counts overdue items from.
+         * So this card counts those, and says so; counting completed
+         * inspections and calling them upcoming would be a different fact
+         * under the same word.
+         */
+        $equipmentDue = SafetyEquipment::whereIn('company_id', $companyIds)
+            ->where('status', 'active')
+            ->whereNotNull('next_inspection_due');
+
+        $p3kDue = P3kBox::whereIn('company_id', $companyIds)->whereNotNull('next_inspection_due');
+
+        $dueThisWeek = (clone $equipmentDue)->whereBetween('next_inspection_due', [$now->toDateString(), $now->copy()->addDays(7)->toDateString()])->count()
+            + (clone $p3kDue)->whereBetween('next_inspection_due', [$now->toDateString(), $now->copy()->addDays(7)->toDateString()])->count();
+
+        $dueOverdue = (clone $equipmentDue)->whereDate('next_inspection_due', '<', $now->toDateString())->count()
+            + (clone $p3kDue)->whereDate('next_inspection_due', '<', $now->toDateString())->count();
+
+        /*
+         * --- Material Requests: outstanding, not "all".
+         *
+         * `OUTSTANDING_STATUSES` is the model's own definition of still
+         * owing the requester something, and `AGING_OVERDUE_DAYS` is its
+         * own overdue threshold. Both are read from the model rather than
+         * restated here, so this card cannot drift from the Material
+         * Request module's answer to the same question.
+         */
+        $outstandingRequests = MaterialRequest::whereIn('company_id', $companyIds)
+            ->whereIn('status', MaterialRequest::OUTSTANDING_STATUSES);
+
+        $awaitingApproval = (clone $outstandingRequests)->where('status', MaterialRequest::STATUS_SUBMITTED)->count();
+
+        $requestsOverdue = (clone $outstandingRequests)
+            ->whereNotNull('request_date')
+            ->whereDate('request_date', '<=', $now->copy()->subDays(MaterialRequest::AGING_OVERDUE_DAYS)->toDateString())
+            ->count();
+
+        return [
+            [
+                'key' => 'permits',
+                'label' => 'Active Permits',
+                'value' => $permitsOpen,
+                'detail' => [
+                    ['value' => $permitsOpen - $permitsPastEnd, 'label' => 'active'],
+                    ['value' => $permitsPastEnd, 'label' => 'past end time'],
+                ],
+                'href' => route('permits-to-work.index'),
+                'alert' => $permitsPastEnd > 0,
+            ],
+            [
+                'key' => 'incidents',
+                'label' => 'Open Incidents',
+                'value' => $openIncidentsCount,
+                'detail' => [
+                    ['value' => $reported, 'label' => 'reported'],
+                    ['value' => $openIncidentsCount - $reported, 'label' => 'investigating'],
+                ],
+                'href' => route('incidents.index'),
+                'alert' => $openIncidentsCount > 0,
+            ],
+            [
+                'key' => 'ppe',
+                'label' => 'PPE Alerts',
+                'value' => $ppeAlertCount,
+                'detail' => [
+                    ['value' => $ppeExpiring, 'label' => 'expiring'],
+                    ['value' => $ppeAlertCount - $ppeExpiring, 'label' => 'expired'],
+                ],
+                'href' => route('ppe.dashboard'),
+                'alert' => $ppeAlertCount > 0,
+            ],
+            [
+                'key' => 'inspections',
+                'label' => 'Inspections Due',
+                'value' => $dueThisWeek + $dueOverdue,
+                'detail' => [
+                    ['value' => $dueThisWeek, 'label' => 'this week'],
+                    ['value' => $dueOverdue, 'label' => 'overdue'],
+                ],
+                'href' => route('hse.master'),
+                'alert' => $dueOverdue > 0,
+            ],
+            [
+                'key' => 'material',
+                'label' => 'Material Requests',
+                'value' => (clone $outstandingRequests)->count(),
+                'detail' => [
+                    ['value' => $awaitingApproval, 'label' => 'awaiting approval'],
+                    ['value' => $requestsOverdue, 'label' => 'overdue'],
+                ],
+                'href' => route('material-requests.index'),
+                'alert' => $requestsOverdue > 0,
+            ],
+        ];
+    }
+
+    /**
+     * Accident classification, year to date: HOW MANY CASES OF EACH KIND.
+     *
+     * WHERE THE DATA COMES FROM. `incidents.injury_severity` has existed
+     * since v2.73.0 and holds exactly one of `none`, `first_aid`,
+     * `medical_treatment`, `restricted_work`, `lost_time`, `fatality` --
+     * selected by the person filing the report, not derived by IOMS. The
+     * five classifications below are those values, under the abbreviations
+     * an HSE reader expects:
+     *
+     *   FAT  fatality            LTI  lost_time          RWC  restricted_work
+     *   MTC  medical_treatment   FAC  first_aid
+     *
+     * NOTHING IS DOUBLE COUNTED, and the reason is structural rather than
+     * careful: an incident carries ONE `injury_severity`, so the five
+     * counts are disjoint by construction and a case can never land in two
+     * of them. An incident classified `none`, or left unclassified, is in
+     * none of the five -- it is not silently folded into the lowest one.
+     *
+     * THESE ARE CASES, NOT PEOPLE. `incidents.people_injured` exists and
+     * is a different measure; one incident that injured three people is
+     * one case here. Mixing the two would produce a number that is neither.
+     *
+     * RECORDABLE EXCLUDES FIRST AID, which is the one judgement in this
+     * method and the reason it is stated here rather than inside a view: a
+     * recordable case is one requiring more than first aid, so the
+     * recordable total is FAT + LTI + RWC + MTC. Adding FAC would inflate
+     * every rate computed from it.
+     *
+     * @param  Collection<int, int>|array<int, int>  $companyIds
+     * @return array<string, mixed>
+     */
+    private function accidentClassification($companyIds): array
+    {
+        $counts = Incident::where(fn ($q) => $q->whereIn('company_id', $companyIds)->orWhereNull('company_id'))
+            ->whereYear('incident_date', now()->year)
+            ->whereNotNull('injury_severity')
+            ->selectRaw('injury_severity, count(*) as total')
+            ->groupBy('injury_severity')
+            ->pluck('total', 'injury_severity');
+
+        $of = fn (string $value) => (int) ($counts[$value] ?? 0);
+
+        $classes = [
+            ['key' => 'fat', 'code' => 'FAT', 'label' => 'Fatality', 'short_label' => 'Fatality', 'value' => $of('fatality'), 'recordable' => true],
+            ['key' => 'lti', 'code' => 'LTI', 'label' => 'Lost Time Injury', 'short_label' => 'Lost Time', 'value' => $of('lost_time'), 'recordable' => true],
+            ['key' => 'rwc', 'code' => 'RWC', 'label' => 'Restricted Work Case', 'short_label' => 'Restricted Work', 'value' => $of('restricted_work'), 'recordable' => true],
+            ['key' => 'mtc', 'code' => 'MTC', 'label' => 'Medical Treatment Case', 'short_label' => 'Medical Treatment', 'value' => $of('medical_treatment'), 'recordable' => true],
+            ['key' => 'fac', 'code' => 'FAC', 'label' => 'First Aid Case', 'short_label' => 'First Aid', 'value' => $of('first_aid'), 'recordable' => false],
+        ];
+
+        $recordable = collect($classes)->where('recordable', true)->sum('value');
+
+        return [
+            'period' => 'ytd',
+            'period_label' => (string) now()->year,
+            'classes' => $classes,
+            'recordable' => (int) $recordable,
+            'lost_time' => $of('lost_time') + $of('fatality'),
+            'total_cases' => (int) collect($classes)->sum('value'),
+            /*
+             * Unclassified injury reports: filed under the `injury`
+             * CATEGORY but with no severity selected, so they belong to no
+             * classification and to no rate. Surfaced rather than hidden,
+             * because the gap is the reason a count may look low.
+             */
+            'unclassified' => Incident::where(fn ($q) => $q->whereIn('company_id', $companyIds)->orWhereNull('company_id'))
+                ->whereYear('incident_date', now()->year)
+                ->where('category', 'injury')
+                ->where(fn ($q) => $q->whereNull('injury_severity')->orWhere('injury_severity', 'none'))
+                ->count(),
+        ];
+    }
+
+    /**
+     * TRIR and LTIFR, year to date -- or an honest refusal.
+     *
+     * IOMS DELIBERATELY DID NOT PUBLISH THESE (ADR 044, and this
+     * controller since v1.11.6), for three stated reasons. Two of them are
+     * no longer true and one still is, so the decision is revisited rather
+     * than inherited:
+     *
+     *  - "no recordability classification" -- WAS true, is not since
+     *    v2.73.0 added `incidents.injury_severity`. The claim outlived the
+     *    column by several releases.
+     *  - "no lost-time days" -- true, and irrelevant to these two: lost
+     *    DAYS are the input to a severity rate, not to a frequency rate,
+     *    which counts CASES.
+     *  - "exposure hours cover employees rather than everyone on site" --
+     *    STILL TRUE where a contractor's workers are not in the workforce
+     *    register, and it is why the denominator is named on the panel
+     *    rather than left implied.
+     *
+     * So the rates are computed from real inputs and shown WITH their
+     * formula, period, numerator and denominator, or not shown at all.
+     *
+     * THE DENOMINATOR DECIDES WHETHER THERE IS AN ANSWER. A rate needs
+     * exposure hours; with none recorded the result is undefined, not
+     * zero. `sumManHours()` already answers `null` rather than 0 for a
+     * period nobody logged, which is exactly the distinction this needs --
+     * so no hours means `available: false` with the reason, never a
+     * confident 0.00 that gets quoted in a board pack.
+     *
+     * @param  Collection<int, int>|array<int, int>  $companyIds
+     * @return array<string, mixed>
+     */
+    private function frequencyRates($companyIds): array
+    {
+        $classification = $this->accidentClassification($companyIds);
+        $manHours = $this->dashboardStats->sumManHours($companyIds, now()->startOfYear()->toDateString(), now()->toDateString());
+
+        $available = $manHours !== null && $manHours > 0;
+
+        $rate = fn (int $cases, int $multiplier) => $available
+            ? round(($cases * $multiplier) / $manHours, 2)
+            : null;
+
+        return [
+            'available' => $available,
+            'period_label' => 'Year to date '.now()->year,
+            'man_hours' => $manHours,
+            'unavailable_reason' => $available
+                ? null
+                : 'Belum ada jam kerja tercatat untuk periode ini, jadi pembagi rasionya belum ada.',
+            'rates' => [
+                [
+                    'key' => 'trir',
+                    'code' => 'TRIR',
+                    'label' => 'Total Recordable Incident Rate',
+                    'value' => $rate($classification['recordable'], 200000),
+                    'cases' => $classification['recordable'],
+                    'cases_label' => 'FAT + LTI + RWC + MTC',
+                    'multiplier' => 200000,
+                ],
+                [
+                    'key' => 'ltifr',
+                    'code' => 'LTIFR',
+                    'label' => 'Lost Time Injury Frequency Rate',
+                    'value' => $rate($classification['lost_time'], 1000000),
+                    'cases' => $classification['lost_time'],
+                    'cases_label' => 'LTI + FAT',
+                    'multiplier' => 1000000,
+                ],
+            ],
+        ];
     }
 
     /**

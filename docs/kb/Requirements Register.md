@@ -70,6 +70,11 @@ Older completions live in [[Release History]].
 
 | Item | Version | Status | Evidence |
 |---|---|---|---|
+| **HSE Overview matches the approved visual reference** | 2.116.0 | `#status/verified` | Hero band, five fixed-order KPI cards, trend / calendar / notifications, classification / rates / man-hour, Quick Access. Driven in a browser at 1512, 1024 and 390 px with no overflow and no console errors |
+| **TRIR and LTIFR are published, with their arithmetic** | 2.116.0 | `#status/verified` | ADR 056. Multiplier, numerator, the classifications behind it, period and the exact denominator printed beside each rate; refused with a reason when no hours are logged. Formulas pinned with worked numbers on both engines |
+| **Accident classification (FAT/LTI/RWC/MTC/FAC)** | 2.116.0 | `#status/verified` | Counted from `incidents.injury_severity`; disjoint by construction, unclassified reports counted nowhere and surfaced, recordable excludes first aid |
+| **"Recordable Injuries YTD" counted first-aid cases** | 2.116.0 | `#status/verified` | Real defect. It counted every incident of category `injury` under a label meaning the opposite; now FAT + LTI + RWC + MTC |
+| **The Overview calendar can schedule** | 2.116.0 | `#status/verified` | Through the existing `calendar.store` — same route, validation and audit entry; the event was verified to appear on the full Calendar page too |
 | **Employee deletion is permanent, single and bulk** | 2.115.0 | `#status/verified` | Owner decision. `EmployeeEraser` answers all 24 references; `EmployeePermanentDeletionTest` (14 tests) covers the three formerly-blocking keys, the document tombstones, the audit snapshot and isolation; driven through the real UI (28/28) |
 | **A deleted employee's number and NIK are free again** | 2.115.0 | `#status/verified` | Proven by re-import: delete 75 through the real bulk endpoint, re-import the same file, 75 imported with none skipped; a freed NIK claimed by a different employee number |
 | **Documents keep the name when the person is erased** | 2.115.0 | `#status/verified` | `permits_to_work.pic_name` + `daily_reports.hse_officer_name` tombstones; the permit PDF asserted to still print its Penanggung Jawab, and the name a human typed is never overwritten |

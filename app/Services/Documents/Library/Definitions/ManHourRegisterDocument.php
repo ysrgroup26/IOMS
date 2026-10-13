@@ -13,12 +13,15 @@ use App\Services\Documents\Library\DocumentRenderer;
  * v2.112.0 -- Management: the man-hour register.
  *
  * The exposure base, and the one number an HSE rate cannot be computed
- * without. IOMS deliberately does NOT publish LTIFR or TRIR, because it
- * has never had a reliable denominator (ADR 044, and the HSE Overview's
- * own "deliberately unavailable" rule). This register is the raw record
- * those rates would be built FROM -- it reports hours, never a rate, so
- * nothing here can quietly become a safety statistic the data does not
- * support.
+ * without. THIS DOCUMENT REPORTS HOURS, NEVER A RATE: it is the raw
+ * record a rate is built FROM, so nothing printed here can quietly become
+ * a safety statistic that leaves the building without its denominator.
+ *
+ * v2.116.0 -- the HSE Overview now publishes TRIR and LTIFR, with the
+ * numerator, the multiplier and this very denominator printed beside them
+ * (ADR 056). That does not change this document: a rate is publishable
+ * where its inputs are visible on the same screen, and a spreadsheet that
+ * travels by email is the opposite of that.
  *
  * Hours are written as decimals because that is what they are: half an
  * hour is 0.5, and a register that rounded it would not reconcile with

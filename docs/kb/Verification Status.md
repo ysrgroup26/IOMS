@@ -49,8 +49,8 @@ on every phone width.
 
 | | |
 |---|---|
-| Suite | **1293 tests, 6611 assertions — all passing on SQLite** (2026-10-13, v2.115.0; was 1273/6455 at v2.114.0) |
-| Suite on **MySQL 8.0** | **1293 of 1293 passing** (2026-10-13), on an isolated `ioms_mysql_test` database with synthetic data. MySQL and SQLite agree completely. `EmployeeErasureCoverageTest` reads the foreign keys through `information_schema` on MySQL and `PRAGMA foreign_key_list` on SQLite, so the erasure policy is checked against BOTH engines' real schema. |
+| Suite | **1308 tests, 6678 assertions — all passing on SQLite** (2026-10-13, v2.116.0; was 1293/6611 at v2.115.0) |
+| Suite on **MySQL 8.0** | **1308 of 1308 passing** (2026-10-13), on an isolated `ioms_mysql_test` database with synthetic data. The MySQL run earned its keep again this release: three new rate tests passed on SQLite and failed on MySQL, because the fixture put 100,000 hours in one `decimal(5,2)` column. SQLite accepted it silently. |
 | Database | In-memory **SQLite**, so no MySQL or external service is needed |
 | Lint | `npm run lint` — 0 errors (4 existing warnings in `GasTestRecords/Index.jsx` and `Settings/Index.jsx`) |
 | Build | `npm run build` succeeded (2026-10-12): 2319 modules, 2,085 KB bundle, the existing size advisory unchanged |
@@ -88,6 +88,49 @@ on every phone width.
 > multi-table `UPDATE … JOIN` and anything reading `information_schema`, or guard it with
 > `DB::getDriverName() === 'mysql'`. Six migrations had to be made portable before the suite could
 > provision at all.
+
+### Browser-verified — v2.116.0 The refined HSE Overview, driven rather than looked at (2026-10-13)
+
+The redesign was checked two ways: how it LOOKS at three widths, and whether the controls on it
+actually do anything. Against an isolated SQLite database seeded with synthetic HSE records —
+classified incidents across all five categories, man-hours, a running permit and one past its end
+time, equipment and P3K inspection dates, material requests, and real per-user notification rows.
+
+**Layout, at three widths — no horizontal overflow, no console errors at any of them:**
+
+| Width | Result |
+|---|---|
+| 1512 px | Header band, five KPI cards in one row, trend 5 / calendar 4 / notifications 3, then classification 5 / rates 3 / man-hour 4 |
+| 1024 px | KPI cards in threes, trend and calendar side by side, notifications below |
+| 390 px | Everything stacks; KPI cards in pairs rather than one per screen; the bottom nav is untouched |
+
+**Behaviour — 9/9 checks, driven through the real UI:**
+
+| Check | Result |
+|---|---|
+| `+ Add Schedule` | Opens, writes a real event, and the event comes back from the server on the next render |
+| ...and it is the SAME store | The event appears on the full Calendar page too, scoped `department_key: hse` |
+| An operational KPI card | Navigates to its register (`Active Permits` → `/permits-to-work`) |
+| A Quick Access shortcut | Performs its action (`Report Incident` → `/incidents/create`) |
+| Notifications panel | Lists the real per-user rows, with relative times, not a second feed |
+
+**The numbers were read out of the page payload and checked by hand**, which is how the arithmetic
+was verified rather than assumed: 6 classified cases (1 LTI, 1 RWC, 2 MTC, 2 FAC) + 1 unclassified
+report surfaced separately; recordable 4, correctly excluding both first-aid cases; 1,280 man-hours;
+TRIR = 4 × 200,000 / 1,280 = 625.00; LTIFR = 1 × 1,000,000 / 1,280 = 781.25. Both figures are
+absurdly high because the fixture logs 1,280 hours, which is the point: the panel prints the
+denominator it used, so an implausible rate is visibly a thin denominator rather than a mystery.
+
+> [!important] What the browser pass changed
+> Four things were wrong on screen and right in the tests: the Man-Hour labels truncated to single
+> initials in a four-across grid, the classification labels truncated to "Lost Time I…", the hero
+> carried a second clock duplicating the one the top bar already shows on every page, and the trend
+> chart's smoothing was high enough to draw a curve dipping below zero between two months — a safety
+> chart implying a negative number of incidents.
+
+> [!note] Still not covered
+> **Production was not reached from this session** — see the deployment note below. Everything above
+> ran against an isolated SQLite database on `127.0.0.1:8188` with synthetic data only.
 
 ### Browser-verified — v2.115.0 Permanent deletion, and the import that follows it (2026-10-13)
 

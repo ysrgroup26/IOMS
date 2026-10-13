@@ -1,7 +1,7 @@
 ---
 title: Current State
 type: snapshot
-product-version: 2.115.0
+product-version: 2.116.0
 product-stage: Beta
 measured: 2026-10-13
 tags: [kb/state]
@@ -25,8 +25,8 @@ the date in the frontmatter, not remembered.
 |---|---|
 | Product | **IOMS — Industrial Operations Platform** |
 | Public company identity | **Tahada Group**; legal entity **PT Tahada Vistara Bersama** |
-| Version | **2.115.0**, stage **Beta**, edition **Enterprise Edition** |
-| Build | `2026.10.13.01`, release date `2026-10-13` |
+| Version | **2.116.0**, stage **Beta**, edition **Enterprise Edition** |
+| Build | `2026.10.13.02`, release date `2026-10-13` |
 | Stack | Laravel 12 · Inertia.js · React 18 · Tailwind · MySQL · Sanctum |
 
 The naming rules are not cosmetic — see [[Product Identity and Principles]].
@@ -40,8 +40,8 @@ The naming rules are not cosmetic — see [[Product Identity and Principles]].
 | Inertia pages | 183 |
 | Migrations | 198 |
 | Feature test files | 111 |
-| Tests / assertions | **1293 / 6611**, all passing on SQLite and on MySQL 8.0 (see [[Verification Status]]) |
-| ADRs | 53 files (numbering has known gaps — see [[Decision Register]]) |
+| Tests / assertions | **1308 / 6678**, all passing on SQLite and on MySQL 8.0 (see [[Verification Status]]) |
+| ADRs | 54 files (numbering has known gaps — see [[Decision Register]]) |
 | Workspaces in the navigation registry | 12 |
 
 ## Workspaces
@@ -82,6 +82,21 @@ replace the role. A My Work User authenticates through the same login and lands 
 server-side route allow-list still controls what that account may reach. See [[Domain Glossary]].
 
 ## What shipped most recently
+
+`2.116.0` (2026-10-13) — the **HSE Overview visual refinement**, to the approved reference: a dark
+industrial header band, five operational KPI cards in a fixed order whose detail line partitions the
+value above it, then trend / calendar / notifications, then Accident Classification / Incident
+Frequency Rates / Man-Hour, then Quick Access. **TRIR and LTIFR are published for the first time**,
+with the numerator, the multiplier, the classifications behind the numerator and the exact man-hours
+denominator printed beside them — and refused outright, with the reason, when no hours are logged,
+because `0.00` on a site that logged nothing reads as a perfect record. Two of the three reasons the
+product had refused these since v1.11.6 had quietly stopped being true. **One real defect fell out of
+it:** "Recordable Injuries YTD" counted every injury-category incident, first aid included, under a
+label meaning the opposite. The calendar can now schedule through the existing `calendar.store`
+route, and the notifications panel reads the per-user feed the top bar already renders. **1308 tests
+/ 6678 assertions pass on SQLite and on MySQL 8.0**, and the page was driven in a browser at 1512,
+1024 and 390 px. See [[Release History]], [[056-a-rate-is-published-with-its-arithmetic|ADR 056]] and
+[[Verification Status]].
 
 `2.115.0` (2026-10-13) — **employee deletion is permanent**, by the owner's decision, and one class
 answers for every one of the twenty-four references to an employee rather than leaving it to whichever

@@ -1,9 +1,14 @@
 import { useMemo, useState } from 'react';
-import { Link } from '@inertiajs/react';
+import { Link, useForm } from '@inertiajs/react';
 import { cn } from '@/lib/utils';
 import { eventAccent } from './accents';
 import { humanizeToken } from '@/lib/humanizeToken';
-import { ChevronLeft, ChevronRight, CalendarDays, ArrowUpRight } from 'lucide-react';
+import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogDescription, DialogFooter } from '@/Components/ui/dialog';
+import { Button } from '@/Components/ui/button';
+import { Input } from '@/Components/ui/input';
+import { Label } from '@/Components/ui/label';
+import { Select, SelectTrigger, SelectValue, SelectContent, SelectItem } from '@/Components/ui/select';
+import { ChevronLeft, ChevronRight, CalendarDays, ArrowUpRight, Plus } from 'lucide-react';
 
 /**
  * v2.109.0 -- THE CALENDAR, INSIDE THE OVERVIEW.
@@ -14,9 +19,20 @@ import { ChevronLeft, ChevronRight, CalendarDays, ArrowUpRight } from 'lucide-re
  * on it, sized to sit in the dashboard rather than to be a page.
  *
  * WHAT IT DOES NOT DO, ON PURPOSE. It is not a second copy of
- * `Pages/Calendar/Index.jsx`: no creating, no editing, no dragging, no
- * source filters. Those live on the full Calendar, which is one click
- * away and still the only place an event is authored.
+ * `Pages/Calendar/Index.jsx`: no editing, no dragging, no source filters,
+ * and no second event store. Those live on the full Calendar, one click
+ * away.
+ *
+ * v2.116.0 -- IT CAN NOW ADD A SCHEDULE, THROUGH THE EXISTING ROUTE. The
+ * approved design puts a `+ Add Schedule` action inside the calendar, and
+ * a button that opens the full Calendar instead of scheduling anything
+ * would be a shortcut wearing an action's clothes. It POSTs to
+ * `calendar.store` -- the same route, validation, authorization and
+ * activity-log entry the full Calendar's own dialog uses -- with the
+ * selected day and `department_key: 'hse'` filled in, which is the only
+ * thing this context adds. No new model, no new table, no second write
+ * path. It is hidden when the account has no operating unit to attach an
+ * event to, because the route requires one.
  *
  * NAVIGATION IS BOUNDED BY THE DATA, NOT BY A GUESS. The server sends a
  * three-month window (previous, current, next) from the SAME aggregation
@@ -53,7 +69,104 @@ function monthLabel(year, month) {
     return new Date(year, month, 1).toLocaleDateString('en-US', { month: 'long', year: 'numeric' });
 }
 
-export default function OverviewCalendar({ events = [], window: dataWindow, today }) {
+/**
+ * The compact create form. Deliberately narrower than the full
+ * Calendar's: title, day, time and type are what an HSE schedule needs
+ * from this page, and everything else the route accepts keeps its own
+ * server-side default. `preserveScroll` because the controller answers
+ * `back()`, so the page re-renders with the new event already on the grid.
+ */
+function AddScheduleDialog({ companies, defaultDay, onClose }) {
+    const { data, setData, post, processing, errors, reset } = useForm({
+        company_id: companies[0]?.id ? String(companies[0].id) : '',
+        title: '',
+        start_at: `${defaultDay}T09:00`,
+        event_type: 'general',
+        department_key: 'hse',
+        all_day: false,
+    });
+
+    function submit(e) {
+        e.preventDefault();
+        post(route('calendar.store'), {
+            preserveScroll: true,
+            onSuccess: () => { reset(); onClose(); },
+        });
+    }
+
+    return (
+        <Dialog open onOpenChange={(open) => !open && onClose()}>
+            <DialogContent>
+                <DialogHeader>
+                    <DialogTitle>Add Schedule</DialogTitle>
+                    <DialogDescription>
+                        Agenda ini tersimpan di Calendar yang sama dengan halaman Calendar penuh, bukan salinan terpisah.
+                    </DialogDescription>
+                </DialogHeader>
+
+                <form onSubmit={submit} className="space-y-3">
+                    <div className="space-y-1.5">
+                        <Label htmlFor="schedule-title">Title</Label>
+                        <Input
+                            id="schedule-title"
+                            value={data.title}
+                            onChange={(e) => setData('title', e.target.value)}
+                            placeholder="Weekly Inspection - Docking Area"
+                        />
+                        {errors.title && <p className="text-xs text-red-600">{errors.title}</p>}
+                    </div>
+
+                    <div className="grid grid-cols-2 gap-3">
+                        <div className="space-y-1.5">
+                            <Label htmlFor="schedule-start">Starts</Label>
+                            <Input
+                                id="schedule-start"
+                                type="datetime-local"
+                                value={data.start_at}
+                                onChange={(e) => setData('start_at', e.target.value)}
+                            />
+                            {errors.start_at && <p className="text-xs text-red-600">{errors.start_at}</p>}
+                        </div>
+
+                        <div className="space-y-1.5">
+                            <Label>Type</Label>
+                            <Select value={data.event_type} onValueChange={(v) => setData('event_type', v)}>
+                                <SelectTrigger><SelectValue /></SelectTrigger>
+                                <SelectContent>
+                                    {['general', 'meeting', 'deadline', 'reminder'].map((t) => (
+                                        <SelectItem key={t} value={t}>{humanizeToken(t)}</SelectItem>
+                                    ))}
+                                </SelectContent>
+                            </Select>
+                        </div>
+                    </div>
+
+                    {companies.length > 1 && (
+                        <div className="space-y-1.5">
+                            <Label>Operating Unit</Label>
+                            <Select value={data.company_id} onValueChange={(v) => setData('company_id', v)}>
+                                <SelectTrigger><SelectValue /></SelectTrigger>
+                                <SelectContent>
+                                    {companies.map((c) => (
+                                        <SelectItem key={c.id} value={String(c.id)}>{c.name}</SelectItem>
+                                    ))}
+                                </SelectContent>
+                            </Select>
+                            {errors.company_id && <p className="text-xs text-red-600">{errors.company_id}</p>}
+                        </div>
+                    )}
+
+                    <DialogFooter>
+                        <Button type="button" variant="outline" onClick={onClose} disabled={processing}>Cancel</Button>
+                        <Button type="submit" disabled={processing}>{processing ? 'Saving...' : 'Add Schedule'}</Button>
+                    </DialogFooter>
+                </form>
+            </DialogContent>
+        </Dialog>
+    );
+}
+
+export default function OverviewCalendar({ events = [], window: dataWindow, today, companies = [] }) {
     const todayKey = today ?? dayKey(new Date().toISOString());
 
     const [cursor, setCursor] = useState(() => {
@@ -62,6 +175,7 @@ export default function OverviewCalendar({ events = [], window: dataWindow, toda
     });
 
     const [selected, setSelected] = useState(todayKey);
+    const [addOpen, setAddOpen] = useState(false);
 
     /** day key -> events on that day. */
     const byDay = useMemo(() => {
@@ -243,13 +357,36 @@ export default function OverviewCalendar({ events = [], window: dataWindow, toda
                     </ul>
                 )}
 
-                <Link
-                    href={route('calendar.index')}
-                    className="mt-auto inline-flex items-center gap-1 pt-3 text-[11px] font-semibold text-blue-600 hover:underline dark:text-blue-400"
-                >
-                    Open full calendar <ArrowUpRight className="h-3 w-3" />
-                </Link>
+                <div className="mt-auto flex items-center justify-between gap-2 pt-3">
+                    <Link
+                        href={route('calendar.index')}
+                        className="inline-flex items-center gap-1 text-[11px] font-semibold text-blue-600 hover:underline dark:text-blue-400"
+                    >
+                        Open full calendar <ArrowUpRight className="h-3 w-3" />
+                    </Link>
+
+                    {/* Hidden, not disabled, when there is no operating unit
+                        to attach an event to: `calendar.store` requires one,
+                        so the control could never succeed. */}
+                    {companies.length > 0 && (
+                        <button
+                            type="button"
+                            onClick={() => setAddOpen(true)}
+                            className="inline-flex items-center gap-1 rounded-lg border border-graphite-200 px-2 py-1 text-[11px] font-semibold text-graphite-600 transition-colors hover:bg-graphite-50 dark:border-slate-700 dark:text-slate-300 dark:hover:bg-slate-800"
+                        >
+                            <Plus className="h-3 w-3" /> Add Schedule
+                        </button>
+                    )}
+                </div>
             </div>
+
+            {addOpen && (
+                <AddScheduleDialog
+                    companies={companies}
+                    defaultDay={selected}
+                    onClose={() => setAddOpen(false)}
+                />
+            )}
         </section>
     );
 }

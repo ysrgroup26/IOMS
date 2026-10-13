@@ -694,8 +694,33 @@ and no copy in the product says it does.
 >   universal-prefix access and the sidebar entry are untouched.
 > - **`safetyTrend`** is 12 months of incidents/observations/CAPA/permits, bucketed in PHP (not
 >   `DATE_FORMAT`, which is MySQL-only). `has_data: false` renders an explicit empty state.
-> - **Still unavailable, deliberately:** LTI, LTIFR and TRIR — see
->   `safetyKpi.lost_time_metrics_available`. Man-hours remain `null` rather than `0` when unlogged.
+> - **v2.116.0 — the approved visual refinement.** A dark industrial header band (the repository's
+>   own `public/images/website/shipyard-*.webp`, under a navy gradient that carries the contrast on
+>   its own), then **five** operational KPI cards in a fixed order — Active Permits, Open Incidents,
+>   PPE Alerts, Inspections Due, Material Requests — each with a detail line that **partitions its own
+>   value** server-side. Then trend / calendar / notifications, then Accident Classification /
+>   Incident Frequency Rates / Man-Hour, then Quick Access.
+> - **`operationalKpis`** is built in the controller, not assembled in the page: the card's value and
+>   the two halves of its detail line have to be counted with the same WHERE clause or the detail
+>   contradicts the number above it. `HseOverviewDashboardTest` asserts the sum.
+> - **Inspections Due counts the only scheduled inspections IOMS has** — `safety_equipment.
+>   next_inspection_due` and `p3k_boxes.next_inspection_due`. `hse_inspections` records inspections
+>   that HAPPENED and carries no scheduled date at all.
+> - **`accidentClassification`** (FAT / LTI / RWC / MTC / FAC) counts `incidents.injury_severity` as
+>   the reporter recorded it. Disjoint by construction, unclassified reports counted nowhere and
+>   surfaced separately, recordable = FAT + LTI + RWC + MTC.
+> - **`frequencyRates`** publishes TRIR and LTIFR **with their arithmetic on screen**, or refuses.
+>   No man-hours means `available: false` and a reason — never `0.00`. See
+>   `docs/ADR/056-a-rate-is-published-with-its-arithmetic.md`.
+> - **No trend arrow and no sparkline on a KPI card**, which is the one deliberate departure from the
+>   approved reference: IOMS stores no history of "how many were open last month" for any of the
+>   five, and the 12-month series it does have counts records RAISED per month, a different measure.
+> - **Notifications reuse the existing per-user feed** shared by `HandleInertiaRequests` — the same
+>   rows the top-bar bell renders. No second notification system, no new query, and no "View All"
+>   because IOMS has no notifications index route.
+> - **The calendar can now create**, through `calendar.store` — the same route, validation and
+>   activity-log entry the full Calendar's own dialog uses, with the selected day and
+>   `department_key: 'hse'` prefilled. Man-hours remain `null` rather than `0` when unlogged.
 > - Do **not** adopt this kit in other modules yet; `HseOverviewDashboardTest` asserts no other
 >   Overview imports it.
 
@@ -2126,9 +2151,12 @@ Dashboards use `DashboardStatsService::sumManHours()`, the same `SUM(regular + o
    of replacing the row. It is now normalised to `YYYY-MM-DD` on write (see
    `docs/CONVENTIONS.md`). MySQL's DATE column had been truncating it silently.
 
-**HSE KPI foundation.** Man-hours are the denominator of LTIFR and TRIR. Those rates are still **not**
-computed: `Incident` does not yet capture lost-time days or recordability. The inputs must exist
-before the formulas do.
+**HSE KPI foundation.** Man-hours are the denominator of LTIFR and TRIR. Since v2.116.0 the HSE
+Overview computes both, from `incidents.injury_severity` (the recordability classification, added in
+v2.73.0) over these hours — and shows the numerator, the multiplier and this denominator beside each
+rate, or refuses to show the rate at all when no hours are logged. See
+`docs/ADR/056-a-rate-is-published-with-its-arithmetic.md`. Lost-time DAYS are still not captured, and
+are not an input to a frequency rate.
 
 Tests: `ManHourTest`.
 

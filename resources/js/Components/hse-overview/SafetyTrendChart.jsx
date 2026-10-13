@@ -48,16 +48,27 @@ export default function SafetyTrendChart({ trend }) {
 
         return {
             labels: labels.map((l) => formatMonth(l, crossesYears)),
-            datasets: series.map((s) => ({
+            datasets: series.map((s, index) => ({
                 label: s.label,
                 data: s.data.slice(-months),
                 borderColor: SERIES_COLORS[s.key] ?? '#64748b',
-                backgroundColor: SERIES_COLORS[s.key] ?? '#64748b',
                 borderWidth: 2,
                 pointRadius: 0,
                 pointHoverRadius: 4,
-                tension: 0.35,
-                fill: false,
+                /*
+                 * v2.116.0 -- LESS SMOOTHING, ON PURPOSE.
+                 *
+                 * These are monthly COUNTS, so the only real values are
+                 * the twelve points. A high tension draws a curve that
+                 * passes through invented intermediate values and, on a
+                 * series that goes 0, 2, 0, overshoots below zero -- a
+                 * safety chart implying a negative number of incidents.
+                 * 0.2 keeps the line readable without asserting anything
+                 * between two months.
+                 */
+                tension: 0.2,
+                fill: index === 0,
+                backgroundColor: index === 0 ? 'rgba(239, 68, 68, 0.07)' : (SERIES_COLORS[s.key] ?? '#64748b'),
             })),
         };
     }, [allLabels, series, months]);
@@ -109,7 +120,7 @@ export default function SafetyTrendChart({ trend }) {
             <header className="flex flex-wrap items-start justify-between gap-2">
                 <div className="min-w-0">
                     <h2 className="flex items-center gap-1.5 text-[13px] font-bold text-graphite-900 dark:text-slate-50">
-                        <TrendingUp className="h-4 w-4 text-blue-500" /> Safety Performance
+                        <TrendingUp className="h-4 w-4 text-blue-500" /> HSE Activity Trend
                     </h2>
                     <p className="mt-0.5 text-[11px] text-graphite-400 dark:text-slate-500">
                         Jumlah catatan per bulan, dihitung dari tanggal operasional masing-masing modul.

@@ -6,8 +6,13 @@ use App\Models\CalendarEvent;
 use App\Models\Company;
 use App\Models\CorrectiveAction;
 use App\Models\Department;
+use App\Models\Employee;
 use App\Models\Incident;
+use App\Models\ManHourLog;
+use App\Models\P3kBox;
 use App\Models\Package;
+use App\Models\PermitToWork;
+use App\Models\SafetyEquipment;
 use App\Models\SafetyObservation;
 use App\Models\Subscription;
 use App\Models\Tenant;
@@ -133,6 +138,8 @@ class HseOverviewDashboardTest extends TestCase
             'openPermitsCount', 'overdueSafetyEquipmentCount', 'overdueP3kCount', 'openCapaCount',
             'actionRequired', 'manHours', 'safetyKpi', 'wasteSummary', 'canManageHse',
             'safetyTrend', 'calendar', 'quickAccess', 'companies', 'filters',
+            // v2.116.0 -- the approved refinement's own props.
+            'operationalKpis', 'accidentClassification', 'frequencyRates',
         ] as $prop) {
             $this->assertArrayHasKey($prop, $props, "The Overview reads [{$prop}] and the controller must send it.");
         }
@@ -352,12 +359,350 @@ class HseOverviewDashboardTest extends TestCase
         $this->assertNull($manHours['ytd']);
     }
 
-    public function test_the_lost_time_rates_remain_unavailable(): void
+    /*
+     * ==================================================================
+     * v2.116.0 -- ACCIDENT CLASSIFICATION, FREQUENCY RATES, AND THE FIVE
+     * OPERATIONAL KPIs.
+     *
+     * This file used to assert that LTIFR and TRIR stay unavailable,
+     * because the controller said IOMS captured no recordability
+     * classification. `incidents.injury_severity` has existed since
+     * v2.73.0 -- the claim outlived the column -- so the rates are now
+     * computed from real inputs, and what has to be pinned instead is
+     * that they are computed CORRECTLY and that they refuse to answer
+     * when their denominator is missing.
+     * ==================================================================
+     */
+
+    /** A classified incident, in the year the Overview reports on. */
+    private function classifiedIncident(string $injurySeverity, ?string $date = null): Incident
     {
-        $this->assertFalse(
-            $this->props()['safetyKpi']['lost_time_metrics_available'],
-            'LTIFR/TRIR need exposure hours and a recordability classification IOMS does not capture.'
+        return Incident::create([
+            'incident_number' => 'INC-'.uniqid(),
+            'title' => 'Uji klasifikasi',
+            'company_id' => $this->yard->id,
+            'category' => 'injury',
+            'severity' => 'moderate',
+            'status' => Incident::STATUS_CLOSED,
+            'incident_date' => $date ?? now()->toDateString(),
+            'reported_by' => $this->hse->id,
+            'injury_severity' => $injurySeverity,
+            'description' => 'Uji',
+        ]);
+    }
+
+    /**
+     * Logs `$hours` of exposure this year, SPREAD ACROSS ROWS.
+     *
+     * `man_hour_logs.regular_hours` is `decimal(5,2)`, so one row holds at
+     * most 999.99 hours. A first version of this helper put the whole
+     * denominator in a single row: SQLite accepted it silently and MySQL
+     * refused it outright, which is the portability trap CONVENTIONS.md
+     * records -- and is also how real exposure accumulates anyway, a shift
+     * at a time.
+     */
+    private function logManHours(float $hours): void
+    {
+        $employee = Employee::create([
+            'employee_id' => 'EMP-'.uniqid(),
+            'full_name' => 'Pekerja Uji',
+            'company_id' => $this->yard->id,
+            'status' => 'active',
+        ]);
+
+        $perRow = 500.0;
+        $remaining = $hours;
+        $day = 0;
+
+        while ($remaining > 0) {
+            ManHourLog::create([
+                'company_id' => $this->yard->id,
+                'employee_id' => $employee->id,
+                'work_date' => now()->startOfYear()->addDays($day++)->toDateString(),
+                'regular_hours' => min($perRow, $remaining),
+                'overtime_hours' => 0,
+                'recorded_by' => $this->hse->id,
+            ]);
+
+            $remaining -= $perRow;
+        }
+    }
+
+    public function test_each_classification_counts_its_own_cases(): void
+    {
+        $this->classifiedIncident('fatality');
+        $this->classifiedIncident('lost_time');
+        $this->classifiedIncident('restricted_work');
+        $this->classifiedIncident('medical_treatment');
+        $this->classifiedIncident('first_aid');
+        $this->classifiedIncident('first_aid');
+
+        $byCode = collect($this->props()['accidentClassification']['classes'])->keyBy('code');
+
+        $this->assertSame(1, $byCode['FAT']['value']);
+        $this->assertSame(1, $byCode['LTI']['value']);
+        $this->assertSame(1, $byCode['RWC']['value']);
+        $this->assertSame(1, $byCode['MTC']['value']);
+        $this->assertSame(2, $byCode['FAC']['value']);
+    }
+
+    /**
+     * An incident carries ONE classification, so the five counts are
+     * disjoint and their sum is the number of classified incidents --
+     * never more. This is what stops a case being counted twice.
+     */
+    public function test_a_case_is_counted_in_exactly_one_classification(): void
+    {
+        $this->classifiedIncident('lost_time');
+        $this->classifiedIncident('medical_treatment');
+        $this->classifiedIncident('first_aid');
+
+        $classification = $this->props()['accidentClassification'];
+
+        $this->assertSame(3, $classification['total_cases']);
+        $this->assertSame(
+            3,
+            collect($classification['classes'])->sum('value'),
+            'The five classifications must partition the cases, not overlap.'
         );
+    }
+
+    /** `none` and NULL are not the lowest classification -- they are no classification. */
+    public function test_an_unclassified_injury_is_reported_and_counted_nowhere(): void
+    {
+        $this->classifiedIncident('first_aid');
+        $this->incident(now()->toDateString()); // category injury, no injury_severity
+
+        $classification = $this->props()['accidentClassification'];
+
+        $this->assertSame(1, $classification['total_cases'], 'An unclassified report must not be folded into a class.');
+        $this->assertSame(1, $classification['unclassified'], 'And the gap must be reported rather than hidden.');
+    }
+
+    public function test_recordable_excludes_first_aid(): void
+    {
+        $this->classifiedIncident('fatality');
+        $this->classifiedIncident('lost_time');
+        $this->classifiedIncident('restricted_work');
+        $this->classifiedIncident('medical_treatment');
+        $this->classifiedIncident('first_aid');
+        $this->classifiedIncident('first_aid');
+
+        $props = $this->props();
+
+        $this->assertSame(4, $props['accidentClassification']['recordable'], 'FAT + LTI + RWC + MTC, and no first aid.');
+        $this->assertSame(
+            4,
+            $props['safetyKpi']['recordable_injuries_ytd'],
+            'The Man-Hour panel must read the same recordable figure, not every injury-category incident.'
+        );
+    }
+
+    public function test_a_classification_from_last_year_is_not_in_this_years_count(): void
+    {
+        $this->classifiedIncident('lost_time', now()->subYear()->toDateString());
+
+        $this->assertSame(0, $this->props()['accidentClassification']['total_cases']);
+    }
+
+    public function test_classification_does_not_cross_the_tenant_boundary(): void
+    {
+        $otherTenant = Tenant::create([
+            'name' => 'Pesaing', 'slug' => 'p-'.uniqid(), 'status' => Tenant::STATUS_ACTIVE,
+        ]);
+        $otherCompany = Company::withoutGlobalScopes()->create([
+            'name' => 'Yard Lain', 'code' => 'YL', 'tenant_id' => $otherTenant->id, 'is_active' => true,
+        ]);
+
+        Incident::withoutGlobalScopes()->create([
+            'incident_number' => 'INC-OTHER-'.uniqid(), 'title' => 'Milik tenant lain',
+            'company_id' => $otherCompany->id, 'category' => 'injury', 'severity' => 'major',
+            'status' => Incident::STATUS_CLOSED, 'incident_date' => now(),
+            'reported_by' => $this->hse->id, 'injury_severity' => 'lost_time', 'description' => 'X',
+        ]);
+
+        $this->assertSame(
+            0,
+            $this->props()['accidentClassification']['total_cases'],
+            "Another tenant's classified case must not reach this classification panel."
+        );
+    }
+
+    // --- the rates ---------------------------------------------------------
+
+    /**
+     * NO EXPOSURE HOURS MEANS NO RATE. Dividing by nothing is undefined,
+     * and "TRIR 0.00" on a site that logged no hours reads as a perfect
+     * safety record -- the single most dangerous output this panel could
+     * produce.
+     */
+    public function test_a_rate_is_unavailable_without_exposure_hours(): void
+    {
+        $this->classifiedIncident('lost_time');
+
+        $rates = $this->props()['frequencyRates'];
+
+        $this->assertFalse($rates['available']);
+        $this->assertNotEmpty($rates['unavailable_reason']);
+
+        foreach ($rates['rates'] as $rate) {
+            $this->assertNull($rate['value'], "{$rate['code']} must be null, never 0, without a denominator.");
+        }
+    }
+
+    public function test_trir_is_recordable_cases_over_exposure_hours(): void
+    {
+        $this->classifiedIncident('lost_time');
+        $this->classifiedIncident('medical_treatment');
+        $this->classifiedIncident('first_aid'); // not recordable
+        $this->logManHours(100000);
+
+        $rates = collect($this->props()['frequencyRates']['rates'])->keyBy('code');
+
+        // 2 recordable * 200,000 / 100,000 = 4.00
+        $this->assertTrue($this->props()['frequencyRates']['available']);
+        $this->assertSame(4.0, $rates['TRIR']['value']);
+        $this->assertSame(2, $rates['TRIR']['cases']);
+        $this->assertSame(200000, $rates['TRIR']['multiplier']);
+    }
+
+    public function test_ltifr_counts_lost_time_and_fatality_only(): void
+    {
+        $this->classifiedIncident('lost_time');
+        $this->classifiedIncident('fatality');
+        $this->classifiedIncident('restricted_work'); // recordable, not lost time
+        $this->logManHours(100000);
+
+        $rates = collect($this->props()['frequencyRates']['rates'])->keyBy('code');
+
+        // 2 cases * 1,000,000 / 100,000 = 20.00
+        $this->assertSame(20.0, $rates['LTIFR']['value']);
+        $this->assertSame(2, $rates['LTIFR']['cases']);
+        $this->assertSame(1000000, $rates['LTIFR']['multiplier']);
+    }
+
+    /** The denominator is named on screen, so it must be in the payload. */
+    public function test_the_rate_payload_states_the_denominator_it_used(): void
+    {
+        $this->logManHours(12500);
+
+        $rates = $this->props()['frequencyRates'];
+
+        $this->assertSame(12500.0, (float) $rates['man_hours']);
+        $this->assertStringContainsString((string) now()->year, $rates['period_label']);
+    }
+
+    // --- the five operational KPIs -----------------------------------------
+
+    public function test_the_five_operational_kpis_arrive_in_the_approved_order(): void
+    {
+        $this->assertSame(
+            ['permits', 'incidents', 'ppe', 'inspections', 'material'],
+            collect($this->props()['operationalKpis'])->pluck('key')->all()
+        );
+    }
+
+    /**
+     * THE DETAIL LINE MUST PARTITION THE VALUE ABOVE IT. A breakdown that
+     * counted a different set would read as one and not be one.
+     */
+    public function test_every_kpi_detail_adds_up_to_its_own_value(): void
+    {
+        foreach ($this->props()['operationalKpis'] as $kpi) {
+            $this->assertSame(
+                $kpi['value'],
+                collect($kpi['detail'])->sum('value'),
+                "The [{$kpi['key']}] detail line does not add up to the number it sits under."
+            );
+        }
+    }
+
+    public function test_every_kpi_has_a_destination_and_a_label(): void
+    {
+        foreach ($this->props()['operationalKpis'] as $kpi) {
+            $this->assertNotEmpty($kpi['label']);
+            $this->assertNotEmpty($kpi['href'], "The [{$kpi['key']}] card must not be a dead click.");
+        }
+    }
+
+    /**
+     * A permit whose end time has passed and which nobody closed is still
+     * open, and it is the half of the count that matters operationally.
+     */
+    public function test_an_expired_permit_is_counted_and_named_separately(): void
+    {
+        PermitToWork::create([
+            'ptw_number' => 'PTW-OPEN-'.uniqid(),
+            'company_id' => $this->yard->id,
+            'permit_type' => 'hot_work',
+            'work_description' => 'Berjalan.',
+            'start_datetime' => now()->subHour(),
+            'end_datetime' => now()->addHours(4),
+            'requested_by' => $this->hse->id,
+            'status' => PermitToWork::STATUS_ACTIVE,
+        ]);
+
+        PermitToWork::create([
+            'ptw_number' => 'PTW-PAST-'.uniqid(),
+            'company_id' => $this->yard->id,
+            'permit_type' => 'hot_work',
+            'work_description' => 'Lewat waktu.',
+            'start_datetime' => now()->subDays(2),
+            'end_datetime' => now()->subDay(),
+            'requested_by' => $this->hse->id,
+            'status' => PermitToWork::STATUS_APPROVED,
+        ]);
+
+        $permits = collect($this->props()['operationalKpis'])->firstWhere('key', 'permits');
+
+        $this->assertSame(2, $permits['value']);
+        $this->assertSame(1, collect($permits['detail'])->firstWhere('label', 'active')['value']);
+        $this->assertSame(1, collect($permits['detail'])->firstWhere('label', 'past end time')['value']);
+    }
+
+    /**
+     * The inspections card counts the only scheduled inspections IOMS
+     * has: the next-due date on safety equipment and on a P3K box.
+     * `hse_inspections` records inspections that HAPPENED and has no
+     * scheduled date at all.
+     */
+    public function test_inspections_due_counts_scheduled_equipment_and_p3k_dates(): void
+    {
+        SafetyEquipment::create([
+            'company_id' => $this->yard->id, 'name' => 'APAR A', 'type' => 'fire_extinguisher',
+            'status' => 'active', 'next_inspection_due' => now()->addDays(3)->toDateString(),
+        ]);
+        SafetyEquipment::create([
+            'company_id' => $this->yard->id, 'name' => 'APAR B', 'type' => 'fire_extinguisher',
+            'status' => 'active', 'next_inspection_due' => now()->subDays(4)->toDateString(),
+        ]);
+        P3kBox::create([
+            'company_id' => $this->yard->id, 'location' => 'Workshop',
+            'next_inspection_due' => now()->addDays(2)->toDateString(),
+        ]);
+
+        $inspections = collect($this->props()['operationalKpis'])->firstWhere('key', 'inspections');
+
+        $this->assertSame(2, collect($inspections['detail'])->firstWhere('label', 'this week')['value']);
+        $this->assertSame(1, collect($inspections['detail'])->firstWhere('label', 'overdue')['value']);
+        $this->assertSame(3, $inspections['value']);
+    }
+
+    public function test_the_operational_kpis_respect_the_operating_unit_filter(): void
+    {
+        PermitToWork::create([
+            'ptw_number' => 'PTW-F-'.uniqid(),
+            'company_id' => $this->yard->id,
+            'permit_type' => 'hot_work',
+            'work_description' => 'Milik yard.',
+            'start_datetime' => now(),
+            'end_datetime' => now()->addHours(4),
+            'requested_by' => $this->hse->id,
+            'status' => PermitToWork::STATUS_ACTIVE,
+        ]);
+
+        $permits = collect($this->props(['company_id' => $this->yard->id])['operationalKpis'])->firstWhere('key', 'permits');
+        $this->assertSame(1, $permits['value']);
     }
 
     // --- A. the operating-unit filter --------------------------------------

@@ -1816,9 +1816,21 @@ function KpiCategoriesTab({ kpiCategories, companies }) {
         }
     }
 
-    function destroy(id) {
-        if (confirm('Hapus kategori KPI ini? Hanya bisa jika belum ada data KPI yang tercatat.')) {
-            router.delete(route('settings.kpi-categories.destroy', id));
+    /*
+     * v2.119.0 -- THE DIALOG MUST PROMISE WHAT THE SERVER ACTUALLY DOES.
+     *
+     * A built-in (no company) is shared by every customer in the
+     * installation, so it is never deleted: the server deactivates it for
+     * THIS Operating Unit through an override. Saying "Hapus" for that
+     * would describe an action nobody is taking.
+     */
+    function destroy(cat) {
+        const isSharedDefault = !cat.company_id && !cat.source_default_id;
+
+        if (confirm(isSharedDefault
+            ? 'Nonaktifkan kategori KPI bawaan ini untuk unit operasi Anda? Kategori tetap tersedia bagi pelanggan lain, dan riwayat penilaian tidak dihapus.'
+            : 'Hapus kategori KPI ini? Hanya bisa jika belum ada data KPI yang tercatat.')) {
+            router.delete(route('settings.kpi-categories.destroy', cat.id));
         }
     }
 
@@ -1830,8 +1842,9 @@ function KpiCategoriesTab({ kpiCategories, companies }) {
                     <CardDescription>
                         Configure the KPI categories your organization tracks. The Dashboard is generated entirely
                         from this configuration -- add a category and enable "Show on Dashboard" to see it appear
-                        immediately, with no code changes. Global categories apply to every company; assign a
-                        Company to scope one to just that company.
+                        immediately, with no code changes. Kategori bawaan (Global) berlaku untuk seluruh
+                        pelanggan IOMS: menyuntingnya akan menyimpan versi milik unit operasi Anda, dan kategori
+                        bawaannya tidak berubah bagi pelanggan lain.
                     </CardDescription>
                 </div>
                 <Button size="sm" onClick={openCreate}><Plus className="h-4 w-4" /> Add KPI Category</Button>
@@ -1868,7 +1881,7 @@ function KpiCategoriesTab({ kpiCategories, companies }) {
                                 <TableCell><Badge variant={cat.is_active ? 'success' : 'secondary'}>{cat.is_active ? 'Active' : 'Inactive'}</Badge></TableCell>
                                 <TableCell className="flex gap-1">
                                     <Button variant="ghost" size="icon" onClick={() => openEdit(cat)}><Pencil className="h-4 w-4" /></Button>
-                                    <Button variant="ghost" size="icon" onClick={() => destroy(cat.id)}><Trash2 className="h-4 w-4 text-red-500" /></Button>
+                                    <Button variant="ghost" size="icon" onClick={() => destroy(cat)} aria-label={!cat.company_id && !cat.source_default_id ? 'Deactivate KPI category' : 'Delete KPI category'}><Trash2 className="h-4 w-4 text-red-500" /></Button>
                                 </TableCell>
                             </TableRow>
                         ))}

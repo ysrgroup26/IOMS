@@ -34,6 +34,18 @@ and driving the screen in a browser, the twelve-to-six month edit **saves and pe
 `ReleaseStatusService` and the hardened `app:deploy` exist to close that gap, and
 `DeploymentIdentityTest` pins them. See `docs/ADR/057-a-release-must-be-able-to-prove-what-is-running.md`.
 
+### What was actually run for v2.119.0
+
+| Claim | Level | Evidence |
+|---|---|---|
+| A tenant can no longer rewrite or delete a shared KPI category | **Test-covered** | 12 tests; removing the guard fails 6 of them, including all 4 asserting the hole |
+| Editing a built-in creates a company-owned override and leaves the template untouched | **Browser-verified** | MySQL 8: editing "Drill" left row 6 (`drill`, shared, `short_label` "Drill") unchanged and created row 9 owned by Unit Utama with "DRL-6" |
+| Deleting a built-in deactivates this company's copy only | **Browser-verified** | "HSE Campaign": row 7 still shared and active, new row 10 inactive for company 1; the confirm dialog says deactivate, not delete |
+| No surface shows a built-in beside its override | **Browser-verified** | Settings lists exactly one row per category after the override; also pinned for Quick Attendance and the per-company scope |
+| `numbering_formats` / `numbering_sequences` have no equivalent hole | **Reasoned** | Both carry `tenant_id` and the write keys on it; read, not exercised |
+| Suite | **Test-covered** | 1335 tests / 6847 assertions on SQLite **and** MySQL 8 |
+| Production itself | **NOT confirmed** | Deploy-confirmed remains the owner's step |
+
 ### What was actually run for v2.118.0
 
 | Claim | Level | Evidence |

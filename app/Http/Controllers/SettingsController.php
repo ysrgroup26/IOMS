@@ -94,7 +94,15 @@ class SettingsController extends Controller
                 ->get(['id', 'name', 'code', 'is_active', 'legal_entity_name', 'legal_entity_registration']),
             'departments' => Department::with('company:id,name')->withCount('employees')->inCompany($companyId)->ordered()->get(),
             'positions' => Position::with('company:id,name', 'department:id,name')->inCompany($companyId)->ordered()->get(),
-            'kpiCategories' => KpiCategory::with('company:id,name')->orderBy('sort_order')->orderBy('name')->get(),
+            /*
+             * v2.119.0: the catalogue IN FORCE, not every row in the table.
+             * A built-in this tenant has overridden is represented by the
+             * override, so the screen a customer configures KPIs on does not
+             * list each adapted category twice with the wrong one selectable.
+             */
+            'kpiCategories' => KpiCategory::with('company:id,name', 'sourceDefault:id,name')
+                ->withoutSupersededTemplates()
+                ->orderBy('sort_order')->orderBy('name')->get(),
             // Milestone 3 (UAT #1/#7 -- identity clarity, found while
             // verifying Task #61): was missing a tenant_id filter
             // entirely -- a Company Admin's own User Management page was
@@ -1036,12 +1044,66 @@ class SettingsController extends Controller
         return back()->with('success', 'KPI category added.');
     }
 
+    /**
+     * v2.119.0 -- A SHARED BUILT-IN IS ADJUSTED THROUGH AN OVERRIDE, NEVER
+     * REWRITTEN, AND THAT IS BOTH THE FIX AND THE FEATURE.
+     *
+     * The guard above cannot catch this on its own:
+     * `assertCompanyInTenant(null)` returns early, which is right for "this
+     * row has no owner to compare against" and was being read as a licence
+     * to write it. So any tenant administrator could rename, re-weight or
+     * deactivate a category EVERY other customer scores against -- the same
+     * hole v2.106.0 closed on `ppe_types`, left open here.
+     *
+     * Refusing the edit would be the wrong remedy, for the reason ADR 050
+     * records: a customer whose KPI weighting differs from the shipped
+     * default would simply be stuck. So the edit is accepted and lands on a
+     * row this company owns, carrying `source_default_id` so the catalogue
+     * shows their version WHERE the built-in was rather than beside it.
+     * Other customers keep the built-in, unchanged.
+     */
     public function updateKpiCategory(UpdateKpiCategoryRequest $request, KpiCategory $kpiCategory): RedirectResponse
     {
         $this->assertCompanyInTenant($kpiCategory->company_id);
 
         $validated = $request->validated();
         $this->assertCompanyInTenant($validated['company_id'] ?? null);
+
+        if ($kpiCategory->isSharedDefault()) {
+            $companyId = $validated['company_id'] ?? $request->user()->company_id;
+
+            /*
+             * An account with no Operating Unit has nothing to own the
+             * override. Refused rather than written against a null company,
+             * which would create a SECOND shared built-in -- the one outcome
+             * worse than refusing.
+             */
+            if ($companyId === null) {
+                return back()->with('error',
+                    'Pilih unit operasi terlebih dahulu: kategori bawaan hanya dapat disesuaikan untuk unit operasi tertentu.');
+            }
+
+            $override = KpiCategory::withoutGlobalScopes()
+                ->where('company_id', $companyId)
+                ->where('source_default_id', $kpiCategory->id)
+                ->first()
+                ?? new KpiCategory(['company_id' => $companyId, 'source_default_id' => $kpiCategory->id]);
+
+            $override->fill(collect($validated)->except('company_id')->all());
+            $override->company_id = $companyId;
+            $override->source_default_id = $kpiCategory->id;
+            $override->is_active = $validated['is_active'] ?? $override->is_active ?? true;
+            $override->save();
+
+            ActivityLog::record(
+                'updated',
+                "KPI category \"{$override->name}\" was adapted for this organisation from the built-in catalogue.",
+                $override,
+                ['source_default_id' => $kpiCategory->id]
+            );
+
+            return back()->with('success', 'Kategori KPI bawaan kini mengikuti pengaturan unit operasi Anda.');
+        }
 
         $kpiCategory->update($validated);
 
@@ -1050,9 +1112,65 @@ class SettingsController extends Controller
         return back()->with('success', 'KPI category updated.');
     }
 
-    public function destroyKpiCategory(KpiCategory $kpiCategory): RedirectResponse
+    /**
+     * v2.119.0 -- DELETING A SHARED BUILT-IN IS NOT THIS TENANT'S TO DO, SO
+     * IT DEACTIVATES THEIR OWN COPY INSTEAD.
+     *
+     * The reference check below is TENANT-SCOPED: it asks "does MY company
+     * have records in this category". On a shared row that is the wrong
+     * question -- another customer's `kpi_records` point at the same id, and
+     * the delete would strand their scoring history. This is why the guard
+     * has to come first rather than relying on the check beneath it.
+     *
+     * The customer still gets the outcome they wanted: the category stops
+     * being offered to them, through an inactive override, and every other
+     * customer is untouched.
+     */
+    public function destroyKpiCategory(Request $request, KpiCategory $kpiCategory): RedirectResponse
     {
         $this->assertCompanyInTenant($kpiCategory->company_id);
+
+        if ($kpiCategory->isSharedDefault()) {
+            $companyId = $request->user()->company_id;
+
+            if ($companyId === null) {
+                return back()->with('error',
+                    'Pilih unit operasi terlebih dahulu: kategori bawaan hanya dapat dinonaktifkan untuk unit operasi tertentu.');
+            }
+
+            $override = KpiCategory::withoutGlobalScopes()
+                ->where('company_id', $companyId)
+                ->where('source_default_id', $kpiCategory->id)
+                ->first()
+                ?? new KpiCategory([
+                    'company_id' => $companyId,
+                    'source_default_id' => $kpiCategory->id,
+                    'code' => $kpiCategory->code,
+                    'name' => $kpiCategory->name,
+                    'short_label' => $kpiCategory->short_label,
+                    'description' => $kpiCategory->description,
+                    'is_negative' => $kpiCategory->is_negative,
+                    'show_on_dashboard' => $kpiCategory->show_on_dashboard,
+                    'count_in_dashboard_stats' => $kpiCategory->count_in_dashboard_stats,
+                    'supports_quick_attendance' => $kpiCategory->supports_quick_attendance,
+                    'requires_approval' => $kpiCategory->requires_approval,
+                    'icon' => $kpiCategory->icon,
+                    'color' => $kpiCategory->color,
+                    'sort_order' => $kpiCategory->sort_order,
+                ]);
+
+            $override->is_active = false;
+            $override->save();
+
+            ActivityLog::record(
+                'updated',
+                "KPI category \"{$override->name}\" was deactivated for this organisation.",
+                $override,
+                ['source_default_id' => $kpiCategory->id]
+            );
+
+            return back()->with('success', 'Kategori KPI bawaan dinonaktifkan untuk unit operasi Anda.');
+        }
 
         if ($kpiCategory->kpiRecords()->exists()) {
             return back()->with('error', 'Cannot delete a KPI category that already has recorded data. Deactivate it instead.');

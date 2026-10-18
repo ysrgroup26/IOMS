@@ -185,7 +185,7 @@ class ManagementInsightsService
     public function companyKpi(int $year, ?int $month = null): array
     {
         $ids = $this->companyIds();
-        $categories = KpiCategory::dashboardVisible()->get();
+        $categories = KpiCategory::dashboardVisible()->withoutSupersededTemplates()->get();
 
         if ($categories->isEmpty()) {
             return ['available' => false, 'categories' => [], 'departments' => [], 'trend' => []];

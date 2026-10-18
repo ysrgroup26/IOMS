@@ -39,8 +39,8 @@ class KpiInputController extends Controller
             // (global + every company's specific ones) is shown; company
             // scoping applies where it's well-defined -- the Dashboard and
             // Reports, both of which have a single Company filter.
-            'categories' => KpiCategory::active()->get(),
-            'quickAttendanceCategories' => KpiCategory::quickAttendanceEnabled()->get(),
+            'categories' => KpiCategory::active()->withoutSupersededTemplates()->get(),
+            'quickAttendanceCategories' => KpiCategory::quickAttendanceEnabled()->withoutSupersededTemplates()->get(),
             'recentRecords' => KpiRecord::with('employee', 'kpiCategory', 'department')
                 ->latest('id')
                 ->limit(10)

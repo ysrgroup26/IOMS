@@ -126,16 +126,32 @@ class PpeController extends Controller
         return Inertia::render('Ppe/EmployeeProfile', [
             'employee' => $employee,
             'assignments' => $assignments,
-            'ppeTypes' => PpeType::active()->get(),
+            'ppeTypes' => PpeType::effectiveForCompany($employee->company_id)->active()->get(),
             'can' => ['manage' => request()->user()->canManagePpeDistribution()],
             'backUrl' => route('ppe.employees').(count(array_filter($listFilters)) ? '?'.http_build_query(array_filter($listFilters)) : ''),
         ]);
     }
 
-    public function master(): Response
+    public function master(Request $request): Response
     {
+        $companies = Company::active()->orderBy('name')->get(['id', 'name']);
+        $companyId = (int) $request->integer('company_id', $request->user()->company_id ?? $companies->first()?->id ?? 0);
+        abort_unless($companyId && $companies->contains('id', $companyId), 404);
+
+        $ppeTypes = PpeType::effectiveForCompany($companyId)->withCount('assignments')->orderBy('name')->get();
+        $ppeTypes->each(function (PpeType $type) use ($companyId) {
+            if ($type->source_default_id) {
+                $type->assignments_count += EmployeePpe::withoutGlobalScopes()
+                    ->where('ppe_type_id', $type->source_default_id)
+                    ->whereHas('employee', fn ($q) => $q->where('company_id', $companyId))
+                    ->count();
+            }
+        });
+
         return Inertia::render('Ppe/Master', [
-            'ppeTypes' => PpeType::withCount('assignments')->orderBy('name')->get(),
+            'ppeTypes' => $ppeTypes,
+            'companies' => $companies,
+            'selectedCompanyId' => $companyId,
             'can' => ['manage' => request()->user()->canManagePpeMaster()],
         ]);
     }

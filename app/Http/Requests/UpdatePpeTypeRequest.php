@@ -3,7 +3,6 @@
 namespace App\Http\Requests;
 
 use Illuminate\Foundation\Http\FormRequest;
-use Illuminate\Validation\Rule;
 
 class UpdatePpeTypeRequest extends FormRequest
 {
@@ -20,10 +19,9 @@ class UpdatePpeTypeRequest extends FormRequest
         // was always null and ->id always threw. The controller already
         // type-hints `PpeType $ppeType`, so the bound model is reachable
         // as a request property instead.
-        $ppeType = $this->ppeType;
-
         return [
-            'name' => ['required', 'string', 'max:255', Rule::unique('ppe_types', 'name')->ignore($ppeType->id)],
+            'name' => ['required', 'string', 'max:255'],
+            'company_id' => ['required', 'integer'],
             'replacement_interval_months' => ['nullable', 'integer', 'min:1', 'max:120'],
             'is_active' => ['boolean'],
         ];

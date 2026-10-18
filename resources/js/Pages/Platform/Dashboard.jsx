@@ -1,7 +1,7 @@
 import { Head, Link } from '@inertiajs/react';
 import { Building2, CheckCircle2, Clock, PauseCircle, Package, AlertTriangle, Lock, Wallet, Receipt, Bell } from 'lucide-react';
 import PlatformLayout from '@/Layouts/PlatformLayout';
-import { Card, CardContent, CardHeader, CardTitle } from '@/Components/ui/card';
+import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/Components/ui/card';
 import { Badge } from '@/Components/ui/badge';
 
 const STAT_CARDS = [
@@ -49,7 +49,7 @@ const STATE_LABEL = { grace: 'Masa tenggang', lapsed: 'Read-only', active: 'Akti
 const rupiah = (n) => 'Rp' + Math.round(Number(n || 0)).toLocaleString('id-ID');
 const tanggal = (d) => (d ? new Date(d).toLocaleDateString('id-ID', { day: 'numeric', month: 'short', year: 'numeric' }) : '-');
 
-export default function PlatformDashboard({ stats, recent_tenants: recentTenants, operations, platform_events: platformEvents = [], schema }) {
+export default function PlatformDashboard({ stats, recent_tenants: recentTenants, operations, platform_events: platformEvents = [], schema, release = null }) {
     const lifecycle = operations?.subscriptions?.counts ?? {};
     const attention = operations?.subscriptions?.attention ?? [];
     const payments = operations?.payments ?? {};
@@ -91,6 +91,66 @@ export default function PlatformDashboard({ stats, recent_tenants: recentTenants
                         {schema.pending.map((name) => <li key={name}>{name}</li>)}
                     </ul>
                 </div>
+            )}
+
+            {/* v2.118.0 -- KODE MANA YANG SEDANG BERJALAN.
+
+                Saudara dari panel skema di atas, satu lapis lebih ke
+                belakang. Perbaikan PPE Master dan My Work sudah ter-commit
+                dan dilaporkan rilis, lalu pemilik melakukan deploy dan PPE
+                Master tetap menolak mengubah jenis APD bawaan -- padahal
+                kalimat penolakan itu tidak ada di satu file pun pada rilis
+                tersebut. Yang hilang bukan perbaikannya, melainkan cara
+                MELIHAT kode mana yang menjawab permintaan.
+
+                Panel ini dihitung oleh permintaan WEB, bukan oleh CLI, karena
+                proses web inilah yang benar-benar melayani pelanggan.
+                Bandingkan tanda tangannya dengan yang dicetak deploy. */}
+            {release && (
+                <Card className="mb-6">
+                    <CardHeader className="pb-3">
+                        <CardTitle className="text-base">Running Release</CardTitle>
+                        <CardDescription>
+                            Dihitung oleh proses web yang melayani halaman ini. Bila tanda tangan di
+                            bawah berbeda dari yang dicetak saat deploy, server masih menjalankan
+                            rilis sebelumnya dan PHP perlu di-restart.
+                        </CardDescription>
+                    </CardHeader>
+                    <CardContent className="pt-0">
+                        <dl className="grid gap-x-8 gap-y-2 text-sm sm:grid-cols-2 lg:grid-cols-4">
+                            <div>
+                                <dt className="text-xs uppercase tracking-wide text-graphite-400">Version</dt>
+                                <dd className="font-semibold text-navy-900">{release.version} {release.stage}</dd>
+                            </div>
+                            <div>
+                                <dt className="text-xs uppercase tracking-wide text-graphite-400">Branch</dt>
+                                <dd className="font-mono text-xs text-navy-900">
+                                    {release.checkout?.branch ?? (release.checkout?.detached ? 'DETACHED HEAD' : 'unknown')}
+                                </dd>
+                            </div>
+                            <div>
+                                <dt className="text-xs uppercase tracking-wide text-graphite-400">Commit</dt>
+                                <dd className="font-mono text-xs text-navy-900">
+                                    {release.checkout?.commit ? release.checkout.commit.slice(0, 12) : 'unknown'}
+                                </dd>
+                            </div>
+                            <div>
+                                <dt className="text-xs uppercase tracking-wide text-graphite-400">Signature</dt>
+                                <dd className="font-mono text-xs text-navy-900">{release.fingerprint?.signature ?? 'unknown'}</dd>
+                            </div>
+                        </dl>
+
+                        {release.may_serve_stale_code && (
+                            <p className="mt-4 rounded-lg border border-danger/25 bg-danger/[0.06] p-3 text-sm leading-relaxed text-red-900">
+                                <span className="font-semibold">opcache menyimpan kode lama.</span>{' '}
+                                opcache aktif dengan <code className="rounded bg-white/60 px-1">validate_timestamps=Off</code>,
+                                sehingga kode baru tidak terbaca sampai PHP di-restart. Deploy dapat
+                                melaporkan berhasil sementara rilis sebelumnya tetap melayani permintaan.
+                                Restart PHP untuk akun ini, lalu muat ulang halaman ini.
+                            </p>
+                        )}
+                    </CardContent>
+                </Card>
             )}
 
             <div className="grid grid-cols-2 gap-4 sm:grid-cols-3 lg:grid-cols-6">

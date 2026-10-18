@@ -114,7 +114,7 @@ class SettingsController extends Controller
             'users' => User::with(['roles:id,name', 'companies' => fn ($q) => $q->withoutGlobalScopes()->select('companies.id')])
                 ->where('tenant_id', $request->user()->tenant_id)->orderBy('name')->get(['id', 'name', 'display_name', 'email', 'role', 'department_key', 'is_active', 'ptw_access', 'is_field_user', 'user_type', 'last_login_at'])
                 ->map(fn (User $u) => [
-                    ...$u->only(['id', 'name', 'display_name', 'email', 'role', 'department_key', 'is_active', 'ptw_access', 'is_field_user', 'last_login_at']),
+                    ...$u->only(['id', 'name', 'display_name', 'email', 'role', 'department_key', 'is_active', 'ptw_access', 'is_field_user', 'user_type', 'last_login_at']),
                     /*
                      * v2.100.0 -- BOTH IDENTITIES, kept apart on purpose.
                      * `name` is the registered identity, `display_name` is
@@ -140,6 +140,15 @@ class SettingsController extends Controller
                 'used' => app(EntitlementService::class)->ptwUsersUsedCount($request->user()->tenant),
                 'quota' => null,
             ],
+            'userSeats' => (function () use ($request) {
+                $tenant = $request->user()->tenant;
+                $entitlements = app(EntitlementService::class);
+
+                return [
+                    'full' => ['used' => $entitlements->usersUsedCount($tenant), 'included' => $entitlements->includedUserAllowance($tenant), 'additional' => $entitlements->additionalUsersPurchased($tenant), 'limit' => $entitlements->userSeatLimit($tenant)],
+                    'my_work' => ['used' => $entitlements->myWorkUsersUsedCount($tenant), 'included' => $entitlements->includedMyWorkAllowance($tenant), 'additional' => $entitlements->additionalMyWorkUsersPurchased($tenant), 'limit' => $entitlements->myWorkSeatLimit($tenant)],
+                ];
+            })(),
             // v2.54.0: the organizational context this page is administering,
             // plus the plan's operating-unit capacity -- computed by the same
             // EntitlementService that enforces it on create, so the meter can
@@ -292,6 +301,7 @@ class SettingsController extends Controller
                     ...$subscription->stateSnapshot(),
                     'package_name' => $subscription->package?->name,
                     'seat_limit' => $subscription->seatLimit(),
+                    'my_work_seat_limit' => $subscription->myWorkSeatLimit(),
                     'starts_at' => $subscription->starts_at,
                     'ends_at' => $subscription->ends_at,
                     'trial_ends_at' => $subscription->trial_ends_at,

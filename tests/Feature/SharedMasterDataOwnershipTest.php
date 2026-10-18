@@ -3,6 +3,9 @@
 namespace Tests\Feature;
 
 use App\Models\Company;
+use App\Models\Department;
+use App\Models\Employee;
+use App\Models\EmployeePpe;
 use App\Models\Package;
 use App\Models\PpeType;
 use App\Models\Subscription;
@@ -129,33 +132,90 @@ class SharedMasterDataOwnershipTest extends TestCase
      * THE DEFECT: ONE CUSTOMER CHANGING EVERYBODY'S DATA
      * ================================================================== */
 
-    public function test_a_tenant_cannot_rename_a_shared_type(): void
+    public function test_a_tenant_can_customize_a_shared_type_without_changing_the_shared_template(): void
     {
         $shared = $this->sharedType();
 
         $this->actingAs($this->adminA)
             ->put(route('ppe-types.update', $shared->id), [
+                'company_id' => $this->companyA->id,
                 'name' => 'Diubah Sepihak',
                 'replacement_interval_months' => 1,
                 'is_active' => true,
             ]);
 
-        $this->assertSame(
-            'Safety Helmet',
-            $shared->fresh()->name,
-            'A built-in belongs to the installation, not to whichever customer is looking at it.'
-        );
+        $this->assertSame('Safety Helmet', $shared->fresh()->name);
         $this->assertSame(12, (int) $shared->fresh()->replacement_interval_months);
+        $customized = PpeType::effectiveForCompany($this->companyA->id)->where('name', 'Diubah Sepihak')->sole();
+        $this->assertSame(1, (int) $customized->replacement_interval_months);
+        $this->assertSame($shared->id, $customized->source_default_id);
     }
 
-    public function test_a_tenant_cannot_delete_a_shared_type(): void
+    public function test_a_tenant_deactivates_a_shared_type_only_for_its_own_company(): void
     {
         $shared = $this->sharedType();
 
         $this->actingAs($this->adminA)
-            ->delete(route('ppe-types.destroy', $shared->id));
+            ->delete(route('ppe-types.destroy', $shared->id), ['company_id' => $this->companyA->id]);
 
         $this->assertNotNull($shared->fresh(), 'A built-in must survive one customer deciding it is unwanted.');
+        $this->assertTrue($shared->fresh()->is_active);
+        $this->assertFalse(PpeType::effectiveForCompany($this->companyA->id)->where('name', $shared->name)->first()->is_active);
+    }
+
+    public function test_safety_shoes_can_change_to_six_months_without_duplicates_or_changing_shared_template(): void
+    {
+        $shared = $this->sharedType('Safety Shoes');
+
+        $this->actingAs($this->adminA)
+            ->put(route('ppe-types.update', $shared->id), [
+                'company_id' => $this->companyA->id,
+                'name' => 'Safety Shoes',
+                'replacement_interval_months' => 6,
+                'is_active' => true,
+            ])->assertSessionHasNoErrors();
+
+        $effective = PpeType::effectiveForCompany($this->companyA->id)->where('name', 'Safety Shoes')->get();
+        $this->assertCount(1, $effective);
+        $this->assertSame(6, $effective->sole()->replacement_interval_months);
+        $this->assertSame(12, $shared->fresh()->replacement_interval_months);
+
+        [$tenantB, $companyB] = $this->makeTenant('b');
+        app(CurrentTenant::class)->set($tenantB->fresh());
+        $this->assertSame(12, PpeType::effectiveForCompany($companyB->id)->where('name', 'Safety Shoes')->sole()->replacement_interval_months);
+    }
+
+    public function test_ppe_interval_edits_change_future_expiry_only_and_keep_old_issue_history(): void
+    {
+        $shared = $this->sharedType('Safety Shoes');
+        $department = Department::create(['company_id' => $this->companyA->id, 'name' => 'Safety', 'code' => 'SAFE', 'is_active' => true]);
+        $employee = Employee::create([
+            'company_id' => $this->companyA->id, 'department_id' => $department->id,
+            'employee_id' => 'PPE-0001', 'nik' => 'PPE-NIK-0001', 'full_name' => 'Test Worker',
+            'status' => 'active', 'join_date' => '2024-01-01',
+        ]);
+
+        $before = EmployeePpe::create([
+            'employee_id' => $employee->id, 'ppe_type_id' => $shared->id,
+            'issued_date' => '2026-01-01', 'issued_by' => $this->adminA->id,
+        ]);
+
+        $this->actingAs($this->adminA)->put(route('ppe-types.update', $shared->id), [
+            'company_id' => $this->companyA->id,
+            'name' => 'Safety Shoes',
+            'replacement_interval_months' => 6,
+            'is_active' => true,
+        ])->assertSessionHasNoErrors();
+
+        $after = EmployeePpe::create([
+            'employee_id' => $employee->id, 'ppe_type_id' => $shared->id,
+            'issued_date' => '2026-01-01', 'issued_by' => $this->adminA->id,
+        ]);
+
+        $this->assertSame('2027-01-01', $before->fresh()->expiry_date->toDateString());
+        $this->assertSame($shared->id, $before->fresh()->ppe_type_id);
+        $this->assertSame('2026-07-01', $after->expiry_date->toDateString());
+        $this->assertNotSame($shared->id, $after->ppe_type_id);
     }
 
     /* ==================================================================
@@ -166,6 +226,7 @@ class SharedMasterDataOwnershipTest extends TestCase
     {
         $this->actingAs($this->adminA)
             ->post(route('ppe-types.store'), [
+                'company_id' => $this->companyA->id,
                 'name' => 'Sarung Tangan Las',
                 'replacement_interval_months' => 6,
                 'is_active' => true,
@@ -185,6 +246,7 @@ class SharedMasterDataOwnershipTest extends TestCase
     {
         $this->actingAs($this->adminA)
             ->post(route('ppe-types.store'), [
+                'company_id' => $this->companyA->id,
                 'name' => 'Sarung Tangan Las',
                 'replacement_interval_months' => 6,
                 'is_active' => true,
@@ -206,6 +268,7 @@ class SharedMasterDataOwnershipTest extends TestCase
     {
         $this->actingAs($this->adminA)
             ->post(route('ppe-types.store'), [
+                'company_id' => $this->companyA->id,
                 'name' => 'Sarung Tangan Las',
                 'replacement_interval_months' => 6,
                 'is_active' => true,
@@ -215,6 +278,7 @@ class SharedMasterDataOwnershipTest extends TestCase
 
         $this->actingAs($this->adminA)
             ->put(route('ppe-types.update', $own->id), [
+                'company_id' => $this->companyA->id,
                 'name' => 'Sarung Tangan Las Panjang',
                 'replacement_interval_months' => 3,
                 'is_active' => true,
@@ -228,6 +292,7 @@ class SharedMasterDataOwnershipTest extends TestCase
     {
         $this->actingAs($this->adminA)
             ->post(route('ppe-types.store'), [
+                'company_id' => $this->companyA->id,
                 'name' => 'Milik A',
                 'replacement_interval_months' => 6,
                 'is_active' => true,
@@ -240,6 +305,7 @@ class SharedMasterDataOwnershipTest extends TestCase
 
         $this->actingAs($adminB)
             ->put(route('ppe-types.update', $own->id), [
+                'company_id' => $this->companyA->id,
                 'name' => 'Dibajak',
                 'replacement_interval_months' => 1,
                 'is_active' => true,
@@ -247,5 +313,53 @@ class SharedMasterDataOwnershipTest extends TestCase
             ->assertNotFound();
 
         $this->assertSame('Milik A', $own->fresh()->name);
+    }
+
+    public function test_an_unused_company_owned_ppe_type_can_be_deleted(): void
+    {
+        $this->actingAs($this->adminA)->post(route('ppe-types.store'), [
+            'company_id' => $this->companyA->id,
+            'name' => 'Disposable Test PPE',
+            'replacement_interval_months' => 3,
+            'is_active' => true,
+        ])->assertSessionHasNoErrors();
+
+        $type = PpeType::withoutGlobalScopes()->where('company_id', $this->companyA->id)->where('name', 'Disposable Test PPE')->sole();
+
+        $this->actingAs($this->adminA)
+            ->delete(route('ppe-types.destroy', $type->id), ['company_id' => $this->companyA->id])
+            ->assertSessionHasNoErrors();
+
+        $this->assertNull($type->fresh());
+    }
+
+    public function test_a_company_owned_ppe_type_with_issue_history_cannot_be_deleted(): void
+    {
+        $department = Department::create(['company_id' => $this->companyA->id, 'name' => 'Safety', 'code' => 'SAFE', 'is_active' => true]);
+        $employee = Employee::create([
+            'company_id' => $this->companyA->id, 'department_id' => $department->id,
+            'employee_id' => 'PPE-0002', 'nik' => 'PPE-NIK-0002', 'full_name' => 'Test Worker',
+            'status' => 'active', 'join_date' => '2024-01-01',
+        ]);
+
+        $this->actingAs($this->adminA)->post(route('ppe-types.store'), [
+            'company_id' => $this->companyA->id,
+            'name' => 'Historical Test PPE',
+            'replacement_interval_months' => 3,
+            'is_active' => true,
+        ])->assertSessionHasNoErrors();
+
+        $type = PpeType::withoutGlobalScopes()->where('company_id', $this->companyA->id)->where('name', 'Historical Test PPE')->sole();
+        $assignment = EmployeePpe::create([
+            'employee_id' => $employee->id, 'ppe_type_id' => $type->id,
+            'issued_date' => '2026-01-01', 'issued_by' => $this->adminA->id,
+        ]);
+
+        $this->actingAs($this->adminA)
+            ->delete(route('ppe-types.destroy', $type->id), ['company_id' => $this->companyA->id])
+            ->assertSessionHas('error', 'Cannot delete a PPE type that has been issued to employees. Deactivate it to keep its issue history.');
+
+        $this->assertNotNull($type->fresh());
+        $this->assertNotNull($assignment->fresh());
     }
 }

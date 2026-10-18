@@ -23,10 +23,10 @@ use Illuminate\Database\Eloquent\Relations\BelongsTo;
  * it by accident -- which is the failure this whole change is fixing.
  *
  * WHEN A NULL OWNER IS LEGITIMATE. Override
- * `companyScopeAllowsGlobalRows()` to return true. Only three tables do:
- * KPI categories, numbering formats and numbering sequences, where a null
- * `company_id` means "the built-in default every customer starts from"
- * and a non-null one means "this customer's override". Do not reach for
+ * `companyScopeAllowsGlobalRows()` to return true. KPI categories,
+ * numbering formats, numbering sequences and PPE templates use it, where a
+ * null `company_id` means "the shared default" and a non-null one means
+ * "that company's own row or override". Do not reach for
  * it to make an ordinary table's null rows visible; a row nobody owns
  * must not become a row everybody can see.
  */

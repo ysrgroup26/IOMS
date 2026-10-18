@@ -45,8 +45,9 @@ global reference data with a reason**. A new model cannot be added without that 
 — which is precisely the failure the test exists to prevent.
 
 > [!warning] A null owner is not a shared row
-> `companyScopeAllowsGlobalRows()` exists for exactly three tables (KPI categories, numbering
-> formats, numbering sequences) where null means "the built-in default". Do not reach for it to make
+> `companyScopeAllowsGlobalRows()` is used by KPI categories, numbering formats, numbering sequences,
+> and PPE types where null means "the shared built-in template". PPE edits create a company-owned
+> override; the shared source is never mutated. Do not reach for this to make ordinary table rows
 > an ordinary table's orphan rows visible. **A row nobody owns must not become a row everybody
 > sees.**
 

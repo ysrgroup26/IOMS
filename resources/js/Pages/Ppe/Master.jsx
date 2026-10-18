@@ -14,19 +14,22 @@ import { Plus, Trash2, Pencil } from 'lucide-react';
 import PpeTabNav from '@/Components/shared/PpeTabNav';
 import PageHeader from '@/Components/shared/PageHeader';
 
-export default function PpeMaster({ ppeTypes, can }) {
+export default function PpeMaster({ ppeTypes, can, companies = [], selectedCompanyId }) {
     const [open, setOpen] = useState(false);
     const [editing, setEditing] = useState(null);
+    const [companyId, setCompanyId] = useState(String(selectedCompanyId ?? ''));
 
     const { data, setData, post, put, processing, reset, errors } = useForm({
         name: '',
         replacement_interval_months: '',
         is_active: true,
+        company_id: selectedCompanyId,
     });
 
     function openCreate() {
         setEditing(null);
         reset();
+        setData('company_id', selectedCompanyId);
         setOpen(true);
     }
 
@@ -36,6 +39,7 @@ export default function PpeMaster({ ppeTypes, can }) {
             name: type.name,
             replacement_interval_months: type.replacement_interval_months ?? '',
             is_active: type.is_active,
+            company_id: selectedCompanyId,
         });
         setOpen(true);
     }
@@ -50,9 +54,11 @@ export default function PpeMaster({ ppeTypes, can }) {
         }
     }
 
-    function destroy(id) {
-        if (confirm('Hapus jenis PPE ini? Hanya bisa jika belum pernah diterbitkan.')) {
-            router.delete(route('ppe-types.destroy', id));
+    function destroy(type) {
+        if (confirm(type.source_default_id || !type.company_id
+            ? 'Deactivate this default PPE type for this Operating Unit? Existing issue history will be preserved.'
+            : 'Delete this PPE type? Deletion is allowed only when there is no issue history.')) {
+            router.delete(route('ppe-types.destroy', type.id), { data: { company_id: companyId } });
         }
     }
 
@@ -67,6 +73,16 @@ export default function PpeMaster({ ppeTypes, can }) {
                     <Button onClick={openCreate}><Plus className="h-4 w-4" /> Add PPE Type</Button>
                 )}
             </PageHeader>
+
+            {companies.length > 1 && (
+                <div className="mb-4 max-w-sm space-y-1.5">
+                    <Label htmlFor="ppe-company">Operating Unit</Label>
+                    <select id="ppe-company" className="h-10 w-full rounded-md border border-input bg-background px-3 text-sm" value={companyId}
+                        onChange={(e) => { setCompanyId(e.target.value); setData('company_id', Number(e.target.value)); router.get(route('ppe.master'), { company_id: e.target.value }, { preserveState: true, preserveScroll: true }); }}>
+                        {companies.map((company) => <option key={company.id} value={company.id}>{company.name}</option>)}
+                    </select>
+                </div>
+            )}
 
             <Card>
                 <CardHeader><CardTitle>PPE Types</CardTitle><CardDescription>Request-based equipment (no interval) is still tracked in history.</CardDescription></CardHeader>
@@ -97,7 +113,7 @@ export default function PpeMaster({ ppeTypes, can }) {
                                     {can.manage && (
                                         <TableCell className="flex gap-1">
                                             <Button variant="ghost" size="icon" onClick={() => openEdit(t)}><Pencil className="h-4 w-4" /></Button>
-                                            <Button variant="ghost" size="icon" onClick={() => destroy(t.id)}><Trash2 className="h-4 w-4 text-red-500" /></Button>
+                                            <Button variant="ghost" size="icon" onClick={() => destroy(t)} aria-label={t.source_default_id || !t.company_id ? 'Deactivate PPE type' : 'Delete PPE type'}><Trash2 className="h-4 w-4 text-red-500" /></Button>
                                         </TableCell>
                                     )}
                                 </TableRow>

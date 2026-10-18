@@ -293,7 +293,7 @@ class DemoTenantSeeder extends Seeder
         $projects = [];
 
         foreach ([
-            ['MV Twin Sister 307 Docking', 'TS-307', 'MV Twin Sister 307', 'Graving Dock 2'],
+            ['Hull Block A-12 Fabrication', 'HB-A12', null, 'Workshop Zone B'],
             ['Yard Expansion Phase 2', 'YE-02', null, 'North Yard'],
         ] as [$name, $code, $vessel, $location]) {
             $projects[] = Project::firstOrCreate(
@@ -346,10 +346,10 @@ class DemoTenantSeeder extends Seeder
 
         $units = [
             ['GD', 'GD-001', 'MSA Altair 4XR', 'Workshop Store', now()->subDays(20), now()->addMonths(5), null, null, now()->addMonths(2)],
-            ['GD', 'GD-002', 'MSA Altair 4XR', 'Graving Dock 2', now()->subDays(80), now()->addDays(10), null, null, now()->subDays(5)],
+            ['GD', 'GD-002', 'MSA Altair 4XR', 'Workshop Zone B', now()->subDays(80), now()->addDays(10), null, null, now()->subDays(5)],
             ['FE', 'FE-001', 'Servvo 6kg ABC', 'Workshop A', now()->subDays(40), now()->addMonths(4), now()->addMonths(14), null, null],
             ['FE', 'FE-002', 'Servvo 9kg ABC', 'Paint Store', now()->subDays(200), now()->subDays(15), now()->addMonths(3), null, null],
-            ['BL', 'BL-001', 'Elektrik 12in', 'Graving Dock 2', now()->subDays(30), now()->addMonths(11), null, now()->addMonths(6), null],
+            ['BL', 'BL-001', 'Elektrik 12in', 'Workshop Zone B', now()->subDays(30), now()->addMonths(11), null, now()->addMonths(6), null],
             ['SS', 'SS-001', 'Haws 8300', 'Chemical Store', now()->subDays(60), now()->addMonths(10), null, now()->addMonths(5), null],
         ];
 
@@ -397,10 +397,10 @@ class DemoTenantSeeder extends Seeder
             [
                 'ptw_number' => 'PTW-'.now()->year.'-00001',
                 'project_id' => $projects[0]->id ?? null,
-                'work_reference' => null,
+                'work_reference' => 'Hull Block A-12',
                 'permit_type' => 'hot_work',
-                'work_description' => 'Hot work for shell plate replacement at starboard side.',
-                'location' => 'Graving Dock 2 — Starboard Hull',
+                'work_description' => 'Hot work for structural plate replacement on Hull Block A-12.',
+                'location' => 'Workshop Zone B',
                 'status' => PermitToWork::STATUS_ACTIVE,
                 'offset' => 0,
             ],
@@ -464,7 +464,7 @@ class DemoTenantSeeder extends Seeder
     {
         $rows = [
             ['NMW-VND-001', 'PT Baja Sentosa Nusantara', 'PT Baja Sentosa Nusantara', 'Steel plate, profiles, welding consumables', 'Surabaya'],
-            ['NMW-VND-002', 'CV Anugerah Teknik Marine', 'CV Anugerah Teknik Marine', 'Marine pumps, valves, spare parts', 'Semarang'],
+            ['NMW-VND-002', 'CV Anugerah Teknik Mandiri', 'CV Anugerah Teknik Mandiri', 'Industrial pumps, valves, spare parts', 'Semarang'],
             ['NMW-VND-003', 'PT Sinar Alat Keselamatan', 'PT Sinar Alat Keselamatan', 'PPE, gas detection, safety equipment', 'Jakarta'],
         ];
 
@@ -497,7 +497,7 @@ class DemoTenantSeeder extends Seeder
 
         Warehouse::firstOrCreate(
             ['company_id' => $company->id, 'code' => 'WH-DOCK'],
-            ['name' => 'Dockside Store', 'location' => 'Graving Dock 2', 'pic_id' => $user->id, 'status' => 'active']
+            ['name' => 'Fabrication Store', 'location' => 'Workshop Zone B', 'pic_id' => $user->id, 'status' => 'active']
         );
 
         $rows = [
@@ -545,7 +545,7 @@ class DemoTenantSeeder extends Seeder
                 'department_id' => $department?->id,
                 'requested_by' => $user->id,
                 'status' => 'approved',
-                'notes' => 'Consumables for shell plate replacement, Graving Dock 2.',
+                'notes' => 'Consumables for structural plate fabrication, Workshop Zone B.',
             ]
         );
 
@@ -600,7 +600,7 @@ class DemoTenantSeeder extends Seeder
                 'department_id' => $department?->id,
                 'po_date' => now()->subDays(2)->toDateString(),
                 'delivery_date' => now()->addDays(10)->toDateString(),
-                'delivery_location' => 'Dockside Store — Graving Dock 2',
+                'delivery_location' => 'Fabrication Store — Workshop Zone B',
                 'payment_terms' => 'Net 14',
                 'currency' => 'IDR',
                 'subtotal' => 18500000,
@@ -619,9 +619,9 @@ class DemoTenantSeeder extends Seeder
 
         $rows = [
             ['NMW-AST-001', 'Overhead Crane 20T — Workshop B', 'Lifting Equipment', 'North Yard — Workshop B', 'operational'],
-            ['NMW-AST-002', 'Diesel Generator 250 kVA', 'Power Generation', 'Graving Dock 2', 'operational'],
+            ['NMW-AST-002', 'Diesel Generator 250 kVA', 'Power Generation', 'Workshop Zone B', 'operational'],
             ['NMW-AST-003', 'Hydraulic Press 100T', 'Workshop Machinery', 'North Yard — Workshop A', 'under_maintenance'],
-            ['NMW-AST-004', 'Air Compressor 15 bar', 'Utility', 'Graving Dock 2', 'operational'],
+            ['NMW-AST-004', 'Air Compressor 15 bar', 'Utility', 'Workshop Zone B', 'operational'],
         ];
 
         $assets = [];
@@ -704,9 +704,9 @@ class DemoTenantSeeder extends Seeder
         Ncr::create([
             'company_id' => $company->id,
             'ncr_number' => 'NCR-'.now()->year.'-00001',
-            'description' => 'Weld porosity found on shell plate seam frame 42-46 during visual inspection.',
+            'description' => 'Weld porosity found on a structural plate seam during visual inspection.',
             'severity' => 'major',
-            'responsible_party' => 'Hull Fabrication',
+            'responsible_party' => 'Structural Fabrication',
             'status' => 'open',
             'raised_by' => $user->id,
             'raised_date' => now()->subDays(3)->toDateString(),

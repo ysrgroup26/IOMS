@@ -2691,6 +2691,56 @@ user leaves an optional field blank, which is the normal case, not the edge case
 
 Found by a test that filled in only the required fields.
 
+## CRITICAL — Known Pitfall (v2.118.0) — a passing test says nothing about which code production is running, and this cost three releases
+
+PPE Master refused to let a customer change a built-in PPE type. The defect was real, it
+was fixed, eleven tests covered the fix including the owner's own 12-to-6-month example,
+the build was clean, and it was released. The owner deployed it and the screen still
+refused, with this message:
+
+> Jenis APD bawaan tidak dapat diubah.
+
+That sentence exists in **no file** of the release that was deployed. It was last present
+in v2.106.0. Checking the released commit out in isolation, provisioning it and driving
+the same screen in a browser, the edit saves and persists.
+
+**The code was never the defect. The code that reached the server was.** Three ways that
+happens, all of which leave the deploy log reading clean:
+
+1. **The server's checkout is on a different branch than the release was pushed to.**
+   `deploy.sh` runs a bare `git pull`, which updates whichever branch the server is on.
+   This repository had carried two divergent lines, each with its own v2.108.0, and
+   neither contained the other's fixes.
+2. **`git pull` did not fast-forward.** `public/build/` is committed, so one touched asset
+   on the server makes the pull refuse — while the steps after it still run and still
+   print success.
+3. **OPcache is still serving the previous release's compiled classes.** The deploy runs
+   under the CLI, which has its **own** OPcache, so the deploy sees new code while every
+   web request sees old code. With `opcache.validate_timestamps=Off` this never heals on
+   its own; it needs a PHP pool restart.
+
+### What to do about it
+
+- **Never report a deploy as verified from a passing test suite or a clean build.** Those
+  are statements about the code you loaded, not about the code answering requests. After a
+  deploy, compare the signature the deploy prints with the one Master Admin → Running
+  Release prints. That panel is computed by a **web** request; when the two differ, the
+  web workers are not running what is on disk.
+- `app:deploy` now asserts the schema this release reads for and returns non-zero before
+  `artisan up`, so a release that did not land keeps serving the maintenance page. Do not
+  "fix" a failure there by running `artisan up` by hand.
+- When a reported defect cannot be reproduced from the released commit, **suspect the
+  deployment before the diagnosis.** Check the branch first, then the signature, then
+  OPcache. See `docs/ADR/057-a-release-must-be-able-to-prove-what-is-running.md`.
+
+### A corollary that bit during this very investigation
+
+`config:cache` bakes the database name into `bootstrap/cache/config.php`. Running
+`app:deploy` against a scratch database and then running the test suite made 411 tests
+fail against a database that was not the one the env vars named — the same class of
+failure ADR 024 recorded, reproduced by accident while diagnosing its sibling. Always
+`php artisan config:clear` after pointing a local command at a different database.
+
 ## Known Pitfall (v2.74.0) — a column missing from `$fillable` is dropped SILENTLY by `create()`
 
 `User::create([... 'email_verified_at' => now(), 'google_id' => $sub])` produced an account that was

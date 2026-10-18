@@ -1053,12 +1053,14 @@ actually common.
 > `withoutGlobalScope(CompanyOwnedScope::class)` / `withoutGlobalScopes()`. "I mean across tenants"
 > is reviewable; "I forgot a where clause" is not.
 >
-> ### `ppe_types` is shared reference data, on purpose (v2.63.0)
+> ### `ppe_types` has shared templates and company-owned overrides
 >
-> Six generic rows — Safety Helmet, Safety Shoes, Coverall, Safety Glasses, Headlamp, Harness — with
-> a replacement interval each. No `company_id`, no `tenant_id`, nothing that identifies a customer,
-> and every tenant issues from the same catalogue. It is **not** an oversight and must not be turned
-> into per-tenant data without a product decision.
+> Built-in rows (Safety Helmet, Safety Shoes, Coverall, Safety Glasses, Headlamp, Harness) remain
+> shared templates with `company_id = NULL`. An authorized company edit creates or updates a
+> company-owned row linked through `source_default_id`; `PpeType::effectiveForCompany()` hides the
+> replaced template for that company only. Other companies continue to see the original. New PPE
+> issues resolve the effective type for the employee's company, so expiry uses its current interval;
+> issued rows keep their original type ID and stored expiry date.
 >
 > Two consequences worth knowing:
 >
@@ -1067,12 +1069,10 @@ actually common.
 >    installation-wide question — "is anyone anywhere using this type", which is what a delete guard
 >    needs — must say `->withoutGlobalScopes()`. `PpeTypeController::destroy()` does; without it one
 >    customer could delete a type another was actively issuing.
-> 2. **Writes to it are cross-tenant by construction.** The mutation routes sit behind
->    `role:super_admin`, which every customer has one of, so any customer's Super Admin can rename a
->    type or change its replacement interval for everyone — and the interval feeds
->    `EmployeePpe`'s expiry calculation. That is a *product* question (should the catalogue be
->    Platform-Admin-only, or per-tenant?), flagged rather than changed here, because narrowing it
->    would remove a capability customers currently have.
+> 2. **The source template stays immutable to tenants.** A customer administrator may customize its
+>    effective type only through the linked company override, never by changing the shared row.
+>    Deactivating a template creates an inactive override; deletion of a company-owned type is refused
+>    when issuance history references it. See ADR [[050-company-specific-ppe-template-overrides|050]].
 >
 > **Tenant-owned settings** (`company_settings`) use a distinct two-tier model, because guests and
 > the platform genuinely need values too: `tenant_id IS NULL` is the platform default,

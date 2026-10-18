@@ -4,6 +4,8 @@ namespace App\Http\Requests;
 
 use Illuminate\Foundation\Http\FormRequest;
 use App\Rules\InCurrentTenant;
+use App\Models\Employee;
+use Illuminate\Validation\Rule;
 
 class StoreEmployeePpeBatchRequest extends FormRequest
 {
@@ -21,10 +23,15 @@ class StoreEmployeePpeBatchRequest extends FormRequest
      */
     public function rules(): array
     {
+        $employee = Employee::find($this->input('employee_id'));
+        $ppeTypeIds = $employee
+            ? \App\Models\PpeType::effectiveForCompany($employee->company_id)->active()->pluck('id')
+            : collect();
+
         return [
             'employee_id' => ['required', new InCurrentTenant('employees')],
             'items' => ['required', 'array', 'min:1'],
-            'items.*.ppe_type_id' => ['required', 'exists:ppe_types,id'],
+            'items.*.ppe_type_id' => ['required', Rule::in($ppeTypeIds)],
             'items.*.issued_date' => ['required', 'date'],
             // Optional manual override (v1.6.6) -- when omitted, the
             // EmployeePpe model's boot hook still auto-computes this from

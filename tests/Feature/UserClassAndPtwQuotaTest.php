@@ -798,6 +798,8 @@ class UserClassAndPtwQuotaTest extends TestCase
             'user_type' => User::TYPE_MY_WORK,
         ])->assertRedirect();
 
+        $created = User::where('email', 'like', 'crew-%@yard.test')->sole();
+        $this->assertSame(User::TYPE_MY_WORK, $created->user_type);
         $this->assertSame(1, app(EntitlementService::class)->myWorkUsersUsedCount($tenant->fresh()));
         // The Full pool is untouched by that creation.
         $this->assertSame(3, app(EntitlementService::class)->usersUsedCount($tenant->fresh()));
@@ -819,6 +821,30 @@ class UserClassAndPtwQuotaTest extends TestCase
 
         // A My Work User must never be produced by an omitted field.
         $this->assertTrue($created->isFullUser());
+    }
+
+    public function test_settings_and_billing_show_the_actual_class_and_separate_my_work_capacity(): void
+    {
+        $tenant = $this->tenantOn('starter');
+        $admin = $this->userOn($tenant, User::TYPE_FULL, ['role' => 'super_admin', 'name' => 'Admin']);
+        $field = $this->userOn($tenant, User::TYPE_MY_WORK, ['name' => 'Field Worker']);
+
+        $this->actingAs($admin)
+            ->get(route('settings.index', ['tab' => 'users']))
+            ->assertInertia(fn ($page) => $page
+                ->where('userSeats.full.included', 3)
+                ->where('userSeats.my_work.included', 10)
+                ->where('userSeats.my_work.used', 1)
+                ->where('users', fn ($users) => collect($users)->contains(fn ($user) => $user['id'] === $field->id && $user['user_type'] === User::TYPE_MY_WORK))
+            );
+
+        $this->get(route('subscription.billing'))
+            ->assertInertia(fn ($page) => $page
+                ->where('entitlements.users.included', 3)
+                ->where('entitlements.my_work_users.included', 10)
+                ->where('entitlements.my_work_users.used', 1)
+                ->where('entitlements.ptw_users.limit', null)
+            );
     }
 
     /* ---------------------------------------------------------------- */

@@ -109,38 +109,38 @@ class ProductConsistencyV253Test extends TestCase
         $permit = new PermitToWork([
             'company_id' => $company->id,
             'project_id' => null,
-            'work_reference' => 'Twin Sister 307',
-            'location' => 'Engine Room',
-            'work_description' => 'Hot work for pipe repair at the engine room.',
+            'work_reference' => 'Hull Block A-12',
+            'location' => 'Workshop Zone B',
+            'work_description' => 'Hot work for pipe support repair in the workshop.',
         ]);
 
         // Three answers to three different questions -- what job, where,
         // and what is being done. None of them stands in for another.
-        $this->assertSame('Twin Sister 307', $permit->workIdentity());
-        $this->assertSame('Engine Room', $permit->location);
-        $this->assertStringContainsString('pipe repair', $permit->work_description);
+        $this->assertSame('Hull Block A-12', $permit->workIdentity());
+        $this->assertSame('Workshop Zone B', $permit->location);
+        $this->assertStringContainsString('pipe support repair', $permit->work_description);
     }
 
     /** Starter is HSE-only and must still be able to raise a permit without Project Management. */
     public function test_a_permit_can_be_created_without_any_project(): void
     {
-        [$tenant, $company] = $this->tenantWithCompany('Delta Marine');
+        [$tenant, $company] = $this->tenantWithCompany('Delta Industrial');
         $hse = $this->user($tenant, ['role' => 'hse', 'ptw_access' => true]);
 
         $this->actingAs($hse)->post(route('permits-to-work.store'), [
             'company_id' => $company->id,
             'permit_type' => 'hot_work',
-            'work_reference' => 'Docking Area 2',
-            'location' => 'Main Deck / Port Side',
-            'work_description' => 'Grinding and welding on deck plating.',
+            'work_reference' => 'Crusher Line 2 Overhaul',
+            'location' => 'Conveyor Zone 2',
+            'work_description' => 'Grinding and welding on a conveyor support frame.',
             'start_datetime' => now()->addHour()->format('Y-m-d\TH:i'),
             'end_datetime' => now()->addHours(6)->format('Y-m-d\TH:i'),
         ])->assertRedirect();
 
         $permit = PermitToWork::firstOrFail();
         $this->assertNull($permit->project_id);
-        $this->assertSame('Docking Area 2', $permit->work_reference);
-        $this->assertSame('Docking Area 2', $permit->workIdentity());
+        $this->assertSame('Crusher Line 2 Overhaul', $permit->work_reference);
+        $this->assertSame('Crusher Line 2 Overhaul', $permit->workIdentity());
     }
 
     /* ================================================================

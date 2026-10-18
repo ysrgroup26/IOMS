@@ -87,7 +87,7 @@ export const WORKSPACES = [
         tier: 'department',
         items: [
             { name: 'Dashboard', href: 'dashboard', icon: LayoutDashboard, global: true, globalDashboardOnly: true },
-            { name: 'My Work', href: 'my-work', icon: ClipboardList, global: true, departmentUserOnly: true },
+            { name: 'My Work', href: 'my-work', icon: ClipboardList, global: true, myWorkAvailableOnly: true },
             { name: 'Overview', href: 'hr.dashboard', icon: LayoutDashboard },
             { name: 'Employees', href: 'employees.index', icon: Users, moduleKey: 'employees' },
             // v1.11.6 (Production Readiness pass, Part 4): "Attendance"
@@ -196,7 +196,7 @@ export const WORKSPACES = [
         // KPI) are kept as-is. hrefs/route names UNCHANGED.
         items: [
             { name: 'Dashboard', href: 'dashboard', icon: LayoutDashboard, global: true, globalDashboardOnly: true },
-            { name: 'My Work', href: 'my-work', icon: ClipboardList, global: true, departmentUserOnly: true },
+            { name: 'My Work', href: 'my-work', icon: ClipboardList, global: true, myWorkAvailableOnly: true },
             { name: 'Overview', href: 'hse.dashboard', icon: LayoutDashboard },
             {
                 name: 'Safety Management',
@@ -394,7 +394,7 @@ export const WORKSPACES = [
         tier: 'department',
         items: [
             { name: 'Dashboard', href: 'dashboard', icon: LayoutDashboard, global: true, globalDashboardOnly: true },
-            { name: 'My Work', href: 'my-work', icon: ClipboardList, global: true, departmentUserOnly: true },
+            { name: 'My Work', href: 'my-work', icon: ClipboardList, global: true, myWorkAvailableOnly: true },
             { name: 'Overview', href: 'logistics.dashboard', icon: LayoutDashboard },
             { name: 'Material Request', href: 'material-requests.index', icon: PackageSearch, moduleKey: 'material_requests' },
             // Warehouse stays inside Logistics for now, per explicit
@@ -420,7 +420,7 @@ export const WORKSPACES = [
         tier: 'department',
         items: [
             { name: 'Dashboard', href: 'dashboard', icon: LayoutDashboard, global: true, globalDashboardOnly: true },
-            { name: 'My Work', href: 'my-work', icon: ClipboardList, global: true, departmentUserOnly: true },
+            { name: 'My Work', href: 'my-work', icon: ClipboardList, global: true, myWorkAvailableOnly: true },
             { name: 'Overview', href: 'management.overview', icon: TrendingUp },
             { name: 'Company KPI', href: 'management.kpi', icon: BarChart3 },
             { name: 'HSE Performance', href: 'management.hse', icon: HardHat },
@@ -636,11 +636,12 @@ function applyItemGates(items, isAdmin, modules, isDepartmentUser = false, isTen
             // billing and security rows.
             && (!item.tenantAdminOnly || isTenantAdmin)
             && (!item.moduleKey || modules.includes(item.moduleKey))
-            // v2.42.0 third gate. 'My Work' (Field Home) is the task-first
-            // page Department Users used to be silently given INSTEAD of the
-            // Dashboard; it is only meaningful for that audience, so an
-            // administrator browsing the same workspace does not see it.
-            && (!item.departmentUserOnly || isDepartmentUser)
+            // v2.117.0 -- My Work is available to department users, accounts
+            // whose explicit landing preference is My Work, and the My Work
+            // account class. The preference changes landing/navigation only;
+            // server route middleware and per-action capabilities remain the
+            // authorization boundary.
+            && (!item.myWorkAvailableOnly || Boolean(user?.my_work_navigation_available))
             /*
              * v2.107.0 SIXTH GATE -- A NAMED CAPABILITY.
              *
@@ -841,6 +842,9 @@ export function getCompanyNavItems(user, enabledModules, workspaceCatalog) {
 
     return [
         { name: 'Dashboard', href: 'dashboard', icon: LayoutDashboard },
+        ...(user?.my_work_navigation_available
+            ? [{ name: 'My Work', href: 'my-work', icon: ClipboardList, global: true }]
+            : []),
         { name: 'Calendar', href: 'calendar.index', icon: CalendarDays },
         { name: 'Work Center', href: 'work-center.index', icon: ClipboardCheck },
         ...reporting,

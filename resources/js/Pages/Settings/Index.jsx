@@ -48,7 +48,7 @@ const ROLE_LABELS = {
     warehouse: 'Warehouse',
 };
 
-export default function SettingsIndex({ company, companies, departments, positions, kpiCategories, users, can, filters, roles, permissionCatalog, numberingFormats, approvalFlows, numberingModuleKeys, notificationPreferences, documentTemplates, documentModuleKeys, fieldMappings, subscription, invoices, ptwAccess, organization, assignableDepartments = [] }) {
+export default function SettingsIndex({ company, companies, departments, positions, kpiCategories, users, can, filters, roles, permissionCatalog, numberingFormats, approvalFlows, numberingModuleKeys, notificationPreferences, documentTemplates, documentModuleKeys, fieldMappings, subscription, invoices, ptwAccess, userSeats, organization, assignableDepartments = [] }) {
     // System-level tabs (Companies, Users, Backup) are Super-Admin-only.
     // HSE sees only the operational tabs (Departments, Positions).
     const canSystem = can?.manage_system;
@@ -161,7 +161,7 @@ export default function SettingsIndex({ company, companies, departments, positio
                 <Tabs.Content value="positions"><PositionsTab positions={positions} departments={departments} companies={companies} filters={filters} /></Tabs.Content>
                 <Tabs.Content value="kpi-categories"><KpiCategoriesTab kpiCategories={kpiCategories} companies={companies} /></Tabs.Content>
                 <Tabs.Content value="authentication"><AuthenticationTab /></Tabs.Content>
-                {(canSystem || canPtwAccess) && <Tabs.Content value="users"><UsersTab users={users} roles={roles} ptwAccess={ptwAccess} canManageUsers={canSystem} canPtwAccess={canPtwAccess} canFieldAccess={canFieldAccess} companies={organization?.units ?? companies} assignableDepartments={assignableDepartments} /></Tabs.Content>}
+                {(canSystem || canPtwAccess) && <Tabs.Content value="users"><UsersTab users={users} roles={roles} ptwAccess={ptwAccess} userSeats={userSeats} canManageUsers={canSystem} canPtwAccess={canPtwAccess} canFieldAccess={canFieldAccess} companies={organization?.units ?? companies} assignableDepartments={assignableDepartments} /></Tabs.Content>}
                 {canSystem && <Tabs.Content value="roles"><RolesTab roles={roles} permissionCatalog={permissionCatalog} /></Tabs.Content>}
                 {canSystem && <Tabs.Content value="numbering"><NumberingTab numberingFormats={numberingFormats} /></Tabs.Content>}
                 {canSystem && <Tabs.Content value="approval-flows"><ApprovalFlowsTab approvalFlows={approvalFlows} moduleKeys={numberingModuleKeys} /></Tabs.Content>}
@@ -2129,22 +2129,22 @@ function DisplayNameField({ value, onChange, placeholder }) {
     );
 }
 
-function UsersTab({ users, roles, ptwAccess, canManageUsers, canPtwAccess, canFieldAccess, companies, assignableDepartments = [] }) {
+function UsersTab({ users, roles, ptwAccess, userSeats, canManageUsers, canPtwAccess, canFieldAccess, companies, assignableDepartments = [] }) {
     return (
         <div className="space-y-4">
-            {canManageUsers && <UserManagementCard users={users} roles={roles} companies={companies} assignableDepartments={assignableDepartments} />}
+            {canManageUsers && <UserManagementCard users={users} roles={roles} companies={companies} userSeats={userSeats} assignableDepartments={assignableDepartments} />}
             {(canManageUsers || canPtwAccess) && <FieldPtwAccessCard users={users} ptwAccess={ptwAccess} canFieldAccess={canFieldAccess} canManageUsers={canManageUsers} />}
         </div>
     );
 }
 
-function UserManagementCard({ users, roles, companies, assignableDepartments = [] }) {
+function UserManagementCard({ users, roles, companies, userSeats, assignableDepartments = [] }) {
     const [open, setOpen] = useState(false);
     const [editingRolesFor, setEditingRolesFor] = useState(null);
     const [editingUser, setEditingUser] = useState(null);
     const [editingUnitsFor, setEditingUnitsFor] = useState(null);
     const multiUnit = (companies ?? []).length > 1;
-    const { data, setData, post, processing, reset, errors } = useForm({ name: '', display_name: '', email: '', password: '', role: 'hrd', department_key: '' });
+    const { data, setData, post, processing, reset, errors } = useForm({ name: '', display_name: '', email: '', password: '', role: 'hrd', department_key: '', user_type: 'full' });
     const customRoles = (roles ?? []).filter((r) => !BUILT_IN_ROLES.includes(r.name));
 
     function submit(e) {
@@ -2184,6 +2184,17 @@ function UserManagementCard({ users, roles, companies, assignableDepartments = [
                                 {errors.password && <p className="text-xs text-red-600">{errors.password}</p>}
                             </div>
                             <div className="space-y-1.5">
+                                <Label>Account Class</Label>
+                                <Select value={data.user_type} onValueChange={(v) => setData('user_type', v)}>
+                                    <SelectTrigger><SelectValue /></SelectTrigger>
+                                    <SelectContent>
+                                        <SelectItem value="full">Full User</SelectItem>
+                                        <SelectItem value="my_work">My Work User</SelectItem>
+                                    </SelectContent>
+                                </Select>
+                                <p className="text-xs text-graphite-400">The class determines the account's seat pool. Landing preference is managed separately below.</p>
+                            </div>
+                            <div className="space-y-1.5">
                                 <Label>Role</Label>
                                 <Select value={data.role} onValueChange={(v) => setData('role', v)}>
                                     <SelectTrigger><SelectValue /></SelectTrigger>
@@ -2203,8 +2214,12 @@ function UserManagementCard({ users, roles, companies, assignableDepartments = [
                 </Dialog>
             </CardHeader>
             <CardContent>
+                <div className="mb-4 grid gap-2 text-xs sm:grid-cols-2">
+                    <div className="rounded-md border p-2">Full Users: {userSeats?.full?.used ?? 0} / {userSeats?.full?.limit ?? 'Unlimited'} (included {userSeats?.full?.included ?? 'Unlimited'} + {userSeats?.full?.additional ?? 0} additional)</div>
+                    <div className="rounded-md border p-2">My Work Users: {userSeats?.my_work?.used ?? 0} / {userSeats?.my_work?.limit ?? 'Unlimited'} (included {userSeats?.my_work?.included ?? 'Unlimited'} + {userSeats?.my_work?.additional ?? 0} additional)</div>
+                </div>
                 <Table>
-                    <TableHeader><TableRow><TableHead>Name</TableHead><TableHead>Email</TableHead><TableHead>Role</TableHead><TableHead>Department</TableHead>{multiUnit && <TableHead>Operating Units</TableHead>}<TableHead>Custom Roles</TableHead><TableHead>Status</TableHead><TableHead /></TableRow></TableHeader>
+                    <TableHeader><TableRow><TableHead>Name</TableHead><TableHead>Email</TableHead><TableHead>Account Class</TableHead><TableHead>Role</TableHead><TableHead>Department</TableHead>{multiUnit && <TableHead>Operating Units</TableHead>}<TableHead>Custom Roles</TableHead><TableHead>Status</TableHead><TableHead /></TableRow></TableHeader>
                     <TableBody>
                         {users.map((u) => {
                             const assignedCustom = customRoles.filter((r) => (u.role_ids ?? []).includes(r.id));
@@ -2218,6 +2233,7 @@ function UserManagementCard({ users, roles, companies, assignableDepartments = [
                                         )}
                                     </TableCell>
                                     <TableCell>{u.email}</TableCell>
+                                    <TableCell><Badge variant={u.user_type === 'my_work' ? 'outline' : 'secondary'}>{u.user_type === 'my_work' ? 'My Work User' : 'Full User'}</Badge></TableCell>
                                     <TableCell><Badge variant={u.role === 'super_admin' ? 'default' : 'secondary'}>{ROLE_LABELS[u.role] ?? u.role}</Badge></TableCell>
                                     <TableCell>
                                         {deptLabel ? <Badge variant="outline">{deptLabel}</Badge> : <span className="text-xs text-graphite-400">Administrator (all)</span>}
@@ -2464,8 +2480,8 @@ function FieldPtwAccessCard({ users, ptwAccess, canFieldAccess, canManageUsers }
                 <div className="hidden items-center gap-4 border-y border-graphite-100 bg-graphite-50/60 px-4 py-2 sm:flex dark:border-slate-800 dark:bg-slate-800/30">
                     <span className="min-w-0 flex-1 text-[11px] font-semibold uppercase tracking-wide text-graphite-500 dark:text-slate-400">Account</span>
                     <span className="w-[104px] shrink-0 text-center text-[11px] font-semibold uppercase tracking-wide text-graphite-500 dark:text-slate-400">
-                        My Work
-                        <span className="block text-[10px] font-normal normal-case tracking-normal text-graphite-400">Workspace</span>
+                        Land in My Work
+                        <span className="block text-[10px] font-normal normal-case tracking-normal text-graphite-400">Landing preference</span>
                     </span>
                     <span className="w-[104px] shrink-0 text-center text-[11px] font-semibold uppercase tracking-wide text-graphite-500 dark:text-slate-400">
                         PTW Access
@@ -2517,9 +2533,9 @@ function FieldPtwAccessCard({ users, ptwAccess, canFieldAccess, canManageUsers }
                                                 <Checkbox
                                                     checked={!!u.is_field_user}
                                                     onCheckedChange={(v) => toggleField(u, Boolean(v))}
-                                                    aria-label={`My Work workspace for ${u.name}`}
+                                                    aria-label={`Land in My Work preference for ${u.name}`}
                                                 />
-                                                <span className="text-xs font-medium text-graphite-500 sm:hidden dark:text-slate-400">My Work</span>
+                                                <span className="text-xs font-medium text-graphite-500 sm:hidden dark:text-slate-400">Land in My Work</span>
                                             </label>
                                         ) : (
                                             <span className="hidden sm:block sm:w-[104px]" />
@@ -2721,7 +2737,8 @@ function SubscriptionTab({ subscription, invoices }) {
                         <div className="flex items-center justify-between border-b border-graphite-100 pb-2 dark:border-slate-800"><span className="text-graphite-500">Plan</span><span className="font-medium">{subscription.package_name ?? '-'}</span></div>
                         <div className="flex items-center justify-between border-b border-graphite-100 pb-2 dark:border-slate-800"><span className="text-graphite-500">License Type</span><span className="font-medium capitalize">{subscription.type ?? 'subscription'}</span></div>
                         <div className="flex items-center justify-between border-b border-graphite-100 pb-2 dark:border-slate-800"><span className="text-graphite-500">Status</span><Badge variant={SUB_STATUS_VARIANT[subscription.lifecycle_state] ?? 'secondary'} className="capitalize">{subscription.lifecycle_state}</Badge></div>
-                        <div className="flex items-center justify-between border-b border-graphite-100 pb-2 dark:border-slate-800"><span className="text-graphite-500">Seat Limit</span><span className="font-medium">{subscription.seat_limit ?? 'Unlimited'}</span></div>
+                        <div className="flex items-center justify-between border-b border-graphite-100 pb-2 dark:border-slate-800"><span className="text-graphite-500">Full User Seats</span><span className="font-medium">{subscription.seat_limit ?? 'Unlimited'}</span></div>
+                        <div className="flex items-center justify-between border-b border-graphite-100 pb-2 dark:border-slate-800"><span className="text-graphite-500">My Work User Seats</span><span className="font-medium">{subscription.my_work_seat_limit ?? 'Unlimited'}</span></div>
                     </div>
                     <div className="space-y-3 text-sm">
                         <div className="flex items-center justify-between border-b border-graphite-100 pb-2 dark:border-slate-800"><span className="text-graphite-500">Start Date</span><span className="font-medium">{formatDate(subscription.starts_at)}</span></div>

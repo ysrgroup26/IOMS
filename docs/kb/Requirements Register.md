@@ -1,7 +1,7 @@
 ---
 title: Requirements Register
 type: register
-updated: 2026-10-12
+updated: 2026-10-18
 tags: [kb/requirements]
 ---
 
@@ -70,6 +70,10 @@ Older completions live in [[Release History]].
 
 | Item | Version | Status | Evidence |
 |---|---|---|---|
+| **A reported fix did not reach production, three times** | 2.118.0 | `#status/implemented` | ADR 057. Root cause was NOT the PPE or My Work logic: the refusal the owner saw exists in no file of the release they deployed (last present in v2.106.0), and that commit, run in isolation and driven in a browser, saves and persists the 12-to-6-month edit. The repository carried two divergent release lines, each with its own v2.108.0 and neither containing the other, while `deploy.sh` runs a bare `git pull` against whichever branch the server is on. The lines are now merged; `ReleaseStatusService` reports the running version, branch, commit and content signature from a WEB request; `app:deploy` asserts the release's schema and returns non-zero before `artisan up`. `DeploymentIdentityTest` (7 tests) pins it. **Production itself is still not confirmed** -- that is the owner's deploy-confirmed step: compare the signature the deploy prints with Master Admin > Running Release |
+| **A fresh MySQL 8 database could not be provisioned** | 2.118.0 | `#status/implemented` | `2026_09_30_120000` anchored a column `after('additional_users')`, created two months later in migration order, so `migrate` died halfway on any empty MySQL database while existing installations were unaffected. SQLite ignores column position, which is why the suite never saw it. The fix existed on the development line and had never reached `main` |
+| Production corrections: My Work account class creation and navigation; PPE default overrides, additions, deactivation and history-safe deletion | 2.117.0 | `#status/implemented` | `UserClassAndPtwQuotaTest`, `MyWorkNavigationBoundaryTest`, and `SharedMasterDataOwnershipTest`; full suite 1,030 / 5,415. Local browser verified the Add User class selector, six-month Safety Shoes edit/save, PPE addition, account class and seat meters, admin My Work entry on the company dashboard and HSE workspace, and industry-neutral PTW examples. Browser deactivation confirmation timed out; server behavior is test-covered. Public production banner reports v2.116.0; its exact commit is not public |
+| My Work account class and quota visibility; company-owned PPE overrides; neutral PTW work-reference/location examples | 2.108.0 | `#status/implemented` | Full suite 1,027 / 5,375, including `UserClassAndPtwQuotaTest` and `SharedMasterDataOwnershipTest`; isolated browser verified account class/quota displays, PPE edit, Billing meter, and PTW examples. Account-create submit awaits action-time confirmation; no isolated MySQL test database |
 | **HSE Overview matches the approved visual reference** | 2.116.0 | `#status/verified` | Hero band, five fixed-order KPI cards, trend / calendar / notifications, classification / rates / man-hour, Quick Access. Driven in a browser at 1512, 1024 and 390 px with no overflow and no console errors |
 | **TRIR and LTIFR are published, with their arithmetic** | 2.116.0 | `#status/verified` | ADR 056. Multiplier, numerator, the classifications behind it, period and the exact denominator printed beside each rate; refused with a reason when no hours are logged. Formulas pinned with worked numbers on both engines |
 | **Accident classification (FAT/LTI/RWC/MTC/FAC)** | 2.116.0 | `#status/verified` | Counted from `incidents.injury_severity`; disjoint by construction, unclassified reports counted nowhere and surfaced, recordable excludes first aid |

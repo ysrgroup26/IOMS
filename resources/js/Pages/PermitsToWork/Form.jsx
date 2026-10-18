@@ -101,6 +101,7 @@ export default function PermitToWorkForm({ ppeTypes = [], companies, projects, r
         additional_ppe: [],
         hazards: [],
     });
+    const effectivePpeTypes = ppeTypes.filter((type) => Number(type.company_id) === Number(data.company_id));
 
     // The chosen permit type, shown in the document header so the
     // identity block reflects what is actually being raised as it is
@@ -235,8 +236,9 @@ export default function PermitToWorkForm({ ppeTypes = [], companies, projects, r
                                 <Input
                                     value={data.work_reference}
                                     onChange={(e) => setData('work_reference', e.target.value)}
-                                    placeholder="e.g. Twin Sister 307, Line 1, Docking Area 2"
+                                    placeholder="e.g. Hull Block A-12 / Crusher Line 2 Overhaul / Tower Crane Erection"
                                 />
+                                <p className="text-xs text-graphite-400">Examples: Shipyard: Hull Block A-12; Mining: Crusher Line 2 Overhaul; Construction: Tower Crane Erection.</p>
                                 <p className="text-[11px] leading-snug text-graphite-500">
                                     Identitas pekerjaan di lapangan. Isi meskipun belum ada Project terdaftar.
                                 </p>
@@ -247,8 +249,9 @@ export default function PermitToWorkForm({ ppeTypes = [], companies, projects, r
                                 <Input
                                     value={data.location}
                                     onChange={(e) => setData('location', e.target.value)}
-                                    placeholder="e.g. Engine Room, Main Deck / Port Side"
+                                    placeholder="e.g. Workshop Zone B / Conveyor Zone 2 / Building Site, Level 5"
                                 />
+                                <p className="text-xs text-graphite-400">Physical work area examples: Shipyard: Workshop Zone B; Mining: Conveyor Zone 2; Construction: Building Site, Level 5.</p>
                                 <p className="text-[11px] leading-snug text-graphite-500">
                                     Lokasi fisik tempat pekerjaan dilakukan.
                                 </p>
@@ -274,7 +277,7 @@ export default function PermitToWorkForm({ ppeTypes = [], companies, projects, r
                                 value={data.work_description}
                                 onChange={(e) => setData('work_description', e.target.value)}
                                 rows={3}
-                                placeholder="e.g. Hot work for pipe repair at the engine room."
+                                placeholder="e.g. Inspect and repair equipment after energy isolation."
                             />
                             <p className="text-[11px] leading-snug text-graphite-500">
                                 Uraikan pekerjaan yang akan dilakukan, bukan lokasi atau nama proyeknya.
@@ -363,7 +366,7 @@ export default function PermitToWorkForm({ ppeTypes = [], companies, projects, r
                         <div className="space-y-2">
                             <Label>Required PPE</Label>
                             <ChipSelect
-                                options={ppeTypes}
+                                options={effectivePpeTypes}
                                 value={data.required_ppe_ids}
                                 onChange={(v) => setData('required_ppe_ids', v)}
                                 ariaLabel="Required PPE"

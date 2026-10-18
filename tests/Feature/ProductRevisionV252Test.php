@@ -265,15 +265,15 @@ class ProductRevisionV252Test extends TestCase
         $permit = new PermitToWork([
             'company_id' => $company->id,
             'project_id' => null,
-            'work_reference' => 'Docking MV Sinar Mas',
-            'location' => 'Graving Dock 2',
+            'work_reference' => 'Tower Crane Erection',
+            'location' => 'Building Site, Level 5',
         ]);
 
         // The permit knows what the job is even though Management has not
         // created a Project Master row -- it must never read "No Project"
         // for work that plainly has a name.
-        $this->assertSame('Docking MV Sinar Mas', $permit->workIdentity());
-        $this->assertSame('Graving Dock 2', $permit->location, 'Work location stays a separate fact.');
+        $this->assertSame('Tower Crane Erection', $permit->workIdentity());
+        $this->assertSame('Building Site, Level 5', $permit->location, 'Work location stays a separate fact.');
     }
 
     public function test_a_formal_project_takes_precedence_over_the_free_text_name(): void

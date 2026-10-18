@@ -14,7 +14,8 @@ class StorePpeTypeRequest extends FormRequest
     public function rules(): array
     {
         return [
-            'name' => ['required', 'string', 'max:255', 'unique:ppe_types,name'],
+            'name' => ['required', 'string', 'max:255'],
+            'company_id' => ['required', 'integer'],
             'replacement_interval_months' => ['nullable', 'integer', 'min:1', 'max:120'],
             'is_active' => ['boolean'],
         ];

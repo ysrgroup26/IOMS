@@ -106,6 +106,11 @@ class AdminSpaceController extends Controller
                 'additional_users' => $this->entitlements->additionalUsersPurchased($tenant),
                 'seat_limit' => $this->entitlements->userSeatLimit($tenant),
                 'remaining_slots' => $this->entitlements->remainingUserSlots($tenant),
+                'active_my_work_users' => $this->entitlements->myWorkUsersUsedCount($tenant),
+                'included_my_work_users' => $this->entitlements->includedMyWorkAllowance($tenant),
+                'additional_my_work_users' => $this->entitlements->additionalMyWorkUsersPurchased($tenant),
+                'my_work_seat_limit' => $this->entitlements->myWorkSeatLimit($tenant),
+                'my_work_remaining_slots' => $this->entitlements->remainingMyWorkSlots($tenant),
                 'by_role' => (clone $users)
                     ->selectRaw('role, COUNT(*) as total')
                     ->groupBy('role')

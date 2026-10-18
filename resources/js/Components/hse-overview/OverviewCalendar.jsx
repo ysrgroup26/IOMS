@@ -111,7 +111,7 @@ function AddScheduleDialog({ companies, defaultDay, onClose }) {
                             id="schedule-title"
                             value={data.title}
                             onChange={(e) => setData('title', e.target.value)}
-                            placeholder="Weekly Inspection - Docking Area"
+                            placeholder="Weekly Inspection - Workshop Zone B"
                         />
                         {errors.title && <p className="text-xs text-red-600">{errors.title}</p>}
                     </div>

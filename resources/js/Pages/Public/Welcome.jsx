@@ -511,7 +511,7 @@ function MyWorkPreview() {
                         <span className="text-[10px] font-semibold text-navy-900">PTW-2026-00184</span>
                         <span className="rounded-full bg-success/10 px-1.5 py-0.5 text-[9px] font-semibold text-success">Active</span>
                     </div>
-                    <p className="mt-1 text-[9px] text-graphite-500">Hot work · Graving Dock 2</p>
+                    <p className="mt-1 text-[9px] text-graphite-500">Hot work · Workshop Zone B</p>
                 </div>
             </div>
         </div>

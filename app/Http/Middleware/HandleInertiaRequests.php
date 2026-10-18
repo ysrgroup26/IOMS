@@ -82,6 +82,15 @@ class HandleInertiaRequests extends Middleware
                     // User::isDepartmentUser()'s own doc comment.
                     'department_key' => $user->department_key,
                     'is_department_user' => $user->isDepartmentUser(),
+                    'is_field_user' => $user->isFieldUser(),
+                    'user_type' => $user->user_type,
+                    // Navigation courtesy only. A department user, a Full
+                    // User who chose the My Work landing preference, or a
+                    // My Work account can find the workspace in the sidebar.
+                    // Route and capability authorization remain server-side.
+                    'my_work_navigation_available' => $user->isDepartmentUser()
+                        || $user->isFieldUser()
+                        || $user->isMyWorkUser(),
                     /*
                      * v2.105.0 -- the operating unit this person belongs to.
                      *

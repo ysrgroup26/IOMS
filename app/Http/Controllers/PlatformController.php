@@ -52,9 +52,22 @@ class PlatformController extends Controller
      * this same milestone's own verification pass, see
      * docs/ADR/008-tenancy-foundation.md.
      */
-    public function dashboard(PlatformOperationsService $operations, \App\Services\SchemaStatusService $schema): Response
+    public function dashboard(PlatformOperationsService $operations, \App\Services\SchemaStatusService $schema, \App\Services\ReleaseStatusService $release): Response
     {
         return Inertia::render('Platform/Dashboard', [
+            /*
+             * v2.118.0 -- IS THE RUNNING CODE THE DEPLOYED CODE.
+             *
+             * The sibling of `schema` below, one layer further back, and
+             * rendered from a WEB request on purpose: the deploy runs under
+             * the CLI, and when the two disagree it is the web process that
+             * is telling the truth about what customers are being served.
+             * Added because a release reported as delivered went on refusing
+             * an action it had been fixed to allow, and nothing in the
+             * product could say which code was answering. See
+             * ReleaseStatusService.
+             */
+            'release' => $release->snapshot(),
             /*
              * v2.84.1 -- IS THE DATABASE BEHIND THE CODE.
              *

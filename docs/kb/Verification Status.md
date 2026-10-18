@@ -1,7 +1,7 @@
 ---
 title: Verification Status
 type: register
-updated: 2026-10-12
+updated: 2026-10-18
 tags: [kb/verification]
 ---
 
@@ -11,6 +11,43 @@ What has actually been **run**, versus what has been carefully **reasoned about*
 is a first-class concept in IOMS, not documentation pedantry.
 
 **Authoritative procedure: `LOCAL-VERIFICATION.md`.**
+
+---
+
+## v2.118.0 — the level this register was missing
+
+Three releases were reported as delivered, with passing tests and clean builds, while PPE
+Master went on refusing the action they had fixed. The reports were not dishonest; they were
+**true statements about the wrong subject**. A test asserts the behaviour of the code it
+loads. It cannot assert which code a different process, on a different machine, has compiled.
+
+The message the owner saw exists in no file of the release they deployed — it was last
+present in v2.106.0. Checking that commit out in isolation, provisioning it against MySQL 8
+and driving the screen in a browser, the twelve-to-six month edit **saves and persists**.
+
+> [!important] Browser-verified is not deploy-confirmed
+> Every level above **Reasoned** describes code the verifier chose and loaded. None of them
+> says anything about the binary serving production. A branch the server happens to be on, a
+> `git pull` that refused because a committed asset was touched, or OPcache holding the
+> previous release's classes will each defeat all four, silently, with a clean deploy log.
+
+`ReleaseStatusService` and the hardened `app:deploy` exist to close that gap, and
+`DeploymentIdentityTest` pins them. See `docs/ADR/057-a-release-must-be-able-to-prove-what-is-running.md`.
+
+### What was actually run for v2.118.0
+
+| Claim | Level | Evidence |
+|---|---|---|
+| The deployed release's PPE edit is not refused | **Browser-verified** | `origin/main` checked out in isolation, migrated against MySQL 8, Safety Shoes 12 → 6 saved and persisted across a reload |
+| The refusal the owner saw is absent from that release | **Measured** | `git grep` over the released commit returns no match; last present in v2.106.0 |
+| Merged line: built-in PPE type editable, 12 → 6 persists, no duplicate row, other built-ins untouched | **Browser-verified** | 6 of 6 checks, MySQL 8, 1512px |
+| Merged line: My Work account creation, class persisted, correct seat pool | **Browser-verified** | 6 of 6 checks; `My Work Users: 1 / 50` with `Full Users: 1 / 25` unchanged |
+| Running Release panel reports version, branch, commit, signature from a web request | **Browser-verified** | Rendered at 1512px and 390px, no page overflow, no console errors |
+| `app:deploy` fails loudly on missing schema and keeps maintenance mode | **Browser-verified (CLI)** | Column dropped by hand; deploy named `ppe_types.source_default_id` and exited non-zero |
+| A fresh MySQL 8 database provisions end to end | **Browser-verified (CLI)** | `migrate` completes; previously died on `after('additional_users')` |
+| Suite | **Test-covered** | 1323 tests / 6805 assertions pass on SQLite **and** MySQL 8 |
+| Frontend | **Measured** | ESLint 0 errors (4 pre-existing warnings, unchanged); production build clean |
+| Production itself | **NOT confirmed** | No access to production. Deploy-confirmed is the owner's step: compare the two signatures after deploying |
 
 ---
 
@@ -38,6 +75,7 @@ on every phone width.
 | **Test-covered** | A test exercises it and would fail on regression | "It behaves correctly under the suite" |
 | **Browser-verified** | Exercised in a running application against realistic data | "It works" |
 | **Measured** | A number was taken from the running app (overflow widths, query counts) | "It is *this* much better" |
+| **Deploy-confirmed** | The release signature printed by `app:deploy` matches the one Master Admin → Running Release prints from a **web** request | "The code I verified is the code answering requests" |
 
 `#status/verified` in the registers means **browser-verified or measured**, not merely test-covered.
 
@@ -49,6 +87,38 @@ on every phone width.
 
 | | |
 |---|---|
+| Suite | **1,030 tests, 5,415 assertions — all passing** (2026-10-13, source checkout `main` at v2.117.0) |
+| Database | In-memory **SQLite**, as configured by `phpunit.xml`; no MySQL tests were run because no isolated MySQL test database is configured |
+| Lint | `npm run lint` — 0 errors, 4 warnings (existing unused ESLint-disable directives in `GasTestRecords/Index.jsx` and `Settings/Index.jsx`) |
+| Build | `npm run build` succeeded; generated assets use the current source. Existing large JavaScript chunk advisory remains (about 2,056 KB) |
+
+### Browser verification (2026-10-13)
+
+A separately seeded SQLite database in the Windows temp folder served the current built assets on a
+local preview. In PPE Master, Safety Shoes changed from 12 to 6 months and saved with the success
+message; a new company-owned PPE type was added and appeared in the list. In Users & Access, the Add
+User dialog exposed Full User and My Work User, the table showed the account class, and the separate
+Full/My Work meters appeared. The form was not submitted; backend tests created a My Work account,
+asserted the persisted class, and enforced the corresponding pool.
+
+The seeded Full User administrator's landing preference was enabled in that disposable database. The
+My Work link appeared in both the HSE workspace and company-dashboard sidebars, and the administrator
+opened the My Work page. The field preference remained separate from account class and PTW Access.
+The PTW form showed distinct work-reference and physical-location fields with shipyard, mining, and
+construction examples. No real tenant or configured MySQL database was used.
+
+A browser click on the PPE deactivation control timed out before the confirmation outcome could be
+read; no deactivation result is claimed. No UI deletion or account-creation submit was performed.
+`SharedMasterDataOwnershipTest` covers company-only deactivation, safe deletion of an unused custom
+type, and refusal to delete a type with issue history. There is no isolated MySQL test database, so
+MySQL tests were not run.
+
+The public production page was read without signing in: its banner reports **v2.116.0**, while the
+starting `origin/main` source was v2.108.0. The public page exposes no commit SHA. The available
+`origin/claude/eloquent-newton-pbxxdg` source has the reported default-PPE lock messages and lacks the
+Add User account-class selector; that source comparison explains the reported behavior but does not
+prove which SHA is deployed. This corrective release is based on `origin/main`; production was not
+accessed beyond its public page and no deployment was performed.
 | Suite | **1308 tests, 6678 assertions — all passing on SQLite** (2026-10-13, v2.116.0; was 1293/6611 at v2.115.0) |
 | Suite on **MySQL 8.0** | **1308 of 1308 passing** (2026-10-13), on an isolated `ioms_mysql_test` database with synthetic data. The MySQL run earned its keep again this release: three new rate tests passed on SQLite and failed on MySQL, because the fixture put 100,000 hours in one `decimal(5,2)` column. SQLite accepted it silently. |
 | Database | In-memory **SQLite**, so no MySQL or external service is needed |
@@ -345,6 +415,7 @@ Chromium. No production data.
 
 | Area | Version | What was verified |
 |---|---|---|
+| My Work account class, entitlements, PPE overrides and PTW copy | 2.117.0 | Full 1,030 / 5,415 SQLite suite; `UserClassAndPtwQuotaTest`, `MyWorkNavigationBoundaryTest`, `SharedMasterDataOwnershipTest`; local browser verified Add User class choices, account-class/seat display, My Work navigation on two sidebars, six-month PPE save/add, and PTW examples. Deactivation UI confirmation timed out; server behavior and safe-delete/history guards are test-covered. Build succeeded; lint 0 errors, 4 existing warnings. MySQL not run |
 | Hero copy and mobile background | 2.92.0 | `LandingPositioningTest` pins the four supplied paragraphs and asserts that the mobile composition uses the management photograph without the field photograph. Full suite: 742 tests / 3986 assertions; isolated production build succeeded; lint 0 errors / 4 existing warnings. No browser visual review was performed |
 
 ### Browser-verified

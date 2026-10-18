@@ -1,9 +1,9 @@
 ---
 title: Current State
 type: snapshot
-product-version: 2.116.0
+product-version: 2.118.0
 product-stage: Beta
-measured: 2026-10-13
+measured: 2026-10-18
 tags: [kb/state]
 ---
 
@@ -25,8 +25,8 @@ the date in the frontmatter, not remembered.
 |---|---|
 | Product | **IOMS — Industrial Operations Platform** |
 | Public company identity | **Tahada Group**; legal entity **PT Tahada Vistara Bersama** |
-| Version | **2.116.0**, stage **Beta**, edition **Enterprise Edition** |
-| Build | `2026.10.13.02`, release date `2026-10-13` |
+| Version | **2.118.0**, stage **Beta**, edition **Enterprise Edition** |
+| Build | `2026.10.18.01`, release date `2026-10-18` |
 | Stack | Laravel 12 · Inertia.js · React 18 · Tailwind · MySQL · Sanctum |
 
 The naming rules are not cosmetic — see [[Product Identity and Principles]].
@@ -36,6 +36,12 @@ The naming rules are not cosmetic — see [[Product Identity and Principles]].
 | Measure | Count |
 |---|---|
 | Eloquent models | 118 |
+| Controllers | 100 |
+| Inertia pages | 181 |
+| Migrations | 195 |
+| Feature test files | 90 |
+| Tests / assertions | **1,027 / 5,375**, all passing on in-memory SQLite |
+| ADRs | 48 files (numbering has known gaps — see [[Decision Register]]) |
 | Controllers | 102 |
 | Inertia pages | 183 |
 | Migrations | 198 |
@@ -83,6 +89,15 @@ server-side route allow-list still controls what that account may reach. See [[D
 
 ## What shipped most recently
 
+`2.117.0` (2026-10-13) — Corrective My Work navigation now follows department membership, the Full
+User landing preference, or the My Work account class, while route authorization remains unchanged.
+The existing Add User selector, class display, quota meters, company-scoped PPE overrides and PTW
+examples are retained. Browser verified saving Safety Shoes at six months, adding a PPE type, the
+account-class selector, account-class/quota displays, administrator My Work navigation and PTW
+examples. SQLite suite, release build and lint results are recorded in [[Verification Status]]. The
+live public banner reports v2.116.0, not origin/main's v2.108.0; the public page exposes no commit SHA.
+The PPE deactivation click timed out before its outcome could be verified in the browser; server-side
+deactivation and safe-delete/history behavior are covered by tests.
 `2.116.0` (2026-10-13) — the **HSE Overview visual refinement**, to the approved reference: a dark
 industrial header band, five operational KPI cards in a fixed order whose detail line partitions the
 value above it, then trend / calendar / notifications, then Accident Classification / Incident

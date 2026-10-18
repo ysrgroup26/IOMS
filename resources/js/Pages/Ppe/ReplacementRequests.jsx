@@ -1,5 +1,6 @@
 import { Head, router } from '@inertiajs/react';
 import AuthenticatedLayout from '@/Layouts/AuthenticatedLayout';
+import PageHeader from '@/Components/shared/PageHeader';
 import PpeTabNav from '@/Components/shared/PpeTabNav';
 import { Card, CardContent } from '@/Components/ui/card';
 import { Table, TableHeader, TableBody, TableRow, TableHead, TableCell } from '@/Components/ui/table';
@@ -16,10 +17,11 @@ export default function PpeReplacementRequests({ requests }) {
 
             <PpeTabNav counts={{ replacementRequests: requests.total }} />
 
-            <div className="mb-4">
-                <h1 className="text-[22px] font-semibold tracking-tight text-navy-900 dark:text-slate-50">Replacement Requests</h1>
-                <p className="text-xs text-graphite-500 dark:text-slate-400">Created from the Replacement Due list.</p>
-            </div>
+            {/* v2.122.0: house header; subtitle naturalised to Indonesian. */}
+            <PageHeader
+                title="Replacement Requests"
+                subtitle="Dibuat dari daftar Replacement Due."
+            />
 
             <Card>
                 <CardContent className="p-0">

@@ -107,20 +107,35 @@ export default function MobileBottomNav({ visibleNav, currentUrl, space, onOpenM
                 // same relationship the header hamburger does.
                 aria-label="More navigation"
                 aria-controls="ioms-sidebar"
-                className="flex min-w-0 flex-1 flex-col items-center justify-center gap-0.5 py-2 text-graphite-500 dark:text-slate-400"
+                className="flex min-w-0 flex-1 flex-col items-center justify-center gap-0.5 px-1.5 py-2 text-graphite-500 dark:text-slate-400"
             >
                 <Menu className="h-5 w-5 shrink-0" />
-                <span className="max-w-full truncate text-[10px] font-medium">More</span>
+                <span className="w-full truncate text-center text-[10px] font-medium">More</span>
             </button>
         </nav>
     );
 }
 
+/**
+ * v2.122.0 -- A QUERY PARAMETER IS PART OF WHICH TAB YOU ARE ON.
+ *
+ * This compared PATHNAMES only. Admin Space declares several items on the
+ * same `settings.index` route with different `tab` parameters, so standing
+ * on Settings lit THREE tabs in the bar at once -- browser-verified at
+ * 390px. The sidebar's own `isItemActive()` has read `tab` since it was
+ * written; this is the same rule, so the two agree.
+ */
 function isActive(item, currentUrl) {
     if (!item.href) return false;
     try {
         const path = new URL(route(item.href)).pathname;
-        return currentUrl === path || currentUrl.startsWith(path + '/');
+        const [currentPath, query] = currentUrl.split('?');
+
+        if (currentPath !== path && !currentPath.startsWith(path + '/')) return false;
+
+        const currentTab = new URLSearchParams(query || '').get('tab');
+
+        return item.queryParams?.tab ? item.queryParams.tab === currentTab : !currentTab;
     } catch {
         return false;
     }
@@ -140,7 +155,13 @@ function BottomNavLink({ href, label, icon: Icon, active }) {
             // and left the same gap for everybody else.
             aria-current={active ? 'page' : undefined}
             className={cn(
-                'relative flex min-w-0 flex-1 flex-col items-center justify-center gap-0.5 py-2 transition-colors',
+                /* v2.122.0: `px-1.5` -- the labels had no gutter between
+                   them, so two long ones ("Users & Access" next to
+                   "Roles & Permi...") read as one run of text on a 390px
+                   phone. Truncation was already correct; what was missing
+                   was the space that makes a truncated label legible as
+                   its own tab. */
+                'relative flex min-w-0 flex-1 flex-col items-center justify-center gap-0.5 px-1.5 py-2 transition-colors',
                 active ? 'text-brand-600 dark:text-brand-400' : 'text-graphite-500 dark:text-slate-400'
             )}
         >
@@ -148,7 +169,7 @@ function BottomNavLink({ href, label, icon: Icon, active }) {
             <span className={cn('flex h-6 w-9 items-center justify-center rounded-full transition-colors duration-200', active && 'bg-brand-50 dark:bg-brand-950/40')}>
                 {Icon && <Icon className="h-[18px] w-[18px] shrink-0" />}
             </span>
-            <span className="max-w-full truncate text-[10px] font-medium">{label}</span>
+            <span className="w-full truncate text-center text-[10px] font-medium">{label}</span>
         </Link>
     );
 }

@@ -84,6 +84,23 @@ class HandleInertiaRequests extends Middleware
                     'is_department_user' => $user->isDepartmentUser(),
                     'is_field_user' => $user->isFieldUser(),
                     'user_type' => $user->user_type,
+                    /*
+                     * v2.122.0 -- the route-name prefixes this account may
+                     * reach, read straight from the middleware that
+                     * enforces them.
+                     *
+                     * Shared ONLY for a My Work account, because it is the
+                     * only class the allow-list applies to and a Full User
+                     * has no use for the key. The sidebar filters itself
+                     * through this (see `workspaces.js`), so the menu and
+                     * the enforcement cannot drift apart -- a link that
+                     * would 403 is never offered. It is still a COURTESY:
+                     * RestrictMyWorkUser runs on every request regardless
+                     * of what the browser was told.
+                     */
+                    'allowed_route_prefixes' => $user->isMyWorkUser()
+                        ? RestrictMyWorkUser::allowedPrefixes()
+                        : null,
                     // Navigation courtesy only. A department user, a Full
                     // User who chose the My Work landing preference, or a
                     // My Work account can find the workspace in the sidebar.

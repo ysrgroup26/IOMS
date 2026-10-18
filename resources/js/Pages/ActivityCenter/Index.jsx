@@ -1,5 +1,6 @@
 import { Head, router } from '@inertiajs/react';
 import AuthenticatedLayout from '@/Layouts/AuthenticatedLayout';
+import PageHeader from '@/Components/shared/PageHeader';
 import { Card, CardContent, CardHeader, CardTitle } from '@/Components/ui/card';
 import { Select, SelectTrigger, SelectValue, SelectContent, SelectItem } from '@/Components/ui/select';
 import { Input } from '@/Components/ui/input';
@@ -28,10 +29,11 @@ export default function ActivityCenterIndex({ activities, filters, options }) {
         <AuthenticatedLayout>
             <Head title="Activity Center" />
 
-            <div className="mb-6">
-                <h1 className="text-[22px] font-semibold tracking-tight text-navy-900">Activity Center</h1>
-                <p className="mt-1 text-sm text-graphite-500">Audit trail across every module -- filterable by user, company, department, module, and date.</p>
-            </div>
+            {/* v2.122.0: see KpiInput/Index.jsx -- same two reasons. */}
+            <PageHeader
+                title="Activity Center"
+                subtitle="Jejak audit dari seluruh modul, dapat disaring menurut pengguna, unit operasi, departemen, modul, dan tanggal."
+            />
 
             <Card className="mb-4">
                 <CardContent className="flex flex-wrap gap-3 pt-6">

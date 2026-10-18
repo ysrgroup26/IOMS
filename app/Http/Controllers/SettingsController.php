@@ -24,6 +24,7 @@ use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Facades\Hash;
 use Illuminate\Support\Facades\Storage;
 use Illuminate\Validation\Rule;
+use Illuminate\Validation\ValidationException;
 use Inertia\Inertia;
 use Inertia\Response;
 use Spatie\Permission\Models\Role;
@@ -1275,9 +1276,37 @@ class SettingsController extends Controller
              * deliberate choice, never something an omitted field produces.
              */
             'user_type' => ['nullable', 'string', Rule::in(User::TYPES)],
+            /*
+             * v2.122.0 -- THE OPERATING UNIT THE ACCOUNT BELONGS TO.
+             *
+             * This form never sent one and this method never set one, so
+             * EVERY account it has ever created was written with
+             * `company_id` NULL -- a user belonging to a tenant but to no
+             * operating unit. On a single-unit tenant much of the product
+             * falls back to "the only company" and the account limps along,
+             * which is why this survived; anything that reads
+             * `$request->user()->company_id` directly simply got null.
+             *
+             * Confirmed by driving the app: a My Work account created
+             * through Add User landed in the database with company_id NULL.
+             *
+             * `InCurrentTenant` is the same rule the rest of this
+             * controller uses, so a unit from another tenant is refused
+             * rather than silently accepted.
+             */
+            'company_id' => ['nullable', new InCurrentTenant('companies')],
         ]);
 
         $data['user_type'] = $data['user_type'] ?? User::TYPE_FULL;
+
+        /*
+         * Falls back to the administrator's OWN unit, which is what a
+         * single-unit tenant always means and what the dialog preselects.
+         * Left null only when the administrator has none either -- there is
+         * nothing truthful to put there, and inventing one would assign
+         * somebody to a unit nobody chose.
+         */
+        $data['company_id'] = $data['company_id'] ?? $request->user()->company_id;
         $data['password'] = Hash::make($data['password']);
 
         // Milestone 2 (Tenancy Foundation): every user created through this
@@ -1287,6 +1316,21 @@ class SettingsController extends Controller
         // User::isPlatformAdmin()) and fail every Company-scoped query
         // closed for itself (TenantScope).
         $data['tenant_id'] = $request->user()->tenant_id;
+
+        /*
+         * v2.122.0 -- AN ADMINISTRATOR-CREATED ACCOUNT IS ALREADY VOUCHED FOR.
+         *
+         * `User` implements MustVerifyEmail, and this form sets the person's
+         * password itself: nobody ever clicks a verification link for an
+         * account created here, so every one of them sat in Admin Space's
+         * "unverified email" count forever with no way for the administrator
+         * to clear it. The administrator creating the account IS the
+         * verification -- the same reasoning
+         * `TenantProvisioningService` already applies to the admin it
+         * provisions. Login never depended on this (no `verified`
+         * middleware is registered), so this changes reporting, not access.
+         */
+        $data['email_verified_at'] = now();
 
         // v2.38.0 (Master Audit, P1). Seat quota was never enforced on
         // this path: `Subscription::seatLimit()` was only ever displayed,
@@ -1310,13 +1354,36 @@ class SettingsController extends Controller
              * the one they are actually consuming. The lock above still
              * covers both, because both classes live in the same table.
              */
-            abort_unless(
-                app(EntitlementService::class)->canCreateUserOfType($tenant, $data['user_type']),
-                422,
-                $data['user_type'] === User::TYPE_MY_WORK
-                    ? 'Kuota My Work User paket Anda telah tercapai. Tambah kapasitas My Work untuk menambah akun.'
-                    : 'Kuota pengguna paket Anda telah tercapai. Hubungi administrator untuk menambah kapasitas.'
-            );
+            /*
+             * v2.122.0 -- SAID WHERE THE PERSON IS LOOKING.
+             *
+             * This was `abort(422, ...)`, which Inertia surfaces as a
+             * generic error modal with no field attached -- so an
+             * administrator who had run out of seats saw a wall of text and
+             * no indication that the ACCOUNT CLASS was the thing to change.
+             * Raised against `user_type` instead, so the message lands on
+             * the field that caused it, in the dialog, beside the choice
+             * that would fix it. The entitlement check itself is unchanged.
+             */
+            $entitlements = app(EntitlementService::class);
+
+            if (! $entitlements->canCreateUserOfType($tenant, $data['user_type'])) {
+                $isMyWork = $data['user_type'] === User::TYPE_MY_WORK;
+
+                throw ValidationException::withMessages([
+                    'user_type' => $isMyWork
+                        ? sprintf(
+                            'Kuota My Work User paket Anda sudah penuh (%d dari %d terpakai). Tambah kapasitas My Work, atau pilih kelas akun lain bila masih tersedia.',
+                            $entitlements->myWorkUsersUsedCount($tenant),
+                            (int) $entitlements->myWorkSeatLimit($tenant),
+                        )
+                        : sprintf(
+                            'Kuota Full User paket Anda sudah penuh (%d dari %d terpakai). Tambah kapasitas pengguna, atau buat akun My Work bila orang ini hanya perlu My Work.',
+                            $entitlements->usersUsedCount($tenant),
+                            (int) ($entitlements->userSeatLimit($tenant) ?? 0),
+                        ),
+                ]);
+            }
 
 
             return User::create($data);

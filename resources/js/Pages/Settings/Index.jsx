@@ -2157,7 +2157,20 @@ function UserManagementCard({ users, roles, companies, userSeats, assignableDepa
     const [editingUser, setEditingUser] = useState(null);
     const [editingUnitsFor, setEditingUnitsFor] = useState(null);
     const multiUnit = (companies ?? []).length > 1;
-    const { data, setData, post, processing, reset, errors } = useForm({ name: '', display_name: '', email: '', password: '', role: 'hrd', department_key: '', user_type: 'full' });
+    /*
+     * v2.122.0 -- the new account's HOME operating unit.
+     *
+     * This form never sent one, so every account it created was stored
+     * with company_id NULL. The administrator's own unit is the honest
+     * default (and the only possible answer on a single-unit tenant);
+     * on a tenant with several units the choice is shown, because
+     * guessing one assigns somebody to a unit nobody picked. This is
+     * the account's HOME unit -- which units it may additionally SEE is
+     * the separate "Operating Units" grant edited from the table below.
+     */
+    const { auth } = usePage().props;
+    const defaultCompanyId = auth?.user?.company_id ? String(auth.user.company_id) : '';
+    const { data, setData, post, processing, reset, errors } = useForm({ name: '', display_name: '', email: '', password: '', role: 'hrd', department_key: '', user_type: 'full', company_id: defaultCompanyId });
     const customRoles = (roles ?? []).filter((r) => !BUILT_IN_ROLES.includes(r.name));
 
     function submit(e) {
@@ -2221,6 +2234,21 @@ function UserManagementCard({ users, roles, companies, userSeats, assignableDepa
                                 </Select>
                             </div>
                             <DepartmentField value={data.department_key} onChange={(v) => setData('department_key', v)} options={assignableDepartments} />
+                            {multiUnit && (
+                                <div className="space-y-1.5">
+                                    <Label>Operating Unit</Label>
+                                    <Select value={data.company_id} onValueChange={(v) => setData('company_id', v)}>
+                                        <SelectTrigger><SelectValue placeholder="Pilih unit operasi" /></SelectTrigger>
+                                        <SelectContent>
+                                            {(companies ?? []).map((c) => (
+                                                <SelectItem key={c.id} value={String(c.id)}>{c.name}</SelectItem>
+                                            ))}
+                                        </SelectContent>
+                                    </Select>
+                                    <p className="text-xs text-graphite-400">Unit tempat akun ini bekerja. Akses ke unit lain diatur terpisah lewat kolom Operating Units di tabel.</p>
+                                    {errors.company_id && <p className="text-xs text-red-600">{errors.company_id}</p>}
+                                </div>
+                            )}
                             <DialogFooter><Button type="submit" disabled={processing}>Create</Button></DialogFooter>
                         </form>
                     </DialogContent>

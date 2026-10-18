@@ -234,14 +234,26 @@ class UserEntitlementAndAddOnTest extends TestCase
 
         Auth::forgetGuards();
 
-        // The gate is the SERVER's, not the form's.
+        /*
+         * The gate is the SERVER's, not the form's.
+         *
+         * v2.122.0: it is raised as a VALIDATION error on `user_type`
+         * rather than `abort(422)`. Inertia renders a bare 422 as a
+         * generic error modal with nothing attached to the field that
+         * caused it, so an administrator out of seats saw a wall of text
+         * and no indication that the account class was the thing to
+         * change. The refusal itself is unchanged -- the account is still
+         * not created.
+         */
         $this->actingAs($this->admin)
             ->post(route('settings.users.store'), [
                 'name' => 'One Too Many', 'email' => 'extra@yard.test',
                 'password' => 'secret-pass-3', 'password_confirmation' => 'secret-pass-3',
                 'role' => User::ROLE_HSE,
             ])
-            ->assertStatus(422);
+            ->assertSessionHasErrors('user_type');
+
+        $this->assertNull(User::where('email', 'extra@yard.test')->first());
 
         $this->assertSame(3, $this->entitlements()->usersUsedCount($this->tenant));
     }

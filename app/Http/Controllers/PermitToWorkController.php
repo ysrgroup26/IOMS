@@ -149,6 +149,18 @@ class PermitToWorkController extends Controller
         return Inertia::render('PermitsToWork/MyIndex', [
             'permits' => $permits,
             'filters' => $request->only('status'),
+            /*
+             * v2.122.0 -- DO NOT OFFER A PERMIT THIS ACCOUNT CANNOT RAISE.
+             *
+             * "New PTW" was unconditional here, so an account without PTW
+             * Access -- which every My Work account is until an
+             * administrator grants it -- got a prominent button that
+             * answers 403. Browser-verified. `canCreatePtw()` is the same
+             * gate `create()` and `store()` already enforce, so this
+             * grants nothing; it only stops the page from advertising
+             * what the server will refuse.
+             */
+            'canCreate' => $request->user()->canCreatePtw(),
             'counts' => [
                 'all' => $counts->sum(),
                 'submitted' => $counts->get(PermitToWork::STATUS_SUBMITTED, 0),

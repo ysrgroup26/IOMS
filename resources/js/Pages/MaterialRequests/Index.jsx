@@ -1,5 +1,6 @@
 import { Head, Link, router } from '@inertiajs/react';
 import AuthenticatedLayout from '@/Layouts/AuthenticatedLayout';
+import PageHeader from '@/Components/shared/PageHeader';
 import { Card, CardContent } from '@/Components/ui/card';
 import { Button } from '@/Components/ui/button';
 import { Input } from '@/Components/ui/input';
@@ -28,18 +29,17 @@ export default function MaterialRequestsIndex({ requests, filters, can, outstand
         <AuthenticatedLayout>
             <Head title="Material Requests" />
 
-            <div className="mb-4 flex flex-wrap items-center justify-between gap-3">
-                <div>
-                    <h1 className="text-[22px] font-semibold tracking-tight text-navy-900 dark:text-slate-50">Material Requests</h1>
-                    {/* v2.26.0 (Final Copy Consistency pass): naturalized to Indonesian. */}
-                    <p className="text-xs text-graphite-500 dark:text-slate-400">Ajukan kebutuhan material operasional -- barricade, first aid, signage, dan lainnya.</p>
-                </div>
+            {/* v2.26.0 (Final Copy Consistency pass): naturalized to Indonesian. */}
+            <PageHeader
+                title="Material Requests"
+                subtitle="Ajukan kebutuhan material operasional: barricade, first aid, signage, dan lainnya."
+            >
                 {can.manage && (
                     <Button asChild>
                         <Link href={route('material-requests.create')}><Plus className="h-4 w-4" /> New Request</Link>
                     </Button>
                 )}
-            </div>
+            </PageHeader>
 
             <Card className="mb-4">
                 <CardContent className="flex flex-wrap gap-2 p-3">

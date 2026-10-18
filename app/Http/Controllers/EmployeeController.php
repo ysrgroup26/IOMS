@@ -21,6 +21,7 @@ use App\Models\Project;
 use App\Models\RosterPattern;
 use App\Models\Shift;
 use App\Services\DocumentEngine;
+use App\Services\EntitlementService;
 use App\Services\EmployeeEraser;
 use App\Services\Documents\DocumentIngestionService;
 use App\Services\Documents\FormatDetector;
@@ -178,8 +179,22 @@ class EmployeeController extends Controller
             'availableProjects' => Project::where('company_id', $employee->company_id)->orderBy('name')->get(['id', 'name']),
             'can' => [
                 'manage' => request()->user()->isAdmin(),
-                // v2.69.0 -- gates the Employee Relations card below.
-                'viewCases' => request()->user()->canManageEmployeeCases(),
+                /*
+                 * v2.69.0 -- gates the Employee Relations card below.
+                 *
+                 * v2.122.0: the PLAN is part of the answer. Employee Cases
+                 * belongs to a workspace a Starter tenant does not have, so
+                 * a Starter administrator -- who passes the role check --
+                 * was shown the card and its "Lihat riwayat kasus" link,
+                 * which answered "Fitur ini belum tersedia untuk paket
+                 * perusahaan Anda". Browser-verified. Asked through the
+                 * same prefix map `EnforceTenantEntitlement` enforces with.
+                 */
+                'viewCases' => request()->user()->canManageEmployeeCases()
+                    && app(EntitlementService::class)->tenantCanUseRoutePrefix(
+                        request()->user()->tenant,
+                        'employee-cases.index',
+                    ),
             ],
 
             /*

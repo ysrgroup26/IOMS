@@ -1,6 +1,7 @@
 import { Head, useForm, router } from '@inertiajs/react';
 import { useState, useEffect, useRef } from 'react';
 import AuthenticatedLayout from '@/Layouts/AuthenticatedLayout';
+import PageHeader from '@/Components/shared/PageHeader';
 import { Card, CardContent, CardHeader, CardTitle, CardDescription } from '@/Components/ui/card';
 import { Button } from '@/Components/ui/button';
 import { Label } from '@/Components/ui/label';
@@ -20,10 +21,13 @@ export default function KpiInputIndex({ departments, companies, categories, quic
         <AuthenticatedLayout>
             <Head title="Input KPI" />
 
-            <div className="mb-6">
-                <h1 className="text-[22px] font-semibold tracking-tight text-navy-900">Input KPI</h1>
-                <p className="mt-1 text-sm text-graphite-500">Record HSE activity occurrences. Every entry adds +1 to the selected category.</p>
-            </div>
+            {/* v2.122.0: the house module header, and an Indonesian
+                subtitle -- the slot is help text, which the language
+                hierarchy assigns to Indonesian (see CONVENTIONS). */}
+            <PageHeader
+                title="Input KPI"
+                subtitle="Catat kejadian aktivitas HSE. Setiap entri menambah +1 pada kategori yang dipilih."
+            />
 
             <Tabs.Root defaultValue="single" className="space-y-4">
                 <Tabs.List className="inline-flex rounded-lg border border-graphite-200 bg-white p-1 shadow-sm">

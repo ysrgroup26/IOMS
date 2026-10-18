@@ -2691,6 +2691,38 @@ user leaves an optional field blank, which is the normal case, not the edge case
 
 Found by a test that filled in only the required fields.
 
+## CRITICAL — Known Pitfall (v2.122.0) — "cannot be created" can mean "was created and then could not be used", and only the browser tells you which
+
+A My Work account was reported three times as impossible to create. Each round looked at creation.
+Creation was fine: driven in a browser against a fresh MySQL 8 database, the POST returned 302, the
+account appeared in the list, and it signed in and landed on `/my-work`.
+
+What was actually wrong was everything the account was then offered. Its sidebar carried eight
+links; `RestrictMyWorkUser` answers 403 for six of them. The My Work page's own "My Tasks" tile
+pointed at Work Center (403). The attention banner pointed at Work Center (403). The header's search
+box queried `search` (403 on every keystroke). My PTW offered "New PTW" to an account with no PTW
+Access (403).
+
+**An account whose every control refuses it is, to the person holding it, an account that cannot be
+used.** Nothing in the creation path would ever have explained the report.
+
+Two habits come out of this:
+
+1. **Reproduce the words, not your reading of them.** "Cannot be created" was a symptom
+   description, not a diagnosis. The cheapest way to find out which was true was to create one and
+   then click everything it offered.
+2. **Crawl the links an account is offered and record the real HTTP answer.** This is a dozen lines
+   of Playwright and it found four more dead doors nobody had reported: a Business administrator
+   offered Milestone, Purchase Requisition and Purchase Order, and a Starter administrator offered
+   Employee Cases and the employee profile's case link -- all refused by PLAN, while every gate on
+   the offering side asked only about ROLE.
+
+The structural fix is in `docs/ADR/061-an-offer-is-bound-to-what-the-server-allows.md`: the thing
+that offers a link reads the same source the gate that would refuse it reads. Note that v2.98.0 and
+v2.103.0 had both already fixed a navigation gate that disagreed with the server -- fixing the
+answer each time, and leaving the next copy to drift. If you find yourself correcting a third
+instance of the same disagreement, bind the question to one source instead.
+
 ## CRITICAL — Known Pitfall (v2.121.0) — `select()` in a scope silently throws away `withCount()`
 
 `Employee::scopeOrderedForDisplay()` ends with:

@@ -1,6 +1,7 @@
 import { useState } from 'react';
 import { Head, Link, router } from '@inertiajs/react';
 import AuthenticatedLayout from '@/Layouts/AuthenticatedLayout';
+import PageHeader from '@/Components/shared/PageHeader';
 import { Card, CardContent } from '@/Components/ui/card';
 import { Input } from '@/Components/ui/input';
 import { Select, SelectTrigger, SelectValue, SelectContent, SelectItem } from '@/Components/ui/select';
@@ -82,12 +83,13 @@ export default function PpeEmployees({ employees, companies, departments, filter
 
             <PpeTabNav counts={{ employees: employees.total }} />
 
-            <div className="mb-6 flex flex-wrap items-start justify-between gap-3">
-                <div>
-                    <h1 className="text-[22px] font-semibold tracking-tight text-navy-900 dark:text-slate-50">Employee PPE</h1>
-                    <p className="mt-1 text-sm text-graphite-500 dark:text-slate-400">Select an employee to view or manage their PPE</p>
-                </div>
-
+            {/* v2.122.0: the house module header, and an Indonesian
+                subtitle -- that slot is help text (see CONVENTIONS, the
+                language hierarchy), and it was English here. */}
+            <PageHeader
+                title="Employee PPE"
+                subtitle="Pilih karyawan untuk melihat atau mengelola APD mereka."
+            >
                 {/*
                     v2.120.0 -- bulk issuance lives HERE, beside the manual
                     issue flow, and not on PPE Master: that tab is
@@ -102,7 +104,7 @@ export default function PpeEmployees({ employees, companies, departments, filter
                         <Upload className="h-4 w-4" /> Import PPE
                     </Button>
                 )}
-            </div>
+            </PageHeader>
 
             <EmployeePpeImportDialog open={importOpen} onOpenChange={setImportOpen} companies={companies} />
 

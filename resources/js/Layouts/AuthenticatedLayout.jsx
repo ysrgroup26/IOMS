@@ -15,6 +15,7 @@ import { useFocusTrap } from '@/lib/useFocusTrap';
 import { useMediaQuery } from '@/lib/useMediaQuery';
 import {
     getSelectableDepartments, getAdminSpaceItems, getCompanyNavItems,
+    getMyWorkNavItems, isMyWorkOnlyUser,
     getWorkspaceKeyForRoute, isDepartmentWorkspaceKey, ADMIN_SPACE_KEY,
 } from '@/lib/workspaces';
 import { useScrollMemory, rememberWorkspaceKey, recallWorkspaceKey } from '@/lib/navigationMemory';
@@ -192,6 +193,16 @@ export default function AuthenticatedLayout({ children }) {
     // for a user an admin has deliberately assigned to one department.
     const isDepartmentUser = !!auth?.user?.is_department_user;
 
+    /* v2.122.0 -- THE MY WORK CLASS HAS NO WORKSPACE AND NO CHROME.
+       RestrictMyWorkUser refuses every operational workspace, Work Center,
+       Reports and Admin Space for this class, so the shell must not offer
+       them: the rail becomes My Work's own short list, the workspace
+       switcher is gone (there is nothing to switch between), and the top
+       bar's Work Center and Admin Space entries are hidden. Server-side
+       enforcement is unchanged -- this stops the UI from advertising doors
+       that answer 403, which is how the account read as broken. */
+    const myWorkOnly = isMyWorkOnlyUser(auth?.user);
+
     // Administrators see every visible department; a Department User's
     // list collapses to just their one assigned department (or empty, if
     // their department_key doesn't match a real one -- a data-entry
@@ -296,11 +307,13 @@ export default function AuthenticatedLayout({ children }) {
         ?? rememberedWorkspace
         ?? (hasGlobalDashboard ? undefined : selectableDepartments[0]);
 
-    const activeWorkspace = isDepartmentUser
+    const activeWorkspace = myWorkOnly
+        ? undefined
+        : (isDepartmentUser
         ? selectableDepartments[0]
         : (routeIsDepartment
             ? selectableDepartments.find((w) => w.key === routeWorkspaceKey)
-            : ((inAdminSpace || onGlobalDashboard) ? undefined : fallbackWorkspace));
+            : ((inAdminSpace || onGlobalDashboard) ? undefined : fallbackWorkspace)));
 
     const space = inAdminSpace ? 'admin' : (activeWorkspace ? 'workspace' : 'company');
 
@@ -312,7 +325,7 @@ export default function AuthenticatedLayout({ children }) {
 
        Choosing All Workspaces brings it back, still listing only the
        workspaces this account is authorized for. */
-    const canSwitchWorkspaces = !isDepartmentUser && !explicitFocus && selectableDepartments.length > 1;
+    const canSwitchWorkspaces = !myWorkOnly && !isDepartmentUser && !explicitFocus && selectableDepartments.length > 1;
 
     // Remembered only once a department is genuinely active, so landing on
     // the Global Dashboard never erases where the user was.
@@ -331,13 +344,15 @@ export default function AuthenticatedLayout({ children }) {
        A Department User is always in their own workspace -- including on
        Admin Space routes, which they cannot reach anyway -- per "only their
        assigned Department should be available". */
-    const visibleNav = isDepartmentUser
+    const visibleNav = myWorkOnly
+        ? getMyWorkNavItems(auth?.user)
+        : (isDepartmentUser
         ? (selectableDepartments[0]?.items ?? [])
         : (space === 'admin'
             ? getAdminSpaceItems(auth?.user, enabledModules, workspaceCatalog)
             : (space === 'workspace'
                 ? activeWorkspace.items
-                : getCompanyNavItems(auth?.user, enabledModules, workspaceCatalog)));
+                : getCompanyNavItems(auth?.user, enabledModules, workspaceCatalog))));
 
     const navEntryBoundary = entryBoundary(visibleNav);
 
@@ -702,6 +717,7 @@ export default function AuthenticatedLayout({ children }) {
                     space={space}
                     canSwitchWorkspaces={canSwitchWorkspaces}
                     onSwitchWorkspace={switchWorkspace}
+                    myWorkOnly={myWorkOnly}
                 />
 
                 <Breadcrumb activeItem={activeNavItem} activeChild={activeChild} />
@@ -744,7 +760,7 @@ export default function AuthenticatedLayout({ children }) {
  * no way to switch, so there is nothing to render, not a disabled or
  * single-option version of the same control.
  */
-function TopBar({ onOpenSidebar, sidebarOpen, isDepartmentUser, departments, activeWorkspace, space, canSwitchWorkspaces, onSwitchWorkspace }) {
+function TopBar({ onOpenSidebar, sidebarOpen, isDepartmentUser, departments, activeWorkspace, space, canSwitchWorkspaces, onSwitchWorkspace, myWorkOnly = false }) {
     const { auth, organization } = usePage().props;
     const now = useClock();
     const { theme, toggleTheme } = useTheme();
@@ -963,7 +979,7 @@ function TopBar({ onOpenSidebar, sidebarOpen, isDepartmentUser, departments, act
                 Still a link while active: it returns to Administration
                 Overview, which is Admin Space's home. `aria-current` carries
                 the state to assistive technology, which a colour cannot. */}
-            {auth?.user?.can_access_admin_space && (
+            {auth?.user?.can_access_admin_space && !myWorkOnly && (
                 <Link
                     href={auth?.user?.is_tenant_admin ? route('admin.index') : route('settings.index')}
                     aria-current={space === 'admin' ? 'page' : undefined}
@@ -990,7 +1006,11 @@ function TopBar({ onOpenSidebar, sidebarOpen, isDepartmentUser, departments, act
             <div className="hidden h-5 w-px shrink-0 bg-white/15 xl:block" aria-hidden="true" />
 
             {/* Global Search (v1.6.3) -- real search across Employees and Projects. */}
-            <GlobalSearch />
+            {/* v2.122.0: global search queries `search`, a route this
+                class may not reach -- the box looked available and
+                answered 403 to every keystroke. A My Work account has no
+                cross-module register to search. */}
+            {!myWorkOnly && <GlobalSearch />}
 
             {DARK_MODE_ENABLED && (
                 <button
@@ -1009,7 +1029,7 @@ function TopBar({ onOpenSidebar, sidebarOpen, isDepartmentUser, departments, act
                 except iOS Safari, where it explains the Share-sheet route
                 because Apple exposes no API to call. */}
             <InstallAppAction />
-            <WorkCenterMenu />
+            {!myWorkOnly && <WorkCenterMenu />}
             <NotificationsMenu />
 
             {/* Profile menu: identity + About + Logout */}
@@ -1064,7 +1084,7 @@ function TopBar({ onOpenSidebar, sidebarOpen, isDepartmentUser, departments, act
                         </>
                     )}
                     <DropdownMenuSeparator />
-                    {auth?.user?.is_admin && !isDepartmentUser && (
+                    {auth?.user?.is_admin && !isDepartmentUser && !myWorkOnly && (
                         <DropdownMenuItem asChild>
                             <Link href={route('settings.index')} className="flex items-center gap-2">
                                 <UserIcon className="h-4 w-4 text-graphite-400" /> Settings
@@ -1328,7 +1348,7 @@ function relativeTime(isoString) {
  * needs looking at," Work Center is "something needs YOU to act."
  */
 function NotificationsMenu() {
-    const { notifications } = usePage().props;
+    const { notifications, auth } = usePage().props;
     const ppeAlertCount = notifications?.ppe_alert_count ?? 0;
     const unreadCount = notifications?.unread_count ?? 0;
     const items = notifications?.items ?? [];
@@ -1372,7 +1392,10 @@ function NotificationsMenu() {
                     )}
                 </div>
                 <DropdownMenuSeparator />
-                {ppeAlertCount > 0 && (
+                {/* v2.122.0: the PPE dashboard is not on a My Work
+                    account's allow-list, so offering this row to that
+                    class produced a notification that answered 403. */}
+                {ppeAlertCount > 0 && !isMyWorkOnlyUser(auth?.user) && (
                     <DropdownMenuItem asChild>
                         <Link href={route('ppe.dashboard')} className="flex items-center gap-2">
                             <span className="h-1.5 w-1.5 shrink-0 rounded-full bg-amber-500" />

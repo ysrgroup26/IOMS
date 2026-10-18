@@ -1,5 +1,6 @@
 import { Head, router, Link } from '@inertiajs/react';
 import AuthenticatedLayout from '@/Layouts/AuthenticatedLayout';
+import PageHeader from '@/Components/shared/PageHeader';
 import { Card, CardContent } from '@/Components/ui/card';
 import { Badge } from '@/Components/ui/badge';
 import { Button } from '@/Components/ui/button';
@@ -31,12 +32,12 @@ export default function KpiRecords({ records, categories, companies, filters, av
                 <ArrowLeft className="h-4 w-4" /> Back to Dashboard
             </Link>
 
-            <div className="mb-4">
-                <h1 className="text-[22px] font-semibold tracking-tight text-navy-900">
-                    KPI Records {activeCategory && <span className="text-graphite-400">&middot; {activeCategory.name}</span>}
-                </h1>
-                <p className="mt-1 text-sm text-graphite-500">Setiap kejadian KPI yang tercatat, bisa difilter per kategori dan periode.</p>
-            </div>
+            {/* v2.122.0: house header. The category still qualifies the
+                title, which is what this page is filtered by. */}
+            <PageHeader
+                title={activeCategory ? `KPI Records · ${activeCategory.name}` : 'KPI Records'}
+                subtitle="Setiap kejadian KPI yang tercatat, bisa difilter per kategori dan periode."
+            />
 
             {/* v2.31.0 (Interior UI Transformation Phase 3, Part 7/8):
                 this page is a real event log -- a table is genuinely the
@@ -83,7 +84,11 @@ export default function KpiRecords({ records, categories, companies, filters, av
                         !filters.category_id ? 'border-brand-200 bg-brand-50 text-brand-700' : 'border-graphite-200 bg-white text-graphite-500 hover:bg-graphite-50'
                     )}
                 >
-                    Semua Kategori
+                    {/* v2.122.0: a filter chip is a LABEL, and labels are
+                        English (see CONVENTIONS, the language hierarchy) --
+                        this one read "Semua Kategori" beside an "All
+                        Categories" select doing the same job. */}
+                    All Categories
                 </button>
                 {categories.map((c) => {
                     const active = filters.category_id === c.id;

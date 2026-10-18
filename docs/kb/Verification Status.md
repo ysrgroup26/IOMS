@@ -34,6 +34,24 @@ and driving the screen in a browser, the twelve-to-six month edit **saves and pe
 `ReleaseStatusService` and the hardened `app:deploy` exist to close that gap, and
 `DeploymentIdentityTest` pins them. See `docs/ADR/057-a-release-must-be-able-to-prove-what-is-running.md`.
 
+### What was actually run for v2.122.0
+
+| Claim | Level | Evidence |
+|---|---|---|
+| A My Work account can be created through the app | **Browser-verified** | MySQL 8, Starter and Business tenants: Settings → Users & Access → Add User, POST 302, the account appears in the list |
+| It can sign in with its own credentials | **Browser-verified** | Signed in on both tenants and landed on `/my-work`; also pinned as a test |
+| It is stored with its operating unit | **Browser-verified** | `company_id` 1 and 2 on the two new accounts; the two created BEFORE the fix are still NULL in the same table, which is the defect side by side with its fix |
+| An administrator-created account is marked verified | **Browser-verified** | `email_verified_at` set on creation; previously NULL forever with no way to clear it |
+| Every link the account is offered actually opens | **Browser-verified** | Crawled every anchor on every reachable page: 3 links offered, 3 × 200, on both tenants. Before: 8 offered, 6 × 403 |
+| With PTW Access it reaches the permit form | **Browser-verified** | 6 links, 0 × 403, `/permits-to-work/create` 200 |
+| Full User creation is undisturbed | **Browser-verified** | Created through the same dialog on Business: `user_type` full, unit 2, signs in, lands on `/dashboard`, full rail |
+| A Full User is offered nothing it is refused | **Browser-verified** | HRD Full User: 83 pages crawled, 0 × 403 (was 1). Starter administrator: 77, 0 × 403 (was 1). Business administrator: 105, 0 × 403 (was 3) |
+| Quick actions follow the plan, not just the role | **Test-covered** | `PlanScopedActionOffersTest` over all four plans, asking the same prefix map the middleware enforces with |
+| A full quota is explained on the field that caused it | **Test-covered** | `assertSessionHasErrors('user_type')`, message carrying used and permitted figures |
+| Desktop and mobile hold up | **Browser-verified** | 16 pages at 1512×1000 and 390×844: no horizontal page overflow anywhere; mobile bottom-nav labels given a gutter after two long ones read as one run of text |
+| Suite | **Test-covered** | 1402 tests / 7186 assertions on SQLite **and** MySQL 8 |
+| Production itself | **NOT confirmed** | Deploy-confirmed remains the owner's step (ADR 057) |
+
 ### What was actually run for v2.121.0
 
 | Claim | Level | Evidence |

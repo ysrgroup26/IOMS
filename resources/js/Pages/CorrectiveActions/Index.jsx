@@ -1,5 +1,6 @@
 import { Head, Link, router } from '@inertiajs/react';
 import AuthenticatedLayout from '@/Layouts/AuthenticatedLayout';
+import PageHeader from '@/Components/shared/PageHeader';
 import { Card, CardContent } from '@/Components/ui/card';
 import { Select, SelectTrigger, SelectValue, SelectContent, SelectItem } from '@/Components/ui/select';
 import { Table, TableHeader, TableBody, TableRow, TableHead, TableCell } from '@/Components/ui/table';
@@ -49,10 +50,10 @@ export default function CorrectiveActionsIndex({ actions, filters, summary, can 
         <AuthenticatedLayout>
             <Head title="Corrective Actions (CAPA)" />
 
-            <div className="mb-4">
-                <h1 className="text-[22px] font-semibold tracking-tight text-navy-900 dark:text-slate-50">Corrective Actions (CAPA)</h1>
-                <p className="text-xs text-graphite-500 dark:text-slate-400">Satu tampilan gabungan dari temuan Safety Observation, HSE Inspection, dan Incident.</p>
-            </div>
+            <PageHeader
+                title="Corrective Actions (CAPA)"
+                subtitle="Satu tampilan gabungan dari temuan Safety Observation, HSE Inspection, dan Incident."
+            />
 
             <div className="mb-4 grid grid-cols-2 gap-3 sm:grid-cols-4">
                 <StatCard icon={CircleDot} value={summary.open} label="Open" />

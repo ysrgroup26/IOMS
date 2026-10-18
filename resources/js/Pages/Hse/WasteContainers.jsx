@@ -1,6 +1,7 @@
 import { Head, useForm, router, Link } from '@inertiajs/react';
 import { useState } from 'react';
 import AuthenticatedLayout from '@/Layouts/AuthenticatedLayout';
+import PageHeader from '@/Components/shared/PageHeader';
 import StatCard from '@/Components/shared/StatCard';
 import EmptyState from '@/Components/shared/EmptyState';
 import { Card, CardContent, CardHeader, CardTitle, CardDescription } from '@/Components/ui/card';
@@ -69,12 +70,11 @@ export default function WasteContainers({ containers, summary, storageLocations,
                 <ArrowLeft className="h-4 w-4" /> Back to Waste Management
             </Link>
 
-            <div className="mb-4">
-                <h1 className="text-[22px] font-semibold tracking-tight text-navy-900 dark:text-slate-50">Waste Inventory</h1>
-                <p className="mt-0.5 text-xs text-graphite-500 dark:text-slate-400">
-                    Kelola stok drum, IBC, jumbo bag, dan wadah lain yang dipakai untuk limbah -- ini stok WADAH, bukan stok limbah itu sendiri (lihat Waste Records untuk data limbah).
-                </p>
-            </div>
+            {/* v2.122.0: house header. The copy is unchanged. */}
+            <PageHeader
+                title="Waste Inventory"
+                subtitle="Kelola stok drum, IBC, jumbo bag, dan wadah lain yang dipakai untuk limbah: ini stok WADAH, bukan stok limbah itu sendiri (lihat Waste Records untuk data limbah)."
+            />
 
             <div className="mb-4 grid grid-cols-2 gap-3 lg:grid-cols-4">
                 <StatCard icon={Boxes} value={summary.total} label="Total Containers" />

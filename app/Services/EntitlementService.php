@@ -192,6 +192,40 @@ class EntitlementService
     }
 
     /**
+     * v2.122.0 -- WOULD THE ROUTE GATE LET THIS TENANT IN?
+     *
+     * Asked by anything that OFFERS a link, so an offer cannot contradict
+     * the refusal. `EnforceTenantEntitlement` decides a route by its
+     * name's first segment: a prefix listed in `config('departments')` is
+     * allowed when the tenant holds ANY workspace that lists it, and a
+     * prefix nobody lists is not plan-gated at all. That rule is
+     * reproduced here ONCE, from the same map, rather than restated at
+     * each call site.
+     *
+     * Browser-verified before this existed: Work Center and the dashboard
+     * offered a Business tenant's own administrator Milestone, Purchase
+     * Requisition and Purchase Order, and a Starter administrator
+     * Employee Cases -- every one of them answering "Fitur ini belum
+     * tersedia untuk paket perusahaan Anda."
+     */
+    public function tenantCanUseRoutePrefix(?Tenant $tenant, string $routeName): bool
+    {
+        $prefix = explode('.', $routeName)[0];
+
+        $owningWorkspaces = collect(config('departments', []))
+            ->filter(fn (array $prefixes) => in_array($prefix, $prefixes, true))
+            ->keys();
+
+        if ($owningWorkspaces->isEmpty()) {
+            return true;
+        }
+
+        return $owningWorkspaces->contains(
+            fn (string $workspace) => $this->tenantCanUseWorkspace($tenant, $workspace)
+        );
+    }
+
+    /**
      * v2.58.0 -- THE ONE ANSWER TO "WHICH WORKSPACES DOES THIS TENANT
      * HAVE", used by the navigation layer as well as the route gate.
      *

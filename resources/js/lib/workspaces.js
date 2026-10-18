@@ -851,6 +851,63 @@ export function getCompanyNavItems(user, enabledModules, workspaceCatalog) {
     ];
 }
 
+/**
+ * v2.122.0 -- THE MY WORK ACCOUNT'S OWN NAVIGATION.
+ *
+ * A My Work account used to fall through to `getCompanyNavItems()`, the
+ * Global Company Dashboard's rail, which offered eight links of which SIX
+ * answer 403 (`RestrictMyWorkUser` allows neither Calendar, Work Center,
+ * Reports, Analytics, Report Center nor Document Library). Browser-verified
+ * against a Starter and a Business tenant: `/dashboard` and `/my-work`
+ * returned 200, the other six returned 403. To the person holding the
+ * account that reads as "my account does not work", which is exactly how it
+ * was reported.
+ *
+ * So this class gets a SHORT rail of its own, naming only what it is sold
+ * to do, and every entry is filtered through the server's own allow-list
+ * below -- the menu is derived from the enforcement rather than written
+ * beside it.
+ */
+const MY_WORK_NAV = [
+    { name: 'My Work', href: 'my-work', icon: ClipboardList },
+    { name: 'My Permits', href: 'permits-to-work.mine', icon: FileSignature },
+    { name: 'Tasks', href: 'tasks.index', icon: ListChecks },
+];
+
+/**
+ * Drops any item whose route-name prefix the server would refuse, then any
+ * group left with no children. `allowedPrefixes` is shared by
+ * HandleInertiaRequests straight from `RestrictMyWorkUser::ALLOWED_PREFIXES`
+ * -- when it is null (every Full User) nothing is filtered, because the
+ * allow-list does not apply to that class.
+ */
+export function filterNavByAllowedPrefixes(items, allowedPrefixes) {
+    if (!allowedPrefixes?.length) return items;
+
+    return items
+        .map((item) => (item.children
+            ? { ...item, children: filterNavByAllowedPrefixes(item.children, allowedPrefixes) }
+            : item))
+        .filter((item) => {
+            if (item.children) return item.children.length > 0;
+            if (!item.href) return true;
+
+            return allowedPrefixes.includes(item.href.split('.')[0]);
+        });
+}
+
+/**
+ * The rail for a My Work account, in the one shape the server agrees with.
+ */
+export function getMyWorkNavItems(user) {
+    return filterNavByAllowedPrefixes(MY_WORK_NAV, user?.allowed_route_prefixes);
+}
+
+/** Whether this account is the restricted My Work class. */
+export function isMyWorkOnlyUser(user) {
+    return user?.user_type === 'my_work';
+}
+
 // Keyed by route-name prefix, real items only -- disabled items have no
 // `href` so they're skipped here rather than crashing on
 // `item.href.split(...)`. Items marked `global: true` (the "Dashboard"

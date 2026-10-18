@@ -349,9 +349,21 @@ export default function Dashboard({
                 Management workspace. What remains is what a company-wide
                 snapshot can still say truthfully on every plan that has this
                 page: how many people, across how many operating units. */}
+            {/* v2.122.0: Operating Units linked into Settings for anybody
+                whose DEPARTMENT was unrestricted, but Settings is also
+                role-gated -- an HRD Full User got a clickable card that
+                answered 403 (browser-verified). `can_access_admin_space`
+                is the gate the header's own Admin Space entry already
+                uses; without it the number still shows, as a fact rather
+                than a door. */}
             <div className="mt-1.5 grid grid-cols-1 gap-2.5 sm:grid-cols-2">
-                <StatCard size="sm" icon={Users} value={`${formatNumber(companyHeadcount.overall_total)} Employees`} label="Active Workforce" href={deptSafeHref('employees.index', deptPrefixes)} />
-                <StatCard size="sm" icon={Building2} value={formatNumber(companyHeadcount.by_company.length)} label="Operating Units" accent="neutral" href={deptSafeHref('settings.index', deptPrefixes) ? route('settings.index') + '?tab=companies' : undefined} />
+                {/* v2.122.0: the value is the number alone, as it is on
+                    every other card in the product -- the label already
+                    says what is being counted, and baking the noun in
+                    produced "1 Employees" beside a bare "1" for Operating
+                    Units in the same two-card row. */}
+                <StatCard size="sm" icon={Users} value={formatNumber(companyHeadcount.overall_total)} label="Active Workforce" href={deptSafeHref('employees.index', deptPrefixes)} />
+                <StatCard size="sm" icon={Building2} value={formatNumber(companyHeadcount.by_company.length)} label="Operating Units" accent="neutral" href={auth?.user?.can_access_admin_space && deptSafeHref('settings.index', deptPrefixes) ? route('settings.index') + '?tab=companies' : undefined} />
             </div>
 
             {/* Milestone 4, Acceleration Part 7 -- Executive cross-department

@@ -143,7 +143,10 @@ class AdminContextAndBillingFlowTest extends TestCase
 
         // ...and the Admin Space entry lights up, without disappearing.
         $this->assertStringContainsString("aria-current={space === 'admin' ? 'page' : undefined}", $layout);
-        $this->assertStringContainsString("{auth?.user?.can_access_admin_space && (", $layout);
+        // v2.122.0: still gated on the same capability, with the My Work
+        // class excluded beside it -- RestrictMyWorkUser answers 403 for
+        // Admin Space, so that class is never offered the entry.
+        $this->assertStringContainsString("{auth?.user?.can_access_admin_space && !myWorkOnly && (", $layout);
 
         // And the selector still names no workspace while none is active.
         $this->assertStringContainsString("{space === 'admin' ? 'Workspaces' :", $layout);

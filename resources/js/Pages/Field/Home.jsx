@@ -66,6 +66,17 @@ export default function FieldHome({
     canCreatePtw = false,
 }) {
     const now = useClock();
+    /*
+     * v2.122.0: the banner below pointed every reader at Work Center,
+     * which RestrictMyWorkUser refuses for a My Work account -- the one
+     * class this page exists for. For that class it points at Tasks,
+     * which is on the allow-list and holds the work the count is about.
+     * The controller applies the same rule to the tiles.
+     */
+    const { auth } = usePage().props;
+    const attentionHref = auth?.user?.user_type === 'my_work'
+        ? route('tasks.index')
+        : route('work-center.index');
     const attentionCount = pendingApprovalsCount + myTasksCount;
 
     const fmtDate = (v) =>
@@ -90,7 +101,7 @@ export default function FieldHome({
 
             {attentionCount > 0 && (
                 <Link
-                    href={route('work-center.index')}
+                    href={attentionHref}
                     className="mb-4 flex items-center justify-between gap-3 rounded-lg border border-amber-200 bg-amber-50 px-4 py-2.5 text-sm text-amber-800 transition-colors hover:bg-amber-100 dark:border-amber-900/50 dark:bg-amber-950/30 dark:text-amber-300"
                 >
                     <span>

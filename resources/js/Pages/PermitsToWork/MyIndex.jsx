@@ -50,7 +50,7 @@ const ACTION_LABEL = {
  * Document / Download PDF / Print / Resubmit from Phases 2/3B) -- no
  * duplicated detail logic, no second PTW form.
  */
-export default function MyPermitsToWork({ permits, filters, counts }) {
+export default function MyPermitsToWork({ permits, filters, counts, canCreate = false }) {
     function applyFilter(status) {
         router.get(route('permits-to-work.mine'), status === 'all' ? {} : { status }, { preserveState: true, replace: true });
     }
@@ -66,8 +66,12 @@ export default function MyPermitsToWork({ permits, filters, counts }) {
         <AuthenticatedLayout>
             <Head title="My PTW" />
 
+            {/* v2.122.0: the action appears only when the account may
+                actually raise a permit -- PTW Access is a permission an
+                administrator grants, and the button answered 403 without
+                it. */}
             <PageHeader title="My PTW" subtitle="Izin kerja yang Anda ajukan.">
-                <Button asChild><Link href={route('permits-to-work.create')}><Plus className="h-4 w-4" /> New PTW</Link></Button>
+                {canCreate && <Button asChild><Link href={route('permits-to-work.create')}><Plus className="h-4 w-4" /> New PTW</Link></Button>}
             </PageHeader>
 
             <PtwQuotaNotice className="mb-4" />
@@ -96,8 +100,10 @@ export default function MyPermitsToWork({ permits, filters, counts }) {
                 <EmptyState
                     icon={FileWarning}
                     title="Belum ada PTW."
-                    description="Buat izin kerja untuk aktivitas berisiko tinggi berikutnya."
-                    action={<Button asChild size="sm"><Link href={route('permits-to-work.create')}><Plus className="h-4 w-4" /> New PTW</Link></Button>}
+                    description={canCreate
+                        ? 'Buat izin kerja untuk aktivitas berisiko tinggi berikutnya.'
+                        : 'Akun Anda belum memiliki PTW Access, sehingga belum dapat membuat Permit To Work. Hubungi administrator IOMS perusahaan Anda bila akses ini diperlukan.'}
+                    action={canCreate ? <Button asChild size="sm"><Link href={route('permits-to-work.create')}><Plus className="h-4 w-4" /> New PTW</Link></Button> : undefined}
                 />
             ) : (
                 <div className="space-y-3">

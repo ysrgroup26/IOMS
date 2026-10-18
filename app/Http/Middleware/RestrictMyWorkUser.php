@@ -57,7 +57,7 @@ class RestrictMyWorkUser
      * Matched on the first dot-segment, the same convention
      * EnforceTenantEntitlement already uses, so the two read alike.
      */
-    private const ALLOWED_PREFIXES = [
+    public const ALLOWED_PREFIXES = [
         'my-work',
         'permits-to-work',
         'tasks',
@@ -71,6 +71,25 @@ class RestrictMyWorkUser
         // The field user's own landing redirect resolves through this.
         'verification',
     ];
+
+    /**
+     * v2.122.0 -- the navigation reads the ENFORCEMENT, it does not copy it.
+     *
+     * A My Work account's sidebar used to be built from the Global
+     * Company nav, which offered eight links of which SIX this class
+     * refuses with 403 (Calendar, Work Center, Reports, Analytics, Report
+     * Center, Document Library) -- browser-verified. Dead menu items read
+     * to the person as "this account does not work". The sidebar is now
+     * filtered through this same constant, so a menu item can never again
+     * drift from what the server allows: adding a prefix here is what
+     * makes a link appear, and nothing else is.
+     *
+     * @return array<int, string>
+     */
+    public static function allowedPrefixes(): array
+    {
+        return self::ALLOWED_PREFIXES;
+    }
 
     public function handle(Request $request, Closure $next): Response
     {

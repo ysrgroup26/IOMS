@@ -25,7 +25,15 @@ use Illuminate\Support\Collection;
  */
 class WorkCenterService
 {
-    public function __construct(private readonly DashboardStatsService $stats = new DashboardStatsService()) {}
+    public function __construct(
+        private readonly DashboardStatsService $stats = new DashboardStatsService(),
+        private readonly ?EntitlementService $entitlementService = null,
+    ) {}
+
+    private function entitlements(): EntitlementService
+    {
+        return $this->entitlementService ?? app(EntitlementService::class);
+    }
 
     /**
      * Pending approvals the given user is entitled to decide, per
@@ -172,14 +180,14 @@ class WorkCenterService
                 ->whereDate('due_date', '<=', now()->addDays(3)->toDateString())
                 ->count();
             if ($capaDue > 0) {
-                $alerts[] = ['key' => 'capa_due', 'label' => 'CAPA jatuh tempo', 'count' => $capaDue, 'url' => route('corrective-actions.index')];
+                $alerts[] = ['key' => 'capa_due', 'label' => 'CAPA jatuh tempo', 'count' => $capaDue, 'url' => route('corrective-actions.index'), 'route' => 'corrective-actions.index'];
             }
 
             $ptwPending = PermitToWork::whereIn('company_id', $companyIds)
                 ->where('status', PermitToWork::STATUS_SUBMITTED)
                 ->count();
             if ($ptwPending > 0) {
-                $alerts[] = ['key' => 'ptw_pending', 'label' => 'PTW menunggu persetujuan', 'count' => $ptwPending, 'url' => route('permits-to-work.index')];
+                $alerts[] = ['key' => 'ptw_pending', 'label' => 'PTW menunggu persetujuan', 'count' => $ptwPending, 'url' => route('permits-to-work.index'), 'route' => 'permits-to-work.index'];
             }
         }
 
@@ -188,7 +196,7 @@ class WorkCenterService
                 ->whereRaw('stocks.quantity <= (select items.min_stock from items where items.id = stocks.item_id)')
                 ->count();
             if ($stockAlert > 0) {
-                $alerts[] = ['key' => 'stock_alert', 'label' => 'Stok di bawah batas minimum', 'count' => $stockAlert, 'url' => route('stock.index')];
+                $alerts[] = ['key' => 'stock_alert', 'label' => 'Stok di bawah batas minimum', 'count' => $stockAlert, 'url' => route('stock.index'), 'route' => 'stock.index'];
             }
         }
 
@@ -198,7 +206,7 @@ class WorkCenterService
                 ->where('planned_date', '<=', now()->addDays(7)->toDateString())
                 ->count();
             if ($maintenanceDue > 0) {
-                $alerts[] = ['key' => 'maintenance_due', 'label' => 'Maintenance akan jatuh tempo', 'count' => $maintenanceDue, 'url' => route('work-orders.index')];
+                $alerts[] = ['key' => 'maintenance_due', 'label' => 'Maintenance akan jatuh tempo', 'count' => $maintenanceDue, 'url' => route('work-orders.index'), 'route' => 'work-orders.index'];
             }
         }
 
@@ -208,11 +216,19 @@ class WorkCenterService
                 ->count()
                 + PurchaseOrder::whereIn('company_id', $companyIds)->where('status', PurchaseOrder::STATUS_SUBMITTED)->count();
             if ($procurementPending > 0) {
-                $alerts[] = ['key' => 'procurement_pending', 'label' => 'PR/PO menunggu diproses', 'count' => $procurementPending, 'url' => route('purchase-requisitions.index')];
+                $alerts[] = ['key' => 'procurement_pending', 'label' => 'PR/PO menunggu diproses', 'count' => $procurementPending, 'url' => route('purchase-requisitions.index'), 'route' => 'purchase-requisitions.index'];
             }
         }
 
-        return $alerts;
+        /*
+         * v2.122.0 -- the same plan question the quick actions below ask.
+         * An alert is a link too: a count the tenant's plan cannot open is
+         * worse than no count at all.
+         */
+        return array_values(array_filter(
+            $alerts,
+            fn (array $alert) => $this->entitlements()->tenantCanUseRoutePrefix($user->tenant, $alert['route'])
+        ));
     }
 
     /**
@@ -241,21 +257,21 @@ class WorkCenterService
 
         // -- HSE --
         if ($enabledModules->contains('ppe')) {
-            $actions[] = ['label' => 'PPE Dashboard', 'url' => route('ppe.dashboard'), 'icon' => 'HardHat', 'department' => 'hse'];
+            $actions[] = ['label' => 'PPE Dashboard', 'url' => route('ppe.dashboard'), 'route' => 'ppe.dashboard', 'icon' => 'HardHat', 'department' => 'hse'];
         }
         if ($user->canManageIncidents()) {
-            $actions[] = ['label' => 'New Incident', 'url' => route('incidents.create'), 'icon' => 'AlertTriangle', 'department' => 'hse'];
+            $actions[] = ['label' => 'New Incident', 'url' => route('incidents.create'), 'route' => 'incidents.create', 'icon' => 'AlertTriangle', 'department' => 'hse'];
         }
         if ($user->canManageSafetyObservations()) {
-            $actions[] = ['label' => 'New Safety Observation', 'url' => route('safety-observations.create'), 'icon' => 'Eye', 'department' => 'hse'];
+            $actions[] = ['label' => 'New Safety Observation', 'url' => route('safety-observations.create'), 'route' => 'safety-observations.create', 'icon' => 'Eye', 'department' => 'hse'];
         }
         if ($user->canManageHse()) {
-            $actions[] = ['label' => 'New Inspection', 'url' => route('hse-inspections.create'), 'icon' => 'ClipboardCheck', 'department' => 'hse'];
-            $actions[] = ['label' => 'CAPA', 'url' => route('corrective-actions.index'), 'icon' => 'ClipboardCheck', 'department' => 'hse'];
-            $actions[] = ['label' => 'New PTW', 'url' => route('permits-to-work.create'), 'icon' => 'Flame', 'department' => 'hse'];
-            $actions[] = ['label' => 'New JSA', 'url' => route('job-safety-analyses.create'), 'icon' => 'FileWarning', 'department' => 'hse'];
-            $actions[] = ['label' => 'New HIRADC', 'url' => route('risk-assessments.create'), 'icon' => 'ShieldAlert', 'department' => 'hse'];
-            $actions[] = ['label' => 'Gas Test', 'url' => route('gas-test-records.index'), 'icon' => 'FlaskConical', 'department' => 'hse'];
+            $actions[] = ['label' => 'New Inspection', 'url' => route('hse-inspections.create'), 'route' => 'hse-inspections.create', 'icon' => 'ClipboardCheck', 'department' => 'hse'];
+            $actions[] = ['label' => 'CAPA', 'url' => route('corrective-actions.index'), 'route' => 'corrective-actions.index', 'icon' => 'ClipboardCheck', 'department' => 'hse'];
+            $actions[] = ['label' => 'New PTW', 'url' => route('permits-to-work.create'), 'route' => 'permits-to-work.create', 'icon' => 'Flame', 'department' => 'hse'];
+            $actions[] = ['label' => 'New JSA', 'url' => route('job-safety-analyses.create'), 'route' => 'job-safety-analyses.create', 'icon' => 'FileWarning', 'department' => 'hse'];
+            $actions[] = ['label' => 'New HIRADC', 'url' => route('risk-assessments.create'), 'route' => 'risk-assessments.create', 'icon' => 'ShieldAlert', 'department' => 'hse'];
+            $actions[] = ['label' => 'Gas Test', 'url' => route('gas-test-records.index'), 'route' => 'gas-test-records.index', 'icon' => 'FlaskConical', 'department' => 'hse'];
             // v2.11.0 (Field/Foreman Experience pass, Phase 3H): LOTO had
             // NO entry anywhere in this method -- confirmed via this
             // pass's own audit (LotoRecordController/LotoRecords already
@@ -263,57 +279,57 @@ class WorkCenterService
             // earlier pass; it simply never got a quick-action wired in
             // like every other HSE module here already has). Same gate
             // as its sibling HSE actions above.
-            $actions[] = ['label' => 'New LOTO', 'url' => route('loto-records.create'), 'icon' => 'Lock', 'department' => 'hse'];
+            $actions[] = ['label' => 'New LOTO', 'url' => route('loto-records.create'), 'route' => 'loto-records.create', 'icon' => 'Lock', 'department' => 'hse'];
             // v2.3.0 (HSE Operations + IOMS OS Ecosystem pass, Part 17):
             // "+ Waste" -- points at New Waste Record (the actual waste
             // material entry point), not Container Inventory, which is a
             // separate stock-management concept reached from the Waste
             // Management dashboard itself.
-            $actions[] = ['label' => 'New Waste Record', 'url' => route('waste-records.create'), 'icon' => 'Recycle', 'department' => 'hse'];
+            $actions[] = ['label' => 'New Waste Record', 'url' => route('waste-records.create'), 'route' => 'waste-records.create', 'icon' => 'Recycle', 'department' => 'hse'];
         }
 
         // -- HRD --
         if ($enabledModules->contains('employees') && $user->isAdmin()) {
-            $actions[] = ['label' => 'Add Employee', 'url' => route('employees.create'), 'icon' => 'UserPlus', 'department' => 'hr'];
+            $actions[] = ['label' => 'Add Employee', 'url' => route('employees.create'), 'route' => 'employees.create', 'icon' => 'UserPlus', 'department' => 'hr'];
         }
         if ($user->canManageManHour()) {
-            $actions[] = ['label' => 'Record Man-Hour', 'url' => route('man-hour.index'), 'icon' => 'Clock', 'department' => 'hr'];
+            $actions[] = ['label' => 'Record Man-Hour', 'url' => route('man-hour.index'), 'route' => 'man-hour.index', 'icon' => 'Clock', 'department' => 'hr'];
         }
         if ($user->canManageLeaveRequests()) {
-            $actions[] = ['label' => 'New Leave Request', 'url' => route('leave-requests.create'), 'icon' => 'CalendarDays', 'department' => 'hr'];
+            $actions[] = ['label' => 'New Leave Request', 'url' => route('leave-requests.create'), 'route' => 'leave-requests.create', 'icon' => 'CalendarDays', 'department' => 'hr'];
         }
         if ($user->isAdmin()) {
-            $actions[] = ['label' => 'Shift & Roster', 'url' => route('shifts.master'), 'icon' => 'Clock', 'department' => 'hr'];
-            $actions[] = ['label' => 'Training & Competency', 'url' => route('competency.master'), 'icon' => 'GraduationCap', 'department' => 'hr'];
+            $actions[] = ['label' => 'Shift & Roster', 'url' => route('shifts.master'), 'route' => 'shifts.master', 'icon' => 'Clock', 'department' => 'hr'];
+            $actions[] = ['label' => 'Training & Competency', 'url' => route('competency.master'), 'route' => 'competency.master', 'icon' => 'GraduationCap', 'department' => 'hr'];
         }
 
         // -- Project Management --
         if ($enabledModules->contains('projects') && $user->canManageProjects()) {
-            $actions[] = ['label' => 'New Project', 'url' => route('projects.create'), 'icon' => 'FolderKanban', 'department' => 'project-management'];
+            $actions[] = ['label' => 'New Project', 'url' => route('projects.create'), 'route' => 'projects.create', 'icon' => 'FolderKanban', 'department' => 'project-management'];
         }
         if ($enabledModules->contains('daily_reports')) {
-            $actions[] = ['label' => 'Daily Report', 'url' => route('daily-reports.create'), 'icon' => 'ClipboardList', 'department' => 'project-management'];
+            $actions[] = ['label' => 'Daily Report', 'url' => route('daily-reports.create'), 'route' => 'daily-reports.create', 'icon' => 'ClipboardList', 'department' => 'project-management'];
         }
         if ($user->canManageMilestones()) {
-            $actions[] = ['label' => 'Milestone', 'url' => route('milestones.index'), 'icon' => 'Flag', 'department' => 'project-management'];
+            $actions[] = ['label' => 'Milestone', 'url' => route('milestones.index'), 'route' => 'milestones.index', 'icon' => 'Flag', 'department' => 'project-management'];
         }
 
         // -- Logistics / Warehouse --
         if ($enabledModules->contains('material_requests')) {
-            $actions[] = ['label' => 'New Material Request', 'url' => route('material-requests.create'), 'icon' => 'PackagePlus', 'department' => 'logistics'];
+            $actions[] = ['label' => 'New Material Request', 'url' => route('material-requests.create'), 'route' => 'material-requests.create', 'icon' => 'PackagePlus', 'department' => 'logistics'];
         }
         if ($user->canManageProcurement()) {
-            $actions[] = ['label' => 'Purchase Requisition', 'url' => route('purchase-requisitions.create'), 'icon' => 'FileStack', 'department' => 'procurement'];
-            $actions[] = ['label' => 'Purchase Order', 'url' => route('purchase-orders.create'), 'icon' => 'ShoppingCart', 'department' => 'procurement'];
+            $actions[] = ['label' => 'Purchase Requisition', 'url' => route('purchase-requisitions.create'), 'route' => 'purchase-requisitions.create', 'icon' => 'FileStack', 'department' => 'procurement'];
+            $actions[] = ['label' => 'Purchase Order', 'url' => route('purchase-orders.create'), 'route' => 'purchase-orders.create', 'icon' => 'ShoppingCart', 'department' => 'procurement'];
         }
         if ($user->canManageGoodsReceipts()) {
-            $actions[] = ['label' => 'Goods Receipt', 'url' => route('goods-receipts.create'), 'icon' => 'PackageCheck', 'department' => 'logistics'];
+            $actions[] = ['label' => 'Goods Receipt', 'url' => route('goods-receipts.create'), 'route' => 'goods-receipts.create', 'icon' => 'PackageCheck', 'department' => 'logistics'];
         }
         if ($user->canManageWarehouse()) {
-            $actions[] = ['label' => 'Stock Movement', 'url' => route('stock.transactions.create'), 'icon' => 'ArrowRightLeft', 'department' => 'warehouse'];
+            $actions[] = ['label' => 'Stock Movement', 'url' => route('stock.transactions.create'), 'route' => 'stock.transactions.create', 'icon' => 'ArrowRightLeft', 'department' => 'warehouse'];
         }
 
-        $actions[] = ['label' => 'New Task', 'url' => route('tasks.create'), 'icon' => 'CheckSquare', 'department' => null];
+        $actions[] = ['label' => 'New Task', 'url' => route('tasks.create'), 'route' => 'tasks.create', 'icon' => 'CheckSquare', 'department' => null];
 
         if ($user->isDepartmentUser()) {
             $actions = array_values(array_filter(
@@ -321,6 +337,25 @@ class WorkCenterService
                 fn (array $a) => $a['department'] === null || $a['department'] === $user->department_key
             ));
         }
+
+        /*
+         * v2.122.0 -- NEVER OFFER WHAT THE PLAN DOES NOT INCLUDE.
+         *
+         * Every gate above asks about the USER's role. None asked about
+         * the TENANT's plan, so a Business administrator was offered
+         * Milestone, Purchase Requisition and Purchase Order, and a
+         * Starter administrator Employee Cases -- all four refused by
+         * `EnforceTenantEntitlement` with "Fitur ini belum tersedia untuk
+         * paket perusahaan Anda". Browser-verified on both tenants.
+         *
+         * Asked through `tenantCanUseRoutePrefix()`, which reads the same
+         * `config('departments')` map that middleware enforces with, so a
+         * quick action can never again outlive the plan that grants it.
+         */
+        $actions = array_values(array_filter(
+            $actions,
+            fn (array $a) => $this->entitlements()->tenantCanUseRoutePrefix($user->tenant, $a['route'])
+        ));
 
         return $actions;
     }

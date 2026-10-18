@@ -2,6 +2,7 @@
 
 namespace App\Http\Controllers;
 
+use App\Http\Middleware\RestrictMyWorkUser;
 use App\Models\ActivityLog;
 use App\Models\Company;
 use App\Models\CorrectiveAction;
@@ -381,7 +382,7 @@ class DashboardController extends Controller
         // PermitToWorkController -- this tile's visibility can never
         // grant more than the backend already allows.
         if ($user->canCreatePtw()) {
-            $tiles[] = ['label' => 'Create PTW', 'description' => 'Ajukan izin kerja baru.', 'href' => route('permits-to-work.create'), 'icon' => 'Flame'];
+            $tiles[] = ['label' => 'Create PTW', 'description' => 'Ajukan izin kerja baru.', 'href' => route('permits-to-work.create'), 'route' => 'permits-to-work.create', 'icon' => 'Flame'];
         }
         // v2.9.0 (Field/Foreman Experience pass, Phase 3C): now points at
         // the new field-oriented `permits-to-work.mine` (My PTW) instead
@@ -405,15 +406,15 @@ class DashboardController extends Controller
             $myPtwActiveCount > 0 ? "{$myPtwActiveCount} aktif" : null,
         ]);
         $myPtwDescription = $myPtwParts ? implode(', ', $myPtwParts) : 'Lihat status izin kerja Anda.';
-        $tiles[] = ['label' => 'My PTW', 'description' => $myPtwDescription, 'href' => route('permits-to-work.mine'), 'icon' => 'ClipboardList'];
+        $tiles[] = ['label' => 'My PTW', 'description' => $myPtwDescription, 'href' => route('permits-to-work.mine'), 'route' => 'permits-to-work.mine', 'icon' => 'ClipboardList'];
         if ($user->canManageHse()) {
-            $tiles[] = ['label' => 'Digital Checklist', 'description' => 'Mulai inspeksi/checklist baru.', 'href' => route('hse-inspections.create'), 'icon' => 'ClipboardCheck'];
+            $tiles[] = ['label' => 'Digital Checklist', 'description' => 'Mulai inspeksi/checklist baru.', 'href' => route('hse-inspections.create'), 'route' => 'hse-inspections.create', 'icon' => 'ClipboardCheck'];
         }
         if ($user->canManageSafetyObservations()) {
-            $tiles[] = ['label' => 'Safety Observation', 'description' => 'Laporkan temuan/observasi.', 'href' => route('safety-observations.create'), 'icon' => 'Eye'];
+            $tiles[] = ['label' => 'Safety Observation', 'description' => 'Laporkan temuan/observasi.', 'href' => route('safety-observations.create'), 'route' => 'safety-observations.create', 'icon' => 'Eye'];
         }
         if ($user->canManageIncidents()) {
-            $tiles[] = ['label' => 'Report Incident', 'description' => 'Laporkan insiden dengan cepat.', 'href' => route('incidents.create'), 'icon' => 'AlertTriangle'];
+            $tiles[] = ['label' => 'Report Incident', 'description' => 'Laporkan insiden dengan cepat.', 'href' => route('incidents.create'), 'route' => 'incidents.create', 'icon' => 'AlertTriangle'];
         }
         // v2.11.0 (Field/Foreman Experience pass, Phase 3H.5): of the
         // four "secondary where justified" candidates the directive
@@ -434,9 +435,39 @@ class DashboardController extends Controller
         // simple" instruction; one genuinely-missing entry point does
         // not.
         if ($user->canManageHse()) {
-            $tiles[] = ['label' => 'LOTO', 'description' => 'Catat isolasi Lock-Out Tag-Out.', 'href' => route('loto-records.create'), 'icon' => 'Lock'];
+            $tiles[] = ['label' => 'LOTO', 'description' => 'Catat isolasi Lock-Out Tag-Out.', 'href' => route('loto-records.create'), 'route' => 'loto-records.create', 'icon' => 'Lock'];
         }
-        $tiles[] = ['label' => 'My Tasks', 'description' => 'Persetujuan dan tugas yang menunggu Anda.', 'href' => route('work-center.index'), 'icon' => 'CheckSquare'];
+        /*
+         * v2.122.0 -- MY WORK MUST NOT OFFER A DOOR THE SERVER CLOSES.
+         *
+         * This tile pointed at Work Center for everybody, and
+         * RestrictMyWorkUser refuses `work-center` -- so the one class
+         * this page was built for saw a "My Tasks" card that answered 403.
+         * Browser-verified before the fix. For that class the tile points
+         * at Tasks, which IS on the allow-list and holds the same
+         * assigned work; every other account keeps Work Center, which
+         * also carries their approvals.
+         */
+        $tiles[] = $user->isMyWorkUser()
+            ? ['label' => 'My Tasks', 'description' => 'Tugas yang ditugaskan kepada Anda.', 'href' => route('tasks.index'), 'route' => 'tasks.index', 'icon' => 'CheckSquare']
+            : ['label' => 'My Tasks', 'description' => 'Persetujuan dan tugas yang menunggu Anda.', 'href' => route('work-center.index'), 'route' => 'work-center.index', 'icon' => 'CheckSquare'];
+
+        /*
+         * The same allow-list, applied once, as a backstop: a My Work
+         * account that an administrator also gave an operational ROLE
+         * would otherwise be offered Digital Checklist, Safety
+         * Observation, Report Incident or LOTO -- all role-gated above,
+         * none of them reachable for this class. Filtering here means a
+         * tile added in future cannot reintroduce the same dead card.
+         */
+        if ($user->isMyWorkUser()) {
+            $allowedPrefixes = RestrictMyWorkUser::allowedPrefixes();
+
+            $tiles = array_values(array_filter(
+                $tiles,
+                fn (array $tile) => in_array(explode('.', $tile['route'])[0], $allowedPrefixes, true),
+            ));
+        }
 
         // v2.52.0 -- MY WORK IS A WORKSPACE, NOT A MENU.
         //

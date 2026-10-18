@@ -1,6 +1,7 @@
 import { Head, useForm, router, Link } from '@inertiajs/react';
 import { useState } from 'react';
 import AuthenticatedLayout from '@/Layouts/AuthenticatedLayout';
+import PageHeader from '@/Components/shared/PageHeader';
 import { Card, CardContent, CardHeader, CardTitle, CardDescription } from '@/Components/ui/card';
 import { Button } from '@/Components/ui/button';
 import { Input } from '@/Components/ui/input';
@@ -33,12 +34,12 @@ export default function WasteMaster({ wasteTypes, storageLocations, companies, c
                 <ArrowLeft className="h-4 w-4" /> Back to Waste Management
             </Link>
 
-            <div className="mb-4">
-                <h1 className="text-[22px] font-semibold tracking-tight text-navy-900 dark:text-slate-50">Waste Management Master Data</h1>
-                <p className="mt-0.5 text-xs text-graphite-500 dark:text-slate-400">
-                    Configure waste types and storage/TPS locations. Storage limits are an operational monitoring setting, not legal advice.
-                </p>
-            </div>
+            {/* v2.122.0: house header, and the subtitle naturalised --
+                help text is Indonesian (see CONVENTIONS). */}
+            <PageHeader
+                title="Waste Management Master Data"
+                subtitle="Atur jenis limbah dan lokasi penyimpanan/TPS. Batas penyimpanan adalah pengaturan pemantauan operasional, bukan nasihat hukum."
+            />
 
             <div className="space-y-4">
                 <WasteTypesSection wasteTypes={wasteTypes} companies={companies} can={can} />

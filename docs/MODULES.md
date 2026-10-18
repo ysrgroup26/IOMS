@@ -598,6 +598,31 @@ tenant. `tenant_registrations.user_id`, set at creation, is what tells provision
 existing account instead of creating a second user. Identity comes from the session; the `contact_*`
 fields the form sends are not validated and not read.
 
+## The My Work account class (v2.86.0, completed v2.122.0)
+
+**Decision:** ADR 061. **Key files:** `app/Http/Middleware/RestrictMyWorkUser.php`,
+`app/Http/Controllers/SettingsController.php::storeUser()`,
+`app/Http/Controllers/DashboardController.php::myWork()`, `resources/js/lib/workspaces.js`.
+
+A My Work account (`users.user_type = 'my_work'`) is sold at a fifth of a Full User's price and is
+counted against its **own** seat pool. It is a different question from `is_field_user` (a landing
+preference) and from `ptw_access` (a permission): an administrator sets all three independently.
+
+**What it may reach** is `RestrictMyWorkUser::ALLOWED_PREFIXES` — an allow-list, matched on a route
+name's first dot-segment, enforced on every request. Since v2.122.0 that constant is **public** and
+shared with the browser as `auth.user.allowed_route_prefixes` **for that class only**. The sidebar,
+the My Work tiles and the page's attention banner are all filtered through it, so adding a prefix to
+the middleware is what makes a link appear and nothing else is. The rail is deliberately short — My
+Work, My Permits, Tasks — and Work Center, Admin Space and the global search box are not rendered
+for this class at all, because every one of them answers 403 for it.
+
+**Creating one** happens in Settings → Users & Access → Add User, the same dialog that creates a
+Full User; Account Class is a field on it. The dialog also sets the account's **operating unit**,
+defaulting to the administrator's own (shown as a selector only when the tenant has more than one),
+and the account is stored with its email marked verified — the administrator set the password, so
+nobody ever clicks a verification link for it. A full seat quota is reported as a validation error
+on the Account Class field, naming the used and permitted figures for the pool that is full.
+
 ## Admin Space — the authority boundary (v2.84.1)
 
 **Rule:** administrative authority belongs to Admin Space; operational authority belongs to the

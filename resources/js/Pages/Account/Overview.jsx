@@ -42,7 +42,10 @@ import {
  * page exists to avoid.
  */
 export default function AccountOverview({ account, hasOrganization, organization, pendingOrder, plans, googleEnabled, workspaceFocus }) {
-    const { version } = usePage().props;
+    const { version, auth } = usePage().props;
+    // Shared for a My Work account only; null for everybody else, which
+    // means "no allow-list applies" -- see ADR 061.
+    const allowedPrefixes = auth?.user?.allowed_route_prefixes ?? null;
 
     return (
         <div className="min-h-screen bg-steel-50/60">
@@ -61,12 +64,17 @@ export default function AccountOverview({ account, hasOrganization, organization
                     </p>
                 </header>
 
-                {!account.email_verified && <VerifyEmailPanel email={account.email} />}
+                {/* v2.123.0: an account with no address has nothing to
+                    confirm, and the panel otherwise read "we sent a link
+                    to ." with a Resend button that would mail nowhere. A
+                    My Work account may legitimately have no email (ADR
+                    062). */}
+                {account.email && !account.email_verified && <VerifyEmailPanel email={account.email} />}
 
                 <div className="grid grid-cols-1 gap-4 lg:grid-cols-3">
                     <div className="space-y-4 lg:col-span-2">
                         {hasOrganization
-                            ? <OrganizationPanel organization={organization} />
+                            ? <OrganizationPanel organization={organization} allowedPrefixes={allowedPrefixes} />
                             : <NoSubscriptionPanel plans={plans} pendingOrder={pendingOrder} canSubscribe={account.email_verified} />}
 
                         {/* v2.83.0 -- workspace focus. Rendered only when
@@ -229,7 +237,13 @@ function NoSubscriptionPanel({ plans, pendingOrder, canSubscribe }) {
 }
 
 /** Shown instead, once the account actually has an organization. */
-function OrganizationPanel({ organization }) {
+/**
+ * v2.123.0 -- the Billing button asks the same allow-list the server
+ * enforces with (ADR 061). `subscription` is not on a My Work account's
+ * list, so the button answered 403 for the one class most likely to be
+ * looking at this page on a phone.
+ */
+function OrganizationPanel({ organization, allowedPrefixes }) {
     return (
         <Card>
             <CardHeader>
@@ -244,7 +258,9 @@ function OrganizationPanel({ organization }) {
                 </FieldGrid>
                 <div className="flex flex-col gap-2 sm:flex-row">
                     <Button asChild><Link href={route('dashboard')}>Open IOMS <ArrowRight className="h-4 w-4" /></Link></Button>
-                    <Button variant="outline" asChild><Link href={route('subscription.billing')}>Billing &amp; plan</Link></Button>
+                    {(!allowedPrefixes || allowedPrefixes.includes('subscription')) && (
+                        <Button variant="outline" asChild><Link href={route('subscription.billing')}>Billing &amp; plan</Link></Button>
+                    )}
                 </div>
             </CardContent>
         </Card>
@@ -335,26 +351,41 @@ function ProfileCard({ account }) {
                 </form>
 
                 <div className="border-t border-graphite-100 pt-3">
+                    {/* v2.123.0: an account with no email address is told
+                        what it DOES sign in with. The previous block
+                        printed an "Email" heading with nothing under it
+                        and a line about contacting support to change an
+                        address that does not exist (ADR 062). */}
                     <FieldGrid columns={1}>
-                        <Field
-                            label="Email"
-                            value={
-                                <span className="inline-flex items-center gap-1.5">
-                                    {account.email}
-                                    {account.email_verified
-                                        ? <BadgeCheck className="h-3.5 w-3.5 text-success" aria-label="Confirmed" />
-                                        : null}
-                                </span>
-                            }
-                        />
+                        {account.email ? (
+                            <Field
+                                label="Email"
+                                value={
+                                    <span className="inline-flex items-center gap-1.5">
+                                        {account.email}
+                                        {account.email_verified
+                                            ? <BadgeCheck className="h-3.5 w-3.5 text-success" aria-label="Confirmed" />
+                                            : null}
+                                    </span>
+                                }
+                            />
+                        ) : (
+                            <Field label="Employee ID" value={account.employee_number} />
+                        )}
                     </FieldGrid>
                     {/* The address is not editable here, deliberately:
                         changing it would invalidate the verification it
                         already carries and is a security operation, not a
                         profile edit. */}
                     <p className="mt-1 text-[11px] leading-relaxed text-graphite-500">
-                        Untuk mengubah alamat email, hubungi{' '}
-                        <a href={`mailto:${supportEmail}`} className="text-brand-600 hover:underline">{supportEmail}</a>.
+                        {account.email ? (
+                            <>
+                                Untuk mengubah alamat email, hubungi{' '}
+                                <a href={`mailto:${supportEmail}`} className="text-brand-600 hover:underline">{supportEmail}</a>.
+                            </>
+                        ) : (
+                            <>Anda masuk ke My Work dengan Employee ID dan kode akses. Hubungi administrator IOMS perusahaan Anda bila kode akses perlu diganti.</>
+                        )}
                     </p>
                 </div>
             </CardContent>
@@ -382,7 +413,9 @@ function SecurityCard({ account, googleEnabled }) {
                 <ul className="space-y-1.5">
                     <li className="flex items-center gap-2 text-xs text-graphite-700">
                         <CheckCircle2 className={account.has_password ? 'h-3.5 w-3.5 text-success' : 'h-3.5 w-3.5 text-graphite-300'} aria-hidden="true" />
-                        Password sign-in {account.has_password ? 'enabled' : 'not set'}
+                        {account.uses_access_code
+                            ? `Access code sign-in ${account.has_password ? 'enabled' : 'not set'}`
+                            : `Password sign-in ${account.has_password ? 'enabled' : 'not set'}`}
                     </li>
                     {googleEnabled && (
                         <li className="flex items-center gap-2 text-xs text-graphite-700">
@@ -404,7 +437,11 @@ function SecurityCard({ account, googleEnabled }) {
                         requiring one would make it impossible to add. */}
                     {account.has_password && (
                         <div className="space-y-1.5">
-                            <Label htmlFor="current_password">Current password</Label>
+                            {/* v2.123.0: the same field, under the name
+                                the account's holder was actually given --
+                                this class signs in with an access code
+                                (ADR 062), and the endpoint is unchanged. */}
+                            <Label htmlFor="current_password">{account.uses_access_code ? 'Current access code' : 'Current password'}</Label>
                             <Input
                                 id="current_password"
                                 type="password"
@@ -417,7 +454,11 @@ function SecurityCard({ account, googleEnabled }) {
                     )}
 
                     <div className="space-y-1.5">
-                        <Label htmlFor="new_password">{account.has_password ? 'New password' : 'Set a password'}</Label>
+                        <Label htmlFor="new_password">
+                            {account.uses_access_code
+                                ? (account.has_password ? 'New access code' : 'Set an access code')
+                                : (account.has_password ? 'New password' : 'Set a password')}
+                        </Label>
                         <Input
                             id="new_password"
                             type="password"
@@ -440,7 +481,9 @@ function SecurityCard({ account, googleEnabled }) {
                     </div>
 
                     <Button type="submit" size="sm" variant="outline" disabled={processing}>
-                        {account.has_password ? 'Change password' : 'Enable password sign-in'}
+                        {account.uses_access_code
+                            ? (account.has_password ? 'Change access code' : 'Enable access code sign-in')
+                            : (account.has_password ? 'Change password' : 'Enable password sign-in')}
                     </Button>
                 </form>
 

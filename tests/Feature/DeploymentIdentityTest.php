@@ -153,7 +153,8 @@ class DeploymentIdentityTest extends TestCase
 
         $this->assertSame([
             'ppe_types' => ['company_id', 'source_default_id'],
-            'users' => ['user_type', 'is_field_user', 'ptw_access'],
+            // v2.123.0: a My Work account is an employee's login.
+            'users' => ['user_type', 'is_field_user', 'ptw_access', 'employee_id', 'access_code_set_at'],
             'subscriptions' => ['additional_users', 'additional_my_work_packs'],
         ], $required);
     }

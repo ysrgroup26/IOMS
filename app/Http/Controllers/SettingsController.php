@@ -120,10 +120,33 @@ class SettingsController extends Controller
             // the Users tab shows the grants that were actually recorded --
             // loading them through the scoped relation would hide the very
             // rows an administrator is trying to review.
-            'users' => User::with(['roles:id,name', 'companies' => fn ($q) => $q->withoutGlobalScopes()->select('companies.id')])
-                ->where('tenant_id', $request->user()->tenant_id)->orderBy('name')->get(['id', 'name', 'display_name', 'email', 'role', 'department_key', 'is_active', 'ptw_access', 'is_field_user', 'user_type', 'last_login_at'])
+            /*
+             * v2.123.0 -- the employee behind a My Work account comes with
+             * it. The Register is the source of that person's name,
+             * number, job and unit, so the My Work card reads them LIVE
+             * from the relation rather than from the copy taken when the
+             * account was made: a worker who changes position is shown
+             * their current one.
+             */
+            'users' => User::with([
+                'roles:id,name',
+                'companies' => fn ($q) => $q->withoutGlobalScopes()->select('companies.id'),
+                'employee' => fn ($q) => $q->withoutGlobalScopes()
+                    ->with(['department:id,name', 'position:id,name', 'company:id,name'])
+                    ->select(['employees.id', 'employees.employee_id', 'employees.full_name', 'employees.department_id', 'employees.position_id', 'employees.company_id', 'employees.status']),
+            ])
+                ->where('tenant_id', $request->user()->tenant_id)->orderBy('name')->get(['id', 'name', 'display_name', 'email', 'role', 'department_key', 'is_active', 'ptw_access', 'is_field_user', 'user_type', 'last_login_at', 'employee_id', 'access_code_set_at'])
                 ->map(fn (User $u) => [
-                    ...$u->only(['id', 'name', 'display_name', 'email', 'role', 'department_key', 'is_active', 'ptw_access', 'is_field_user', 'user_type', 'last_login_at']),
+                    ...$u->only(['id', 'name', 'display_name', 'email', 'role', 'department_key', 'is_active', 'ptw_access', 'is_field_user', 'user_type', 'last_login_at', 'employee_id', 'access_code_set_at']),
+                    'employee' => $u->employee ? [
+                        'id' => $u->employee->id,
+                        'employee_id' => $u->employee->employee_id,
+                        'full_name' => $u->employee->full_name,
+                        'position' => $u->employee->position?->name,
+                        'department' => $u->employee->department?->name,
+                        'company' => $u->employee->company?->name,
+                        'status' => $u->employee->status,
+                    ] : null,
                     /*
                      * v2.100.0 -- BOTH IDENTITIES, kept apart on purpose.
                      * `name` is the registered identity, `display_name` is

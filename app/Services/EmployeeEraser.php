@@ -116,6 +116,20 @@ class EmployeeEraser
         ['table' => 'permits_to_work', 'column' => 'pic_employee_id', 'name_column' => 'pic_name'],
         ['table' => 'project_activities', 'column' => 'assigned_employee_id'],
         ['table' => 'regulation_registers', 'column' => 'owner_employee_id'],
+        /*
+         * v2.123.0 -- THE WORKER'S MY WORK LOGIN.
+         *
+         * A REFERENCE, not a dependent, and the distinction is the whole
+         * point of ADR 055: `users` is a record of its own, pointed at by
+         * activity logs, approvals and everything else a person did, and
+         * deleting the row to tidy up a departure would take that with
+         * it. The pointer is cleared and the account is DEACTIVATED in
+         * the same pass (see eraseMany()), which is what actually ends
+         * the access -- sign-in resolves a My Work account through the
+         * register, so once the employee is gone there is no identifier
+         * left that reaches it anyway.
+         */
+        ['table' => 'users', 'column' => 'employee_id'],
         ['table' => 'visitors', 'column' => 'host_employee_id'],
         ['table' => 'work_orders', 'column' => 'technician_id'],
     ];
@@ -213,6 +227,14 @@ class EmployeeEraser
 
         return DB::transaction(function () use ($ids, $names) {
             $namesKept = $this->keepNamesOnDocuments($ids, $names);
+            /*
+             * Before the pointer is cleared, while these accounts can
+             * still be found: a login issued to somebody who no longer
+             * exists is not left active. Done here rather than by a
+             * database rule so MySQL and SQLite agree, which is the same
+             * reasoning the rest of this class is built on.
+             */
+            $this->deactivateAccountsFor($ids);
             $references = $this->clearReferences($ids);
             $dependents = $this->deleteDependents($ids);
 
@@ -286,6 +308,18 @@ class EmployeeEraser
         }
 
         return $kept;
+    }
+
+    /**
+     * @param  list<int>  $ids
+     */
+    private function deactivateAccountsFor(array $ids): void
+    {
+        if (! $this->reachable('users', 'employee_id')) {
+            return;
+        }
+
+        DB::table('users')->whereIn('employee_id', $ids)->update(['is_active' => false]);
     }
 
     /**

@@ -54,25 +54,27 @@ export default function Login() {
                    onboarding: creating an account is now free and takes a
                    minute, and choosing a plan is a decision for later. */
                 <>
-                    {/* v2.89.0 -- ONE SIGN-IN, TWO DESTINATIONS.
-                        IOMS has two account classes, and a field crew told
-                        "sign in to IOMS" reasonably wonders whether this is
-                        the page they mean. It is, and saying so is the whole
-                        fix: a second login page would duplicate
-                        authentication to solve a wording problem.
+                    {/* v2.89.0 -- ONE SIGN-IN, TWO DESTINATIONS. A field
+                        crew told "sign in to IOMS" reasonably wondered
+                        whether this was the page they meant, and while both
+                        classes signed in with an email and a password, it
+                        was: saying so was the whole fix, and a second login
+                        page would have duplicated authentication to solve a
+                        wording problem.
 
-                        The link is a real deep link, not a shortcut past the
-                        form. `/my-work` requires auth, so an unauthenticated
-                        visit is captured by the auth middleware and replayed
-                        through `redirect()->intended()` after sign-in. The
-                        account authenticates first and is routed afterwards,
-                        which is also exactly what an emailed My Work
-                        invitation needs: the invitation is simply this URL. */}
+                        v2.123.0 -- IT IS NOT A WORDING PROBLEM ANY MORE.
+                        A My Work account is issued to a worker who may have
+                        no email address, and signs in with an Employee ID
+                        and an access code. This form asks for an email, so
+                        it cannot accept that; the link now goes to the page
+                        that can. Authentication itself is still ONE guard,
+                        one session, one hashing path -- see
+                        MyWorkSessionController and ADR 062. */}
                     <div className="mt-6 rounded-lg border border-steel-200/70 bg-steel-50/70 px-3.5 py-3">
                         <p className="text-xs leading-relaxed text-graphite-600">
                             <span className="font-semibold text-graphite-700">Working in the field?</span>{' '}
-                            Sign in here with your IOMS account and continue to{' '}
-                            <Link href={route('my-work')} className="font-semibold text-brand-700 hover:underline">
+                            Masuk dengan Employee ID dan kode akses Anda di{' '}
+                            <Link href={route('my-work.login')} className="font-semibold text-brand-700 hover:underline">
                                 My Work
                             </Link>.
                         </p>

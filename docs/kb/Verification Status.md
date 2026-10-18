@@ -34,6 +34,29 @@ and driving the screen in a browser, the twelve-to-six month edit **saves and pe
 `ReleaseStatusService` and the hardened `app:deploy` exist to close that gap, and
 `DeploymentIdentityTest` pins them. See `docs/ADR/057-a-release-must-be-able-to-prove-what-is-running.md`.
 
+### What was actually run for v2.123.0
+
+| Claim | Level | Evidence |
+|---|---|---|
+| An administrator picks an employee and the account is created | **Browser-verified** | MySQL 8, Business and Starter tenants: Add My Work User, searched the register, selected the worker, pressed Create. The dialog showed Employee ID, name, position, department, operating unit and employee status without any of them being typed |
+| The account is linked to the right employee | **Browser-verified** | `users.employee_id` joins to the selected worker; `tenant_id` and `company_id` match that employee's own unit on both tenants |
+| No employee is created by the flow | **Test-covered** | The register count is unchanged across a creation |
+| A worker signs in with Employee ID and code | **Browser-verified** | Followed the Share Access Link itself, which prefilled the badge number, typed the code, landed on `/my-work` |
+| A worker signs in with their full name | **Test-covered** | Lower-cased, hyphen-stripped code accepted; same guard, same session |
+| The same name does not reach the wrong account | **Browser-verified** | Two workers both called Budi Santoso (EMP-0001, EMP-0002). Signing in as "Budi Santoso" with EMP-0002's code reached EMP-0002's account; EMP-0001's `last_login_at` stayed NULL |
+| The same badge number across tenants is told apart | **Browser-verified** | Both tenants have an EMP-0003. The Business code logged into the Business account at 14:52:59 and the Starter code into the Starter account at 14:53:01 -- recorded in `last_login_at` on two different rows |
+| The user lands in My Work, not the dashboard | **Browser-verified** | `/my-work` on every sign-in, with the three-item rail from v2.122.0 |
+| A wrong code, and an unknown identity, are refused identically | **Browser-verified** | Both returned the same sentence; neither authenticated |
+| A reset code replaces the one held | **Browser-verified** | Reset from the table issued a new code; the test proves the old one stops working and the new one works |
+| A deactivated account cannot sign in, and can be restored | **Browser-verified** (table) / **Test-covered** (sign-in) | Row reads Deactivated with a Reactivate action; the test drives refuse-then-restore |
+| Repeated wrong codes are rate limited | **Test-covered** | Six attempts; the sixth is the throttle message |
+| A duplicate account is refused, and said before the button | **Browser-verified** | Selecting an employee who already has one shows the account's status and disables Create Access. Found and fixed a real defect here: the comparison was string-vs-number and the notice never appeared |
+| Quota, tenant isolation and the allow-list survive the separation | **Test-covered** | Quota exhaustion and reactivation-at-full refused; another tenant's administrator gets 404; the account is still refused Settings, Employees and Work Center |
+| Platform creation and sign-in are undisturbed | **Browser-verified** | Created a Platform User through the renamed dialog, signed in with email and password, landed on `/dashboard`. The two tables are cleanly separated: Platform Users lists only Full accounts, My Work Access lists the three My Work ones |
+| The worker's own Account page is honest about this class | **Browser-verified** | It used to say "we sent a confirmation link to ." with a Resend button for an account with no address, offer Billing (403 for this class), offer a Workspace Focus it cannot use, and call the credential a password. It now states the Employee ID, names the access code, and offers neither |
+| Suite | **Test-covered** | 1425 tests / 7430 assertions on SQLite **and** MySQL 8 |
+| Production itself | **NOT confirmed** | Deploy-confirmed remains the owner's step (ADR 057) |
+
 ### What was actually run for v2.122.0
 
 | Claim | Level | Evidence |

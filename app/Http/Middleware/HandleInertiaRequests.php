@@ -630,6 +630,17 @@ class HandleInertiaRequests extends Middleware
                 // but online payment is not enabled on this deployment.
                 // Reporting that as `success` would overstate it.
                 'info' => fn () => $request->session()->get('info'),
+                /*
+                 * v2.123.0 -- the one plain-text copy of a My Work access
+                 * code, on its way to the panel that shows it.
+                 *
+                 * Flashed, so it lives for exactly one response and is
+                 * gone from the session afterwards. It is never stored,
+                 * never logged and never written into a URL: if the
+                 * administrator loses it before sharing it, the answer is
+                 * another reset. See ADR 062.
+                 */
+                'my_work_access' => fn () => $request->session()->get('my_work_access'),
             ],
         ];
     }

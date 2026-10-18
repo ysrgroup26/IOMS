@@ -80,6 +80,20 @@ class AccountController extends Controller
                 'email' => $user->email,
                 'email_verified' => $user->hasVerifiedEmail(),
                 'has_password' => $user->hasPassword(),
+                /*
+                 * v2.123.0 -- WHAT THIS ACCOUNT'S SECRET IS CALLED.
+                 *
+                 * A My Work account signs in with an Employee ID and an
+                 * ACCESS CODE (ADR 062). The code lives in the same column
+                 * a password does and is changed through the same
+                 * endpoint, so nothing about this page's behaviour
+                 * changes -- but calling it "password" here would name the
+                 * thing the worker holds wrongly, and the verification
+                 * notice would ask an account with no address to confirm
+                 * one.
+                 */
+                'uses_access_code' => $user->usesAccessCode(),
+                'employee_number' => $user->employee?->employee_id,
                 'google_linked' => filled($user->google_id),
                 'google_linked_at' => $user->google_linked_at,
                 'created_at' => $user->created_at,
@@ -137,6 +151,18 @@ class AccountController extends Controller
      */
     private function focusOptions(?\App\Models\User $user): array
     {
+        /*
+         * v2.123.0: a My Work account has no workspace to focus. The
+         * allow-list refuses every operational workspace for this class
+         * (ADR 061), so offering a choice between them would be a control
+         * that cannot do anything -- and `authorizedDepartmentKeys()`
+         * answers about the TENANT's grants, which is a different
+         * question from what this account may reach.
+         */
+        if ($user?->isMyWorkUser()) {
+            return [];
+        }
+
         $keys = $this->entitlements->authorizedDepartmentKeys($user);
 
         if ($keys === []) {

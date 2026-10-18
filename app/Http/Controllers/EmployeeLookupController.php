@@ -60,9 +60,19 @@ class EmployeeLookupController extends Controller
 
         $tenantCompanyIds = Company::query()->pluck('id');
 
+        /*
+         * v2.123.0 -- position and operating unit come back too.
+         *
+         * Two more small belongsTo loads, and they are what lets a form
+         * CONFIRM the person it is about to act on ("Welder, Fabrication,
+         * Starter Co Unit") instead of showing a bare name. The My Work
+         * account form is the first consumer; every other one may ignore
+         * the extra keys, which is why this is here rather than in a
+         * second, nearly identical endpoint.
+         */
         $query = Employee::whereIn('company_id', $tenantCompanyIds)
-            ->with('department:id,name')
-            ->select(['id', 'employee_id', 'full_name', 'department_id', 'company_id']);
+            ->with(['department:id,name', 'position:id,name', 'company:id,name'])
+            ->select(['id', 'employee_id', 'full_name', 'department_id', 'position_id', 'company_id', 'status']);
 
         if (! empty($validated['ids'])) {
             // Hydration mode: resolve specific ids (still tenant-scoped).
@@ -108,6 +118,11 @@ class EmployeeLookupController extends Controller
             'employee_id' => $employee->employee_id,
             'full_name' => $employee->full_name,
             'department_id' => $employee->department_id,
+            'department' => $employee->department?->name,
+            'position' => $employee->position?->name,
+            'company_id' => $employee->company_id,
+            'company' => $employee->company?->name,
+            'status' => $employee->status,
             'group' => $employee->department?->name ?? 'Tanpa Departemen',
         ];
     }

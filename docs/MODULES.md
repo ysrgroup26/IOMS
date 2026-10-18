@@ -616,12 +616,32 @@ the middleware is what makes a link appear and nothing else is. The rail is deli
 Work, My Permits, Tasks — and Work Center, Admin Space and the global search box are not rendered
 for this class at all, because every one of them answers 403 for it.
 
-**Creating one** happens in Settings → Users & Access → Add User, the same dialog that creates a
-Full User; Account Class is a field on it. The dialog also sets the account's **operating unit**,
-defaulting to the administrator's own (shown as a selector only when the tenant has more than one),
-and the account is stored with its email marked verified — the administrator set the password, so
-nobody ever clicks a verification link for it. A full seat quota is reported as a validation error
-on the Account Class field, naming the used and permitted figures for the pool that is full.
+**Creating one** happens in Settings → Users & Access → **Add My Work User**, its own dialog since
+v2.123.0 (ADR 062). It asks ONE question — which employee — and then states what the register
+already holds about them: number, name, position, department and operating unit. It never asks for
+a role or a department (the allow-list decides what this class reaches, so choosing either would
+imply a grant it does not make), it never creates an employee, and an email address is optional
+because a yard worker may have none. One login per worker, enforced by a unique index on
+`users.employee_id`; selecting somebody who already has one shows their account's status and sends
+the administrator to the management actions instead.
+
+**The credential is an access code**, not a password: 8 characters over an alphabet with no I, O, 0
+or 1, stored in `users.password` through the model's existing `hashed` cast, shown exactly once and
+reset rather than recovered. The worker signs in at **`/my-work/login`** with their Employee ID (or
+their full name) and that code — a name FINDS an account, the code PROVES it, which is how two
+workers with one name, and two tenants with one badge number, each reach their own account. After
+creation the administrator gets a Share Access Link (the sign-in page with the badge number
+prefilled, and never the code), with copy-link and copy-instructions fallbacks where the browser has
+no Web Share API. Reset code, Deactivate and Reactivate live on the same card; reactivating asks the
+quota the same question creating an account does.
+
+**Add Platform User** is the other flow, unchanged: it invents an identity (name, email, password),
+grants a role and a department, sets the account's operating unit (defaulting to the
+administrator's own, shown as a selector only on a multi-unit tenant) and marks the email verified,
+since the administrator sets the password and nobody ever clicks a verification link for such an
+account. Its Account Class field still exists; a full seat quota is reported as a validation error
+on it, naming the used and permitted figures for the pool that is full. An account created that way
+with class My Work has no link to the register and signs in with its email, as it always did.
 
 ## Admin Space — the authority boundary (v2.84.1)
 

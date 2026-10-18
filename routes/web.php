@@ -10,6 +10,7 @@ use App\Http\Controllers\AssetDashboardController;
 use App\Http\Controllers\Auth\AuthenticatedSessionController;
 use App\Http\Controllers\Auth\EmailVerificationController;
 use App\Http\Controllers\Auth\GoogleAuthController;
+use App\Http\Controllers\Auth\MyWorkSessionController;
 use App\Http\Controllers\Auth\NewPasswordController;
 use App\Http\Controllers\Auth\PasswordResetLinkController;
 use App\Http\Controllers\Auth\RegisteredUserController;
@@ -55,6 +56,7 @@ use App\Http\Controllers\MaintenanceRequestController;
 use App\Http\Controllers\ManagementController;
 use App\Http\Controllers\ManHourController;
 use App\Http\Controllers\MaterialRequestController;
+use App\Http\Controllers\MyWorkAccountController;
 use App\Http\Controllers\MilestoneController;
 use App\Http\Controllers\NcrController;
 use App\Http\Controllers\NotificationController;
@@ -264,6 +266,28 @@ Route::middleware('guest')->group(function () {
     // a login form. Purely additive: does not change credentials logic,
     // session handling, or any authorization boundary.
     Route::post('/login', [AuthenticatedSessionController::class, 'store'])->middleware('throttle:6,1');
+
+    /*
+     * v2.123.0 -- SIGN IN FROM THE YARD.
+     *
+     * A My Work account presents an Employee ID (or the worker's name)
+     * and an access code, which the form above cannot accept: it asks for
+     * an email address. Same guard, same session, same hashing -- see
+     * MyWorkSessionController, which resolves an identity and then hands
+     * over to `Auth`.
+     *
+     * The route NAME keeps the `my-work` prefix, which is already
+     * universal in RestrictDepartmentAccess and already on
+     * RestrictMyWorkUser's allow-list, so nothing in the routing layer
+     * needs a new entry (see the known pitfall in docs/CONVENTIONS.md
+     * about a new prefix costing a 403 three times).
+     *
+     * Throttled like every other credential endpoint here, on top of the
+     * controller's own per-identifier limiter.
+     */
+    Route::get('/my-work/login', [MyWorkSessionController::class, 'create'])->name('my-work.login');
+    Route::post('/my-work/login', [MyWorkSessionController::class, 'store'])
+        ->middleware('throttle:10,1')->name('my-work.login.store');
 
     /*
      * v2.74.0 -- CREATE AN IOMS ACCOUNT.
@@ -1133,6 +1157,18 @@ Route::middleware(['auth', 'restrict.platform-admin'])->group(function () {
         Route::post('/settings/companies', [SettingsController::class, 'storeCompanyEntity'])->name('settings.companies.store');
         Route::put('/settings/companies/{company}', [SettingsController::class, 'updateCompanyEntity'])->name('settings.companies.update');
         Route::delete('/settings/companies/{company}', [SettingsController::class, 'destroyCompanyEntity'])->name('settings.companies.destroy');
+
+        /*
+         * v2.123.0 -- MY WORK ACCESS, beside Users & Access and under the
+         * same `role:super_admin` group, so the two creation flows are
+         * separated in the INTERFACE without separating who may use them.
+         * The `settings` prefix is what config/departments.php already
+         * gives to `administration`; keeping these routes inside it is
+         * what keeps Admin Space's boundary true for them.
+         */
+        Route::post('/settings/my-work-users', [MyWorkAccountController::class, 'store'])->name('settings.my-work-users.store');
+        Route::post('/settings/my-work-users/{user}/access-code', [MyWorkAccountController::class, 'resetAccessCode'])->name('settings.my-work-users.access-code');
+        Route::put('/settings/my-work-users/{user}/status', [MyWorkAccountController::class, 'updateStatus'])->name('settings.my-work-users.status');
 
         Route::post('/settings/users', [SettingsController::class, 'storeUser'])->name('settings.users.store');
         Route::put('/settings/users/{user}', [SettingsController::class, 'updateUser'])->name('settings.users.update');

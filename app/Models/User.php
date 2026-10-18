@@ -142,6 +142,15 @@ class User extends Authenticatable implements MustVerifyEmail
          * join this list -- see below.
          */
         'email_verified_at',
+
+        /*
+         * v2.123.0. When the My Work access code was last issued or reset.
+         * Safe for the same reason `last_login_at` is: it is a timestamp
+         * the application writes, and no controller validates a key of
+         * this name, so no request can reach it. `employee_id` is
+         * deliberately absent -- see employee() below.
+         */
+        'access_code_set_at',
     ];
 
     /*
@@ -172,6 +181,7 @@ class User extends Authenticatable implements MustVerifyEmail
             'ptw_access' => 'boolean',
             'is_field_user' => 'boolean',
             'last_login_at' => 'datetime',
+            'access_code_set_at' => 'datetime',
         ];
     }
 
@@ -879,6 +889,31 @@ class User extends Authenticatable implements MustVerifyEmail
     public function isFullUser(): bool
     {
         return ! $this->isMyWorkUser();
+    }
+
+    /**
+     * v2.123.0 -- THE PERSON IN THE EMPLOYEE REGISTER THIS LOGIN BELONGS TO.
+     *
+     * Set only by the My Work account flow (MyWorkAccessService). NULL for
+     * every Platform User, which is why the unique index on the column is
+     * able to mean "one login per worker" without saying anything about the
+     * accounts that are not one.
+     *
+     * Deliberately NOT mass-assignable -- see the note on `google_id`
+     * above. Linking an account to a person in the register is an identity
+     * decision; a future controller that passed request data straight to
+     * update() must not be able to repoint somebody's login at another
+     * worker.
+     */
+    public function employee()
+    {
+        return $this->belongsTo(Employee::class);
+    }
+
+    /** Whether this account signs in with an Employee ID and an access code. */
+    public function usesAccessCode(): bool
+    {
+        return $this->isMyWorkUser() && $this->employee_id !== null;
     }
 
 

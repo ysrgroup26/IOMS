@@ -16,6 +16,7 @@ import { Table, TableHeader, TableBody, TableRow, TableHead, TableCell } from '@
 import { Checkbox } from '@/Components/ui/checkbox';
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogFooter, DialogTrigger } from '@/Components/ui/dialog';
 import { Plus, Trash2, Pencil, Loader2, Lock, Search, AppWindow, FileSignature, Palette, Info } from 'lucide-react';
+import MyWorkAccessCard from '@/Components/shared/MyWorkAccessCard';
 import { FormSection, FormField, FormActions, ErrorSummary, SearchableSelect } from '@/Components/shared/form';
 import { useUnsavedChanges } from '@/lib/useUnsavedChanges';
 import { WORKSPACES } from '@/lib/workspaces';
@@ -2146,6 +2147,12 @@ function UsersTab({ users, roles, ptwAccess, userSeats, canManageUsers, canPtwAc
     return (
         <div className="space-y-4">
             {canManageUsers && <UserManagementCard users={users} roles={roles} companies={companies} userSeats={userSeats} assignableDepartments={assignableDepartments} />}
+            {/* v2.123.0 -- the second creation flow, as its own card.
+                A My Work account is picked from the Employee Register and
+                issued an access code; it has no role and no department to
+                set, so it does not belong in the form above. Same gate,
+                same quota -- see ADR 061 and the card's own note. */}
+            {canManageUsers && <MyWorkAccessCard users={users} seats={userSeats?.my_work} />}
             {(canManageUsers || canPtwAccess) && <FieldPtwAccessCard users={users} ptwAccess={ptwAccess} canFieldAccess={canFieldAccess} canManageUsers={canManageUsers} />}
         </div>
     );
@@ -2172,6 +2179,7 @@ function UserManagementCard({ users, roles, companies, userSeats, assignableDepa
     const defaultCompanyId = auth?.user?.company_id ? String(auth.user.company_id) : '';
     const { data, setData, post, processing, reset, errors } = useForm({ name: '', display_name: '', email: '', password: '', role: 'hrd', department_key: '', user_type: 'full', company_id: defaultCompanyId });
     const customRoles = (roles ?? []).filter((r) => !BUILT_IN_ROLES.includes(r.name));
+    const platformUsers = (users ?? []).filter((u) => u.user_type !== 'my_work');
 
     function submit(e) {
         e.preventDefault();
@@ -2185,11 +2193,17 @@ function UserManagementCard({ users, roles, companies, userSeats, assignableDepa
     return (
         <Card>
             <CardHeader className="flex flex-row items-center justify-between space-y-0">
-                <div><CardTitle>User Management</CardTitle><CardDescription>Administrator, HSE, HRD, or Manager.</CardDescription></div>
+                <div>
+                    <CardTitle>Platform Users</CardTitle>
+                    <CardDescription>
+                        Akun untuk dashboard IOMS: Administrator, HSE, HRD, Manager atau Warehouse.
+                        Akun pekerja lapangan diatur di My Work Access di bawah.
+                    </CardDescription>
+                </div>
                 <Dialog open={open} onOpenChange={setOpen}>
-                    <DialogTrigger asChild><Button size="sm"><Plus className="h-4 w-4" /> Add User</Button></DialogTrigger>
+                    <DialogTrigger asChild><Button size="sm"><Plus className="h-4 w-4" /> Add Platform User</Button></DialogTrigger>
                     <DialogContent>
-                        <DialogHeader><DialogTitle>Create User</DialogTitle></DialogHeader>
+                        <DialogHeader><DialogTitle>Create Platform User</DialogTitle></DialogHeader>
                         <form onSubmit={submit} className="space-y-3">
                             {/* v1.10.8: was previously silent for any field
                                 other than email/password -- a role or
@@ -2218,7 +2232,11 @@ function UserManagementCard({ users, roles, companies, userSeats, assignableDepa
                                         <SelectItem value="my_work">My Work User</SelectItem>
                                     </SelectContent>
                                 </Select>
-                                <p className="text-xs text-graphite-400">The class determines the account's seat pool. Landing preference is managed separately below.</p>
+                                <p className="text-xs text-graphite-400">
+                                    Kelas akun menentukan kuota yang dipakai. Untuk pekerja lapangan,
+                                    gunakan Add My Work User agar akunnya terhubung ke Employee Register
+                                    dan bisa masuk dengan Employee ID.
+                                </p>
                             </div>
                             <div className="space-y-1.5">
                                 <Label>Role</Label>
@@ -2262,7 +2280,13 @@ function UserManagementCard({ users, roles, companies, userSeats, assignableDepa
                 <Table>
                     <TableHeader><TableRow><TableHead>Name</TableHead><TableHead>Email</TableHead><TableHead>Account Class</TableHead><TableHead>Role</TableHead><TableHead>Department</TableHead>{multiUnit && <TableHead>Operating Units</TableHead>}<TableHead>Custom Roles</TableHead><TableHead>Status</TableHead><TableHead /></TableRow></TableHeader>
                     <TableBody>
-                        {users.map((u) => {
+                        {/* v2.123.0: My Work accounts are listed in their own
+                            card below, where the actions that apply to them
+                            (share, reset code, deactivate) actually live.
+                            Every one of them appears there, including an
+                            older one created through this form and therefore
+                            carrying no link to the register. */}
+                        {platformUsers.map((u) => {
                             const assignedCustom = customRoles.filter((r) => (u.role_ids ?? []).includes(r.id));
                             const deptLabel = u.department_key ? departmentLabel(u.department_key) : undefined;
                             return (
@@ -2422,7 +2446,14 @@ function FieldPtwAccessCard({ users, ptwAccess, canFieldAccess, canManageUsers }
     const filtered = users.filter((u) => {
         const q = search.trim().toLowerCase();
         if (!q) return true;
-        return u.name.toLowerCase().includes(q) || u.email.toLowerCase().includes(q);
+        /* v2.123.0: `email` is nullable since a My Work account may
+           belong to a worker who has none -- searching used to call
+           toLowerCase() on it unconditionally. The Employee ID is
+           searchable here too, because for this class it is the number an
+           administrator actually knows the person by. */
+        return u.name.toLowerCase().includes(q)
+            || (u.email ?? '').toLowerCase().includes(q)
+            || (u.employee?.employee_id ?? '').toLowerCase().includes(q);
     });
 
     function toggle(user, next) {
@@ -2553,8 +2584,17 @@ function FieldPtwAccessCard({ users, ptwAccess, canFieldAccess, canManageUsers }
                                 <div key={u.id} className="flex flex-col gap-2 px-4 py-3 sm:flex-row sm:items-center sm:gap-4">
                                     <div className="min-w-0 flex-1">
                                         <p className="truncate text-[13px] font-medium text-graphite-900 dark:text-slate-100">{u.name}</p>
+                                        {/* v2.123.0: a My Work account has no
+                                            department by design, so the
+                                            no-department fallback read
+                                            "Administrator (all)" for exactly the
+                                            class that is furthest from one. It
+                                            shows the register's own answer
+                                            instead. */}
                                         <p className="truncate text-[11px] font-medium uppercase tracking-wide text-graphite-400 dark:text-slate-500">
-                                            {deptLabel || 'Administrator (all)'}
+                                            {u.user_type === 'my_work'
+                                                ? [u.employee?.employee_id, u.employee?.position].filter(Boolean).join(' · ') || 'My Work User'
+                                                : (deptLabel || 'Administrator (all)')}
                                         </p>
                                         {effect && (
                                             <p className="mt-0.5 truncate text-[11px] text-graphite-500 dark:text-slate-400">{effect}</p>

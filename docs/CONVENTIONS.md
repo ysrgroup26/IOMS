@@ -2691,6 +2691,43 @@ user leaves an optional field blank, which is the normal case, not the edge case
 
 Found by a test that filled in only the required fields.
 
+## Known Pitfall (v2.123.0) — `EmployeeSelector` emits its id as a STRING, so `===` against a numeric id never matches
+
+`EmployeeSelector` normalises internally with `String(id)` and emits `onChange(String(employee.id))`
+— that is its documented contract. Ids that arrive from Inertia are numbers. So this looks right and
+is always false:
+
+```js
+const existing = accounts.find((a) => a.employee_id === data.employee_id);  // "4" !== 4
+```
+
+Found in a browser: the My Work dialog showed the selected employee's facts correctly and the
+duplicate warning beside them stayed hidden, with the Create button enabled, for a worker who
+plainly already had an account. The server refused it anyway (a unique index and a validation rule),
+so nothing was corrupted — but the administrator was told after pressing the button instead of
+before, which is the difference between a product and a form.
+
+Compare through `Number()` on both sides when one side came from a selector, and prefer a browser
+check over reading the comparison: both values print as `4` in a console.
+
+## Known Pitfall (v2.123.0) — making a column nullable makes every `.toLowerCase()` on it a crash waiting for one empty value
+
+`users.email` became nullable so a My Work account can belong to a worker who has no address. One
+search filter did `u.email.toLowerCase()`, which had been safe for as long as the column was NOT
+NULL. It did not throw on load — the filter returns early while the box is empty — so the page
+looked fine and would have broken the first time an administrator typed into it.
+
+When a column becomes nullable, grep for the string operations on it, in BOTH languages, before
+believing the change is additive:
+
+```
+grep -rn "\.email\.\(toLowerCase\|includes\|split\|trim\|charAt\|slice\)" resources/js
+grep -rn "\$user->email" app/
+```
+
+The test suite will not find this for you: an assertion over a fixture where every account has an
+address passes exactly as it did before.
+
 ## CRITICAL — Known Pitfall (v2.122.0) — "cannot be created" can mean "was created and then could not be used", and only the browser tells you which
 
 A My Work account was reported three times as impossible to create. Each round looked at creation.

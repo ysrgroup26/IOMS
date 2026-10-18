@@ -59,7 +59,10 @@ class DeployCommand extends Command
      */
     private const REQUIRED_SCHEMA = [
         'ppe_types' => ['company_id', 'source_default_id'],
-        'users' => ['user_type', 'is_field_user', 'ptw_access'],
+        // v2.123.0: a My Work account is an employee's login, and this
+        // release's code reads both columns on every Users & Access page
+        // and on every My Work sign-in.
+        'users' => ['user_type', 'is_field_user', 'ptw_access', 'employee_id', 'access_code_set_at'],
         'subscriptions' => ['additional_users', 'additional_my_work_packs'],
     ];
 

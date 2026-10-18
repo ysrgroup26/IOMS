@@ -1,7 +1,7 @@
 ---
 title: Current State
 type: snapshot
-product-version: 2.119.0
+product-version: 2.120.0
 product-stage: Beta
 measured: 2026-10-18
 tags: [kb/state]
@@ -25,8 +25,8 @@ the date in the frontmatter, not remembered.
 |---|---|
 | Product | **IOMS — Industrial Operations Platform** |
 | Public company identity | **Tahada Group**; legal entity **PT Tahada Vistara Bersama** |
-| Version | **2.119.0**, stage **Beta**, edition **Enterprise Edition** |
-| Build | `2026.10.18.02`, release date `2026-10-18` |
+| Version | **2.120.0**, stage **Beta**, edition **Enterprise Edition** |
+| Build | `2026.10.18.03`, release date `2026-10-18` |
 | Stack | Laravel 12 · Inertia.js · React 18 · Tailwind · MySQL · Sanctum |
 
 The naming rules are not cosmetic — see [[Product Identity and Principles]].

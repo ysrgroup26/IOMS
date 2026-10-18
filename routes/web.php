@@ -908,6 +908,19 @@ Route::middleware(['auth', 'restrict.platform-admin'])->group(function () {
         Route::post('/projects/{project}/manpower', [ProjectController::class, 'addManpower'])->name('projects.manpower.add');
         Route::delete('/projects/{project}/manpower/{employee}', [ProjectController::class, 'removeManpower'])->name('projects.manpower.remove');
 
+        /*
+         * v2.120.0 -- bulk PPE issuance. In the SAME group as `ppe.store`
+         * (role:super_admin,hse) because it does the same thing the manual
+         * issue form does, only many rows at once -- a bulk path must never
+         * be reachable by somebody who may not do it one at a time. Each
+         * method also asserts `canManagePpeDistribution()` itself, the way
+         * the rest of this controller's write paths do.
+         */
+        Route::get('/ppe/import-template', [PpeController::class, 'ppeImportTemplate'])->name('ppe.import-template');
+        Route::post('/ppe/import/inspect', [PpeController::class, 'inspectPpeImport'])->name('ppe.import.inspect');
+        Route::post('/ppe/import/preview', [PpeController::class, 'previewPpeImport'])->name('ppe.import.preview');
+        Route::post('/ppe/import', [PpeController::class, 'importPpe'])->name('ppe.import');
+
         Route::post('/ppe', [PpeController::class, 'store'])->name('ppe.store');
         Route::put('/ppe/{employeePpe}', [PpeController::class, 'update'])->name('ppe.update');
         Route::post('/ppe/{employeePpe}/complete-replacement', [PpeController::class, 'completeReplacement'])->name('ppe.complete-replacement');

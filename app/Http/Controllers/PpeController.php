@@ -2,7 +2,10 @@
 
 namespace App\Http\Controllers;
 
+use App\Exports\EmployeePpeImportTemplateExport;
+use App\Http\Controllers\Concerns\ReadsImportedSpreadsheets;
 use App\Http\Requests\StoreEmployeePpeBatchRequest;
+use App\Imports\EmployeePpeImport;
 use App\Http\Requests\StorePpeReplacementRequestRequest;
 use App\Http\Requests\UpdateEmployeePpeRequest;
 use App\Models\ActivityLog;
@@ -12,13 +15,20 @@ use App\Models\Employee;
 use App\Models\EmployeePpe;
 use App\Models\PpeReplacementRequest;
 use App\Models\PpeType;
+use App\Services\FieldMappingService;
+use App\Services\ImportHeaderMatcher;
 use App\Services\PdfGeneratorService;
+use Illuminate\Http\JsonResponse;
 use Illuminate\Http\RedirectResponse;
 use Illuminate\Http\Request;
 use Illuminate\Http\Response as HttpResponse;
 use Illuminate\Support\Facades\DB;
+use Illuminate\Validation\Rule;
+use Illuminate\Validation\ValidationException;
 use Inertia\Inertia;
 use Inertia\Response;
+use Maatwebsite\Excel\Facades\Excel;
+use Symfony\Component\HttpFoundation\BinaryFileResponse;
 
 /**
  * PPE (APD) Management module: Master (types), Distribution (issuing),
@@ -35,6 +45,14 @@ use Inertia\Response;
  */
 class PpeController extends Controller
 {
+    use ReadsImportedSpreadsheets;
+
+    /** @see ReadsImportedSpreadsheets — this controller imports PPE assignments. */
+    protected function importModuleKey(): string
+    {
+        return 'employee_ppe';
+    }
+
     /**
      * Employee PPE (v1.6.6 restructure): the new employee-centric entry
      * point into PPE management, replacing "search for an employee every
@@ -80,7 +98,196 @@ class PpeController extends Controller
             'companies' => Company::active()->orderBy('name')->get(['id', 'name']),
             'departments' => Department::where('is_active', true)->ordered()->get(['id', 'name', 'company_id']),
             'filters' => $request->only('company_id', 'department_id', 'search', 'effective_status', 'replacement_due', 'no_ppe_assigned'),
+            // v2.120.0: the SERVER's answer to who may issue PPE, which is
+            // the same gate the import endpoints assert. A page that
+            // renders the button from a role guessed in the browser is how
+            // dead UI gets shipped (docs/CONVENTIONS.md).
+            'can' => ['import' => $request->user()->canManagePpeDistribution()],
         ]);
+    }
+
+    /* ==================================================================
+     * BULK PPE ISSUANCE (v2.120.0)
+     *
+     * Lives HERE, beside the manual issue form, and not on PPE Master.
+     * PPE Master is configuration -- its own page says so, and it is gated
+     * by `canManagePpeMaster()` (Super Admin alone), while issuing PPE is
+     * `canManagePpeDistribution()` (Super Admin AND HSE). Putting bulk
+     * issuance behind the Master gate would have locked out the people who
+     * actually hand equipment out.
+     *
+     * The three endpoints mirror the employee import's shape exactly --
+     * inspect, preview, import -- because it is the flow customers have
+     * already been taught, and because preview running the SAME importer
+     * in `previewOnly` mode is what stops the preview and the import from
+     * disagreeing about a file.
+     * ================================================================== */
+
+    /** The customer's own file, read for its headings so the mapping can be suggested. */
+    public function inspectPpeImport(Request $request): JsonResponse
+    {
+        abort_unless($request->user()->canManagePpeDistribution(), 403);
+
+        $request->validate(['file' => $this->importFileRules()]);
+
+        try {
+            $suggestion = $this->withImportSpreadsheet($request, function (string $path, int $rowOffset, string $reader) {
+                $sheets = Excel::toArray(new class {}, $path, null, $reader);
+                $rows = $sheets[0] ?? [];
+                $headings = array_map(fn ($value) => (string) $value, array_values($rows[0] ?? []));
+                $samples = array_slice($rows, 1, 5);
+
+                return app(ImportHeaderMatcher::class)->suggest($headings, $samples, 'employee_ppe');
+            });
+        } catch (ValidationException $e) {
+            throw $e;
+        } catch (\Throwable $e) {
+            report($e);
+
+            return response()->json(['message' => 'Berkas ini tidak dapat dibaca. Periksa formatnya lalu coba lagi.'], 422);
+        }
+
+        /*
+         * Spread flat, the same shape `employees.import.inspect` returns,
+         * so one dialog convention reads both: the matcher's own
+         * `mapping` / `unmatched_headings` / `missing_fields` at the top
+         * level, plus the labels to render them with.
+         */
+        return response()->json([
+            ...$suggestion,
+            'field_labels' => config('mapping_fields.employee_ppe.import', []),
+        ]);
+    }
+
+    /**
+     * What WOULD happen, with nothing written.
+     *
+     * Runs `EmployeePpeImport` in preview mode, so every refusal the real
+     * import would make -- unknown employee, unknown PPE type, already
+     * holding that kind, an unreadable issue date -- is decided by the
+     * same code that will decide it for real.
+     */
+    public function previewPpeImport(Request $request, FieldMappingService $mapping): JsonResponse
+    {
+        abort_unless($request->user()->canManagePpeDistribution(), 403);
+
+        $request->validate([
+            'file' => $this->importFileRules(),
+            'company_id' => ['required', Rule::in(Company::query()->pluck('id'))],
+            ...$this->ppeColumnMappingRules(),
+        ]);
+
+        $companyId = (int) $request->input('company_id');
+
+        try {
+            $import = $this->withImportSpreadsheet($request, function (string $path, int $rowOffset, string $reader) use ($companyId, $request, $mapping) {
+                $import = new EmployeePpeImport(
+                    $companyId,
+                    $request->user()->id,
+                    previewOnly: true,
+                    columnKeys: $mapping->importColumnKeys('employee_ppe', $request->input('column_mapping', [])),
+                    rowOffset: $rowOffset,
+                );
+                Excel::import($import, $path, null, $reader);
+
+                return $import;
+            });
+        } catch (ValidationException $e) {
+            throw $e;
+        } catch (\Throwable $e) {
+            report($e);
+
+            return response()->json(['message' => 'Berkas ini tidak dapat dibaca. Periksa formatnya lalu coba lagi.'], 422);
+        }
+
+        return response()->json($this->ppeImportSummary($import));
+    }
+
+    /** The real thing. */
+    public function importPpe(Request $request, FieldMappingService $mapping): JsonResponse
+    {
+        abort_unless($request->user()->canManagePpeDistribution(), 403);
+
+        $request->validate([
+            'file' => $this->importFileRules(),
+            'company_id' => ['required', Rule::in(Company::query()->pluck('id'))],
+            ...$this->ppeColumnMappingRules(),
+        ]);
+
+        $companyId = (int) $request->input('company_id');
+
+        try {
+            $import = $this->withImportSpreadsheet($request, function (string $path, int $rowOffset, string $reader) use ($companyId, $request, $mapping) {
+                $import = new EmployeePpeImport(
+                    $companyId,
+                    $request->user()->id,
+                    columnKeys: $mapping->importColumnKeys('employee_ppe', $request->input('column_mapping', [])),
+                    rowOffset: $rowOffset,
+                );
+                Excel::import($import, $path, null, $reader);
+
+                return $import;
+            });
+        } catch (ValidationException $e) {
+            throw $e;
+        } catch (\Throwable $e) {
+            report($e);
+
+            return response()->json(['message' => 'Impor gagal dibaca. Periksa berkasnya lalu coba lagi.'], 422);
+        }
+
+        /*
+         * The audit line names what did NOT land as well as what did --
+         * the same rule `EmployeeController::importOutcome()` follows,
+         * because "issued 72" on its own quietly loses the rows the
+         * customer still has to deal with.
+         */
+        ActivityLog::record(
+            'created',
+            "PPE bulk import: issued {$import->imported} item(s), "
+            ."{$import->alreadyHeld} already held, ".count($import->skipped).' row(s) skipped.'
+        );
+
+        return response()->json($this->ppeImportSummary($import));
+    }
+
+    public function ppeImportTemplate(Request $request): BinaryFileResponse
+    {
+        abort_unless($request->user()->canManagePpeDistribution(), 403);
+
+        $companyId = $request->integer('company_id') ?: $request->user()->company_id;
+
+        return Excel::download(
+            new EmployeePpeImportTemplateExport($companyId ?: null),
+            'employee-ppe-import-template.xlsx'
+        );
+    }
+
+    /** @return array<string, mixed> */
+    private function ppeImportSummary(EmployeePpeImport $import): array
+    {
+        return [
+            'total_rows' => $import->totalRows,
+            'imported' => $import->imported,
+            'already_held' => $import->alreadyHeld,
+            'skipped' => $import->skipped,
+            'warnings' => $import->warnings,
+            // Distinct, so a file listing one unknown type on forty rows
+            // reports one thing to fix rather than forty.
+            'unknown_employees' => array_values(array_unique($import->unknownEmployees)),
+            'unknown_ppe_types' => array_values(array_unique($import->unknownPpeTypes)),
+        ];
+    }
+
+    /** @return array<string, mixed> */
+    private function ppeColumnMappingRules(): array
+    {
+        $fields = array_keys(config('mapping_fields.employee_ppe.import', []));
+
+        return [
+            'column_mapping' => ['sometimes', 'array:'.implode(',', $fields)],
+            'column_mapping.*' => ['string', 'max:255', 'distinct'],
+        ];
     }
 
     /**

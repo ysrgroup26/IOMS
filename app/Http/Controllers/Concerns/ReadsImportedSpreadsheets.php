@@ -1,0 +1,214 @@
+<?php
+
+namespace App\Http\Controllers\Concerns;
+
+use App\Services\Documents\DocumentIngestionService;
+use App\Services\Documents\FormatDetector;
+use App\Services\Documents\Support\ExtractedDocument;
+use App\Services\Documents\TabularBridge;
+use App\Services\ImportHeaderMatcher;
+use Illuminate\Http\Request;
+use Illuminate\Validation\ValidationException;
+use Maatwebsite\Excel\Excel as ExcelFacadeType;
+
+/**
+ * v2.120.0 -- THE DOCUMENT PLATFORM'S FRONT DOOR, SHARED BY EVERY IMPORT.
+ *
+ * Every method here was `private` on `EmployeeController` and is moved
+ * VERBATIM, with two deliberate exceptions noted below. It is extracted
+ * rather than copied for the reason ADR 053 gives for the bridge itself:
+ * a second copy of "which formats we accept, when the bridge is taken,
+ * and how a row number maps back to the customer's own file" would drift
+ * from the first, and the row-number half of that has already cost a
+ * release (v2.111.0).
+ *
+ * The two changes:
+ *
+ *  - `private` became `protected`, so a second controller can use it.
+ *  - `mappableHeadings()` asked `ImportHeaderMatcher` about the
+ *    `employees` module by name. It now asks about `importModuleKey()`,
+ *    which `EmployeeController` answers with `employees` -- byte-for-byte
+ *    its previous behaviour -- and the PPE assignment import answers with
+ *    its own.
+ *
+ * Nothing else about the ingestion path moved, and no caller's behaviour
+ * changes.
+ */
+trait ReadsImportedSpreadsheets
+{
+    /**
+     * Which `config/mapping_fields.php` module this controller imports.
+     *
+     * Declared rather than inferred: a wrong answer here silently sends
+     * the bridge decision to another module's field catalogue, and a
+     * silent wrong answer in the ingestion path is the failure mode this
+     * trait exists to stop repeating.
+     */
+    abstract protected function importModuleKey(): string;
+
+    /**
+     * v2.110.0 -- EVERY IMPORT ENDPOINT ACCEPTS THE SAME FOUR FORMATS.
+     *
+     * The validation rule for an uploaded workforce file. Widened from
+     * xlsx/xls to the formats the document platform can genuinely READ,
+     * and no wider: a format listed here must have a working extractor,
+     * or the customer is offered a door that does not open.
+     *
+     * `txt` is present only because a .csv frequently arrives with a
+     * text/plain MIME type; the real decision is made by content, in
+     * `FormatDetector`, not by this list.
+     *
+     * The size cap is the document platform's own, so one number governs
+     * every upload rather than each endpoint inventing a limit.
+     *
+     * @return list<string>
+     */
+    protected function importFileRules(): array
+    {
+        return ['required', 'file', 'mimes:xlsx,xls,csv,txt,docx,pdf', 'max:'.((int) config('documents.max_upload_mb') * 1024)];
+    }
+
+    /**
+     * Runs `$work` against a SPREADSHEET, whatever the customer uploaded.
+     *
+     * A .xlsx or .xls is passed through untouched -- the existing
+     * importer already reads it, and converting it would be a chance to
+     * lose something for no gain.
+     *
+     * Anything else (CSV, Word, PDF) is extracted by the document
+     * platform and written out as a clean, normalised .xlsx by
+     * `TabularBridge`, and THAT is what the importer sees. The reason is
+     * the one in TabularBridge's own doc comment: there is exactly one
+     * set of employee validation rules in this codebase, and a second
+     * import path would become a second, drifting copy of them.
+     *
+     * The temporary file is removed in `finally`, so a failed import does
+     * not leave customer data in the system temp directory.
+     *
+     * @template T
+     *
+     * @param  \Closure(string, ?ExtractedDocument): T  $work
+     * @return T
+     */
+    protected function withImportSpreadsheet(Request $request, \Closure $work)
+    {
+        $file = $request->file('file');
+        $format = app(FormatDetector::class)->detectUploaded($file);
+
+        if ($format === null) {
+            throw ValidationException::withMessages([
+                'file' => 'Format berkas ini tidak dikenali. Format yang diterima: Excel (.xlsx/.xls), CSV, Word (.docx) dan PDF.',
+            ]);
+        }
+
+        $document = app(DocumentIngestionService::class)->extract($file->getRealPath(), $format);
+        $isSpreadsheet = in_array($format, [FormatDetector::XLSX, FormatDetector::XLS], true);
+
+        if ($isSpreadsheet && $this->readableAsIs($document)) {
+            return $work($file->getRealPath(), 0, $this->readerFor($format));
+        }
+
+        $table = $document->primaryTable();
+
+        /*
+         * v2.111.0 -- THE BRIDGE MUST EARN ITS PLACE.
+         *
+         * `readableAsIs()` trusts the locator, and the locator is a
+         * heuristic. When it is wrong about a SPREADSHEET the cost is
+         * total: the original file imported fine, and the normalisation
+         * built from a misread heading row imports nothing. That is not
+         * hypothetical -- a twelve-column template whose rows fill only
+         * five columns made exactly that mistake and cost two passing
+         * tests before the locator was corrected.
+         *
+         * So for a spreadsheet the bridge is taken only when the headings
+         * it found MAP TO SOMETHING. Headings that match no IOMS field
+         * cannot produce a usable import anyway, so the original file is
+         * handed over and the path that worked before still works. The
+         * locator stays an improvement on the old behaviour; it never
+         * becomes a new way to lose.
+         *
+         * Word, CSV and PDF get no such fallback, because for them there
+         * is no older path to fall back TO.
+         */
+        if ($isSpreadsheet && $table !== null && ! $this->mappableHeadings($table->headings)) {
+            return $work($file->getRealPath(), 0, $this->readerFor($format));
+        }
+
+        if ($table === null) {
+            if ($isSpreadsheet) {
+                /*
+                 * Our locator found nothing, but Maatwebsite might still
+                 * read the file. Failing OPEN here keeps a workbook that
+                 * imported yesterday importing today: the locator is an
+                 * improvement on the old path, not a new gate in front of
+                 * it.
+                 */
+                return $work($file->getRealPath(), 0, $this->readerFor($format));
+            }
+
+            throw ValidationException::withMessages([
+                'file' => 'Tidak ada tabel yang dapat dibaca dari berkas ini. '
+                    .($document->warnings[0] ?? 'Pastikan berkas memuat tabel dengan baris judul kolom.'),
+            ]);
+        }
+
+        $path = app(TabularBridge::class)->toSpreadsheet($table);
+
+        /*
+         * The bridge puts the headings on row 1, so a record that sat on
+         * source row N is now on row N - (headerRowNumber - 1).
+         */
+        $rowOffset = $table->headerRowNumber - 1;
+
+        try {
+            // The bridge always writes .xlsx, whatever came in.
+            return $work($path, $rowOffset, ExcelFacadeType::XLSX);
+        } finally {
+            @unlink($path);
+        }
+    }
+
+    /**
+     * The Maatwebsite reader for a detected format.
+     *
+     * Only the two spreadsheet formats reach this: everything else has
+     * already been normalised to .xlsx by the bridge.
+     */
+    protected function readerFor(string $format): string
+    {
+        return $format === FormatDetector::XLS ? ExcelFacadeType::XLS : ExcelFacadeType::XLSX;
+    }
+
+    /**
+     * Do these headings name at least two things IOMS can import?
+     *
+     * Two rather than one because a single accidental match ("Status",
+     * say) is noise; two is a column layout. The same matcher the preview
+     * shows the customer answers it, so the decision and the explanation
+     * it is shown beside cannot disagree.
+     *
+     * @param  list<string>  $headings
+     */
+    protected function mappableHeadings(array $headings): bool
+    {
+        $suggestion = app(ImportHeaderMatcher::class)->suggest($headings, [], $this->importModuleKey());
+
+        return count($suggestion['mapping'] ?? []) >= 2;
+    }
+
+    protected function readableAsIs(ExtractedDocument $document): bool
+    {
+        if ($document->tables === []) {
+            return true;
+        }
+
+        foreach ($document->tables as $table) {
+            if ($table->headerRowNumber !== 1) {
+                return false;
+            }
+        }
+
+        return true;
+    }
+}

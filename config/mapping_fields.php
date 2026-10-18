@@ -67,4 +67,27 @@ return [
             'phone' => 'Phone',
         ],
     ],
+
+    /*
+     * v2.120.0 -- BULK PPE ISSUANCE.
+     *
+     * A deliberately small catalogue: this import attaches equipment to
+     * people who already exist, so it needs the person, the kind of
+     * equipment, and when it was handed over. Anything else about the
+     * employee belongs to the employee importer, and anything else about
+     * the PPE type belongs to PPE Master.
+     *
+     * No `export` half. The PPE registers are already published by the
+     * Document Library (ADR 053), and adding a second definition of the
+     * same columns is what that ADR exists to prevent.
+     */
+    'employee_ppe' => [
+        'import' => [
+            'employee_id' => 'Employee ID',
+            'ppe_type' => 'PPE Type',
+            'issued_date' => 'Issued Date',
+            'expiry_date' => 'Expiry Date',
+            'remarks' => 'Remarks',
+        ],
+    ],
 ];

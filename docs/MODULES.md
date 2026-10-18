@@ -332,6 +332,29 @@ The most structurally involved existing module — worth extra care before chang
   not re-derived later from an employee's possibly-since-changed project assignments). Creating a
   request flips the selected items' status to `replacement_requested`.
 - PDF generation for replacement requests goes through the shared `PdfGeneratorService`.
+- **Bulk PPE import** (v2.120.0) — `EmployeePpeImport`, reached from **Employee PPE → Import PPE**
+  (`ppe.import.inspect` / `ppe.import.preview` / `ppe.import`, plus `ppe.import-template`).
+  It issues equipment to people who are **already in the register** and creates nothing else: an
+  unmatched Employee ID or PPE Type is refused with a reason naming where to fix it. It lives on
+  the Employee PPE tab and **not on PPE Master** deliberately — PPE Master is configuration
+  (`canManagePpeMaster()`, Super Admin alone) while issuing PPE is `canManagePpeDistribution()`
+  (Super Admin **and** HSE), so putting bulk issuance behind the Master gate would lock out the
+  people who hand equipment out.
+  - **The duplicate rule is what makes a re-run safe.** A person still holding PPE of that kind
+    (`issued` / `in_use`) is reported, never issued again — and "that kind" spans a shared built-in
+    and this company's override of it, because those are one kind of equipment wearing two ids
+    (ADR 050) and `EmployeePpe::creating()` remaps one to the other on the way in. There is **no**
+    unique index on `(employee_id, ppe_type_id)` — it is a plain index, and deliberately so, since
+    re-issuing after a replacement is normal — so idempotency lives in the importer or nowhere.
+  - An archived / replaced item does **not** block a reissue; the replacement lifecycle still works.
+  - `issued_date` is required (an unreadable one costs the row rather than dating the boots to the
+    day of the import); `expiry_date` is optional and normally omitted, since the model derives it
+    from the type's replacement interval.
+  - It reads the same four input formats as the employee import (xlsx/xls, CSV, Word, PDF) through
+    the shared `ReadsImportedSpreadsheets` trait, and recognises Indonesian column headings via
+    `config/import_aliases.php`'s `employee_ppe` vocabulary.
+  - **Employee Import is untouched by it.** A row whose Employee ID already exists is still skipped
+    there (see `docs/ADR/059-...` for why that was not extended instead).
 
 ## KPI Input & Reporting
 

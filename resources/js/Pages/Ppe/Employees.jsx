@@ -1,3 +1,4 @@
+import { useState } from 'react';
 import { Head, Link, router } from '@inertiajs/react';
 import AuthenticatedLayout from '@/Layouts/AuthenticatedLayout';
 import { Card, CardContent } from '@/Components/ui/card';
@@ -5,7 +6,9 @@ import { Input } from '@/Components/ui/input';
 import { Select, SelectTrigger, SelectValue, SelectContent, SelectItem } from '@/Components/ui/select';
 import EmptyState from '@/Components/shared/EmptyState';
 import PpeTabNav from '@/Components/shared/PpeTabNav';
-import { Search, Users, ChevronLeft, ChevronRight, X } from 'lucide-react';
+import EmployeePpeImportDialog from '@/Components/shared/EmployeePpeImportDialog';
+import { Button } from '@/Components/ui/button';
+import { Search, Users, ChevronLeft, ChevronRight, X, Upload } from 'lucide-react';
 
 const FILTER_LABELS = {
     active: 'Active PPE',
@@ -32,7 +35,9 @@ const FILTER_LABELS = {
  * along into the profile URL so it survives the round trip, not
  * inventing new global/session state.
  */
-export default function PpeEmployees({ employees, companies, departments, filters }) {
+export default function PpeEmployees({ employees, companies, departments, filters, can = {} }) {
+    const [importOpen, setImportOpen] = useState(false);
+
     function applyFilters(overrides = {}) {
         router.get(route('ppe.employees'), { ...filters, ...overrides }, { preserveState: true, replace: true });
     }
@@ -61,10 +66,29 @@ export default function PpeEmployees({ employees, companies, departments, filter
 
             <PpeTabNav counts={{ employees: employees.total }} />
 
-            <div className="mb-6">
-                <h1 className="text-[22px] font-semibold tracking-tight text-navy-900 dark:text-slate-50">Employee PPE</h1>
-                <p className="mt-1 text-sm text-graphite-500 dark:text-slate-400">Select an employee to view or manage their PPE</p>
+            <div className="mb-6 flex flex-wrap items-start justify-between gap-3">
+                <div>
+                    <h1 className="text-[22px] font-semibold tracking-tight text-navy-900 dark:text-slate-50">Employee PPE</h1>
+                    <p className="mt-1 text-sm text-graphite-500 dark:text-slate-400">Select an employee to view or manage their PPE</p>
+                </div>
+
+                {/*
+                    v2.120.0 -- bulk issuance lives HERE, beside the manual
+                    issue flow, and not on PPE Master: that tab is
+                    configuration (its own subtitle says so) and is Super
+                    Admin only, while issuing PPE is Super Admin and HSE.
+                    `can.import` is the server's own
+                    canManagePpeDistribution() answer, never a role guessed
+                    in the browser.
+                */}
+                {can.import && (
+                    <Button variant="outline" onClick={() => setImportOpen(true)}>
+                        <Upload className="h-4 w-4" /> Import PPE
+                    </Button>
+                )}
             </div>
+
+            <EmployeePpeImportDialog open={importOpen} onOpenChange={setImportOpen} companies={companies} />
 
             {activeFilterLabel && (
                 <div className="mb-4 flex items-center justify-between rounded-lg border border-brand-200 bg-brand-50 px-4 py-2.5 text-sm dark:border-brand-900/50 dark:bg-brand-950/30">

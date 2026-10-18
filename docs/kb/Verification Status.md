@@ -34,6 +34,21 @@ and driving the screen in a browser, the twelve-to-six month edit **saves and pe
 `ReleaseStatusService` and the hardened `app:deploy` exist to close that gap, and
 `DeploymentIdentityTest` pins them. See `docs/ADR/057-a-release-must-be-able-to-prove-what-is-running.md`.
 
+### What was actually run for v2.120.0
+
+| Claim | Level | Evidence |
+|---|---|---|
+| PPE is issued in bulk to employees that already exist | **Browser-verified** | MySQL 8, HSE account: 8-row CSV with Indonesian headings → 6 issued, remarks carried, expiries derived per type interval (Coverall +6, Shoes/Helmet +12, Glasses +3) |
+| It creates no employee and no PPE type | **Browser-verified** | `employees` stayed 4 and `ppe_types` stayed 6 across the whole run; the unknown Employee ID and unknown type were named on screen |
+| Re-running the same file issues nothing | **Browser-verified** | Second pass: 8 rows read, 0 to be issued, 6 already held, confirm button disabled; `employee_ppe` still held exactly 6 rows |
+| A built-in and its override count as one kind | **Test-covered** | Issued the template, then created the override, then imported — refused as already held |
+| The fifth type works through the supported path | **Browser-verified** | "Seragam (Office)" refused and named; added once in PPE Master; same file then imported it as a company-owned type with a derived 12-month expiry |
+| HSE (not only Super Admin) can reach it | **Browser-verified** | Driven throughout as an HSE account; a Manager account gets 403 (test-covered) |
+| The guards are load-bearing | **Measured** | Duplicate guard removed → 2 of 24 fail; company filter removed → 2 isolation tests fail |
+| Employee Import behaviour is unchanged | **Test-covered** | The trait extraction was proven neutral against 68 existing import tests before anything new was added; full suite unchanged otherwise |
+| Suite | **Test-covered** | 1359 tests / 6935 assertions on SQLite **and** MySQL 8 |
+| Production itself | **NOT confirmed** | Deploy-confirmed remains the owner's step (ADR 057) |
+
 ### What was actually run for v2.119.0
 
 | Claim | Level | Evidence |

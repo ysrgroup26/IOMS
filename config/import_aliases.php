@@ -125,4 +125,38 @@ return [
 
     ],
 
+    /*
+     * v2.120.0 -- the words a customer's own PPE list uses. Same rule as
+     * above: every entry is a heading a human actually writes, and the
+     * field keys exist in `mapping_fields.employee_ppe.import`.
+     */
+    'employee_ppe' => [
+
+        'employee_id' => [
+            'employee id', 'employeeid', 'emp id', 'id karyawan', 'kode karyawan',
+            'no induk', 'nomor induk', 'no induk karyawan', 'nomor induk karyawan',
+            'nip', 'no karyawan', 'nomor karyawan', 'badge', 'badge no', 'badge number',
+        ],
+
+        'ppe_type' => [
+            'ppe type', 'ppetype', 'ppe', 'jenis ppe', 'jenis apd', 'apd', 'tipe apd',
+            'tipe ppe', 'nama apd', 'nama ppe', 'item', 'item apd', 'alat pelindung diri',
+        ],
+
+        'issued_date' => [
+            'issued date', 'issue date', 'issued', 'tanggal terbit', 'tanggal diberikan',
+            'tgl diberikan', 'tanggal serah', 'tgl serah', 'tanggal pemberian',
+            'tanggal distribusi', 'tgl distribusi', 'tanggal terima', 'tgl terima',
+        ],
+
+        'expiry_date' => [
+            'expiry date', 'expired date', 'expiry', 'expired', 'masa berlaku',
+            'tanggal kedaluwarsa', 'tgl kedaluwarsa', 'kadaluarsa', 'tanggal ganti',
+            'tgl ganti', 'jatuh tempo',
+        ],
+
+        'remarks' => [
+            'remarks', 'remark', 'note', 'notes', 'keterangan', 'catatan',
+        ],
+    ],
 ];

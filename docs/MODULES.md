@@ -332,7 +332,22 @@ The most structurally involved existing module — worth extra care before chang
   not re-derived later from an employee's possibly-since-changed project assignments). Creating a
   request flips the selected items' status to `replacement_requested`.
 - PDF generation for replacement requests goes through the shared `PdfGeneratorService`.
-- **Bulk PPE import** (v2.120.0) — `EmployeePpeImport`, reached from **Employee PPE → Import PPE**
+- **PPE completeness status** (v2.121.0) — `PpeComplianceService`. A worker is `compliant` when they
+  hold **work clothing** (Work Uniform OR Coverall — either satisfies the group), **Safety Shoes** and
+  **Safety Helmet**, with nothing expired; `needs_replacement` when all three are held but something
+  has expired; `incomplete` when a group has no record at all. Read ADR 060 before changing any of it.
+  - **Which type satisfies which group is read from `ppe_types.compliance_role`, never from a name** —
+    ADR 050 lets a customer rename a type, and a rule matching `"Safety Shoes"` would report a
+    renaming tenant's whole workforce as non-compliant. An override with no role of its own inherits
+    its template's; declassifying needs the explicit `additional` value.
+  - Only `issued` / `in_use` count — history does not keep somebody equipped. A group is satisfied by
+    its **best** record, not its latest. Additional equipment never blocks compliance.
+  - Surfaced as a badge and a filter on the Employee PPE list and a group-by-group breakdown on the
+    employee profile. The filter resolves ids **before** pagination, because the rule is computed in
+    PHP and filtering after `paginate()` would report a wrong total.
+  - A company with no active type for a required group is reported as **unconfigured** rather than
+    having every employee painted red.
+- **Bulk PPE import** (v2.121.0, wide format; introduced v2.120.0) — `EmployeePpeImport`, reached from **Employee PPE → Import PPE**
   (`ppe.import.inspect` / `ppe.import.preview` / `ppe.import`, plus `ppe.import-template`).
   It issues equipment to people who are **already in the register** and creates nothing else: an
   unmatched Employee ID or PPE Type is refused with a reason naming where to fix it. It lives on
@@ -340,6 +355,13 @@ The most structurally involved existing module — worth extra care before chang
   (`canManagePpeMaster()`, Super Admin alone) while issuing PPE is `canManagePpeDistribution()`
   (Super Admin **and** HSE), so putting bulk issuance behind the Master gate would lock out the
   people who hand equipment out.
+  - **The file is WIDE: one row per employee, one dated column per kind of PPE.** An empty cell is not
+    a fact — it means no record and produces no transaction, and nothing invents a date to make a row
+    look complete. The PPE columns are resolved against the company's own catalogue, so a renamed
+    override or a customer-added "Work Uniform" is understood by both the template and the reader; a
+    heading matching nothing is reported **by name**, because silently dropping a column is how a file
+    imports "successfully" with half the equipment unrecorded. There is no `expiry_date` column: the
+    type's replacement interval is the single source of truth.
   - **The duplicate rule is what makes a re-run safe.** A person still holding PPE of that kind
     (`issued` / `in_use`) is reported, never issued again — and "that kind" spans a shared built-in
     and this company's override of it, because those are one kind of equipment wearing two ids

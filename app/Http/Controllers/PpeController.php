@@ -17,6 +17,7 @@ use App\Models\PpeReplacementRequest;
 use App\Models\PpeType;
 use App\Services\FieldMappingService;
 use App\Services\ImportHeaderMatcher;
+use App\Services\PpeComplianceService;
 use App\Services\PdfGeneratorService;
 use Illuminate\Http\JsonResponse;
 use Illuminate\Http\RedirectResponse;
@@ -62,7 +63,7 @@ class PpeController extends Controller
      * different view over the same table plus a per-employee PPE
      * summary count.
      */
-    public function employees(Request $request): Response
+    public function employees(Request $request, PpeComplianceService $compliance): Response
     {
         $companyId = $request->input('company_id') ? (int) $request->input('company_id') : null;
         $departmentId = $request->input('department_id') ? (int) $request->input('department_id') : null;
@@ -70,6 +71,8 @@ class PpeController extends Controller
         $effectiveStatus = $request->input('effective_status');
         $replacementDue = $request->boolean('replacement_due');
         $noPpeAssigned = $request->boolean('no_ppe_assigned');
+        // v2.121.0: compliant / needs_replacement / incomplete.
+        $ppeCompliance = $request->input('ppe_compliance');
 
         $employees = Employee::query()
             ->active()
@@ -87,22 +90,73 @@ class PpeController extends Controller
                 'status', [EmployeePpe::STATUS_REPLACEMENT_REQUESTED, EmployeePpe::STATUS_REPLACEMENT_APPROVED]
             )))
             ->when($noPpeAssigned, fn ($q) => $q->doesntHave('employeePpes'))
+            /*
+             * v2.121.0 -- resolved to IDS BEFORE pagination, on purpose.
+             *
+             * Compliance is computed in PHP (a type's role may be inherited
+             * from its template; expiry is read against today), so applying
+             * it after `paginate()` would filter one page and report a total
+             * that is simply wrong. See PpeComplianceService.
+             */
+            ->when(
+                in_array($ppeCompliance, [PpeComplianceService::COMPLIANT, PpeComplianceService::NEEDS_REPLACEMENT, PpeComplianceService::INCOMPLETE], true),
+                fn ($q) => $q->whereIn('employees.id', $compliance->employeeIdsWithStatus($q, [$ppeCompliance]))
+            )
             ->with('company:id,name', 'department:id,name')
-            ->withCount('employeePpes as total_ppe_count')
             ->orderedForDisplay()
+            /*
+             * v2.121.0 -- AFTER `orderedForDisplay()`, AND THAT ORDER IS THE BUG FIX.
+             *
+             * That scope ends with `->select('employees.*')`, which REPLACES
+             * the select list -- including the subquery `withCount()` had
+             * added to it. Called in the old order, the count was computed
+             * and then thrown away, so this list has been rendering
+             * " Assigned PPE" with no number since the page was built. Found
+             * by driving the page in a browser while adding the completeness
+             * badge beside it; `withCount` must come after any scope that
+             * calls `select()`.
+             */
+            ->withCount('employeePpes as total_ppe_count')
             ->paginate(24)
             ->withQueryString();
+
+        /*
+         * v2.121.0 -- IS THIS WORKER ACTUALLY EQUIPPED.
+         *
+         * Computed from their records against the approved rule (work
+         * clothing + Safety Shoes + Safety Helmet), never from a count: a
+         * person with four pairs of glasses and no boots has four assigned
+         * items and is not equipped. Resolved for the whole page in two
+         * queries -- the per-employee path would be an N+1 on a 24-row list
+         * the moment it shipped. See PpeComplianceService.
+         */
+        $complianceStatuses = $compliance->statusesFor($employees->getCollection());
+
+        $employees->getCollection()->transform(function (Employee $employee) use ($complianceStatuses) {
+            $employee->setAttribute('ppe_compliance', $complianceStatuses[(int) $employee->id] ?? null);
+
+            return $employee;
+        });
 
         return Inertia::render('Ppe/Employees', [
             'employees' => $employees,
             'companies' => Company::active()->orderBy('name')->get(['id', 'name']),
             'departments' => Department::where('is_active', true)->ordered()->get(['id', 'name', 'company_id']),
-            'filters' => $request->only('company_id', 'department_id', 'search', 'effective_status', 'replacement_due', 'no_ppe_assigned'),
+            'filters' => $request->only('company_id', 'department_id', 'search', 'effective_status', 'replacement_due', 'no_ppe_assigned', 'ppe_compliance'),
             // v2.120.0: the SERVER's answer to who may issue PPE, which is
             // the same gate the import endpoints assert. A page that
             // renders the button from a role guessed in the browser is how
             // dead UI gets shipped (docs/CONVENTIONS.md).
             'can' => ['import' => $request->user()->canManagePpeDistribution()],
+            /*
+             * The three required groups this company has no active type
+             * for. A company that never configured work clothing cannot
+             * have a compliant employee, and that is a CONFIGURATION
+             * problem -- the page says so rather than painting every
+             * person red.
+             */
+            'complianceGaps' => $compliance->unconfiguredRoles($companyId ?: $request->user()->company_id),
+            'complianceRoleLabels' => PpeType::COMPLIANCE_ROLE_LABELS,
         ]);
     }
 
@@ -244,8 +298,8 @@ class PpeController extends Controller
          */
         ActivityLog::record(
             'created',
-            "PPE bulk import: issued {$import->imported} item(s), "
-            ."{$import->alreadyHeld} already held, ".count($import->skipped).' row(s) skipped.'
+            "PPE bulk import: issued {$import->imported} item(s) to {$import->employeesTouched} employee(s), "
+            ."{$import->alreadyHeld} already held, ".count($import->skipped).' entr(ies) skipped.'
         );
 
         return response()->json($this->ppeImportSummary($import));
@@ -267,15 +321,20 @@ class PpeController extends Controller
     private function ppeImportSummary(EmployeePpeImport $import): array
     {
         return [
+            // v2.121.0: a wide file has TWO counts that matter -- the rows
+            // (people) and the cells that became issuances. Reporting only
+            // one of them would make "8 rows, 24 items" unreadable either way.
             'total_rows' => $import->totalRows,
+            'employees_touched' => $import->employeesTouched,
             'imported' => $import->imported,
             'already_held' => $import->alreadyHeld,
+            'blank_cells' => $import->blankCells,
             'skipped' => $import->skipped,
             'warnings' => $import->warnings,
-            // Distinct, so a file listing one unknown type on forty rows
-            // reports one thing to fix rather than forty.
+            // Distinct, so one unknown column on forty rows reports one
+            // thing to fix rather than forty.
             'unknown_employees' => array_values(array_unique($import->unknownEmployees)),
-            'unknown_ppe_types' => array_values(array_unique($import->unknownPpeTypes)),
+            'unknown_columns' => array_values(array_unique($import->unknownColumns)),
         ];
     }
 
@@ -307,7 +366,7 @@ class PpeController extends Controller
      * employees()'s own filter contract, just round-tripped through the
      * URL.
      */
-    public function employeeProfile(Request $request, Employee $employee): Response
+    public function employeeProfile(Request $request, Employee $employee, PpeComplianceService $compliance): Response
     {
         // v2.37.0 (Master Audit, P0-2). CONFIRMED cross-tenant READ of
         // personal data. {employee} route-model-binding carries no
@@ -335,6 +394,14 @@ class PpeController extends Controller
             'assignments' => $assignments,
             'ppeTypes' => PpeType::effectiveForCompany($employee->company_id)->active()->get(),
             'can' => ['manage' => request()->user()->canManagePpeDistribution()],
+            /*
+             * v2.121.0 -- the completeness rule, GROUP BY GROUP, from the
+             * records already loaded above. Shown as the three requirements
+             * rather than one verdict, so somebody reading it can see WHICH
+             * group is missing and act on that one.
+             */
+            'compliance' => $compliance->evaluate($employee, $assignments),
+            'complianceRoleLabels' => PpeType::COMPLIANCE_ROLE_LABELS,
             'backUrl' => route('ppe.employees').(count(array_filter($listFilters)) ? '?'.http_build_query(array_filter($listFilters)) : ''),
         ]);
     }
@@ -345,7 +412,13 @@ class PpeController extends Controller
         $companyId = (int) $request->integer('company_id', $request->user()->company_id ?? $companies->first()?->id ?? 0);
         abort_unless($companyId && $companies->contains('id', $companyId), 404);
 
-        $ppeTypes = PpeType::effectiveForCompany($companyId)->withCount('assignments')->orderBy('name')->get();
+        $ppeTypes = PpeType::effectiveForCompany($companyId)
+            ->withCount('assignments')
+            // v2.121.0: so `effectiveComplianceRole()` can read an
+            // override's inherited role without a query per row.
+            ->with('sourceDefault:id,compliance_role')
+            ->orderBy('name')
+            ->get();
         $ppeTypes->each(function (PpeType $type) use ($companyId) {
             if ($type->source_default_id) {
                 $type->assignments_count += EmployeePpe::withoutGlobalScopes()
@@ -355,11 +428,20 @@ class PpeController extends Controller
             }
         });
 
+        /*
+         * v2.121.0 -- the role is shown as what is IN FORCE, including the
+         * one an override inherits from its template, so the screen cannot
+         * disagree with the rule that reads it.
+         */
+        $ppeTypes->each(fn (PpeType $type) => $type->setAttribute('effective_compliance_role', $type->effectiveComplianceRole()));
+
         return Inertia::render('Ppe/Master', [
             'ppeTypes' => $ppeTypes,
             'companies' => $companies,
             'selectedCompanyId' => $companyId,
             'can' => ['manage' => request()->user()->canManagePpeMaster()],
+            'complianceRoles' => PpeType::COMPLIANCE_ROLE_LABELS,
+            'complianceGaps' => app(PpeComplianceService::class)->unconfiguredRoles($companyId),
         ]);
     }
 

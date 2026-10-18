@@ -14,13 +14,16 @@ import { Plus, Trash2, Pencil } from 'lucide-react';
 import PpeTabNav from '@/Components/shared/PpeTabNav';
 import PageHeader from '@/Components/shared/PageHeader';
 
-export default function PpeMaster({ ppeTypes, can, companies = [], selectedCompanyId }) {
+export default function PpeMaster({ ppeTypes, can, companies = [], selectedCompanyId, complianceRoles = {}, complianceGaps = [] }) {
     const [open, setOpen] = useState(false);
     const [editing, setEditing] = useState(null);
     const [companyId, setCompanyId] = useState(String(selectedCompanyId ?? ''));
 
     const { data, setData, post, put, processing, reset, errors } = useForm({
         name: '',
+        // v2.121.0: which completeness requirement this type satisfies.
+        // '' means unclassified; 'additional' says so explicitly.
+        compliance_role: '',
         replacement_interval_months: '',
         is_active: true,
         company_id: selectedCompanyId,
@@ -37,6 +40,9 @@ export default function PpeMaster({ ppeTypes, can, companies = [], selectedCompa
         setEditing(type);
         setData({
             name: type.name,
+            // The role IN FORCE, including one inherited from a template, so
+            // saving an edit cannot silently drop a requirement.
+            compliance_role: type.effective_compliance_role ?? '',
             replacement_interval_months: type.replacement_interval_months ?? '',
             is_active: type.is_active,
             company_id: selectedCompanyId,
@@ -84,6 +90,18 @@ export default function PpeMaster({ ppeTypes, can, companies = [], selectedCompa
                 </div>
             )}
 
+            {complianceGaps.length > 0 && (
+                <div className="mb-4 rounded-lg border border-amber-200 bg-amber-50 p-4 text-sm leading-relaxed text-amber-900">
+                    <p className="font-semibold">
+                        {complianceGaps.map((r) => complianceRoles[r] ?? r).join(', ')} belum memiliki jenis PPE aktif.
+                    </p>
+                    <p className="mt-1">
+                        Selama syarat ini belum ada jenisnya, tidak ada karyawan yang dapat berstatus Aman. Tandai
+                        jenis yang sesuai lewat kolom &ldquo;Counts as&rdquo; pada Edit, atau tambahkan jenisnya.
+                    </p>
+                </div>
+            )}
+
             <Card>
                 <CardHeader><CardTitle>PPE Types</CardTitle><CardDescription>Request-based equipment (no interval) is still tracked in history.</CardDescription></CardHeader>
                 <CardContent>
@@ -91,6 +109,7 @@ export default function PpeMaster({ ppeTypes, can, companies = [], selectedCompa
                         <TableHeader>
                             <TableRow>
                                 <TableHead>Name</TableHead>
+                                <TableHead>Requirement</TableHead>
                                 <TableHead>Replacement Interval</TableHead>
                                 <TableHead>Issued Count</TableHead>
                                 <TableHead>Status</TableHead>
@@ -101,6 +120,11 @@ export default function PpeMaster({ ppeTypes, can, companies = [], selectedCompa
                             {ppeTypes.map((t) => (
                                 <TableRow key={t.id}>
                                     <TableCell className="font-medium">{t.name}</TableCell>
+                                    <TableCell>
+                                        {t.effective_compliance_role
+                                            ? <Badge variant="outline">{complianceRoles[t.effective_compliance_role] ?? t.effective_compliance_role}</Badge>
+                                            : <span className="text-xs text-graphite-400">Additional</span>}
+                                    </TableCell>
                                     <TableCell>
                                         {t.replacement_interval_months
                                             ? `${t.replacement_interval_months} months`
@@ -120,7 +144,7 @@ export default function PpeMaster({ ppeTypes, can, companies = [], selectedCompa
                             ))}
                             {ppeTypes.length === 0 && (
                                 <TableRow className="hover:bg-transparent">
-                                    <TableCell colSpan={5} className="py-10 text-center">
+                                    <TableCell colSpan={6} className="py-10 text-center">
                                         <span className="text-sm font-semibold text-navy-800">No PPE types yet</span>
                                         <span className="mt-0.5 block text-xs text-graphite-500">Tambahkan jenis APD agar dapat dipilih saat pembagian.</span>
                                     </TableCell>
@@ -146,6 +170,37 @@ export default function PpeMaster({ ppeTypes, can, companies = [], selectedCompa
                         <FormField label="Name" name="name" required error={errors.name}>
                             {(control) => (
                                 <Input {...control} value={data.name} onChange={(e) => setData('name', e.target.value)} placeholder="e.g. Safety Helmet" />
+                            )}
+                        </FormField>
+
+                        {/*
+                            v2.121.0 -- WITHOUT THIS THE RULE CANNOT BE
+                            CONFIGURED. A type is identified in the database
+                            only by its display name, and ADR 050 lets a
+                            customer rename one through an override, so the
+                            completeness rule reads this declared role rather
+                            than matching a string. A customer who issues
+                            uniforms adds the type and marks it here.
+                        */}
+                        <FormField
+                            label="Counts as"
+                            name="compliance_role"
+                            error={errors.compliance_role}
+                            hint="Menentukan apakah jenis ini memenuhi salah satu syarat kelengkapan APD. Pakaian kerja dapat dipenuhi oleh lebih dari satu jenis -- Work Uniform atau Coverall, salah satu saja cukup."
+                        >
+                            {(control) => (
+                                <select
+                                    {...control}
+                                    className="h-10 w-full rounded-md border border-input bg-background px-3 text-sm"
+                                    value={data.compliance_role}
+                                    onChange={(e) => setData('compliance_role', e.target.value)}
+                                >
+                                    <option value="">Additional equipment (not required)</option>
+                                    {Object.entries(complianceRoles)
+                                        .filter(([key]) => key !== 'additional')
+                                        .map(([key, label]) => <option key={key} value={key}>{label}</option>)}
+                                    <option value="additional">Additional equipment (stated explicitly)</option>
+                                </select>
                             )}
                         </FormField>
 

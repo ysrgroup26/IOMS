@@ -24,6 +24,12 @@ use PhpOffice\PhpSpreadsheet\Writer\Xlsx;
 use Tests\TestCase;
 
 /**
+ * v2.121.0 -- BULK PPE ISSUANCE, WIDE FORMAT.
+ *
+ * The file is now one row per EMPLOYEE with one dated column per kind of
+ * PPE. An empty cell is not a fact: it means no record, and it produces no
+ * transaction. Nothing invents a date to make a row look complete.
+ *
  * v2.120.0 -- BULK PPE ISSUANCE.
  *
  * A second importer rather than more columns on `EmployeesImport`,
@@ -106,7 +112,32 @@ class EmployeePpeBulkImportTest extends TestCase
         ]);
     }
 
-    private const HEADINGS = ['Employee ID', 'PPE Type', 'Issued Date', 'Expiry Date', 'Remarks'];
+    /**
+     * The wide template: identity, then one column per kind of PPE. The
+     * PPE headings are resolved against the company's own catalogue, so
+     * these are the shipped built-in names.
+     */
+    private const HEADINGS = [
+        'Employee ID', 'Employee Name', 'Coverall', 'Safety Shoes', 'Safety Helmet',
+        'Safety Glasses', 'Harness', 'Headlamp',
+    ];
+
+    /**
+     * One wide row. Keys are PPE column names; anything omitted is left
+     * BLANK, which is the whole point of the format.
+     *
+     * @param  array<string, string>  $dates
+     */
+    private function row(string $employeeNumber, array $dates = [], string $name = '', ?array $headings = null): array
+    {
+        $row = [$employeeNumber, $name];
+
+        foreach (array_slice($headings ?? self::HEADINGS, 2) as $column) {
+            $row[] = $dates[$column] ?? '';
+        }
+
+        return $row;
+    }
 
     /** @param list<array<int, string>> $rows */
     private function upload(array $rows, ?array $headings = null): UploadedFile
@@ -150,37 +181,42 @@ class EmployeePpeBulkImportTest extends TestCase
         $siti = $this->employee('EMP-0002');
 
         $result = $this->import([
-            ['EMP-0001', 'Safety Helmet', '15/01/2026', '', 'Ukuran L'],
-            ['EMP-0002', 'Safety Shoes', '15/01/2026', '', ''],
+            $this->row('EMP-0001', ['Safety Helmet' => '15/01/2026']),
+            $this->row('EMP-0002', ['Safety Shoes' => '15/01/2026']),
         ]);
 
         $this->assertSame(2, $result['imported']);
         $this->assertSame([], $result['skipped']);
 
         $this->assertSame(1, EmployeePpe::withoutGlobalScopes()->where('employee_id', $budi->id)->count());
-        $this->assertSame('Ukuran L', EmployeePpe::withoutGlobalScopes()->where('employee_id', $budi->id)->sole()->remarks);
         $this->assertSame(1, EmployeePpe::withoutGlobalScopes()->where('employee_id', $siti->id)->count());
+        // Every other cell on both rows was blank, and a blank cell is not a fact.
+        $this->assertSame(2, EmployeePpe::withoutGlobalScopes()->count());
+        $this->assertGreaterThan(0, $result['blank_cells']);
     }
 
     /**
-     * The four of the owner's five types that IOMS ships. The fifth,
-     * "Seragam (Office)", is not a built-in and is covered by
-     * `test_an_unknown_ppe_type_is_refused_and_named` below -- it has to
-     * be added in PPE Master first, because this import never creates a
-     * type.
+     * One row, four items: the shape the whole format exists for.
+     *
+     * "Work Uniform" is not shipped and is covered by
+     * `test_an_unrecognised_column_is_reported_by_name` below -- it is
+     * added once in PPE Master, because this import never creates a type.
      */
-    public function test_the_shipped_types_the_owner_named_all_resolve(): void
+    public function test_one_row_issues_every_dated_column_on_it(): void
     {
         $this->employee('EMP-0001');
 
         $result = $this->import([
-            ['EMP-0001', 'Coverall', '15/01/2026', '', ''],
-            ['EMP-0001', 'Safety Shoes', '15/01/2026', '', ''],
-            ['EMP-0001', 'Safety Helmet', '15/01/2026', '', ''],
-            ['EMP-0001', 'Safety Glasses', '15/01/2026', '', ''],
+            $this->row('EMP-0001', [
+                'Coverall' => '15/01/2026',
+                'Safety Shoes' => '15/01/2026',
+                'Safety Helmet' => '15/01/2026',
+                'Safety Glasses' => '15/01/2026',
+            ]),
         ]);
 
-        $this->assertSame(4, $result['imported'], 'All four shipped types must resolve by name.');
+        $this->assertSame(4, $result['imported'], 'Every dated column on the row must be issued.');
+        $this->assertSame(1, $result['employees_touched']);
         $this->assertSame([], $result['skipped']);
     }
 
@@ -188,15 +224,24 @@ class EmployeePpeBulkImportTest extends TestCase
     {
         $this->employee('EMP-0001');
 
-        // Exactly what "add it in PPE Master" produces -- see PpeTypeController::store().
+        // Exactly what "add it in PPE Master" produces -- see
+        // PpeTypeController::store() -- including the role that makes it
+        // satisfy the work-clothing requirement.
         PpeType::withoutGlobalScopes()->create([
-            'company_id' => $this->yard->id, 'name' => 'Seragam (Office)',
+            'company_id' => $this->yard->id, 'name' => 'Work Uniform',
+            'compliance_role' => PpeType::ROLE_WORK_CLOTHING,
             'replacement_interval_months' => 12, 'is_active' => true,
         ]);
 
-        $result = $this->import([['EMP-0001', 'Seragam (Office)', '15/01/2026', '', '']]);
+        $headings = [...self::HEADINGS, 'Work Uniform'];
+
+        $result = $this->import(
+            [$this->row('EMP-0001', ['Work Uniform' => '15/01/2026'], headings: $headings)],
+            headings: $headings,
+        );
 
         $this->assertSame(1, $result['imported']);
+        $this->assertSame([], $result['unknown_columns']);
     }
 
     public function test_the_expiry_date_is_derived_from_the_types_interval(): void
@@ -204,7 +249,7 @@ class EmployeePpeBulkImportTest extends TestCase
         $budi = $this->employee('EMP-0001');
 
         // Coverall ships at a six-month interval (PpeTypeSeeder).
-        $this->import([['EMP-0001', 'Coverall', '15/01/2026', '', '']]);
+        $this->import([$this->row('EMP-0001', ['Coverall' => '15/01/2026'])]);
 
         $issue = EmployeePpe::withoutGlobalScopes()->where('employee_id', $budi->id)->sole();
 
@@ -215,7 +260,7 @@ class EmployeePpeBulkImportTest extends TestCase
     public function test_issuing_records_who_issued_them(): void
     {
         $this->employee('EMP-0001');
-        $this->import([['EMP-0001', 'Coverall', '15/01/2026', '', '']]);
+        $this->import([$this->row('EMP-0001', ['Coverall' => '15/01/2026'])]);
 
         $this->assertSame(
             $this->admin->id,
@@ -233,8 +278,8 @@ class EmployeePpeBulkImportTest extends TestCase
         $this->employee('EMP-0002');
 
         $rows = [
-            ['EMP-0001', 'Safety Helmet', '15/01/2026', '', ''],
-            ['EMP-0002', 'Safety Shoes', '15/01/2026', '', ''],
+            $this->row('EMP-0001', ['Safety Helmet' => '15/01/2026']),
+            $this->row('EMP-0002', ['Safety Shoes' => '15/01/2026']),
         ];
 
         $first = $this->import($rows);
@@ -247,21 +292,6 @@ class EmployeePpeBulkImportTest extends TestCase
         $this->assertStringContainsString('masih memegang', $second['skipped'][0]['reason']);
 
         $this->assertSame(2, EmployeePpe::withoutGlobalScopes()->count());
-    }
-
-    public function test_the_same_pair_twice_in_one_file_is_issued_once(): void
-    {
-        $this->employee('EMP-0001');
-
-        $result = $this->import([
-            ['EMP-0001', 'Safety Helmet', '15/01/2026', '', ''],
-            ['EMP-0001', 'Safety Helmet', '20/01/2026', '', ''],
-        ]);
-
-        $this->assertSame(1, $result['imported']);
-        $this->assertCount(1, $result['skipped']);
-        $this->assertStringContainsString('Baris ganda', $result['skipped'][0]['reason']);
-        $this->assertSame(1, EmployeePpe::withoutGlobalScopes()->count());
     }
 
     /**
@@ -291,7 +321,7 @@ class EmployeePpeBulkImportTest extends TestCase
             'name' => 'Safety Shoes', 'replacement_interval_months' => 6, 'is_active' => true,
         ]);
 
-        $result = $this->import([['EMP-0001', 'Safety Shoes', '15/06/2026', '', '']]);
+        $result = $this->import([$this->row('EMP-0001', ['Safety Shoes' => '15/06/2026'])]);
 
         $this->assertSame(0, $result['imported'], 'The override is the same kind as the template it replaces.');
         $this->assertSame(1, $result['already_held']);
@@ -310,7 +340,7 @@ class EmployeePpeBulkImportTest extends TestCase
             'issued_by' => $this->admin->id,
         ]);
 
-        $result = $this->import([['EMP-0001', 'Safety Shoes', '15/01/2026', '', '']]);
+        $result = $this->import([$this->row('EMP-0001', ['Safety Shoes' => '15/01/2026'])]);
 
         $this->assertSame(1, $result['imported']);
         $this->assertSame(2, EmployeePpe::withoutGlobalScopes()->where('employee_id', $budi->id)->count());
@@ -324,7 +354,7 @@ class EmployeePpeBulkImportTest extends TestCase
     {
         $before = Employee::withoutGlobalScopes()->count();
 
-        $result = $this->import([['EMP-9999', 'Safety Helmet', '15/01/2026', '', '']]);
+        $result = $this->import([$this->row('EMP-9999', ['Safety Helmet' => '15/01/2026'])]);
 
         $this->assertSame(0, $result['imported']);
         $this->assertSame(['EMP-9999'], $result['unknown_employees']);
@@ -332,18 +362,69 @@ class EmployeePpeBulkImportTest extends TestCase
         $this->assertSame($before, Employee::withoutGlobalScopes()->count());
     }
 
-    public function test_an_unknown_ppe_type_is_refused_and_named(): void
+    /**
+     * A COLUMN OF DATES THAT MATCHES NOTHING IS REPORTED, NOT DROPPED.
+     *
+     * On a wide file this is the dangerous failure: silently ignoring one
+     * heading loses a whole column of equipment while the import still
+     * reports success. "Work Uniform" is the real case -- it is not in the
+     * shipped catalogue until somebody adds it.
+     */
+    public function test_an_unrecognised_column_is_reported_by_name(): void
     {
         $this->employee('EMP-0001');
         $before = PpeType::withoutGlobalScopes()->count();
 
-        // The owner's fifth type, before anybody adds it in PPE Master.
-        $result = $this->import([['EMP-0001', 'Seragam (Office)', '15/01/2026', '', '']]);
+        $headings = [...self::HEADINGS, 'Work Uniform'];
+
+        $result = $this->import(
+            [$this->row('EMP-0001', ['Work Uniform' => '15/01/2026'], headings: $headings)],
+            headings: $headings,
+        );
 
         $this->assertSame(0, $result['imported']);
-        $this->assertSame(['Seragam (Office)'], $result['unknown_ppe_types']);
-        $this->assertStringContainsString('PPE Master', $result['skipped'][0]['reason']);
+        $this->assertSame(['Work Uniform'], $result['unknown_columns']);
         $this->assertSame($before, PpeType::withoutGlobalScopes()->count(), 'No PPE type may be invented by an import.');
+    }
+
+    public function test_a_blank_cell_never_issues_anything(): void
+    {
+        $this->employee('EMP-0001');
+
+        // Every PPE cell blank: a row that says "we have no records yet".
+        $result = $this->import([$this->row('EMP-0001')]);
+
+        $this->assertSame(0, $result['imported']);
+        $this->assertSame(0, $result['employees_touched']);
+        $this->assertSame([], $result['skipped'], 'A blank row is not an error, it is an absence.');
+        $this->assertSame(6, $result['blank_cells']);
+        $this->assertSame(0, EmployeePpe::withoutGlobalScopes()->count());
+    }
+
+    public function test_one_employee_may_not_appear_on_two_rows(): void
+    {
+        $this->employee('EMP-0001');
+
+        $result = $this->import([
+            $this->row('EMP-0001', ['Safety Shoes' => '15/01/2026']),
+            $this->row('EMP-0001', ['Safety Helmet' => '15/01/2026']),
+        ]);
+
+        $this->assertSame(1, $result['imported']);
+        $this->assertStringContainsString('satu karyawan satu baris', $result['skipped'][0]['reason']);
+    }
+
+    public function test_a_name_that_disagrees_with_the_id_is_reported_but_not_refused(): void
+    {
+        $this->employee('EMP-0001'); // full_name is "Pekerja EMP-0001"
+
+        $result = $this->import([
+            $this->row('EMP-0001', ['Safety Shoes' => '15/01/2026'], name: 'Orang Lain'),
+        ]);
+
+        $this->assertSame(1, $result['imported'], 'The Employee ID decides who a row is.');
+        $this->assertCount(1, $result['warnings']);
+        $this->assertStringContainsString('berbeda dari nama di IOMS', $result['warnings'][0]['reason']);
     }
 
     public function test_an_inactive_type_is_not_offered_to_an_import(): void
@@ -353,10 +434,12 @@ class EmployeePpeBulkImportTest extends TestCase
         PpeType::withoutGlobalScopes()->whereNull('company_id')->where('name', 'Coverall')
             ->update(['is_active' => false]);
 
-        $result = $this->import([['EMP-0001', 'Coverall', '15/01/2026', '', '']]);
+        $result = $this->import([$this->row('EMP-0001', ['Coverall' => '15/01/2026'])]);
 
         $this->assertSame(0, $result['imported']);
-        $this->assertSame(['Coverall'], $result['unknown_ppe_types']);
+        // A deactivated type is not in the effective catalogue, so its
+        // column matches nothing and is reported as unrecognised.
+        $this->assertSame(['Coverall'], $result['unknown_columns']);
     }
 
     /* ==================================================================
@@ -371,7 +454,7 @@ class EmployeePpeBulkImportTest extends TestCase
         // Back to tenant A, which has nobody by that number.
         app(CurrentTenant::class)->set($this->tenant);
 
-        $result = $this->import([['EMP-0001', 'Safety Helmet', '15/01/2026', '', '']]);
+        $result = $this->import([$this->row('EMP-0001', ['Safety Helmet' => '15/01/2026'])]);
 
         $this->assertSame(0, $result['imported']);
         $this->assertSame(['EMP-0001'], $result['unknown_employees']);
@@ -386,7 +469,7 @@ class EmployeePpeBulkImportTest extends TestCase
         $theirs = $this->employee('EMP-0001', $second);
 
         // Imported INTO the first company; the number belongs to the second.
-        $result = $this->import([['EMP-0001', 'Safety Helmet', '15/01/2026', '', '']]);
+        $result = $this->import([$this->row('EMP-0001', ['Safety Helmet' => '15/01/2026'])]);
 
         $this->assertSame(0, $result['imported']);
         $this->assertSame(0, EmployeePpe::withoutGlobalScopes()->where('employee_id', $theirs->id)->count());
@@ -403,7 +486,7 @@ class EmployeePpeBulkImportTest extends TestCase
         ]);
 
         $this->actingAs($manager)->postJson(route('ppe.import'), [
-            'file' => $this->upload([['EMP-0001', 'Safety Helmet', '15/01/2026', '', '']]),
+            'file' => $this->upload([$this->row('EMP-0001', ['Safety Helmet' => '15/01/2026'])]),
             'company_id' => $this->yard->id,
         ])->assertForbidden();
 
@@ -420,7 +503,7 @@ class EmployeePpeBulkImportTest extends TestCase
             'tenant_id' => $this->tenant->id, 'company_id' => $this->yard->id, 'is_active' => true,
         ]);
 
-        $result = $this->import([['EMP-0001', 'Safety Helmet', '15/01/2026', '', '']], as: $hse);
+        $result = $this->import([$this->row('EMP-0001', ['Safety Helmet' => '15/01/2026'])], as: $hse);
 
         $this->assertSame(1, $result['imported']);
     }
@@ -429,21 +512,11 @@ class EmployeePpeBulkImportTest extends TestCase
      * ROWS, DATES AND REPORTING
      * ================================================================== */
 
-    public function test_a_missing_issue_date_costs_the_row_rather_than_inventing_one(): void
-    {
-        $this->employee('EMP-0001');
-
-        $result = $this->import([['EMP-0001', 'Safety Helmet', '', '', '']]);
-
-        $this->assertSame(0, $result['imported']);
-        $this->assertSame('Missing Issued Date', $result['skipped'][0]['reason']);
-    }
-
     public function test_a_slashed_date_is_read_day_first(): void
     {
         $budi = $this->employee('EMP-0001');
 
-        $this->import([['EMP-0001', 'Safety Helmet', '01/02/2026', '', '']]);
+        $this->import([$this->row('EMP-0001', ['Safety Helmet' => '01/02/2026'])]);
 
         $this->assertSame(
             '2026-02-01',
@@ -451,30 +524,24 @@ class EmployeePpeBulkImportTest extends TestCase
         );
     }
 
-    public function test_an_unreadable_expiry_is_a_warning_and_the_interval_is_used(): void
+    /**
+     * An unreadable date costs its CELL and names the column.
+     *
+     * On a wide file "row 7 is wrong" does not tell anybody which of eight
+     * dates to fix, and the other seven are still perfectly good.
+     */
+    public function test_an_unreadable_date_costs_its_cell_and_names_the_column(): void
     {
-        $budi = $this->employee('EMP-0001');
+        $this->employee('EMP-0001');
 
-        $result = $this->import([['EMP-0001', 'Coverall', '15/01/2026', 'secepatnya', '']]);
+        $result = $this->import([
+            $this->row('EMP-0001', ['Coverall' => 'secepatnya', 'Safety Shoes' => '15/01/2026']),
+        ]);
 
-        $this->assertSame(1, $result['imported'], 'An unreadable OPTIONAL cell must not cost the row.');
-        $this->assertCount(1, $result['warnings']);
-        $this->assertSame(
-            '2026-07-15',
-            EmployeePpe::withoutGlobalScopes()->where('employee_id', $budi->id)->sole()->expiry_date->toDateString()
-        );
-    }
-
-    public function test_an_explicit_expiry_date_is_honoured(): void
-    {
-        $budi = $this->employee('EMP-0001');
-
-        $this->import([['EMP-0001', 'Coverall', '15/01/2026', '31/12/2026', '']]);
-
-        $this->assertSame(
-            '2026-12-31',
-            EmployeePpe::withoutGlobalScopes()->where('employee_id', $budi->id)->sole()->expiry_date->toDateString()
-        );
+        $this->assertSame(1, $result['imported'], 'One bad cell must not cost the good ones.');
+        $this->assertCount(1, $result['skipped']);
+        $this->assertStringContainsString('Coverall', $result['skipped'][0]['reason']);
+        $this->assertStringContainsString('tidak dapat dibaca', $result['skipped'][0]['reason']);
     }
 
     public function test_one_bad_row_does_not_cost_the_others(): void
@@ -483,9 +550,9 @@ class EmployeePpeBulkImportTest extends TestCase
         $this->employee('EMP-0002');
 
         $result = $this->import([
-            ['EMP-0001', 'Safety Helmet', '15/01/2026', '', ''],
-            ['EMP-9999', 'Safety Helmet', '15/01/2026', '', ''],
-            ['EMP-0002', 'Safety Shoes', '15/01/2026', '', ''],
+            $this->row('EMP-0001', ['Safety Helmet' => '15/01/2026']),
+            $this->row('EMP-9999', ['Safety Helmet' => '15/01/2026']),
+            $this->row('EMP-0002', ['Safety Shoes' => '15/01/2026']),
         ]);
 
         $this->assertSame(2, $result['imported']);
@@ -499,8 +566,8 @@ class EmployeePpeBulkImportTest extends TestCase
         $this->employee('EMP-0002');
 
         $rows = [
-            ['EMP-0001', 'Safety Helmet', '15/01/2026', '', ''],
-            ['EMP-9999', 'Safety Shoes', '15/01/2026', '', ''],
+            $this->row('EMP-0001', ['Safety Helmet' => '15/01/2026']),
+            $this->row('EMP-9999', ['Safety Shoes' => '15/01/2026']),
         ];
 
         $preview = $this->preview($rows);
@@ -521,14 +588,13 @@ class EmployeePpeBulkImportTest extends TestCase
 
         $result = $this->actingAs($this->admin)->postJson(route('ppe.import.inspect'), [
             'file' => $this->upload(
-                [['EMP-0001', 'Safety Helmet', '15/01/2026']],
-                ['Nomor Induk Karyawan', 'Jenis APD', 'Tanggal Diberikan']
+                [['EMP-0001', 'Budi', '15/01/2026']],
+                ['Nomor Induk Karyawan', 'Nama Karyawan', 'Safety Helmet']
             ),
         ])->assertOk()->json();
 
         $this->assertSame('Nomor Induk Karyawan', $result['mapping']['employee_id']['heading'] ?? null);
-        $this->assertSame('Jenis APD', $result['mapping']['ppe_type']['heading'] ?? null);
-        $this->assertSame('Tanggal Diberikan', $result['mapping']['issued_date']['heading'] ?? null);
+        $this->assertSame('Nama Karyawan', $result['mapping']['employee_name']['heading'] ?? null);
     }
 
     public function test_the_template_downloads_and_names_real_types(): void

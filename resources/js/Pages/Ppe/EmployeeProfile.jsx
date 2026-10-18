@@ -37,7 +37,20 @@ function humanize(value) {
  * items rather than only expired ones. No new backend needed; this is
  * the same dialog with a different label/trigger context.
  */
-export default function PpeEmployeeProfile({ employee, assignments, ppeTypes, can, backUrl }) {
+/* The same three states the Employee PPE list renders — one vocabulary. */
+const COMPLIANCE_LABEL = {
+    compliant: 'Compliant',
+    needs_replacement: 'Needs Replacement',
+    incomplete: 'Incomplete',
+};
+
+const COMPLIANCE_VARIANT = {
+    compliant: 'success',
+    needs_replacement: 'outline',
+    incomplete: 'destructive',
+};
+
+export default function PpeEmployeeProfile({ employee, assignments, ppeTypes, can, backUrl, compliance = null, complianceRoleLabels = {} }) {
     const [issueOpen, setIssueOpen] = useState(false);
     const [editingAssignment, setEditingAssignment] = useState(null);
     const [renewingAssignment, setRenewingAssignment] = useState(null);
@@ -62,6 +75,45 @@ export default function PpeEmployeeProfile({ employee, assignments, ppeTypes, ca
 
             {/* Overview */}
             <PageHeader title={employee.full_name} subtitle={<>{employee.employee_id} &middot; {employee.department?.name || '-'} &middot; {employee.company?.name || '-'}</>} />
+
+            {/*
+                v2.121.0 -- THE COMPLETENESS RULE, GROUP BY GROUP.
+                Shown as the three requirements rather than one verdict,
+                because "Incomplete" on its own does not tell anybody WHICH
+                group to act on. Work clothing is satisfied by Work Uniform
+                OR Coverall -- whichever this employee actually has is the
+                one named.
+            */}
+            {compliance && (
+                <Card className="mb-4">
+                    <CardContent className="p-4">
+                        <div className="mb-3 flex flex-wrap items-center justify-between gap-2">
+                            <p className="text-xs font-semibold uppercase tracking-wide text-graphite-400">PPE Completeness</p>
+                            <Badge variant={COMPLIANCE_VARIANT[compliance.status] ?? 'outline'}>
+                                {COMPLIANCE_LABEL[compliance.status] ?? compliance.status}
+                            </Badge>
+                        </div>
+
+                        <dl className="grid gap-2 sm:grid-cols-3">
+                            {Object.entries(compliance.groups ?? {}).map(([role, group]) => (
+                                <div key={role} className="rounded-lg border border-graphite-100 p-2.5 dark:border-slate-800">
+                                    <dt className="text-[11px] uppercase tracking-wide text-graphite-400">
+                                        {complianceRoleLabels[role] ?? role}
+                                    </dt>
+                                    <dd className="mt-0.5 text-[13px] font-medium text-navy-900 dark:text-slate-100">
+                                        {!group.held
+                                            ? <span className="text-red-600">Belum ada catatan</span>
+                                            : group.expired
+                                                ? <span className="text-amber-700">Kedaluwarsa {group.expiry_date}</span>
+                                                : <span className="text-emerald-700">Berlaku s.d. {group.expiry_date || 'tanpa batas'}</span>}
+                                    </dd>
+                                    {group.type && <p className="mt-0.5 text-[11px] text-graphite-500">{group.type}</p>}
+                                </div>
+                            ))}
+                        </dl>
+                    </CardContent>
+                </Card>
+            )}
 
             <div className="mb-4 grid grid-cols-3 gap-2 sm:gap-3">
                 <Card><CardContent className="p-3.5 text-center"><p className="text-xl font-bold text-emerald-600">{current.length}</p><p className="mt-0.5 text-[11px] text-graphite-400">Current</p></CardContent></Card>

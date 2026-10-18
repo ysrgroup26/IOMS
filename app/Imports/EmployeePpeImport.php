@@ -8,38 +8,49 @@ use App\Models\PpeType;
 use App\Services\MasterDataDetector;
 use App\Support\SpreadsheetDate;
 use Illuminate\Support\Facades\DB;
+use Illuminate\Support\Str;
 use Maatwebsite\Excel\Concerns\OnEachRow;
 use Maatwebsite\Excel\Concerns\WithChunkReading;
 use Maatwebsite\Excel\Concerns\WithHeadingRow;
 use Maatwebsite\Excel\Row;
 
 /**
- * v2.120.0 -- BULK PPE ISSUANCE, AGAINST EMPLOYEES THAT ALREADY EXIST.
+ * v2.121.0 -- ONE ROW PER PERSON, ONE DATED COLUMN PER KIND OF PPE.
  *
- * Deliberately a SECOND importer rather than more columns on
- * `EmployeesImport`, and the reason is in that class at line 415: a row
- * whose Employee ID already exists is SKIPPED ENTIRELY. Teaching it to
- * also attach PPE would mean changing what a duplicate row does -- a
- * behaviour pinned by `EmployeeReimportAfterDeletionTest` and surrounded
- * by ~3,800 lines of regression tests written after four production
- * incidents (v2.105, v2.113, v2.114, v2.115). This class issues PPE to
- * people who are already in the register and creates NOTHING ELSE, so
- * the employee importer keeps every behaviour it has.
+ * v2.120.0 read a long file: one row per issuance, with a `PPE Type`
+ * column. That matches the database exactly and is wrong for the people
+ * filling it in -- a yard of 300 workers with four items each is a
+ * 1,200-row file nobody can read across, and the question an HSE officer
+ * actually asks is "what does this person have", which is a ROW.
  *
- * It follows `EmployeesImport`'s shape on purpose -- `OnEachRow`, the
- * critical/optional field split, a per-row try/catch so one bad row
- * never costs the rest, and the same `$previewOnly` mode so the preview
- * and the import cannot disagree about what a file contains.
+ * So the file is now WIDE: Employee ID, Employee Name, then one column per
+ * PPE type, each holding the date that item was last handed over. One row
+ * becomes up to N issuances. An EMPTY CELL IS NOT A FACT -- it means there
+ * is no record, and it produces no transaction. Nothing here invents a
+ * date to make a row look complete.
  *
- * WHAT IT WILL NOT DO: create an Employee, and create a PpeType. Both
- * are matched or the row is refused with a reason naming where to fix
- * it. An import that invents master data is how a catalogue fills up
- * with "Safety Shoes", "safety shoes " and "Sepatu Safety".
+ * The PPE columns are not hardcoded. Each heading is resolved against the
+ * company's own effective catalogue (ADR 050/058), so a customer whose
+ * override renamed a type, or who added "Work Uniform" themselves, gets a
+ * template and a reader that already know about it. A heading that matches
+ * nothing is reported once, by name, rather than silently ignored --
+ * silently ignoring a column is how a file imports "successfully" and
+ * leaves half the equipment unrecorded.
+ *
+ * WHAT IT STILL WILL NOT DO, unchanged from v2.120.0: create an Employee,
+ * create a PpeType, or issue a second item of a kind somebody already
+ * holds. The duplicate guard resolves a type FAMILY, because a built-in
+ * and a company's override of it are one kind of equipment wearing two
+ * ids and `EmployeePpe::creating()` remaps between them. See ADR 059.
  */
 class EmployeePpeImport implements OnEachRow, WithChunkReading, WithHeadingRow
 {
     public int $totalRows = 0;
 
+    /** Employee rows that produced at least one issuance. */
+    public int $employeesTouched = 0;
+
+    /** Individual PPE items issued (or that would be, in preview). */
     public int $imported = 0;
 
     /** @var list<array{row: int, reason: string}> */
@@ -48,19 +59,20 @@ class EmployeePpeImport implements OnEachRow, WithChunkReading, WithHeadingRow
     /** @var list<array{row: int, reason: string}> */
     public array $warnings = [];
 
-    /** Employee numbers in the file that match nobody in this company. */
     public array $unknownEmployees = [];
 
-    /** PPE type names in the file that match nothing in this company's catalogue. */
-    public array $unknownPpeTypes = [];
+    /** Headings that match no PPE type in this company's catalogue. */
+    public array $unknownColumns = [];
 
-    /** How many rows were refused because the person already holds that kind of PPE. */
     public int $alreadyHeld = 0;
 
-    /** employee_id|type_family => row number, so one FILE cannot issue twice. */
+    /** Cells left blank -- reported as a figure, never as a problem. */
+    public int $blankCells = 0;
+
+    private array $seenEmployees = [];
+
     private array $seenPairs = [];
 
-    /** Lazily built lookups, one query each rather than one per row. */
     private ?array $employeesByNumber = null;
 
     private ?array $ppeTypesByName = null;
@@ -68,6 +80,9 @@ class EmployeePpeImport implements OnEachRow, WithChunkReading, WithHeadingRow
     private ?array $typeFamilies = null;
 
     private ?array $heldFamilies = null;
+
+    /** Heading key => ppe type id, resolved once from the first row seen. */
+    private ?array $columnTypes = null;
 
     public function __construct(
         private readonly int $companyId,
@@ -83,7 +98,7 @@ class EmployeePpeImport implements OnEachRow, WithChunkReading, WithHeadingRow
         return 500;
     }
 
-    /** @see EmployeesImport::mappedField() — the same tenant column mapping. */
+    /** The identity columns, which a tenant may have mapped to its own headings. */
     private function col(array $data, string $field): mixed
     {
         $key = $this->columnKeys[$field] ?? $field;
@@ -91,14 +106,7 @@ class EmployeePpeImport implements OnEachRow, WithChunkReading, WithHeadingRow
         return $data[$key] ?? $data[$field] ?? null;
     }
 
-    /**
-     * An identifier read as text, whatever Excel decided it was.
-     *
-     * The same correction `EmployeesImport` carries since v2.113.0: an
-     * employee number typed as digits arrives as a float, and the default
-     * precision renders long ones in scientific notation. A number that
-     * does not survive being read cannot match anybody.
-     */
+    /** @see EmployeesImport — an identifier read as text, whatever Excel decided it was. */
     private function identifier(mixed $raw): string
     {
         if (is_float($raw) || is_int($raw)) {
@@ -108,25 +116,18 @@ class EmployeePpeImport implements OnEachRow, WithChunkReading, WithHeadingRow
         return trim((string) ($raw ?? ''));
     }
 
-    /** employee number (lowercased) => id, for THIS company only. */
     private function employeesByNumber(): array
     {
         return $this->employeesByNumber ??= Employee::withoutGlobalScopes()
             ->where('company_id', $this->companyId)
-            ->pluck('id', 'employee_id')
-            ->mapWithKeys(fn ($id, $number) => [mb_strtolower((string) $number) => $id])
+            ->get(['id', 'employee_id', 'full_name'])
+            ->mapWithKeys(fn (Employee $e) => [mb_strtolower((string) $e->employee_id) => [
+                'id' => $e->id, 'name' => $e->full_name,
+            ]])
             ->all();
     }
 
-    /**
-     * Comparison key => PPE type id, from the catalogue IN FORCE for this
-     * company.
-     *
-     * `effectiveForCompany()` is the same scope PPE Master and the manual
-     * issue form read (ADR 050/058), so a type this import accepts is one
-     * the customer can actually see, and a built-in they have overridden
-     * resolves to THEIR version rather than appearing twice.
-     */
+    /** Comparison key => type id, from the catalogue IN FORCE for this company. */
     private function ppeTypesByName(): array
     {
         return $this->ppeTypesByName ??= PpeType::withoutGlobalScopes()
@@ -138,27 +139,11 @@ class EmployeePpeImport implements OnEachRow, WithChunkReading, WithHeadingRow
     }
 
     /**
-     * THE SAME KIND OF PPE, WHICHEVER ROW HAPPENS TO REPRESENT IT.
+     * @see ADR 059 — a built-in and this company's override of it are ONE
+     * kind of equipment wearing two ids, so the duplicate guard asks about
+     * a family rather than a row.
      *
-     * A built-in and this company's override of it are ONE kind of
-     * equipment wearing two ids (ADR 050). Three facts make that matter
-     * here rather than being a detail:
-     *
-     *  - `EmployeePpe::creating()` silently remaps a shared template to
-     *    this company's active override, so the id this import resolves
-     *    is not always the id that gets stored;
-     *  - an employee issued the built-in BEFORE the override existed
-     *    holds the template id; and
-     *  - the duplicate rule the customer asked for is "still holds PPE of
-     *    this kind", not "still holds this row".
-     *
-     * Guarding on a single id would therefore issue a second pair of
-     * boots to somebody already wearing the first, which is the exact
-     * outcome this import is supposed to prevent. So every id in the
-     * family -- the template, its overrides in this company, and the
-     * template an override points at -- answers as one.
-     *
-     * @return array<int, int> type id => family key (the template's id)
+     * @return array<int, int>
      */
     private function typeFamilies(): array
     {
@@ -168,18 +153,11 @@ class EmployeePpeImport implements OnEachRow, WithChunkReading, WithHeadingRow
 
         $families = [];
 
-        /*
-         * The built-ins plus THIS company's rows, and nothing else. A
-         * family only ever spans a template and the overrides of it owned
-         * by the company being imported into, so another tenant's rows
-         * cannot widen one -- and are not read at all.
-         */
         $relevant = PpeType::withoutGlobalScopes()
             ->where(fn ($query) => $query->whereNull('company_id')->orWhere('company_id', $this->companyId))
             ->get(['id', 'company_id', 'source_default_id']);
 
         foreach ($relevant as $type) {
-            // A row's family is the template it replaces, or itself.
             $families[$type->id] = $type->source_default_id ?? $type->id;
         }
 
@@ -191,22 +169,7 @@ class EmployeePpeImport implements OnEachRow, WithChunkReading, WithHeadingRow
         return $this->typeFamilies()[$typeId] ?? $typeId;
     }
 
-    /**
-     * employee id => [family key => true] for PPE still genuinely in the
-     * person's possession.
-     *
-     * `IN_SERVICE_STATUSES` is the model's own answer to "does this person
-     * still have it" -- a replaced, completed or archived item does not
-     * block a reissue, which is what makes the replacement lifecycle still
-     * work after this import exists.
-     *
-     * Read WITHOUT the global scopes deliberately: the scope resolves
-     * ownership by walking to the employee, and these employee ids were
-     * already resolved within `$this->companyId` one query earlier. Asking
-     * again through the scope would re-answer a question already answered,
-     * and would answer it against the REQUEST's company context rather
-     * than the one being imported into.
-     */
+    /** @see ADR 059 — only equipment still in the person's possession blocks a reissue. */
     private function heldFamilies(): array
     {
         if ($this->heldFamilies !== null) {
@@ -216,7 +179,7 @@ class EmployeePpeImport implements OnEachRow, WithChunkReading, WithHeadingRow
         $held = [];
 
         $rows = EmployeePpe::withoutGlobalScopes()
-            ->whereIn('employee_id', array_values($this->employeesByNumber()))
+            ->whereIn('employee_id', array_column($this->employeesByNumber(), 'id'))
             ->whereIn('status', EmployeePpe::IN_SERVICE_STATUSES)
             ->get(['employee_id', 'ppe_type_id']);
 
@@ -227,6 +190,68 @@ class EmployeePpeImport implements OnEachRow, WithChunkReading, WithHeadingRow
         return $this->heldFamilies = $held;
     }
 
+    /**
+     * Which heading is which PPE type, decided ONCE from the first row's keys.
+     *
+     * Maatwebsite hands every row the same slugged heading keys, so this is
+     * stable for the file. The identity columns are excluded by name; every
+     * other heading is either a type in this company's catalogue or an
+     * unknown column that gets reported.
+     *
+     * @param  array<string, mixed>  $data
+     * @return array<string, int> heading key => ppe type id
+     */
+    private function columnTypes(array $data): array
+    {
+        if ($this->columnTypes !== null) {
+            return $this->columnTypes;
+        }
+
+        $identity = [];
+        foreach (['employee_id', 'employee_name'] as $field) {
+            $identity[$this->columnKeys[$field] ?? $field] = true;
+            $identity[$field] = true;
+        }
+
+        $byName = $this->ppeTypesByName();
+        $map = [];
+
+        foreach (array_keys($data) as $key) {
+            $heading = (string) $key;
+
+            if ($heading === '' || isset($identity[$heading])) {
+                continue;
+            }
+
+            /*
+             * The heading arrives slugged ("safety_shoes"), while the
+             * catalogue holds display names ("Safety Shoes"), so the slug
+             * is turned back into words before comparing. Both sides then
+             * go through the SAME normalisation the employee import uses
+             * for department and position names, which is what lets
+             * "SAFETY SHOES", "safety shoes" and "Safety  Shoes" all land.
+             */
+            $candidate = MasterDataDetector::comparisonKey(str_replace('_', ' ', $heading));
+
+            if (isset($byName[$candidate])) {
+                $map[$heading] = $byName[$candidate];
+
+                continue;
+            }
+
+            /*
+             * A column a human clearly meant as a PPE date but which this
+             * company's catalogue has no type for. Reported BY NAME: the
+             * customer either adds the type in PPE Master or removes the
+             * column, and both are better than the import quietly
+             * dropping a column of dates.
+             */
+            $this->unknownColumns[] = Str::headline($heading);
+        }
+
+        return $this->columnTypes = $map;
+    }
+
     public function onRow(Row $row): void
     {
         $this->totalRows++;
@@ -235,8 +260,8 @@ class EmployeePpeImport implements OnEachRow, WithChunkReading, WithHeadingRow
         $data = $row->toArray(null, false, false);
         $rowNumber = $row->getIndex() + $this->rowOffset;
 
+        $columns = $this->columnTypes($data);
         $employeeNumber = $this->identifier($this->col($data, 'employee_id'));
-        $typeName = trim((string) ($this->col($data, 'ppe_type') ?? ''));
 
         if ($employeeNumber === '') {
             $this->skip($rowNumber, 'Missing Employee ID');
@@ -244,15 +269,16 @@ class EmployeePpeImport implements OnEachRow, WithChunkReading, WithHeadingRow
             return;
         }
 
-        if ($typeName === '') {
-            $this->skip($rowNumber, 'Missing PPE Type');
+        if ($columns === []) {
+            $this->skip($rowNumber, 'Tidak ada kolom jenis PPE yang dikenali pada berkas ini. '
+                .'Judul kolom harus sama dengan nama jenis PPE di PPE Master.');
 
             return;
         }
 
-        $employeeId = $this->employeesByNumber()[mb_strtolower($employeeNumber)] ?? null;
+        $match = $this->employeesByNumber()[mb_strtolower($employeeNumber)] ?? null;
 
-        if ($employeeId === null) {
+        if ($match === null) {
             $this->unknownEmployees[] = $employeeNumber;
             $this->skip($rowNumber, "Employee \"{$employeeNumber}\" tidak ditemukan di unit operasi ini. "
                 .'Impor ini tidak pernah membuat karyawan baru.');
@@ -260,127 +286,131 @@ class EmployeePpeImport implements OnEachRow, WithChunkReading, WithHeadingRow
             return;
         }
 
-        $typeId = $this->ppeTypesByName()[MasterDataDetector::comparisonKey($typeName)] ?? null;
+        $employeeId = $match['id'];
 
-        if ($typeId === null) {
-            $this->unknownPpeTypes[] = $typeName;
-            $this->skip($rowNumber, "Jenis PPE \"{$typeName}\" tidak ada di PPE Master. "
-                .'Tambahkan lebih dulu di PPE Management > PPE Master, lalu impor ulang.');
-
-            return;
-        }
-
-        $family = $this->familyOf($typeId);
-        $pairKey = $employeeId.'|'.$family;
-
-        if (isset($this->seenPairs[$pairKey])) {
-            $this->skip($rowNumber, "Baris ganda untuk karyawan dan jenis PPE yang sama (lihat baris {$this->seenPairs[$pairKey]}).");
+        if (isset($this->seenEmployees[$employeeId])) {
+            $this->skip($rowNumber, "Karyawan ini sudah ada di baris {$this->seenEmployees[$employeeId]}. "
+                .'Gabungkan menjadi satu baris: satu karyawan satu baris.');
 
             return;
         }
+
+        $this->seenEmployees[$employeeId] = $rowNumber;
 
         /*
-         * THE RULE THE OWNER SET: still holding one of this kind means the
-         * row is reported, not issued. It is what makes re-running the
-         * same file safe -- `employee_ppe` has no unique index to fall
-         * back on (checked: (employee_id, ppe_type_id) is a plain index),
-         * so idempotency has to live here or nowhere.
+         * The name column is for the HUMAN reading the file, not for
+         * matching -- the Employee ID decides who this is. A mismatch is
+         * reported because it usually means the wrong ID was typed, and
+         * issuing somebody else's boots against it is the expensive kind
+         * of mistake. It is a warning, not a refusal: a nickname, a
+         * married name or a different transliteration is not an error.
          */
-        if (isset($this->heldFamilies()[$employeeId][$family])) {
-            $this->alreadyHeld++;
-            $this->skip($rowNumber, "Karyawan \"{$employeeNumber}\" masih memegang {$typeName} "
-                .'(status issued/in use), jadi tidak diterbitkan ulang.');
+        $fileName = trim((string) ($this->col($data, 'employee_name') ?? ''));
 
-            return;
-        }
-
-        /*
-         * A DATE NOBODY TYPED IS WORSE THAN NO DATE (v2.108.0). Unlike a
-         * join date, this one is not optional: `employee_ppe.issued_date`
-         * is NOT NULL and the expiry every replacement reminder depends on
-         * is counted from it. Defaulting to today would silently date a
-         * pair of boots to the day of the import.
-         */
-        $rawIssued = $this->col($data, 'issued_date');
-        $issuedDate = SpreadsheetDate::parse($rawIssued);
-
-        if ($issuedDate === null) {
-            $this->skip($rowNumber, trim((string) ($rawIssued ?? '')) === ''
-                ? 'Missing Issued Date'
-                : 'Issued Date "'.mb_substr(trim((string) $rawIssued), 0, 40).'" tidak dapat dibaca. '
-                    .'Gunakan format 15/01/2026 atau 2026-01-15.');
-
-            return;
-        }
-
-        /*
-         * Expiry is OPTIONAL and normally not supplied: the model derives
-         * it from the type's replacement interval, which is the single
-         * source of truth this product has had since v1.3. A value that
-         * cannot be read, or that falls before the issue date, is reported
-         * and the derived one is used -- the row still lands, because an
-         * unreadable optional cell was never a reason to refuse somebody's
-         * PPE record.
-         */
-        $rawExpiry = $this->col($data, 'expiry_date');
-        $expiryDate = SpreadsheetDate::parse($rawExpiry);
-
-        if ($expiryDate === null && trim((string) ($rawExpiry ?? '')) !== '') {
+        if ($fileName !== '' && MasterDataDetector::comparisonKey($fileName) !== MasterDataDetector::comparisonKey($match['name'])) {
             $this->warnings[] = [
                 'row' => $rowNumber,
-                'reason' => 'Expiry Date "'.mb_substr(trim((string) $rawExpiry), 0, 40).'" tidak dapat dibaca, '
-                    .'jadi dihitung dari interval penggantian jenis PPE tersebut.',
+                'reason' => 'Nama di berkas ("'.mb_substr($fileName, 0, 40).'") berbeda dari nama di IOMS ("'
+                    .mb_substr((string) $match['name'], 0, 40).'"). Dicocokkan berdasarkan Employee ID.',
             ];
         }
 
-        if ($expiryDate !== null && $expiryDate < $issuedDate) {
-            $this->warnings[] = [
-                'row' => $rowNumber,
-                'reason' => 'Expiry Date lebih awal dari Issued Date, jadi dihitung dari interval penggantian.',
-            ];
-            $expiryDate = null;
-        }
+        $issuedHere = 0;
 
-        $this->seenPairs[$pairKey] = $rowNumber;
+        foreach ($columns as $heading => $typeId) {
+            $raw = $data[$heading] ?? null;
 
-        // Preview stops here: every refusal above has already been decided,
-        // which is exactly what the preview's counts report. Only the write
-        // is skipped.
-        if ($this->previewOnly) {
-            $this->imported++;
+            // AN EMPTY CELL IS NOT A FACT. No record, no transaction.
+            if (trim((string) ($raw ?? '')) === '') {
+                $this->blankCells++;
 
-            return;
-        }
+                continue;
+            }
 
-        try {
-            DB::transaction(function () use ($data, $employeeId, $typeId, $issuedDate, $expiryDate) {
+            $issuedDate = SpreadsheetDate::parse($raw);
+
+            if ($issuedDate === null) {
                 /*
-                 * `EmployeePpe::create()`, never a bulk insert: the model's
-                 * `creating` hook is what resolves a shared template to this
-                 * company's override and derives the expiry date. A bulk
-                 * insert would be faster and would quietly produce rows the
-                 * manual form could never produce.
+                 * Reported against its COLUMN as well as its row, because
+                 * on a wide file "row 7 is wrong" does not tell anybody
+                 * which of eight dates to fix.
                  */
-                EmployeePpe::create([
-                    'employee_id' => $employeeId,
-                    'ppe_type_id' => $typeId,
-                    'issued_date' => $issuedDate,
-                    'expiry_date' => $expiryDate,
-                    'remarks' => trim((string) ($this->col($data, 'remarks') ?? '')) ?: null,
-                    'issued_by' => $this->userId,
-                    'status' => EmployeePpe::STATUS_ISSUED,
-                ]);
-            });
-        } catch (\Throwable $e) {
-            // One bad row must not cost the rest -- EmployeesImport v2.105.0.
-            $this->skipped[] = ['row' => $rowNumber, 'reason' => $this->readableFailure($e)];
+                $this->skipped[] = [
+                    'row' => $rowNumber,
+                    'reason' => Str::headline($heading).': tanggal "'.mb_substr(trim((string) $raw), 0, 40)
+                        .'" tidak dapat dibaca. Gunakan format 15/01/2026 atau 2026-01-15.',
+                ];
 
-            return;
+                continue;
+            }
+
+            $family = $this->familyOf($typeId);
+            $pairKey = $employeeId.'|'.$family;
+
+            if (isset($this->seenPairs[$pairKey])) {
+                // Two columns in one file resolving to the same kind of PPE.
+                $this->skipped[] = [
+                    'row' => $rowNumber,
+                    'reason' => Str::headline($heading).': jenis PPE ini sudah terisi di kolom lain pada baris yang sama.',
+                ];
+
+                continue;
+            }
+
+            if (isset($this->heldFamilies()[$employeeId][$family])) {
+                $this->alreadyHeld++;
+                $this->skipped[] = [
+                    'row' => $rowNumber,
+                    'reason' => Str::headline($heading).": karyawan \"{$employeeNumber}\" masih memegang jenis ini "
+                        .'(status issued/in use), jadi tidak diterbitkan ulang.',
+                ];
+
+                continue;
+            }
+
+            $this->seenPairs[$pairKey] = $rowNumber;
+
+            if ($this->previewOnly) {
+                $this->imported++;
+                $issuedHere++;
+
+                continue;
+            }
+
+            try {
+                DB::transaction(function () use ($employeeId, $typeId, $issuedDate) {
+                    /*
+                     * `create()`, never a bulk insert: the model's
+                     * `creating` hook resolves a shared template to this
+                     * company's override and derives the expiry date from
+                     * the type's replacement interval.
+                     */
+                    EmployeePpe::create([
+                        'employee_id' => $employeeId,
+                        'ppe_type_id' => $typeId,
+                        'issued_date' => $issuedDate,
+                        'issued_by' => $this->userId,
+                        'status' => EmployeePpe::STATUS_ISSUED,
+                    ]);
+                });
+            } catch (\Throwable $e) {
+                // One bad cell must not cost the row -- EmployeesImport v2.105.0.
+                $this->skipped[] = [
+                    'row' => $rowNumber,
+                    'reason' => Str::headline($heading).': '.$this->readableFailure($e),
+                ];
+
+                continue;
+            }
+
+            $this->heldFamilies[$employeeId][$family] = true;
+            $this->imported++;
+            $issuedHere++;
         }
 
-        // Taken now, so a later row in the same file cannot reissue it.
-        $this->heldFamilies[$employeeId][$family] = true;
-        $this->imported++;
+        if ($issuedHere > 0) {
+            $this->employeesTouched++;
+        }
     }
 
     private function skip(int $rowNumber, string $reason): void

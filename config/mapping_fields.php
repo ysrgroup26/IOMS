@@ -83,11 +83,24 @@ return [
      */
     'employee_ppe' => [
         'import' => [
+            /*
+             * v2.121.0 -- ONLY THE IDENTITY COLUMNS LIVE HERE.
+             *
+             * The file is WIDE: one row per employee, then one dated column
+             * per kind of PPE. Those PPE columns are resolved at read time
+             * against the company's own catalogue (ADR 050/058), because
+             * they differ per customer -- an override may have renamed one,
+             * and a customer may have added "Work Uniform" themselves. A
+             * fixed list here would be a second, drifting copy of PPE
+             * Master, and would be wrong for every tenant that configured
+             * anything.
+             *
+             * `employee_name` is read for the HUMAN filling the file in. The
+             * Employee ID decides who a row is; a name that disagrees is
+             * reported, because it usually means the wrong ID was typed.
+             */
             'employee_id' => 'Employee ID',
-            'ppe_type' => 'PPE Type',
-            'issued_date' => 'Issued Date',
-            'expiry_date' => 'Expiry Date',
-            'remarks' => 'Remarks',
+            'employee_name' => 'Employee Name',
         ],
     ],
 ];

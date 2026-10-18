@@ -34,6 +34,25 @@ and driving the screen in a browser, the twelve-to-six month edit **saves and pe
 `ReleaseStatusService` and the hardened `app:deploy` exist to close that gap, and
 `DeploymentIdentityTest` pins them. See `docs/ADR/057-a-release-must-be-able-to-prove-what-is-running.md`.
 
+### What was actually run for v2.121.0
+
+| Claim | Level | Evidence |
+|---|---|---|
+| A wide file issues every dated column and nothing else | **Browser-verified** | MySQL 8, HSE account: 5-row Indonesian-headed CSV → 10 items across 3 employees, 18 blank cells reported, EMP-9999 refused by name |
+| An empty cell produces no transaction | **Browser-verified** | The employee whose entire row was blank received 0 records and is reported as an absence, not an error |
+| Nothing is created but the issuance record | **Browser-verified** | `employees` stayed 4; `ppe_types` went 6 → 7 only because a human added "Work Uniform" in PPE Master deliberately |
+| Work Uniform + Shoes + Helmet = Compliant, with no Coverall | **Browser-verified** | Budi: Compliant. The database shows Work Uniform, Safety Shoes, Safety Helmet and no Coverall |
+| All three held but out of date = Needs Replacement | **Browser-verified** | Siti: three items issued 430 days ago, all past their intervals |
+| A missing clothing group = Incomplete | **Browser-verified** | Agus: Shoes + Helmet + Headlamp, no clothing |
+| A renamed override still satisfies its requirement | **Test-covered** | The rule reads the declared role; renaming "Safety Shoes" does not break it |
+| The filter agrees with the badges | **Browser-verified** | Filtering by Compliant returned exactly one row, and the total agreed (resolved before pagination) |
+| The profile names which group is missing | **Browser-verified** | Group-by-group panel, naming the type that satisfied each one |
+| The template matches what the importer accepts | **Measured** | Downloaded and read: wide, grouped by requirement (Coverall, Work Uniform, Shoes, Helmet, then additional), pre-filled with the 4 active employees, all PPE cells blank |
+| The rules are load-bearing | **Measured** | Collapsing the expired distinction fails 3 tests; removing role inheritance fails 2 |
+| Employee Import behaviour unchanged | **Test-covered** | Untouched this release; full suite unchanged |
+| Suite | **Test-covered** | 1382 tests / 6983 assertions on SQLite **and** MySQL 8 |
+| Production itself | **NOT confirmed** | Deploy-confirmed remains the owner's step (ADR 057) |
+
 ### What was actually run for v2.120.0
 
 | Claim | Level | Evidence |

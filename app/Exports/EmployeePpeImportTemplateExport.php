@@ -3,6 +3,7 @@
 namespace App\Exports;
 
 use App\Exports\Concerns\IomsSheetFormatting;
+use App\Models\Employee;
 use App\Models\PpeType;
 use Maatwebsite\Excel\Concerns\FromArray;
 use Maatwebsite\Excel\Concerns\ShouldAutoSize;
@@ -14,32 +15,110 @@ use Maatwebsite\Excel\Events\AfterSheet;
 use PhpOffice\PhpSpreadsheet\Worksheet\Worksheet;
 
 /**
- * v2.120.0 -- the file a customer fills in to issue PPE in bulk.
+ * v2.121.0 -- THE WIDE TEMPLATE: one row per person, one dated column per
+ * kind of PPE.
  *
- * Column order and names must stay in sync with `EmployeePpeImport`'s
- * field keys and with `config/mapping_fields.php`'s `employee_ppe.import`
- * entry -- all three read the same snake_cased heading keys, so a change
- * to one is a change to all three. The same contract
- * `EmployeeImportTemplateExport` documents for its own columns.
+ * The columns are NOT a fixed list. They are this company's own effective
+ * catalogue (ADR 050/058), so a customer who renamed a type through an
+ * override, or who added "Work Uniform" themselves, downloads a template
+ * whose headings already match what the importer will accept. A template
+ * that names columns the import then refuses is the worst kind of
+ * template, because it teaches the wrong format in the place people copy
+ * from.
  *
- * THE EXAMPLE ROWS NAME REAL PPE TYPES FROM THIS COMPANY'S CATALOGUE,
- * not invented ones. A template whose sample values are refused by the
- * import it belongs to teaches the customer the wrong format in the one
- * place they are most likely to copy from, and "PPE Type must match PPE
- * Master exactly" is precisely the rule this import enforces.
+ * Column ORDER follows the completeness rule rather than the alphabet:
+ * work clothing, then Safety Shoes, then Safety Helmet, then everything
+ * additional. The three that decide whether somebody may go to work sit
+ * together on the left where they are read first.
+ *
+ * It is also PRE-FILLED with the company's active employees -- their
+ * number and name, with every PPE cell blank. Asking an HSE officer to
+ * retype three hundred employee numbers into a blank sheet is how a file
+ * comes back with numbers that match nobody.
  */
 class EmployeePpeImportTemplateExport implements FromArray, ShouldAutoSize, WithEvents, WithHeadings, WithProperties, WithStyles
 {
     use IomsSheetFormatting;
 
-    public function __construct(private readonly ?int $companyId = null) {}
+    /** @var list<string> */
+    private array $ppeColumns;
+
+    public function __construct(private readonly ?int $companyId = null)
+    {
+        $this->ppeColumns = $this->resolvePpeColumns();
+    }
 
     public function properties(): array
     {
         return $this->iomsProperties(
             'Employee PPE Import Template',
-            'Fill this template and upload it in IOMS > PPE Management > Employee PPE > Import PPE.'
+            'One row per employee. Put the date each item was handed over; leave a cell blank when there is no record.'
         );
+    }
+
+    public function headings(): array
+    {
+        return ['Employee ID', 'Employee Name', ...$this->ppeColumns];
+    }
+
+    /**
+     * The company's catalogue, required groups first.
+     *
+     * @return list<string>
+     */
+    private function resolvePpeColumns(): array
+    {
+        if (! $this->companyId) {
+            // No company context (a bare download): the shipped catalogue's
+            // own shape, so the file is still usable and still honest.
+            return ['Coverall', 'Safety Shoes', 'Safety Helmet', 'Safety Glasses', 'Harness', 'Headlamp'];
+        }
+
+        $types = PpeType::withoutGlobalScopes()
+            ->effectiveForCompany($this->companyId)
+            ->where('is_active', true)
+            ->with('sourceDefault:id,compliance_role')
+            ->orderBy('name')
+            ->get(['id', 'company_id', 'source_default_id', 'name', 'compliance_role']);
+
+        $order = array_flip(PpeType::COMPLIANCE_ROLES);
+
+        return $types
+            ->sortBy(fn (PpeType $type) => $order[$type->effectiveComplianceRole()] ?? count($order))
+            ->values()
+            ->pluck('name')
+            ->all();
+    }
+
+    public function array(): array
+    {
+        $blanks = array_fill(0, count($this->ppeColumns), '');
+
+        if (! $this->companyId) {
+            return [['EMP-0001', 'Nama Karyawan', ...$blanks]];
+        }
+
+        /*
+         * Every active employee, so the file only needs dates typed into
+         * it. Capped, because a template is a working file and not an
+         * export -- a customer with more people than this has a roster to
+         * paste from, and the Document Library publishes the full
+         * register.
+         */
+        $employees = Employee::withoutGlobalScopes()
+            ->where('company_id', $this->companyId)
+            ->where('status', 'active')
+            ->orderBy('employee_id')
+            ->limit(2000)
+            ->get(['employee_id', 'full_name']);
+
+        if ($employees->isEmpty()) {
+            return [['EMP-0001', 'Nama Karyawan', ...$blanks]];
+        }
+
+        return $employees
+            ->map(fn (Employee $e) => [(string) $e->employee_id, (string) $e->full_name, ...$blanks])
+            ->all();
     }
 
     /** The same frozen, filterable header every IOMS export opens with. */
@@ -48,49 +127,6 @@ class EmployeePpeImportTemplateExport implements FromArray, ShouldAutoSize, With
         return [
             AfterSheet::class => fn (AfterSheet $event) => $this->applyIomsSheetFormatting($event->sheet->getDelegate()),
         ];
-    }
-
-    public function headings(): array
-    {
-        return ['Employee ID', 'PPE Type', 'Issued Date', 'Expiry Date', 'Remarks'];
-    }
-
-    public function array(): array
-    {
-        $issued = now()->subMonths(2)->format('d/m/Y');
-
-        /*
-         * Up to three types the customer can actually select today, read
-         * through the same `effectiveForCompany()` catalogue the import
-         * matches against -- so an overridden built-in shows the
-         * customer's own name for it, not the shipped one.
-         *
-         * Expiry is left blank on purpose in every example: it is derived
-         * from the type's replacement interval unless the customer
-         * deliberately overrides it, and a template that fills it in
-         * invites them to hand-maintain a date the product maintains for
-         * them.
-         */
-        $names = $this->companyId
-            ? PpeType::withoutGlobalScopes()
-                ->effectiveForCompany($this->companyId)
-                ->where('is_active', true)
-                ->orderBy('name')
-                ->limit(3)
-                ->pluck('name')
-                ->all()
-            : [];
-
-        if ($names === []) {
-            $names = ['Safety Helmet', 'Safety Shoes', 'Coverall'];
-        }
-
-        $rows = [];
-        foreach ($names as $index => $name) {
-            $rows[] = ['EMP-000'.($index + 1), $name, $issued, '', ''];
-        }
-
-        return $rows;
     }
 
     public function styles(Worksheet $sheet): array

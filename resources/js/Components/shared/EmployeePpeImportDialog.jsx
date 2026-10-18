@@ -158,9 +158,10 @@ export default function EmployeePpeImportDialog({ open, onOpenChange, companies 
                     <div className="space-y-4">
                         <div className="rounded-lg border border-graphite-100 bg-graphite-50/60 p-3">
                             <p className="mb-2 text-[13px] text-graphite-600">
-                                Terbitkan APD untuk banyak karyawan sekaligus. Karyawan dan jenis APD harus
-                                sudah terdaftar: impor ini tidak pernah membuat karyawan baru maupun jenis
-                                APD baru.
+                                Satu baris untuk satu karyawan, dan satu kolom tanggal untuk setiap jenis APD.
+                                Sel yang dikosongkan berarti tidak ada catatan pemberian dan tidak akan
+                                menerbitkan apa pun. Karyawan dan jenis APD harus sudah terdaftar: impor ini
+                                tidak pernah membuat karyawan baru maupun jenis APD baru.
                             </p>
                             <Button variant="outline" size="sm" asChild>
                                 <a href={route('ppe.import-template', companyId ? { company_id: companyId } : {})}>
@@ -192,8 +193,8 @@ export default function EmployeePpeImportDialog({ open, onOpenChange, companies 
                                 />
                             </label>
                             <p className="text-xs text-graphite-500">
-                                Menerima Excel (.xlsx, .xls), CSV, Word (.docx) dan PDF. Kolom wajib:
-                                Employee ID, PPE Type dan Issued Date.
+                                Menerima Excel (.xlsx, .xls), CSV, Word (.docx) dan PDF. Kolom wajib hanya
+                                Employee ID; judul kolom APD harus sama dengan nama jenis di PPE Master.
                             </p>
                         </div>
 
@@ -221,7 +222,12 @@ export default function EmployeePpeImportDialog({ open, onOpenChange, companies 
                             {stage === 'preview' ? 'PPE Import Preview' : 'Import Summary'}
                         </p>
 
-                        <div className="grid grid-cols-3 gap-2 text-center">
+                        {/*
+                            v2.121.0 -- a wide file has TWO counts that matter.
+                            "24 items" alone hides how many people it covers,
+                            and "8 rows" alone hides how much was issued.
+                        */}
+                        <div className="grid grid-cols-4 gap-2 text-center">
                             <div className="rounded-lg border border-graphite-100 p-2.5">
                                 <p className="text-lg font-semibold text-navy-900">{report.total_rows}</p>
                                 <p className="text-[11px] text-graphite-500">Rows Read</p>
@@ -229,14 +235,25 @@ export default function EmployeePpeImportDialog({ open, onOpenChange, companies 
                             <div className="rounded-lg border border-success/25 bg-success/[0.06] p-2.5">
                                 <p className="text-lg font-semibold text-success">{report.imported}</p>
                                 <p className="text-[11px] text-graphite-500">
-                                    {stage === 'preview' ? 'Will Be Issued' : 'Issued'}
+                                    {stage === 'preview' ? 'PPE To Issue' : 'PPE Issued'}
                                 </p>
+                            </div>
+                            <div className="rounded-lg border border-graphite-100 p-2.5">
+                                <p className="text-lg font-semibold text-navy-900">{report.employees_touched ?? 0}</p>
+                                <p className="text-[11px] text-graphite-500">Employees</p>
                             </div>
                             <div className="rounded-lg border border-graphite-100 p-2.5">
                                 <p className="text-lg font-semibold text-navy-900">{report.skipped?.length ?? 0}</p>
                                 <p className="text-[11px] text-graphite-500">Skipped</p>
                             </div>
                         </div>
+
+                        {report.blank_cells > 0 && (
+                            <p className="text-xs text-graphite-500">
+                                {report.blank_cells} sel dikosongkan, jadi tidak ada catatan pemberian untuk
+                                jenis APD tersebut. Tidak ada tanggal yang dikarang.
+                            </p>
+                        )}
 
                         {report.already_held > 0 && (
                             <div className="flex items-start gap-2 rounded-lg border border-graphite-100 bg-graphite-50/60 p-3">
@@ -249,17 +266,17 @@ export default function EmployeePpeImportDialog({ open, onOpenChange, companies 
                             </div>
                         )}
 
-                        {report.unknown_ppe_types?.length > 0 && (
+                        {report.unknown_columns?.length > 0 && (
                             <div className="rounded-lg border border-danger/25 bg-danger/[0.06] p-3">
                                 <p className="mb-1 text-xs font-semibold text-red-900">
-                                    Jenis APD berikut belum ada di PPE Master
+                                    Kolom berikut tidak cocok dengan jenis APD mana pun di PPE Master
                                 </p>
                                 <p className="text-xs leading-relaxed text-red-800">
-                                    {report.unknown_ppe_types.join(', ')}
+                                    {report.unknown_columns.join(', ')}
                                 </p>
                                 <p className="mt-1.5 text-xs text-red-800">
-                                    Tambahkan lebih dulu di PPE Master, lalu impor ulang berkasnya. Impor ini
-                                    sengaja tidak membuat jenis APD baru secara otomatis.
+                                    Isi kolom tersebut tidak terbaca. Tambahkan jenisnya di PPE Master lalu impor
+                                    ulang, atau hapus kolomnya bila memang bukan APD.
                                 </p>
                             </div>
                         )}

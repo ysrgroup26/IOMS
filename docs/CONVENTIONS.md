@@ -2691,6 +2691,44 @@ user leaves an optional field blank, which is the normal case, not the edge case
 
 Found by a test that filled in only the required fields.
 
+## CRITICAL — Known Pitfall (v2.121.0) — `select()` in a scope silently throws away `withCount()`
+
+`Employee::scopeOrderedForDisplay()` ends with:
+
+```php
+->leftJoin('departments', ...)
+->leftJoin('positions', ...)
+->select('employees.*')      // <-- REPLACES the whole select list
+->orderByRaw(...)
+```
+
+`withCount('employeePpes as total_ppe_count')` works by adding a **subquery to the select list**. Call
+it before a scope that calls `select()` and the count is computed and then thrown away — with no
+error, no warning, and a model that simply has no such attribute:
+
+```php
+// BROKEN: the count is discarded by the scope that follows it
+->withCount('employeePpes as total_ppe_count')
+->orderedForDisplay()
+
+// CORRECT: anything that selects runs first
+->orderedForDisplay()
+->withCount('employeePpes as total_ppe_count')
+```
+
+The Employee PPE list shipped in the broken order and rendered `" Assigned PPE"` with **no number**
+from the day the page was built. Nothing failed: the Blade/JSX interpolated an undefined value as an
+empty string, and every test asserted the rows it cared about rather than the count.
+
+**It was found by driving the page in a browser**, while adding a badge to the same row — the number's
+absence is obvious on screen and invisible in the code. Then it was pinned:
+`PpeComplianceRuleTest::test_the_employee_ppe_list_carries_the_status_for_every_row` now asserts
+`total_ppe_count` explicitly, because attaching an attribute to a paginated collection is exactly
+where this class of loss hides.
+
+**Before adding `withCount()` to a query, check every scope in the chain for a `select()`** — and
+assert the counted attribute in a test, not just the rows.
+
 ## CRITICAL — Known Pitfall (v2.118.0) — a passing test says nothing about which code production is running, and this cost three releases
 
 PPE Master refused to let a customer change a built-in PPE type. The defect was real, it

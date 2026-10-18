@@ -15,13 +15,29 @@ class PpeTypeSeeder extends Seeder
      */
     public function run(): void
     {
+        /*
+         * v2.121.0 -- THE SHIPPED CATALOGUE DECLARES ITS OWN ROLES.
+         *
+         * `compliance_role` says which completeness requirement a type
+         * satisfies (see PpeComplianceService). The migration that added
+         * the column back-fills these for installations that already had
+         * the rows; THIS is what gives them to a fresh database, where
+         * seeders run after migrations and the rows did not exist yet.
+         * Without it a new installation would ship a catalogue that can
+         * never make anybody compliant.
+         *
+         * `null` is additional equipment -- recorded, never required.
+         * "Work Uniform" is deliberately absent: a uniform is a
+         * per-customer item, added once in PPE Master and marked as work
+         * clothing there (ADR 058 on what a built-in is for).
+         */
         $types = [
-            ['name' => 'Safety Helmet', 'replacement_interval_months' => 12],
-            ['name' => 'Safety Shoes', 'replacement_interval_months' => 12],
-            ['name' => 'Coverall', 'replacement_interval_months' => 6],
-            ['name' => 'Safety Glasses', 'replacement_interval_months' => 3],
-            ['name' => 'Headlamp', 'replacement_interval_months' => null], // request-based
-            ['name' => 'Harness', 'replacement_interval_months' => null], // request-based
+            ['name' => 'Safety Helmet', 'replacement_interval_months' => 12, 'compliance_role' => PpeType::ROLE_SAFETY_HELMET],
+            ['name' => 'Safety Shoes', 'replacement_interval_months' => 12, 'compliance_role' => PpeType::ROLE_SAFETY_SHOES],
+            ['name' => 'Coverall', 'replacement_interval_months' => 6, 'compliance_role' => PpeType::ROLE_WORK_CLOTHING],
+            ['name' => 'Safety Glasses', 'replacement_interval_months' => 3, 'compliance_role' => null],
+            ['name' => 'Headlamp', 'replacement_interval_months' => null, 'compliance_role' => null], // request-based
+            ['name' => 'Harness', 'replacement_interval_months' => null, 'compliance_role' => null], // request-based
         ];
 
         foreach ($types as $type) {

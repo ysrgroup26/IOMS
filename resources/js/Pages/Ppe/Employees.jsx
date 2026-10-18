@@ -9,6 +9,22 @@ import PpeTabNav from '@/Components/shared/PpeTabNav';
 import EmployeePpeImportDialog from '@/Components/shared/EmployeePpeImportDialog';
 import { Button } from '@/Components/ui/button';
 import { Search, Users, ChevronLeft, ChevronRight, X, Upload } from 'lucide-react';
+import { Badge } from '@/Components/ui/badge';
+
+/*
+ * v2.121.0 -- THE COMPLETENESS VERDICT, as the three states the owner
+ * approved rather than a pass/fail. "Needs Replacement" exists because
+ * somebody who was never issued boots and somebody whose boots are simply
+ * due are two different problems with two different actions, and HSE has
+ * to be able to tell them apart in a list.
+ *
+ * Labels are English (status labels, per CLAUDE.md's language rule).
+ */
+const COMPLIANCE = {
+    compliant: { label: 'Compliant', variant: 'success' },
+    needs_replacement: { label: 'Needs Replacement', variant: 'outline' },
+    incomplete: { label: 'Incomplete', variant: 'destructive' },
+};
 
 const FILTER_LABELS = {
     active: 'Active PPE',
@@ -35,7 +51,7 @@ const FILTER_LABELS = {
  * along into the profile URL so it survives the round trip, not
  * inventing new global/session state.
  */
-export default function PpeEmployees({ employees, companies, departments, filters, can = {} }) {
+export default function PpeEmployees({ employees, companies, departments, filters, can = {}, complianceGaps = [], complianceRoleLabels = {} }) {
     const [importOpen, setImportOpen] = useState(false);
 
     function applyFilters(overrides = {}) {
@@ -90,6 +106,18 @@ export default function PpeEmployees({ employees, companies, departments, filter
 
             <EmployeePpeImportDialog open={importOpen} onOpenChange={setImportOpen} companies={companies} />
 
+            {complianceGaps.length > 0 && (
+                <div className="mb-4 rounded-lg border border-amber-200 bg-amber-50 p-4 text-sm leading-relaxed text-amber-900">
+                    <p className="font-semibold">
+                        {complianceGaps.map((r) => complianceRoleLabels[r] ?? r).join(', ')} belum memiliki jenis PPE aktif.
+                    </p>
+                    <p className="mt-1">
+                        Karena itu belum ada karyawan yang dapat berstatus Compliant. Buka PPE Master dan tandai
+                        jenis yang memenuhi syarat tersebut lewat kolom &ldquo;Counts as&rdquo;.
+                    </p>
+                </div>
+            )}
+
             {activeFilterLabel && (
                 <div className="mb-4 flex items-center justify-between rounded-lg border border-brand-200 bg-brand-50 px-4 py-2.5 text-sm dark:border-brand-900/50 dark:bg-brand-950/30">
                     <span className="text-brand-800 dark:text-brand-300">Showing: <strong>{activeFilterLabel}</strong></span>
@@ -127,6 +155,13 @@ export default function PpeEmployees({ employees, companies, departments, filter
                             {availableDepartments.map((d) => <SelectItem key={d.id} value={String(d.id)}>{d.name}</SelectItem>)}
                         </SelectContent>
                     </Select>
+                    <Select value={filters.ppe_compliance || 'all'} onValueChange={(v) => applyFilters({ ppe_compliance: v === 'all' ? null : v })}>
+                        <SelectTrigger className="w-44"><SelectValue placeholder="PPE Completeness" /></SelectTrigger>
+                        <SelectContent>
+                            <SelectItem value="all">All Completeness</SelectItem>
+                            {Object.entries(COMPLIANCE).map(([key, c]) => <SelectItem key={key} value={key}>{c.label}</SelectItem>)}
+                        </SelectContent>
+                    </Select>
                 </CardContent>
             </Card>
 
@@ -152,6 +187,15 @@ export default function PpeEmployees({ employees, companies, departments, filter
                                         room; the count stays visible at every width. */}
                                     <span className="min-w-0 flex-1 truncate text-[13px] font-medium text-graphite-900 dark:text-slate-100">{emp.full_name}</span>
                                     <span className="hidden w-40 shrink-0 truncate text-xs text-graphite-500 sm:inline dark:text-slate-400">{emp.department?.name || '-'}</span>
+                                    {/* v2.121.0: the count says how MUCH, never whether the
+                                        person is equipped -- four pairs of glasses and no
+                                        boots is four assigned items. The verdict is its own
+                                        badge, computed server-side. */}
+                                    {emp.ppe_compliance && COMPLIANCE[emp.ppe_compliance] && (
+                                        <Badge variant={COMPLIANCE[emp.ppe_compliance].variant} className="shrink-0">
+                                            {COMPLIANCE[emp.ppe_compliance].label}
+                                        </Badge>
+                                    )}
                                     <span className="shrink-0 text-right text-xs text-graphite-500 dark:text-slate-400">{emp.total_ppe_count} Assigned PPE</span>
                                 </Link>
                             ))}

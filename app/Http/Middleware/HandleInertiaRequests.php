@@ -206,6 +206,19 @@ class HandleInertiaRequests extends Middleware
                     'avatar_url' => $user->avatarUrl(),
                 ] : null,
             ],
+            /*
+             * v2.125.0 -- THE PRODUCT'S OWN NAME, from the one place that
+             * owns it.
+             *
+             * `config/ioms.php` is declared THE single source of truth for
+             * what this product is called, and v2.38.0 found the long-form
+             * name hardcoded in twelve places because no prop carried it.
+             * A document view needs it as its LAST resort -- after the
+             * tenant's configured name and after the operating unit's own
+             * name -- and the alternative was each page writing `'IOMS'`
+             * again, which is how those twelve happened.
+             */
+            'product_name' => config('ioms.name'),
             'company' => [
                 'name' => CompanySetting::get('company_name', config('ioms.name')),
                 'subtitle' => CompanySetting::get('company_subtitle', 'Industrial Operations Platform'),

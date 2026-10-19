@@ -1,7 +1,7 @@
 ---
 title: Known Issues and Limitations
 type: register
-updated: 2026-10-11
+updated: 2026-10-19
 tags: [kb/issues]
 ---
 
@@ -134,3 +134,15 @@ See also: [[Requirements Register]] · [[Verification Status]] · [[Release Hist
 | QA-003 | `config/ioms.php` sets `edition` to "Enterprise Edition" and `license` to "Commercial Enterprise License" while `enterprise` is also a retired plan slug. The strings name the build, not the plan, and are serialized in props but never rendered. | Low | Open, owner decision. Renaming a product edition is product direction, not a redesign call. |
 
 Full detail: `docs/IOMS Website Redesign/05 - QA & Verification.md`.
+
+---
+
+## Permit to Work, opened v2.125.0
+
+| ID | Issue | Severity | Status |
+|---|---|---|---|
+| PTW-001 | The document view's numbered sections can SKIP. Section 03 (Hazards & Required PPE) renders only when the permit has hazards or required PPE, so a permit with neither shows **01, 02, 04, 05** — and on a controlled document a skipped number reads as a missing page. | Low | Open, deliberately deferred. Numbering the sections dynamically touches the screen, the print view and the PDF together, and the three must not disagree; it warrants its own change with its own verification rather than riding a release about something else. |
+| PTW-002 | `EmployeeImportDialog` still applies the matcher's suggested column mapping **without showing it**. The endpoints accept `sheet` and `ImportMappingPanel` is shared, so adopting it there is small — the PPE dialog does it now. | Medium | Open. Deliberately not done in v2.125.0: the employee import is surrounded by ~3,800 lines of regression born of four consecutive production incidents, and "no regression to the existing Employee Import" was an explicit requirement of the brief that introduced the panel. |
+| PTW-003 | The PTW **list** filters, the gas-test and LOTO sub-panels on the detail page, and the validation messages were read during the v2.125.0 copy audit but not rewritten. Nothing internal leaks from them and no em dash does; they are simply stiffer than the form now is. | Low | Open. |
+
+Full detail: [[PTW and Field Access Master Revision]].

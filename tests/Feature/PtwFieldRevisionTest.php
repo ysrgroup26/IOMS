@@ -408,6 +408,40 @@ class PtwFieldRevisionTest extends TestCase
 
     /*
     |--------------------------------------------------------------------------
+    | J -- the letterhead is the customer's identity, never the product's
+    |--------------------------------------------------------------------------
+    */
+
+    /**
+     * `DocumentEngine::branding()` defaulted `company_name` to the string
+     * 'IOMS', while every consumer was written as
+     * `$branding['company_name'] ?? $company->name ?? …` -- so the chain
+     * stopped at the first link and a tenant who had not filled in
+     * Settings -> Company Name had THE PRODUCT'S NAME printed as their
+     * company identity on a permit they issued.
+     *
+     * Asserted on the prop rather than the rendered string, because the
+     * same prop feeds the document view, the PDF and the print view, and
+     * pinning it pins all three.
+     */
+    public function test_an_unset_company_name_does_not_put_the_product_name_on_a_permit(): void
+    {
+        $permit = $this->permit(PermitToWork::STATUS_ACTIVE, $this->myWorkUser());
+        $hse = $this->hseUser();
+
+        $this->actingAs($hse)
+            ->get('/permits-to-work/'.$permit->id.'/document')
+            ->assertOk()
+            ->assertInertia(fn ($page) => $page
+                // Null, so the view's own `|| company?.name` can run.
+                ->where('branding.company_name', null)
+                // And the company the permit actually belongs to is there
+                // for it to fall back TO.
+                ->where('company.name', 'Yard Co'));
+    }
+
+    /*
+    |--------------------------------------------------------------------------
     | B -- the two quotas are two quotas
     |--------------------------------------------------------------------------
     */

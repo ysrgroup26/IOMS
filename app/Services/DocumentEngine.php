@@ -57,7 +57,30 @@ class DocumentEngine
     public function branding(): array
     {
         return [
-            'company_name' => CompanySetting::get('company_name', 'IOMS'),
+            /*
+             * v2.125.0 -- NULL WHEN UNSET, SO THE CALLER'S OWN FALLBACK CAN RUN.
+             *
+             * This defaulted to the string 'IOMS', and every consumer of it
+             * was already written expecting null:
+             *
+             *   {{ $branding['company_name'] ?? $company->name ?? config('ioms.company') }}
+             *
+             * A truthy default defeats that chain at the first link, so a
+             * tenant who had not filled in Settings -> Company Name got
+             * **IOMS printed as their company identity** on a Permit to
+             * Work, a Material Request and a Waste Movement -- while IOMS
+             * knew the Operating Unit's real name the whole time and the
+             * view was asking for it one `??` later. Caught in the browser:
+             * the permit's letterhead read "IOMS" over a permit belonging
+             * to a company called "Business Unit".
+             *
+             * That is the brief's own rule broken in the plainest way: the
+             * product's identity must never stand in for the customer's on
+             * a document the customer issues. The fallback belongs where
+             * the caller knows which company the document is ABOUT, which
+             * is the view, not here.
+             */
+            'company_name' => CompanySetting::get('company_name'),
             'logo_url' => CompanySetting::get('company_logo_path') ? asset('storage/'.CompanySetting::get('company_logo_path')) : null,
             'address' => CompanySetting::get('company_address'),
             'brand_color' => CompanySetting::get('brand_color', '#2563eb'),

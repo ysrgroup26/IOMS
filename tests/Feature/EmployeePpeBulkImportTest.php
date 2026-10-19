@@ -375,15 +375,23 @@ class EmployeePpeBulkImportTest extends TestCase
         $this->employee('EMP-0001');
         $before = PpeType::withoutGlobalScopes()->count();
 
-        $headings = [...self::HEADINGS, 'Work Uniform'];
+        /*
+         * v2.126.0: this fixture used to say "Work Uniform", which stopped
+         * being an unrecognised column the moment the uniform joined the
+         * shared catalogue. The RULE under test is unchanged -- a heading
+         * the catalogue has no row for is reported by name and invents
+         * nothing -- so only the example moved, to something no catalogue
+         * will ever carry.
+         */
+        $headings = [...self::HEADINGS, 'Exoskeleton Rig'];
 
         $result = $this->import(
-            [$this->row('EMP-0001', ['Work Uniform' => '15/01/2026'], headings: $headings)],
+            [$this->row('EMP-0001', ['Exoskeleton Rig' => '15/01/2026'], headings: $headings)],
             headings: $headings,
         );
 
         $this->assertSame(0, $result['imported']);
-        $this->assertSame(['Work Uniform'], $result['unknown_columns']);
+        $this->assertSame(['Exoskeleton Rig'], $result['unknown_columns']);
         $this->assertSame($before, PpeType::withoutGlobalScopes()->count(), 'No PPE type may be invented by an import.');
     }
 

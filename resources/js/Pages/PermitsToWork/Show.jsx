@@ -91,7 +91,7 @@ function PpePanel({ ppe, hazards, status }) {
     );
 }
 
-export default function PermitToWorkShow({ permit: p, activities, canManage, rejectionReason, authorization, ppe }) {
+export default function PermitToWorkShow({ permit: p, activities, canManage, rejectionReason, authorization, stamps = {}, ppe }) {
     const [gasTestOpen, setGasTestOpen] = useState(false);
     // v1.10.9: location pre-filled from this permit's own p.location (the
     // scope a PTW is raised for) but independently editable -- a gas
@@ -274,7 +274,7 @@ export default function PermitToWorkShow({ permit: p, activities, canManage, rej
                                         the same record, read the way a permit
                                         is actually read. */}
                                     {authorization
-                                        ? <div className="mt-1"><ApprovalStamp authorization={authorization} compact /></div>
+                                        ? <div className="mt-1"><ApprovalStamp authorization={authorization} stamp={stamps.approval} compact /></div>
                                         : <p>{p.hse_approver?.name || '-'}</p>}
                                 </div>
                                 <div><span className="text-xs uppercase text-graphite-400">Closed By</span><p>{p.closer?.name || '-'}</p></div>

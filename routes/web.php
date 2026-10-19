@@ -942,6 +942,10 @@ Route::middleware(['auth', 'restrict.platform-admin'])->group(function () {
          */
         Route::get('/ppe/import-template', [PpeController::class, 'ppeImportTemplate'])->name('ppe.import-template');
         Route::post('/ppe/import/inspect', [PpeController::class, 'inspectPpeImport'])->name('ppe.import.inspect');
+        // v2.126.0 -- the screening step: the whole reading of a company's
+        // own workbook, for the person to check and correct before
+        // anything is written. Writes nothing. See PpeImportInterpreter.
+        Route::post('/ppe/import/screen', [PpeController::class, 'screenPpeImport'])->name('ppe.import.screen');
         Route::post('/ppe/import/preview', [PpeController::class, 'previewPpeImport'])->name('ppe.import.preview');
         Route::post('/ppe/import', [PpeController::class, 'importPpe'])->name('ppe.import');
 

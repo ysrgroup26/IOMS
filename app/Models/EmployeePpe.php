@@ -73,6 +73,9 @@ class EmployeePpe extends Model
         'employee_id',
         'ppe_type_id',
         'issued_date',
+        // v2.126.0 -- the size handed out, beside the date it was handed
+        // out on. See the owning migration.
+        'size',
         'expiry_date',
         'status',
         'remarks',

@@ -91,11 +91,23 @@
            No full-page tint, no decorative rules -- a permit gets printed in
            volume, often mono, and toner is a real operational cost. All
            table/background-colour based: Dompdf has no flexbox or grid. */
-        .identity-band { background-color: #0F2747; color: #ffffff; padding: 7px 10px; }
-        .identity-band .ib-name { font-size: 12.5px; font-weight: bold; color: #ffffff; }
-        .identity-band .ib-sub { font-size: 8px; color: #AECFEA; }
-        .identity-band .ib-eyebrow { font-size: 7px; text-transform: uppercase; letter-spacing: 1.6px; color: #82B4DC; }
-        .identity-band .ib-number { font-size: 11px; font-weight: bold; color: #ffffff; }
+        /* v2.126.0 -- the shared letterhead's classes, carried here
+           because this view is deliberately self-contained (it predates
+           partials/styles and its section/gas-test rules are its own).
+           Values copied from partials/styles.blade.php so the permit's
+           header is typographically identical to every other IOMS
+           document's, which is the point of using the shared partial. */
+        .doc-letterhead { width: 100%; border-bottom: 2px solid #0f2747; padding-bottom: 7px; margin-bottom: 2px; }
+        .doc-letterhead .logo-cell { width: 68px; padding-right: 12px; }
+        .doc-letterhead .logo-cell img { max-height: 58px; max-width: 66px; }
+        .doc-company-name { font-size: 14px; font-weight: bold; color: #0f2747; letter-spacing: 0.2px; }
+        .doc-company-legal { font-size: 8.5px; color: #64748b; margin-top: 1px; }
+        .doc-company-meta { font-size: 8px; color: #475569; line-height: 1.5; margin-top: 3px; }
+        .doc-ident-cell { width: 34%; text-align: right; }
+        .doc-refs { font-size: 8.5px; color: #334155; text-align: right; line-height: 1.6; }
+        .doc-refs .k { color: #94a3b8; }
+        .doc-refs .v { font-weight: bold; color: #0f2747; }
+        .doc-rule { height: 1px; background: #2166c4; margin-bottom: 8px; }
 
         /* Full-width status bar. The left rule is the semantic colour so the
            state survives a monochrome print as a position/weight cue, not a
@@ -109,43 +121,13 @@
            than three floating rules. */
         table.signatures td { border: 1px solid #cbd5e1; }
 
-        /* v2.72.0 -- the approval seal, on paper.
-           dompdf supports neither flexbox nor CSS variables, so this is
-           deliberately plain: a double-ruled block in the product's own
-           success green. It renders ONLY from $authorization, which the
-           controller returns as null unless the permit is genuinely
-           authorised -- the template has no boolean it could get wrong. */
-        /* v2.125.0 -- APPROVAL IS BLUE ON PAPER TOO.
-           The owner's stamp design separates the two acts by colour: green
-           marks a VERIFICATION, blue marks an APPROVAL. The screen and the
-           sheet must not disagree about which act a seal records, so this
-           moved with ApprovalStamp.jsx rather than after it. */
-        .stamp { border: 1.5px solid #1D4ED8; background: #EFF6FF; padding: 4px 8px; text-align: center; }
-        .stamp .stamp-word { font-size: 10px; font-weight: bold; color: #1E40AF; letter-spacing: 2px; text-transform: uppercase; }
-        .stamp .stamp-rule { border-top: 1px solid #BFDBFE; margin: 3px 0; }
-
-        /* v2.125.0 -- THE STANDING STAMP, AS PAPER CAN ACTUALLY CARRY IT.
-           ACTIVE in green and CLOSED in red, identical but for colour and
-           word, and with NO DATE inside either -- the owner's brief is
-           explicit, and a date in a standing stamp reads as a different
-           fact from the validity window in the body.
-
-           The slant and the distressed ink of the on-screen stamp are
-           deliberately NOT attempted here. Dompdf's CSS is print-era: it
-           has no reliable `transform: rotate()` on a table cell and no
-           blend modes, so both would land as a mis-positioned box or
-           nothing at all. A stamp that renders wrong on the sheet an
-           auditor holds is worse than one that renders plainly, so paper
-           gets the composition -- double rule, weight, tracking, colour --
-           without the two effects it cannot honour. */
-        .state-stamp { border: 2px solid #047857; padding: 3px 7px; text-align: center; }
-        .state-stamp .ss-inner { border: 1px solid #6EE7B7; padding: 2px 5px; }
-        .state-stamp .ss-word { font-size: 13px; font-weight: bold; color: #047857; letter-spacing: 3px; text-transform: uppercase; }
-        .state-stamp-closed { border-color: #B91C1C; }
-        .state-stamp-closed .ss-inner { border-color: #FCA5A5; }
-        .state-stamp-closed .ss-word { color: #B91C1C; }
-        .stamp .stamp-who { font-size: 8.5px; font-weight: bold; color: #065F46; }
-        .stamp .stamp-meta { font-size: 7.5px; color: #047857; }
+        /* v2.126.0 -- the CSS stamps that lived here are GONE.
+           Both the approval seal (a plain blue bordered box) and the
+           upright ACTIVE/CLOSED plate were workarounds for a Dompdf
+           limitation that does not exist: 3.1.5 renders `transform:
+           rotate()` and renders SVG. They are now drawn by
+           StampRenderer, once, for the screen and the sheet together.
+           @see app/Services/Documents/StampRenderer.php */
 
         /* v2.73.0 -- PPE confirmation marks, drawn with borders instead of
            glyphs. A tick and a ballot box are non-Latin-1 characters, and
@@ -181,23 +163,64 @@
          issued instrument rather than a form dump. Tenant logo/name/address
          still come from DocumentEngine branding (tenant-scoped since
          v2.40.0), unchanged. --}}
-    <table class="identity-band" style="width: 100%; border-collapse: collapse;">
+    {{--
+        v2.126.0 -- THE SHARED LETTERHEAD, WITH THE CUSTOMER'S ACTUAL LOGO.
+
+        This view had its own navy identity band built from `branding()`,
+        whose `logo_url` is an HTTP URL -- so rendering a permit made an
+        outbound request to our own public host while Dompdf waited, and
+        behind a firewall or a wrong APP_URL it drew nothing at all. That
+        is the defect v2.112.0 fixed for every document that uses
+        `partials/letterhead`, and the permit was not one of them: which is
+        why the owner saw a company NAME where a logo belongs.
+
+        The shared partial reads `identity()`, which carries `logo_path` --
+        the file on local disk, null unless it is really there -- plus the
+        legal name, the address, the locality, the contact line and the
+        registry numbers, in the hierarchy every other IOMS document
+        already uses. A permit now reads as one of the company's documents
+        rather than as a differently-shaped one.
+
+        No IOMS mark anywhere: the fallback is the customer's own company
+        name, and never our logo. @see partials/letterhead
+    --}}
+    @include('pdf.partials.letterhead', [
+        'identity' => array_merge($identity ?? [], [
+            // The permit belongs to an operating unit, and the unit's own
+            // name is a better answer than the product's when the tenant
+            // has configured no company name at all.
+            'name' => ($identity['name'] ?? null) ?: ($company->name ?? config('ioms.name')),
+            // A template that switches the logo off still switches it off.
+            'logo_path' => (($documentTemplate ?? null)?->show_logo === false) ? null : ($identity['logo_path'] ?? null),
+            'logo_url' => (($documentTemplate ?? null)?->show_logo === false) ? null : ($identity['logo_url'] ?? null),
+        ]),
+    ])
+
+    {{-- The permit's own identity, and its STANDING, on one line: the
+         title and number left, the stamp right, where a reader's eye goes
+         on a controlled document. The stamp is an SVG data URI built by
+         StampRenderer -- the same bytes the screen renders -- and is null
+         for any status that is not a standing, which is what keeps a
+         six-colour stamp from existing. --}}
+    <table style="width: 100%; border-collapse: collapse; margin: 2px 0 4px 0;">
         <tr>
-            <td style="width: 62%; vertical-align: middle;">
-                @if(($documentTemplate ?? null)?->show_logo && ($branding['logo_url'] ?? null))
-                    <img class="header-logo" src="{{ $branding['logo_url'] }}" alt="Logo">
-                @endif
-                <div class="ib-name">{{ $branding['company_name'] ?? $company->name ?? config('ioms.name') }}</div>
-                @if($branding['address'] ?? null)
-                    <div class="ib-sub">{{ $branding['address'] }}</div>
-                @endif
+            <td style="vertical-align: middle;">
+                <div class="doc-title-eyebrow">Permit to Work</div>
+                <div class="doc-title-main">{{ str_replace('_', ' ', $permit->permit_type) }}</div>
+                <div class="doc-title-number">{{ $permit->ptw_number }}</div>
             </td>
-            <td style="width: 38%; text-align: right; vertical-align: middle;">
-                <div class="ib-eyebrow">Permit to Work</div>
-                <div class="ib-number">{{ $permit->ptw_number }}</div>
-            </td>
+            @if(! empty($stamps['standing']))
+                {{-- Sized to sit INSIDE the type area. The first render
+                     overran the rule on the right, which on a controlled
+                     document reads as a printing fault rather than as a
+                     stamp. --}}
+                <td style="width: 128px; text-align: right; vertical-align: middle; padding-left: 8px;">
+                    <img src="{{ $stamps['standing'] }}" style="width: 122px;" alt="{{ strtoupper($permit->status) }}">
+                </td>
+            @endif
         </tr>
     </table>
+    <div style="border-bottom: 2px solid #0f172a; margin: 0 0 8px 0;"></div>
 
     @php
         // Semantic state presentation, derived from the permit's own status
@@ -217,23 +240,6 @@
         ];
         $authorisedBy = $permit->hseApprover->name ?? null;
     @endphp
-
-    {{-- v2.125.0 -- the standing stamp, for the two statuses that ARE a
-         standing. Every other status is carried by the band below, which
-         already names it in words. Rendered as its own right-aligned table
-         because Dompdf has no float that survives a page break. --}}
-    @if(in_array($permit->status, ['active', 'closed'], true))
-        <table style="width: 100%; border-collapse: collapse; margin: 6px 0 2px 0;">
-            <tr>
-                <td></td>
-                <td style="width: 1%; white-space: nowrap; padding: 0;">
-                    <div class="state-stamp {{ $permit->status === 'closed' ? 'state-stamp-closed' : '' }}">
-                        <div class="ss-inner"><span class="ss-word">{{ $permit->status === 'closed' ? 'Closed' : 'Active' }}</span></div>
-                    </div>
-                </td>
-            </tr>
-        </table>
-    @endif
 
     {{-- The left rule carries the semantic colour as POSITION and weight, so
          the state still reads on the monochrome prints these are usually
@@ -259,17 +265,12 @@
         <div class="template-header-text">{{ $documentTemplate->header_text }}</div>
     @endif
 
-    {{-- Dominant document-title block -- same visual role as
-         Document.jsx's own title treatment. --}}
-    <div class="doc-title-block">
-        <p class="doc-title-eyebrow">Permit To Work</p>
-        <table class="doc-title-row">
-            <tr>
-                <td class="doc-title-main">{{ ucwords(str_replace('_', ' ', $permit->permit_type)) }}</td>
-                <td class="doc-title-number">{{ $permit->ptw_number }}</td>
-            </tr>
-        </table>
-    </div>
+    {{-- v2.126.0: the dominant title block that stood here is GONE.
+         It rendered "PERMIT TO WORK / HOT WORK / PTW-2026-00001" a SECOND
+         time, a few millimetres under the identical block the letterhead
+         group above already draws -- obvious the moment the rendered sheet
+         was looked at, invisible while only the template was read. One
+         document, one title. --}}
 
     {{-- 01 -- Work Information --}}
     <div class="section">
@@ -519,17 +520,22 @@
                              the work was authorised. An unauthorised permit is
                              unchanged: still an empty box, never a pre-filled
                              name. --}}
-                        <div class="stamp">
-                        <div class="stamp-word">Approved</div>
-                        <div class="stamp-rule"></div>
-                        <div class="stamp-who">{{ $authorization['approver'] }}</div>
-                        @if($authorization['role'])
-                            <div class="stamp-meta">{{ $authorization['role'] }}</div>
+                        {{-- v2.126.0: the real seal. This was a plain
+                             bordered box with the word "Approved" in it,
+                             because v2.125.0 believed Dompdf could render
+                             neither a rotation nor an ink texture and never
+                             checked. It renders both. The image is the SAME
+                             SVG the screen shows, built by StampRenderer
+                             from the stored action record, so paper and
+                             screen cannot differ -- and it is absent
+                             entirely when there is no record, which is why
+                             there is no boolean here. --}}
+                        @if(! empty($stamps['approval']))
+                            <img src="{{ $stamps['approval'] }}" style="width: 128px;" alt="Approved by {{ $authorization['approver'] }}">
+                        @else
+                            <div class="sig-name">{{ $authorization['approver'] }}</div>
+                            @if($authorization['role'])<div class="sig-when">{{ $authorization['role'] }}</div>@endif
                         @endif
-                        @if($authorization['at'])
-                            <div class="stamp-meta">{{ \Illuminate\Support\Carbon::parse($authorization['at'])->timezone(config('ioms.display_timezone'))->format('d M Y H:i') }}</div>
-                        @endif
-                        </div>
                     @else
                         <div class="sig-name">{{ $permit->hseApprover->name ?? '' }}</div>
                         <div class="sig-when">@if($permit->status === 'submitted')Pending @endif</div>

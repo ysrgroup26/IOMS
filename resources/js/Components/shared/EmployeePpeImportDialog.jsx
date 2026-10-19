@@ -5,7 +5,8 @@ import { Button } from '@/Components/ui/button';
 import { Label } from '@/Components/ui/label';
 import { Select, SelectTrigger, SelectValue, SelectContent, SelectItem } from '@/Components/ui/select';
 import { Download, Upload, Loader2, CheckCircle2, AlertTriangle, ShieldCheck, ArrowLeft } from 'lucide-react';
-import ImportMappingPanel, { appendConfirmedMapping, overridesFromSuggestion } from '@/Components/shared/ImportMappingPanel';
+import { appendConfirmedMapping } from '@/Components/shared/ImportMappingPanel';
+import PpeImportScreening from '@/Components/shared/PpeImportScreening';
 
 function csrfToken() {
     return document.querySelector('meta[name="csrf-token"]').content;
@@ -42,14 +43,33 @@ export default function EmployeePpeImportDialog({ open, onOpenChange, companies 
         ? String(ownCompanyId)
         : (companies.length === 1 ? String(companies[0].id) : undefined);
 
-    const [stage, setStage] = useState('upload'); // upload | inspecting | mapping | previewing | preview | processing | summary
+    /*
+     * v2.126.0 -- SEVEN STAGES, because the owner asked for a screening and
+     * not a confirmation: upload, read the structure, correct the mapping,
+     * check the identities and the dates, review the totals, confirm, and
+     * only then a result.
+     *
+     * `screening` is the SERVER'S whole reading. Every correction is posted
+     * back and re-screened rather than applied in the browser, so what the
+     * person is looking at is always what the server would actually do --
+     * which is the only thing that makes a preview a promise rather than an
+     * illustration.
+     */
+    const [stage, setStage] = useState('upload'); // upload | screening | screen | previewing | preview | processing | summary
     const [companyId, setCompanyId] = useState(defaultCompanyId);
     const [file, setFile] = useState(null);
     const [mapping, setMapping] = useState(null);
+    const [screening, setScreening] = useState(null);
+    const [rejectedRows, setRejectedRows] = useState([]);
+    // The person's own column corrections, keyed by position. Posted back
+    // on every re-screen so the server applies them, never the browser.
+    const [columnOverrides, setColumnOverrides] = useState({});
+    const [busy, setBusy] = useState(false);
     // What the customer confirmed on the mapping stage, which is what
     // every later request is built from.
     const [overrides, setOverrides] = useState({});
     const [sheet, setSheet] = useState(null);
+    const [headerRow, setHeaderRow] = useState(null);
     const [preview, setPreview] = useState(null);
     const [result, setResult] = useState(null);
     const [error, setError] = useState(null);
@@ -58,8 +78,13 @@ export default function EmployeePpeImportDialog({ open, onOpenChange, companies 
         setStage('upload');
         setFile(null);
         setMapping(null);
+        setScreening(null);
+        setRejectedRows([]);
+        setColumnOverrides({});
+        setBusy(false);
         setOverrides({});
         setSheet(null);
+        setHeaderRow(null);
         setPreview(null);
         setResult(null);
         setError(null);
@@ -82,40 +107,132 @@ export default function EmployeePpeImportDialog({ open, onOpenChange, companies 
      * could not be read and goes straight to the preview, which is the
      * step that refuses rows one at a time and says why.
      */
-    async function runInspect() {
-        setStage('inspecting');
+    /**
+     * The whole reading, from the server, for the person to check.
+     *
+     * Posts the current corrections back with every call, so a changed
+     * sheet, header row or column mapping is RE-READ rather than patched in
+     * the browser. Slower by one request and correct by construction: the
+     * person never looks at an interpretation the server would not perform.
+     */
+    async function runScreen(next = {}) {
+        setStage(screening ? 'screen' : 'screening');
+        setBusy(true);
         setError(null);
 
-        let suggested = null;
+        const nextSheet = next.sheet !== undefined ? next.sheet : sheet;
+        const nextHeaderRow = next.headerRow !== undefined ? next.headerRow : headerRow;
+        const nextColumns = next.columns !== undefined ? next.columns : columnOverrides;
+
+        const body = new FormData();
+        body.append('file', file);
+        body.append('company_id', companyId);
+        if (nextSheet) body.append('sheet', nextSheet);
+        if (nextHeaderRow) body.append('header_row', String(nextHeaderRow));
+        Object.entries(nextColumns).forEach(([index, patch]) => {
+            if (patch.role !== undefined) body.append(`columns[${index}][role]`, patch.role);
+            if (patch.ppe_type_id !== undefined && patch.ppe_type_id !== null) {
+                body.append(`columns[${index}][ppe_type_id]`, String(patch.ppe_type_id));
+            }
+        });
 
         try {
-            const inspectBody = new FormData();
-            inspectBody.append('file', file);
-
-            const inspected = await fetch(route('ppe.import.inspect'), {
+            const response = await fetch(route('ppe.import.screen'), {
                 method: 'POST',
-                body: inspectBody,
+                body,
                 headers: { 'X-CSRF-TOKEN': csrfToken() },
             });
 
-            suggested = inspected.ok ? await inspected.json() : null;
-        } catch {
-            suggested = null;
+            if (!response.ok) {
+                const payload = await response.json().catch(() => null);
+                throw new Error(payload?.message
+                    || payload?.errors?.sheet?.[0]
+                    || payload?.errors?.file?.[0]
+                    || 'Berkas ini tidak dapat dibaca. Periksa formatnya lalu coba lagi.');
+            }
+
+            const read = await response.json();
+            setScreening(read);
+            setSheet(read.sheet ?? null);
+            setHeaderRow(read.header_row ?? null);
+            setStage('screen');
+        } catch (e) {
+            setError(e.message);
+            setStage(screening ? 'screen' : 'upload');
+        } finally {
+            setBusy(false);
         }
+    }
 
-        if (!suggested) {
-            setMapping(null);
-            setOverrides({});
-            setSheet(null);
-            await runPreview({}, null);
+    /**
+     * The identity mapping the EXISTING importer needs, derived from the
+     * screening rather than asked for twice.
+     *
+     * `column_mapping` is keyed by IOMS field and valued with the heading
+     * in the customer's file -- see FieldMappingService::importColumnKeys().
+     * The screening already decided which column is the Employee ID and
+     * which the name, so asking the person again would be asking them to
+     * repeat themselves.
+     */
+    function identityMappingFromScreening() {
+        const out = {};
 
-            return;
-        }
+        (screening?.columns ?? []).forEach((c) => {
+            if ((c.role === 'employee_id' || c.role === 'employee_name') && c.heading) {
+                out[c.role] = c.heading;
+            }
+        });
 
-        setMapping(suggested);
-        setOverrides(overridesFromSuggestion(suggested));
-        setSheet(suggested.chosen ?? null);
-        setStage('mapping');
+        return out;
+    }
+
+    /** The plan, as the importer expects it: position, role and target. */
+    function planFromScreening() {
+        return (screening?.columns ?? [])
+            .filter((c) => c.role === 'ppe_date' || c.role === 'ppe_size')
+            .map((c) => ({ index: c.index, role: c.role, ppe_type_id: c.ppe_type_id, heading: c.heading }));
+    }
+
+    /**
+     * The plan and the rejections, on every request that reads the file.
+     *
+     * One function, called by both the preview and the import, because the
+     * two reading the file differently is the exact defect v2.108.1 fixed
+     * for the mapping -- and a screening the import then ignores would be
+     * that defect wearing a bigger interface.
+     */
+    function appendScreeningPlan(formData) {
+        if (!screening) return;
+
+        if (headerRow) formData.append('header_row', String(headerRow));
+
+        planFromScreening().forEach((c, i) => {
+            formData.append(`plan[${i}][index]`, String(c.index));
+            formData.append(`plan[${i}][role]`, c.role);
+            formData.append(`plan[${i}][heading]`, c.heading ?? '');
+            if (c.ppe_type_id) formData.append(`plan[${i}][ppe_type_id]`, String(c.ppe_type_id));
+        });
+
+        rejectedRows.forEach((row, i) => formData.append(`rejected_rows[${i}]`, String(row)));
+
+        /*
+         * The rows the screening read as NOT being people -- titles,
+         * department separators, subtotals, blanks.
+         *
+         * Sent because the importer has no way of knowing: without them it
+         * re-read a department heading as an Employee ID and the summary
+         * said "Employee ID berikut tidak ditemukan: FABRIKASI, PRODUKSI,
+         * Total". The screening already made that judgement and showed it;
+         * this is the import honouring it rather than making a second,
+         * worse one.
+         */
+        (screening.rows ?? [])
+            .filter((r) => r.kind !== 'data')
+            .forEach((r, i) => formData.append(`ignored_rows[${i}]`, String(r.source_row)));
+
+        Object.entries(identityMappingFromScreening()).forEach(([field, heading]) => {
+            formData.append(`column_mapping[${field}]`, heading);
+        });
     }
 
     async function runPreview(confirmedOverrides = overrides, confirmedSheet = sheet) {
@@ -130,6 +247,7 @@ export default function EmployeePpeImportDialog({ open, onOpenChange, companies 
         // import keeps") now applied to a mapping they chose rather than
         // one they were never shown.
         appendConfirmedMapping(formData, confirmedOverrides, confirmedSheet);
+        appendScreeningPlan(formData);
 
         try {
             const response = await fetch(route('ppe.import.preview'), {
@@ -151,7 +269,7 @@ export default function EmployeePpeImportDialog({ open, onOpenChange, companies 
             // a refused file is usually a wrong sheet or a wrong column,
             // and sending the customer back to the file picker loses the
             // work they just did.
-            setStage(mapping ? 'mapping' : 'upload');
+            setStage(screening ? 'screen' : 'upload');
         }
     }
 
@@ -165,6 +283,7 @@ export default function EmployeePpeImportDialog({ open, onOpenChange, companies 
         // The same mapping and sheet the preview ran on -- the import must
         // not read the file a different way.
         appendConfirmedMapping(formData, overrides, sheet);
+        appendScreeningPlan(formData);
 
         try {
             const response = await fetch(route('ppe.import'), {
@@ -190,7 +309,7 @@ export default function EmployeePpeImportDialog({ open, onOpenChange, companies 
 
     return (
         <Dialog open={open} onOpenChange={(v) => (v ? onOpenChange(true) : close())}>
-            <DialogContent className={['preview', 'summary', 'mapping'].includes(stage) ? 'max-w-lg' : undefined}>
+            <DialogContent className={stage === 'screen' ? 'max-w-3xl' : (['preview', 'summary'].includes(stage) ? 'max-w-lg' : undefined)}>
                 <DialogHeader><DialogTitle>Import PPE</DialogTitle></DialogHeader>
 
                 {stage === 'upload' && (
@@ -241,44 +360,72 @@ export default function EmployeePpeImportDialog({ open, onOpenChange, companies 
 
                         <DialogFooter>
                             <Button type="button" variant="outline" onClick={close}>Cancel</Button>
-                            <Button type="button" onClick={runInspect} disabled={!file || !companyId}>Continue</Button>
+                            <Button type="button" onClick={() => runScreen()} disabled={!file || !companyId}>Continue</Button>
                         </DialogFooter>
                     </div>
                 )}
 
-                {stage === 'mapping' && (
+                {stage === 'screen' && (
                     <div className="space-y-4">
-                        <ImportMappingPanel
-                            inspection={mapping}
-                            sheet={sheet}
-                            overrides={overrides}
+                        <PpeImportScreening
+                            screening={screening}
+                            rejectedRows={rejectedRows}
+                            busy={busy}
                             onSheetChange={(v) => {
+                                /*
+                                 * A different sheet has different columns, so
+                                 * the corrections cannot carry over -- keeping
+                                 * them would map this sheet's data through the
+                                 * other sheet's positions. The rejections go
+                                 * too: a row number means a different row now.
+                                 */
+                                setColumnOverrides({});
+                                setRejectedRows([]);
                                 setSheet(v);
-                                // A different sheet has different columns, so
-                                // the confirmed mapping cannot carry over --
-                                // keeping it would silently map this sheet's
-                                // data through the other sheet's headings.
-                                setOverrides({});
+                                setHeaderRow(null);
+                                runScreen({ sheet: v, headerRow: null, columns: {} });
                             }}
-                            onOverridesChange={setOverrides}
+                            onHeaderRowChange={(n) => {
+                                setColumnOverrides({});
+                                setRejectedRows([]);
+                                setHeaderRow(n);
+                                runScreen({ headerRow: n, columns: {} });
+                            }}
+                            onColumnChange={(index, patch) => {
+                                const next = {
+                                    ...columnOverrides,
+                                    [index]: { ...(columnOverrides[index] ?? {}), ...patch },
+                                };
+                                setColumnOverrides(next);
+                                runScreen({ columns: next });
+                            }}
+                            onToggleReject={(row) => setRejectedRows((prev) =>
+                                prev.includes(row) ? prev.filter((r) => r !== row) : [...prev, row])}
                         />
 
                         {error && <p className="text-xs text-red-600">{error}</p>}
 
-                        <DialogFooter>
+                        <DialogFooter className="gap-2 sm:gap-0">
                             <Button type="button" variant="outline" onClick={() => setStage('upload')}>
                                 <ArrowLeft className="h-3.5 w-3.5" /> Back
                             </Button>
-                            <Button type="button" onClick={() => runPreview()}>Preview Import</Button>
+                            {/* Nothing has been written at this point and
+                                nothing will be until the review stage's own
+                                confirm -- this only asks the IMPORTER what it
+                                would do, which is a second opinion on the
+                                screening from the code that does the writing. */}
+                            <Button type="button" onClick={() => runPreview()} disabled={busy || (screening?.counts?.data ?? 0) === 0}>
+                                Review &amp; Confirm
+                            </Button>
                         </DialogFooter>
                     </div>
                 )}
 
-                {(stage === 'inspecting' || stage === 'previewing' || stage === 'processing') && (
+                {(stage === 'screening' || stage === 'previewing' || stage === 'processing') && (
                     <div className="flex flex-col items-center justify-center gap-3 py-10">
                         <Loader2 className="h-8 w-8 animate-spin text-brand-500" />
                         <p className="text-sm text-graphite-500">
-                            {stage === 'inspecting'
+                            {stage === 'screening'
                                 ? 'Membaca struktur berkas...'
                                 : stage === 'previewing' ? 'Scanning your file...' : 'Issuing PPE...'}
                         </p>

@@ -1,7 +1,7 @@
 ---
 title: PTW and Field Access Master Revision
 type: backlog
-status: PARTIAL (v2.125.0) — B C D E F G H J K delivered and browser-verified; parts of E, F, H and J recorded as remaining
+status: PARTIAL (v2.126.0) — A–L delivered across two releases; the owner's v2.125.0 rejections are closed in v2.126.0; remaining scope recorded per row
 updated: 2026-10-19
 tags: [kb/backlog, status/implemented]
 ---
@@ -11,7 +11,7 @@ tags: [kb/backlog, status/implemented]
 **Source:** owner directive, 2026-10-19 — one brief covering Permit to Work end to end, field
 access, notifications, the PPE import, copy, responsiveness and the document design, plus a stamp
 visual reference. **Board:** [[Project Board]] · **Register:** [[Requirements Register]] ·
-**Release:** `2.125.0`
+**Releases:** `2.125.0`, then `2.126.0` (the owner's follow-up review)
 
 This is the ONE master checklist for that directive. Every lettered group below is a row with its
 own status and evidence; nothing in the brief is tracked anywhere else. Where a group turned out to
@@ -54,6 +54,25 @@ Driven by what blocks what, not by the letters in the brief.
 6. **F after E**, because overflow is caused by the labels, placeholders and helper text E changes.
 7. **H last** — independent of every PTW item, self-contained, and most of its machinery already
    existed.
+
+---
+
+## The follow-up review, 2026-10-19 (v2.126.0)
+
+The owner checked v2.125.0 **by looking at the rendered PDF and by using the import**, and rejected
+three of its claims. All three rejections were correct, and the per-group rows below carry the
+detail. What they have in common is worth stating once:
+
+| What v2.125.0 claimed | What was actually true |
+|---|---|
+| "Paper gets the composition without the two effects Dompdf cannot honour" (ADR 065) | **Dompdf renders both.** The claim was written from memory and never tested. The PDF stamp was a plain blue box, exactly as reported. |
+| "Branding is supported; the header carries the company identity" | The header carried the company NAME. The logo was gated behind a document template almost nobody creates, and `identity()['name']` defaulted to the product name, so the letterhead read **IOMS**. |
+| "The PPE import accepts a company workbook with different column order" | True and useless. The mapping panel offered **two** rows, because the mappable fields are the employee's number and name. Everything that matters in a register was still decided silently, in English. |
+
+> [!important] The lesson, recorded in [[Verification Status]]
+> Two of the three were invisible to the test suite and to code reading, and obvious within seconds
+> of looking at the artefact. A renderer's limits are a thing to **measure**, in five minutes — a
+> limitation asserted from memory becomes a design decision nobody revisits.
 
 ---
 
@@ -320,10 +339,87 @@ mapping over the customer's own reversed headings (`No. Induk`, `Nama Pekerja`) 
 import agree on a mapping the customer edited; a mapping pointed at the wrong column **reports**
 rather than inventing; and a mapping cannot reach another tenant's employees.
 
-**Remaining, and not claimed:** the mapping panel is wired into the **PPE** dialog.
-`EmployeeImportDialog` still applies its suggestion without showing it — the endpoints now accept
-`sheet` and the panel is shared, so adopting it there is small, but it was not done and the employee
-import's behaviour is therefore unchanged (which was also the brief's "no regression" requirement).
+### v2.126.0 — the owner used the feature and nothing had changed. They were right.
+
+**Status:** **Lulus pengujian** `#status/implemented` · Full reasoning: **ADR 066**
+
+> "Saya mencoba fitur impor PPE, tetapi dari sisi penggunaan hasilnya masih sama seperti sebelumnya."
+
+Correct, and the reason is instructive. The mappable fields for this import are `employee_id` and
+`employee_name` — so v2.125.0's panel offered **two rows**. Everything that actually matters in a
+company's register was still decided silently, by matching a heading against a catalogue name **in
+English**:
+
+- which column is which equipment,
+- which holds a date and which a size,
+- which rows are even people,
+- who each row is about.
+
+A register whose columns read *Tgl Sepatu Safety*, *Ukuran Sepatu*, *Tgl Baju Kerja* matched nothing.
+The interface had grown; the reading had not.
+
+**What was built — a screening, in seven stages, writing nothing until the last.**
+`POST /ppe/import/screen` returns the server's whole reading with its reasons, and every correction
+is **posted back and re-read by the server**, never patched in the browser — so what the person sees
+is always what the server would do, which is the only thing that makes a preview a promise.
+
+| What a real register does | What v2.125.0 did | What v2.126.0 does |
+|---|---|---|
+| An instructions tab before the data | Opened sheet one | Opens the widest sheet; all sheets listed and switchable |
+| Title + blank line above the headings | Locator took a sub-table 10 rows in, reported a worker's NAME as a heading | Reads the **raw grid**; header row guessed and movable (1–8) |
+| `No. Induk` | Unrecognised (`comparisonKey` keeps the period) | Employee ID |
+| `Tgl Sepatu Safety` / `Ukuran Sepatu` | Neither recognised | Safety Shoes date / Safety Shoes size |
+| `FABRIKASI`, `Total` rows | Reported as **missing employees** | Read as furniture, counted, not errors |
+| `Baju Kerja` **and** `Coverall` | Only Coverall existed at all | Two different catalogue rows |
+| A duplicate name | — | `ambiguous`, with both candidates |
+
+**One reader, shared.** `WorkbookGrid` is used by the screening **and** the import. If the import
+found its own sheet and header row, everything the person approved would describe a different file
+— the v2.108.1 defect in a larger and more convincing disguise.
+
+**Nothing about the PPE rules moved.** An empty date cell is still not a fact; a type is still
+resolved against the company catalogue and never invented; the duplicate guard still resolves a type
+FAMILY; a plan arriving from a request has every type id re-checked against the company's own
+catalogue so it cannot name another tenant's row; and an import that sends **no plan** reads the
+IOMS template exactly as before.
+
+**Evidence — driven end to end through the real dialog, against MySQL 8**, on a workbook carrying
+every awkwardness in the table above: 4 employee rows read out of 12, 8 items issued to 3 people,
+`Tgl Baju Kerja` → Work Uniform and `Tgl Coverall` → Coverall **as two catalogue rows from one
+file**, sizes 42 and 41 recorded against Safety Shoes, `FABRIKASI`/`PRODUKSI`/`Total` absent from
+the report, `ZZZ-9999` refused, one unreadable date refused by column **and** row, and — after
+pairing `Ukuran Baju` with Work Uniform by hand — sizes **L** and **M** on the uniform issuances,
+read back from the database. The IOMS template re-run on a clean slate: 2 rows, 6 items, 0 skipped.
+Pinned by `PpeImportScreeningTest` (32 tests).
+
+**A defect of my own, caught in the dialog:** the first cut passed `SpreadsheetDate::parse()`'s
+return value to `->format()`, but it already returns a `Y-m-d` string — the screening threw and the
+dialog showed the generic "berkas tidak dapat dibaca". Found by uploading a file, not by reading.
+
+### 4.5 — why the uniform choice was only ever Coverall
+
+**Status:** **Lulus pengujian** `#status/implemented`
+
+**Root cause, and it was not the UI.** The catalogue **mechanism** works — PPE Master exposes
+`compliance_role`, and a tenant can add a type whenever they like. What it produced in practice is a
+shared catalogue whose only work-clothing entry is **Coverall**, because ADR 060 judged a uniform to
+be a per-customer item. So an HSE officer issuing a baju kerja had one option and it was the wrong
+garment.
+
+**Fixed as master data through the same mechanism Coverall uses**, not as a hardcoded name: `Work
+Uniform` joins the shared catalogue with `ROLE_WORK_CLOTHING`, by migration, idempotently, nothing
+backfilled, and a tenant's own `Work Uniform` row stays theirs (ADR 058). ADR 060's completeness
+rule is **unchanged** — work clothing is satisfied by Work Uniform **OR** Coverall, which is what it
+has always said; this is the first release in which the shipped catalogue offers both. A new test
+asserts that **either one alone** satisfies the group, so a yard that issues uniforms rather than
+coveralls is never told its whole workforce is non-compliant.
+
+**Remaining, and not claimed:** `EmployeeImportDialog` still applies its suggestion without showing
+it. The endpoints accept `sheet` and `header_row` and the screening is shared, so adopting it there
+is small — but the employee importer is surrounded by ~3,800 lines of regression born of four
+consecutive production incidents, and "no regression to the existing Employee Import" was an
+explicit requirement of the brief that introduced this work. Tracked as PTW-002 in
+[[Known Issues and Limitations]].
 
 ---
 
@@ -363,6 +459,43 @@ footers now name the issuing company, and no PDF view reaches for `ioms.company`
 
 Pinned by `PtwFieldRevisionTest::test_an_unset_company_name_does_not_put_the_product_name_on_a_permit`,
 asserted on the prop because the same prop feeds the screen, the print view and the PDF.
+
+### v2.126.0 — the header, after the owner looked at the PDF
+
+**Status:** **Lulus pengujian** `#status/implemented`
+
+> "Logo perusahaan pelanggan benar-benar ditampilkan dari pengaturan branding perusahaan, bukan
+> hanya nama perusahaan."
+
+Three separate faults, all found by rendering a permit rather than reading the template:
+
+1. **The permit was the one document not using the shared letterhead.** It had its own navy band
+   built from `branding()`, whose `logo_url` is an **HTTP URL** — so rendering a permit made an
+   outbound request to our own public host while Dompdf waited, and behind a firewall or a wrong
+   `APP_URL` drew nothing at all. That is the defect v2.112.0 fixed for every document that uses
+   `partials/letterhead`. The permit now uses it: logo from **local disk**, plus the legal name, the
+   address, the locality, the contact line and the registry numbers, in the hierarchy every other
+   IOMS document already uses.
+2. **The on-screen logo was gated behind a document template.** `documentTemplate?.show_logo &&
+   branding?.logo_url`, and `documentTemplate` is null until a Company Admin creates one for the
+   `permit_to_work` module key — which almost nobody does. A tenant who had uploaded their logo saw
+   their company name where their mark should be, and nothing explained why. The template's switch
+   still governs; its **absence** no longer does.
+3. **`identity()['name']` defaulted to the product name** — the same truthy-default defect found in
+   `branding()` one release earlier, in the second of the two methods. The letterhead read **IOMS**
+   over a permit belonging to "Business Unit".
+
+**And a duplicated title block went with them:** the sheet rendered "PERMIT TO WORK / HOT WORK /
+PTW-2026-00001" twice, a few millimetres apart — obvious the moment the rendered page was looked at,
+invisible while only the template was read.
+
+**Evidence:** the rendered PDF shows the customer's logo, `Galangan Nusantara Jaya`,
+`PT Galangan Nusantara Jaya`, the address, `Batam, Kepulauan Riau 29444, Indonesia`, the phone/email/
+website line and `NPWP 01.234.567.8-901.000`, with the ACTIVE stamp top right inside the type area.
+The screen header at 1440px and 390px now carries the same block. `DocumentIdentityTest` gained a
+source scan asserting that **no** PDF view reaches for `config('ioms.company')` — the developer's
+name, which was the next link in the chain and would have printed "Generated by Tahada Group" on a
+customer's permit.
 
 **Checked, already correct, no change made:**
 - **The rest of the header.** The address comes from the same branding, and the logo renders **only**
@@ -430,10 +563,52 @@ the detail and the document view; the `ACTIVE` standing stamp on the document vi
 390px; the PDF 8,053 bytes; `activity_logs` holding `actor_title = 'SPV HSE'` on the approving row
 and `'Welder'` on the requester's.
 
+### v2.126.0 — the owner rejected this and was right
+
+**Status:** **Lulus pengujian** `#status/implemented`
+
+> "Stamp approval masih berupa kotak biru biasa dengan tulisan APPROVED."
+
+Exactly so. v2.125.0 drew the stamps as a React component and gave the PDF a plain bordered box, on
+the stated belief that Dompdf could honour neither a rotation nor an ink texture — **a belief that
+was never tested and is wrong.** Dompdf 3.1.5 renders `transform: rotate()` and renders SVG through
+php-svg-lib, both confirmed by rendering a probe PDF and looking at it. ADR 065 now carries the
+correction at the top.
+
+**What was built:** `App\Services\Documents\StampRenderer` draws every stamp **once**, as SVG, and
+the **same data URI** is embedded by the PDF and handed to the Inertia page. Not two
+implementations agreeing by convention — one implementation, so there is nothing to drift. v2.125.0
+had a React component and a Blade box and they had already diverged by the time anyone looked at
+both.
+
+Three constraints, each **measured against a probe** rather than assumed:
+
+| Measured | Consequence |
+|---|---|
+| `Helvetica, Arial, sans-serif` → **serif**; `Arial` → serif; `Helvetica` → sans but **not bold** | Only the generic `sans-serif` is used |
+| `letter-spacing` **ignored outright** | Tracking is applied by positioning each glyph, so screen and paper track identically |
+| No filters, masks or gradients | The wear is plain white rectangles at low opacity |
+
+The distress is **deterministic**, seeded from the stamp's own text: one permit printed twice is one
+document, and on a controlled document a difference is something somebody has to explain.
+
+**Evidence:** rendered PDF inspected at 150dpi — ACTIVE slanted green distressed with the double
+rule and no date, CLOSED the same in red, APPROVED in blue carrying `Sri Handayani / SPV HSE /
+19 Oct 2026 21:34`. On screen at 1440px the identical SVG; at 390px the compact pill. Pinned by
+`DocumentStampRenderingTest` (10 tests), which asserts the negatives: no stamp for any status that
+is not a standing, no action stamp without an actor, no placeholder for a missing title, nothing
+Dompdf cannot render, and determinism.
+
+**Two defects of my own, caught by looking at the render:** the icon overlapped the first letter of
+the word (fixed by centring the mark and the word as one lockup), and the wear struck through
+"MANAGER SHIPYARD" and half of "HSE" (fixed by thinning the speckle below the rule — wear must not
+eat the evidence it exists to present).
+
 **Remaining, and not claimed:** the `verified` (green) variant exists and **renders nowhere**,
-because PTW has no verification action record to render it from. That is the honest outcome, not an
-oversight. A printed page and a monochrome print were not tested; the PDF was generated and
-inspected as a file, not printed.
+because PTW has one approval gate and no verification action record to render it from. That is the
+honest outcome, not an oversight — and inventing a stage to give the design somewhere to put green
+is what the brief forbids. A monochrome print was not tested; the PDF was generated and inspected
+as a file, not printed.
 
 ---
 
@@ -446,6 +621,23 @@ before deployment and verification.**
 
 **Status:** **Menunggu deployment** `#status/implemented`
 
+**v2.126.0:**
+
+- **Suite:** `vendor/bin/phpunit` — **1521 tests, 7797 assertions, green**. 44 tests are new
+  (`PpeImportScreeningTest` 32, `DocumentStampRenderingTest` 10, plus two on either work-clothing
+  type satisfying the group and on the PDF letterhead chain).
+- **Build:** `npm run build` clean.
+- **Migrations:** both applied on MySQL 8 — `Work Uniform` into the shared catalogue, and
+  `employee_ppe.size`.
+- **Browser / render:** the permit PDF rendered and inspected at 150dpi; the document view and the
+  detail page at 1440px; the document view at 390px; and the whole PPE import flow driven through
+  the real dialog with a database read-back.
+- **Four of my own defects were found this way and not by the suite:** a `ReferenceError` that
+  blanked the document view, a `->format()` on a string that broke the screening, the stamp icon
+  overlapping the word, and the ink wear striking through the approver's title.
+
+**v2.125.0:**
+
 - **Suite:** `vendor/bin/phpunit` — **1476 tests, 7612 assertions, green**, on SQLite (the suite's
   own connection). 31 tests are new (`PtwFieldRevisionTest` 23, `FlexibleImportSheetAndMappingTest`
   8).
@@ -455,9 +647,9 @@ before deployment and verification.**
   `activity_logs.actor_title` confirmed as `varchar(255) NULL`.
 - **Browser:** MySQL 8, four seeded plan tenants, a My Work account created through the real
   service, at **390px and 1440px**. What was driven is listed per row above.
-- **Production:** **not deployed and not verified.** Per ADR 057 the only honest claim after a
-  deploy is "the two signatures match", and no deploy has happened. [[Verification Status]] records
-  this.
+- **Production:** **not deployed and not verified**, for either release. Per ADR 057 the only honest
+  claim after a deploy is "the two signatures match", and no deploy has happened.
+  [[Verification Status]] records this.
 
 ---
 

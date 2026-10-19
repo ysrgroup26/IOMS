@@ -1,5 +1,6 @@
 import { usePage } from '@inertiajs/react';
 import { DocumentActionStamp } from '@/Components/shared/DocumentStamp';
+import { cn } from '@/lib/utils';
 
 /**
  * v2.72.0 -- THE DIGITAL APPROVAL MARK ON A CONTROLLED DOCUMENT.
@@ -52,7 +53,7 @@ import { DocumentActionStamp } from '@/Components/shared/DocumentStamp';
  * time, and a permit whose seal says a different hour on paper than on
  * screen is a controlled document contradicting itself.
  */
-export default function ApprovalStamp({ authorization, className, compact = false }) {
+export default function ApprovalStamp({ authorization, stamp = null, className, compact = false }) {
     // Falls back to the device timezone if the prop is somehow absent,
     // so the seal can never render a blank where a time should be.
     const displayTimeZone = usePage().props.display_timezone;
@@ -70,31 +71,45 @@ export default function ApprovalStamp({ authorization, className, compact = fals
         : null;
 
     /*
-     * v2.125.0 -- THE DRAWING MOVED OUT; THE CONTRACT STAYED HERE.
+     * v2.126.0 -- THE SEAL IS NOW DRAWN ON THE SERVER, ONCE.
      *
-     * The stamp used to be drawn inline in this file, in the product's
-     * success green. Two things changed and neither is cosmetic:
+     * v2.125.0 drew it here in CSS and gave the PDF a plain bordered box,
+     * on the stated belief that Dompdf could honour neither the rotation
+     * nor the ink texture. That belief was never tested and is wrong, and
+     * the owner's reply to the release was that the PDF stamp was still a
+     * plain blue box -- which it was. Two implementations of one design
+     * had already drifted by the time anyone looked at both.
      *
-     *  - APPROVAL IS BLUE NOW. The owner's stamp design separates the two
-     *    acts by colour -- green marks a VERIFICATION, blue marks an
-     *    APPROVAL -- and a product that uses one colour for both makes the
-     *    distinction unreadable at exactly the glance it exists for.
-     *    Green stays reserved for a verification record, and PTW renders
-     *    one only if it ever has one: this product has a single approval
-     *    gate (`hse_approver_id`), and inventing a second stage so the
-     *    design has somewhere to put green would be inventing authority.
+     * So `StampRenderer` draws it as SVG and the controller hands the SAME
+     * data URI to this page and to the PDF. An <img> rather than inline
+     * SVG because the bytes arrive as a data URI and must stay byte-
+     * identical to the sheet: re-expressing them in JSX is how the two
+     * surfaces diverge again.
      *
-     *  - THE TITLE IS THE COMPANY'S, NOT OURS. `authorization.role` is now
-     *    the job title that account held when it signed -- "SPV HSE",
-     *    "Manager Shipyard", whatever the customer configured -- read from
-     *    the stored action record, so renaming a position cannot rewrite a
-     *    permit already filed. See PermitToWorkController::authorizationFor().
-     *
-     * What did NOT change is the only thing that really matters: there is
-     * still no boolean. This component takes the server's authorization
-     * record or renders nothing, and `DocumentActionStamp` repeats the
-     * same refusal on its own `by` prop -- so neither layer can be talked
-     * into drawing an approval that never happened.
+     * `role="img"` with the full sentence as its label, since the drawing
+     * carries no text a screen reader can reach.
+     */
+    const spoken = `Approved by ${authorization.approver}`
+        + (authorization.role ? `, ${authorization.role}` : '')
+        + (at ? `, ${at}` : '');
+
+    if (stamp) {
+        return (
+            <img
+                src={stamp}
+                alt={spoken}
+                role="img"
+                className={cn('block h-auto max-w-full', compact ? 'w-[150px]' : 'w-[200px]', className)}
+            />
+        );
+    }
+
+    /*
+     * No server-drawn stamp reached this page -- an older cached payload,
+     * or a surface that has not been passed the prop yet. The component
+     * still refuses to invent a seal, and falls back to the typographic
+     * one rather than rendering nothing, because the APPROVAL ITSELF is a
+     * fact the reader needs even when the drawing is missing.
      */
     return (
         <DocumentActionStamp

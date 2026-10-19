@@ -110,21 +110,72 @@ class DocumentIdentityTest extends TestCase
     }
 
     /**
-     * A tenant that has set nothing still gets a usable header rather than
-     * a block of blanks -- but nothing beyond the name is invented.
+     * v2.126.0 -- AN UNCONFIGURED TENANT REPORTS NOTHING, AND THE VIEW
+     * DECIDES WHAT TO SHOW.
+     *
+     * This test used to assert `identity()['name'] === config('ioms.name')`,
+     * and that default is what put **IOMS** on a customer's Permit to Work
+     * letterhead over a permit belonging to a company called "Business
+     * Unit" -- found by rendering the sheet, not by reading the code. Every
+     * consumer of this field was already written as
+     * `$identity['name'] ?? config('ioms.name')`, so a truthy default
+     * defeated each of their fallbacks at the first link, and the operating
+     * unit's real name sat one `??` away unused.
+     *
+     * The intent the old test was protecting -- "a tenant that has set
+     * nothing still gets a usable header rather than a block of blanks" --
+     * is unchanged and still enforced, one layer out: the letterhead falls
+     * back to the company the document is ABOUT, and only then to the
+     * product name. What moved is WHERE the decision is made, to the only
+     * place that knows which company that is.
      */
-    public function test_an_unconfigured_tenant_falls_back_to_the_platform_name_only(): void
+    public function test_an_unconfigured_tenant_reports_no_name_so_the_view_can_fall_back(): void
     {
         $tenant = Tenant::create(['name' => 'Blank Co', 'slug' => 'blank-co']);
         app(CurrentTenant::class)->set($tenant);
 
         $identity = app(DocumentEngine::class)->identity();
 
-        $this->assertSame(config('ioms.name'), $identity['name']);
+        $this->assertNull($identity['name'], 'A default here silently outranks every caller\'s own fallback.');
         $this->assertNull($identity['legal_name']);
         $this->assertNull($identity['address']);
         $this->assertNull($identity['tax_id']);
         $this->assertNull($identity['logo_url']);
+    }
+
+    /**
+     * And the promise that replaces it: no document view may render the
+     * PRODUCT'S name as a company identity without first asking for the
+     * company's own.
+     *
+     * Read as source rather than rendered, because these are four separate
+     * documents with four fixtures and the rule is about the expression,
+     * not about one permit.
+     */
+    public function test_no_document_letterhead_reaches_for_the_product_name_before_the_company(): void
+    {
+        $offenders = [];
+
+        foreach (glob(resource_path('views/pdf/*.blade.php')) as $file) {
+            /*
+             * Blade comments stripped first. These views carry long
+             * historical notes -- one of them QUOTES the old
+             * `config('ioms.company')` expression while explaining why it
+             * was removed -- and a scan that reads those as code fails on
+             * the documentation of the very fix it is checking for. Caught
+             * by this test failing on its own first run.
+             */
+            $source = preg_replace('/\{\{--.*?--\}\}/s', '', file_get_contents($file)) ?? '';
+            $relative = str_replace(base_path().DIRECTORY_SEPARATOR, '', $file);
+
+            // `ioms.company` is the DEVELOPER's name. It has no business on
+            // a customer's document at any depth of a fallback chain.
+            if (str_contains($source, "config('ioms.company')")) {
+                $offenders[] = $relative.": reaches for config('ioms.company'), which is the developer, not the customer";
+            }
+        }
+
+        $this->assertSame([], $offenders, implode("\n  - ", array_merge([''], $offenders))."\n");
     }
 
     /** Every shared document partial the new templates depend on must exist. */

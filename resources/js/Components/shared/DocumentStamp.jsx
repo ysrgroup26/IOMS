@@ -273,14 +273,31 @@ export function DocumentActionStamp({ variant = 'approved', by, title, at, kindL
  * own `<StatusBadge>` stays responsible for every other state. See
  * `DocumentStateStamp` for why that line is drawn where it is.
  */
-export function DocumentStandingMark({ status, className }) {
-    if (!STATE_STAMPS[status]) {
+export function DocumentStandingMark({ status, stamp = null, className }) {
+    const spec = STATE_STAMPS[status];
+
+    if (!spec) {
         return null;
     }
 
     return (
         <span className={cn('inline-block', className)}>
-            <DocumentStateStamp status={status} className="hidden sm:inline-block" />
+            {/*
+              * v2.126.0 -- the SERVER'S drawing from `sm` up.
+              *
+              * `stamp` is the SVG data URI `StampRenderer` built, and the
+              * PDF embeds the same bytes. The CSS stamp below it remains
+              * as the fallback for a payload that carries no `stamp`, so
+              * the standing is never simply absent -- but when both exist
+              * the server's is the one shown, because a drawing that
+              * matches the sheet is the whole point.
+              */}
+            {stamp
+                ? <img src={stamp} alt={spec.word} role="img" className="hidden h-auto w-[136px] sm:block" />
+                : <DocumentStateStamp status={status} className="hidden sm:inline-block" />}
+            {/* Mobile keeps the pill: a slanted, distressed, double-ruled
+                plate at 60% size is illegible and eats a phone's first
+                screen. Same fact, different medium. */}
             <DocumentStateStamp status={status} compact className="sm:hidden" />
         </span>
     );

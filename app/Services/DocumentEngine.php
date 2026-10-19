@@ -83,6 +83,17 @@ class DocumentEngine
             'company_name' => CompanySetting::get('company_name'),
             'logo_url' => CompanySetting::get('company_logo_path') ? asset('storage/'.CompanySetting::get('company_logo_path')) : null,
             'address' => CompanySetting::get('company_address'),
+            /*
+             * v2.126.0 -- the two lines the on-screen document header was
+             * missing. `identity()` has carried them since v2.51.0 for the
+             * PDF letterhead; the screen showed a bare trading name and
+             * one address line, so the permit read as a different document
+             * on screen from the one that printed. Same source, same
+             * assembly -- `locality` is built once in identity() and
+             * reused, never formatted a second way here.
+             */
+            'legal_name' => CompanySetting::get('company_legal_name'),
+            'locality' => $this->identity()['locality'] ?? null,
             'brand_color' => CompanySetting::get('brand_color', '#2563eb'),
         ];
     }
@@ -136,7 +147,25 @@ class DocumentEngine
         ])->filter()->implode(' ');
 
         return [
-            'name' => CompanySetting::get('company_name', config('ioms.name')),
+            /*
+             * v2.126.0 -- NULL WHEN UNSET, for the reason `branding()`
+             * above now gives at length.
+             *
+             * This defaulted to `config('ioms.name')`, and the Permit to
+             * Work letterhead -- which started using this partial in this
+             * release -- promptly printed **IOMS** over a permit belonging
+             * to a company called "Business Unit", while the operating
+             * unit's real name sat one `??` away in the view. The same
+             * defect, in the second of the two methods, found the same way:
+             * by rendering a permit and looking at it rather than at the
+             * code.
+             *
+             * The caller knows which company the document is ABOUT; this
+             * method does not. So it reports what the tenant configured, or
+             * nothing, and `partials/letterhead` falls back as it was
+             * already written to.
+             */
+            'name' => CompanySetting::get('company_name'),
             'legal_name' => CompanySetting::get('company_legal_name'),
             'logo_url' => $logoPath ? asset('storage/'.$logoPath) : null,
             /*

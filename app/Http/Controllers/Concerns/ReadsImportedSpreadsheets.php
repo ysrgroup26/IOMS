@@ -4,7 +4,9 @@ namespace App\Http\Controllers\Concerns;
 
 use App\Services\Documents\DocumentIngestionService;
 use App\Services\Documents\FormatDetector;
+use App\Services\Documents\Import\WorkbookGrid;
 use App\Services\Documents\Support\ExtractedDocument;
+use App\Services\Documents\Support\ExtractedTable;
 use App\Services\Documents\TabularBridge;
 use App\Services\ImportHeaderMatcher;
 use Illuminate\Http\Request;
@@ -126,6 +128,64 @@ trait ReadsImportedSpreadsheets
          * No name sent behaves exactly as before.
          */
         $requestedSheet = $request->input('sheet');
+        $requestedHeaderRow = $request->integer('header_row');
+
+        /*
+         * v2.126.0 -- A SHEET **AND** A HEADER ROW THE PERSON CHOSE.
+         *
+         * v2.125.0 honoured a named sheet by finding the EXTRACTED TABLE
+         * with that name -- the locator's table, with the locator's idea
+         * of where the headings are. On a real company register that idea
+         * was row 10 of a sheet whose headings are on row 4, so a person
+         * who screened the file, corrected the header row and approved
+         * what they saw would have had something else imported. The
+         * screening would have been a description of a different file.
+         *
+         * So when a header row is named too, the file is read as the
+         * screening read it: the RAW GRID, through `WorkbookGrid`, which
+         * is the single reader both paths share. Bridged to .xlsx from
+         * that row, because Maatwebsite reads worksheet one from row one
+         * unless told otherwise.
+         */
+        if (is_string($requestedSheet) && trim($requestedSheet) !== '' && $requestedHeaderRow > 0
+            && in_array($format, [FormatDetector::XLSX, FormatDetector::XLS], true)) {
+            $grids = WorkbookGrid::read($file->getRealPath());
+
+            if (! isset($grids[$requestedSheet])) {
+                throw ValidationException::withMessages([
+                    'sheet' => 'Sheet "'.$requestedSheet.'" tidak ada di dalam berkas ini. Pilih sheet lain lalu coba lagi.',
+                ]);
+            }
+
+            $grid = $grids[$requestedSheet];
+            $headings = array_map(fn ($v) => trim((string) ($v ?? '')), $grid[$requestedHeaderRow - 1] ?? []);
+
+            if ($headings === []) {
+                throw ValidationException::withMessages([
+                    'header_row' => 'Baris '.$requestedHeaderRow.' pada sheet ini kosong, jadi tidak ada judul kolom untuk dibaca.',
+                ]);
+            }
+
+            $table = new ExtractedTable(
+                headings: array_values(array_map('strval', $headings)),
+                rows: array_values(array_slice($grid, $requestedHeaderRow)),
+                source: $requestedSheet,
+                confidence: 1.0,
+                headerRowNumber: $requestedHeaderRow,
+            );
+
+            $path = app(TabularBridge::class)->toSpreadsheet($table);
+
+            try {
+                // The bridge puts the headings on row 1, so a record that
+                // sat on source row N is now on row N - (headerRow - 1):
+                // the row numbers in the report match the customer's own
+                // file, which is what v2.111.0 established.
+                return $work($path, $requestedHeaderRow - 1, ExcelFacadeType::XLSX);
+            } finally {
+                @unlink($path);
+            }
+        }
 
         if (is_string($requestedSheet) && trim($requestedSheet) !== '') {
             $chosen = null;

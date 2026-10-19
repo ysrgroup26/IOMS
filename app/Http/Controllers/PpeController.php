@@ -15,6 +15,10 @@ use App\Models\Employee;
 use App\Models\EmployeePpe;
 use App\Models\PpeReplacementRequest;
 use App\Models\PpeType;
+use App\Services\Documents\DocumentIngestionService;
+use App\Services\Documents\FormatDetector;
+use App\Services\Documents\Import\PpeImportInterpreter;
+use App\Services\Documents\Import\WorkbookGrid;
 use App\Services\FieldMappingService;
 use App\Services\ImportHeaderMatcher;
 use App\Services\PpeComplianceService;
@@ -219,6 +223,303 @@ class PpeController extends Controller
     }
 
     /**
+     * v2.126.0 -- THE SCREENING STEP, WHICH IS WHAT WAS ACTUALLY MISSING.
+     *
+     * v2.125.0 added a sheet picker and a mapping panel, and the owner
+     * reported that in use the import was unchanged. That was correct: the
+     * mappable fields for this import are `employee_id` and
+     * `employee_name`, so the panel offered two rows, and everything that
+     * matters in a company's own PPE register -- which column is which
+     * equipment, which holds a date and which a size, which rows are even
+     * people, and who each row is about -- was still decided silently by
+     * matching a heading against a catalogue name in English.
+     *
+     * This endpoint returns the whole reading, for the person to check:
+     * the sheets, the header row, every column with its proposed role and
+     * the REASON for it, every row classified as a person or as furniture,
+     * every identity matched against the Employee Register with the match
+     * method named, and the issuances each row would produce with their
+     * dates and sizes.
+     *
+     * IT WRITES NOTHING, and it is deliberately the only thing the dialog
+     * calls before the person has confirmed anything. A plan comes back
+     * out of it; the plan is what `importPpe()` is handed.
+     */
+    public function screenPpeImport(Request $request): JsonResponse
+    {
+        abort_unless($request->user()->canManagePpeDistribution(), 403);
+
+        $request->validate([
+            'file' => $this->importFileRules(),
+            'company_id' => ['required', Rule::in(Company::query()->pluck('id'))],
+            'sheet' => ['nullable', 'string', 'max:200'],
+            // Which row holds the headings. A company register often
+            // carries a title and a blank line above them, and the
+            // locator's guess is a guess -- so the person may correct it.
+            'header_row' => ['nullable', 'integer', 'min:1', 'max:200'],
+            // The person's own corrections, applied on a re-screen: the
+            // panel posts the plan back and sees the reading it produces.
+            'columns' => ['nullable', 'array', 'max:200'],
+            'columns.*.role' => ['nullable', 'string', 'max:40'],
+            'columns.*.ppe_type_id' => ['nullable', 'integer'],
+        ]);
+
+        $companyId = (int) $request->input('company_id');
+
+        try {
+            $reading = $this->readSheetForScreening($request);
+        } catch (ValidationException $e) {
+            throw $e;
+        } catch (\Throwable $e) {
+            report($e);
+
+            return response()->json(['message' => 'Berkas ini tidak dapat dibaca. Periksa formatnya lalu coba lagi.'], 422);
+        }
+
+        $interpreter = new PpeImportInterpreter($companyId);
+
+        $columns = $interpreter->interpretColumns($reading['headings']);
+        $columns = $this->applyColumnOverrides($columns, $request->input('columns', []));
+
+        $rows = [];
+        $counts = ['data' => 0, 'skipped_rows' => 0, 'matched' => 0, 'review' => 0, 'unresolved' => 0, 'issuances' => 0, 'problems' => 0];
+
+        foreach ($reading['rows'] as $offset => $cells) {
+            $sourceRow = $reading['header_row'] + 1 + $offset;
+            $class = $interpreter->classifyRow($cells, $columns);
+
+            if ($class['kind'] !== PpeImportInterpreter::ROW_DATA) {
+                $counts['skipped_rows']++;
+                $rows[] = [
+                    'source_row' => $sourceRow,
+                    'kind' => $class['kind'],
+                    'reason' => $class['reason'],
+                ];
+
+                continue;
+            }
+
+            $counts['data']++;
+            $match = $interpreter->matchEmployee($cells, $columns);
+            $issuances = $interpreter->interpretIssuances($cells, $columns);
+
+            $counts[match ($match['status']) {
+                'matched' => 'matched',
+                'review' => 'review',
+                default => 'unresolved',
+            }]++;
+
+            foreach ($issuances as $issuance) {
+                $issuance['problem'] === null ? $counts['issuances']++ : $counts['problems']++;
+            }
+
+            $rows[] = [
+                'source_row' => $sourceRow,
+                'kind' => PpeImportInterpreter::ROW_DATA,
+                'reason' => '',
+                'match' => $match,
+                'issuances' => $issuances,
+            ];
+        }
+
+        return response()->json([
+            'sheets' => $reading['sheets'],
+            'sheet' => $reading['sheet'],
+            'header_row' => $reading['header_row'],
+            'headings' => $reading['headings'],
+            'columns' => $columns,
+            'catalogue' => $interpreter->catalogueOptions(),
+            'rows' => $rows,
+            'counts' => $counts,
+            'roles' => [
+                PpeImportInterpreter::ROLE_EMPLOYEE_ID => 'Employee ID',
+                PpeImportInterpreter::ROLE_EMPLOYEE_NAME => 'Employee Name',
+                PpeImportInterpreter::ROLE_NIK => 'NIK',
+                PpeImportInterpreter::ROLE_DEPARTMENT => 'Department',
+                PpeImportInterpreter::ROLE_PPE_DATE => 'PPE Issue Date',
+                PpeImportInterpreter::ROLE_PPE_SIZE => 'PPE Size',
+                PpeImportInterpreter::ROLE_IGNORED => 'Not imported',
+            ],
+        ]);
+    }
+
+    /**
+     * The chosen sheet, as a heading row plus the rows under it.
+     *
+     * Reads through the Document Platform rather than Maatwebsite, because
+     * the screening needs the WHOLE grid -- including the rows above the
+     * headings and the ones that are not people -- and a heading-row
+     * reader has already thrown those away by the time it hands anything
+     * over.
+     *
+     * @return array{sheets: list<array<string,mixed>>, sheet: ?string, header_row: int, headings: list<string>, rows: list<array<int, mixed>>}
+     */
+    private function readSheetForScreening(Request $request): array
+    {
+        $file = $request->file('file');
+        $format = app(FormatDetector::class)->detectUploaded($file);
+
+        if ($format === null) {
+            throw ValidationException::withMessages([
+                'file' => 'Format berkas ini tidak dikenali. Format yang diterima: Excel (.xlsx/.xls), CSV, Word (.docx) dan PDF.',
+            ]);
+        }
+
+        /*
+         * v2.126.0 -- THE RAW GRID, NOT THE LOCATOR'S TABLE.
+         *
+         * The first cut of this screening read `ExtractedTable`, and on
+         * the very first real company register it got the header row
+         * wrong: given a title, a subtitle, a blank line, the real
+         * headings on row 4, department separators and a subtotal, the
+         * locator settled on a sub-table starting at row 10 and reported
+         * the file as two rows with a worker's name as a column heading.
+         * Seen by opening the dialog, not by reading the code.
+         *
+         * That is not a locator bug to chase -- the locator is a heuristic
+         * built to pick ONE table out of a document, and this screen's
+         * whole purpose is to let a PERSON pick. So a spreadsheet is read
+         * as its raw grid: every row, including the ones above the
+         * headings, so `header_row` means row 4 of the sheet and not
+         * row 4 of something we guessed at.
+         *
+         * Word, CSV and PDF keep the extracted table, because for them
+         * there is no worksheet grid to read instead.
+         */
+        if (in_array($format, [FormatDetector::XLSX, FormatDetector::XLS], true)) {
+            return $this->readWorkbookGrid($file->getRealPath(), $request);
+        }
+
+        $document = app(DocumentIngestionService::class)->extract($file->getRealPath(), $format);
+
+        if ($document->tables === []) {
+            throw ValidationException::withMessages([
+                'file' => 'Tidak ada tabel yang dapat dibaca dari berkas ini. Pastikan berkas memuat tabel dengan baris judul kolom.',
+            ]);
+        }
+
+        $requested = $request->input('sheet');
+        $table = null;
+
+        foreach ($document->tables as $candidate) {
+            if (is_string($requested) && $candidate->source === $requested) {
+                $table = $candidate;
+                break;
+            }
+        }
+
+        $table ??= $document->primaryTable();
+
+        return [
+            'sheets' => array_map(fn ($t) => [
+                'name' => $t->source,
+                'row_count' => $t->rowCount(),
+                'column_count' => $t->columnCount(),
+                'header_row_number' => $t->headerRowNumber,
+            ], $document->tables),
+            'sheet' => $table->source,
+            'header_row' => $table->headerRowNumber,
+            'headings' => array_map(fn ($v) => (string) $v, $table->headings),
+            'rows' => array_slice($table->rows, 0, 400),
+        ];
+    }
+
+    /**
+     * A workbook read as worksheets and rows, with the heading row either
+     * chosen by the person or guessed and SAID to be a guess.
+     *
+     * The reading itself lives in `WorkbookGrid`, which the IMPORT path
+     * also uses -- so the sheet and header row the person approves here
+     * are the ones the import actually reads. Two readers would have
+     * produced a screening that described a different file.
+     *
+     * @return array{sheets: list<array<string,mixed>>, sheet: ?string, header_row: int, headings: list<string>, rows: list<array<int, mixed>>}
+     */
+    private function readWorkbookGrid(string $path, Request $request): array
+    {
+        $grids = WorkbookGrid::read($path);
+
+        if ($grids === []) {
+            throw ValidationException::withMessages(['file' => 'Berkas ini tidak memuat worksheet apa pun.']);
+        }
+
+        $sheets = [];
+
+        foreach ($grids as $title => $grid) {
+            $width = 0;
+
+            foreach ($grid as $row) {
+                $width = max($width, count($row));
+            }
+
+            $sheets[] = [
+                'name' => $title,
+                'row_count' => count($grid),
+                'column_count' => $width,
+                'header_row_number' => null,
+            ];
+        }
+
+        $requested = $request->input('sheet');
+        $name = is_string($requested) && isset($grids[$requested])
+            ? $requested
+            : (WorkbookGrid::widestSheet($grids) ?? array_key_first($grids));
+
+        $grid = $grids[$name] ?? [];
+        $headerRow = $request->integer('header_row') ?: WorkbookGrid::guessHeaderRow($grid);
+        $headings = array_map(fn ($v) => trim((string) ($v ?? '')), $grid[$headerRow - 1] ?? []);
+
+        return [
+            'sheets' => $sheets,
+            'sheet' => $name,
+            'header_row' => $headerRow,
+            'headings' => $headings,
+            'rows' => array_slice($grid, $headerRow, WorkbookGrid::MAX_ROWS),
+        ];
+    }
+
+
+    /**
+     * The person's corrections, applied over the reading.
+     *
+     * Keyed by column index, because a heading can repeat and a position
+     * cannot. An override makes a column `matched`: the person said so,
+     * and that is a stronger statement than any heuristic here.
+     */
+    private function applyColumnOverrides(array $columns, mixed $overrides): array
+    {
+        if (! is_array($overrides)) {
+            return $columns;
+        }
+
+        foreach ($columns as $i => $column) {
+            $given = $overrides[(string) $column['index']] ?? $overrides[$column['index']] ?? null;
+
+            if (! is_array($given)) {
+                continue;
+            }
+
+            if (array_key_exists('role', $given) && is_string($given['role'])) {
+                $columns[$i]['role'] = $given['role'];
+                $columns[$i]['confidence'] = PpeImportInterpreter::CONFIDENCE_MATCHED;
+                $columns[$i]['reason'] = 'Ditetapkan oleh Anda.';
+            }
+
+            if (array_key_exists('ppe_type_id', $given)) {
+                $columns[$i]['ppe_type_id'] = $given['ppe_type_id'] === null ? null : (int) $given['ppe_type_id'];
+                $columns[$i]['confidence'] = $columns[$i]['ppe_type_id'] === null
+                    ? PpeImportInterpreter::CONFIDENCE_UNMATCHED
+                    : PpeImportInterpreter::CONFIDENCE_MATCHED;
+                $columns[$i]['reason'] = $columns[$i]['ppe_type_id'] === null
+                    ? 'Belum dipasangkan dengan jenis APD. Kolom ini tidak akan diimpor.'
+                    : 'Ditetapkan oleh Anda.';
+            }
+        }
+
+        return $columns;
+    }
+
+    /**
      * What WOULD happen, with nothing written.
      *
      * Runs `EmployeePpeImport` in preview mode, so every refusal the real
@@ -238,6 +539,21 @@ class PpeController extends Controller
             // withImportSpreadsheet(), which is the one place that has the
             // file open and can refuse by name.
             'sheet' => ['nullable', 'string', 'max:200'],
+            // v2.126.0 -- the plan the person confirmed during screening.
+            // Shaped as PpeImportInterpreter produced it; every type id in
+            // it is re-checked against this company's catalogue inside the
+            // importer, so a request cannot name another tenant's row.
+            'header_row' => ['nullable', 'integer', 'min:1', 'max:200'],
+            'plan' => ['nullable', 'array', 'max:200'],
+            'plan.*.index' => ['required_with:plan', 'integer', 'min:0'],
+            'plan.*.role' => ['nullable', 'string', 'max:40'],
+            'plan.*.ppe_type_id' => ['nullable', 'integer'],
+            'plan.*.heading' => ['nullable', 'string', 'max:200'],
+            'rejected_rows' => ['nullable', 'array', 'max:2000'],
+            'rejected_rows.*' => ['integer', 'min:1'],
+            // Rows the screening read as not being people. Not errors.
+            'ignored_rows' => ['nullable', 'array', 'max:2000'],
+            'ignored_rows.*' => ['integer', 'min:1'],
             ...$this->ppeColumnMappingRules(),
         ]);
 
@@ -251,6 +567,9 @@ class PpeController extends Controller
                     previewOnly: true,
                     columnKeys: $mapping->importColumnKeys('employee_ppe', $request->input('column_mapping', [])),
                     rowOffset: $rowOffset,
+                    columnPlan: $this->confirmedPlan($request),
+                    rejectedRows: array_map('intval', $request->input('rejected_rows', [])),
+                    ignoredRows: array_map('intval', $request->input('ignored_rows', [])),
                 );
                 Excel::import($import, $path, null, $reader);
 
@@ -280,6 +599,21 @@ class PpeController extends Controller
             // withImportSpreadsheet(), which is the one place that has the
             // file open and can refuse by name.
             'sheet' => ['nullable', 'string', 'max:200'],
+            // v2.126.0 -- the plan the person confirmed during screening.
+            // Shaped as PpeImportInterpreter produced it; every type id in
+            // it is re-checked against this company's catalogue inside the
+            // importer, so a request cannot name another tenant's row.
+            'header_row' => ['nullable', 'integer', 'min:1', 'max:200'],
+            'plan' => ['nullable', 'array', 'max:200'],
+            'plan.*.index' => ['required_with:plan', 'integer', 'min:0'],
+            'plan.*.role' => ['nullable', 'string', 'max:40'],
+            'plan.*.ppe_type_id' => ['nullable', 'integer'],
+            'plan.*.heading' => ['nullable', 'string', 'max:200'],
+            'rejected_rows' => ['nullable', 'array', 'max:2000'],
+            'rejected_rows.*' => ['integer', 'min:1'],
+            // Rows the screening read as not being people. Not errors.
+            'ignored_rows' => ['nullable', 'array', 'max:2000'],
+            'ignored_rows.*' => ['integer', 'min:1'],
             ...$this->ppeColumnMappingRules(),
         ]);
 
@@ -292,6 +626,12 @@ class PpeController extends Controller
                     $request->user()->id,
                     columnKeys: $mapping->importColumnKeys('employee_ppe', $request->input('column_mapping', [])),
                     rowOffset: $rowOffset,
+                    // THE SAME plan and the SAME rejections the preview ran
+                    // on. v2.108.1's rule -- the preview is a promise the
+                    // import keeps -- applied to a plan the person built.
+                    columnPlan: $this->confirmedPlan($request),
+                    rejectedRows: array_map('intval', $request->input('rejected_rows', [])),
+                    ignoredRows: array_map('intval', $request->input('ignored_rows', [])),
                 );
                 Excel::import($import, $path, null, $reader);
 
@@ -332,6 +672,21 @@ class PpeController extends Controller
         );
     }
 
+    /**
+     * The plan as the importer expects it, or null when the person is
+     * using the IOMS template and never screened anything.
+     *
+     * Null rather than an empty array deliberately: an empty plan means
+     * "map no columns", and the template path must keep resolving its own
+     * headings exactly as it did before this release.
+     */
+    private function confirmedPlan(Request $request): ?array
+    {
+        $plan = $request->input('plan');
+
+        return is_array($plan) && $plan !== [] ? array_values($plan) : null;
+    }
+
     /** @return array<string, mixed> */
     private function ppeImportSummary(EmployeePpeImport $import): array
     {
@@ -350,6 +705,10 @@ class PpeController extends Controller
             // thing to fix rather than forty.
             'unknown_employees' => array_values(array_unique($import->unknownEmployees)),
             'unknown_columns' => array_values(array_unique($import->unknownColumns)),
+            // v2.126.0 -- what the person's own decisions did.
+            'rejected' => $import->rejected,
+            'ignored_structural_rows' => $import->ignoredStructuralRows,
+            'sizes_recorded' => $import->sizesRecorded,
         ];
     }
 

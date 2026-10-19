@@ -1,6 +1,6 @@
 # ADR 065 — A stamp is an action record, and its title belongs to the company
 
-**Status:** Accepted · **Date:** 2026-10-19 · **Release:** v2.125.0
+**Status:** Accepted · **Date:** 2026-10-19 · **Release:** v2.125.0, **substantially corrected in v2.126.0**
 
 Extends [ADR 057](057-a-release-must-be-able-to-prove-what-is-running.md)'s habit of refusing to
 display what cannot be proven, and keeps the contract v2.100.0 established for the approver's name.
@@ -34,19 +34,49 @@ somebody glancing at an amber seal on site and reading it as authorisation.
 
 ## Decision 2 — the reference is rebuilt, not embedded
 
-CSS and type, in a component. An image could not change when the permit closes, could not name who
-signed, could not be read by a screen reader, and could not be printed at another size without going
-soft.
+SVG and type, generated per record. An image could not change when the permit closes, could not name
+who signed, could not be read by a screen reader, and could not be printed at another size without
+going soft. Nothing here is a stored asset: every stamp is composed from the real action record, and
+a stamp with no actor is not drawn at all.
 
-The distressed ink is two layered repeating gradients in `currentColor`, so one rule serves both
-colours and both themes. It is `aria-hidden` and carries no information: the stamp is fully legible
-without it.
+**The wear is deterministic.** `mt_rand()` would mean one permit printed twice produced two
+different documents, and on a controlled document a difference is something somebody has to explain.
+The speckle is seeded from the stamp's own text, so one permit always yields one impression and two
+different stamps never wear identically.
 
-**The slant and the distress are deliberately NOT attempted in the PDF.** Dompdf's CSS is print-era:
-no reliable `transform: rotate()` on a table cell, no blend modes. Both would land as a
-mis-positioned box or as nothing. A stamp that renders wrong on the sheet an auditor is holding is
-worse than one that renders plainly, so paper gets the composition — double rule, weight, tracking,
-colour — without the two effects it cannot honour.
+> [!important] **Corrected in v2.126.0 — the paragraph that stood here was wrong, and untested.**
+> It said: *"The slant and the distress are deliberately NOT attempted in the PDF. Dompdf's CSS is
+> print-era: no reliable `transform: rotate()` on a table cell, no blend modes."*
+>
+> **Dompdf 3.1.5 renders `transform: rotate()` correctly, and renders SVG through php-svg-lib.**
+> Both were verified by rendering a probe PDF and looking at it — which is exactly what should have
+> happened before the claim was written. The owner's reply to v2.126.0's predecessor was that the
+> PDF stamp was still a plain blue box with the word APPROVED in it. It was, and this ADR is why.
+>
+> The lesson is not about Dompdf. A renderer's limits are a thing to MEASURE, in five minutes, and
+> a limitation asserted from memory becomes a design decision nobody revisits. See
+> [[Verification Status]].
+
+**The stamps are drawn ONCE, on the server, as SVG** (`App\Services\Documents\StampRenderer`), and
+the same data URI is embedded by the PDF and handed to the Inertia page. Not two implementations
+agreeing by convention — one implementation, so there is nothing to drift. v2.125.0 had a React
+component and a Blade box, and they had already diverged by the time anybody looked at both.
+
+Three constraints that shaped it, each measured rather than assumed:
+
+- **`font-family="sans-serif"`, nothing else.** `Helvetica, Arial, sans-serif` fell back to a serif
+  face; `Arial` alone did too; `Helvetica` alone resolved sans but dropped the bold weight. Only the
+  generic gave bold sans.
+- **Tracking is applied by positioning each glyph**, because `letter-spacing` is ignored outright —
+  so a word tracked out on screen arrived tight on paper, the two surfaces showing two stamps.
+- **No filters, masks or gradients.** php-svg-lib supports none of them, so a distress built from
+  `feTurbulence` would look right in a browser and arrive blank on the sheet. The wear is plain
+  white rectangles at low opacity, which both renderers draw identically.
+
+**Mobile still gets a pill, not a shrunken stamp**, and the choice is made in CSS
+(`hidden sm:inline-block`) rather than with `useMediaQuery`, because a document view is also
+*printed*: a JS media query resolves against the viewport, so a stamp chosen at phone width would
+have followed the document into print at phone width.
 
 **Mobile gets a pill, not a shrunken stamp.** Chosen in CSS (`hidden sm:inline-block`) rather than
 with `useMediaQuery`, because a document view is also *printed*: a JS media query resolves against

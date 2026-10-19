@@ -69,6 +69,15 @@ class EmployeePpeImport implements OnEachRow, WithChunkReading, WithHeadingRow
     /** Cells left blank -- reported as a figure, never as a problem. */
     public int $blankCells = 0;
 
+    /** v2.126.0 -- rows the person rejected during screening. */
+    public int $rejected = 0;
+
+    /** v2.126.0 -- rows the screening read as not being people at all. */
+    public int $ignoredStructuralRows = 0;
+
+    /** v2.126.0 -- sizes recorded alongside their issuance. */
+    public int $sizesRecorded = 0;
+
     private array $seenEmployees = [];
 
     private array $seenPairs = [];
@@ -91,6 +100,52 @@ class EmployeePpeImport implements OnEachRow, WithChunkReading, WithHeadingRow
         private readonly ?array $columnKeys = null,
         /** @see EmployeesImport — the same reported-row correction, same reason. */
         private readonly int $rowOffset = 0,
+        /*
+         * v2.126.0 -- THE PLAN THE PERSON CONFIRMED, when there is one.
+         *
+         * Shaped exactly as `PpeImportInterpreter` produces it:
+         *
+         *   [['index' => 3, 'heading' => 'Sepatu Safety', 'role' => 'ppe_date',
+         *     'ppe_type_id' => 12], ...]
+         *
+         * When given, it REPLACES this class's own heading-to-catalogue
+         * resolution: the import then reads the file the way the screening
+         * showed it, which is the promise the preview makes. When absent,
+         * everything below behaves exactly as it did before -- the
+         * template path and its tests are untouched.
+         *
+         * It cannot widen anything. Every `ppe_type_id` in it is checked
+         * against this company's catalogue here, so a plan naming another
+         * tenant's type resolves to nothing rather than to their row.
+         */
+        private readonly ?array $columnPlan = null,
+        /**
+         * Source row numbers the person rejected during screening. They
+         * are counted as rejected and WRITE NOTHING -- the owner's brief
+         * asks for a reject that is honoured, not one that is noted.
+         *
+         * @var list<int>
+         */
+        private readonly array $rejectedRows = [],
+        /**
+         * Source rows the screening read as NOT BEING PEOPLE: a title, a
+         * department separator, a subtotal, a blank.
+         *
+         * They are skipped silently and counted on their own, because they
+         * are not errors. Without this the importer re-read them as
+         * employees and the report said "Employee ID berikut tidak
+         * ditemukan: FABRIKASI, PRODUKSI, Total" -- naming a department
+         * heading and a subtotal row as missing staff, which is both
+         * alarming and nonsense. Seen in the dialog on the first real
+         * company register.
+         *
+         * The screening already made this judgement and showed it to the
+         * person; the import honours it rather than making a second,
+         * worse one.
+         *
+         * @var list<int>
+         */
+        private readonly array $ignoredRows = [],
     ) {}
 
     public function chunkSize(): int
@@ -207,6 +262,45 @@ class EmployeePpeImport implements OnEachRow, WithChunkReading, WithHeadingRow
             return $this->columnTypes;
         }
 
+        /*
+         * v2.126.0 -- THE CONFIRMED PLAN WINS, and it is keyed by POSITION.
+         *
+         * Maatwebsite hands every row the same slugged heading keys, in
+         * the file's own column order, so the nth key IS the nth column --
+         * which is what lets a plan built from positions (the screening
+         * reads the raw grid) be applied to rows read by heading. A
+         * heading can repeat and a position cannot, so position is the
+         * only index that is safe here.
+         *
+         * Every type id is re-resolved against THIS company's catalogue:
+         * the plan arrives from a request, and a request may not name
+         * another tenant's row.
+         */
+        if ($this->columnPlan !== null) {
+            $keys = array_keys($data);
+            $allowed = array_flip(array_values($this->ppeTypesByName()));
+            $map = [];
+
+            foreach ($this->columnPlan as $column) {
+                $index = (int) ($column['index'] ?? -1);
+                $typeId = isset($column['ppe_type_id']) ? (int) $column['ppe_type_id'] : 0;
+
+                if (($column['role'] ?? null) !== 'ppe_date' || $typeId <= 0 || ! isset($keys[$index])) {
+                    continue;
+                }
+
+                if (! isset($allowed[$typeId])) {
+                    $this->unknownColumns[] = Str::headline((string) ($column['heading'] ?? $keys[$index]));
+
+                    continue;
+                }
+
+                $map[$keys[$index]] = $typeId;
+            }
+
+            return $this->columnTypes = $map;
+        }
+
         $identity = [];
         foreach (['employee_id', 'employee_name'] as $field) {
             $identity[$this->columnKeys[$field] ?? $field] = true;
@@ -252,6 +346,38 @@ class EmployeePpeImport implements OnEachRow, WithChunkReading, WithHeadingRow
         return $this->columnTypes = $map;
     }
 
+    /**
+     * v2.126.0 -- the size column paired with each PPE type, from the plan.
+     *
+     * @return array<int, string> ppe type id => the row's size for it
+     */
+    private function sizesFor(array $data): array
+    {
+        if ($this->columnPlan === null) {
+            return [];
+        }
+
+        $keys = array_keys($data);
+        $sizes = [];
+
+        foreach ($this->columnPlan as $column) {
+            $index = (int) ($column['index'] ?? -1);
+            $typeId = isset($column['ppe_type_id']) ? (int) $column['ppe_type_id'] : 0;
+
+            if (($column['role'] ?? null) !== 'ppe_size' || $typeId <= 0 || ! isset($keys[$index])) {
+                continue;
+            }
+
+            $size = trim((string) ($data[$keys[$index]] ?? ''));
+
+            if ($size !== '') {
+                $sizes[$typeId] = mb_substr($size, 0, 40);
+            }
+        }
+
+        return $sizes;
+    }
+
     public function onRow(Row $row): void
     {
         $this->totalRows++;
@@ -259,6 +385,33 @@ class EmployeePpeImport implements OnEachRow, WithChunkReading, WithHeadingRow
         // Raw, not formatted -- see identifier() and EmployeesImport v2.113.0.
         $data = $row->toArray(null, false, false);
         $rowNumber = $row->getIndex() + $this->rowOffset;
+
+        /*
+         * v2.126.0 -- A ROW THE PERSON REJECTED IS NOT READ.
+         *
+         * Checked before anything else, including before the Employee ID
+         * is looked at, so a rejected row cannot contribute a warning, a
+         * duplicate claim, or a "not found" to the report either. It is
+         * counted as rejected and that is all it does.
+         */
+        if (in_array($rowNumber, $this->rejectedRows, true)) {
+            $this->rejected++;
+
+            return;
+        }
+
+        /*
+         * Furniture: a title, a department separator, a subtotal, a blank.
+         * Counted, never reported as a problem, and -- crucially -- never
+         * run through the Employee ID lookup, which is what turned
+         * "FABRIKASI" into a missing member of staff.
+         */
+        if (in_array($rowNumber, $this->ignoredRows, true)) {
+            $this->ignoredStructuralRows++;
+            $this->totalRows--;
+
+            return;
+        }
 
         $columns = $this->columnTypes($data);
         $employeeNumber = $this->identifier($this->col($data, 'employee_id'));
@@ -316,6 +469,7 @@ class EmployeePpeImport implements OnEachRow, WithChunkReading, WithHeadingRow
         }
 
         $issuedHere = 0;
+        $sizes = $this->sizesFor($data);
 
         foreach ($columns as $heading => $typeId) {
             $raw = $data[$heading] ?? null;
@@ -374,11 +528,17 @@ class EmployeePpeImport implements OnEachRow, WithChunkReading, WithHeadingRow
                 $this->imported++;
                 $issuedHere++;
 
+                if (($sizes[$typeId] ?? $sizes[$family] ?? null) !== null) {
+                    $this->sizesRecorded++;
+                }
+
                 continue;
             }
 
+            $size = $sizes[$typeId] ?? $sizes[$family] ?? null;
+
             try {
-                DB::transaction(function () use ($employeeId, $typeId, $issuedDate) {
+                DB::transaction(function () use ($employeeId, $typeId, $issuedDate, $size) {
                     /*
                      * `create()`, never a bulk insert: the model's
                      * `creating` hook resolves a shared template to this
@@ -389,6 +549,11 @@ class EmployeePpeImport implements OnEachRow, WithChunkReading, WithHeadingRow
                         'employee_id' => $employeeId,
                         'ppe_type_id' => $typeId,
                         'issued_date' => $issuedDate,
+                        // v2.126.0 -- the size this row recorded for this
+                        // kind of equipment, kept WITH its issuance rather
+                        // than dropped. Null when the file carries none,
+                        // which is not the same as empty.
+                        'size' => $size,
                         'issued_by' => $this->userId,
                         'status' => EmployeePpe::STATUS_ISSUED,
                     ]);
@@ -406,6 +571,10 @@ class EmployeePpeImport implements OnEachRow, WithChunkReading, WithHeadingRow
             $this->heldFamilies[$employeeId][$family] = true;
             $this->imported++;
             $issuedHere++;
+
+            if ($size !== null) {
+                $this->sizesRecorded++;
+            }
         }
 
         if ($issuedHere > 0) {

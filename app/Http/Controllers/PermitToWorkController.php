@@ -12,10 +12,12 @@ use App\Models\PpeType;
 use App\Models\Project;
 use App\Models\RiskAssessment;
 use App\Services\DocumentEngine;
+use App\Services\Documents\StampRenderer;
 use App\Services\PdfGeneratorService;
 use App\Services\PtwQuotaService;
 use Illuminate\Http\RedirectResponse;
 use Illuminate\Http\Request;
+use Illuminate\Support\Carbon;
 use Illuminate\Support\Facades\DB;
 use Illuminate\Validation\Rule;
 use Illuminate\Validation\ValidationException;
@@ -382,7 +384,9 @@ class PermitToWorkController extends Controller
             // already does, reused rather than duplicated logic.
             'rejectionReason' => $this->rejectionReasonFor($permitToWork),
             // v2.72.0: null unless the permit is genuinely authorised.
-            'authorization' => $this->authorizationFor($permitToWork),
+            'authorization' => $authorization = $this->authorizationFor($permitToWork),
+            // v2.126.0 -- the same SVG the PDF embeds. @see stampsFor()
+            'stamps' => $this->stampsFor($permitToWork, $authorization),
             // v2.73.0 -- resolved names for the ids this permit stored.
             'ppe' => $this->ppeFor($permitToWork),
         ]);
@@ -492,6 +496,22 @@ class PermitToWorkController extends Controller
             'company' => $permitToWork->company,
             'documentTemplate' => $documents->resolveTemplate('permit_to_work', $permitToWork->company_id),
             'branding' => $documents->branding(),
+            /*
+             * v2.126.0 -- THE LETTERHEAD THE OTHER DOCUMENTS ALREADY USE.
+             *
+             * This view had its own header built from `branding()`, whose
+             * `logo_url` is an HTTP URL -- so rendering a permit made an
+             * outbound request to our own public host and, behind a
+             * firewall or a wrong APP_URL, drew nothing at all. v2.112.0
+             * fixed exactly that for every document that uses
+             * `partials/letterhead`, and the permit was not one of them,
+             * which is why the owner saw a company NAME where a logo
+             * should be. `identity()` carries `logo_path` -- the file on
+             * local disk, null unless it is really there -- plus the legal
+             * name, address, locality, contact and registry lines the
+             * header is supposed to show.
+             */
+            'identity' => $documents->identity(),
             // v2.10.0 (PTW Document Polish pass, Phase 3D). REAL,
             // CONFIRMED gap found by this pass's own audit: the browser
             // Document view has shown the rejection reason since v2.6.0,
@@ -502,7 +522,9 @@ class PermitToWorkController extends Controller
             // a third copy of the lookup.
             'rejectionReason' => $this->rejectionReasonFor($permitToWork),
             // v2.72.0: null unless the permit is genuinely authorised.
-            'authorization' => $this->authorizationFor($permitToWork),
+            'authorization' => $authorization = $this->authorizationFor($permitToWork),
+            // v2.126.0 -- the same SVG the PDF embeds. @see stampsFor()
+            'stamps' => $this->stampsFor($permitToWork, $authorization),
             'ppe' => $this->ppeFor($permitToWork),
         ], "{$permitToWork->ptw_number}.pdf");
     }
@@ -539,7 +561,9 @@ class PermitToWorkController extends Controller
             'branding' => $documents->branding(),
             'rejectionReason' => $this->rejectionReasonFor($permitToWork),
             // v2.72.0: null unless the permit is genuinely authorised.
-            'authorization' => $this->authorizationFor($permitToWork),
+            'authorization' => $authorization = $this->authorizationFor($permitToWork),
+            // v2.126.0 -- the same SVG the PDF embeds. @see stampsFor()
+            'stamps' => $this->stampsFor($permitToWork, $authorization),
             'ppe' => $this->ppeFor($permitToWork),
         ]);
     }
@@ -601,6 +625,48 @@ class PermitToWorkController extends Controller
      * stamps correctly and simply shows no time, rather than showing a
      * fabricated one.
      */
+    /**
+     * v2.126.0 -- THE STAMPS, DRAWN ONCE, FOR EVERY SURFACE.
+     *
+     * v2.125.0 drew the stamps as a React component and gave the PDF a
+     * plain bordered box, on the stated belief that Dompdf could not
+     * honour a rotation or an ink texture. That belief was never tested
+     * and is wrong -- Dompdf 3.1.5 renders both, verified by rendering a
+     * probe and looking at it -- and the owner's reply to that release was
+     * that the PDF stamp was still a plain blue box. It was.
+     *
+     * So `StampRenderer` draws them as SVG and the SAME data URI goes to
+     * the PDF and to the Inertia page. Two surfaces cannot disagree about
+     * a stamp when there is one stamp.
+     *
+     * `standing` is null for any status that is not a standing, and
+     * `approval` is null unless there is a real authorization record --
+     * both refusals are the renderer's, not a flag a view could get wrong.
+     *
+     * @return array{standing: ?string, approval: ?string}
+     */
+    private function stampsFor(PermitToWork $permitToWork, ?array $authorization): array
+    {
+        $stamps = app(StampRenderer::class);
+
+        return [
+            'standing' => $stamps->state($permitToWork->status),
+            'approval' => $authorization === null ? null : $stamps->action(
+                'approved',
+                (string) $authorization['approver'],
+                $authorization['role'] ?? null,
+                $authorization['at']
+                    ? Carbon::parse($authorization['at'])->timezone(config('ioms.display_timezone'))->format('d M Y H:i')
+                    : null,
+                // The FUNCTION the act was performed under, from the gate
+                // that performed it -- PTW has one, and it is HSE's. Not a
+                // grant and not a guess: see ADR 065 on why this is a
+                // label and `canManageHse()` is the authority.
+                'HSE',
+            ),
+        ];
+    }
+
     private function authorizationFor(PermitToWork $permitToWork): ?array
     {
         if (! $permitToWork->isAuthorised()) {

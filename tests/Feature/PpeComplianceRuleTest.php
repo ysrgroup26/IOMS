@@ -357,13 +357,48 @@ class PpeComplianceRuleTest extends TestCase
 
     public function test_a_company_with_no_work_clothing_type_is_reported_as_unconfigured(): void
     {
-        // Coverall is the only shipped work-clothing type; deactivate it.
-        PpeType::withoutGlobalScopes()->whereNull('company_id')->where('name', 'Coverall')
+        /*
+         * v2.126.0: the shipped catalogue now carries TWO work-clothing
+         * types -- Coverall and Work Uniform -- so deactivating one no
+         * longer creates a gap, and this test went green for the wrong
+         * reason until both were switched off.
+         *
+         * Which is itself the rule worth stating: work clothing is
+         * satisfied by EITHER (ADR 060), so a gap means NEITHER is
+         * available. Two types sharing a role was always the designed
+         * case; this is the first release in which the shipped catalogue
+         * exercises it.
+         */
+        PpeType::withoutGlobalScopes()->whereNull('company_id')
+            ->whereIn('name', ['Coverall', 'Work Uniform'])
             ->update(['is_active' => false]);
 
         $gaps = app(PpeComplianceService::class)->unconfiguredRoles($this->company->id);
 
         $this->assertSame([PpeType::ROLE_WORK_CLOTHING], $gaps);
+    }
+
+    /**
+     * And the other half of that: ONE of the two is enough.
+     *
+     * The failure this guards against is a yard that issues uniforms
+     * rather than coveralls being told its whole workforce is
+     * non-compliant because the type it does not use is switched off.
+     */
+    public function test_either_work_clothing_type_on_its_own_satisfies_the_group(): void
+    {
+        foreach ([['Coverall', 'Work Uniform'], ['Work Uniform', 'Coverall']] as [$keep, $drop]) {
+            PpeType::withoutGlobalScopes()->whereNull('company_id')
+                ->whereIn('name', ['Coverall', 'Work Uniform'])->update(['is_active' => true]);
+            PpeType::withoutGlobalScopes()->whereNull('company_id')
+                ->where('name', $drop)->update(['is_active' => false]);
+
+            $this->assertSame(
+                [],
+                app(PpeComplianceService::class)->unconfiguredRoles($this->company->id),
+                "A company carrying only {$keep} must still be able to satisfy work clothing.",
+            );
+        }
     }
 
     public function test_a_fully_configured_company_reports_no_gaps(): void

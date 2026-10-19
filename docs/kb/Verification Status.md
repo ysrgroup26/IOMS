@@ -34,6 +34,53 @@ and driving the screen in a browser, the twelve-to-six month edit **saves and pe
 `ReleaseStatusService` and the hardened `app:deploy` exist to close that gap, and
 `DeploymentIdentityTest` pins them. See `docs/ADR/057-a-release-must-be-able-to-prove-what-is-running.md`.
 
+### What was actually run for v2.126.0
+
+**Level: rendered artefacts and the real UI, against MySQL 8 on this machine. NOT deployed.**
+
+This release exists because the owner checked v2.125.0 **by looking at the PDF and by using the
+import**, and found three of its claims false. Two of the three were invisible to a green suite and
+to code reading, and obvious within seconds of looking at the artefact:
+
+| Claimed | Actually |
+|---|---|
+| "Dompdf can honour neither the rotation nor the ink texture" (ADR 065) | **It renders both.** Written from memory, never tested. The PDF stamp was a plain blue box. |
+| "Branding is supported" | The header carried the company NAME; the logo was gated behind a template almost nobody creates, and `identity()['name']` defaulted to the product name. |
+| "A company workbook with different column order is accepted" | True and useless — the mapping panel offered two rows. |
+
+> [!important] The habit this adds to the list
+> A renderer's limits are a thing to **MEASURE**, in five minutes, with a probe. A limitation
+> asserted from memory becomes a design decision nobody revisits — and this one shipped, was
+> documented in an ADR as a deliberate tradeoff, and had to be rejected by the owner before anybody
+> rendered a test page.
+
+**What was exercised:**
+
+| Driven | Result |
+|---|---|
+| A probe PDF of `transform: rotate()` and of SVG | Both render. ADR 065 corrected. |
+| The permit PDF, rendered and inspected at 150dpi | Customer logo, legal name, address, locality, contact line, NPWP; ACTIVE slanted green distressed stamp, no date; APPROVED in blue with `Sri Handayani / SPV HSE / 19 Oct 2026 21:34` |
+| The document view at 1440px | The identical SVG, from the same data URI |
+| The document view at 390px | Compact pill, **0px horizontal overflow** |
+| The PPE import, through the real dialog | 4 employee rows from 12; 8 items to 3 people; `Baju Kerja` → Work Uniform and `Coverall` → Coverall as two rows from one file; sizes 42/41 on Safety Shoes; `FABRIKASI`/`PRODUKSI`/`Total` read as furniture; `ZZZ-9999` refused; one unreadable date refused by column and row |
+| Pairing `Ukuran Baju` with Work Uniform by hand, then importing | Sizes **L** and **M** on the uniform issuances, read back from the database |
+| The IOMS template on a clean slate | 2 rows, 6 items, 0 skipped — no regression |
+| Both migrations on MySQL 8 | Applied, no failure |
+
+**Four defects of my own were found by looking rather than by testing:** a `ReferenceError` in
+`SignatureBlock` that blanked the whole document view (React unmounts the page; one line in the
+console, no failed request, no server log — the exact failure `docs/CONVENTIONS.md` records for the
+plan-change button), a `->format()` call on what is already a string, the stamp icon overlapping the
+first letter of its word, and the ink wear striking through the approver's job title.
+
+Suite: **1521 tests, 7797 assertions, green**. Build: clean.
+
+> [!warning] Still not a statement about production
+> Neither release has been deployed, so ADR 057's only honest post-deploy claim — "the two
+> signatures match" — cannot be made for either.
+
+---
+
 ### What was actually run for v2.125.0
 
 **Level: browser-verified against MySQL 8 on this machine. NOT deployed, NOT production-verified.**

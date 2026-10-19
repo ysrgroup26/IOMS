@@ -67,7 +67,7 @@ import { picName } from '@/lib/permitPicName';
  * reusing the exact same PdfGeneratorService/DocumentEngine route this
  * codebase already had before this pass.
  */
-export default function PermitToWorkDocument({ permit: p, company, documentTemplate, branding, rejectionReason, authorization, ppe }) {
+export default function PermitToWorkDocument({ permit: p, company, documentTemplate, branding, rejectionReason, authorization, stamps = {}, ppe }) {
     // v2.37.0 (Master Audit): one shared display timezone for every
     // rendered instant on this page, matching the PDF exactly.
     const displayTimeZone = usePage().props.display_timezone;
@@ -145,13 +145,36 @@ export default function PermitToWorkDocument({ permit: p, company, documentTempl
                 <div className="p-5 sm:p-8">
                     {/* Company identity header */}
                     <div className="flex flex-wrap items-start justify-between gap-4">
+                        {/*
+                          * v2.126.0 -- THE LOGO SHOWS BECAUSE THE CUSTOMER
+                          * UPLOADED ONE, not because they also built a
+                          * document template.
+                          *
+                          * The condition was `documentTemplate?.show_logo
+                          * && branding?.logo_url`, and `documentTemplate` is
+                          * null until a Company Admin creates one for the
+                          * `permit_to_work` module key -- which almost
+                          * nobody does. So a tenant who had uploaded their
+                          * logo in Settings saw their company NAME where
+                          * their mark should be, and nothing on the page
+                          * explained why. The template's switch still
+                          * governs: an explicit `show_logo === false` hides
+                          * it. Its ABSENCE no longer does.
+                          */}
                         <div className="flex min-w-0 items-center gap-3">
-                            {documentTemplate?.show_logo && branding?.logo_url && (
-                                <img src={branding.logo_url} alt="Logo" className="h-10 w-auto max-w-[52px] shrink-0 object-contain" />
+                            {branding?.logo_url && documentTemplate?.show_logo !== false && (
+                                <img src={branding.logo_url} alt="" className="h-12 w-auto max-w-[64px] shrink-0 object-contain" />
                             )}
                             <div className="min-w-0">
-                                <p className="truncate text-base font-bold text-graphite-900">{branding?.company_name || company?.name || appName}</p>
+                                <p className="truncate text-base font-bold text-navy-900 dark:text-slate-100">{branding?.company_name || company?.name || appName}</p>
+                                {/* The legal name under the trading name, the
+                                    way the PDF letterhead sets it, so the two
+                                    read as one document. */}
+                                {branding?.legal_name && branding.legal_name !== branding.company_name && (
+                                    <p className="truncate text-[11px] text-graphite-500">{branding.legal_name}</p>
+                                )}
                                 {branding?.address && <p className="truncate text-[11px] text-graphite-500">{branding.address}</p>}
+                                {branding?.locality && <p className="truncate text-[11px] text-graphite-400">{branding.locality}</p>}
                             </div>
                         </div>
                         {/* v2.125.0 -- THE STANDING, STAMPED.
@@ -167,7 +190,7 @@ export default function PermitToWorkDocument({ permit: p, company, documentTempl
                             stamp reads as a different fact. */}
                         <div className="shrink-0 text-right">
                             {hasStandingStamp(p.status)
-                                ? <DocumentStandingMark status={p.status} />
+                                ? <DocumentStandingMark status={p.status} stamp={stamps.standing} />
                                 : <StatusBadge value={p.status} />}
                         </div>
                     </div>
@@ -419,7 +442,7 @@ export default function PermitToWorkDocument({ permit: p, company, documentTempl
                             record -- ApprovalStamp returns null when there
                             is none, so no state can assert an approval the
                             permit has not got. */}
-                        <SignatureBlock role="HSE Approver" name={p.hse_approver?.name} authorization={authorization} />
+                        <SignatureBlock role="HSE Approver" name={p.hse_approver?.name} authorization={authorization} stamp={stamps.approval} />
                         <SignatureBlock role="Area Authority" name={p.area_authority?.name} />
                     </div>
                 </div>
@@ -485,7 +508,18 @@ function Field({ label, value }) {
     );
 }
 
-function SignatureBlock({ role, name, authorization }) {
+/*
+ * v2.126.0: `stamp` is a PROP, not a closure read.
+ *
+ * The first cut referenced `stamps.approval` from inside this component,
+ * where `stamps` is not in scope -- a ReferenceError thrown during render,
+ * which React handles by unmounting the whole page. The document view went
+ * BLANK, and nothing said so: no failed request, no server log, one line
+ * in the browser console. That is the exact failure `docs/CONVENTIONS.md`
+ * records for the plan-change button, and it is why this was caught by
+ * loading the page rather than by the suite, which never renders it.
+ */
+function SignatureBlock({ role, name, authorization, stamp = null }) {
     return (
         <div className="text-center">
             {/* The blank is a fixed 32px rule-to-name gap. The seal is
@@ -501,7 +535,7 @@ function SignatureBlock({ role, name, authorization }) {
                         act, the person, their company job title and the
                         time. The detail page keeps the compact seal, which
                         now carries the title too. */}
-                    <ApprovalStamp authorization={authorization} />
+                    <ApprovalStamp authorization={authorization} stamp={stamp} />
                 </div>
             ) : (
                 <div className="h-8" />

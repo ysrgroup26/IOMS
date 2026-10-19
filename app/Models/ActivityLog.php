@@ -47,6 +47,8 @@ class ActivityLog extends Model
         'user_id',
         // v2.100.0 -- the actor's display identity AS IT WAS. See record().
         'actor_name',
+        // v2.125.0 -- and the job title they held when they did it.
+        'actor_title',
         'action',
         'subject_type',
         'subject_id',
@@ -107,6 +109,27 @@ class ActivityLog extends Model
              * paths already render as "System".
              */
             'actor_name' => auth()->user()?->displayName(),
+            /*
+             * v2.125.0 -- THE TITLE THEY HELD, FROM THE COMPANY'S OWN
+             * CONFIGURATION.
+             *
+             * The approval stamp on a controlled document has to say what
+             * authority signed it, and "Super Admin" is an IOMS role, not
+             * a job title -- the yard's own word is "SPV HSE", "Manager
+             * Shipyard", "Site Manager", and which one is used is the
+             * customer's configuration, held in `positions` and reached
+             * from the account through its linked Employee.
+             *
+             * Captured here rather than read later for the same reason
+             * `actor_name` is: a company renaming a position, or moving
+             * somebody between positions, must not rewrite what a permit
+             * signed last year says. Null when the account is not linked
+             * to an employee or the employee holds no position, and the
+             * read path then falls back to the live relation -- it never
+             * substitutes the system role in this column, because that
+             * would store a different KIND of fact under one name.
+             */
+            'actor_title' => auth()->user()?->employee?->position?->name,
             'action' => $action,
             'subject_type' => $subject ? get_class($subject) : null,
             'subject_id' => $subject?->getKey(),

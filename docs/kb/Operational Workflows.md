@@ -1,7 +1,7 @@
 ---
 title: Operational Workflows
 type: reference
-updated: 2026-09-16
+updated: 2026-10-19
 tags: [kb/workflow, kb/business-rules]
 ---
 
@@ -117,6 +117,23 @@ draft ──> submitted ──> approved ──> active ──> closed
 `active` is distinct from `approved`: approval authorises the work, activation is the moment it
 begins. A permit can only close from `active`, and `closed` is final. PTW has its own field
 experience and a dedicated access permission — see [[Domain Glossary]] on *My Work vs PTW Access*.
+
+**ONE approval gate, not two** (v2.125.0, confirmed by driving the flow). `canCreatePtw()` decides
+who may raise a permit; `canManageHse()` decides the approval, which writes `hse_approver_id` and
+`confirmed_ppe_ids` together. There is no separate HSE-verification step and no second approver
+column, so a design or a stamp that shows "verified" and "approved" as two acts is showing one act
+twice — see **ADR 065**, which is explicit that no stage was invented to make a visual fit.
+
+**What the creator gets, and does not get.** `requested_by` is always the authenticated user and has
+no key in `StorePermitToWorkRequest`, so nothing client-side can set it. The PIC field defaults to
+the creator's own employee record where their account has one (ADR 062) and stays editable — a
+default, never an assignment, and it confers no approval authority. Requester, creator and PIC are
+three slots and stay distinguishable when all three differ.
+
+**Each transition notifies, and the notification OPENS the permit** (v2.125.0, **ADR 064**). Before
+that release every workflow notification in the product carried a null url, so the chain fired and
+had nowhere to go. The requester is not told about their own action — `notificationRecipient()`
+skips actor == recipient, deliberately.
 
 ## Leave
 

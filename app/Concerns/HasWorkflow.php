@@ -67,9 +67,24 @@ trait HasWorkflow
         // audit trail is the record of record for every workflow here, so
         // it should be legible. Behaviour is otherwise identical --
         // single-word statuses render exactly as they did.
+        /*
+         * v2.125.0 -- and the AUDIT TRAIL is read by people too.
+         *
+         * `class_basename()` here produced "PermitToWork moved from Draft
+         * to Submitted." on the permit's own activity timeline, found in
+         * the browser while verifying this release. The notification
+         * titles beside it were fixed from the same root cause; this line
+         * was the third copy of it and the one most likely to be read,
+         * because the timeline is what an auditor opens.
+         *
+         * `documentLabel()` is the single place that decides what a record
+         * is called, so the timeline, the notification and the approval
+         * request now cannot disagree. The statuses already went through
+         * `Str::headline()` (v2.73.0) for exactly this reason.
+         */
         ActivityLog::record(
             $newStatus,
-            $description ?? (class_basename($this).' moved from '.Str::headline($current).' to '.Str::headline($newStatus).'.'),
+            $description ?? ($this->documentLabel().' moved from '.Str::headline($current).' to '.Str::headline($newStatus).'.'),
             $this,
             $meta
         );
@@ -108,11 +123,96 @@ trait HasWorkflow
         app(NotificationService::class)->notify(
             $recipient,
             $category,
-            class_basename($this).' '.$this->displayNumber().' is now '.ucfirst($newStatus),
+            $this->documentLabel().' '.$this->displayNumber().' is now '.$this->statusLabel($newStatus),
             $meta['comments'] ?? null,
-            null,
-            $this
+            $this->notificationUrl(),
+            $this,
+            // The route NAME travels with the row, so a surface rendering
+            // this notification can ask the same allow-list question the
+            // server would ask about its destination. See the shared
+            // `notifications.items` prop in HandleInertiaRequests.
+            array_filter(['route' => $this->notificationRouteName()])
         );
+    }
+
+    /**
+     * v2.125.0 -- WHAT THE RECORD IS CALLED TO THE PERSON READING ABOUT IT.
+     *
+     * This was `class_basename($this)`, so the notification a field worker
+     * received said **"PermitToWork PTW-2026-0001 is now Submitted"**. That
+     * is a PHP class name, delivered to somebody standing on a deck with a
+     * phone, and it is the exact defect `docs/CONVENTIONS.md` records for
+     * Settings' module keys: a stored identifier escaping into customer
+     * copy because nothing stood between the two.
+     *
+     * `Str::headline()` turns every existing consumer's class name into
+     * words with no per-model work ("PermitToWork" -> "Permit To Work",
+     * "MaterialRequest" -> "Material Request"), and a model whose product
+     * name differs from its class name overrides this. Nothing invents a
+     * name: the fallback is still derived from the class, just rendered as
+     * language rather than code.
+     */
+    public function documentLabel(): string
+    {
+        return Str::headline(class_basename($this));
+    }
+
+    /**
+     * The status as the product says it, not as the column stores it.
+     *
+     * `ucfirst()` was right while every status was one word and wrong the
+     * moment one was not -- the same root cause already fixed for the
+     * activity description above, which read "In_progress". A notification
+     * is the one place a status reaches somebody who never opens the
+     * record, so it is the worst place to show the enum.
+     */
+    public function statusLabel(?string $status = null): string
+    {
+        return Str::headline($status ?? (string) $this->status);
+    }
+
+    /**
+     * WHERE THIS NOTIFICATION SHOULD TAKE THE READER, or null.
+     *
+     * v2.125.0 -- every workflow notification in this product was created
+     * with `null` here, and the notification menu only navigates when a
+     * url is set. So the whole chain existed and worked except for its
+     * destination: a permit was returned for correction, the creator was
+     * told, they tapped it, it was marked read, and nothing opened. The
+     * reported symptom was "notifications only show text" -- which was
+     * exactly true.
+     *
+     * NULL IS STILL THE DEFAULT, deliberately. A model opts in by naming
+     * the route that shows ONE of its records, and only a route the
+     * recipient is allowed to reach should be named: a notification that
+     * opens a 403 is worse than one that opens nothing, because it reads
+     * as the account being broken. The recipient of a status change is the
+     * record's own requester (see notificationRecipient()), so a route
+     * that shows the record to its requester is the safe answer; anything
+     * narrower stays null.
+     */
+    public function notificationUrl(): ?string
+    {
+        $route = $this->notificationRouteName();
+
+        if ($route === null || ! \Illuminate\Support\Facades\Route::has($route)) {
+            return null;
+        }
+
+        return route($route, $this);
+    }
+
+    /**
+     * The named route that shows one of these records. Null means "no
+     * destination", which is a valid and safe answer.
+     *
+     * Public rather than protected because the notification row carries it
+     * too (see notifyStatusChange()), and because ApprovalEngine asks the
+     * same question about the same record for the approver's copy.
+     */
+    public function notificationRouteName(): ?string
+    {
+        return null;
     }
 
     /**

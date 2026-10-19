@@ -44,7 +44,7 @@ function PpePanel({ ppe, hazards, status }) {
         <div className="space-y-3 rounded-lg border border-graphite-100 p-3 dark:border-slate-800">
             {hazardList.length > 0 && (
                 <div>
-                    <span className="text-xs uppercase text-graphite-400">Hazards</span>
+                    <span className="text-xs uppercase text-graphite-400">Work Hazards</span>
                     <div className="mt-1 flex flex-wrap gap-1.5">
                         {hazardList.map((h, i) => (
                             <span key={i} className="rounded-full border border-amber-200 bg-amber-50 px-2 py-0.5 text-[11px] text-amber-800 dark:border-amber-900 dark:bg-amber-950/30 dark:text-amber-300">{h}</span>
@@ -148,6 +148,14 @@ export default function PermitToWorkShow({ permit: p, activities, canManage, rej
                     <div className="min-w-0">
                             <div className="flex flex-wrap items-center gap-2">
                             <p className="font-mono text-xs font-medium tracking-wide text-steel-300">{p.ptw_number}</p>
+                            {/* v2.125.0: the badge stays here on the dark
+                                identity band -- the stamp belongs on the
+                                document's own ground, not on navy, where
+                                its distressed ink reads as noise. The
+                                stamp is rendered beside the actions
+                                below, and on the Document view and the
+                                PDF, which are the surfaces a permit is
+                                actually read from on site. */}
                             <StatusBadge value={p.status} />
                         </div>
                         <h1 className="mt-1 text-2xl font-bold capitalize tracking-tight text-white">{p.permit_type.replace('_', ' ')}</h1>
@@ -216,8 +224,8 @@ export default function PermitToWorkShow({ permit: p, activities, canManage, rej
                             machine exactly as modeled, not bypassing it
                             with a direct rejected->submitted shortcut. */}
                         {p.status === 'rejected' && (<Button variant="outline" onClick={() => transition('draft', 'Kembalikan PTW ini ke Draft untuk diajukan ulang?')}><RotateCcw className="h-4 w-4" /> Resubmit</Button>)}
-                        {p.status === 'approved' && (<Button onClick={() => transition('active', 'Activate this permit -- work may begin?')}><PlayCircle className="h-4 w-4" /> Activate</Button>)}
-                        {p.status === 'active' && (<Button onClick={() => transition('closed', 'Close this permit -- work complete?')}><CheckCircle2 className="h-4 w-4" /> Close</Button>)}
+                        {p.status === 'approved' && (<Button onClick={() => transition('active', 'Aktifkan izin kerja ini? Pekerjaan boleh dimulai setelah izin aktif.')}><PlayCircle className="h-4 w-4" /> Activate</Button>)}
+                        {p.status === 'active' && (<Button onClick={() => transition('closed', 'Tutup izin kerja ini? Pastikan pekerjaan sudah selesai.')}><CheckCircle2 className="h-4 w-4" /> Close</Button>)}
                         {!['closed', 'cancelled'].includes(p.status) && (
                             <Button variant="ghost" className="text-red-600" onClick={() => transition('cancelled', 'Batalkan PTW ini? PTW yang sudah dibatalkan tidak bisa digunakan kembali.')}><XCircle className="h-4 w-4" /> Cancel</Button>
                         )}
@@ -248,7 +256,7 @@ export default function PermitToWorkShow({ permit: p, activities, canManage, rej
                         <CardHeader><CardTitle>Details</CardTitle></CardHeader>
                         <CardContent className="space-y-3 text-sm">
                             <div><span className="text-xs uppercase text-graphite-400">Work Description</span><p className="whitespace-pre-wrap">{p.work_description}</p></div>
-                            {p.precautions && <div><span className="text-xs uppercase text-graphite-400">Precautions</span><p className="whitespace-pre-wrap">{p.precautions}</p></div>}
+                            {p.precautions && <div><span className="text-xs uppercase text-graphite-400">Precautions &amp; Safeguards</span><p className="whitespace-pre-wrap">{p.precautions}</p></div>}
                             {p.required_qualification && <div><span className="text-xs uppercase text-graphite-400">Required Qualification</span><p>{p.required_qualification}</p></div>}
 
                             {/* v2.73.0 -- PPE, as required vs confirmed.
@@ -293,7 +301,7 @@ export default function PermitToWorkShow({ permit: p, activities, canManage, rej
                                     )}
                                     {p.personnel && p.personnel.length > 0 && (
                                         <div>
-                                            <span className="text-xs uppercase text-graphite-400">Workforce ({p.personnel.length} orang)</span>
+                                            <span className="text-xs uppercase text-graphite-400">Work Personnel ({p.personnel.length} orang)</span>
                                             <div className="mt-1.5 flex flex-wrap gap-x-4 gap-y-1.5">
                                                 {p.personnel.map((e) => <PersonChip key={e.id} name={e.full_name} size="sm" />)}
                                             </div>
@@ -373,7 +381,7 @@ export default function PermitToWorkShow({ permit: p, activities, canManage, rej
                                 <ul className="divide-y divide-graphite-100">
                                     {p.loto_records.map((l) => (
                                         <li key={l.id} className="flex items-center justify-between py-2 text-sm">
-                                            <span>{l.loto_number} -- {l.equipment_name}</span>
+                                            <span>{l.loto_number} &middot; {l.equipment_name}</span>
                                             <StatusBadge value={l.status} />
                                         </li>
                                     ))}

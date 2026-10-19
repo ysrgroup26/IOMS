@@ -50,6 +50,22 @@ export default function EmployeeSelector({
     const [results, setResults] = useState([]);
     const [loading, setLoading] = useState(false);
     const [open, setOpen] = useState(false);
+    /*
+     * v2.125.0 -- A REFUSAL IS NOT AN EMPTY WORKFORCE.
+     *
+     * `.then(r => r.ok ? r.json() : { data: [] })` turned every non-OK
+     * response into zero results, and zero results render as "Karyawan
+     * tidak ditemukan." So a 403 on `/employee-lookup` -- which is what
+     * every My Work account got until v2.125.0 put the endpoint on
+     * `RestrictMyWorkUser`'s allow-list -- was displayed to the person as
+     * a statement that their colleague did not exist. They searched
+     * harder, because the message told them to.
+     *
+     * The transport outcome is now kept apart from the result set, so the
+     * empty state can say which of the two it is. The component still
+     * never invents a row.
+     */
+    const [failure, setFailure] = useState(null);
     // Resolved {id, full_name, ...} for whatever is currently selected.
     // Needed because a selected employee may not be in the current search
     // window (or may since have been deactivated), and rendering a blank
@@ -95,14 +111,18 @@ export default function EmployeeSelector({
         if (term) params.set('q', term);
 
         fetch('/employee-lookup?' + params.toString(), { headers: { Accept: 'application/json' } })
-            .then((r) => (r.ok ? r.json() : { data: [] }))
-            .then((body) => {
+            .then(async (r) => {
+                if (r.ok) return { body: await r.json(), failure: null };
+                return { body: { data: [] }, failure: r.status === 403 || r.status === 401 ? 'forbidden' : 'error' };
+            })
+            .then(({ body, failure: why }) => {
                 // Ignore out-of-order responses so a slow earlier request
                 // cannot overwrite a newer one's results.
                 if (seq !== requestSeq.current) return;
                 setResults(body.data || []);
+                setFailure(why);
             })
-            .catch(() => { if (seq === requestSeq.current) setResults([]); })
+            .catch(() => { if (seq === requestSeq.current) { setResults([]); setFailure('error'); } })
             .finally(() => { if (seq === requestSeq.current) setLoading(false); });
     }, []);
 
@@ -111,6 +131,36 @@ export default function EmployeeSelector({
         const t = setTimeout(() => search(query.trim()), query.trim() ? 250 : 0);
         return () => clearTimeout(t);
     }, [query, open, search]);
+
+    /*
+     * v2.125.0 -- THE RESULTS MUST BE WHERE THE KEYBOARD IS NOT.
+     *
+     * The result list opens directly BELOW the input, which on a phone is
+     * directly behind the keyboard that just appeared: tapping the field
+     * raised the keyboard over the very list the tap was meant to produce,
+     * so the search looked like it returned nothing. On the permit form,
+     * where this selector is the only way to name a colleague, that is
+     * indistinguishable from the 403 defect this release also fixed -- and
+     * it would have survived it.
+     *
+     * The field is brought to the middle of what remains visible once the
+     * keyboard has had time to appear. 300ms because the viewport resize
+     * is animated on both mobile platforms and measuring before it
+     * finishes scrolls to the pre-keyboard position.
+     *
+     * `block: 'center'` rather than `'start'`: the list is below the
+     * input, so putting the input at the top of the viewport is the one
+     * placement that guarantees the results are off-screen.
+     */
+    useEffect(() => {
+        if (!open) return undefined;
+
+        const t = setTimeout(() => {
+            containerRef.current?.scrollIntoView({ behavior: 'smooth', block: 'center' });
+        }, 300);
+
+        return () => clearTimeout(t);
+    }, [open]);
 
     function toggle(employee) {
         setResolved((prev) => ({ ...prev, [employee.id]: employee }));
@@ -150,10 +200,25 @@ export default function EmployeeSelector({
             </div>
 
             {open && (
-                <div className="absolute z-40 mt-1 max-h-64 w-full overflow-y-auto rounded-lg border border-graphite-200 bg-white shadow-card-hover dark:border-slate-700 dark:bg-slate-900">
+                /* v2.125.0: `max-h-64` is 256px whatever the device. With a
+                   keyboard up, a short phone has less than that left, so the
+                   list ran off the bottom with no way to reach the last
+                   result. Bounded by the viewport as well as by a fixed
+                   ceiling, and `overscroll-contain` so scrolling to the end
+                   of the list does not start scrolling the page behind it. */
+                <div className="absolute z-40 mt-1 max-h-[min(16rem,42vh)] w-full overflow-y-auto overscroll-contain rounded-lg border border-graphite-200 bg-white shadow-card-hover dark:border-slate-700 dark:bg-slate-900">
                     {!loading && results.length === 0 && (
-                        <p className="px-3 py-4 text-center text-xs text-graphite-400">
-                            {query.trim() ? 'Karyawan tidak ditemukan.' : 'Ketik untuk mencari karyawan.'}
+                        <p className={cn(
+                            'px-3 py-4 text-center text-xs leading-relaxed',
+                            failure ? 'text-amber-700 dark:text-amber-400' : 'text-graphite-400'
+                        )}>
+                            {failure === 'forbidden'
+                                ? 'Akun Anda tidak diizinkan membuka daftar karyawan. Hubungi admin perusahaan Anda.'
+                                : failure === 'error'
+                                    ? 'Daftar karyawan gagal dimuat. Periksa koneksi Anda lalu coba lagi.'
+                                    : query.trim()
+                                        ? 'Tidak ada karyawan aktif yang cocok. Coba nama depan saja atau nomor induk karyawan.'
+                                        : 'Ketik untuk mencari karyawan.'}
                         </p>
                     )}
 

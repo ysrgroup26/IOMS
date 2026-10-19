@@ -61,6 +61,29 @@ class RestrictMyWorkUser
         'my-work',
         'permits-to-work',
         'tasks',
+        /*
+         * v2.125.0 -- THE FORM WITHOUT ITS DIRECTORY IS NOT A FORM.
+         *
+         * `permits-to-work` was on this list; `employee-lookup`, which the
+         * permit form's personnel and PIC pickers read from, was not. So
+         * every search a My Work account typed answered 403, the component
+         * read a refused response as an empty result set, and the screen
+         * said "Karyawan tidak ditemukan." -- a permission refusal
+         * displayed as a statement about the workforce. Reported as missing
+         * employee data; it was never the data.
+         *
+         * This is ADR 061's rule applied to a DATA endpoint rather than a
+         * link: offering a form and refusing the directory it cannot be
+         * filled in without is the same defect as offering a menu item
+         * that answers 403.
+         *
+         * What it grants is bounded and already readable by this class
+         * through the permits it raises: a tenant-scoped, 50-row-capped,
+         * read-only list of name, badge number, department and position.
+         * No write, no export, no other tenant -- the endpoint's own
+         * scoping is unchanged.
+         */
+        'employee-lookup',
         'account',
         'notifications',
         'logout',

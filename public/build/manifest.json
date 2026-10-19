@@ -1,16 +1,16 @@
 {
   "resources/css/app.css": {
-    "file": "assets/app-DNGCeES_.css",
+    "file": "assets/app-BEC97vDE.css",
     "src": "resources/css/app.css",
     "isEntry": true
   },
   "resources/js/app.jsx": {
-    "file": "assets/app-DKitAcG6.js",
+    "file": "assets/app-DW4O-Oc-.js",
     "name": "app",
     "src": "resources/js/app.jsx",
     "isEntry": true,
     "css": [
-      "assets/app-DNGCeES_.css"
+      "assets/app-BEC97vDE.css"
     ]
   }
 }

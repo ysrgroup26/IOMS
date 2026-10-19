@@ -4,7 +4,8 @@ import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogFooter } from '
 import { Button } from '@/Components/ui/button';
 import { Label } from '@/Components/ui/label';
 import { Select, SelectTrigger, SelectValue, SelectContent, SelectItem } from '@/Components/ui/select';
-import { Download, Upload, Loader2, CheckCircle2, AlertTriangle, ShieldCheck } from 'lucide-react';
+import { Download, Upload, Loader2, CheckCircle2, AlertTriangle, ShieldCheck, ArrowLeft } from 'lucide-react';
+import ImportMappingPanel, { appendConfirmedMapping, overridesFromSuggestion } from '@/Components/shared/ImportMappingPanel';
 
 function csrfToken() {
     return document.querySelector('meta[name="csrf-token"]').content;
@@ -24,15 +25,16 @@ function csrfToken() {
  * What this import never does, and says so on screen: create an employee,
  * or create a PPE type.
  */
-function appendColumnMapping(formData, suggested) {
-    if (!suggested?.mapping) return;
-
-    Object.entries(suggested.mapping).forEach(([field, match]) => {
-        if (match?.heading) {
-            formData.append(`column_mapping[${field}]`, match.heading);
-        }
-    });
-}
+/*
+ * v2.125.0 -- the silent `appendColumnMapping()` that lived here is gone.
+ *
+ * It posted the matcher's suggestion straight through, so the customer
+ * never saw which of their columns IOMS had decided was the Employee ID
+ * and could not say otherwise. The mapping is now confirmed on its own
+ * stage (`ImportMappingPanel`) and `appendConfirmedMapping()` sends what
+ * the customer actually agreed to -- plus the sheet they chose, which this
+ * flow could not express at all.
+ */
 
 export default function EmployeePpeImportDialog({ open, onOpenChange, companies = [] }) {
     const ownCompanyId = usePage().props.auth?.user?.company_id;
@@ -40,10 +42,14 @@ export default function EmployeePpeImportDialog({ open, onOpenChange, companies 
         ? String(ownCompanyId)
         : (companies.length === 1 ? String(companies[0].id) : undefined);
 
-    const [stage, setStage] = useState('upload'); // upload | previewing | preview | processing | summary
+    const [stage, setStage] = useState('upload'); // upload | inspecting | mapping | previewing | preview | processing | summary
     const [companyId, setCompanyId] = useState(defaultCompanyId);
     const [file, setFile] = useState(null);
     const [mapping, setMapping] = useState(null);
+    // What the customer confirmed on the mapping stage, which is what
+    // every later request is built from.
+    const [overrides, setOverrides] = useState({});
+    const [sheet, setSheet] = useState(null);
     const [preview, setPreview] = useState(null);
     const [result, setResult] = useState(null);
     const [error, setError] = useState(null);
@@ -52,6 +58,8 @@ export default function EmployeePpeImportDialog({ open, onOpenChange, companies 
         setStage('upload');
         setFile(null);
         setMapping(null);
+        setOverrides({});
+        setSheet(null);
         setPreview(null);
         setResult(null);
         setError(null);
@@ -65,13 +73,19 @@ export default function EmployeePpeImportDialog({ open, onOpenChange, companies 
         reset();
     }
 
-    async function runPreview() {
-        setStage('previewing');
+    /*
+     * Read the file's shape and SHOW it, before anything is read as data.
+     *
+     * A failure to inspect is still not fatal -- the import can run on the
+     * configured mapping exactly as it did before this stage existed --
+     * but it is no longer invisible: the customer is told the columns
+     * could not be read and goes straight to the preview, which is the
+     * step that refuses rows one at a time and says why.
+     */
+    async function runInspect() {
+        setStage('inspecting');
         setError(null);
 
-        // The mapping is resolved FIRST and travels with every request that
-        // reads the file, so the preview is a promise the import keeps --
-        // the v2.108.1 correction, applied here from the start.
         let suggested = null;
 
         try {
@@ -89,12 +103,33 @@ export default function EmployeePpeImportDialog({ open, onOpenChange, companies 
             suggested = null;
         }
 
+        if (!suggested) {
+            setMapping(null);
+            setOverrides({});
+            setSheet(null);
+            await runPreview({}, null);
+
+            return;
+        }
+
         setMapping(suggested);
+        setOverrides(overridesFromSuggestion(suggested));
+        setSheet(suggested.chosen ?? null);
+        setStage('mapping');
+    }
+
+    async function runPreview(confirmedOverrides = overrides, confirmedSheet = sheet) {
+        setStage('previewing');
+        setError(null);
 
         const formData = new FormData();
         formData.append('file', file);
         formData.append('company_id', companyId);
-        appendColumnMapping(formData, suggested);
+        // The mapping the customer SAW and agreed to, and the sheet they
+        // picked -- the v2.108.1 rule ("the preview is a promise the
+        // import keeps") now applied to a mapping they chose rather than
+        // one they were never shown.
+        appendConfirmedMapping(formData, confirmedOverrides, confirmedSheet);
 
         try {
             const response = await fetch(route('ppe.import.preview'), {
@@ -112,7 +147,11 @@ export default function EmployeePpeImportDialog({ open, onOpenChange, companies 
             setStage('preview');
         } catch (e) {
             setError(e.message);
-            setStage('upload');
+            // Back to the mapping stage when there is one to go back to:
+            // a refused file is usually a wrong sheet or a wrong column,
+            // and sending the customer back to the file picker loses the
+            // work they just did.
+            setStage(mapping ? 'mapping' : 'upload');
         }
     }
 
@@ -123,9 +162,9 @@ export default function EmployeePpeImportDialog({ open, onOpenChange, companies 
         const formData = new FormData();
         formData.append('file', file);
         formData.append('company_id', companyId);
-        // The same mapping the preview ran on -- the import must not read
-        // the file a different way.
-        appendColumnMapping(formData, mapping);
+        // The same mapping and sheet the preview ran on -- the import must
+        // not read the file a different way.
+        appendConfirmedMapping(formData, overrides, sheet);
 
         try {
             const response = await fetch(route('ppe.import'), {
@@ -151,7 +190,7 @@ export default function EmployeePpeImportDialog({ open, onOpenChange, companies 
 
     return (
         <Dialog open={open} onOpenChange={(v) => (v ? onOpenChange(true) : close())}>
-            <DialogContent className={stage === 'preview' || stage === 'summary' ? 'max-w-lg' : undefined}>
+            <DialogContent className={['preview', 'summary', 'mapping'].includes(stage) ? 'max-w-lg' : undefined}>
                 <DialogHeader><DialogTitle>Import PPE</DialogTitle></DialogHeader>
 
                 {stage === 'upload' && (
@@ -202,16 +241,46 @@ export default function EmployeePpeImportDialog({ open, onOpenChange, companies 
 
                         <DialogFooter>
                             <Button type="button" variant="outline" onClick={close}>Cancel</Button>
-                            <Button type="button" onClick={runPreview} disabled={!file || !companyId}>Preview Import</Button>
+                            <Button type="button" onClick={runInspect} disabled={!file || !companyId}>Continue</Button>
                         </DialogFooter>
                     </div>
                 )}
 
-                {(stage === 'previewing' || stage === 'processing') && (
+                {stage === 'mapping' && (
+                    <div className="space-y-4">
+                        <ImportMappingPanel
+                            inspection={mapping}
+                            sheet={sheet}
+                            overrides={overrides}
+                            onSheetChange={(v) => {
+                                setSheet(v);
+                                // A different sheet has different columns, so
+                                // the confirmed mapping cannot carry over --
+                                // keeping it would silently map this sheet's
+                                // data through the other sheet's headings.
+                                setOverrides({});
+                            }}
+                            onOverridesChange={setOverrides}
+                        />
+
+                        {error && <p className="text-xs text-red-600">{error}</p>}
+
+                        <DialogFooter>
+                            <Button type="button" variant="outline" onClick={() => setStage('upload')}>
+                                <ArrowLeft className="h-3.5 w-3.5" /> Back
+                            </Button>
+                            <Button type="button" onClick={() => runPreview()}>Preview Import</Button>
+                        </DialogFooter>
+                    </div>
+                )}
+
+                {(stage === 'inspecting' || stage === 'previewing' || stage === 'processing') && (
                     <div className="flex flex-col items-center justify-center gap-3 py-10">
                         <Loader2 className="h-8 w-8 animate-spin text-brand-500" />
                         <p className="text-sm text-graphite-500">
-                            {stage === 'previewing' ? 'Scanning your file...' : 'Issuing PPE...'}
+                            {stage === 'inspecting'
+                                ? 'Membaca struktur berkas...'
+                                : stage === 'previewing' ? 'Scanning your file...' : 'Issuing PPE...'}
                         </p>
                     </div>
                 )}

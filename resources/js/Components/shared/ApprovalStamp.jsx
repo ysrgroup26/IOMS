@@ -1,6 +1,5 @@
 import { usePage } from '@inertiajs/react';
-import { ShieldCheck } from 'lucide-react';
-import { cn } from '@/lib/utils';
+import { DocumentActionStamp } from '@/Components/shared/DocumentStamp';
 
 /**
  * v2.72.0 -- THE DIGITAL APPROVAL MARK ON A CONTROLLED DOCUMENT.
@@ -70,37 +69,41 @@ export default function ApprovalStamp({ authorization, className, compact = fals
         })
         : null;
 
+    /*
+     * v2.125.0 -- THE DRAWING MOVED OUT; THE CONTRACT STAYED HERE.
+     *
+     * The stamp used to be drawn inline in this file, in the product's
+     * success green. Two things changed and neither is cosmetic:
+     *
+     *  - APPROVAL IS BLUE NOW. The owner's stamp design separates the two
+     *    acts by colour -- green marks a VERIFICATION, blue marks an
+     *    APPROVAL -- and a product that uses one colour for both makes the
+     *    distinction unreadable at exactly the glance it exists for.
+     *    Green stays reserved for a verification record, and PTW renders
+     *    one only if it ever has one: this product has a single approval
+     *    gate (`hse_approver_id`), and inventing a second stage so the
+     *    design has somewhere to put green would be inventing authority.
+     *
+     *  - THE TITLE IS THE COMPANY'S, NOT OURS. `authorization.role` is now
+     *    the job title that account held when it signed -- "SPV HSE",
+     *    "Manager Shipyard", whatever the customer configured -- read from
+     *    the stored action record, so renaming a position cannot rewrite a
+     *    permit already filed. See PermitToWorkController::authorizationFor().
+     *
+     * What did NOT change is the only thing that really matters: there is
+     * still no boolean. This component takes the server's authorization
+     * record or renders nothing, and `DocumentActionStamp` repeats the
+     * same refusal on its own `by` prop -- so neither layer can be talked
+     * into drawing an approval that never happened.
+     */
     return (
-        <div
-            className={cn(
-                'inline-flex max-w-full flex-col items-center gap-1 rounded-md border-2 border-success/60 bg-success/[0.06] text-success',
-                // A second, inset rule -- what gives a stamp its
-                // impression rather than the flatness of a chip.
-                'shadow-[inset_0_0_0_1px_rgba(255,255,255,0.75)]',
-                compact ? 'px-3 py-1.5' : 'px-4 py-2.5',
-                className
-            )}
-            // One accessible sentence, because the visual grouping below
-            // reads as fragments to a screen reader.
-            role="img"
-            aria-label={`Approved by ${authorization.approver}${authorization.role ? `, ${authorization.role}` : ''}${at ? `, ${at}` : ''}`}
-        >
-            <span className="flex items-center gap-1.5" aria-hidden="true">
-                <ShieldCheck className={cn('shrink-0', compact ? 'h-3.5 w-3.5' : 'h-4 w-4')} />
-                <span className={cn('font-bold uppercase leading-none tracking-[0.18em]', compact ? 'text-[11px]' : 'text-[13px]')}>
-                    Approved
-                </span>
-            </span>
-
-            <span className="w-full border-t border-success/30" aria-hidden="true" />
-
-            <span className="text-center leading-tight text-emerald-900 dark:text-emerald-300" aria-hidden="true">
-                <span className={cn('block font-semibold', compact ? 'text-[11px]' : 'text-xs')}>{authorization.approver}</span>
-                {authorization.role && (
-                    <span className="block text-[10px] uppercase tracking-wide opacity-70">{authorization.role}</span>
-                )}
-                {at && <span className="block text-[10px] tabular-nums opacity-70">{at}</span>}
-            </span>
-        </div>
+        <DocumentActionStamp
+            variant="approved"
+            by={authorization.approver}
+            title={authorization.role ?? null}
+            at={at}
+            compact={compact}
+            className={className}
+        />
     );
 }

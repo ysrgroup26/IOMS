@@ -499,8 +499,31 @@ class HandleInertiaRequests extends Middleware
             'notifications' => fn () => [
                 'ppe_alert_count' => $user ? $this->workCenter->ppeAlertCount() : 0,
                 'unread_count' => $user ? \App\Models\Notification::where('user_id', $user->id)->unread()->count() : 0,
+                /*
+                 * v2.125.0 -- `route_prefix` travels with the item.
+                 *
+                 * Every workflow notification now carries a destination
+                 * (they all carried `null` before, which is why tapping one
+                 * did nothing). A destination the reader is refused is
+                 * worse than none: it reads as the account being broken,
+                 * which is the exact failure ADR 061 was written about.
+                 *
+                 * So the row's stored route name is exposed as its
+                 * first dot-segment, and the menu checks it against the
+                 * SAME `allowed_route_prefixes` / `blocked_route_prefixes`
+                 * shared below that the sidebar and the tiles check. One
+                 * question, one source, asked by every surface that offers
+                 * a link.
+                 */
                 'items' => $user
-                    ? \App\Models\Notification::where('user_id', $user->id)->latest()->limit(10)->get(['id', 'category', 'title', 'body', 'url', 'read_at', 'created_at'])
+                    ? \App\Models\Notification::where('user_id', $user->id)->latest()->limit(10)
+                        ->get(['id', 'category', 'title', 'body', 'url', 'read_at', 'created_at', 'meta'])
+                        ->map(fn (\App\Models\Notification $n) => [
+                            ...$n->only(['id', 'category', 'title', 'body', 'url', 'read_at', 'created_at']),
+                            'route_prefix' => is_string($n->meta['route'] ?? null)
+                                ? explode('.', $n->meta['route'])[0]
+                                : null,
+                        ])
                     : [],
             ],
             // Work Center (v1.8.0) topbar badge counts -- same

@@ -705,6 +705,11 @@ class EmployeeController extends Controller
     {
         $request->validate([
             'file' => $this->importFileRules(),
+            // v2.125.0 -- the sheet the customer picked out of a
+            // multi-sheet workbook. Existence is checked where the file is
+            // open (withImportSpreadsheet), which refuses by name rather
+            // than falling back to another sheet.
+            'sheet' => ['nullable', 'string', 'max:200'],
             'company_id' => ['required', Rule::in(Company::query()->pluck('id'))],
             ...$this->columnMappingRules(),
         ]);
@@ -814,6 +819,11 @@ class EmployeeController extends Controller
     {
         $request->validate([
             'file' => $this->importFileRules(),
+            // v2.125.0 -- the sheet the customer picked out of a
+            // multi-sheet workbook. Existence is checked where the file is
+            // open (withImportSpreadsheet), which refuses by name rather
+            // than falling back to another sheet.
+            'sheet' => ['nullable', 'string', 'max:200'],
             'company_id' => ['required', Rule::in(Company::query()->pluck('id'))],
             'new_departments' => ['array'],
             'new_departments.*' => ['string', 'max:255'],
@@ -916,6 +926,11 @@ class EmployeeController extends Controller
     {
         $request->validate([
             'file' => $this->importFileRules(),
+            // v2.125.0 -- the sheet the customer picked out of a
+            // multi-sheet workbook. Existence is checked where the file is
+            // open (withImportSpreadsheet), which refuses by name rather
+            // than falling back to another sheet.
+            'sheet' => ['nullable', 'string', 'max:200'],
             'company_id' => ['required', Rule::in(Company::query()->pluck('id'))],
             ...$this->columnMappingRules(),
         ]);

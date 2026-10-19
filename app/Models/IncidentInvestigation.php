@@ -212,4 +212,22 @@ class IncidentInvestigation extends Model
     {
         return app(\App\Services\NumberGeneratorService::class)->preview('incident_investigation', $companyId);
     }
+
+    /**
+     * v2.125.0 -- where a notification about this record opens.
+     *
+     * Every workflow notification in this product was created with a null
+     * url, so the notification menu (which navigates only when one is set)
+     * had nothing to navigate to: the reader tapped it, it was marked
+     * read, and nothing happened. One line per model, named explicitly
+     * rather than derived from the class name, because a derived route
+     * name that is subtly wrong fails silently and this is the thing that
+     * was silently missing in the first place.
+     *
+     * @see \App\Concerns\HasWorkflow::notificationUrl()
+     */
+    public function notificationRouteName(): ?string
+    {
+        return 'investigations.show';
+    }
 }

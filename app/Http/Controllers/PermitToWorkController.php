@@ -207,6 +207,33 @@ class PermitToWorkController extends Controller
             'riskAssessments' => RiskAssessment::whereIn('company_id', $tenantCompanyIds)->where('status', RiskAssessment::STATUS_APPROVED)->get(['id', 'ra_number', 'title']),
             'jsas' => JobSafetyAnalysis::whereIn('company_id', $tenantCompanyIds)->where('status', JobSafetyAnalysis::STATUS_APPROVED)->get(['id', 'jsa_number', 'job_title']),
             'ptwNumber' => PermitToWork::previewNumber(),
+            /*
+             * v2.125.0 -- THE PERSON RAISING THE PERMIT IS USUALLY THE
+             * PERSON RESPONSIBLE FOR THE WORK, SO SAY SO AND LET THEM
+             * DISAGREE.
+             *
+             * The PIC field opened empty for every account, including a
+             * My Work account that IS an employee (ADR 062: that class is
+             * created by picking somebody out of the Employee Register,
+             * so `users.employee_id` is not a hint, it is the identity).
+             * A supervisor on a phone therefore searched the directory
+             * for themselves before they could start.
+             *
+             * This is a DEFAULT, not an assignment: the field stays a
+             * normal editable `EmployeeSelector`, and nothing downstream
+             * reads it as authority. `requested_by` is still set from the
+             * session in `store()` and still has no key in
+             * StorePermitToWorkRequest, so filling this in grants the
+             * creator no approval right whatsoever -- approving remains
+             * `canManageHse()` and writes `hse_approver_id`.
+             *
+             * Null for an account with no employee link (a dashboard user
+             * who is not in the register), which leaves the field exactly
+             * as it was rather than guessing.
+             */
+            'defaultPicEmployeeId' => $request->user()->employee_id
+                ? (string) $request->user()->employee_id
+                : '',
             'types' => PermitToWork::TYPES,
             // v2.73.0 -- the EXISTING PPE master, not a new one.
             'ppeTypes' => $tenantCompanyIds->flatMap(fn ($companyId) =>
@@ -317,7 +344,20 @@ class PermitToWorkController extends Controller
             // person. Browser-verified: without it roleLabel() returned an
             // empty string rather than failing, so the seal rendered a
             // person with no role and nothing anywhere said why.
-            'requester:id,name', 'areaAuthority:id,name', 'hseApprover:id,name,role', 'closer:id,name',
+            'requester:id,name', 'areaAuthority:id,name', 'closer:id,name',
+            /*
+             * v2.125.0 -- `employee_id` and the position behind it.
+             *
+             * The seal's title line is now the company's own job title
+             * (see authorizationFor()), which is reached account ->
+             * employee -> position. Without `employee_id` in this select
+             * the relation resolves to null and the title silently falls
+             * all the way back to the system role -- the exact shape of
+             * the v2.72.0 defect this constraint caused once already,
+             * where a missing column made roleLabel() return '' rather
+             * than fail.
+             */
+            'hseApprover:id,name,role,employee_id', 'hseApprover.employee:id,position_id', 'hseApprover.employee.position:id,name',
             'gasTests.tester:id,name', 'lotoRecords',
             // v2.17.0 (PTW Field Workflow Foundation, Part 8/9/14/15).
             'pic:id,full_name', 'personnel:id,full_name'
@@ -445,7 +485,7 @@ class PermitToWorkController extends Controller
     {
         $this->assertInCurrentTenant($permitToWork);
 
-        $permitToWork->load('company', 'project', 'riskAssessment', 'jsa', 'requester', 'areaAuthority', 'hseApprover', 'closer', 'gasTests.tester', 'pic', 'personnel');
+        $permitToWork->load('company', 'project', 'riskAssessment', 'jsa', 'requester', 'areaAuthority', 'hseApprover', 'hseApprover.employee.position', 'closer', 'gasTests.tester', 'pic', 'personnel');
 
         return $pdf->streamInline('pdf.permit-to-work', [
             'permit' => $permitToWork,
@@ -490,7 +530,7 @@ class PermitToWorkController extends Controller
     {
         $this->assertInCurrentTenant($permitToWork);
 
-        $permitToWork->load('company', 'project', 'riskAssessment', 'jsa', 'requester', 'areaAuthority', 'hseApprover', 'closer', 'gasTests.tester', 'pic', 'personnel');
+        $permitToWork->load('company', 'project', 'riskAssessment', 'jsa', 'requester', 'areaAuthority', 'hseApprover', 'hseApprover.employee.position', 'closer', 'gasTests.tester', 'pic', 'personnel');
 
         return Inertia::render('PermitsToWork/Document', [
             'permit' => $permitToWork,
@@ -587,17 +627,46 @@ class PermitToWorkController extends Controller
             ->where('subject_id', $permitToWork->id)
             ->where('action', PermitToWork::STATUS_APPROVED)
             ->latest()
-            ->first(['actor_name', 'created_at']);
+            ->first(['actor_name', 'actor_title', 'created_at']);
 
         return [
             'approver' => $authorisation?->actor_name ?: $approver?->name,
-            // Guarded on the column rather than calling roleLabel()
-            // blind: that method's `default` arm is ucfirst($this->role),
-            // which returns '' for a relation loaded without the column
-            // instead of failing. A caller that constrains this relation
-            // therefore gets no role line -- a fact omitted, never one
-            // invented, which is the rule the whole stamp is built on.
-            'role' => $approver?->role ? $approver->roleLabel() : null,
+            /*
+             * v2.125.0 -- THE COMPANY'S OWN JOB TITLE, AS AT THE SIGNING.
+             *
+             * This was `$approver->roleLabel()`, which is the IOMS SYSTEM
+             * role -- "Super Admin", "HSE". On a permit taped to a
+             * bulkhead that is the wrong fact: the authority a reader
+             * recognises is the yard's own title, and which title signs
+             * which permit is the customer's configuration, not ours. One
+             * company's permits are signed by an SPV HSE, another's by a
+             * Manager Shipyard or a Site Manager, and nothing here may
+             * force either word.
+             *
+             * So the title is read in this order, each step a real record
+             * and never a guess:
+             *
+             *  1. `actor_title` on the authorising ActivityLog row -- the
+             *     position that account held AT THE MOMENT it signed, so a
+             *     later rename or transfer cannot rewrite a filed permit.
+             *  2. the approver's CURRENT position, for a permit signed
+             *     before that column existed. Shows no less than the old
+             *     behaviour did.
+             *  3. the system role, last, because it is at least true about
+             *     the account even when the company configured no position
+             *     for them.
+             *
+             * Null if none of the three is available, and the stamp then
+             * renders without a title line rather than with a fabricated
+             * one -- the rule the whole stamp is built on.
+             *
+             * This changes NO authority. Who may write `hse_approver_id`
+             * is `canManageHse()` and is untouched; this only reports who
+             * did.
+             */
+            'role' => $authorisation?->actor_title
+                ?: ($approver?->employee?->position?->name
+                    ?: ($approver?->role ? $approver->roleLabel() : null)),
             'at' => $authorisation?->created_at,
         ];
     }

@@ -224,11 +224,11 @@ class ApprovalEngine
      */
     private function notifyApprovers(Model $approvable, array $roles, ?int $stepNumber): void
     {
-        $title = class_basename($approvable).' '.$this->displayNumberOf($approvable).' needs your approval'.
+        $title = $this->labelOf($approvable).' '.$this->displayNumberOf($approvable).' needs your approval'.
             ($stepNumber ? " (step {$stepNumber})" : '');
 
         foreach ($roles as $role) {
-            $this->notifier->notifyRole($role, Notification::CATEGORY_APPROVAL, $title, null, null, $approvable);
+            $this->notifier->notifyRole($role, Notification::CATEGORY_APPROVAL, $title, null, $this->urlOf($approvable), $approvable, $this->metaOf($approvable));
         }
     }
 
@@ -237,11 +237,62 @@ class ApprovalEngine
         $this->notifier->notify(
             $user,
             Notification::CATEGORY_APPROVAL,
-            class_basename($approvable).' '.$this->displayNumberOf($approvable).' needs your approval',
+            $this->labelOf($approvable).' '.$this->displayNumberOf($approvable).' needs your approval',
             null,
-            null,
-            $approvable
+            $this->urlOf($approvable),
+            $approvable,
+            $this->metaOf($approvable)
         );
+    }
+
+    /**
+     * v2.125.0 -- the product's name for the record, not its class name.
+     *
+     * "PermitToWork PTW-2026-0001 needs your approval" was being delivered
+     * verbatim. `HasWorkflow::documentLabel()` is the one place that
+     * decides this, and every approvable in this codebase uses that trait;
+     * the fallback covers one that someday does not, without ever letting
+     * a raw class name through.
+     *
+     * @see \App\Concerns\HasWorkflow::documentLabel()
+     */
+    private function labelOf(Model $approvable): string
+    {
+        return method_exists($approvable, 'documentLabel')
+            ? $approvable->documentLabel()
+            : Str::headline(class_basename($approvable));
+    }
+
+    /**
+     * WHERE AN APPROVAL REQUEST SHOULD OPEN.
+     *
+     * v2.125.0 -- this was `null`, so "needs your approval" was a sentence
+     * and nothing else: the approver tapped it, it went grey, and they then
+     * went looking for the record by hand. The destination comes from the
+     * model itself (`notificationUrl()`), which is the same method the
+     * status-change notification uses, so an approver and a requester
+     * cannot be sent to two different places for one record.
+     *
+     * Null when the model names no route -- a notification that opens
+     * nothing is better than one that opens a refusal.
+     */
+    private function urlOf(Model $approvable): ?string
+    {
+        return method_exists($approvable, 'notificationUrl')
+            ? $approvable->notificationUrl()
+            : null;
+    }
+
+    /**
+     * The destination's route NAME, stored on the row beside the url so a
+     * surface can check it against the reader's own allow-list before
+     * offering the click. @see \App\Concerns\HasWorkflow
+     */
+    private function metaOf(Model $approvable): array
+    {
+        return method_exists($approvable, 'notificationRouteName')
+            ? array_filter(['route' => $approvable->notificationRouteName()])
+            : [];
     }
 
     private function displayNumberOf(Model $approvable): string
@@ -335,10 +386,11 @@ class ApprovalEngine
                     $this->notifier->notifyRole(
                         $stepDefinition->escalate_to_role,
                         Notification::CATEGORY_WARNING,
-                        class_basename($approval->approvable).' '.$this->displayNumberOf($approval->approvable).' was escalated to you -- no decision after '.$stepDefinition->escalate_after_hours.'h',
+                        $this->labelOf($approval->approvable).' '.$this->displayNumberOf($approval->approvable).' was escalated to you: no decision after '.$stepDefinition->escalate_after_hours.'h',
                         null,
-                        null,
-                        $approval->approvable
+                        $this->urlOf($approval->approvable),
+                        $approval->approvable,
+                        $this->metaOf($approval->approvable)
                     );
 
                     $escalated++;

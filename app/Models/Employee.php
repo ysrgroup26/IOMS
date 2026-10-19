@@ -313,17 +313,51 @@ class Employee extends Model
         return $query;
     }
 
+    /**
+     * v2.125.0 -- A NAME TYPED BY A PERSON, NOT A SUBSTRING.
+     *
+     * This was a single `LIKE %term%` over the two columns, which matches
+     * only when the typed characters appear CONTIGUOUSLY in one of them.
+     * Everything a human does to a name therefore missed:
+     *
+     *   "misrani  saputra"  doubled internal space, present in pasted
+     *                       text and in a name copied out of a roster
+     *   "saputra misrani"   the family name first, which is how half the
+     *                       workforce is addressed on site
+     *   " Misrani"          a leading space from a phone keyboard
+     *   "misrani 10244"     the name and the badge number together,
+     *                       which is what the chips on this very form
+     *                       display, so it is what gets typed back
+     *
+     * Each of those returned "Karyawan tidak ditemukan" for an employee
+     * who was present, active and in the right company. So the term is
+     * now split on whitespace and every token must match SOMEWHERE in the
+     * name or the badge number -- AND across tokens, OR within one. More
+     * tokens narrow the result, which is what a person typing more
+     * expects; a single token behaves exactly as before.
+     *
+     * Case is left to the column's collation, which is case-insensitive
+     * on both MySQL (utf8mb4_unicode_ci) and SQLite for ASCII. It is not
+     * forced with LOWER() here because that would discard the index on
+     * `employee_id` for no behavioural gain.
+     */
     public function scopeSearch($query, ?string $term)
     {
-        if (! $term) {
+        $tokens = preg_split('/\s+/', trim((string) $term), -1, PREG_SPLIT_NO_EMPTY) ?: [];
+
+        if ($tokens === []) {
             return $query;
         }
 
         // Qualified for the same reason as every other scope in this
         // class: this one runs beside two joined tables.
-        return $query->where(function ($q) use ($term) {
-            $q->where('employees.full_name', 'like', "%{$term}%")
-                ->orWhere('employees.employee_id', 'like', "%{$term}%");
+        return $query->where(function ($outer) use ($tokens) {
+            foreach ($tokens as $token) {
+                $outer->where(function ($q) use ($token) {
+                    $q->where('employees.full_name', 'like', "%{$token}%")
+                        ->orWhere('employees.employee_id', 'like', "%{$token}%");
+                });
+            }
         });
     }
 

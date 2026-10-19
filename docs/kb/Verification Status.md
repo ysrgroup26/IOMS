@@ -1,7 +1,7 @@
 ---
 title: Verification Status
 type: register
-updated: 2026-10-18
+updated: 2026-10-19
 tags: [kb/verification]
 ---
 
@@ -33,6 +33,45 @@ and driving the screen in a browser, the twelve-to-six month edit **saves and pe
 
 `ReleaseStatusService` and the hardened `app:deploy` exist to close that gap, and
 `DeploymentIdentityTest` pins them. See `docs/ADR/057-a-release-must-be-able-to-prove-what-is-running.md`.
+
+### What was actually run for v2.125.0
+
+**Level: browser-verified against MySQL 8 on this machine. NOT deployed, NOT production-verified.**
+
+Environment: a fresh MySQL 8 database (`ioms_ui`), the full migration history applied with no
+failure, four plan tenants seeded with role accounts, and a **My Work account created through the
+real `MyWorkAccessService`** so the fixture matches what an administrator actually produces. Driven
+with Chromium at **390px** (the phone the brief is about) and **1440px**.
+
+What was exercised, end to end, in that browser:
+
+| Driven | Result |
+|---|---|
+| My Work sign-in with an Employee ID and access code | lands on `/my-work` |
+| `/employee-lookup` from that account | **200, 200, 200** — it answered **403** on every request before this release |
+| Searching `Misrani`, `Saputra Misrani`, `Misrani  Saputra` | each finds "Misrani Saputra"; "Karyawan tidak ditemukan" no longer appears |
+| Opening the create form | PIC arrives pre-filled with the creator ("Andi Pratama") |
+| The form at 390px, long description, colleague selected | **0px horizontal overflow**; the textarea grew 72px → **190px** |
+| Submitting the permit | `/permits-to-work/1`, personnel and PIC saved |
+| HSE approving and activating it | `APPROVED` seal reading **SPV HSE** on the detail page **and** the document view; `ACTIVE` standing stamp on the document view |
+| `activity_logs` read back | `actor_title = 'SPV HSE'` on the approving row, `'Welder'` on the requester's; new descriptions read "Permit to Work moved from…" |
+| The PDF | 200, `application/pdf`, **8,053 bytes** |
+| The notification, from the My Work account | `Permit to Work PTW-2026-00001 is now Approved · just now · Buka`; tapping it opens `/permits-to-work/1`; read state survives a reload |
+
+**Two defects were found BY the browser and not by reading**, and both are fixed in this release:
+the activity timeline rendered `PermitToWork moved from Draft to Submitted.`, and the first cut of
+the compact approval seal dropped the job title — on the detail page, the most-visited surface,
+which is the one place the title exists for.
+
+Suite: **1476 tests, 7612 assertions, green** (SQLite). Build: clean, with both new arbitrary
+Tailwind utilities confirmed in the emitted CSS.
+
+> [!warning] What this does NOT say
+> Nothing above describes production. The release has not been deployed, so the only honest claim
+> ADR 057 permits — "the two signatures match" — cannot be made. See
+> [[PTW and Field Access Master Revision]], whose rows are at *Menunggu deployment*.
+
+---
 
 ### What was actually run for v2.124.0
 

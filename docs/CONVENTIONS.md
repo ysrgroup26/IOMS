@@ -3178,3 +3178,65 @@ anyone built a way to *view* that data — the real gap was a viewing component,
 mechanism, and building a second, parallel logging system would have been pure duplication. This
 kind of check is cheap (a few minutes of reading) relative to the cost of maintaining a duplicate
 system afterward.
+
+## A refused response is not an empty result set
+
+v2.125.0, and it cost a release's worth of confusion. `EmployeeSelector` fetched its directory like
+this:
+
+```js
+// WRONG
+fetch('/employee-lookup?' + params)
+    .then((r) => (r.ok ? r.json() : { data: [] }))
+```
+
+Every non-OK response therefore became zero results, and zero results render as "Karyawan tidak
+ditemukan." So when `/employee-lookup` was missing from `RestrictMyWorkUser::ALLOWED_PREFIXES` and
+answered **403** on every keystroke, the screen told a field worker their colleague **did not
+exist**. They searched harder, because the message told them to, and the fault was reported as
+missing employee data. It was never the data.
+
+```js
+// RIGHT -- the transport outcome is kept apart from the result set
+.then(async (r) => r.ok
+    ? { body: await r.json(), failure: null }
+    : { body: { data: [] }, failure: r.status === 403 || r.status === 401 ? 'forbidden' : 'error' })
+```
+
+Two rules:
+
+- **Any client-side fetch whose empty state is user-facing copy must distinguish refused, failed and
+  genuinely empty.** Collapsing them produces a confident lie, and the more plausible the empty-state
+  copy is, the longer it survives.
+- **When a route is added to a restricted class's allow-list, every endpoint the pages on that list
+  FETCH FROM goes on it too.** ADR 061 drew this rule for links; this is the same rule for data. A
+  form on the allow-list and a directory off it is a form that cannot be filled in.
+
+`PtwFieldRevisionTest::test_the_permit_form_and_the_directory_it_reads_are_both_allowed()` pins the
+pair.
+
+## `class_basename()` is a class name, and a class name is not copy
+
+Three copies of one fault shipped and lived for releases, all from the same reflex — building a label
+out of the model's class name with nothing between a stored identifier and the customer:
+
+```php
+// WRONG, all three
+class_basename($this).' '.$this->displayNumber().' is now '.ucfirst($newStatus)   // notification title
+class_basename($approvable).' '.$number.' needs your approval'                    // approval request
+class_basename($this).' moved from '.Str::headline($current).' to '.…             // activity timeline
+```
+
+Which delivered **"PermitToWork PTW-2026-00001 is now Submitted"** to a worker holding a phone, and
+wrote **"PermitToWork moved from Draft to Submitted."** onto the permit's own activity timeline — the
+surface an auditor opens. `Str::headline()` on top of it would have produced "Permit To Work", which
+is *nearly* right and therefore the harder kind of wrong: the product writes "Permit to Work"
+everywhere else, and a notification has to match the menu item the person tapped.
+
+This is the same shape as the Settings module keys recorded above, where underscores were swapped
+for spaces and CSS `capitalize` produced "Hse Inspection", "Jsa" and "Ptw".
+
+**One method decides what a record is called.** `HasWorkflow::documentLabel()` (overridable per
+model) and `statusLabel()`, so the timeline, the notification and the approval request cannot
+disagree. If you are about to interpolate `class_basename()` into a string a person will read, you
+want that method instead.

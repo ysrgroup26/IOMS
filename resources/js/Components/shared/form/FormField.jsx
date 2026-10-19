@@ -2,6 +2,7 @@ import { useId } from 'react';
 import { AlertCircle } from 'lucide-react';
 import { Label } from '@/Components/ui/label';
 import { cn } from '@/lib/utils';
+import OptionalTag from '@/Components/shared/form/OptionalTag';
 
 /**
  * v2.65.0 -- THE FIELD CONTRACT.
@@ -83,7 +84,11 @@ export default function FormField({
                         // Stated once, quietly, rather than left ambiguous.
                         // A form where only SOME fields are marked leaves
                         // the reader guessing about the rest.
-                        <span className="text-[11px] font-normal text-graphite-400">optional</span>
+                        //
+                        // v2.125.0: the one shared tag, so this and the
+                        // operational forms that build their own headings
+                        // cannot word or weight it differently.
+                        <OptionalTag />
                     )}
                 </Label>
             )}

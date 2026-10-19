@@ -104,6 +104,54 @@ trait ReadsImportedSpreadsheets
         $document = app(DocumentIngestionService::class)->extract($file->getRealPath(), $format);
         $isSpreadsheet = in_array($format, [FormatDetector::XLSX, FormatDetector::XLS], true);
 
+        /*
+         * v2.125.0 -- WHICH SHEET, WHEN THE CUSTOMER'S WORKBOOK HAS SEVERAL.
+         *
+         * This path took `primaryTable()` unconditionally: the table the
+         * locator was most confident about, which for a real company
+         * workbook ("Data", "Rekap", "Sheet1", "Template") is a coin toss
+         * decided by confidence and row count. The import then either
+         * failed on headings from the wrong sheet or -- worse -- succeeded
+         * against a summary tab and reported a handful of rows as the whole
+         * file. Neither told the customer which sheet had been read.
+         *
+         * An explicitly NAMED sheet is now honoured, and honoured through
+         * the bridge even for a .xlsx: Maatwebsite reads the first worksheet
+         * unless told otherwise, so handing it the original file would
+         * silently ignore the choice -- the exact failure mode this is here
+         * to remove. A name that matches no sheet is REFUSED rather than
+         * quietly falling back, because falling back is how the customer
+         * ends up believing they chose something.
+         *
+         * No name sent behaves exactly as before.
+         */
+        $requestedSheet = $request->input('sheet');
+
+        if (is_string($requestedSheet) && trim($requestedSheet) !== '') {
+            $chosen = null;
+
+            foreach ($document->tables as $candidate) {
+                if ($candidate->source === $requestedSheet) {
+                    $chosen = $candidate;
+                    break;
+                }
+            }
+
+            if ($chosen === null) {
+                throw ValidationException::withMessages([
+                    'sheet' => 'Sheet "'.$requestedSheet.'" tidak ada di dalam berkas ini. Pilih sheet lain lalu coba lagi.',
+                ]);
+            }
+
+            $path = app(TabularBridge::class)->toSpreadsheet($chosen);
+
+            try {
+                return $work($path, $chosen->headerRowNumber - 1, ExcelFacadeType::XLSX);
+            } finally {
+                @unlink($path);
+            }
+        }
+
         if ($isSpreadsheet && $this->readableAsIs($document)) {
             return $work($file->getRealPath(), 0, $this->readerFor($format));
         }
@@ -195,6 +243,43 @@ trait ReadsImportedSpreadsheets
         $suggestion = app(ImportHeaderMatcher::class)->suggest($headings, [], $this->importModuleKey());
 
         return count($suggestion['mapping'] ?? []) >= 2;
+    }
+
+    /**
+     * v2.125.0 -- the sheets this file actually contains, for the customer
+     * to choose from.
+     *
+     * Reported for EVERY upload, not only multi-sheet ones, so the dialog
+     * can always say which sheet it is about to read -- "we read Sheet1"
+     * is information the customer needs even when there was no choice to
+     * make. `chosen` is what `withImportSpreadsheet()` would take with no
+     * `sheet` named, computed by calling the same method rather than by
+     * re-deriving the rule.
+     *
+     * @return array{sheets: list<array<string, mixed>>, chosen: ?string}
+     */
+    protected function describeImportSheets(Request $request): array
+    {
+        $file = $request->file('file');
+        $format = app(FormatDetector::class)->detectUploaded($file);
+
+        if ($format === null) {
+            return ['sheets' => [], 'chosen' => null];
+        }
+
+        $document = app(DocumentIngestionService::class)->extract($file->getRealPath(), $format);
+
+        return [
+            'sheets' => array_map(fn ($table) => [
+                'name' => $table->source,
+                'row_count' => $table->rowCount(),
+                'column_count' => $table->columnCount(),
+                'headings' => $table->headings,
+                'confidence' => round($table->confidence, 2),
+                'header_row_number' => $table->headerRowNumber,
+            ], $document->tables),
+            'chosen' => $document->primaryTable()?->source,
+        ];
     }
 
     protected function readableAsIs(ExtractedDocument $document): bool

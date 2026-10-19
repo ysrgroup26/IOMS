@@ -293,4 +293,34 @@ class PermitToWork extends Model
     {
         return $this->project?->name ?: ($this->work_reference ?: null);
     }
+
+    /**
+     * v2.125.0 -- where a notification about this permit opens.
+     *
+     * `permits-to-work` is on RestrictMyWorkUser's allow-list, so this
+     * destination is reachable by the class that raises most permits --
+     * which is the whole point: a permit returned for correction has to
+     * open the permit, not a list, or the field worker cannot see the
+     * reason it came back.
+     *
+     * @see \App\Concerns\HasWorkflow::notificationUrl()
+     */
+    public function notificationRouteName(): ?string
+    {
+        return 'permits-to-work.show';
+    }
+
+    /**
+     * The product's name for this document.
+     *
+     * The trait derives "Permit To Work" from the class name, which is
+     * correct but is not how the product writes it -- `config/modules.php`,
+     * the navigation and the PDF all say "Permit to Work". A notification
+     * is the one surface a field worker reads without opening the record,
+     * so it is the one that must match the menu item they tapped.
+     */
+    public function documentLabel(): string
+    {
+        return 'Permit to Work';
+    }
 }

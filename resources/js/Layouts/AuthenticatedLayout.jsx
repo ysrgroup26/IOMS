@@ -15,7 +15,7 @@ import { useFocusTrap } from '@/lib/useFocusTrap';
 import { useMediaQuery } from '@/lib/useMediaQuery';
 import {
     getSelectableDepartments, getAdminSpaceItems, getCompanyNavItems,
-    getMyWorkNavItems, isMyWorkOnlyUser, filterNavByServerRules,
+    getMyWorkNavItems, isMyWorkOnlyUser, filterNavByServerRules, isRouteBlockedForUser,
     getWorkspaceKeyForRoute, isDepartmentWorkspaceKey, ADMIN_SPACE_KEY,
 } from '@/lib/workspaces';
 import { useScrollMemory, rememberWorkspaceKey, recallWorkspaceKey } from '@/lib/navigationMemory';
@@ -1365,11 +1365,35 @@ function NotificationsMenu() {
     const items = notifications?.items ?? [];
     const badgeCount = unreadCount + ppeAlertCount;
 
+    /*
+     * v2.125.0 -- A NOTIFICATION THAT LOOKS INTERACTIVE MUST BE.
+     *
+     * Three things were wrong with one line of code. The producers created
+     * every workflow notification with a null url (fixed in
+     * HasWorkflow/ApprovalEngine), so `if (notification.url)` was never
+     * true and the click only ever marked the row read -- the reported
+     * symptom, "notifikasi hanya menampilkan teks". Second, a row with a
+     * destination the reader is REFUSED would now navigate straight into a
+     * 403, which reads as a broken account. Third, every row looked
+     * identically tappable either way.
+     *
+     * So the offer is bound to what the server allows, from the same
+     * source the sidebar and the dashboard tiles read (ADR 061): the
+     * stored route prefix checked against this account's own
+     * allowed/blocked prefixes. A row that cannot open says so and still
+     * marks read; a row that can, opens.
+     */
+    function canOpen(notification) {
+        if (!notification.url) return false;
+        if (!notification.route_prefix) return true;
+        return !isRouteBlockedForUser(notification.route_prefix, auth?.user);
+    }
+
     function markRead(notification) {
         if (!notification.read_at) {
             router.put(route('notifications.read', notification.id), {}, { preserveScroll: true, preserveState: true });
         }
-        if (notification.url) {
+        if (canOpen(notification)) {
             router.visit(notification.url);
         }
     }
@@ -1417,16 +1441,43 @@ function NotificationsMenu() {
                 {items.length === 0 && ppeAlertCount === 0 && (
                     <div className="px-2 py-6 text-center text-sm text-graphite-400">No notifications</div>
                 )}
-                {items.map((item) => (
-                    <DropdownMenuItem key={item.id} onSelect={() => markRead(item)} className="flex items-start gap-2">
-                        <span className={cn('mt-1.5 h-1.5 w-1.5 shrink-0 rounded-full', item.read_at ? 'bg-transparent' : (NOTIFICATION_CATEGORY_DOT[item.category] ?? 'bg-graphite-400'))} />
-                        <div className="min-w-0 flex-1">
-                            <p className={cn('truncate text-sm', item.read_at ? 'text-graphite-500' : 'font-medium text-graphite-800')}>{item.title}</p>
-                            {item.body && <p className="truncate text-xs text-graphite-400">{item.body}</p>}
-                            <p className="text-[10px] text-graphite-400">{relativeTime(item.created_at)}</p>
-                        </div>
-                    </DropdownMenuItem>
-                ))}
+                {items.map((item) => {
+                    const openable = canOpen(item);
+                    const unread = !item.read_at;
+
+                    return (
+                        <DropdownMenuItem
+                            key={item.id}
+                            onSelect={() => markRead(item)}
+                            /* Unread carries weight and a tinted ground;
+                               read is deliberately quiet. Same row, two
+                               registers -- which is what makes a glance at
+                               the list tell you whether anything is new. */
+                            className={cn(
+                                'flex items-start gap-2 rounded-md border-l-2 py-2',
+                                unread
+                                    ? 'border-l-brand-500 bg-brand-50/40 dark:bg-brand-950/20'
+                                    : 'border-l-transparent',
+                                openable ? 'cursor-pointer' : 'cursor-default'
+                            )}
+                        >
+                            <span className={cn('mt-1.5 h-1.5 w-1.5 shrink-0 rounded-full', unread ? (NOTIFICATION_CATEGORY_DOT[item.category] ?? 'bg-graphite-400') : 'bg-graphite-300')} />
+                            <div className="min-w-0 flex-1">
+                                <p className={cn('text-sm leading-snug', unread ? 'font-semibold text-graphite-900 dark:text-slate-100' : 'text-graphite-500 dark:text-slate-400')}>{item.title}</p>
+                                {/* Two lines, not one truncated one: the
+                                    body of a returned permit is the REASON
+                                    it came back, and a reason cut off at
+                                    "Area belum di..." is not a reason. */}
+                                {item.body && <p className="line-clamp-2 text-xs leading-snug text-graphite-500 dark:text-slate-400">{item.body}</p>}
+                                <p className="mt-0.5 flex items-center gap-1.5 text-[10px] text-graphite-400">
+                                    <span>{relativeTime(item.created_at)}</span>
+                                    {openable && <span className="font-medium text-brand-600">Buka</span>}
+                                    {!openable && item.url && <span className="italic">Tidak dapat dibuka dengan akun ini</span>}
+                                </p>
+                            </div>
+                        </DropdownMenuItem>
+                    );
+                })}
             </DropdownMenuContent>
         </DropdownMenu>
     );

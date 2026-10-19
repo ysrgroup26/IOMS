@@ -210,6 +210,11 @@ class PpeController extends Controller
         return response()->json([
             ...$suggestion,
             'field_labels' => config('mapping_fields.employee_ppe.import', []),
+            // v2.125.0 -- which sheets the workbook has, and which one
+            // would be read if the customer makes no choice. Always sent,
+            // because "we read Rekap" is information they need even when
+            // there was only one sheet to read.
+            ...$this->describeImportSheets($request),
         ]);
     }
 
@@ -228,6 +233,11 @@ class PpeController extends Controller
         $request->validate([
             'file' => $this->importFileRules(),
             'company_id' => ['required', Rule::in(Company::query()->pluck('id'))],
+            // v2.125.0: the sheet the customer picked. Validated as a
+            // string only -- whether it EXISTS in the file is decided by
+            // withImportSpreadsheet(), which is the one place that has the
+            // file open and can refuse by name.
+            'sheet' => ['nullable', 'string', 'max:200'],
             ...$this->ppeColumnMappingRules(),
         ]);
 
@@ -265,6 +275,11 @@ class PpeController extends Controller
         $request->validate([
             'file' => $this->importFileRules(),
             'company_id' => ['required', Rule::in(Company::query()->pluck('id'))],
+            // v2.125.0: the sheet the customer picked. Validated as a
+            // string only -- whether it EXISTS in the file is decided by
+            // withImportSpreadsheet(), which is the one place that has the
+            // file open and can refuse by name.
+            'sheet' => ['nullable', 'string', 'max:200'],
             ...$this->ppeColumnMappingRules(),
         ]);
 

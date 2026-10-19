@@ -12,6 +12,7 @@ import EmployeeSelector from '@/Components/shared/EmployeeSelector';
 import ChipSelect from '@/Components/shared/ChipSelect';
 import TagInput from '@/Components/shared/TagInput';
 import { ArrowLeft, ShieldCheck, Users, Flame } from 'lucide-react';
+import OptionalTag from '@/Components/shared/form/OptionalTag';
 
 /**
  * v2.4.0 (PTW UX + Field Operations pass, Phase 1). Was previously one
@@ -70,7 +71,7 @@ function defaultEnd() {
     return toLocalInput(end);
 }
 
-export default function PermitToWorkForm({ ppeTypes = [], companies, projects, riskAssessments, jsas, ptwNumber, types }) {
+export default function PermitToWorkForm({ ppeTypes = [], companies, projects, riskAssessments, jsas, ptwNumber, types, defaultPicEmployeeId = '' }) {
     const { auth } = usePage().props;
     const { data, setData, post, processing, errors } = useForm({
         company_id: companies[0]?.id ? String(companies[0].id) : '',
@@ -91,7 +92,13 @@ export default function PermitToWorkForm({ ppeTypes = [], companies, projects, r
         // v2.38.0: sourced via EmployeeSelector -> /employee-lookup
         // (tenant-scoped, active-only) instead of a preloaded prop; the
         // backend still validates every id with `InCurrentTenant`.
-        pic_employee_id: '',
+        /*
+         * v2.125.0 -- defaulted to the creator's own employee record when
+         * their account has one, and editable like any other field. The
+         * server decides this (see PermitToWorkController::create()), so
+         * the page cannot invent an identity the account does not carry.
+         */
+        pic_employee_id: defaultPicEmployeeId || '',
         personnel_ids: [],
         // v2.73.0 -- PPE from the existing master, plus the hazards it is
         // protecting against. `confirmed_ppe_ids` is deliberately absent:
@@ -298,8 +305,8 @@ export default function PermitToWorkForm({ ppeTypes = [], companies, projects, r
                     pass). */}
                 <Card>
                     <CardHeader>
-                        <CardTitle className="flex items-center gap-2 text-sm"><StepBadge>02</StepBadge><Users className="h-4 w-4 text-graphite-400" /> Workforce -- Optional</CardTitle>
-                        <CardDescription>Siapa yang terlibat dalam pekerjaan ini?</CardDescription>
+                        <CardTitle className="flex items-baseline gap-2 text-sm"><StepBadge>02</StepBadge><Users className="h-4 w-4 self-center text-graphite-400" /> Work Personnel <OptionalTag /></CardTitle>
+                        <CardDescription>Siapa yang bertanggung jawab dan siapa saja yang akan bekerja. Bagian ini boleh dilewati.</CardDescription>
                     </CardHeader>
                     <CardContent className="space-y-4">
                         {/* v2.38.0: both selectors were a plain `<Select>` fed
@@ -312,7 +319,7 @@ export default function PermitToWorkForm({ ppeTypes = [], companies, projects, r
                             permits was this person responsible for?" stays
                             answerable. */}
                         <div className="space-y-1.5">
-                            <Label>Penanggung Jawab Pekerjaan (opsional)</Label>
+                            <Label className="flex items-baseline gap-1.5">Penanggung Jawab Pekerjaan <OptionalTag /></Label>
                             <EmployeeSelector
                                 mode="single"
                                 value={data.pic_employee_id}
@@ -320,12 +327,13 @@ export default function PermitToWorkForm({ ppeTypes = [], companies, projects, r
                                 placeholder="Cari penanggung jawab..."
                             />
                             <p className="text-xs text-graphite-400">
-                                Orang yang bertanggung jawab atas pelaksanaan pekerjaan di lapangan &mdash; berbeda dari pemohon izin.
+                                Orang yang bertanggung jawab atas pelaksanaan pekerjaan di lapangan, berbeda dari pemohon izin.
+                                {defaultPicEmployeeId ? ' Terisi otomatis dengan data Anda dan masih bisa diganti.' : ''}
                             </p>
                             {errors.pic_employee_id && <p className="text-xs text-red-600">{errors.pic_employee_id}</p>}
                         </div>
                         <div className="space-y-1.5">
-                            <Label>Workforce / Personel (opsional)</Label>
+                            <Label className="flex items-baseline gap-1.5">Personel Pekerjaan <OptionalTag /></Label>
                             <EmployeeSelector
                                 mode="multiple"
                                 value={data.personnel_ids}
@@ -348,7 +356,7 @@ export default function PermitToWorkForm({ ppeTypes = [], companies, projects, r
                             without ever naming them, which makes a permit
                             impossible to check against its own JSA. */}
                         <div className="space-y-2">
-                            <Label>Hazards</Label>
+                            <Label>Bahaya Pekerjaan</Label>
                             <TagInput
                                 value={data.hazards}
                                 onChange={(v) => setData('hazards', v)}
@@ -364,7 +372,7 @@ export default function PermitToWorkForm({ ppeTypes = [], companies, projects, r
                             record naming the same protection are the same row
                             rather than two spellings. */}
                         <div className="space-y-2">
-                            <Label>Required PPE</Label>
+                            <Label>APD Wajib</Label>
                             <ChipSelect
                                 options={effectivePpeTypes}
                                 value={data.required_ppe_ids}
@@ -379,7 +387,7 @@ export default function PermitToWorkForm({ ppeTypes = [], companies, projects, r
                         </div>
 
                         <div className="space-y-2">
-                            <Label>Additional PPE (not in master)</Label>
+                            <Label className="flex items-baseline gap-1.5">APD Tambahan di Luar Master <OptionalTag /></Label>
                             <TagInput
                                 value={data.additional_ppe}
                                 onChange={(v) => setData('additional_ppe', v)}
@@ -389,7 +397,7 @@ export default function PermitToWorkForm({ ppeTypes = [], companies, projects, r
                         </div>
 
                         <div className="space-y-2">
-                            <Label>Precautions</Label>
+                            <Label>Tindakan Pencegahan dan Pengamanan</Label>
                             <Textarea value={data.precautions} onChange={(e) => setData('precautions', e.target.value)} rows={3} placeholder="Contoh: pasang fire watch, siapkan APAR, isolasi area kerja" />
                         </div>
                     </CardContent>
@@ -397,19 +405,31 @@ export default function PermitToWorkForm({ ppeTypes = [], companies, projects, r
 
                 <CollapsibleSection title="04 · Optional / Advanced" description="Isi jika diperlukan -- kualifikasi, HIRADC, atau JSA terkait.">
                     <div className="space-y-1.5">
-                        <Label>Required Qualification (optional)</Label>
-                        <Input value={data.required_qualification} onChange={(e) => setData('required_qualification', e.target.value)} placeholder="Contoh: Sertifikat Confined Space Entry -- informasi saja, tidak diverifikasi otomatis" />
+                        <Label className="flex items-baseline gap-1.5">Kualifikasi yang Diwajibkan <OptionalTag /></Label>
+                        {/* v2.125.0 -- the caveat moved OUT of the
+                            placeholder. It was 78 characters inside a
+                            single-line input: on a phone the reader saw
+                            "Contoh: Sertifikat Confined Spac..." and the
+                            part that actually mattered -- that IOMS does
+                            not verify this -- was the part cut off. A
+                            placeholder shows the SHAPE of the answer;
+                            anything the reader must not miss belongs in
+                            helper text, which wraps. */}
+                        <Input value={data.required_qualification} onChange={(e) => setData('required_qualification', e.target.value)} placeholder="Contoh: Sertifikat Confined Space Entry" />
+                        <p className="text-[11px] leading-snug text-graphite-500">
+                            Dicatat sebagai informasi pada izin kerja. IOMS tidak memverifikasi sertifikat ini secara otomatis.
+                        </p>
                     </div>
                     <div className="grid grid-cols-1 gap-3 sm:grid-cols-2">
                         <div className="space-y-1.5">
-                            <Label>Linked HIRADC (optional)</Label>
+                            <Label className="flex items-baseline gap-1.5">HIRADC Terkait <OptionalTag /></Label>
                             <Select value={data.risk_assessment_id || 'none'} onValueChange={(v) => setData('risk_assessment_id', v === 'none' ? '' : v)}>
                                 <SelectTrigger><SelectValue placeholder="None" /></SelectTrigger>
                                 <SelectContent><SelectItem value="none">None</SelectItem>{riskAssessments.map((r) => <SelectItem key={r.id} value={String(r.id)}>{r.ra_number}</SelectItem>)}</SelectContent>
                             </Select>
                         </div>
                         <div className="space-y-1.5">
-                            <Label>Linked JSA (optional)</Label>
+                            <Label className="flex items-baseline gap-1.5">JSA Terkait <OptionalTag /></Label>
                             <Select value={data.jsa_id || 'none'} onValueChange={(v) => setData('jsa_id', v === 'none' ? '' : v)}>
                                 <SelectTrigger><SelectValue placeholder="None" /></SelectTrigger>
                                 <SelectContent><SelectItem value="none">None</SelectItem>{jsas.map((j) => <SelectItem key={j.id} value={String(j.id)}>{j.jsa_number}</SelectItem>)}</SelectContent>

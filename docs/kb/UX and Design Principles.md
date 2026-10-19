@@ -1,7 +1,7 @@
 ---
 title: UX and Design Principles
 type: reference
-updated: 2026-10-01
+updated: 2026-10-19
 tags: [kb/ux, kb/design]
 ---
 
@@ -191,6 +191,67 @@ The **two-zone navigation model** — a permanent workspace rail plus a context 
 `UX_ARCHITECTURE_DISCOVERY.md` §4 and **deliberately not built**. It affects the administrator's
 zoomed-out state only; department and field users are already correct. See [[Requirements Register]]
 before starting it.
+
+---
+
+## A controlled document carries stamps, and a stamp is an action record
+
+v2.125.0. Full reasoning: **ADR 065**.
+
+**A STATE stamp and an ACTION stamp are different objects**, because they answer different
+questions. `ACTIVE` (green) and `CLOSED` (red) are a standing: slanted, double-ruled, distressed,
+identical but for colour and word, and carrying **no date** — a date inside a standing stamp reads as
+the date the standing was granted, which is a different fact from the validity window in the
+document body. `APPROVED` (blue) and `VERIFIED` (green) are an act: upright, iconed, naming the
+person, their job title and the time.
+
+**Only a standing gets a stamp.** Every other status keeps its `StatusBadge`. A stamp that can
+appear in six colours is a status badge wearing a costume, and the failure worth designing out is
+somebody glancing at an amber seal on site and reading it as authorisation.
+
+**A design reference is a specification, not an asset.** The stamps are CSS and type in
+`Components/shared/DocumentStamp.jsx`. An image could not change when the permit closes, could not
+name who signed, could not be read aloud, and could not be printed at another size without going
+soft. The distressed ink is two layered gradients in `currentColor`, `aria-hidden`, and the stamp is
+fully legible without it.
+
+**Mobile gets a pill, not a shrunken stamp** — and the choice is made in CSS
+(`hidden sm:inline-block`), not with `useMediaQuery`, because a document view is also *printed*: a JS
+media query resolves against the viewport, so a stamp chosen at phone width would follow the
+document into print at phone width. The PDF gets the composition without the slant and the distress,
+which Dompdf cannot honour.
+
+**`compact` means smaller, not less true.** The first cut dropped the job title from the compact
+action stamp, so the detail page — the most-visited surface — left out the one fact the title exists
+for. Caught in the browser.
+
+## "Opsional" is a label beside the title, never part of it
+
+v2.125.0. The PTW form carried the card title `Workforce -- Optional`, which got three house rules
+wrong in one string: an em dash in user copy, a field's requirement state welded into the name of
+the section, and the optionality shouting at the same weight as the title it qualifies.
+
+`Components/shared/form/OptionalTag.jsx` is the one place that word is set: small, grey,
+lower-weight, baseline-aligned, and carrying **no colour of its own**, because nothing about a field
+being optional is a warning or a success. `FormField` uses it too, so a hand-built section heading
+and a managed field cannot word or weight it differently.
+
+## A form that needs a directory is not a form without it
+
+v2.125.0. `EmployeeSelector` read a refused response as an empty result set, so a **403** on
+`/employee-lookup` rendered as "Karyawan tidak ditemukan." — a permission failure displayed as a
+statement about the workforce. People searched harder, because the message told them to.
+
+Three rules came out of it:
+
+- **A transport outcome is not a result set.** A refusal, a network failure and a genuine miss are
+  three different messages.
+- **The results must be where the keyboard is not.** A list that opens below its input opens behind
+  the keyboard the tap just raised, so the field is scrolled into view after the (animated) viewport
+  resize settles, and the list is bounded by the viewport as well as by a fixed ceiling.
+- **A placeholder shows the SHAPE of the answer.** Anything the reader must not miss belongs in
+  helper text, which wraps. A 78-character caveat inside a single-line input is invisible on a phone
+  at exactly the width it matters.
 
 ---
 

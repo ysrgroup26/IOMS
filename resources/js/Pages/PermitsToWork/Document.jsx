@@ -3,6 +3,7 @@ import AuthenticatedLayout from '@/Layouts/AuthenticatedLayout';
 import { Button } from '@/Components/ui/button';
 import StatusBadge from '@/Components/shared/StatusBadge';
 import ApprovalStamp from '@/Components/shared/ApprovalStamp';
+import { DocumentStandingMark, hasStandingStamp } from '@/Components/shared/DocumentStamp';
 import PersonChip from '@/Components/shared/PersonChip';
 import { ArrowLeft, Printer, Download, FlaskConical, Users, ShieldCheck, FileCheck2, Gavel } from 'lucide-react';
 import { picName } from '@/lib/permitPicName';
@@ -139,8 +140,21 @@ export default function PermitToWorkDocument({ permit: p, company, documentTempl
                                 {branding?.address && <p className="truncate text-[11px] text-graphite-500">{branding.address}</p>}
                             </div>
                         </div>
+                        {/* v2.125.0 -- THE STANDING, STAMPED.
+                            An ACTIVE or CLOSED permit now carries the
+                            stamp the owner's design specifies, top right,
+                            where a reader's eye already goes on a
+                            controlled document. Every other status keeps
+                            the badge: a stamp is a standing, not a state,
+                            and six colours of stamp would make the two
+                            that matter unreadable. The stamp carries no
+                            date by design -- the dates are the validity
+                            window in the body, and a date inside the
+                            stamp reads as a different fact. */}
                         <div className="shrink-0 text-right">
-                            <StatusBadge value={p.status} />
+                            {hasStandingStamp(p.status)
+                                ? <DocumentStandingMark status={p.status} />
+                                : <StatusBadge value={p.status} />}
                         </div>
                     </div>
                     {documentTemplate?.header_text && (
@@ -250,7 +264,7 @@ export default function PermitToWorkDocument({ permit: p, company, documentTempl
                         <DocSection index="03" title="Hazards & Required PPE" icon={ShieldCheck}>
                             {p.hazards?.length > 0 && (
                                 <div className="mb-3">
-                                    <span className="text-[10px] font-semibold uppercase tracking-wide text-graphite-400">Hazards</span>
+                                    <span className="text-[10px] font-semibold uppercase tracking-wide text-graphite-400">Work Hazards</span>
                                     <p className="mt-1 text-sm text-graphite-800 dark:text-slate-200">{p.hazards.join(' · ')}</p>
                                 </div>
                             )}
@@ -292,7 +306,7 @@ export default function PermitToWorkDocument({ permit: p, company, documentTempl
                         </DocSection>
                     )}
 
-                    <DocSection index="04" title="Workforce" icon={Users}>
+                    <DocSection index="04" title="Work Personnel" icon={Users}>
                         <div className="grid grid-cols-1 gap-3 sm:grid-cols-2">
                             <div>
                                 <FieldLabel>Penanggung Jawab Pekerjaan</FieldLabel>
@@ -466,7 +480,14 @@ function SignatureBlock({ role, name, authorization }) {
                 would crop the approver's name and time off the bottom. */}
             {authorization ? (
                 <div className="flex min-h-8 items-end justify-center pb-1">
-                    <ApprovalStamp authorization={authorization} compact />
+                    {/* v2.125.0: the FULL seal here, not the compact one.
+                        This view is the document -- the thing printed,
+                        photographed and taped to a bulkhead -- so it takes
+                        the same composition the PDF does: double rule, the
+                        act, the person, their company job title and the
+                        time. The detail page keeps the compact seal, which
+                        now carries the title too. */}
+                    <ApprovalStamp authorization={authorization} />
                 </div>
             ) : (
                 <div className="h-8" />

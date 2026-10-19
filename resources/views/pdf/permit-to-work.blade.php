@@ -115,9 +115,35 @@
            success green. It renders ONLY from $authorization, which the
            controller returns as null unless the permit is genuinely
            authorised -- the template has no boolean it could get wrong. */
-        .stamp { border: 1.5px solid #059669; background: #ECFDF5; padding: 4px 8px; text-align: center; }
-        .stamp .stamp-word { font-size: 10px; font-weight: bold; color: #047857; letter-spacing: 2px; text-transform: uppercase; }
-        .stamp .stamp-rule { border-top: 1px solid #A7F3D0; margin: 3px 0; }
+        /* v2.125.0 -- APPROVAL IS BLUE ON PAPER TOO.
+           The owner's stamp design separates the two acts by colour: green
+           marks a VERIFICATION, blue marks an APPROVAL. The screen and the
+           sheet must not disagree about which act a seal records, so this
+           moved with ApprovalStamp.jsx rather than after it. */
+        .stamp { border: 1.5px solid #1D4ED8; background: #EFF6FF; padding: 4px 8px; text-align: center; }
+        .stamp .stamp-word { font-size: 10px; font-weight: bold; color: #1E40AF; letter-spacing: 2px; text-transform: uppercase; }
+        .stamp .stamp-rule { border-top: 1px solid #BFDBFE; margin: 3px 0; }
+
+        /* v2.125.0 -- THE STANDING STAMP, AS PAPER CAN ACTUALLY CARRY IT.
+           ACTIVE in green and CLOSED in red, identical but for colour and
+           word, and with NO DATE inside either -- the owner's brief is
+           explicit, and a date in a standing stamp reads as a different
+           fact from the validity window in the body.
+
+           The slant and the distressed ink of the on-screen stamp are
+           deliberately NOT attempted here. Dompdf's CSS is print-era: it
+           has no reliable `transform: rotate()` on a table cell and no
+           blend modes, so both would land as a mis-positioned box or
+           nothing at all. A stamp that renders wrong on the sheet an
+           auditor holds is worse than one that renders plainly, so paper
+           gets the composition -- double rule, weight, tracking, colour --
+           without the two effects it cannot honour. */
+        .state-stamp { border: 2px solid #047857; padding: 3px 7px; text-align: center; }
+        .state-stamp .ss-inner { border: 1px solid #6EE7B7; padding: 2px 5px; }
+        .state-stamp .ss-word { font-size: 13px; font-weight: bold; color: #047857; letter-spacing: 3px; text-transform: uppercase; }
+        .state-stamp-closed { border-color: #B91C1C; }
+        .state-stamp-closed .ss-inner { border-color: #FCA5A5; }
+        .state-stamp-closed .ss-word { color: #B91C1C; }
         .stamp .stamp-who { font-size: 8.5px; font-weight: bold; color: #065F46; }
         .stamp .stamp-meta { font-size: 7.5px; color: #047857; }
 
@@ -167,7 +193,7 @@
                 @endif
             </td>
             <td style="width: 38%; text-align: right; vertical-align: middle;">
-                <div class="ib-eyebrow">Permit To Work</div>
+                <div class="ib-eyebrow">Permit to Work</div>
                 <div class="ib-number">{{ $permit->ptw_number }}</div>
             </td>
         </tr>
@@ -191,6 +217,23 @@
         ];
         $authorisedBy = $permit->hseApprover->name ?? null;
     @endphp
+
+    {{-- v2.125.0 -- the standing stamp, for the two statuses that ARE a
+         standing. Every other status is carried by the band below, which
+         already names it in words. Rendered as its own right-aligned table
+         because Dompdf has no float that survives a page break. --}}
+    @if(in_array($permit->status, ['active', 'closed'], true))
+        <table style="width: 100%; border-collapse: collapse; margin: 6px 0 2px 0;">
+            <tr>
+                <td></td>
+                <td style="width: 1%; white-space: nowrap; padding: 0;">
+                    <div class="state-stamp {{ $permit->status === 'closed' ? 'state-stamp-closed' : '' }}">
+                        <div class="ss-inner"><span class="ss-word">{{ $permit->status === 'closed' ? 'Closed' : 'Active' }}</span></div>
+                    </div>
+                </td>
+            </tr>
+        </table>
+    @endif
 
     {{-- The left rule carries the semantic colour as POSITION and weight, so
          the state still reads on the monochrome prints these are usually
@@ -336,7 +379,7 @@
                 @if($permit->hazards ?? [])
                     <table class="meta-table">
                         <tr>
-                            <td class="meta-label">Hazards</td><td class="meta-colon"></td>
+                            <td class="meta-label">Work Hazards</td><td class="meta-colon"></td>
                             <td>{{ implode(' · ', $permit->hazards) }}</td>
                         </tr>
                     </table>
@@ -379,7 +422,7 @@
          real Employee/User references the browser Document view shows,
          never fabricated. --}}
     <div class="section">
-        <div class="section-head"><span class="idx">04</span>Workforce</div>
+        <div class="section-head"><span class="idx">04</span>Work Personnel</div>
         <div class="section-body">
             <table class="meta-table">
                 <tr>

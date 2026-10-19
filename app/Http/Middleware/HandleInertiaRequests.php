@@ -101,6 +101,20 @@ class HandleInertiaRequests extends Middleware
                     'allowed_route_prefixes' => $user->isMyWorkUser()
                         ? RestrictMyWorkUser::allowedPrefixes()
                         : null,
+                    /*
+                     * v2.124.0 -- the mirror of the line above: route-name
+                     * prefixes this account may NOT reach.
+                     *
+                     * Shared only for a Sandbox tenant, the only thing
+                     * that has a deny-list today, and read straight from
+                     * the middleware that enforces it. Admin Space was
+                     * offering a Sandbox visitor Users & Access, Roles &
+                     * Permissions, Operating Units and Subscription &
+                     * Billing, every one of which answered 403.
+                     */
+                    'blocked_route_prefixes' => $user->tenant?->isDemo()
+                        ? RestrictDemoTenant::blockedPrefixes()
+                        : null,
                     // Navigation courtesy only. A department user, a Full
                     // User who chose the My Work landing preference, or a
                     // My Work account can find the workspace in the sidebar.

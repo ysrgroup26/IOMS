@@ -45,7 +45,7 @@ class VisitorController extends Controller
         // `store()` still validates the submitted id against the tenant's
         // own employees -- the authority did not move.
         return Inertia::render('Visitors/Form', [
-            'visitorNumber' => Visitor::generateNumber(),
+            'visitorNumber' => Visitor::previewNumber(),
         ]);
     }
 

@@ -111,14 +111,58 @@ class NumberGeneratorService
     {
         $format = $this->resolveFormat($moduleKey, $companyId);
 
-        $periodKey = match ($format->reset_period) {
+        return $this->format($format, $this->nextSequence($moduleKey, $this->periodKeyFor($format)));
+    }
+
+    /**
+     * v2.124.0 -- WHAT THE NEXT NUMBER WOULD BE, WITHOUT TAKING IT.
+     *
+     * THE DEFECT THIS EXISTS FOR. Twenty-four create pages showed the
+     * reader "this will be saved as INC-2026-00007" by calling
+     * `generate()` -- which CONSUMES a number. Opening a form and
+     * abandoning it therefore burned one, permanently, and the number on
+     * the form was never the number the record got, because `store()`
+     * generates its own.
+     *
+     * Measured, not reasoned: opening /incidents/create three times moved
+     * the incident sequence from 2 to 5 while the table held ONE incident,
+     * and `employee_cases` stood at sequence 3 with zero rows. On a
+     * register an auditor reads -- permits, incidents, NCRs -- a gap in
+     * the numbering is a question about deleted records, and there was
+     * nothing to delete.
+     *
+     * This reads the same format and the same sequence row and returns
+     * what `generate()` WOULD return, without incrementing and without
+     * creating the sequence row (a page view must not write). It is a
+     * forecast, so it is honest about being one: two people on the same
+     * form see the same number, and whoever saves first gets it.
+     */
+    public function preview(string $moduleKey, ?int $companyId = null): string
+    {
+        $format = $this->resolveFormat($moduleKey, $companyId);
+        $periodKey = $this->periodKeyFor($format);
+
+        $last = NumberingSequence::where('tenant_scope', $this->currentTenant->id() ?? 0)
+            ->whereNull('company_id')
+            ->where('company_scope', 0)
+            ->where('module_key', $moduleKey)
+            ->where('period_key', $periodKey)
+            ->value('last_number');
+
+        return $this->format($format, (int) $last + 1);
+    }
+
+    private function periodKeyFor(NumberingFormat $format): string
+    {
+        return match ($format->reset_period) {
             'monthly' => now()->format('Y-m'),
             'never' => 'ALL',
             default => now()->format('Y'),
         };
+    }
 
-        $sequence = $this->nextSequence($moduleKey, $periodKey);
-
+    private function format(NumberingFormat $format, int $sequence): string
+    {
         return strtr($format->pattern, [
             '{PREFIX}' => $format->prefix,
             '{YEAR}' => now()->format('Y'),

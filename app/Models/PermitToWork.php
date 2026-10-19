@@ -260,6 +260,17 @@ class PermitToWork extends Model
     }
 
     /**
+     * v2.124.0 -- the same number, NOT taken. For a create page that
+     * tells the reader what will be saved; see
+     * NumberGeneratorService::preview() for why a preview must never
+     * consume a sequence.
+     */
+    public static function previewNumber(?int $companyId = null): string
+    {
+        return app(NumberGeneratorService::class)->preview('permit_to_work', $companyId);
+    }
+
+    /**
      * v2.52.0 -- the work's own identity, whichever way it was recorded.
      *
      * PROJECT IDENTITY AND WORK LOCATION ARE DIFFERENT THINGS, and neither

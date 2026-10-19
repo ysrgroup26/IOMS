@@ -23,21 +23,27 @@ class IncidentController extends Controller
 {
     public function index(Request $request): Response
     {
-        // Tenant-isolation fix (Milestone 4, Workstream B14 -- found and
-        // fixed while extending this controller for Investigation/CAPA;
-        // previously flagged separately as a background task, now
-        // resolved here since this file is directly in scope): every
-        // query below had no company scoping at all. `company_id` is
-        // nullable on `incidents` (that table's own older migration
-        // convention -- see 2026_08_12_100038's doc comment), so a
-        // null-company incident stays visible to every tenant (nothing to
-        // leak), while a company-scoped incident now only shows to its
-        // own tenant. Same reasoning already applied to
-        // HseDashboardController's own fix.
+        /*
+         * Tenant-isolation fix (Milestone 4, Workstream B14): every query
+         * here had no company scoping at all, and `company_id` is
+         * nullable on `incidents` (that table's own older migration
+         * convention -- see 2026_08_12_100038's doc comment).
+         *
+         * v2.124.0 -- THE OLD NOTE HERE WAS WRONG IN BOTH DIRECTIONS. It
+         * said a null-company incident "stays visible to every tenant
+         * (nothing to leak)". An incident report carries the injured
+         * person's name, so it is precisely the thing that must not be
+         * shared -- and in practice it was visible to NOBODY, because
+         * `CompanyOwnedScope` discards a null owner unless the model says
+         * otherwise. A report filed without a unit 404'd for its own
+         * author. `Incident::companyScopeNullOwnerQuery()` now owns such a
+         * row through its reporter, the same way `Task` does, and the
+         * `orWhereNull` that used to sit on this query is gone with the
+         * misunderstanding that put it there.
+         */
         $tenantCompanyIds = Company::query()->pluck('id');
 
         $incidents = Incident::query()
-            ->where(fn ($q) => $q->whereIn('company_id', $tenantCompanyIds)->orWhereNull('company_id'))
             ->with('project:id,name', 'reporter:id,name')
             ->when($request->input('search'), fn ($q, $v) => $q->where('incident_number', 'like', "%{$v}%")->orWhere('title', 'like', "%{$v}%"))
             ->when($request->input('status'), fn ($q, $v) => $q->where('status', $v))
@@ -60,7 +66,7 @@ class IncidentController extends Controller
         return Inertia::render('Incidents/Form', [
             'companies' => Company::active()->orderBy('name')->get(['id', 'name']),
             'projects' => Project::whereIn('company_id', $tenantCompanyIds)->orderBy('name')->get(['id', 'name']),
-            'incidentNumber' => Incident::generateIncidentNumber(),
+            'incidentNumber' => Incident::previewIncidentNumber(),
             'severities' => Incident::SEVERITIES,
             'categories' => Incident::CATEGORIES,
             // v2.73.0 -- the initial report's own vocabularies.

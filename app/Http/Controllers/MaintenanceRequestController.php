@@ -41,7 +41,7 @@ class MaintenanceRequestController extends Controller
 
         return Inertia::render('MaintenanceRequests/Form', [
             'assets' => Asset::whereIn('company_id', $tenantCompanyIds)->active()->get(['id', 'name', 'asset_code', 'company_id']),
-            'requestNumber' => MaintenanceRequest::generateNumber(),
+            'requestNumber' => MaintenanceRequest::previewNumber(),
             'priorities' => MaintenanceRequest::PRIORITIES,
         ]);
     }

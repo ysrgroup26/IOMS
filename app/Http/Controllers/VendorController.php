@@ -50,7 +50,7 @@ class VendorController extends Controller
         return Inertia::render('Vendors/Form', [
             'companies' => Company::active()->orderBy('name')->get(['id', 'name']),
             'types' => Vendor::TYPES,
-            'vendorCode' => Vendor::generateVendorCode(),
+            'vendorCode' => Vendor::previewVendorCode(),
         ]);
     }
 

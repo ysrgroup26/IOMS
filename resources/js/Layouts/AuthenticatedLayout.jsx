@@ -15,7 +15,7 @@ import { useFocusTrap } from '@/lib/useFocusTrap';
 import { useMediaQuery } from '@/lib/useMediaQuery';
 import {
     getSelectableDepartments, getAdminSpaceItems, getCompanyNavItems,
-    getMyWorkNavItems, isMyWorkOnlyUser,
+    getMyWorkNavItems, isMyWorkOnlyUser, filterNavByServerRules,
     getWorkspaceKeyForRoute, isDepartmentWorkspaceKey, ADMIN_SPACE_KEY,
 } from '@/lib/workspaces';
 import { useScrollMemory, rememberWorkspaceKey, recallWorkspaceKey } from '@/lib/navigationMemory';
@@ -344,7 +344,12 @@ export default function AuthenticatedLayout({ children }) {
        A Department User is always in their own workspace -- including on
        Admin Space routes, which they cannot reach anyway -- per "only their
        assigned Department should be available". */
-    const visibleNav = myWorkOnly
+    /* v2.124.0 -- every rail passes the server's own rules before it is
+       rendered. The My Work rail already read its allow-list; a Sandbox
+       tenant has a DENY-list, and Admin Space was offering it five links
+       the middleware refuses. One place, both rules -- see
+       filterNavByServerRules and ADR 061. */
+    const visibleNav = filterNavByServerRules(myWorkOnly
         ? getMyWorkNavItems(auth?.user)
         : (isDepartmentUser
         ? (selectableDepartments[0]?.items ?? [])
@@ -352,7 +357,7 @@ export default function AuthenticatedLayout({ children }) {
             ? getAdminSpaceItems(auth?.user, enabledModules, workspaceCatalog)
             : (space === 'workspace'
                 ? activeWorkspace.items
-                : getCompanyNavItems(auth?.user, enabledModules, workspaceCatalog))));
+                : getCompanyNavItems(auth?.user, enabledModules, workspaceCatalog)))), auth?.user);
 
     const navEntryBoundary = entryBoundary(visibleNav);
 
@@ -979,7 +984,13 @@ function TopBar({ onOpenSidebar, sidebarOpen, isDepartmentUser, departments, act
                 Still a link while active: it returns to Administration
                 Overview, which is Admin Space's home. `aria-current` carries
                 the state to assistive technology, which a colour cannot. */}
-            {auth?.user?.can_access_admin_space && !myWorkOnly && (
+            {/* v2.124.0: an HSE account's Admin Space entry points at
+                Settings, which a Sandbox tenant is refused -- so the entry
+                is hidden when the destination it would use is on the
+                server's deny-list. A tenant administrator still gets it,
+                because /admin itself is reachable. */}
+            {auth?.user?.can_access_admin_space && !myWorkOnly
+                && !(!auth?.user?.is_tenant_admin && (auth?.user?.blocked_route_prefixes ?? []).includes('settings')) && (
                 <Link
                     href={auth?.user?.is_tenant_admin ? route('admin.index') : route('settings.index')}
                     aria-current={space === 'admin' ? 'page' : undefined}

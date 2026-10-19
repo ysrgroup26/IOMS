@@ -108,6 +108,31 @@ HTTP answer:
 (The remaining non-200 entries in every run are file downloads, where the browser aborts the
 navigation rather than the server refusing it.)
 
+## v2.124.0 addendum — the same rule, from the other direction
+
+The decision above was written against an ALLOW-list (`RestrictMyWorkUser`). A system-wide crawl
+then found the identical defect behind a DENY-list.
+
+`RestrictDemoTenant` refuses `settings.*`, `subscription.*` and `platform.*` for the IOMS Sandbox,
+and that refusal is right: a visitor must not change the demonstration's identity or read commercial
+data. But the product went on offering those doors — the Sandbox administrator was offered Settings
+and Subscription & Billing from the sidebar and from **nine** places on the Administration Overview
+(two header buttons, three panel actions, a six-row Administration list), and an HSE account's Admin
+Space entry pointed at Settings, which the Sandbox refuses. Every one answered 403.
+
+So the rule generalises rather than changing:
+
+- `RestrictDemoTenant::BLOCKED_PREFIXES` is public, exposed through `HandleInertiaRequests` as
+  `auth.user.blocked_route_prefixes` for a demo tenant only.
+- `workspaces.js` gained `filterNavByBlockedPrefixes()` beside the allow-list filter, and
+  `filterNavByServerRules()` applies BOTH, in one place, so a caller cannot remember one and forget
+  the other. `AuthenticatedLayout` passes every rail through it.
+- `isRouteBlockedForUser()` answers the same question for a single link, because the sidebar is not
+  the only thing that offers a door — the Administration Overview's own cards are, and they now ask.
+
+`tests/Feature/DemoTenantNavigationTest.php` pins it, including that an ordinary customer carries no
+deny-list and still reaches both pages.
+
 ## What this does NOT claim
 
 It does not claim production is fixed. Per ADR 057, that question is answered by comparing the

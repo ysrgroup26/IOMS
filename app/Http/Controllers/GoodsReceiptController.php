@@ -105,7 +105,7 @@ class GoodsReceiptController extends Controller
             'projects' => Project::whereIn('company_id', $tenantCompanyIds)->orderBy('name')->get(['id', 'name']),
             'warehouses' => Warehouse::whereIn('company_id', $tenantCompanyIds)->active()->get(['id', 'name', 'code', 'company_id']),
             'items' => Item::whereIn('company_id', $tenantCompanyIds)->active()->get(['id', 'name', 'item_code', 'unit', 'company_id']),
-            'receiptNumber' => GoodsReceipt::generateReceiptNumber(),
+            'receiptNumber' => GoodsReceipt::previewReceiptNumber(),
             'preselectedPo' => $preselectedPo,
         ]);
     }

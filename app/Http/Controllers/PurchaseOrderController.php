@@ -86,7 +86,7 @@ class PurchaseOrderController extends Controller
             'purchaseRequisitions' => PurchaseRequisition::whereIn('company_id', $tenantCompanyIds)->whereIn('status', ['approved', 'converted_to_rfq'])->get(['id', 'pr_number', 'company_id']),
             'projects' => Project::whereIn('company_id', $tenantCompanyIds)->orderBy('name')->get(['id', 'name']),
             'departments' => Department::whereIn('company_id', $tenantCompanyIds)->where('is_active', true)->orderBy('name')->get(['id', 'name', 'company_id']),
-            'poNumber' => PurchaseOrder::generateNumber(),
+            'poNumber' => PurchaseOrder::previewNumber(),
             'prefill' => $prefill,
         ]);
     }

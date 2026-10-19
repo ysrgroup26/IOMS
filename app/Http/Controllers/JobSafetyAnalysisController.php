@@ -45,7 +45,7 @@ class JobSafetyAnalysisController extends Controller
         return Inertia::render('JobSafetyAnalyses/Form', [
             'companies' => Company::active()->orderBy('name')->get(['id', 'name']),
             'projects' => Project::whereIn('company_id', $tenantCompanyIds)->orderBy('name')->get(['id', 'name']),
-            'jsaNumber' => JobSafetyAnalysis::generateNumber(),
+            'jsaNumber' => JobSafetyAnalysis::previewNumber(),
         ]);
     }
 

@@ -87,4 +87,15 @@ class LeaveRequest extends Model
     {
         return app(\App\Services\NumberGeneratorService::class)->generate('leave_request', $companyId);
     }
+
+    /**
+     * v2.124.0 -- the same number, NOT taken. For a create page that
+     * tells the reader what will be saved; see
+     * NumberGeneratorService::preview() for why a preview must never
+     * consume a sequence.
+     */
+    public static function previewLeaveNumber(?int $companyId = null): string
+    {
+        return app(\App\Services\NumberGeneratorService::class)->preview('leave_request', $companyId);
+    }
 }

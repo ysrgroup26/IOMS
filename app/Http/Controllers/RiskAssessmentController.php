@@ -50,7 +50,7 @@ class RiskAssessmentController extends Controller
         return Inertia::render('RiskAssessments/Form', [
             'companies' => Company::active()->orderBy('name')->get(['id', 'name']),
             'projects' => Project::whereIn('company_id', $tenantCompanyIds)->orderBy('name')->get(['id', 'name']),
-            'raNumber' => RiskAssessment::generateNumber(),
+            'raNumber' => RiskAssessment::previewNumber(),
         ]);
     }
 

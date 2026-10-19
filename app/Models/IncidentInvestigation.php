@@ -201,4 +201,15 @@ class IncidentInvestigation extends Model
     {
         return app(\App\Services\NumberGeneratorService::class)->generate('incident_investigation', $companyId);
     }
+
+    /**
+     * v2.124.0 -- the same number, NOT taken. For a create page that
+     * tells the reader what will be saved; see
+     * NumberGeneratorService::preview() for why a preview must never
+     * consume a sequence.
+     */
+    public static function previewInvestigationNumber(?int $companyId = null): string
+    {
+        return app(\App\Services\NumberGeneratorService::class)->preview('incident_investigation', $companyId);
+    }
 }

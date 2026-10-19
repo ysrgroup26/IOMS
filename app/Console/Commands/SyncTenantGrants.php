@@ -40,9 +40,23 @@ class SyncTenantGrants extends Command
         $dryRun = (bool) $this->option('dry-run');
         $tenantId = $this->argument('tenant');
 
+        /*
+         * v2.124.0 -- EAGER-LOADED, because this command reads
+         * `$tenant->subscription->package` below.
+         *
+         * `AppServiceProvider` calls `Model::preventLazyLoading()` outside
+         * production, so the command died with a
+         * LazyLoadingViolationException on its first tenant: an operator
+         * who tried `tenants:sync-grants` locally, or on any staging box,
+         * could not run it at all. Confirmed by running it. Loading the
+         * relation up front also turns one query per tenant into two for
+         * the whole set.
+         */
+        $with = ['subscription.package'];
+
         $tenants = $tenantId
-            ? Tenant::where('id', $tenantId)->get()
-            : Tenant::all();
+            ? Tenant::with($with)->where('id', $tenantId)->get()
+            : Tenant::with($with)->get();
 
         if ($tenants->isEmpty()) {
             $this->error($tenantId ? "No tenant found with ID \"{$tenantId}\"." : 'No tenants found.');

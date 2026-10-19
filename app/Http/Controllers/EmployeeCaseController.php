@@ -73,7 +73,7 @@ class EmployeeCaseController extends Controller
 
         return Inertia::render('EmployeeCases/Form', [
             'employeeCase' => null,
-            'caseNumber' => EmployeeCase::generateCaseNumber(),
+            'caseNumber' => EmployeeCase::previewCaseNumber(),
             'companies' => Company::active()->orderBy('name')->get(['id', 'name']),
             'handlers' => $this->handlers(),
             'options' => $this->options(),

@@ -1,6 +1,7 @@
-import { Head, Link } from '@inertiajs/react';
+import { Head, Link, usePage } from '@inertiajs/react';
 import AuthenticatedLayout from '@/Layouts/AuthenticatedLayout';
 import PageHeader from '@/Components/shared/PageHeader';
+import { isRouteBlockedForUser } from '@/lib/workspaces';
 import StatusBadge from '@/Components/shared/StatusBadge';
 import ActivityList from '@/Components/shared/ActivityList';
 import { FigureGroup, Figure, NoData, Panel, Distribution } from '@/Components/shared/ManagementPanels';
@@ -49,6 +50,20 @@ const LIFECYCLE_TONE = {
  * validation and authorization untouched.
  */
 export default function AdminOverview({ organization, access, security, structure, subscription, recent_activity: recentActivity }) {
+    /*
+     * v2.124.0 -- THIS PAGE OFFERS LINKS OUTSIDE THE RAIL, SO IT ASKS THE
+     * SAME QUESTION THE RAIL ASKS.
+     *
+     * On the IOMS Sandbox, `RestrictDemoTenant` refuses `settings.*` and
+     * `subscription.*` -- and this page offered nine links to them
+     * (browser-verified: two header buttons, three panel actions and a
+     * six-row Administration list, every one answering 403). Filtering
+     * the sidebar was not enough, because the sidebar is not the only
+     * thing that offers a door. See ADR 061.
+     */
+    const { auth } = usePage().props;
+    const blocked = (routeName) => isRouteBlockedForUser(routeName, auth?.user);
+
     const seatLimit = access?.seat_limit;
     const remaining = access?.remaining_slots;
     const unitLimit = structure?.operating_unit_limit;
@@ -65,18 +80,22 @@ export default function AdminOverview({ organization, access, security, structur
                     kind="administration"
                 >
                     <div className="flex flex-wrap items-center gap-2">
+                        {!blocked('settings.index') && (
                         <Link
                             href={route('settings.index', { tab: 'users' })}
                             className="inline-flex items-center gap-1.5 rounded-lg border border-graphite-200 bg-white px-3 py-1.5 text-xs font-medium text-graphite-700 transition-colors hover:bg-graphite-50 dark:border-slate-700 dark:bg-slate-900 dark:text-slate-300"
                         >
                             <Users className="h-3.5 w-3.5" /> Users & Access
                         </Link>
+                        )}
+                        {!blocked('subscription.billing') && (
                         <Link
                             href={route('subscription.billing')}
                             className="inline-flex items-center gap-1.5 rounded-lg border border-graphite-200 bg-white px-3 py-1.5 text-xs font-medium text-graphite-700 transition-colors hover:bg-graphite-50 dark:border-slate-700 dark:bg-slate-900 dark:text-slate-300"
                         >
                             <DollarSign className="h-3.5 w-3.5" /> Subscription & Billing
                         </Link>
+                        )}
                     </div>
                 </PageHeader>
 
@@ -121,11 +140,11 @@ export default function AdminOverview({ organization, access, security, structur
                     title="Access"
                     description="Akun login aktif dan kapasitas terpisah untuk Full User dan My Work User. Perangkat tidak dihitung."
                     columns={6}
-                    actions={
+                    actions={blocked('settings.index') ? undefined : (
                         <Link href={route('settings.index', { tab: 'users' })} className="inline-flex items-center gap-1 text-xs font-medium text-brand-600 hover:underline dark:text-brand-400">
                             Manage users <ArrowRight className="h-3 w-3" />
                         </Link>
-                    }
+                    )}
                 >
                     <Figure label="Active Users" value={access?.active_users ?? 0} hint="akun login aktif" emphasis />
                     <Figure label="My Work Users" value={`${access?.active_my_work_users ?? 0} / ${access?.my_work_seat_limit ?? 'Unlimited'}`} hint={`${access?.included_my_work_users ?? 'Unlimited'} included + ${access?.additional_my_work_users ?? 0} additional`} emphasis />
@@ -152,11 +171,11 @@ export default function AdminOverview({ organization, access, security, structur
                     <Panel
                         title="Users by Role"
                         description="Sebaran peran seluruh akun pada organisasi ini, termasuk akun non-aktif."
-                        actions={
+                        actions={blocked('settings.index') ? undefined : (
                             <Link href={route('settings.index', { tab: 'roles' })} className="inline-flex items-center gap-1 text-xs font-medium text-brand-600 hover:underline dark:text-brand-400">
                                 Roles & Permissions <ArrowRight className="h-3 w-3" />
                             </Link>
-                        }
+                        )}
                     >
                         {Object.keys(access?.by_role ?? {}).length > 0
                             ? <Distribution data={access.by_role} labels={ROLE_LABELS} />
@@ -198,11 +217,11 @@ export default function AdminOverview({ organization, access, security, structur
                 <Panel
                     title="Subscription"
                     description="Status langganan organisasi ini, dibaca dari sumber yang sama dengan halaman Billing."
-                    actions={
+                    actions={blocked('subscription.billing') ? undefined : (
                         <Link href={route('subscription.billing')} className="inline-flex items-center gap-1 text-xs font-medium text-brand-600 hover:underline dark:text-brand-400">
                             Open billing <ArrowRight className="h-3 w-3" />
                         </Link>
-                    }
+                    )}
                 >
                     {subscription ? (
                         <div className="grid grid-cols-2 gap-3 text-sm sm:grid-cols-5">
@@ -282,13 +301,13 @@ export default function AdminOverview({ organization, access, security, structur
                     <Panel title="Administration" description="Area administrasi lain pada organisasi ini.">
                         <div className="space-y-1.5">
                             {[
-                                { icon: Users, label: 'Users & Access', href: route('settings.index', { tab: 'users' }) },
-                                { icon: Lock, label: 'Roles & Permissions', href: route('settings.index', { tab: 'roles' }) },
-                                { icon: Building2, label: 'Operating Units', href: route('settings.index', { tab: 'companies' }) },
-                                { icon: ShieldCheck, label: 'Departments & Positions', href: route('settings.index', { tab: 'departments' }) },
-                                { icon: ClipboardList, label: 'Audit Logs', href: route('activity-center.index') },
-                                { icon: Settings, label: 'Module Management', href: route('settings.index', { tab: 'modules' }) },
-                            ].map((entry) => (
+                                { icon: Users, label: 'Users & Access', route: 'settings.index', href: route('settings.index', { tab: 'users' }) },
+                                { icon: Lock, label: 'Roles & Permissions', route: 'settings.index', href: route('settings.index', { tab: 'roles' }) },
+                                { icon: Building2, label: 'Operating Units', route: 'settings.index', href: route('settings.index', { tab: 'companies' }) },
+                                { icon: ShieldCheck, label: 'Departments & Positions', route: 'settings.index', href: route('settings.index', { tab: 'departments' }) },
+                                { icon: ClipboardList, label: 'Audit Logs', route: 'activity-center.index', href: route('activity-center.index') },
+                                { icon: Settings, label: 'Module Management', route: 'settings.index', href: route('settings.index', { tab: 'modules' }) },
+                            ].filter((entry) => !blocked(entry.route)).map((entry) => (
                                 <Link
                                     key={entry.label}
                                     href={entry.href}

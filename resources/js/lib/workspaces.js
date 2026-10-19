@@ -897,6 +897,64 @@ export function filterNavByAllowedPrefixes(items, allowedPrefixes) {
 }
 
 /**
+ * v2.124.0 -- THE SAME RULE, FROM THE OTHER DIRECTION.
+ *
+ * `RestrictDemoTenant` is a DENY-list: a Sandbox visitor may reach
+ * everything except Settings, Subscription and the platform surface. The
+ * list is shared as `auth.user.blocked_route_prefixes` for that tenant
+ * only, and the rail is filtered through it -- so Admin Space stops
+ * offering a demonstration visitor five links that answer 403.
+ *
+ * Null or empty means "no deny-list applies", which is every ordinary
+ * customer. Groups left with no children disappear, exactly as in the
+ * allow-list above.
+ */
+export function filterNavByBlockedPrefixes(items, blockedPrefixes) {
+    if (!blockedPrefixes?.length) return items;
+
+    return items
+        .map((item) => (item.children
+            ? { ...item, children: filterNavByBlockedPrefixes(item.children, blockedPrefixes) }
+            : item))
+        .filter((item) => {
+            if (item.children) return item.children.length > 0;
+            if (!item.href) return true;
+
+            return !blockedPrefixes.includes(item.href.split('.')[0]);
+        });
+}
+
+/**
+ * Whether the server would refuse this route name for this account.
+ *
+ * For a page that offers a link OUTSIDE the navigation rail -- the
+ * Administration Overview's own shortcut cards, for instance -- so the
+ * page can ask the same question the rail asks instead of hard-coding
+ * which tenants may see what.
+ */
+export function isRouteBlockedForUser(routeName, user) {
+    const prefix = String(routeName).split('.')[0];
+    const allowed = user?.allowed_route_prefixes;
+    const blocked = user?.blocked_route_prefixes;
+
+    if (allowed?.length && !allowed.includes(prefix)) return true;
+    if (blocked?.length && blocked.includes(prefix)) return true;
+
+    return false;
+}
+
+/**
+ * Both server rules, applied in one place, so a caller cannot remember
+ * one and forget the other.
+ */
+export function filterNavByServerRules(items, user) {
+    return filterNavByBlockedPrefixes(
+        filterNavByAllowedPrefixes(items, user?.allowed_route_prefixes),
+        user?.blocked_route_prefixes,
+    );
+}
+
+/**
  * The rail for a My Work account, in the one shape the server agrees with.
  */
 export function getMyWorkNavItems(user) {

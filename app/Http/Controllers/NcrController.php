@@ -53,7 +53,7 @@ class NcrController extends Controller
 
         return Inertia::render('Ncrs/Form', [
             'companies' => Company::active()->orderBy('name')->get(['id', 'name']),
-            'ncrNumber' => Ncr::generateNumber(),
+            'ncrNumber' => Ncr::previewNumber(),
             'severities' => Ncr::SEVERITIES,
             'prefill' => $prefill,
         ]);

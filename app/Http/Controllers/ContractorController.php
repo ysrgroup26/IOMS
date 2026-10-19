@@ -42,7 +42,7 @@ class ContractorController extends Controller
 
         return Inertia::render('Contractors/Form', [
             'companies' => Company::active()->orderBy('name')->get(['id', 'name']),
-            'contractorCode' => Contractor::generateCode(),
+            'contractorCode' => Contractor::previewCode(),
         ]);
     }
 

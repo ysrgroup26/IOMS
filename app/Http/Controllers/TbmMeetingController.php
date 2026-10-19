@@ -46,7 +46,7 @@ class TbmMeetingController extends Controller
             'companies' => Company::active()->orderBy('name')->get(['id', 'name']),
             'projects' => Project::whereIn('company_id', $tenantCompanyIds)->orderBy('name')->get(['id', 'name']),
             'employees' => Employee::whereIn('company_id', $tenantCompanyIds)->active()->orderBy('full_name')->get(['id', 'full_name']),
-            'tbmNumber' => TbmMeeting::generateNumber(),
+            'tbmNumber' => TbmMeeting::previewNumber(),
         ]);
     }
 

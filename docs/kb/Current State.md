@@ -1,7 +1,7 @@
 ---
 title: Current State
 type: snapshot
-product-version: 2.123.0
+product-version: 2.124.0
 product-stage: Beta
 measured: 2026-10-18
 tags: [kb/state]
@@ -25,8 +25,8 @@ the date in the frontmatter, not remembered.
 |---|---|
 | Product | **IOMS — Industrial Operations Platform** |
 | Public company identity | **Tahada Group**; legal entity **PT Tahada Vistara Bersama** |
-| Version | **2.123.0**, stage **Beta**, edition **Enterprise Edition** |
-| Build | `2026.10.18.06`, release date `2026-10-18` |
+| Version | **2.124.0**, stage **Beta**, edition **Enterprise Edition** |
+| Build | `2026.10.19.01`, release date `2026-10-19` |
 | Stack | Laravel 12 · Inertia.js · React 18 · Tailwind · MySQL · Sanctum |
 
 The naming rules are not cosmetic — see [[Product Identity and Principles]].
@@ -45,9 +45,9 @@ The naming rules are not cosmetic — see [[Product Identity and Principles]].
 | Controllers | 114 |
 | Inertia pages | 184 |
 | Migrations | 202 |
-| Feature test files | 118 |
-| Tests / assertions | **1425 / 7430**, all passing on SQLite and on MySQL 8.0 (see [[Verification Status]]) |
-| ADRs | 61 files (numbering has known gaps — see [[Decision Register]]) |
+| Feature test files | 123 |
+| Tests / assertions | **1445 / 7511**, all passing on SQLite and on MySQL 8.0 (see [[Verification Status]]) |
+| ADRs | 62 files (numbering has known gaps — see [[Decision Register]]) |
 | Workspaces in the navigation registry | 12 |
 
 ## Workspaces

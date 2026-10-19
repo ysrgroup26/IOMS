@@ -67,7 +67,7 @@ class MaterialRequestController extends Controller
             'companies' => Company::active()->orderBy('name')->get(['id', 'name']),
             'departments' => Department::where('is_active', true)->orderBy('name')->get(['id', 'name', 'company_id']),
             'projects' => Project::orderBy('name')->get(['id', 'name', 'company_id']),
-            'requestNumber' => MaterialRequest::generateRequestNumber(),
+            'requestNumber' => MaterialRequest::previewRequestNumber(),
         ]);
     }
 

@@ -60,7 +60,7 @@ class PurchaseRequisitionController extends Controller
             'projects' => Project::whereIn('company_id', $tenantCompanyIds)->orderBy('name')->get(['id', 'name']),
             'departments' => Department::whereIn('company_id', $tenantCompanyIds)->where('is_active', true)->orderBy('name')->get(['id', 'name', 'company_id']),
             'materialRequests' => $this->sourceableMaterialRequests($tenantCompanyIds),
-            'prNumber' => PurchaseRequisition::generateNumber(),
+            'prNumber' => PurchaseRequisition::previewNumber(),
             'priorities' => PurchaseRequisition::PRIORITIES,
         ]);
     }

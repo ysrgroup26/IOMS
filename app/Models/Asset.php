@@ -86,6 +86,17 @@ class Asset extends Model
         return app(NumberGeneratorService::class)->generate('asset', $companyId);
     }
 
+    /**
+     * v2.124.0 -- the same number, NOT taken. For a create page that
+     * tells the reader what will be saved; see
+     * NumberGeneratorService::preview() for why a preview must never
+     * consume a sequence.
+     */
+    public static function previewCode(?int $companyId = null): string
+    {
+        return app(NumberGeneratorService::class)->preview('asset', $companyId);
+    }
+
     /** v2.38.0 (Master Audit): see App\Concerns\HasSecureDocument. */
     public function secureDocumentPathColumn(): string
     {

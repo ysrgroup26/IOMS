@@ -598,6 +598,23 @@ tenant. `tenant_registrations.user_id`, set at creation, is what tells provision
 existing account instead of creating a second user. Identity comes from the session; the `contact_*`
 fields the form sends are not validated and not read.
 
+## Document numbering (v2.41.0, corrected v2.124.0)
+
+**Decision:** ADR 025 (series), ADR 063 (preview vs. generate). **Key files:**
+`app/Services/NumberGeneratorService.php`, every model with a `generateX()`/`previewX()` pair.
+
+Every register that issues numbers -- Permit to Work, Incident, NCR, BAST, PR/PO, Employee Case and
+twenty more -- draws them from a per-tenant sequence under a row lock, so a number is never issued
+twice. A Company Admin can change the prefix, pattern, padding and reset period per module from
+Settings -> Numbering.
+
+**A number is taken when a record is SAVED.** `generate()` consumes; `preview()` only forecasts, and
+is what a create page uses to say "this will be saved as PTW-2026-00007". Before v2.124.0 the create
+pages called `generate()`, so opening a form and abandoning it burned a number permanently and the
+number the form promised was never the one the record got. If you add a create page that shows a
+number, use the model's `previewX()` -- `DocumentNumberPreviewTest` fails if a consuming generator
+reappears in an Inertia prop.
+
 ## The My Work account class (v2.86.0, completed v2.122.0)
 
 **Decision:** ADR 061. **Key files:** `app/Http/Middleware/RestrictMyWorkUser.php`,

@@ -43,7 +43,7 @@ class InspectionRequestController extends Controller
         return Inertia::render('InspectionRequests/Form', [
             'projects' => Project::whereIn('company_id', $tenantCompanyIds)->orderBy('name')->get(['id', 'name']),
             'activities' => ProjectActivity::whereHas('project', fn ($q) => $q->whereIn('company_id', $tenantCompanyIds))->get(['id', 'name', 'project_id']),
-            'inspectionNumber' => InspectionRequest::generateNumber(),
+            'inspectionNumber' => InspectionRequest::previewNumber(),
         ]);
     }
 

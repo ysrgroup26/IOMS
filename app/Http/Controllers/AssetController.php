@@ -82,7 +82,7 @@ class AssetController extends Controller
             // introduced to remove in v2.38.0. Assets/Show still preloads
             // its own narrower list; only this create payload changes.
             'categories' => Asset::CATEGORIES,
-            'assetCode' => Asset::generateCode(),
+            'assetCode' => Asset::previewCode(),
             'prefill' => $prefill,
         ]);
     }

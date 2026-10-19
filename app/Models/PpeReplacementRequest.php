@@ -101,6 +101,17 @@ class PpeReplacementRequest extends Model
         return app(NumberGeneratorService::class)->generate('ppe_replacement_request', $companyId);
     }
 
+    /**
+     * v2.124.0 -- the same number, NOT taken. For a create page that
+     * tells the reader what will be saved; see
+     * NumberGeneratorService::preview() for why a preview must never
+     * consume a sequence.
+     */
+    public static function previewRequestNumber(?int $companyId = null): string
+    {
+        return app(NumberGeneratorService::class)->preview('ppe_replacement_request', $companyId);
+    }
+
     // Milestone 3 (Task #51) note: deliberately NOT given HasWorkflow/
     // HasApprovals in this pass. Today it's a one-shot record -- created
     // once (storeReplacementRequest()), then only ever viewed/exported,

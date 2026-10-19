@@ -50,7 +50,7 @@ class HseInspectionController extends Controller
         return Inertia::render('HseInspections/Form', [
             'companies' => Company::active()->orderBy('name')->get(['id', 'name']),
             'projects' => Project::whereIn('company_id', $tenantCompanyIds)->orderBy('name')->get(['id', 'name']),
-            'inspectionNumber' => HseInspection::generateNumber(),
+            'inspectionNumber' => HseInspection::previewNumber(),
             'types' => HseInspection::TYPES,
             // v1.11.2 (Final Completion Pass, Part 9) -- checklist templates
             // grouped by category so the Form can offer "Load Template" for

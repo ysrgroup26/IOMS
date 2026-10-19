@@ -4,6 +4,8 @@ namespace App\Models;
 
 use App\Concerns\HasWorkflow;
 use App\Models\Concerns\BelongsToCompany;
+use App\Support\CurrentTenant;
+use Illuminate\Database\Eloquent\Builder;
 use Illuminate\Database\Eloquent\Model;
 use Illuminate\Database\Eloquent\SoftDeletes;
 
@@ -159,6 +161,38 @@ class Incident extends Model
         return $this->belongsTo(Project::class);
     }
 
+    /**
+     * v2.124.0 -- AN INCIDENT WITH NO OPERATING UNIT IS STILL SOMEBODY'S.
+     *
+     * `company_id` is nullable on `incidents` and the create form lets it
+     * be left empty, but every read path is company-scoped -- so a report
+     * saved without a unit was written, numbered, redirected to... and
+     * then 404'd for its own author and appeared in no register, for any
+     * tenant, ever. Confirmed by saving one and then looking for it as
+     * three different accounts: zero rows each, and
+     * `/incidents/{id}` answered 404 to the person who had just filed it.
+     *
+     * The comment in IncidentController used to say a unit-less incident
+     * stayed "visible to every tenant (nothing to leak)". Both halves
+     * were wrong: it was visible to nobody, and an incident report
+     * carries the injured person's name, so it is exactly the thing that
+     * must not be shared.
+     *
+     * So it is owned through its REPORTER, the same shape `Task` and
+     * `ActivityLog` already use (see CompanyOwnedScope's own note on this
+     * hook): a company-less incident belongs to the tenant whose member
+     * filed it, and to nobody else.
+     */
+    public function companyScopeNullOwnerQuery(Builder $query): void
+    {
+        $tenantUsers = User::query()
+            ->withoutGlobalScopes()
+            ->select('id')
+            ->where('tenant_id', app(CurrentTenant::class)->id() ?? -1);
+
+        $query->whereIn('incidents.reported_by', $tenantUsers);
+    }
+
     public function reporter()
     {
         return $this->belongsTo(User::class, 'reported_by');
@@ -194,5 +228,16 @@ class Incident extends Model
     public static function generateIncidentNumber(?int $companyId = null): string
     {
         return app(\App\Services\NumberGeneratorService::class)->generate('incident', $companyId);
+    }
+
+    /**
+     * v2.124.0 -- the same number, NOT taken. For a create page that
+     * tells the reader what will be saved; see
+     * NumberGeneratorService::preview() for why a preview must never
+     * consume a sequence.
+     */
+    public static function previewIncidentNumber(?int $companyId = null): string
+    {
+        return app(\App\Services\NumberGeneratorService::class)->preview('incident', $companyId);
     }
 }

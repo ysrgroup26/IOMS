@@ -206,7 +206,7 @@ class PermitToWorkController extends Controller
             'projects' => Project::whereIn('company_id', $tenantCompanyIds)->orderBy('name')->get(['id', 'name']),
             'riskAssessments' => RiskAssessment::whereIn('company_id', $tenantCompanyIds)->where('status', RiskAssessment::STATUS_APPROVED)->get(['id', 'ra_number', 'title']),
             'jsas' => JobSafetyAnalysis::whereIn('company_id', $tenantCompanyIds)->where('status', JobSafetyAnalysis::STATUS_APPROVED)->get(['id', 'jsa_number', 'job_title']),
-            'ptwNumber' => PermitToWork::generateNumber(),
+            'ptwNumber' => PermitToWork::previewNumber(),
             'types' => PermitToWork::TYPES,
             // v2.73.0 -- the EXISTING PPE master, not a new one.
             'ppeTypes' => $tenantCompanyIds->flatMap(fn ($companyId) =>

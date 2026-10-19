@@ -34,6 +34,38 @@ and driving the screen in a browser, the twelve-to-six month edit **saves and pe
 `ReleaseStatusService` and the hardened `app:deploy` exist to close that gap, and
 `DeploymentIdentityTest` pins them. See `docs/ADR/057-a-release-must-be-able-to-prove-what-is-running.md`.
 
+### What was actually run for v2.124.0
+
+The release is a SWEEP, so the evidence is the sweep itself: a MySQL 8 database seeded with five
+tenants (Starter, Professional, Business, Enterprise and the IOMS Sandbox), twenty-five accounts
+(five roles each) plus five My Work accounts, every account signed in, every link it is offered
+opened, every create form submitted, and the database read back afterwards.
+
+| Claim | Level | Evidence |
+|---|---|---|
+| A create page no longer takes a document number | **Browser-verified** | Before: three views of /incidents/create moved the sequence 2 → 5 with ONE incident in the table; `employee_cases` sat at 3 with zero rows. After: three views all show INC-2026-00006 and the sequence stays at 5 |
+| The number shown is the number saved | **Test-covered** | `preview()` then `generate()` return the same string |
+| A preview writes nothing at all | **Test-covered** | No sequence row is created for a module a fresh tenant has never used |
+| The mistake cannot come back | **Test-covered** | A source scan fails if any `'...Number' => Model::generate...()` Inertia prop reappears |
+| An incident with no Operating Unit reaches its own tenant | **Browser-verified** | Before: 404 for its own author, and absent from the register of all three tenants asked. After: both rows listed and openable for the filer's tenant, still absent for the other two |
+| It reaches nobody else | **Test-covered** | Index and show, as a second tenant: not listed, 404 |
+| The Sandbox stops offering what it refuses | **Browser-verified** | Crawled as the Sandbox administrator: 103 pages, 0 refusals (was 3, from the sidebar and the Administration Overview). The HSE account: 90 pages, 0 (was 1) |
+| `tenants:sync-grants` runs | **Browser-verified** (CLI) | Was a LazyLoadingViolationException on the first tenant; now reports per tenant and `--dry-run` writes nothing |
+| `db:seed --class=DemoTenantSeeder` runs | **Browser-verified** (CLI) | Was "Unknown column 'source_material_request_id'"; now completes, and the requisition is linked through the pivot |
+| Saving works across modules and roles | **Browser-verified** | 14 create forms submitted as an Enterprise administrator, plus HSE, HRD and Warehouse accounts on their own modules: every record saved, and every one is visible in its register afterwards |
+| The approval engine still completes | **Browser-verified** | Approve on a submitted material request: POST 302 /approvals/1/approve, status `approved` in MySQL, page reads Approved |
+| My Work sign-in still works on every plan | **Browser-verified** | All five accounts: Employee ID + access code → /my-work, 3 links offered, 0 non-200 |
+| The public surface is clean | **Browser-verified** | 16 signed-out pages crawled, no failures, no JS errors; sign-up POSTs 302 to /register/welcome |
+| Nothing else is broken | **Browser-verified** | 25 accounts, 1,676 page loads: ZERO real failures. The only non-200 entries are file downloads, where the browser aborts the navigation and the server is serving a real PDF/workbook (checked directly: 200 with the right content types). One 500 in the run was mine -- `npm run build` deleted the Vite manifest mid-crawl, which the log names at the matching second -- and the page answers 200 on a re-check |
+| Suite | **Test-covered** | 1445 tests / 7511 assertions on SQLite **and** MySQL 8 |
+| Production itself | **NOT confirmed** | Deploy-confirmed remains the owner's step (ADR 057) |
+
+> [!warning] Two of the 500s in the first crawl were mine
+> Thirteen "failures" in an early pass were a half-finished edit and a running `npm run build`
+> being served by `artisan serve` mid-crawl. `storage/logs/laravel.log` named both in one line each.
+> Clear the log before a crawl, read it after, and stop editing while one is in flight — written up
+> in `docs/CONVENTIONS.md`.
+
 ### What was actually run for v2.123.0
 
 | Claim | Level | Evidence |

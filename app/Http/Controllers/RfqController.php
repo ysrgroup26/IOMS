@@ -52,7 +52,7 @@ class RfqController extends Controller
                 ->where('status', PurchaseRequisition::STATUS_APPROVED)
                 ->get(['id', 'pr_number', 'company_id']),
             'vendors' => Vendor::whereIn('company_id', $tenantCompanyIds)->active()->get(['id', 'name', 'vendor_code', 'company_id']),
-            'rfqNumber' => Rfq::generateNumber(),
+            'rfqNumber' => Rfq::previewNumber(),
             'preselectedPrId' => $request->integer('pr') ?: null,
         ]);
     }

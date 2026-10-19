@@ -77,7 +77,7 @@ class WorkOrderController extends Controller
         return Inertia::render('WorkOrders/Form', [
             'assets' => Asset::whereIn('company_id', $tenantCompanyIds)->active()->get(['id', 'name', 'asset_code', 'company_id']),
             'employees' => Employee::whereIn('company_id', $tenantCompanyIds)->active()->orderBy('full_name')->get(['id', 'full_name', 'company_id']),
-            'woNumber' => WorkOrder::generateNumber(),
+            'woNumber' => WorkOrder::previewNumber(),
             'types' => WorkOrder::TYPES,
             'preselectedMr' => $preselectedMr,
         ]);

@@ -53,11 +53,33 @@ class RestrictDemoTenant
     ];
 
     /** Route-name prefixes a Sandbox visitor may not reach at all, read or write. */
-    private const BLOCKED_PREFIXES = [
+    public const BLOCKED_PREFIXES = [
         'settings.',
         'subscription.',
         'platform.',
     ];
+
+    /**
+     * v2.124.0 -- THE NAVIGATION READS THE REFUSAL, IT DOES NOT COPY IT.
+     *
+     * Admin Space offered a Sandbox visitor Users & Access, Roles &
+     * Permissions, Operating Units, Subscription & Billing and the rest,
+     * and this middleware answered 403 for every one of them --
+     * browser-verified on the seeded Sandbox tenant with both an
+     * administrator and an HSE account. That is the defect ADR 061
+     * exists to stop, in a place ADR 061 had not yet reached.
+     *
+     * Returned without the trailing dot, because the navigation layer
+     * compares a route name's FIRST DOT-SEGMENT (`settings.index` ->
+     * `settings`), the same convention RestrictMyWorkUser's allow-list
+     * already uses.
+     *
+     * @return array<int, string>
+     */
+    public static function blockedPrefixes(): array
+    {
+        return array_map(static fn (string $prefix) => rtrim($prefix, '.'), self::BLOCKED_PREFIXES);
+    }
 
     public function handle(Request $request, Closure $next): Response
     {

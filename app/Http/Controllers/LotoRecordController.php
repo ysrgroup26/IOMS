@@ -43,7 +43,7 @@ class LotoRecordController extends Controller
         return Inertia::render('LotoRecords/Form', [
             'companies' => Company::active()->orderBy('name')->get(['id', 'name']),
             'permits' => PermitToWork::whereIn('company_id', $tenantCompanyIds)->whereIn('status', [PermitToWork::STATUS_APPROVED, PermitToWork::STATUS_ACTIVE])->get(['id', 'ptw_number']),
-            'lotoNumber' => LotoRecord::generateNumber(),
+            'lotoNumber' => LotoRecord::previewNumber(),
         ]);
     }
 

@@ -60,7 +60,7 @@ class LeaveRequestController extends Controller
         return Inertia::render('Leave/Form', [
             'leaveRequest' => null,
             'employees' => Employee::active()->whereIn('company_id', $tenantCompanyIds)->orderBy('full_name')->get(['id', 'full_name', 'employee_id']),
-            'leaveNumber' => LeaveRequest::generateLeaveNumber(),
+            'leaveNumber' => LeaveRequest::previewLeaveNumber(),
             'types' => LeaveRequest::TYPES,
         ]);
     }

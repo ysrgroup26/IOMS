@@ -69,7 +69,7 @@ class SafetyObservationController extends Controller
             // "assigned_to" is set later via transition() (moving to
             // "Assigned"), not at report-time -- see Form.jsx, which
             // doesn't ask for it -- so no user list is needed here.
-            'observationNumber' => SafetyObservation::generateObservationNumber(),
+            'observationNumber' => SafetyObservation::previewObservationNumber(),
             'types' => SafetyObservation::TYPES,
             'severities' => SafetyObservation::SEVERITIES,
         ]);

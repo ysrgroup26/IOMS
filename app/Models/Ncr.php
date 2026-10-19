@@ -57,4 +57,15 @@ class Ncr extends Model
     {
         return app(NumberGeneratorService::class)->generate('ncr', $companyId);
     }
+
+    /**
+     * v2.124.0 -- the same number, NOT taken. For a create page that
+     * tells the reader what will be saved; see
+     * NumberGeneratorService::preview() for why a preview must never
+     * consume a sequence.
+     */
+    public static function previewNumber(?int $companyId = null): string
+    {
+        return app(NumberGeneratorService::class)->preview('ncr', $companyId);
+    }
 }

@@ -554,7 +554,6 @@ class DemoTenantSeeder extends Seeder
             [
                 'project_id' => $projects[0]->id ?? null,
                 'department_id' => $department?->id,
-                'source_material_request_id' => $materialRequest->id,
                 'requested_by' => $user->id,
                 'request_date' => now()->subDays(10)->toDateString(),
                 'priority' => 'high',
@@ -568,6 +567,20 @@ class DemoTenantSeeder extends Seeder
                 'status' => 'approved',
             ]
         );
+
+        /*
+         * v2.124.0 -- THE LINK IS A PIVOT, AND HAS BEEN SINCE v2.69.0.
+         *
+         * This seeder still wrote `source_material_request_id`, the single
+         * column that release dropped in favour of
+         * `material_request_purchase_requisition` (a PR CONSOLIDATES
+         * several requests, which one key cannot say). Nothing noticed,
+         * because nothing runs this seeder in the suite -- so
+         * `db:seed --class=DemoTenantSeeder`, the command this class's own
+         * doc comment documents, died with "Unknown column
+         * 'source_material_request_id'" on any fresh install.
+         */
+        $requisition->materialRequests()->syncWithoutDetaching([$materialRequest->id]);
 
         PurchaseOrder::firstOrCreate(
             ['company_id' => $company->id, 'po_number' => 'PO-'.now()->year.'-00001'],

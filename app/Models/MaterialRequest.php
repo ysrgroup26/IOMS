@@ -277,4 +277,15 @@ class MaterialRequest extends Model
     {
         return app(\App\Services\NumberGeneratorService::class)->generate('material_request', $companyId);
     }
+
+    /**
+     * v2.124.0 -- the same number, NOT taken. For a create page that
+     * tells the reader what will be saved; see
+     * NumberGeneratorService::preview() for why a preview must never
+     * consume a sequence.
+     */
+    public static function previewRequestNumber(?int $companyId = null): string
+    {
+        return app(\App\Services\NumberGeneratorService::class)->preview('material_request', $companyId);
+    }
 }

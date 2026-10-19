@@ -2691,6 +2691,65 @@ user leaves an optional field blank, which is the normal case, not the edge case
 
 Found by a test that filled in only the required fields.
 
+## Known Pitfall (v2.124.0) — a seeder nothing runs is a seeder nothing checks
+
+`DemoTenantSeeder` wrote `purchase_requisitions.source_material_request_id`, a column v2.69.0 had
+DROPPED in favour of the `material_request_purchase_requisition` pivot. Nothing in the suite ran the
+seeder, so the drift sat there until somebody typed the command its own doc comment documents:
+
+```
+php artisan db:seed --class=DemoTenantSeeder
+→ SQLSTATE[42S22]: Unknown column 'source_material_request_id'
+```
+
+It failed half-way through, leaving a Sandbox tenant with people, projects and permits but no
+procurement — and a migration that was correct in every other respect.
+
+If a seeder is a documented command, give it a test that RUNS it
+(`tests/Feature/DemoTenantSeederIntegrityTest.php`). A schema migration that drops a column has to
+sweep the seeders too, which `grep -rn "<column>" database/` would have shown in one line.
+
+## Known Pitfall (v2.124.0) — do not edit code while a crawl is running
+
+Half an audit crawl reported 500s on thirteen pages. They were all mine: `artisan serve` picks up
+source changes per request, so a half-finished edit (`Undefined variable $tenant`) and a running
+`npm run build` (`Vite manifest not found`) were served to the crawler as genuine-looking failures.
+
+Clear `storage/logs/laravel.log` before a crawl and read it after — the log told the truth in one
+line each time, and without it those thirteen "findings" would have been investigated as product
+defects. **A crawl is a measurement; stop editing while one is in flight.**
+
+## CRITICAL — Known Pitfall (v2.124.0) — a number PREVIEW must never call the generator, because generating consumes
+
+`NumberGeneratorService::generate()` increments `numbering_sequences.last_number`. Twenty-four
+create pages called it to tell the reader what the record would be saved as:
+
+```php
+// WRONG -- this TAKES the number, on a GET
+'incidentNumber' => Incident::generateIncidentNumber(),
+```
+
+Two consequences, both measured in a browser against MySQL 8:
+
+- Opening `/incidents/create` three times moved the incident sequence from 2 to 5 while the table
+  held **one** incident. `employee_cases` stood at sequence 3 with **zero** rows.
+- The number on the form was never the number the record got, because `store()` generates its own.
+  The form promised EC-2026-00002 and the save produced EC-2026-00003.
+
+On a register an auditor reads — permits, incidents, NCRs, BAST — a gap in the numbering is a
+question about deleted records, and there was nothing to delete.
+
+Use the preview sibling, which reads `last_number + 1` and writes nothing (not even the sequence
+row, because a page view is a read):
+
+```php
+'incidentNumber' => Incident::previewIncidentNumber(),
+```
+
+`tests/Feature/DocumentNumberPreviewTest.php` pins it both ways: the behaviour, and a source scan
+that fails if any `'...Number' => Model::generate...()` prop comes back. Every model with a
+`generateX()` now has a `previewX()` beside it.
+
 ## Known Pitfall (v2.123.0) — `EmployeeSelector` emits its id as a STRING, so `===` against a numeric id never matches
 
 `EmployeeSelector` normalises internally with `String(id)` and emits `onChange(String(employee.id))`

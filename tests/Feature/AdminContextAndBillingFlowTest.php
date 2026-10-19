@@ -143,10 +143,19 @@ class AdminContextAndBillingFlowTest extends TestCase
 
         // ...and the Admin Space entry lights up, without disappearing.
         $this->assertStringContainsString("aria-current={space === 'admin' ? 'page' : undefined}", $layout);
-        // v2.122.0: still gated on the same capability, with the My Work
-        // class excluded beside it -- RestrictMyWorkUser answers 403 for
-        // Admin Space, so that class is never offered the entry.
-        $this->assertStringContainsString("{auth?.user?.can_access_admin_space && !myWorkOnly && (", $layout);
+        /*
+         * v2.122.0: still gated on the same capability, with the My Work
+         * class excluded beside it -- RestrictMyWorkUser answers 403 for
+         * Admin Space, so that class is never offered the entry.
+         *
+         * v2.124.0: and with the Sandbox's deny-list beside that. An HSE
+         * account's Admin Space entry points at Settings, which a demo
+         * tenant is refused, so the entry is hidden when the destination
+         * it would use is blocked (ADR 061's addendum). The capability
+         * check itself is unchanged.
+         */
+        $this->assertStringContainsString("{auth?.user?.can_access_admin_space && !myWorkOnly", $layout);
+        $this->assertStringContainsString("blocked_route_prefixes", $layout);
 
         // And the selector still names no workspace while none is active.
         $this->assertStringContainsString("{space === 'admin' ? 'Workspaces' :", $layout);

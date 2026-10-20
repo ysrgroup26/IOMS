@@ -28,6 +28,10 @@ export default function MyWorkLogin({ identifier = '' }) {
     const { data, setData, post, processing, errors } = useForm({
         identifier,
         access_code: '',
+        // v2.128.0 -- Remember Me. Off by default: staying signed in is a
+        // choice somebody makes about the device in their hand, and a shared
+        // tablet in a guard house is not that device.
+        remember: false,
     });
 
     // Local toggle on the input's `type` only -- it never touches the
@@ -106,6 +110,38 @@ export default function MyWorkLogin({ identifier = '' }) {
                     <p className="text-xs text-graphite-400">
                         Huruf besar atau kecil sama saja, dan tanda hubung boleh diabaikan.
                     </p>
+                </div>
+
+                {/*
+                    v2.128.0 -- STAY SIGNED IN.
+
+                    A badge number and an 8-character code, typed on a phone
+                    several times a shift, is the kind of friction that ends
+                    with the code written inside a helmet. Checked, Laravel's
+                    own remember token keeps the session across visits and
+                    the worker lands straight on My Work; unchecked, the
+                    session behaves exactly as it did before.
+
+                    `htmlFor`/`id` rather than wrapping the input in the
+                    label, so the whole line is a 44px tap target on a phone
+                    and the state is announced with its name.
+                 */}
+                <div className="flex items-start gap-2.5">
+                    <input
+                        id="remember"
+                        name="remember"
+                        type="checkbox"
+                        checked={data.remember}
+                        onChange={(e) => setData('remember', e.target.checked)}
+                        className="mt-0.5 h-4 w-4 shrink-0 rounded border-graphite-300 text-brand-600 focus:ring-brand-500"
+                    />
+                    <div className="min-w-0">
+                        <Label htmlFor="remember" className="cursor-pointer font-normal">Remember me</Label>
+                        <p className="text-xs text-graphite-400">
+                            Tetap masuk di perangkat ini dan langsung dibawa ke My Work pada kunjungan berikutnya.
+                            Jangan centang pada perangkat yang dipakai bersama.
+                        </p>
+                    </div>
                 </div>
 
                 <Button type="submit" className="w-full" disabled={processing}>

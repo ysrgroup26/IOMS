@@ -997,8 +997,10 @@ function PtwWorkflowTab({ ptwWorkflow, companies }) {
         company_id: companyId,
         verify_roles: current?.verify_roles ?? [],
         verify_user_ids: (current?.verify_user_ids ?? []).map(String),
+        verify_title: current?.verify_title ?? '',
         approve_roles: current?.approve_roles ?? [],
         approve_user_ids: (current?.approve_user_ids ?? []).map(String),
+        approve_title: current?.approve_title ?? '',
     });
 
     useEffect(() => {
@@ -1007,8 +1009,10 @@ function PtwWorkflowTab({ ptwWorkflow, companies }) {
             company_id: companyId,
             verify_roles: row?.verify_roles ?? [],
             verify_user_ids: (row?.verify_user_ids ?? []).map(String),
+            verify_title: row?.verify_title ?? '',
             approve_roles: row?.approve_roles ?? [],
             approve_user_ids: (row?.approve_user_ids ?? []).map(String),
+            approve_title: row?.approve_title ?? '',
         });
         // eslint-disable-next-line react-hooks/exhaustive-deps
     }, [companyId]);
@@ -1023,7 +1027,7 @@ function PtwWorkflowTab({ ptwWorkflow, companies }) {
         form.post(route('settings.ptw-workflow'), { preserveScroll: true });
     }
 
-    const stage = (label, roleField, userField, fallback) => {
+    const stage = (label, roleField, userField, fallback, titleField, titlePlaceholder) => {
         const noneChosen = (form.data[roleField] ?? []).length === 0 && (form.data[userField] ?? []).length === 0;
 
         return (
@@ -1070,6 +1074,32 @@ function PtwWorkflowTab({ ptwWorkflow, companies }) {
                     </div>
                 </div>
 
+                {/*
+                    v2.128.0 -- THE JOB TITLE THE SEAL IS FILED UNDER.
+
+                    A role decides who may press the button; this is what
+                    the stamp on the paper says. The two were conflated, so
+                    a VERIFIED seal printed `HSE` -- an IOMS permission
+                    standing in for a job title on a controlled document.
+                    Free text, because no two yards word a job the same way.
+                 */}
+                <div className="space-y-1.5">
+                    <Label className="text-xs">Job Title on the Stamp</Label>
+                    <Input
+                        className="h-9"
+                        maxLength={60}
+                        value={form.data[titleField] ?? ''}
+                        onChange={(e) => form.setData(titleField, e.target.value)}
+                        placeholder={titlePlaceholder}
+                    />
+                    <p className="text-[11px] leading-snug text-graphite-500">
+                        Jabatan yang dicetak pada stempel tahap ini, dipakai bila penanda tangan belum memiliki
+                        posisi di Employee Register. Dikunci saat tindakan dilakukan, sehingga perubahan di sini
+                        tidak mengubah izin kerja yang sudah ditandatangani.
+                    </p>
+                    {form.errors[titleField] && <p className="text-[11px] text-red-600">{form.errors[titleField]}</p>}
+                </div>
+
                 {/* What happens if they save this empty -- stated, because
                     an empty stage silently falling back is otherwise
                     indistinguishable from an empty stage blocking the
@@ -1111,8 +1141,8 @@ function PtwWorkflowTab({ ptwWorkflow, companies }) {
                     </div>
 
                     <div className="grid grid-cols-1 gap-3 lg:grid-cols-2">
-                        {stage('Stage 1 · HSE Verification', 'verify_roles', 'verify_user_ids', defaults.verify_roles)}
-                        {stage('Stage 2 · Final Approval', 'approve_roles', 'approve_user_ids', defaults.approve_roles)}
+                        {stage('Stage 1 · HSE Verification', 'verify_roles', 'verify_user_ids', defaults.verify_roles, 'verify_title', 'e.g. HSE Officer')}
+                        {stage('Stage 2 · Final Approval', 'approve_roles', 'approve_user_ids', defaults.approve_roles, 'approve_title', 'e.g. Manager Shipyard')}
                     </div>
 
                     <div className="flex items-center gap-3">

@@ -34,6 +34,42 @@ and driving the screen in a browser, the twelve-to-six month edit **saves and pe
 `ReleaseStatusService` and the hardened `app:deploy` exist to close that gap, and
 `DeploymentIdentityTest` pins them. See `docs/ADR/057-a-release-must-be-able-to-prove-what-is-running.md`.
 
+### What was actually run for v2.128.0
+
+**Level: the real UI and rendered artefacts, against MySQL 8 on this machine. NOT deployed, and NOT
+checked on an iPhone.**
+
+Five owner-reported UI faults, four of them invisible to every existing test.
+
+| Claim | How it was checked |
+|---|---|
+| The boot splash is the first paint, on white, with the official stacked lockup | Loaded `/my-work/login` at 390x844 with the JS bundle **blocked** so the splash stayed up: white ground (`rgb(255,255,255)` on `body`), symbol above word, minimal bar, "Loading…". Then loaded it unblocked: the splash is gone after mount (`#ioms-boot` count 0) |
+| The stacked lockup is the owner's artwork, not a redraw | Composed from `ioms-icon.svg`'s and `ioms-logo.svg`'s own paths, placed in nested `<svg>` elements with their source viewBoxes; both boxes measured with `getBBox()` in Chromium rather than read off the padded viewBoxes. A test matches a path from each source file **verbatim** against the composition |
+| Remember Me works and can be revoked | Driven end to end in a browser: checked → `remember_web_*` cookie issued, session cookie dropped, reopening `/my-work/login` lands on `/my-work`; unchecked → no cookie, the form returns; signed out → cookie gone and `/my-work` refused |
+| The PTW example fields no longer clip | At 390px the box grows to four lines and shows the whole example (`scrollHeight == clientHeight`); typing returns it to one line; Enter inserts nothing; both duplicated helper lines are gone. Same at 1440px |
+| The permit header leads with the company | Re-rendered the PDF with `pdftoppm` and looked at it: "Galangan Nusantara Jaya" at 19px above a 16px "HOT WORK", legal name, address, contact and NPWP intact, no collision with the ACTIVE seal |
+| Both seals name a job, not a permission | Configured `HSE Officer` / `Manager Shipyard` in Settings, drove a permit through both gates, read the activity rows back: the verifier had a position (`SPV HSE`) and it won; the approver had none and the configured stage title was snapshotted. The re-rendered seals print those, and no role |
+
+**Two defects of my own were found by looking, not by the suite:**
+
+1. A bare `svg` selector in the splash CSS overrode the `x`/`y`/`width`/`height` of the lockup's
+   nested elements — the first render drew the symbol at full width, off centre, **with the word
+   missing entirely**. Invisible in the markup.
+2. `is_active` was checked only by the two sign-in forms, so a deactivated account kept working
+   until its session expired. My own test for it failed, which is how it was found; Remember Me
+   would have stretched that window to five years. Closed with `EnsureAccountIsActive`.
+
+**Automated:** `AppShellAndBootSplashTest` (11), `MyWorkRememberMeTest` (8), `PtwStampJobTitleTest`
+(10). Full suite green: **1579 tests, 8074 assertions** (`vendor/bin/phpunit`, 2026-10-20), and
+`npm run build` clean. Restoring the `roleLabel()` fallback fails three of the stamp tests, so they
+carry weight.
+
+**Not verified:** iOS, and production. There is no Apple device on this machine — the boot splash
+and the chrome metas are the iPhone implementation and are standards-based, but nobody has looked
+at this release on one, and `apple-touch-startup-image` is deliberately not shipped (it needs
+device-exact PNGs that cannot be checked here; without it iOS shows white, which is now exactly the
+splash's own ground). Deployment remains the owner's, by hand.
+
 ### What was actually run for v2.127.0
 
 **Level: the real UI and rendered artefacts, against MySQL 8 on this machine. NOT deployed.**

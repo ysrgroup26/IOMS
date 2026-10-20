@@ -3,6 +3,7 @@ import AuthenticatedLayout from '@/Layouts/AuthenticatedLayout';
 import { Card, CardContent, CardHeader, CardTitle, CardDescription } from '@/Components/ui/card';
 import { Button } from '@/Components/ui/button';
 import { Input } from '@/Components/ui/input';
+import ExampleInput from '@/Components/shared/form/ExampleInput';
 import { Label } from '@/Components/ui/label';
 import { Textarea } from '@/Components/ui/textarea';
 import { Select, SelectTrigger, SelectValue, SelectContent, SelectItem } from '@/Components/ui/select';
@@ -238,30 +239,50 @@ export default function PermitToWorkForm({ ppeTypes = [], companies, projects, r
                         </div>
 
                         <div className="grid grid-cols-1 gap-3 sm:grid-cols-2">
+                            {/*
+                                v2.128.0 -- THE EXAMPLE IS IN THE BOX, ONCE.
+
+                                Both fields carried their worked example
+                                twice: clipped mid-word inside a one-line
+                                `<input placeholder>`, and again in full as
+                                helper text underneath. On a phone the
+                                reader got "e.g. Hull Block A-12 / Crush"
+                                and a three-line footer repeating it.
+
+                                `ExampleInput` is a one-line field whose
+                                placeholder wraps and whose box grows to
+                                hold it -- see that component for why a
+                                taller input and an autosized textarea both
+                                fail. The duplicated English helper line is
+                                gone; the Indonesian line stays, because it
+                                says what the field MEANS rather than
+                                repeating what it shows.
+                            */}
                             <div className="space-y-1.5">
-                                <Label>Work / Job Reference</Label>
-                                <Input
+                                <Label htmlFor="work_reference">Work / Job Reference</Label>
+                                <ExampleInput
+                                    id="work_reference"
                                     value={data.work_reference}
-                                    onChange={(e) => setData('work_reference', e.target.value)}
-                                    placeholder="e.g. Hull Block A-12 / Crusher Line 2 Overhaul / Tower Crane Erection"
+                                    onChange={(value) => setData('work_reference', value)}
+                                    placeholder="e.g. Shipyard: Hull Block A-12 · Mining: Crusher Line 2 Overhaul · Construction: Tower Crane Erection"
                                 />
-                                <p className="text-xs text-graphite-400">Examples: Shipyard: Hull Block A-12; Mining: Crusher Line 2 Overhaul; Construction: Tower Crane Erection.</p>
                                 <p className="text-[11px] leading-snug text-graphite-500">
                                     Identitas pekerjaan di lapangan. Isi meskipun belum ada Project terdaftar.
                                 </p>
                                 {errors.work_reference && <p className="text-xs text-red-600">{errors.work_reference}</p>}
                             </div>
                             <div className="space-y-1.5">
-                                <Label>Work Location / Area</Label>
-                                <Input
+                                <Label htmlFor="location">Work Location / Area</Label>
+                                <ExampleInput
+                                    id="location"
                                     value={data.location}
-                                    onChange={(e) => setData('location', e.target.value)}
-                                    placeholder="e.g. Workshop Zone B / Conveyor Zone 2 / Building Site, Level 5"
+                                    onChange={(value) => setData('location', value)}
+                                    placeholder="e.g. Shipyard: Workshop Zone B · Mining: Conveyor Zone 2 · Construction: Building Site, Level 5"
                                 />
-                                <p className="text-xs text-graphite-400">Physical work area examples: Shipyard: Workshop Zone B; Mining: Conveyor Zone 2; Construction: Building Site, Level 5.</p>
                                 <p className="text-[11px] leading-snug text-graphite-500">
                                     Lokasi fisik tempat pekerjaan dilakukan.
                                 </p>
+                                {errors.location && <p className="text-xs text-red-600">{errors.location}</p>}
                             </div>
                         </div>
 

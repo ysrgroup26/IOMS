@@ -62,11 +62,31 @@ class AuthenticatedSessionController extends Controller
 
     public function destroy(Request $request): RedirectResponse
     {
+        /*
+         * v2.128.0 -- SIGNING OUT RETURNS YOU TO THE DOOR YOU CAME IN BY.
+         *
+         * There is one logout for both account classes, and it sent
+         * everybody to `/login` -- the email-and-password form, which a My
+         * Work account cannot use at all: it signs in with a badge number
+         * and an access code at `/my-work/login` (ADR 062). A worker
+         * signing out therefore landed on a form that had no field they
+         * could fill in, which reads as having been locked out.
+         *
+         * Asked BEFORE `logout()`, because afterwards there is no user to
+         * ask. Nothing else about the logout changes: the same guard, the
+         * same session invalidation, and the same token regeneration --
+         * which is also what cycles `remember_token` and so revokes every
+         * remembered device.
+         */
+        $returnTo = $request->user()?->isMyWorkUser()
+            ? route('my-work.login')
+            : '/login';
+
         Auth::guard('web')->logout();
 
         $request->session()->invalidate();
         $request->session()->regenerateToken();
 
-        return redirect('/login');
+        return redirect($returnTo);
     }
 }

@@ -28,8 +28,10 @@ class PtwWorkflowSetting extends Model
         'company_id',
         'verify_roles',
         'verify_user_ids',
+        'verify_title',
         'approve_roles',
         'approve_user_ids',
+        'approve_title',
     ];
 
     protected function casts(): array

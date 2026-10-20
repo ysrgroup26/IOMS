@@ -14,6 +14,29 @@
     // Legal documents are written in Indonesian; everything else is English
     // per the language hierarchy (docs/CONVENTIONS.md).
     $htmlLang = $seoPage['lang'] ?? 'en';
+
+    /*
+     * v2.128.0 -- THE BOOT SPLASH, on the application only.
+     *
+     * $seoPage is non-null exactly for the public marketing pages in
+     * config/seo.php. Those arrive with content a visitor can read at once,
+     * so covering them with a splash would hide what is already there; the
+     * application arrives as an empty div and is what needs covering.
+     *
+     * The lockup is read from disk and inlined rather than linked, so it
+     * paints with this response instead of after a second request. A
+     * missing file yields an empty string and the splash degrades to the
+     * white ground and the bar -- never a broken-image box.
+     */
+    $iomsBootSplash = $seoPage === null;
+    $iomsBootLockup = '';
+
+    if ($iomsBootSplash) {
+        $iomsLockupPath = public_path(ltrim(config('branding.assets.lockup_stacked', '/branding/ioms-lockup-stacked.svg'), '/'));
+        $iomsBootLockup = is_file($iomsLockupPath)
+            ? preg_replace('/<\?xml.*?\?>/s', '', (string) file_get_contents($iomsLockupPath))
+            : '';
+    }
 @endphp
 <html lang="{{ $htmlLang }}" class="h-full">
 <head>
@@ -38,7 +61,19 @@
     <link rel="icon" type="image/png" sizes="48x48" href="{{ asset(config('branding.assets.favicon_48')) }}">
     <link rel="icon" type="image/png" sizes="32x32" href="{{ asset(config('branding.assets.favicon_png')) }}">
     <link rel="apple-touch-icon" type="image/png" sizes="180x180" href="{{ asset(config('branding.assets.apple_touch_icon')) }}">
-    <meta name="theme-color" content="#00004f">
+    {{-- v2.128.0 -- WHITE, NOT NAVY.
+
+         This was #00004f, chosen in v2.73.0 "so the OS chrome around the
+         installed window matches the app rather than framing it in white".
+         On a phone that reasoning inverted: Android paints the status bar
+         with `theme_color`, so an installed IOMS opened to a dark band
+         above a white application, and the platform splash did the same --
+         the "black area" in the owner's report. The application is light on
+         every surface a phone shows; the chrome around it now says so.
+         `color-scheme` keeps the browser from compositing its own dark
+         ground underneath while the document is still parsing. --}}
+    <meta name="theme-color" content="#ffffff">
+    <meta name="color-scheme" content="light">
 
     {{-- v2.73.0 -- INSTALLABILITY.
 
@@ -59,7 +94,16 @@
          see public/service-worker.js for the full reasoning. --}}
     <link rel="manifest" href="{{ route('manifest') }}">
     <meta name="apple-mobile-web-app-capable" content="yes">
-    <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
+    {{-- v2.128.0 -- `default`, not `black-translucent`.
+
+         `black-translucent` puts the web content UNDER the status bar and
+         draws the clock and battery in white. Over this application's white
+         ground that is white on white: on the reference iPhone the status
+         bar read as an empty black-filled notch area with nothing legible
+         beside it. `default` gives a white bar with dark glyphs, which is
+         what the owner's reference shows and what the app underneath
+         actually is. --}}
+    <meta name="apple-mobile-web-app-status-bar-style" content="default">
     <meta name="apple-mobile-web-app-title" content="{{ config('ioms.name', 'IOMS') }}">
     <meta name="mobile-web-app-capable" content="yes">
 
@@ -76,6 +120,19 @@
          so restoring it later is uncommenting one line, not rewriting. --}}
     <script>
         (function () {
+            /*
+             * v2.128.0 -- "JavaScript is running", said before first paint.
+             *
+             * The boot splash is hidden by default and shown only under this
+             * class, so a client that will never run the code that REMOVES
+             * the splash is never shown it in the first place. A script-off
+             * fallback block would have done the same job, but private pages
+             * deliberately carry none of those (LandingPositioningTest pins
+             * that the crawler summary is public-only), and a second kind of
+             * them there would blunt that check.
+             */
+            document.documentElement.classList.add('ioms-js');
+
             var DARK_MODE_ENABLED = false;
             var stored = localStorage.getItem('ioms-theme');
             var theme = (DARK_MODE_ENABLED && (stored === 'light' || stored === 'dark'))
@@ -283,6 +340,93 @@
     @routes
     @viteReactRefresh
     @vite(['resources/css/app.css', 'resources/js/app.jsx'])
+    @if ($iomsBootSplash)
+        {{-- Inline, and above the bundle: these rules must apply on the
+             first paint, and a stylesheet Vite serves is another request. --}}
+        <style>
+            /* The ground. Set on html and body as well, so the area under
+               a phone's status bar and gesture bar -- which the browser
+               paints from the document background, not from any element --
+               is white rather than the UA default. */
+            html, body { background-color: #ffffff; }
+
+            /* Hidden unless JavaScript is running -- see the head script. */
+            #ioms-boot { display: none; }
+
+            .ioms-js #ioms-boot {
+                position: fixed;
+                inset: 0;
+                z-index: 2147483000;
+                display: flex;
+                flex-direction: column;
+                align-items: center;
+                justify-content: center;
+                background-color: #ffffff;
+                /* Keeps the composition off the notch and the gesture bar
+                   on a phone, and is simply 0 everywhere else. */
+                padding: env(safe-area-inset-top) env(safe-area-inset-right) env(safe-area-inset-bottom) env(safe-area-inset-left);
+                /* Optically centred: a composition placed on the exact
+                   vertical centre of a tall screen reads as low. */
+                padding-bottom: calc(env(safe-area-inset-bottom) + 6vh);
+            }
+
+            /* Proportional to the viewport and capped, so the mark is the
+               same size relative to the screen on a phone and on a desktop
+               rather than a postage stamp on one of them. */
+            .ioms-js #ioms-boot .ioms-boot-mark {
+                width: min(58vw, 260px);
+                line-height: 0;
+            }
+            /* The DIRECT child only. The lockup places the symbol and
+               the word in nested <svg> elements carrying their own x, y,
+               width and height; a bare `svg` selector here overrode all
+               four on both of them, so the first render drew the symbol at
+               the full width of the box, off centre, with the word missing
+               entirely. Seen in a screenshot, not in the markup. */
+            .ioms-js #ioms-boot .ioms-boot-mark > svg { width: 100%; height: auto; display: block; }
+
+            /* A minimal indeterminate bar. Indeterminate because nothing
+               here knows how far the bundle has got, and a bar that claims
+               a percentage it cannot measure is a lie told in CSS. */
+            .ioms-js #ioms-boot .ioms-boot-bar {
+                position: relative;
+                overflow: hidden;
+                width: min(42vw, 184px);
+                height: 3px;
+                margin-top: 10vh;
+                border-radius: 999px;
+                background-color: #e6eef5;
+            }
+            .ioms-js #ioms-boot .ioms-boot-bar span {
+                position: absolute;
+                top: 0;
+                left: 0;
+                height: 100%;
+                width: 40%;
+                border-radius: 999px;
+                background-color: #01c1ed;
+                animation: ioms-boot-slide 1.15s ease-in-out infinite;
+            }
+            @keyframes ioms-boot-slide {
+                0%   { transform: translateX(-100%); }
+                100% { transform: translateX(250%); }
+            }
+            /* Respect a reduced-motion preference: the bar stays, it just
+               stops travelling. */
+            @media (prefers-reduced-motion: reduce) {
+                .ioms-js #ioms-boot .ioms-boot-bar span { animation: none; width: 100%; opacity: 0.55; }
+            }
+
+            .ioms-js #ioms-boot .ioms-boot-text {
+                margin: 10px 0 0 0;
+                font-family: ui-sans-serif, system-ui, -apple-system, "Segoe UI", sans-serif;
+                font-size: 12px;
+                letter-spacing: 0.02em;
+                color: #94a3b8;
+            }
+        </style>
+    @endif
+
     @inertiaHead
 </head>
 <body class="h-full font-sans">
@@ -313,5 +457,22 @@
         </noscript>
     @endif
     @inertia
+
+    @if ($iomsBootSplash)
+        @include('partials.boot-splash')
+        <script>
+            /*
+             * The safety net, not the normal path. `app.jsx` removes the
+             * splash the moment React mounts; this removes it if the bundle
+             * never arrives at all, because a splash that outlives its
+             * reason is a white screen with a logo on it and the person
+             * holding the phone cannot tell those apart.
+             */
+            setTimeout(function () {
+                var el = document.getElementById('ioms-boot');
+                if (el) el.remove();
+            }, 12000);
+        </script>
+    @endif
 </body>
 </html>

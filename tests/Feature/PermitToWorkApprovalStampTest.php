@@ -5,6 +5,8 @@ namespace Tests\Feature;
 use App\Models\ActivityLog;
 use App\Models\Company;
 use App\Models\PermitToWork;
+use App\Models\Employee;
+use App\Models\Position;
 use App\Models\PtwWorkflowSetting;
 use App\Models\Tenant;
 use App\Models\User;
@@ -52,6 +54,29 @@ class PermitToWorkApprovalStampTest extends TestCase
             'name' => 'Sri Handayani', 'email' => 'hse@stamp.test', 'password' => bcrypt('x'),
             'role' => 'hse', 'tenant_id' => $this->tenant->id, 'is_active' => true,
         ]);
+
+        /*
+         * v2.128.0 -- THE SIGNER HOLDS A JOB IN THE COMPANY'S OWN STRUCTURE.
+         *
+         * This fixture used to be an account with no Employee behind it, and
+         * the seal then printed `HSE` -- the IOMS ROLE -- which this test
+         * pinned. The owner rejected exactly that: a role decides who may
+         * press the button; a job title is what a reader of a controlled
+         * document recognises, and it is the customer's own word. So the
+         * account now has the position it would have in a real yard, and the
+         * assertion below is that the POSITION arrives (ADR 068).
+         */
+        $position = Position::withoutGlobalScopes()->create([
+            'company_id' => $this->company->id, 'name' => 'SPV HSE', 'is_active' => true,
+        ]);
+
+        $employee = Employee::withoutGlobalScopes()->create([
+            'employee_id' => 'EMP-STAMP-1', 'full_name' => 'Sri Handayani',
+            'company_id' => $this->company->id, 'position_id' => $position->id, 'status' => 'active',
+        ]);
+
+        // Not fillable, deliberately -- see User::$fillable.
+        $this->hse->forceFill(['employee_id' => $employee->id])->save();
     }
 
 /**
@@ -195,7 +220,8 @@ class PermitToWorkApprovalStampTest extends TestCase
             ->get("/permits-to-work/{$permit->id}")
             ->assertInertia(fn ($page) => $page
                 ->where('authorization.approver', 'Sri Handayani')
-                ->where('authorization.role', 'HSE')
+                // The company's own job title, not the IOMS role.
+                ->where('authorization.role', 'SPV HSE')
                 ->whereNot('authorization.at', null)
             );
 

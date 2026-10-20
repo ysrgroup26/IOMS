@@ -73,14 +73,24 @@ class WebAppManifestController extends Controller
             'display_override' => ['standalone', 'minimal-ui', 'browser'],
             'orientation' => 'any',
 
-            // The navy the product's own rail and login panel use, so the
-            // OS chrome around the installed window matches the app
-            // rather than framing it in white.
-            'theme_color' => '#00004f',
-            // The splash/ground colour while the app boots. Light,
-            // because the application itself is light -- a navy splash
-            // followed by a white app is a visible flash.
-            'background_color' => '#f8fafc',
+            /*
+             * v2.128.0 -- BOTH WHITE, AND THE SAME WHITE.
+             *
+             * `theme_color` was the product navy, chosen so "the OS chrome
+             * matches the app rather than framing it in white". On a phone
+             * that inverts: ANDROID PAINTS THE STATUS BAR WITH IT, so an
+             * installed IOMS opened to a dark band above a white
+             * application -- the black area in the owner's report.
+             *
+             * `background_color` is the ground Android draws under its own
+             * platform splash. It was #f8fafc, one shade off the #ffffff
+             * the boot splash and the application use, which is a seam
+             * visible exactly where two screens hand over. The platform
+             * splash, the boot splash and the app are now one colour, so
+             * the handover has nothing to show.
+             */
+            'theme_color' => '#ffffff',
+            'background_color' => '#ffffff',
 
             'lang' => 'en',
             'dir' => 'ltr',

@@ -166,12 +166,28 @@ export default function PermitToWorkDocument({ permit: p, company, documentTempl
                                 <img src={branding.logo_url} alt="" className="h-12 w-auto max-w-[64px] shrink-0 object-contain" />
                             )}
                             <div className="min-w-0">
-                                <p className="truncate text-base font-bold text-navy-900 dark:text-slate-100">{branding?.company_name || company?.name || appName}</p>
+                                {/*
+                                    v2.128.0 -- THE ISSUER, AT THE TOP OF THE
+                                    HIERARCHY.
+
+                                    `text-base` set the company name smaller
+                                    than the permit's own title below it
+                                    (`text-xl sm:text-2xl`), so the loudest
+                                    thing on a company's permit was the words
+                                    HOT WORK. It also carried `truncate`,
+                                    which clipped a legal name mid-word on a
+                                    phone rather than letting it wrap -- a
+                                    company's name is not a label to be
+                                    shortened. It now wraps, and the stamp
+                                    beside it is `shrink-0`, so the two
+                                    cannot collide at any width.
+                                */}
+                                <p className="break-words text-lg font-bold leading-tight text-navy-900 dark:text-slate-100 sm:text-xl">{branding?.company_name || company?.name || appName}</p>
                                 {/* The legal name under the trading name, the
                                     way the PDF letterhead sets it, so the two
                                     read as one document. */}
                                 {branding?.legal_name && branding.legal_name !== branding.company_name && (
-                                    <p className="truncate text-[11px] text-graphite-500">{branding.legal_name}</p>
+                                    <p className="break-words text-xs text-graphite-500">{branding.legal_name}</p>
                                 )}
                                 {branding?.address && <p className="truncate text-[11px] text-graphite-500">{branding.address}</p>}
                                 {branding?.locality && <p className="truncate text-[11px] text-graphite-400">{branding.locality}</p>}

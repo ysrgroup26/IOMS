@@ -302,7 +302,7 @@ class SettingsController extends Controller
              */
             'ptwWorkflow' => [
                 'settings' => PtwWorkflowSetting::whereIn('company_id', Company::query()->pluck('id'))
-                    ->get(['company_id', 'verify_roles', 'verify_user_ids', 'approve_roles', 'approve_user_ids'])
+                    ->get(['company_id', 'verify_roles', 'verify_user_ids', 'verify_title', 'approve_roles', 'approve_user_ids', 'approve_title'])
                     ->keyBy('company_id'),
                 'defaults' => app(PtwWorkflowService::class)->defaults(),
                 'roles' => app(PtwWorkflowService::class)->assignableRoles(),
@@ -614,6 +614,14 @@ class SettingsController extends Controller
             'verify_user_ids.*' => [Rule::in($this->assignableWorkflowUserIds($request))],
             'approve_user_ids' => ['nullable', 'array'],
             'approve_user_ids.*' => [Rule::in($this->assignableWorkflowUserIds($request))],
+            /*
+             * v2.128.0 -- the job title each stage's seal is filed under.
+             * Free text, because no two customers word a job the same way
+             * and an enum here would be IOMS deciding what a yard calls its
+             * people. Length-capped so it still fits inside a stamp.
+             */
+            'verify_title' => ['nullable', 'string', 'max:60'],
+            'approve_title' => ['nullable', 'string', 'max:60'],
         ]);
 
         $companyId = (int) $validated['company_id'];
@@ -625,6 +633,11 @@ class SettingsController extends Controller
                 'verify_user_ids' => array_values(array_unique(array_map('intval', $validated['verify_user_ids'] ?? []))),
                 'approve_roles' => array_values(array_unique($validated['approve_roles'] ?? [])),
                 'approve_user_ids' => array_values(array_unique(array_map('intval', $validated['approve_user_ids'] ?? []))),
+                // Trimmed to null rather than stored as '': an empty column
+                // means "not configured", and the seal then falls back to
+                // the signer's own position or prints no title at all.
+                'verify_title' => trim((string) ($validated['verify_title'] ?? '')) ?: null,
+                'approve_title' => trim((string) ($validated['approve_title'] ?? '')) ?: null,
             ],
         );
 

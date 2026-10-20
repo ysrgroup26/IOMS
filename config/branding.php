@@ -54,6 +54,18 @@ return [
         // Primary lockup, for dark surfaces: the app rail, email header.
         'logo_dark' => '/branding/ioms-logo-dark.svg',
 
+        /*
+         * v2.128.0 -- THE STACKED LOCKUP, for a portrait surface.
+         *
+         * The primary lockup is horizontal and 3.85:1; across a phone it is
+         * either tiny or edge to edge. This is the same two pieces of
+         * official artwork -- the cyan symbol and the navy word, path for
+         * path -- composed vertically for the boot splash and the iOS
+         * startup images. The file's own header records that nothing was
+         * redrawn and how the two boxes were measured.
+         */
+        'lockup_stacked' => '/branding/ioms-lockup-stacked.svg',
+
         // Raster twins of the two lockups, for the consumers that cannot
         // take SVG at all.
         //

@@ -99,12 +99,30 @@
            Values copied from partials/styles.blade.php so the permit's
            header is typographically identical to every other IOMS
            document's, which is the point of using the shared partial. */
-        .doc-letterhead { width: 100%; border-bottom: 2px solid #0f2747; padding-bottom: 7px; margin-bottom: 2px; }
-        .doc-letterhead .logo-cell { width: 68px; padding-right: 12px; }
-        .doc-letterhead .logo-cell img { max-height: 58px; max-width: 66px; }
-        .doc-company-name { font-size: 14px; font-weight: bold; color: #0f2747; letter-spacing: 0.2px; }
-        .doc-company-legal { font-size: 8.5px; color: #64748b; margin-top: 1px; }
-        .doc-company-meta { font-size: 8px; color: #475569; line-height: 1.5; margin-top: 3px; }
+        .doc-letterhead { width: 100%; border-bottom: 2px solid #0f2747; padding-bottom: 8px; margin-bottom: 2px; }
+        .doc-letterhead .logo-cell { width: 72px; padding-right: 12px; }
+        .doc-letterhead .logo-cell img { max-height: 62px; max-width: 70px; }
+        /*
+         * v2.128.0 -- THE COMPANY IS THE LOUDEST THING ON ITS OWN PERMIT.
+         *
+         * 14px set the issuer's name SMALLER than the document's own title
+         * (`doc-title-main`, 16px) and barely above the section headings,
+         * so on the rendered sheet the first thing a reader's eye found was
+         * the words "HOT WORK" and the second was a 2px rule -- the name of
+         * the company whose permit it is came third. On a controlled
+         * document the issuer is the identity, and 19px puts it back at the
+         * top of the hierarchy without touching the rest of it: only these
+         * three rules move, and the title band, the status bar, the section
+         * heads and every field keep the sizes they were tuned to.
+         *
+         * The two lines under it are nudged with it, so the block still
+         * reads as one group rather than a large name above unrelated
+         * small print. Dompdf honours the generic `sans-serif` only (ADR
+         * 065's measured constraint), which this inherits from `body`.
+         */
+        .doc-company-name { font-size: 19px; font-weight: bold; color: #0f2747; letter-spacing: 0.1px; line-height: 1.15; }
+        .doc-company-legal { font-size: 9.5px; color: #475569; margin-top: 2px; }
+        .doc-company-meta { font-size: 8.5px; color: #475569; line-height: 1.5; margin-top: 3px; }
         .doc-ident-cell { width: 34%; text-align: right; }
         .doc-refs { font-size: 8.5px; color: #334155; text-align: right; line-height: 1.6; }
         .doc-refs .k { color: #94a3b8; }

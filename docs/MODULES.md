@@ -660,6 +660,21 @@ account. Its Account Class field still exists; a full seat quota is reported as 
 on it, naming the used and permitted figures for the pool that is full. An account created that way
 with class My Work has no link to the register and signs in with its email, as it always did.
 
+**Remember Me** (v2.128.0, ADR 068). `/my-work/login` offers to keep the device signed in, through
+`Auth::login($user, true)` and Laravel's own remember token — the cookie carries the user id and a
+random `remember_token`, never the access code and never a hash of it. Off by default: staying
+signed in is a choice about the device in somebody's hand, and a shared tablet in a guard house is
+not that device. A remembered worker reopening the app lands straight on My Work (the `guest`
+middleware's destination is now resolved from the account, so a field login no longer bounces
+through `/dashboard`), and signing out returns them to `/my-work/login` rather than to the
+email-and-password form they cannot use.
+
+What revokes it: logging out cycles the token, an access-code reset cycles it, and
+**`EnsureAccountIsActive`** — new in the same release, first in the web middleware group — signs out
+an account whose `is_active` is false on its next request. That column had been read only by the two
+sign-in forms, so deactivating somebody did nothing about the session they already held; with a
+five-year cookie that stopped being tolerable.
+
 ## Admin Space — the authority boundary (v2.84.1)
 
 **Rule:** administrative authority belongs to Admin Space; operational authority belongs to the
@@ -1056,6 +1071,24 @@ not a transition, so no caller, stale form or doubly-authorised user can skip st
   the job title their company held for them at action time, and the time; a pending stage renders no
   seal. The PDF signature block gained an *HSE VERIFIED BY* column and lost the always-blank *Area
   Authority* column, which crushed the seals at four columns.
+
+**v2.128.0 (the job title on a seal, and the create form's examples)** — ADR 068.
+
+- **Each gate carries a configured job title**: `ptw_workflow_settings.verify_title` and
+  `approve_title`, free text, set in **Settings → Permit to Work Workflow** beside the roles and
+  people that stage routes to. `PtwWorkflowService::titleForActor()` resolves what to FILE with an
+  action (the signer's own `positions.name` first, the stage title second) and the controller
+  snapshots it into the signing activity row's `meta.stage_title`.
+- **The system role is never printed as a job title.** `signatureFor()`'s chain ends at *nothing*,
+  not at `roleLabel()`: `actor_title` → `meta.stage_title` → the signer's current position → the
+  stage title as configured now → null. Both seals also dropped their hardcoded `HSE` function
+  label. A title is a label and grants nobody anything — authority is still the two gates.
+- **The letterhead**: `.doc-company-name` 14px → 19px, so the issuer is no longer set smaller than
+  the document type. On screen the name wraps instead of truncating.
+- **The create form's two example fields** (`work_reference`, `location`) use
+  `Components/shared/form/ExampleInput` — a one-line field whose placeholder wraps and whose box
+  grows to hold it — and no longer repeat the example as helper text underneath. See
+  `CONVENTIONS.md` on why an autosized textarea cannot do this.
 
 **v2.4.0 (PTW UX + Field Operations pass, Phase 1)** — the first module brought to a
 production-grade UX/document pass, others to follow in later phases per that directive's own

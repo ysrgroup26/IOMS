@@ -74,7 +74,7 @@ class PtwWorkflowService
      * another tenant's company id gets nothing back and therefore gets the
      * defaults, never that tenant's routing.
      *
-     * @return array{verify_roles: list<string>, verify_user_ids: list<int>, approve_roles: list<string>, approve_user_ids: list<int>, configured: bool}
+     * @return array{verify_roles: list<string>, verify_user_ids: list<int>, verify_title: ?string, approve_roles: list<string>, approve_user_ids: list<int>, approve_title: ?string, configured: bool}
      */
     public function settingsFor(?int $companyId): array
     {
@@ -88,8 +88,10 @@ class PtwWorkflowService
             return [
                 'verify_roles' => $defaults['verify_roles'],
                 'verify_user_ids' => [],
+                'verify_title' => null,
                 'approve_roles' => $defaults['approve_roles'],
                 'approve_user_ids' => [],
+                'approve_title' => null,
                 'configured' => false,
             ];
         }
@@ -108,8 +110,10 @@ class PtwWorkflowService
         return [
             'verify_roles' => ($verifyRoles === [] && $verifyUsers === []) ? $defaults['verify_roles'] : $verifyRoles,
             'verify_user_ids' => $verifyUsers,
+            'verify_title' => $this->cleanTitle($row->verify_title),
             'approve_roles' => ($approveRoles === [] && $approveUsers === []) ? $defaults['approve_roles'] : $approveRoles,
             'approve_user_ids' => $approveUsers,
+            'approve_title' => $this->cleanTitle($row->approve_title),
             'configured' => true,
         ];
     }
@@ -211,6 +215,54 @@ class PtwWorkflowService
             PermitToWork::STATUS_VERIFIED => self::STAGE_APPROVE,
             default => null,
         };
+    }
+
+    /**
+     * v2.128.0 -- THE JOB TITLE THIS COMPANY FILES THIS STAGE UNDER.
+     *
+     * A ROLE decides who may press the button. A TITLE is what the seal on
+     * the paper says, and the two are different kinds of fact: "hse" is an
+     * IOMS permission, "HSE Officer" is a job somebody holds. Printing the
+     * first where the second belongs is what produced a VERIFIED seal
+     * reading `HSE`, and it is what this configuration replaces.
+     *
+     * Null when the company has configured none -- callers then fall back
+     * to the signer's own position and, failing that, print no title line.
+     * Never a role, and never an invented word.
+     */
+    public function stageTitle(?int $companyId, string $stage): ?string
+    {
+        $settings = $this->settingsFor($companyId);
+
+        return $stage === self::STAGE_VERIFY ? $settings['verify_title'] : $settings['approve_title'];
+    }
+
+    /**
+     * The title to FILE with an action that is being performed right now.
+     *
+     * The signer's own position first, because a position is a configured
+     * job title too and it is the more specific one -- it says what THIS
+     * person is, not what whoever signs this stage is usually called. The
+     * company's stage title second, for an account with no Employee record
+     * behind it (an administrator, a head-office approver), which is the
+     * case that was printing a system role.
+     *
+     * Snapshotted by the caller into the activity row, so that re-wording
+     * the configuration afterwards cannot rewrite a permit already filed.
+     */
+    public function titleForActor(User $user, ?int $companyId, string $stage): ?string
+    {
+        $position = $this->cleanTitle($user->employee?->position?->name);
+
+        return $position ?? $this->stageTitle($companyId, $stage);
+    }
+
+    /** Trim to null: a column holding '' is not a configured title. */
+    private function cleanTitle(?string $value): ?string
+    {
+        $value = trim((string) $value);
+
+        return $value === '' ? null : $value;
     }
 
     /**

@@ -3374,3 +3374,77 @@ acted, derive the audience from the record's **current status**, not from a stag
 caller. `PtwWorkflowService::recipientsFor()` does that, so there is no code path that can notify the
 approver about a permit still awaiting verification — the sequencing is expressed as data, not as
 discipline. See ADR 067.
+
+
+---
+
+## A role is not a job title, and printing one where the other belongs is a defect
+
+v2.128.0. `roleLabel()` was the last step of the chain that decided what to print under a name on a
+PTW approval seal. For an account with no linked Employee -- an administrator, a head-office
+approver -- it was the ONLY step that produced anything, so a controlled document was stamped
+`HSE` or `MANAGER`.
+
+Those are IOMS permissions. They answer "who may press the button". A job title answers "what does
+this company call the person who pressed it", and no two customers word it the same way.
+
+The rule: **never derive a user-facing job title from `role`.** Read it from the company's own
+configuration -- `positions.name` for a person, a configured stage title for a signature -- and
+when neither exists, print nothing. A document that states a record or states nothing is honest; a
+document that states a permission as a job is wrong in a way nobody reading it can detect.
+
+The same shape as `class_basename()` reaching customer copy (v2.125.0) and `identity()['name']`
+defaulting to the product name (v2.126.0): an internal identifier used as a human-readable label,
+because at the moment the code was written it happened to produce a readable word.
+
+---
+
+## Known Pitfall (v2.128.0) — `is_active` checked only at the door is not a revocation
+
+`users.is_active` was read in exactly two places, both of them sign-in forms. So an administrator
+switching an account off stopped its NEXT sign-in and did nothing about the session it already had.
+
+That gap was tolerable only because sessions were short. Remember Me made it five years, and the
+fix is `EnsureAccountIsActive`, first in the web middleware group: an inactive account is signed
+out on its next request, which also cycles `remember_token` and kills every remembered device.
+
+The general rule: **a flag that revokes access has to be read on every request that uses the
+access, not on the request that granted it.** A control checked only at the door is believed in,
+which makes it worse than no control at all.
+
+---
+
+## Known Pitfall (v2.128.0) — an autosized `<textarea>` cannot size itself to its own placeholder
+
+The standard autosize trick is `el.style.height = el.scrollHeight + 'px'`. It cannot solve "show a
+long placeholder without clipping it", because **the scrollHeight of an empty textarea is one row
+however long its placeholder is** -- and the placeholder is the only thing on screen at precisely
+the moment you need the height.
+
+Neither does a taller fixed height: where a placeholder runs out of room depends on the viewport,
+the font and the text, so a height guessed in advance is wrong on some phone.
+
+What works is a mirror: an invisible element rendering `value || placeholder` with the same
+typography, padding and width, with the real field laid over it. The box is then as tall as its
+contents in CSS -- no measuring in JavaScript, no resize listener, nothing to re-run on a font swap
+or an orientation change. `resources/js/Components/shared/form/ExampleInput.jsx` is the
+implementation; the two layers must agree on font size, line height, padding and border width or
+the mirror measures a different box than the reader sees.
+
+---
+
+## A bare element selector inside an inlined SVG overrides the artwork's own geometry
+
+v2.128.0. The boot splash styles the inlined lockup with
+
+```css
+#ioms-boot .ioms-boot-mark > svg { width: 100%; height: auto; }
+```
+
+and the `>` is load-bearing. Written as `.ioms-boot-mark svg`, it matches the NESTED `<svg>`
+elements the lockup uses to place the symbol and the word, overriding the `x`, `y`, `width` and
+`height` that position them: the first render drew the symbol at the full width of the box, off
+centre, with the word missing entirely.
+
+Invisible in the markup, obvious in a screenshot -- the same lesson as "measure a renderer's
+limits" one release earlier. **When you inline an SVG, scope every rule to the element you mean.**

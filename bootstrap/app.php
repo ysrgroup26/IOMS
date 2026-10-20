@@ -3,6 +3,7 @@
 use App\Http\Middleware\CheckRole;
 use App\Http\Middleware\EnforceSubscriptionWriteAccess;
 use App\Http\Middleware\EnforceTenantEntitlement;
+use App\Http\Middleware\EnsureAccountIsActive;
 use App\Http\Middleware\HandleInertiaRequests;
 use App\Http\Middleware\IdentifyTenant;
 use App\Http\Middleware\RequireOrganization;
@@ -93,6 +94,13 @@ return Application::configure(basePath: dirname(__DIR__))
         //   ResolveTenant   next, so the tenant exists...
         //   SubstituteBindings  ...before any record is looked up by id.
         $middleware->web(remove: [SubstituteBindings::class], append: [
+            // v2.128.0 -- FIRST, because everything after it may assume the
+            // account behind an authenticated request is still switched on.
+            // `is_active` used to be checked only by the two sign-in forms,
+            // so deactivating somebody took effect at their next sign-in --
+            // and Remember Me made "their next sign-in" mean "in up to five
+            // years". See its own doc comment.
+            EnsureAccountIsActive::class,
             ResolveTenant::class,
             // Re-added here rather than left in place: bindings must be
             // resolved in tenant context. See the note above.
@@ -168,6 +176,26 @@ return Application::configure(basePath: dirname(__DIR__))
             // is read. Never a wildcard.
             'webhooks/payment/duitku',
         ]);
+
+        /*
+         * v2.128.0 -- WHERE AN ALREADY-SIGNED-IN VISITOR IS SENT.
+         *
+         * The `guest` middleware sends an authenticated visitor to
+         * `/dashboard`, and a My Work account reaching `/dashboard` is
+         * redirected again, to `/my-work`. Correct, and two redirects --
+         * which became visible with Remember Me: a remembered worker
+         * opening the app watched it bounce through a page they may not
+         * read on their way to the one they may.
+         *
+         * So the destination is resolved from the account itself, the same
+         * way `DashboardController` resolves it, and a field login goes
+         * straight to My Work. This changes no authority: `/dashboard`
+         * still redirects this class, and `RestrictMyWorkUser` still
+         * enforces the allow-list on every request (ADR 061).
+         */
+        $middleware->redirectUsersTo(fn (Request $request) => $request->user()?->isMyWorkUser()
+            ? route('my-work')
+            : route('dashboard'));
 
         $middleware->alias([
             'role' => CheckRole::class,

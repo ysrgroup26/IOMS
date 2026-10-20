@@ -594,10 +594,37 @@ class PermitToWorkController extends Controller
                     $permitToWork->closed_at = now();
                 }
 
+                /*
+                 * v2.128.0 -- THE TITLE IS FILED WITH THE DECISION.
+                 *
+                 * `actor_title` on the activity row already captures the
+                 * POSITION the account held (v2.125.0). This captures the
+                 * company's configured title for the STAGE beside it, for
+                 * the case that produced the complaint: an account with no
+                 * Employee record, which had no position and therefore fell
+                 * through to printing the IOMS role on the seal.
+                 *
+                 * Snapshotted here rather than read at render time for the
+                 * same reason the name and the position are: re-wording the
+                 * configuration must not rewrite a permit already filed.
+                 */
+                $stage = match ($target) {
+                    PermitToWork::STATUS_VERIFIED => PtwWorkflowService::STAGE_VERIFY,
+                    PermitToWork::STATUS_APPROVED => PtwWorkflowService::STAGE_APPROVE,
+                    default => null,
+                };
+
+                $stageTitle = $stage === null
+                    ? null
+                    : app(PtwWorkflowService::class)->titleForActor($user, $permitToWork->company_id, $stage);
+
                 // Throws if the move is not allowed FROM the locked status,
                 // which is what refuses a double approval and a skipped
                 // verification alike.
-                $permitToWork->transitionTo($target, $user, meta: ['comments' => $data['reason'] ?? null]);
+                $permitToWork->transitionTo($target, $user, meta: array_filter([
+                    'comments' => $data['reason'] ?? null,
+                    'stage_title' => $stageTitle,
+                ], fn ($value) => $value !== null));
                 $permitToWork->save();
             });
         } catch (ValidationException $e) {
@@ -898,7 +925,21 @@ class PermitToWorkController extends Controller
                 $verification['at']
                     ? Carbon::parse($verification['at'])->timezone(config('ioms.display_timezone'))->format('d M Y H:i')
                     : null,
-                'HSE',
+                /*
+                 * v2.128.0 -- NO function label here either.
+                 *
+                 * It was hardcoded to 'HSE', and on a seal whose title line
+                 * was empty -- an account with no position, which is the
+                 * common case for an administrator -- `HSE` was the ONLY
+                 * word of authority the stamp printed. That is an IOMS
+                 * permission standing in for a job title on a controlled
+                 * document, which is precisely what the owner rejected.
+                 *
+                 * Both seals now read the same way: the act, the person,
+                 * the job title their company configured for that stage,
+                 * and the time. Nothing invented, and nothing said twice.
+                 */
+                null,
             ),
             'approval' => $authorization === null ? null : $stamps->action(
                 'approved',
@@ -920,9 +961,7 @@ class PermitToWorkController extends Controller
                  * the title line below it, so it is omitted. The seal reads
                  * APPROVED, then who, then the job title their company
                  * configured, then when -- which is the whole fact with
-                 * nothing invented and nothing said twice. The VERIFIED
-                 * seal keeps 'HSE' because that gate IS the HSE check, by
-                 * definition in this product.
+                 * nothing invented and nothing said twice.
                  */
                 null,
             ),
@@ -949,24 +988,16 @@ class PermitToWorkController extends Controller
             return null;
         }
 
-        $verifier = $permitToWork->hseVerifier;
-
-        $record = ActivityLog::where('subject_type', PermitToWork::class)
-            ->where('subject_id', $permitToWork->id)
-            ->where('action', PermitToWork::STATUS_VERIFIED)
-            ->latest()
-            ->first(['actor_name', 'actor_title', 'created_at']);
-
-        return [
-            'approver' => $record?->actor_name ?: $verifier?->name,
-            'role' => $record?->actor_title
-                ?: ($verifier?->employee?->position?->name
-                    ?: ($verifier?->role ? $verifier->roleLabel() : null)),
+        return $this->signatureFor(
+            $permitToWork,
+            PermitToWork::STATUS_VERIFIED,
+            PtwWorkflowService::STAGE_VERIFY,
+            $permitToWork->hseVerifier,
             // The stored timestamp first -- it is the decision's own time.
             // The log row is the fallback for a permit verified before the
             // column existed, which is none today and will be some later.
-            'at' => $permitToWork->verified_at ?? $record?->created_at,
-        ];
+            $permitToWork->verified_at,
+        );
     }
 
     private function authorizationFor(PermitToWork $permitToWork): ?array
@@ -975,67 +1006,83 @@ class PermitToWorkController extends Controller
             return null;
         }
 
-        $approver = $permitToWork->hseApprover;
+        return $this->signatureFor(
+            $permitToWork,
+            PermitToWork::STATUS_APPROVED,
+            PtwWorkflowService::STAGE_APPROVE,
+            $permitToWork->hseApprover,
+            $permitToWork->approved_at,
+        );
+    }
 
-        /*
-         * v2.100.0 -- THE NAME AS IT WAS WHEN THE PERMIT WAS AUTHORISED.
-         *
-         * This stamp is the compliance artefact on a printed permit, and it
-         * was rendering the approver's CURRENT name: rename that person and
-         * every permit already filed retroactively carried the new name;
-         * remove them and the stamp went blank.
-         *
-         * The authorising entry is the same ActivityLog row this method
-         * already reads the time from, so the name costs no extra query and
-         * comes from the same evidence as the timestamp beside it. The live
-         * relation stays as the fallback for permits authorised before the
-         * actor was captured, which omits nothing it used to show.
-         */
-        $authorisation = ActivityLog::where('subject_type', PermitToWork::class)
+    /**
+     * One signature on a permit: who acted, under what job title, and when.
+     *
+     * v2.100.0 -- THE NAME AS IT WAS WHEN THE PERMIT WAS SIGNED. The stamp
+     * is the compliance artefact on a printed permit, and it was rendering
+     * the signer's CURRENT name: rename that person and every permit
+     * already filed retroactively carried the new name; remove them and the
+     * stamp went blank. The activity row is the same evidence the timestamp
+     * beside it comes from, so the name costs no extra query.
+     *
+     * v2.128.0 -- AND THE JOB TITLE IS THE COMPANY'S, NEVER A SYSTEM ROLE.
+     *
+     * The last step of this chain used to be `roleLabel()`, so an account
+     * with no linked Employee -- and therefore no position -- printed
+     * `HSE` or `MANAGER` on the seal of a controlled document. Those are
+     * IOMS PERMISSIONS. They decide who may press the button; they are not
+     * anybody's job, no customer words a job that way, and the owner was
+     * right to reject them. That fallback is gone, and nothing replaced it
+     * with a hardcoded word: a company configures the title for each stage
+     * in Settings, and a stage with none configured prints NO title line.
+     *
+     * The chain, each step a real record and never a guess:
+     *
+     *  1. `actor_title` on the signing activity row -- the POSITION that
+     *     account held at the moment it signed, so a later rename or
+     *     transfer cannot rewrite a filed permit.
+     *  2. `meta.stage_title` on the same row -- the company's configured
+     *     title for that stage, snapshotted at the same moment, for a
+     *     signer who holds no position of their own.
+     *  3. the signer's CURRENT position, for a permit signed before either
+     *     column existed. Shows no less than the old behaviour did.
+     *  4. the stage title as configured NOW, same case. Nothing older to
+     *     preserve means nothing is being rewritten.
+     *
+     * Null if none of the four is available, and the stamp renders without
+     * a title line rather than with a fabricated one -- the rule the whole
+     * stamp is built on (ADR 065).
+     *
+     * This changes NO authority. Who may write `hse_verifier_id` or
+     * `hse_approver_id` is `PtwWorkflowService`'s two gates and is
+     * untouched; this only reports who did. See ADR 068.
+     */
+    private function signatureFor(
+        PermitToWork $permitToWork,
+        string $action,
+        string $stage,
+        ?User $signer,
+        $at,
+    ): array {
+        $record = ActivityLog::where('subject_type', PermitToWork::class)
             ->where('subject_id', $permitToWork->id)
-            ->where('action', PermitToWork::STATUS_APPROVED)
+            ->where('action', $action)
             ->latest()
-            ->first(['actor_name', 'actor_title', 'created_at']);
+            ->first(['actor_name', 'actor_title', 'meta', 'created_at']);
+
+        $snapshot = is_array($record?->meta) ? ($record->meta['stage_title'] ?? null) : null;
+
+        $title = $record?->actor_title
+            ?: ($snapshot
+                ?: ($signer?->employee?->position?->name
+                    ?: app(PtwWorkflowService::class)->stageTitle($permitToWork->company_id, $stage)));
 
         return [
-            'approver' => $authorisation?->actor_name ?: $approver?->name,
-            /*
-             * v2.125.0 -- THE COMPANY'S OWN JOB TITLE, AS AT THE SIGNING.
-             *
-             * This was `$approver->roleLabel()`, which is the IOMS SYSTEM
-             * role -- "Super Admin", "HSE". On a permit taped to a
-             * bulkhead that is the wrong fact: the authority a reader
-             * recognises is the yard's own title, and which title signs
-             * which permit is the customer's configuration, not ours. One
-             * company's permits are signed by an SPV HSE, another's by a
-             * Manager Shipyard or a Site Manager, and nothing here may
-             * force either word.
-             *
-             * So the title is read in this order, each step a real record
-             * and never a guess:
-             *
-             *  1. `actor_title` on the authorising ActivityLog row -- the
-             *     position that account held AT THE MOMENT it signed, so a
-             *     later rename or transfer cannot rewrite a filed permit.
-             *  2. the approver's CURRENT position, for a permit signed
-             *     before that column existed. Shows no less than the old
-             *     behaviour did.
-             *  3. the system role, last, because it is at least true about
-             *     the account even when the company configured no position
-             *     for them.
-             *
-             * Null if none of the three is available, and the stamp then
-             * renders without a title line rather than with a fabricated
-             * one -- the rule the whole stamp is built on.
-             *
-             * This changes NO authority. Who may write `hse_approver_id`
-             * is `canManageHse()` and is untouched; this only reports who
-             * did.
-             */
-            'role' => $authorisation?->actor_title
-                ?: ($approver?->employee?->position?->name
-                    ?: ($approver?->role ? $approver->roleLabel() : null)),
-            'at' => $authorisation?->created_at,
+            // Kept as `approver` on both stages: the prop name the stamp
+            // component and both document views already read.
+            'approver' => $record?->actor_name ?: $signer?->name,
+            'role' => $title ?: null,
+            'at' => $at ?? $record?->created_at,
         ];
     }
 

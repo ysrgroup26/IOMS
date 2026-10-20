@@ -64,6 +64,22 @@ createInertiaApp({
 
         const root = createRoot(el);
         root.render(<App {...props} />);
+
+        /*
+         * v2.128.0 -- THE BOOT SPLASH COMES DOWN HERE.
+         *
+         * The server paints `#ioms-boot` into the response so that an
+         * installed app shows the IOMS mark rather than a blank screen
+         * while this bundle loads (see resources/views/partials/
+         * boot-splash.blade.php). This is the normal way it is removed:
+         * the frame after the first render, so the application is already
+         * painted underneath and there is no flash of white between the
+         * two. `app.blade.php` carries a timeout as the only other path,
+         * for a bundle that never arrives.
+         */
+        requestAnimationFrame(() => {
+            document.getElementById('ioms-boot')?.remove();
+        });
     },
     progress: {
         color: '#2563eb',

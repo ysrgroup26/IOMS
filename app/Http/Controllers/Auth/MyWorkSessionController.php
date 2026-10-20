@@ -92,6 +92,8 @@ class MyWorkSessionController extends Controller
         $validated = $request->validate([
             'identifier' => ['required', 'string', 'max:255'],
             'access_code' => ['required', 'string', 'max:64'],
+            // v2.128.0 -- see the comment on Auth::login() below.
+            'remember' => ['nullable', 'boolean'],
         ]);
 
         $identifier = trim($validated['identifier']);
@@ -129,8 +131,33 @@ class MyWorkSessionController extends Controller
 
         RateLimiter::clear($this->throttleKey($request, $identifier));
 
-        // The ordinary guard, the ordinary session, from here on.
-        Auth::login($account);
+        /*
+         * v2.128.0 -- REMEMBER ME, THROUGH LARAVEL'S OWN REMEMBER TOKEN.
+         *
+         * A worker opens IOMS from a phone, in a yard, several times a
+         * shift, and typing a badge number and an 8-character access code
+         * each time is the kind of friction that ends with the code written
+         * on the inside of a helmet. So the form offers to be remembered.
+         *
+         * WHAT THIS IS, EXACTLY: `Auth::login($user, true)` issues the
+         * framework's own remember cookie, holding the user's id and a
+         * random 60-character `remember_token` from the `users` table --
+         * NOT the access code, and nothing derived from it. Recovering a
+         * session from that cookie is the session guard's job, the same one
+         * Platform sign-in uses; this class still implements no
+         * authentication of its own. The cookie is encrypted by Laravel's
+         * cookie middleware like every other.
+         *
+         * WHAT REVOKES IT: `logout()` cycles `remember_token`, which
+         * invalidates every remembered device at once -- so does a password
+         * (access code) reset through `MyWorkAccessService`. And
+         * `EnsureAccountIsActive` was added with this feature, because
+         * `is_active` had been checked only by the two sign-in forms: with
+         * a five-year cookie, "takes effect at their next sign-in" is not a
+         * revocation. It is now re-checked on every request, as
+         * `RestrictMyWorkUser`'s allow-list already was.
+         */
+        Auth::login($account, (bool) ($validated['remember'] ?? false));
         $request->session()->regenerate();
 
         $account->forceFill(['last_login_at' => now()])->save();

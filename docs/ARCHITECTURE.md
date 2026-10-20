@@ -1133,6 +1133,27 @@ now exist, are tenant-scoped, and are editable from Settings. No controller has 
 the `role` column + `isX()/canX()` methods described above to permission checks yet; that remains the
 live authorization path this section documents. Both systems currently coexist.
 
+### A role is what you may do; a job title is what the paper says (v2.128.0)
+
+Both live on the same person and they are not the same fact. `role` is the permission this section
+is about. A JOB TITLE — "HSE Officer", "Manager Shipyard" — is the company's own word for somebody,
+read from `positions.name` through the account's linked Employee, or from a per-stage configuration
+where the signer has no position, and **never derived from `role`**. A seal on a controlled
+document that prints `HSE` under a name is printing a permission as a job. See ADR 068 and
+`CONVENTIONS.md`.
+
+### An account that is switched off stops on its next request (v2.128.0)
+
+`users.is_active` had been read only by the two sign-in forms, so deactivating an account took
+effect at its next sign-in and left the session it already held alone. `EnsureAccountIsActive` runs
+**first** in the web middleware group (`bootstrap/app.php`): an authenticated request whose account
+is inactive is signed out — which also cycles `remember_token`, killing every remembered device —
+and redirected to the form that account signs in at. Everything after it in the chain may assume an
+authenticated request belongs to an account that is still switched on.
+
+It answers "is this account switched on", never "may they see this page". No authorization decision
+moved into it.
+
 ## SaaS Entitlement chain (Package → Subscription, and Package → Module/Workspace grants)
 
 Two separate questions, both under the `Package` umbrella, answered by two separate mechanisms —
@@ -1590,6 +1611,25 @@ v1.9.0 sections for the full reasoning.
   `resources/js/lib/useTheme.js`) — the implementation is intact, just hidden, pending a future
   version turning it back on. Don't remove the dark-mode Tailwind classes (`dark:*`) when touching
   a page; they're dead code for now, not wrong code.
+
+### The boot splash is painted by the server (v2.128.0)
+
+Inertia SSR is off, so the body the server sends is an empty `<div id="app">` and the screen is
+blank until React mounts. Inside an installed app — no address bar, no browser spinner — blank
+reads as a crash. `resources/views/partials/boot-splash.blade.php` is rendered in the same response
+as the page, with the official stacked lockup inlined so it paints with the HTML; `app.jsx` removes
+it the frame after the first render, a timeout in `app.blade.php` removes it if the bundle never
+arrives, and a `.ioms-js` class on `<html>` keeps it off a client that will never run either.
+Authenticated pages only — a public marketing page arrives with content already in it. See ADR 068.
+
+### `ExampleInput` — a one-line field whose example wraps (v2.128.0)
+
+`resources/js/Components/shared/form/ExampleInput.jsx`. Use it wherever a field's worked example is
+too long for an `<input>` placeholder, instead of repeating the example as helper text underneath.
+It is a `<textarea>` purely because a textarea's placeholder wraps, sized by a mirror element
+rather than by `scrollHeight` (which is one row for an empty field however long its placeholder
+is), and it refuses newlines so the submitted value is what an `<input>` would have sent. The two
+layers must agree on font size, line height, padding and border width.
 
 ## Product UI/UX Finalization (v2.15.0)
 

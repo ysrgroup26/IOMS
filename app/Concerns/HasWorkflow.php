@@ -120,7 +120,29 @@ trait HasWorkflow
                 ? Notification::CATEGORY_WARNING
                 : Notification::CATEGORY_INFORMATION);
 
-        app(NotificationService::class)->notify(
+        /*
+         * v2.127.0 -- A NOTIFICATION MAY FAIL; A TRANSITION MAY NOT BE LOST.
+         *
+         * This call sits inside `transitionTo()`, which callers wrap in a
+         * transaction when the state change has to be atomic with the
+         * decision it records -- which PTW's two gates now do, because an
+         * approval written without its actor, or an actor written without
+         * its approval, is worse than either. An exception from here
+         * therefore rolled the DECISION back: a mail driver timing out
+         * un-approved a permit somebody had approved.
+         *
+         * Found by a test that replaced the notifier with one that throws,
+         * written for the owner's requirement that "kegagalan pengiriman
+         * notifikasi tidak membuat keputusan persetujuan hilang" -- and it
+         * was already true of every other workflow model in the product,
+         * silently, for as long as notifications have existed here.
+         *
+         * The state change is the record. Telling somebody about it is a
+         * courtesy on top, and a courtesy is allowed to fail as long as it
+         * fails loudly in the log and quietly everywhere else.
+         */
+        try {
+            app(NotificationService::class)->notify(
             $recipient,
             $category,
             $this->documentLabel().' '.$this->displayNumber().' is now '.$this->statusLabel($newStatus),
@@ -132,7 +154,10 @@ trait HasWorkflow
             // server would ask about its destination. See the shared
             // `notifications.items` prop in HandleInertiaRequests.
             array_filter(['route' => $this->notificationRouteName()])
-        );
+            );
+        } catch (\Throwable $e) {
+            report($e);
+        }
     }
 
     /**

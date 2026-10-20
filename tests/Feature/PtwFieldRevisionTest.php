@@ -11,6 +11,7 @@ use App\Models\Employee;
 use App\Models\Notification;
 use App\Models\PermitToWork;
 use App\Models\Position;
+use App\Models\PtwWorkflowSetting;
 use App\Models\Tenant;
 use App\Models\User;
 use Illuminate\Foundation\Testing\RefreshDatabase;
@@ -85,6 +86,32 @@ class PtwFieldRevisionTest extends TestCase
         $user->forceFill(['employee_id' => $this->employee->id])->save();
 
         return $user->refresh();
+    }
+
+/**
+     * v2.127.0 -- a company that explicitly grants HSE BOTH gates.
+     *
+     * Under the default routing an `hse` account verifies and does not
+     * approve, which is the separation ADR 067 exists to create -- so these
+     * tests, which are about what a SEAL carries rather than about who may
+     * sign, configure the company instead of bypassing the rule. The
+     * owner's requirement allows it in as many words: one person may hold
+     * both "kecuali kebijakan role perusahaan memang secara eksplisit
+     * mengizinkan keduanya".
+     *
+     * The separation itself is pinned by PtwTwoStageWorkflowTest.
+     */
+    private function letHseHoldBothGates(int $companyId): void
+    {
+        PtwWorkflowSetting::withoutGlobalScopes()->updateOrCreate(
+            ['company_id' => $companyId],
+            [
+                'verify_roles' => [User::ROLE_HSE],
+                'verify_user_ids' => [],
+                'approve_roles' => [User::ROLE_HSE],
+                'approve_user_ids' => [],
+            ],
+        );
     }
 
     private function hseUser(): User
@@ -272,7 +299,12 @@ class PtwFieldRevisionTest extends TestCase
         $requester = $this->myWorkUser();
         $permit = $this->permit(PermitToWork::STATUS_SUBMITTED, $requester);
 
-        $permit->transitionTo(PermitToWork::STATUS_APPROVED, $this->hseUser());
+        // v2.127.0: verification comes first; the state machine refuses
+        // submitted -> approved. What this test asserts -- that the title
+        // is the product's words and not a class name -- is unchanged.
+        $hse = $this->hseUser();
+        $permit->transitionTo(PermitToWork::STATUS_VERIFIED, $hse);
+        $permit->transitionTo(PermitToWork::STATUS_APPROVED, $hse);
 
         $title = Notification::where('user_id', $requester->id)->latest()->value('title');
 
@@ -351,12 +383,17 @@ class PtwFieldRevisionTest extends TestCase
         $hse->forceFill(['employee_id' => $officer->id])->save();
 
         $permit = $this->permit(PermitToWork::STATUS_SUBMITTED, $this->myWorkUser());
+        $this->letHseHoldBothGates($this->company->id);
 
         // Approved through the real endpoint, deliberately: that is the
         // only context in which the acting account's company is resolved,
         // and therefore the only honest way to assert what the stamp
         // records. Driving the model directly would pass while production
         // stored nothing.
+        $this->actingAs($hse)
+            ->post('/permits-to-work/'.$permit->id.'/transition', ['status' => PermitToWork::STATUS_VERIFIED])
+            ->assertRedirect();
+
         $this->actingAs($hse)
             ->post('/permits-to-work/'.$permit->id.'/transition', ['status' => PermitToWork::STATUS_APPROVED])
             ->assertRedirect();
@@ -387,6 +424,11 @@ class PtwFieldRevisionTest extends TestCase
         $hse->forceFill(['employee_id' => $manager->id])->save();
 
         $permit = $this->permit(PermitToWork::STATUS_SUBMITTED, $this->myWorkUser());
+        $this->letHseHoldBothGates($this->company->id);
+
+        $this->actingAs($hse)
+            ->post('/permits-to-work/'.$permit->id.'/transition', ['status' => PermitToWork::STATUS_VERIFIED])
+            ->assertRedirect();
 
         $this->actingAs($hse)
             ->post('/permits-to-work/'.$permit->id.'/transition', ['status' => PermitToWork::STATUS_APPROVED])

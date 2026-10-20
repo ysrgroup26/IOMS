@@ -109,6 +109,13 @@ must not alter what a permit filed last year says about who signed it.
 
 **No approval stage, status or authority was invented to make the design fit.**
 
+> [!note] Superseded on this point by ADR 067 (v2.127.0)
+> The owner specified the second gate as a product requirement one release later, so PTW now has
+> two: HSE verification and then final approval, each configured per company. The `verified`
+> variant below is therefore rendered now, from a real verification action record. What this
+> section says still holds as method — the stage was **specified**, not invented to make a visual
+> fit, and the seal still cannot render without a server-side record.
+
 The reference shows `HSE VERIFIED` *and* `MANAGER APPROVED`. IOMS has **one** PTW gate:
 `hse_approver_id`, written only by a `canManageHse()` user. So:
 

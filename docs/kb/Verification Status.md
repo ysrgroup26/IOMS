@@ -34,6 +34,40 @@ and driving the screen in a browser, the twelve-to-six month edit **saves and pe
 `ReleaseStatusService` and the hardened `app:deploy` exist to close that gap, and
 `DeploymentIdentityTest` pins them. See `docs/ADR/057-a-release-must-be-able-to-prove-what-is-running.md`.
 
+### What was actually run for v2.127.0
+
+**Level: the real UI and rendered artefacts, against MySQL 8 on this machine. NOT deployed.**
+
+This release is a stated product requirement, not an audit: PTW must pass HSE verification before it
+reaches final approval, each gate configured per company, each notified in turn.
+
+| Claim | How it was checked |
+|---|---|
+| Settings → **Permit to Work Workflow** is usable, not just a column | Opened in a browser as a tenant administrator: Operating Unit select, two stage panels, role chips (Super Admin / HSE / Manager / HRD / Warehouse) and a checkbox list of that tenant's own five accounts. Saved stage 1 = `["hse"]`, stage 2 = `["manager"]`; read back from `ptw_workflow_settings` for that `company_id` and for no other |
+| A submitted permit is **not** Active, and only the verifier is offered an action | Submitted as the requester, then signed in as both gate-holders: HSE saw **Verify**, the manager saw nothing, the badge read *Awaiting HSE Verification* |
+| The approver is notified **after** verification, not with it | The manager's notification list was empty while the permit sat at `submitted`, and carried the permit after verification was recorded |
+| Verify authority ≠ approve authority | The HSE account's `POST` to the `approved` transition answered **403** under the saved configuration; three pre-existing tests had to be given a `letHseHoldBothGates()` fixture for the same reason |
+| Both stamps carry the real actor, their company job title and the time | Re-rendered the PDF with `pdftoppm` and looked at it: green **VERIFIED** (`Hse Audit-business / SPV HSE / 20 Oct 2026 07:09`) above blue **APPROVED** (`Manager Audit-business / MANAGER / 20 Oct 2026 07:10`) |
+| A pending stage shows no stamp | A permit at `submitted` renders the badge and no seal; `StampRenderer` still cannot produce one without a server-side authorization record |
+
+**Three defects of my own were found this way and not by the suite:**
+
+1. `HasWorkflow::notifyStatusChange()` notified **inside** the caller's transaction, so a throwing
+   notifier rolled the approval decision back — a 500 and a lost verification. Silently true for
+   **every** workflow model in the product, not just PTW.
+2. The APPROVED stamp hardcoded `'HSE'` as its kind label, so a manager-approved permit printed
+   *APPROVED / HSE* above a Manager's name. Visible on the rendered sheet.
+3. **Activate** was `canManageHse()` only, so a company routing approval to a manager ended up with
+   an approved permit nobody on screen could activate. Found in the browser; widened to gate-holders.
+
+**Automated:** `tests/Feature/PtwTwoStageWorkflowTest.php` — 29 tests covering all twelve scenarios
+the requirement names, plus configuration, tenant isolation, notification-failure and activation.
+Full suite green: **1550 tests, 7973 assertions** (`vendor/bin/phpunit`, 2026-10-20), and
+`npm run build` clean.
+
+**Not verified:** production. Deployment is the owner's, by hand — nothing in this release has been
+run anywhere but this machine.
+
 ### What was actually run for v2.126.0
 
 **Level: rendered artefacts and the real UI, against MySQL 8 on this machine. NOT deployed.**

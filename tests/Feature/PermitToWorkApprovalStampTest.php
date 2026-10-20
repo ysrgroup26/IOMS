@@ -5,6 +5,7 @@ namespace Tests\Feature;
 use App\Models\ActivityLog;
 use App\Models\Company;
 use App\Models\PermitToWork;
+use App\Models\PtwWorkflowSetting;
 use App\Models\Tenant;
 use App\Models\User;
 use Illuminate\Foundation\Testing\RefreshDatabase;
@@ -51,6 +52,32 @@ class PermitToWorkApprovalStampTest extends TestCase
             'name' => 'Sri Handayani', 'email' => 'hse@stamp.test', 'password' => bcrypt('x'),
             'role' => 'hse', 'tenant_id' => $this->tenant->id, 'is_active' => true,
         ]);
+    }
+
+/**
+     * v2.127.0 -- a company that explicitly grants HSE BOTH gates.
+     *
+     * Under the default routing an `hse` account verifies and does not
+     * approve, which is the separation ADR 067 exists to create -- so these
+     * tests, which are about what a SEAL carries rather than about who may
+     * sign, configure the company instead of bypassing the rule. The
+     * owner's requirement allows it in as many words: one person may hold
+     * both "kecuali kebijakan role perusahaan memang secara eksplisit
+     * mengizinkan keduanya".
+     *
+     * The separation itself is pinned by PtwTwoStageWorkflowTest.
+     */
+    private function letHseHoldBothGates(int $companyId): void
+    {
+        PtwWorkflowSetting::withoutGlobalScopes()->updateOrCreate(
+            ['company_id' => $companyId],
+            [
+                'verify_roles' => [User::ROLE_HSE],
+                'verify_user_ids' => [],
+                'approve_roles' => [User::ROLE_HSE],
+                'approve_user_ids' => [],
+            ],
+        );
     }
 
     private function permit(string $status, ?int $approverId = null): PermitToWork
@@ -141,6 +168,24 @@ class PermitToWorkApprovalStampTest extends TestCase
     public function test_an_approved_permit_carries_the_approver_their_role_and_the_moment_from_the_audit_trail(): void
     {
         $permit = $this->permit('submitted');
+        $this->letHseHoldBothGates($this->company->id);
+
+        /*
+         * v2.127.0: a permit reaches `approved` only THROUGH verification
+         * now -- the state machine refuses submitted -> approved outright
+         * (ADR 067). The assertions below are unchanged: what the seal
+         * carries, and that its time comes from the audit trail rather than
+         * from a second column that could drift. Only the route to the
+         * state it is asserted on has gained its missing step.
+         *
+         * One account performs both here because this fixture's HSE user
+         * is a super_admin-equivalent for both gates under the DEFAULT
+         * routing; the separation of the two authorities is pinned by
+         * PtwTwoStageWorkflowTest, not by this class.
+         */
+        $this->actingAs($this->hse)
+            ->post("/permits-to-work/{$permit->id}/transition", ['status' => 'verified'])
+            ->assertRedirect();
 
         $this->actingAs($this->hse)
             ->post("/permits-to-work/{$permit->id}/transition", ['status' => 'approved'])

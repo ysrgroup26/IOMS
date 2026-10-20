@@ -14,7 +14,9 @@ use App\Models\KpiCategory;
 use App\Models\Module;
 use App\Models\NumberingFormat;
 use App\Models\Position;
+use App\Models\PtwWorkflowSetting;
 use App\Models\User;
+use App\Services\PtwWorkflowService;
 use App\Models\Workspace;
 use App\Services\EntitlementService;
 use App\Support\NameFormatter;
@@ -290,6 +292,26 @@ class SettingsController extends Controller
                 ->orderBy('module_key')
                 ->get(),
             'numberingModuleKeys' => array_keys(\App\Services\NumberGeneratorService::DEFAULTS),
+            /*
+             * v2.127.0 -- the PTW workflow routing, per operating unit.
+             *
+             * Sent as the STORED rows plus the defaults and the choices, so
+             * the tab can show a company that has configured nothing what
+             * it is currently falling back to rather than an empty form
+             * that looks like "nobody may approve anything".
+             */
+            'ptwWorkflow' => [
+                'settings' => PtwWorkflowSetting::whereIn('company_id', Company::query()->pluck('id'))
+                    ->get(['company_id', 'verify_roles', 'verify_user_ids', 'approve_roles', 'approve_user_ids'])
+                    ->keyBy('company_id'),
+                'defaults' => app(PtwWorkflowService::class)->defaults(),
+                'roles' => app(PtwWorkflowService::class)->assignableRoles(),
+                'users' => User::where('tenant_id', $request->user()->tenant_id)
+                    ->where('is_active', true)
+                    ->where('user_type', '!=', User::TYPE_MY_WORK)
+                    ->orderBy('name')
+                    ->get(['id', 'name', 'role']),
+            ],
             'notificationPreferences' => \App\Services\NotificationService::preferences(),
             // Milestone 3 (Dynamic Document Engine, Task #66). Tenant-wide
             // templates only (company_id null) -- same "no per-company
@@ -561,6 +583,74 @@ class SettingsController extends Controller
         ActivityLog::record('updated', 'Notification preferences were updated.');
 
         return back()->with('success', 'Notification preferences updated.');
+    }
+
+    /**
+     * v2.127.0 -- WHO VERIFIES AND WHO APPROVES A PERMIT, per operating unit.
+     *
+     * The configuration behind the two PTW gates. Saved per company
+     * because a permit belongs to an operating unit and a tenant running
+     * three yards may route each one differently -- see the owning
+     * migration for why this is a table rather than a `CompanySetting`.
+     *
+     * Validated against what actually exists: a role must be one the
+     * service offers (never `platform_admin`, which is not the customer's
+     * staff), and a named user must belong to THIS tenant. Both checks are
+     * server-side, because the select that produced them is not.
+     */
+    public function updatePtwWorkflow(Request $request, PtwWorkflowService $workflow): RedirectResponse
+    {
+        abort_unless($request->user()->canManageSystemSettings(), 403);
+
+        $validated = $request->validate([
+            // Must be a company this tenant owns -- `Company::query()`
+            // passes through TenantScope, which is the whole check.
+            'company_id' => ['required', Rule::in(Company::query()->pluck('id'))],
+            'verify_roles' => ['nullable', 'array'],
+            'verify_roles.*' => [Rule::in(array_keys($workflow->assignableRoles()))],
+            'approve_roles' => ['nullable', 'array'],
+            'approve_roles.*' => [Rule::in(array_keys($workflow->assignableRoles()))],
+            'verify_user_ids' => ['nullable', 'array'],
+            'verify_user_ids.*' => [Rule::in($this->assignableWorkflowUserIds($request))],
+            'approve_user_ids' => ['nullable', 'array'],
+            'approve_user_ids.*' => [Rule::in($this->assignableWorkflowUserIds($request))],
+        ]);
+
+        $companyId = (int) $validated['company_id'];
+
+        PtwWorkflowSetting::updateOrCreate(
+            ['company_id' => $companyId],
+            [
+                'verify_roles' => array_values(array_unique($validated['verify_roles'] ?? [])),
+                'verify_user_ids' => array_values(array_unique(array_map('intval', $validated['verify_user_ids'] ?? []))),
+                'approve_roles' => array_values(array_unique($validated['approve_roles'] ?? [])),
+                'approve_user_ids' => array_values(array_unique(array_map('intval', $validated['approve_user_ids'] ?? []))),
+            ],
+        );
+
+        ActivityLog::record('updated', 'PTW verification and approval routing was updated for operating unit '.$companyId.'.');
+
+        return back()->with('success', 'PTW workflow updated.');
+    }
+
+    /**
+     * The users a workflow stage may name: this tenant's own active, full
+     * accounts.
+     *
+     * My Work accounts are excluded. That class is a field login (ADR 062)
+     * -- it may RAISE a permit and `RestrictMyWorkUser` refuses it the
+     * pages a decision is made on, so naming one as an approver would
+     * configure an offer the server answers 403 for.
+     *
+     * @return list<int>
+     */
+    private function assignableWorkflowUserIds(Request $request): array
+    {
+        return User::where('tenant_id', $request->user()->tenant_id)
+            ->where('is_active', true)
+            ->where('user_type', '!=', User::TYPE_MY_WORK)
+            ->pluck('id')
+            ->all();
     }
 
     /**

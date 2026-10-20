@@ -32,6 +32,20 @@ class PermitToWork extends Model
 
     public const STATUS_REJECTED = 'rejected';
 
+    /**
+     * v2.127.0 -- HSE HAS VERIFIED IT; THE APPROVER HAS NOT SIGNED IT YET.
+     *
+     * The second gate. A permit used to go straight from `submitted` to
+     * `approved` on one `canManageHse()` decision; the owner's product
+     * requirement is that HSE VERIFIES and somebody else APPROVES, and
+     * that a permit is not ACTIVE until both have happened.
+     *
+     * This state is the gap between them, and it is a real operational
+     * position rather than a label: the work is checked and is still not
+     * authorised to begin. See ADR 067.
+     */
+    public const STATUS_VERIFIED = 'verified';
+
     public const STATUS_APPROVED = 'approved';
 
     public const STATUS_ACTIVE = 'active';
@@ -42,9 +56,26 @@ class PermitToWork extends Model
 
     public const TYPES = ['hot_work', 'cold_work', 'confined_space', 'working_at_height', 'excavation', 'electrical', 'general'];
 
+    /*
+     * v2.127.0 -- `submitted` NO LONGER REACHES `approved`.
+     *
+     * That single edge is what made skipping verification possible, and
+     * removing it is what makes the sequence a rule rather than a
+     * convention: the state machine itself now refuses
+     * submitted -> approved, so no controller, console command, test or
+     * future caller can produce an approved permit that nobody verified.
+     * `HasWorkflow::transitionTo()` throws a validation exception naming
+     * what IS allowed, which is a better refusal than a 403 because the
+     * problem is a business rule and not a permission.
+     *
+     * Rejection stays reachable from BOTH gates: a verifier may send a
+     * permit back, and so may an approver who disagrees with a
+     * verification. Cancellation likewise.
+     */
     protected static array $transitions = [
         self::STATUS_DRAFT => [self::STATUS_SUBMITTED, self::STATUS_CANCELLED],
-        self::STATUS_SUBMITTED => [self::STATUS_APPROVED, self::STATUS_REJECTED, self::STATUS_CANCELLED],
+        self::STATUS_SUBMITTED => [self::STATUS_VERIFIED, self::STATUS_REJECTED, self::STATUS_CANCELLED],
+        self::STATUS_VERIFIED => [self::STATUS_APPROVED, self::STATUS_REJECTED, self::STATUS_CANCELLED],
         self::STATUS_REJECTED => [self::STATUS_DRAFT, self::STATUS_CANCELLED],
         self::STATUS_APPROVED => [self::STATUS_ACTIVE, self::STATUS_CANCELLED],
         self::STATUS_ACTIVE => [self::STATUS_CLOSED],
@@ -56,6 +87,11 @@ class PermitToWork extends Model
         'ptw_number', 'company_id', 'project_id', 'work_reference', 'risk_assessment_id', 'jsa_id',
         'permit_type', 'work_description', 'location', 'start_datetime', 'end_datetime',
         'required_qualification', 'precautions', 'requested_by', 'area_authority_id',
+        // v2.127.0 -- the verification decision, separate from the
+        // approval one. NOT mass-assigned from any request: both are
+        // written server-side in PermitToWorkController::transition(),
+        // the same discipline `hse_approver_id` has always had.
+        'hse_verifier_id', 'verified_at', 'approved_at',
         // v2.17.0 (PTW Field Workflow Foundation, Part 8): PIC / Supervisor
         // Lapangan -- a separate person from `requested_by` (see this
         // column's own migration doc comment).
@@ -73,6 +109,8 @@ class PermitToWork extends Model
             'start_datetime' => 'datetime',
             'end_datetime' => 'datetime',
             'closed_at' => 'datetime',
+            'verified_at' => 'datetime',
+            'approved_at' => 'datetime',
             'required_ppe_ids' => 'array',
             'confirmed_ppe_ids' => 'array',
             'additional_ppe' => 'array',
@@ -205,6 +243,35 @@ class PermitToWork extends Model
     public function hseApprover()
     {
         return $this->belongsTo(User::class, 'hse_approver_id');
+    }
+
+    /** v2.127.0 -- whoever performed the HSE VERIFICATION, which is not the approver. */
+    public function hseVerifier()
+    {
+        return $this->belongsTo(User::class, 'hse_verifier_id');
+    }
+
+    /**
+     * v2.127.0 -- HAS THIS PERMIT ACTUALLY BEEN VERIFIED BY HSE?
+     *
+     * The predicate behind the VERIFIED stamp, shaped exactly like
+     * `isAuthorised()` below and for the same reason: the screen, the
+     * document view and the PDF must not be able to disagree.
+     *
+     * Both halves are required. A status alone could be reached by a
+     * future caller that forgot to record the actor; an actor alone could
+     * survive a rejection that sent the permit back to draft. A stamp
+     * claims that a named person made a decision, so it renders only where
+     * the record holds both.
+     */
+    public function isVerified(): bool
+    {
+        return $this->hse_verifier_id !== null && in_array($this->status, [
+            self::STATUS_VERIFIED,
+            self::STATUS_APPROVED,
+            self::STATUS_ACTIVE,
+            self::STATUS_CLOSED,
+        ], true);
     }
 
     /**

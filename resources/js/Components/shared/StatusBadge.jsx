@@ -59,6 +59,16 @@ const STATUS_MAP = {
     // issued PTW document ("Awaiting Approval"), so screen and paper agree.
     submitted: 'warning',
     pending_approval: 'warning',
+    /*
+     * v2.127.0 -- `verified` is WAITING ON SOMEONE, like `submitted`.
+     *
+     * HSE has checked the permit and the approver has not signed it, so
+     * the work still may not begin. Amber for the same reason `submitted`
+     * is amber: a neutral outline would make a permit that is halfway
+     * through authorisation look like one that is finished, which is the
+     * single most expensive thing this badge could get wrong.
+     */
+    verified: 'warning',
     approved: 'success',
     rejected: 'destructive',
     processing: 'outline',

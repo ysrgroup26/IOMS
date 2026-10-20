@@ -1004,7 +1004,8 @@ consequence/control_measure), so a table stayed readable there without the same 
 **Department:** HSE (Milestone 4, Workstream B6).
 
 `PermitToWork` (`app/Models/PermitToWork.php`): fuller sign-off lifecycle via `HasWorkflow`
-(`draft -> submitted -> approved -> active -> closed`, plus `rejected`/`cancelled` branches).
+(`draft -> submitted -> verified -> approved -> active -> closed`, plus `rejected`/`cancelled`
+branches from either gate — v2.127.0, ADR 067).
 Optional links to an approved `RiskAssessment`/`JobSafetyAnalysis` (reused, not duplicated).
 `required_qualification` is a **plain free-text label**, deliberately NOT a foreign key into
 `competency_types` and NEVER auto-checked against any employee's actual certificates — this is a
@@ -1023,6 +1024,38 @@ production bug (`HseDashboardController`'s `openPermitsCount` widget threw `SQLS
 table 'permit_to_works' doesn't exist`) fixed by correcting the model to match the already-migrated
 table, not the other way around — see `CONVENTIONS.md`'s Migrations pitfalls for the general rule
 this established.
+
+**v2.127.0 (two approval gates, configured per company)** — ADR 067. A permit is **verified by
+HSE and then approved**, and the order is enforced by the state machine: `submitted => approved` is
+not a transition, so no caller, stale form or doubly-authorised user can skip stage 1.
+
+- **Who holds each gate is the customer's configuration**, not a role constant.
+  `ptw_workflow_settings` (unique `company_id`, four nullable JSON columns) stores roles **and**
+  named people per stage; `PtwWorkflowService` is the only reader, and both the server gate
+  (`canVerify`/`canApprove`) and the on-screen button ask it — ADR 061's rule, fourth application.
+  Set in **Settings → Permit to Work Workflow**. Company-scoped rather than tenant-scoped because
+  several yards under one account route verification to different supervisors. A stage left empty
+  falls back to its own default (verify → Super Admin + HSE; approve → Super Admin +
+  `config('workflow.approvers')`), so configuring one gate cannot disable the other.
+- **Verification writes `hse_verifier_id`, `verified_at` and `confirmed_ppe_ids`** (the PPE
+  confirmation moved here from approval, because confirming the equipment is the verifier's job).
+  Approval writes `hse_approver_id` and `approved_at`. Nothing was backfilled: a permit approved
+  under the old single gate has no verification, because none happened.
+- **Verify authority is not approve authority.** Separate columns, separate methods, authorised per
+  target in `transition()`. `Activate` is deliberately wider than `canManageHse()` — either
+  gate-holder may activate, otherwise a company routing approval to a manager has an approved permit
+  nobody on screen can activate.
+- **Race and replay safety**: the transition runs inside `DB::transaction` with
+  `lockForUpdate()->firstOrFail()`, and the fresh row is pushed back onto the model with
+  `setRawAttributes(..., true)`. Two simultaneous approvals serialise; the second is refused.
+- **Notifications**: the recipient list derives from the permit's **current status**, so the approver
+  cannot be told about a permit still awaiting verification. The notification is attempted **after**
+  the transaction commits, best-effort — see `CONVENTIONS.md` on the `HasWorkflow` defect this
+  exposed for every workflow model.
+- **Stamps and PDF**: green **VERIFIED** and blue **APPROVED** action seals, each naming the actor,
+  the job title their company held for them at action time, and the time; a pending stage renders no
+  seal. The PDF signature block gained an *HSE VERIFIED BY* column and lost the always-blank *Area
+  Authority* column, which crushed the seals at four columns.
 
 **v2.4.0 (PTW UX + Field Operations pass, Phase 1)** — the first module brought to a
 production-grade UX/document pass, others to follow in later phases per that directive's own

@@ -12,7 +12,7 @@ import StatusBadge from '@/Components/shared/StatusBadge';
 import ApprovalStamp from '@/Components/shared/ApprovalStamp';
 import EmptyState from '@/Components/shared/EmptyState';
 import PersonChip from '@/Components/shared/PersonChip';
-import { ArrowLeft, Send, CheckCircle2, XCircle, PlayCircle, FlaskConical, Wind, Download, Printer, FileText, RotateCcw } from 'lucide-react';
+import { ArrowLeft, Send, CheckCircle2, XCircle, PlayCircle, FlaskConical, Wind, Download, Printer, FileText, RotateCcw, ShieldCheck } from 'lucide-react';
 import { picName } from '@/lib/permitPicName';
 
 /**
@@ -91,7 +91,7 @@ function PpePanel({ ppe, hazards, status }) {
     );
 }
 
-export default function PermitToWorkShow({ permit: p, activities, canManage, rejectionReason, authorization, stamps = {}, ppe }) {
+export default function PermitToWorkShow({ permit: p, activities, canManage, rejectionReason, authorization, verification, stamps = {}, workflow, ppe }) {
     const [gasTestOpen, setGasTestOpen] = useState(false);
     // v1.10.9: location pre-filled from this permit's own p.location (the
     // scope a PTW is raised for) but independently editable -- a gas
@@ -206,12 +206,51 @@ export default function PermitToWorkShow({ permit: p, activities, canManage, rej
                         there (Ctrl+P / its own print icon); no separate
                         print-only rendering pipeline exists or is needed. */}
                     <Button variant="outline" asChild><a href={route('permits-to-work.pdf', p.id)} target="_blank" rel="noopener noreferrer"><Printer className="h-4 w-4" /> Print</a></Button>
+                    {/*
+                      * v2.127.0 -- TWO GATES, TWO BUTTONS, EACH OFFERED ONLY
+                      * TO WHOEVER HOLDS IT.
+                      *
+                      * `workflow.can_verify` and `workflow.can_approve` are
+                      * the SAME two answers `transition()` gates the write
+                      * with, computed by `PtwWorkflowService` and shared as
+                      * props -- so a button appears only where the server
+                      * would accept the decision (ADR 061). Hiding a button
+                      * is not authorization and never was; the server check
+                      * is the check, and this only stops the page offering
+                      * what it would refuse.
+                      *
+                      * Verify and Approve are deliberately NOT inside
+                      * `canManage`: a manager who approves permits but holds
+                      * no HSE role must still see Approve, and HSE must see
+                      * Verify without being handed the rest of the
+                      * operational actions.
+                      */}
+                    {workflow?.can_verify && p.status === 'submitted' && (
+                        <Button onClick={() => transition('verified', 'Verifikasi izin kerja ini? Setelah terverifikasi, izin diteruskan untuk persetujuan akhir.')}>
+                            <ShieldCheck className="h-4 w-4" /> Verify
+                        </Button>
+                    )}
+                    {workflow?.can_approve && p.status === 'verified' && (
+                        <Button onClick={() => transition('approved', 'Setujui izin kerja ini? Setelah disetujui, izin dapat diaktifkan.')}>
+                            <CheckCircle2 className="h-4 w-4" /> Approve
+                        </Button>
+                    )}
+                    {(workflow?.can_verify || workflow?.can_approve) && ['submitted', 'verified'].includes(p.status) && (
+                        <Button variant="outline" className="text-red-600" onClick={reject}>Return</Button>
+                    )}
+                    {/* v2.127.0: Activate is offered to HSE **and** to whoever
+                        holds either gate -- matching the server, which was
+                        widened for the same reason. A company that routes
+                        approval to a manager otherwise ended up with a permit
+                        that was approved and that nobody on the screen could
+                        activate. Seen in a browser. */}
+                    {(canManage || workflow?.can_verify || workflow?.can_approve) && p.status === 'approved' && (
+                        <Button onClick={() => transition('active', 'Aktifkan izin kerja ini? Pekerjaan boleh dimulai setelah izin aktif.')}>
+                            <PlayCircle className="h-4 w-4" /> Activate
+                        </Button>
+                    )}
                     {canManage && (<>
-                        {p.status === 'draft' && (<Button variant="outline" onClick={() => transition('submitted', 'Submit for approval?')}><Send className="h-4 w-4" /> Submit</Button>)}
-                        {p.status === 'submitted' && (<>
-                            <Button onClick={() => transition('approved', 'Approve this permit?')}><CheckCircle2 className="h-4 w-4" /> Approve</Button>
-                            <Button variant="outline" className="text-red-600" onClick={reject}>Reject</Button>
-                        </>)}
+                        {p.status === 'draft' && (<Button variant="outline" onClick={() => transition('submitted', 'Ajukan izin kerja ini untuk verifikasi HSE?')}><Send className="h-4 w-4" /> Submit</Button>)}
                         {/* v2.8.0 (PTW Mobile / Task-First pass, Phase 3B,
                             Part 7): PermitToWork's own $transitions array
                             has always allowed rejected -> draft (a real
@@ -224,7 +263,7 @@ export default function PermitToWorkShow({ permit: p, activities, canManage, rej
                             machine exactly as modeled, not bypassing it
                             with a direct rejected->submitted shortcut. */}
                         {p.status === 'rejected' && (<Button variant="outline" onClick={() => transition('draft', 'Kembalikan PTW ini ke Draft untuk diajukan ulang?')}><RotateCcw className="h-4 w-4" /> Resubmit</Button>)}
-                        {p.status === 'approved' && (<Button onClick={() => transition('active', 'Aktifkan izin kerja ini? Pekerjaan boleh dimulai setelah izin aktif.')}><PlayCircle className="h-4 w-4" /> Activate</Button>)}
+
                         {p.status === 'active' && (<Button onClick={() => transition('closed', 'Tutup izin kerja ini? Pastikan pekerjaan sudah selesai.')}><CheckCircle2 className="h-4 w-4" /> Close</Button>)}
                         {!['closed', 'cancelled'].includes(p.status) && (
                             <Button variant="ghost" className="text-red-600" onClick={() => transition('cancelled', 'Batalkan PTW ini? PTW yang sudah dibatalkan tidak bisa digunakan kembali.')}><XCircle className="h-4 w-4" /> Cancel</Button>
@@ -267,7 +306,18 @@ export default function PermitToWorkShow({ permit: p, activities, canManage, rej
                             <div className="grid grid-cols-1 gap-3 sm:grid-cols-3">
                                 <div><span className="text-xs uppercase text-graphite-400">Requested By</span><p>{p.requester?.name}</p></div>
                                 <div>
-                                    <span className="text-xs uppercase text-graphite-400">HSE Approver</span>
+                                    {/* v2.127.0 -- the verification, which is a
+                                        different act by a different person.
+                                        Shown as the seal once recorded, and as
+                                        a plain pending line before -- never as
+                                        a seal for a decision nobody made. */}
+                                    <span className="text-xs uppercase text-graphite-400">HSE Verified By</span>
+                                    {verification
+                                        ? <div className="mt-1"><ApprovalStamp authorization={verification} stamp={stamps.verification} compact /></div>
+                                        : <p>{p.status === 'submitted' ? 'Menunggu verifikasi HSE' : '-'}</p>}
+                                </div>
+                                <div>
+                                    <span className="text-xs uppercase text-graphite-400">Approved By</span>
                                     {/* v2.72.0: once the permit is genuinely
                                         authorised the approver is shown as the
                                         seal rather than as a name in a field --
@@ -275,7 +325,7 @@ export default function PermitToWorkShow({ permit: p, activities, canManage, rej
                                         is actually read. */}
                                     {authorization
                                         ? <div className="mt-1"><ApprovalStamp authorization={authorization} stamp={stamps.approval} compact /></div>
-                                        : <p>{p.hse_approver?.name || '-'}</p>}
+                                        : <p>{p.status === 'verified' ? 'Menunggu persetujuan akhir' : (p.hse_approver?.name || '-')}</p>}
                                 </div>
                                 <div><span className="text-xs uppercase text-graphite-400">Closed By</span><p>{p.closer?.name || '-'}</p></div>
                             </div>

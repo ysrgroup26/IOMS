@@ -11,10 +11,14 @@ use App\Models\PermitToWork;
 use App\Models\PpeType;
 use App\Models\Project;
 use App\Models\RiskAssessment;
+use App\Models\Notification;
+use App\Models\User;
 use App\Services\DocumentEngine;
 use App\Services\Documents\StampRenderer;
+use App\Services\NotificationService;
 use App\Services\PdfGeneratorService;
 use App\Services\PtwQuotaService;
+use App\Services\PtwWorkflowService;
 use Illuminate\Http\RedirectResponse;
 use Illuminate\Http\Request;
 use Illuminate\Support\Carbon;
@@ -332,8 +336,23 @@ class PermitToWorkController extends Controller
         ActivityLog::record('created', "Requested Permit To Work {$permit->ptw_number}.", $permit);
         $permit->transitionTo(PermitToWork::STATUS_SUBMITTED, $request->user());
 
+        /*
+         * v2.127.0 -- STAGE ONE: HSE IS TOLD, AND NOBODY ELSE IS.
+         *
+         * The permit is now `submitted`, so `pendingStage()` can only
+         * return `verify` -- which is how "the approver must not hear about
+         * this yet" is guaranteed structurally rather than by remembering.
+         * The approver's turn comes when, and only when, a verification has
+         * been recorded.
+         *
+         * After the quota transaction and outside it, for the reason given
+         * on `notifyNextStage()`: a permit that exists must not be undone
+         * by a notification that does not send.
+         */
+        $this->notifyNextStage($permit, app(PtwWorkflowService::class), $request->user());
+
         return redirect()->route('permits-to-work.show', $permit)
-            ->with('flash', ['success' => 'PTW berhasil dibuat dan sedang menunggu persetujuan HSE.']);
+            ->with('flash', ['success' => 'Izin kerja berhasil dibuat dan sedang menunggu verifikasi HSE.']);
     }
 
     public function show(PermitToWork $permitToWork, Request $request): Response
@@ -360,6 +379,12 @@ class PermitToWorkController extends Controller
              * than fail.
              */
             'hseApprover:id,name,role,employee_id', 'hseApprover.employee:id,position_id', 'hseApprover.employee.position:id,name',
+            // v2.127.0 -- the verifier, and the company job title their
+            // seal names. Constrained the same way, and for the same
+            // reason: without `employee_id` in the select the relation
+            // resolves to null and the title silently falls all the way
+            // back to the system role.
+            'hseVerifier:id,name,role,employee_id', 'hseVerifier.employee:id,position_id', 'hseVerifier.employee.position:id,name',
             'gasTests.tester:id,name', 'lotoRecords',
             // v2.17.0 (PTW Field Workflow Foundation, Part 8/9/14/15).
             'pic:id,full_name', 'personnel:id,full_name'
@@ -375,6 +400,21 @@ class PermitToWorkController extends Controller
             'permit' => $permitToWork,
             'activities' => $activities,
             'canManage' => $request->user()->canManageHse(),
+            /*
+             * v2.127.0 -- THE PAGE ASKS THE GATE, NOT ITS OWN GUESS.
+             *
+             * Both answers come from `PtwWorkflowService`, which is the
+             * same object `transition()` gates the write with -- so a
+             * Verify or Approve button appears only where the server would
+             * accept the decision, and a person configured for neither sees
+             * neither. ADR 061: an offer is bound to what the server
+             * allows. A button that answers 403 reads as a broken account.
+             */
+            'workflow' => [
+                'can_verify' => app(PtwWorkflowService::class)->canVerify($request->user(), $permitToWork),
+                'can_approve' => app(PtwWorkflowService::class)->canApprove($request->user(), $permitToWork),
+                'pending_stage' => app(PtwWorkflowService::class)->pendingStage($permitToWork),
+            ],
             // v2.8.0 (PTW Mobile / Task-First pass, Phase 3B, Part 6/7):
             // the Show page previously had NO way to surface WHY a
             // permit was rejected -- confirmed via this pass's own
@@ -385,89 +425,276 @@ class PermitToWorkController extends Controller
             'rejectionReason' => $this->rejectionReasonFor($permitToWork),
             // v2.72.0: null unless the permit is genuinely authorised.
             'authorization' => $authorization = $this->authorizationFor($permitToWork),
+            // v2.127.0 -- the verification decision, which is a different
+            // act by a different person. @see verificationFor()
+            'verification' => $verification = $this->verificationFor($permitToWork),
             // v2.126.0 -- the same SVG the PDF embeds. @see stampsFor()
-            'stamps' => $this->stampsFor($permitToWork, $authorization),
+            'stamps' => $this->stampsFor($permitToWork, $authorization, $verification),
             // v2.73.0 -- resolved names for the ids this permit stored.
             'ppe' => $this->ppeFor($permitToWork),
         ]);
     }
 
-    public function transition(Request $request, PermitToWork $permitToWork): RedirectResponse
+    /**
+     * v2.127.0 -- EVERY TARGET STATE IS GATED BY ITS OWN QUESTION.
+     *
+     * This method used to open with one line -- `abort_unless(canManageHse())`
+     * -- and then accept any target status. With verification and approval
+     * now separate decisions held by different people, a single gate would
+     * mean anybody who can verify can also approve, which is exactly what
+     * the owner's requirement forbids ("Pengguna yang hanya memiliki
+     * kewenangan VERIFIED tidak otomatis memiliki kewenangan APPROVED").
+     *
+     * So authorization is resolved per target, from `PtwWorkflowService` --
+     * the same source the page asks before it offers the button, so the
+     * two can never disagree (ADR 061).
+     */
+    public function transition(Request $request, PermitToWork $permitToWork, PtwWorkflowService $workflow): RedirectResponse
     {
-        abort_unless($request->user()->canManageHse(), 403);
         $this->assertInCurrentTenant($permitToWork);
 
         $data = $request->validate([
             // v2.8.0 (PTW Mobile / Task-First pass, Phase 3B): added
-            // STATUS_DRAFT to this allow-list. The MODEL's own
-            // `$transitions` array has always allowed
-            // `rejected -> draft` (a real, existing "resubmit" path --
-            // not a transition invented by this pass), but this
-            // validation rule never included it, so the Show page had
-            // no way to actually reach it -- a rejected PTW's UI
-            // silently offered zero path back to Draft even though the
-            // backend state machine supported one. Every OTHER target
-            // here is unchanged; this only adds the one missing,
-            // already-modeled transition.
+            // STATUS_DRAFT to this allow-list -- a real, existing
+            // "resubmit" path the UI previously had no way to reach.
+            // v2.127.0: STATUS_VERIFIED joins it.
             'status' => ['required', Rule::in([
-                PermitToWork::STATUS_DRAFT, PermitToWork::STATUS_SUBMITTED, PermitToWork::STATUS_APPROVED,
+                PermitToWork::STATUS_DRAFT, PermitToWork::STATUS_SUBMITTED,
+                PermitToWork::STATUS_VERIFIED, PermitToWork::STATUS_APPROVED,
                 PermitToWork::STATUS_REJECTED, PermitToWork::STATUS_ACTIVE, PermitToWork::STATUS_CLOSED,
                 PermitToWork::STATUS_CANCELLED,
             ])],
             // v2.4.0 (PTW UX + Field Operations pass, Part 14): "If
-            // rejecting: Require a short reason." Required only for
-            // 'rejected' (see the rule below), optional/unused for every
-            // other transition -- passed through to transitionTo()'s
-            // existing `$meta['comments']` parameter, which
-            // notifyStatusChange() already reads into the notification
-            // body, so a rejected requester's notification now actually
-            // says why, not just "PermitToWork X is now Rejected".
+            // rejecting: Require a short reason." Passed through to
+            // transitionTo()'s `$meta['comments']`, which the notification
+            // body reads -- so a returned permit actually says why.
             'reason' => ['required_if:status,'.PermitToWork::STATUS_REJECTED, 'nullable', 'string', 'max:500'],
-            // v2.73.0 -- only meaningful on approval; ignored otherwise.
+            // v2.73.0 -- only meaningful on verification; ignored otherwise.
             'confirmed_ppe_ids' => ['nullable', 'array', 'max:40'],
             'confirmed_ppe_ids.*' => [Rule::in(PpeType::effectiveForCompany($permitToWork->company_id)->pluck('id'))],
         ]);
 
+        $target = $data['status'];
+        $user = $request->user();
+
+        /*
+         * WHO MAY DO THIS, decided per target and on the SERVER.
+         *
+         * Hiding a button is not authorization -- the owner's requirement
+         * says so in as many words ("Validasi kewenangan harus dilakukan di
+         * backend, bukan hanya menyembunyikan tombol di frontend"), and
+         * this endpoint is reachable with curl by anybody who can sign in.
+         */
+        $allowed = match ($target) {
+            PermitToWork::STATUS_VERIFIED => $workflow->canVerify($user, $permitToWork),
+            PermitToWork::STATUS_APPROVED => $workflow->canApprove($user, $permitToWork),
+            /*
+             * Returning a permit is held by EITHER gate: a verifier who
+             * finds a problem and an approver who disagrees with a
+             * verification both need it, and a permit that can only go
+             * forward is not a control.
+             */
+            PermitToWork::STATUS_REJECTED => $workflow->canVerify($user, $permitToWork)
+                || $workflow->canApprove($user, $permitToWork),
+            /*
+             * ACTIVATION IS NOT A DEAD END.
+             *
+             * It was `canManageHse()` alone, which was right while HSE was
+             * the only gate -- and became a trap the moment approval moved
+             * elsewhere: a company that routes final approval to a manager
+             * got a permit that was approved and that NOBODY present could
+             * activate. Seen in a browser: the approver approved the permit
+             * and then had no Activate button, and neither did anybody else
+             * on that screen.
+             *
+             * So activation is held by HSE **or** by whoever holds either
+             * gate on this permit. They are already trusted with the
+             * decision that authorised the work; being allowed to say the
+             * work has started is strictly less than that, and the state
+             * machine still refuses activation on anything that is not
+             * approved.
+             */
+            PermitToWork::STATUS_ACTIVE => $user->canManageHse()
+                || $workflow->canVerify($user, $permitToWork)
+                || $workflow->canApprove($user, $permitToWork),
+            // Closure and cancellation stay where they were: operational
+            // acts on an already authorised permit, which this release
+            // deliberately does not re-litigate.
+            default => $user->canManageHse(),
+        };
+
+        abort_unless($allowed, 403);
+
         try {
-            if ($data['status'] === PermitToWork::STATUS_APPROVED) {
-                $permitToWork->hse_approver_id = $request->user()->id;
+            /*
+             * THE DECISION AND THE STATE CHANGE ARE ONE WRITE.
+             *
+             * Wrapped in a transaction with the row LOCKED, and the status
+             * re-read inside the lock, because three things would otherwise
+             * be possible and two of them are silent:
+             *
+             *   - DOUBLE APPROVAL. Two approvers pressing Approve at the
+             *     same moment both pass the state check, both write
+             *     `hse_approver_id`, and the second overwrites the first --
+             *     so the stamp names whoever lost the race.
+             *   - A LOST ACTOR. Writing the actor and the status as two
+             *     statements means a failure between them leaves a permit
+             *     approved by nobody, or an approver recorded on a permit
+             *     that never moved.
+             *   - A STALE DECISION. A permit that someone else already
+             *     advanced is re-advanced from a page rendered minutes ago.
+             *
+             * The lock makes the second presser read the NEW status and be
+             * refused by the state machine, which is the correct outcome:
+             * one decision, one record, and the loser is told rather than
+             * silently overwriting.
+             */
+            DB::transaction(function () use ($permitToWork, $target, $data, $user) {
+                $fresh = PermitToWork::withoutGlobalScopes()
+                    ->whereKey($permitToWork->getKey())
+                    ->lockForUpdate()
+                    ->firstOrFail();
 
-                /*
-                 * v2.73.0 -- CONFIRMED PPE IS WRITTEN AT AUTHORISATION,
-                 * BY THE PERSON AUTHORISING.
-                 *
-                 * This is the only place `confirmed_ppe_ids` is ever
-                 * written, and it is deliberately not accepted on the
-                 * create request: a requester asserting their own PPE
-                 * compliance is exactly what the required/confirmed split
-                 * exists to prevent. Same discipline as
-                 * `hse_approver_id` directly above -- server-side, gated
-                 * on canManageHse(), never settable from a form the
-                 * requester controls.
-                 *
-                 * Defaults to the required list when the approver did not
-                 * narrow it, because approving a permit without saying
-                 * otherwise IS the statement that its stated PPE is in
-                 * place. An approver who checked and found something
-                 * missing posts the shorter list.
-                 */
-                $permitToWork->confirmed_ppe_ids = $data['confirmed_ppe_ids']
-                    ?? $permitToWork->required_ppe_ids
-                    ?? [];
+                // The in-memory copy may be stale; the locked row is not.
+                $permitToWork->setRawAttributes($fresh->getAttributes(), true);
 
+                if ($target === PermitToWork::STATUS_VERIFIED) {
+                    $permitToWork->hse_verifier_id = $user->id;
+                    $permitToWork->verified_at = now();
+
+                    /*
+                     * v2.73.0, moved to the VERIFICATION in v2.127.0.
+                     *
+                     * Confirming that the required PPE is actually present
+                     * is an HSE CHECK, not an approval decision -- it is
+                     * the one thing the verifier is there to do. It moved
+                     * with the gate rather than staying on approval, where
+                     * it would have asked a manager to attest to equipment
+                     * they never saw.
+                     *
+                     * Still never accepted on the create request: a
+                     * requester attesting to their own PPE compliance is
+                     * exactly what the required/confirmed split prevents.
+                     * Defaults to the required list, because verifying
+                     * without narrowing it IS the statement that the stated
+                     * PPE is in place.
+                     */
+                    $permitToWork->confirmed_ppe_ids = $data['confirmed_ppe_ids']
+                        ?? $permitToWork->required_ppe_ids
+                        ?? [];
+                }
+
+                if ($target === PermitToWork::STATUS_APPROVED) {
+                    $permitToWork->hse_approver_id = $user->id;
+                    $permitToWork->approved_at = now();
+                }
+
+                if ($target === PermitToWork::STATUS_CLOSED) {
+                    $permitToWork->closed_by = $user->id;
+                    $permitToWork->closed_at = now();
+                }
+
+                // Throws if the move is not allowed FROM the locked status,
+                // which is what refuses a double approval and a skipped
+                // verification alike.
+                $permitToWork->transitionTo($target, $user, meta: ['comments' => $data['reason'] ?? null]);
                 $permitToWork->save();
-            }
-            if ($data['status'] === PermitToWork::STATUS_CLOSED) {
-                $permitToWork->closed_by = $request->user()->id;
-                $permitToWork->closed_at = now();
-                $permitToWork->save();
-            }
-            $permitToWork->transitionTo($data['status'], $request->user(), meta: ['comments' => $data['reason'] ?? null]);
+            });
         } catch (ValidationException $e) {
             return back()->withErrors($e->errors());
         }
 
-        return back()->with('flash', ['success' => 'Permit To Work '.$data['status'].'.']);
+        /*
+         * THE NEXT STAGE IS TOLD **AFTER** THE DECISION IS COMMITTED.
+         *
+         * Outside the transaction on purpose. The owner's requirement is
+         * explicit that a notification failure must not cost the decision
+         * ("Kegagalan pengiriman notifikasi tidak membuat keputusan
+         * persetujuan hilang"), and a send inside the transaction does
+         * exactly that: a mail driver timing out would roll back an
+         * approval that had already been made.
+         *
+         * So the write is durable first, and the telling is best-effort and
+         * logged. The decision is the record; the notification is a
+         * courtesy on top of it, and a courtesy may fail.
+         */
+        $this->notifyNextStage($permitToWork, $workflow, $user);
+
+        return back()->with('flash', ['success' => $this->transitionFlash($target)]);
+    }
+
+    /**
+     * Tell whoever is next, and nobody else.
+     *
+     * The ORDER is the whole point of this release: the approver hears
+     * nothing at submission, and hears about the permit only once
+     * verification has actually been recorded. That is guaranteed
+     * structurally rather than by care -- the recipients are derived from
+     * the permit's CURRENT status, so a permit sitting at `submitted` can
+     * only ever produce verifier notifications.
+     *
+     * Failures are swallowed and logged. See the caller for why.
+     */
+    private function notifyNextStage(PermitToWork $permitToWork, PtwWorkflowService $workflow, User $actor): void
+    {
+        $stage = $workflow->pendingStage($permitToWork);
+
+        if ($stage === null) {
+            return;
+        }
+
+        $title = $stage === PtwWorkflowService::STAGE_VERIFY
+            ? $permitToWork->documentLabel().' '.$permitToWork->ptw_number.' needs your HSE verification'
+            : $permitToWork->documentLabel().' '.$permitToWork->ptw_number.' needs your approval';
+
+        $body = $stage === PtwWorkflowService::STAGE_VERIFY
+            ? 'Periksa pekerjaan, bahaya dan APD yang diwajibkan, lalu verifikasi izin ini.'
+            : 'Izin ini sudah diverifikasi HSE dan menunggu persetujuan akhir Anda.';
+
+        try {
+            $notifier = app(NotificationService::class);
+
+            foreach ($workflow->recipientsFor($permitToWork, $stage) as $recipient) {
+                // Not the person who just acted. Telling a verifier that
+                // the permit they verified now needs verifying is noise,
+                // and an approver who verified it themselves (a company may
+                // legitimately configure one person for both) does not need
+                // telling about their own action either.
+                if ((int) $recipient->id === (int) $actor->id) {
+                    continue;
+                }
+
+                $notifier->notify(
+                    $recipient,
+                    Notification::CATEGORY_APPROVAL,
+                    $title,
+                    $body,
+                    $permitToWork->notificationUrl(),
+                    $permitToWork,
+                    array_filter([
+                        'route' => $permitToWork->notificationRouteName(),
+                        'ptw_stage' => $stage,
+                    ]),
+                );
+            }
+        } catch (\Throwable $e) {
+            // The decision is already committed and must stay that way.
+            report($e);
+        }
+    }
+
+    /** What the person who just acted is told, in the product's own words. */
+    private function transitionFlash(string $target): string
+    {
+        return match ($target) {
+            PermitToWork::STATUS_VERIFIED => 'Izin kerja telah diverifikasi dan diteruskan untuk persetujuan akhir.',
+            PermitToWork::STATUS_APPROVED => 'Izin kerja telah disetujui dan siap diaktifkan.',
+            PermitToWork::STATUS_ACTIVE => 'Izin kerja aktif. Pekerjaan boleh dimulai.',
+            PermitToWork::STATUS_REJECTED => 'Izin kerja dikembalikan kepada pemohon beserta alasannya.',
+            PermitToWork::STATUS_CLOSED => 'Izin kerja ditutup.',
+            PermitToWork::STATUS_CANCELLED => 'Izin kerja dibatalkan.',
+            default => 'Status izin kerja diperbarui.',
+        };
     }
 
     /**
@@ -489,7 +716,7 @@ class PermitToWorkController extends Controller
     {
         $this->assertInCurrentTenant($permitToWork);
 
-        $permitToWork->load('company', 'project', 'riskAssessment', 'jsa', 'requester', 'areaAuthority', 'hseApprover', 'hseApprover.employee.position', 'closer', 'gasTests.tester', 'pic', 'personnel');
+        $permitToWork->load('company', 'project', 'riskAssessment', 'jsa', 'requester', 'areaAuthority', 'hseApprover', 'hseApprover.employee.position', 'hseVerifier', 'hseVerifier.employee.position', 'closer', 'gasTests.tester', 'pic', 'personnel');
 
         return $pdf->streamInline('pdf.permit-to-work', [
             'permit' => $permitToWork,
@@ -523,8 +750,11 @@ class PermitToWorkController extends Controller
             'rejectionReason' => $this->rejectionReasonFor($permitToWork),
             // v2.72.0: null unless the permit is genuinely authorised.
             'authorization' => $authorization = $this->authorizationFor($permitToWork),
+            // v2.127.0 -- the verification decision, which is a different
+            // act by a different person. @see verificationFor()
+            'verification' => $verification = $this->verificationFor($permitToWork),
             // v2.126.0 -- the same SVG the PDF embeds. @see stampsFor()
-            'stamps' => $this->stampsFor($permitToWork, $authorization),
+            'stamps' => $this->stampsFor($permitToWork, $authorization, $verification),
             'ppe' => $this->ppeFor($permitToWork),
         ], "{$permitToWork->ptw_number}.pdf");
     }
@@ -552,7 +782,7 @@ class PermitToWorkController extends Controller
     {
         $this->assertInCurrentTenant($permitToWork);
 
-        $permitToWork->load('company', 'project', 'riskAssessment', 'jsa', 'requester', 'areaAuthority', 'hseApprover', 'hseApprover.employee.position', 'closer', 'gasTests.tester', 'pic', 'personnel');
+        $permitToWork->load('company', 'project', 'riskAssessment', 'jsa', 'requester', 'areaAuthority', 'hseApprover', 'hseApprover.employee.position', 'hseVerifier', 'hseVerifier.employee.position', 'closer', 'gasTests.tester', 'pic', 'personnel');
 
         return Inertia::render('PermitsToWork/Document', [
             'permit' => $permitToWork,
@@ -562,8 +792,11 @@ class PermitToWorkController extends Controller
             'rejectionReason' => $this->rejectionReasonFor($permitToWork),
             // v2.72.0: null unless the permit is genuinely authorised.
             'authorization' => $authorization = $this->authorizationFor($permitToWork),
+            // v2.127.0 -- the verification decision, which is a different
+            // act by a different person. @see verificationFor()
+            'verification' => $verification = $this->verificationFor($permitToWork),
             // v2.126.0 -- the same SVG the PDF embeds. @see stampsFor()
-            'stamps' => $this->stampsFor($permitToWork, $authorization),
+            'stamps' => $this->stampsFor($permitToWork, $authorization, $verification),
             'ppe' => $this->ppeFor($permitToWork),
         ]);
     }
@@ -645,12 +878,28 @@ class PermitToWorkController extends Controller
      *
      * @return array{standing: ?string, approval: ?string}
      */
-    private function stampsFor(PermitToWork $permitToWork, ?array $authorization): array
+    private function stampsFor(PermitToWork $permitToWork, ?array $authorization, ?array $verification = null): array
     {
         $stamps = app(StampRenderer::class);
 
         return [
             'standing' => $stamps->state($permitToWork->status),
+            /*
+             * v2.127.0 -- the green VERIFIED seal, which ADR 065 left
+             * rendering nowhere because PTW had no verification stage to
+             * render it from. It has one now, so the variant that was built
+             * and deliberately unused is finally driven by a real record --
+             * and still only by a real record.
+             */
+            'verification' => $verification === null ? null : $stamps->action(
+                'verified',
+                (string) $verification['approver'],
+                $verification['role'] ?? null,
+                $verification['at']
+                    ? Carbon::parse($verification['at'])->timezone(config('ioms.display_timezone'))->format('d M Y H:i')
+                    : null,
+                'HSE',
+            ),
             'approval' => $authorization === null ? null : $stamps->action(
                 'approved',
                 (string) $authorization['approver'],
@@ -658,12 +907,65 @@ class PermitToWorkController extends Controller
                 $authorization['at']
                     ? Carbon::parse($authorization['at'])->timezone(config('ioms.display_timezone'))->format('d M Y H:i')
                     : null,
-                // The FUNCTION the act was performed under, from the gate
-                // that performed it -- PTW has one, and it is HSE's. Not a
-                // grant and not a guess: see ADR 065 on why this is a
-                // label and `canManageHse()` is the authority.
-                'HSE',
+                /*
+                 * v2.127.0 -- NO function label on the approval seal.
+                 *
+                 * It was hardcoded to 'HSE', which was true while HSE held
+                 * the only gate and became a lie the moment approval moved:
+                 * a permit approved by a manager printed "APPROVED / HSE /
+                 * Manager Audit-business / MANAGER". Seen on the rendered
+                 * sheet.
+                 *
+                 * Deriving it from the approver's role would just repeat
+                 * the title line below it, so it is omitted. The seal reads
+                 * APPROVED, then who, then the job title their company
+                 * configured, then when -- which is the whole fact with
+                 * nothing invented and nothing said twice. The VERIFIED
+                 * seal keeps 'HSE' because that gate IS the HSE check, by
+                 * definition in this product.
+                 */
+                null,
             ),
+        ];
+    }
+
+    /**
+     * v2.127.0 -- THE VERIFICATION RECORD, shaped exactly like the
+     * authorization one and read the same way.
+     *
+     * Null unless the permit is genuinely verified, so the VERIFIED stamp
+     * has no boolean it could be told to lie with -- the contract the whole
+     * stamp family is built on (ADR 065).
+     *
+     * The name and the job title come from the ActivityLog row for the
+     * `verified` action, NOT from the live relation: renaming a person or
+     * moving them between positions must not rewrite a permit already
+     * filed. That is the v2.100.0 rule, applied to the second gate the day
+     * the second gate exists rather than a release later.
+     */
+    private function verificationFor(PermitToWork $permitToWork): ?array
+    {
+        if (! $permitToWork->isVerified()) {
+            return null;
+        }
+
+        $verifier = $permitToWork->hseVerifier;
+
+        $record = ActivityLog::where('subject_type', PermitToWork::class)
+            ->where('subject_id', $permitToWork->id)
+            ->where('action', PermitToWork::STATUS_VERIFIED)
+            ->latest()
+            ->first(['actor_name', 'actor_title', 'created_at']);
+
+        return [
+            'approver' => $record?->actor_name ?: $verifier?->name,
+            'role' => $record?->actor_title
+                ?: ($verifier?->employee?->position?->name
+                    ?: ($verifier?->role ? $verifier->roleLabel() : null)),
+            // The stored timestamp first -- it is the decision's own time.
+            // The log row is the fallback for a permit verified before the
+            // column existed, which is none today and will be some later.
+            'at' => $permitToWork->verified_at ?? $record?->created_at,
         ];
     }
 

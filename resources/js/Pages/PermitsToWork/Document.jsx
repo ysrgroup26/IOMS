@@ -67,7 +67,7 @@ import { picName } from '@/lib/permitPicName';
  * reusing the exact same PdfGeneratorService/DocumentEngine route this
  * codebase already had before this pass.
  */
-export default function PermitToWorkDocument({ permit: p, company, documentTemplate, branding, rejectionReason, authorization, stamps = {}, ppe }) {
+export default function PermitToWorkDocument({ permit: p, company, documentTemplate, branding, rejectionReason, authorization, verification, stamps = {}, ppe }) {
     // v2.37.0 (Master Audit): one shared display timezone for every
     // rendered instant on this page, matching the PDF exactly.
     const displayTimeZone = usePage().props.display_timezone;
@@ -385,9 +385,17 @@ export default function PermitToWorkDocument({ permit: p, company, documentTempl
                     <DocSection index="05" title="Authorization" icon={Gavel}>
                         <FieldGrid>
                             <Field label="Requester" value={p.requester?.name} />
+                            {/* v2.127.0 -- two gates, each naming its own
+                                stage's wait. "Menunggu Persetujuan" on a
+                                permit HSE has not yet seen named the wrong
+                                desk. */}
                             <Field
-                                label="HSE Approver"
-                                value={p.hse_approver?.name || (p.status === 'submitted' ? 'Menunggu Persetujuan' : '-')}
+                                label="HSE Verified By"
+                                value={p.hse_verifier?.name || (p.status === 'submitted' ? 'Menunggu verifikasi HSE' : '-')}
+                            />
+                            <Field
+                                label="Approved By"
+                                value={p.hse_approver?.name || (p.status === 'verified' ? 'Menunggu persetujuan akhir' : '-')}
                             />
                             {p.area_authority && <Field label="Area Authority" value={p.area_authority.name} />}
                             {p.closer && <Field label="Closed By" value={p.closer.name} />}
@@ -433,6 +441,9 @@ export default function PermitToWorkDocument({ permit: p, company, documentTempl
                         for an unwired field, not a bug to fix here. */}
                     <div data-print-section className="mt-5 grid grid-cols-1 gap-6 border-t border-graphite-200 pt-4 dark:border-slate-700 sm:grid-cols-3">
                         <SignatureBlock role="Applicant" name={p.requester?.name} />
+                        {/* v2.127.0 -- the verification, beside the approval
+                            it precedes. Two gates, two seals, two people. */}
+                        <SignatureBlock role="HSE Verified By" name={p.hse_verifier?.name} authorization={verification} stamp={stamps.verification} />
                         {/* v2.72.0 -- the seal, in the signature row and
                             ONLY there. The HSE Approver block is where a
                             reader looks for the authorising mark, and one
@@ -442,8 +453,7 @@ export default function PermitToWorkDocument({ permit: p, company, documentTempl
                             record -- ApprovalStamp returns null when there
                             is none, so no state can assert an approval the
                             permit has not got. */}
-                        <SignatureBlock role="HSE Approver" name={p.hse_approver?.name} authorization={authorization} stamp={stamps.approval} />
-                        <SignatureBlock role="Area Authority" name={p.area_authority?.name} />
+                        <SignatureBlock role="Approved By" name={p.hse_approver?.name} authorization={authorization} stamp={stamps.approval} />
                     </div>
                 </div>
 

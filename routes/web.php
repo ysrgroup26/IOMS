@@ -1145,6 +1145,9 @@ Route::middleware(['auth', 'restrict.platform-admin'])->group(function () {
         Route::delete('/settings/approval-flows/{approvalFlow}', [SettingsController::class, 'destroyApprovalFlow'])->name('settings.approval-flows.destroy');
         Route::put('/settings/approval-flows/{approvalFlow}/steps', [SettingsController::class, 'updateApprovalFlowSteps'])->name('settings.approval-flows.steps');
         Route::post('/settings/notifications', [SettingsController::class, 'updateNotificationPreferences'])->name('settings.notifications');
+        // v2.127.0 -- who verifies and who approves a Permit to Work, per
+        // operating unit. See PtwWorkflowService.
+        Route::post('/settings/ptw-workflow', [SettingsController::class, 'updatePtwWorkflow'])->name('settings.ptw-workflow');
 
         // Dynamic Document Engine (Milestone 3, Task #66).
         Route::post('/settings/documents', [SettingsController::class, 'storeDocumentTemplate'])->name('settings.documents.store');

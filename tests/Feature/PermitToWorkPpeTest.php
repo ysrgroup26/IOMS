@@ -141,7 +141,7 @@ class PermitToWorkPpeTest extends TestCase
 
         $this->actingAs($this->hse)
             ->post("/permits-to-work/{$permit->id}/transition", [
-                'status' => 'approved',
+                'status' => 'verified',
                 // Checked on site: the helmet was there, the harness was not.
                 'confirmed_ppe_ids' => [$this->helmet->id],
             ])
@@ -149,7 +149,7 @@ class PermitToWorkPpeTest extends TestCase
 
         $permit->refresh();
 
-        $this->assertSame('approved', $permit->status);
+        $this->assertSame('verified', $permit->status);
         $this->assertEqualsCanonicalizing([$this->helmet->id], collect($permit->confirmed_ppe_ids)->map(fn ($i) => (int) $i)->all());
         $this->assertSame([$this->harness->id], $permit->unconfirmedPpeIds());
     }
@@ -165,7 +165,7 @@ class PermitToWorkPpeTest extends TestCase
         $permit = $this->makeSubmittedPermit();
 
         $this->actingAs($this->hse)
-            ->post("/permits-to-work/{$permit->id}/transition", ['status' => 'approved'])
+            ->post("/permits-to-work/{$permit->id}/transition", ['status' => 'verified'])
             ->assertRedirect();
 
         $permit->refresh();

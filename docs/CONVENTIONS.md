@@ -3327,3 +3327,50 @@ Related: when a screening classifies rows (this one tells a department separator
 a person), that classification has to travel with the plan. Without it the importer re-read the
 furniture and the summary reported **"Employee ID berikut tidak ditemukan: FABRIKASI, PRODUKSI,
 Total"** — naming a department heading and a subtotal row as missing staff.
+
+
+---
+
+## CRITICAL — Known Pitfall (v2.127.0) — a notification sent inside the decision's transaction can destroy the decision
+
+`HasWorkflow::notifyStatusChange()` was called from inside `transitionTo()`, which callers wrap in a
+transaction. So the `notify()` call ran **inside the caller's transaction**, and a notifier that
+threw — a bad channel, a mail driver refusing, a null route, anything — took the whole transaction
+with it. The user saw a 500; the database kept no record that the approval had ever happened.
+
+Found by writing the test the requirement asked for ("notification failure must not lose the
+approval decision") and watching it fail. It had been true for **every** model using `HasWorkflow`,
+in every release since the trait was written, and no test had ever made a notifier throw.
+
+The rule: **commit the decision, then tell people about it.**
+
+```php
+// in the controller
+$permit = DB::transaction(function () { /* lock, transition, log */ });
+
+try {
+    $this->notifyNextStage($permit);     // after the commit
+} catch (\Throwable $e) {
+    report($e);                          // best-effort, never fatal
+}
+```
+
+and, inside the trait, the same guard around its own `notify()`, because the trait cannot know
+whether its caller opened a transaction:
+
+```php
+try {
+    Notification::send($recipient, new StatusChanged($this));
+} catch (\Throwable $e) {
+    report($e);
+}
+```
+
+A decision is a fact; a notification is a courtesy. Never let the courtesy roll back the fact — and
+never let a side effect that reaches outside the database share the database's transaction.
+
+The corollary for ordering: when a second party must be told only **after** the first party has
+acted, derive the audience from the record's **current status**, not from a stage passed in by the
+caller. `PtwWorkflowService::recipientsFor()` does that, so there is no code path that can notify the
+approver about a permit still awaiting verification — the sequencing is expressed as data, not as
+discipline. See ADR 067.

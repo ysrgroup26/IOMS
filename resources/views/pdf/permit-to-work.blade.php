@@ -68,6 +68,8 @@
         .doc-ref-box .doc-ref-sub { color: #64748b; font-size: 8px; }
 
         table.signatures { width: 100%; border-collapse: collapse; margin-top: 16px; }
+        /* v2.127.0: two columns, not three -- Applicant, then the
+           two gates. Area Authority was removed (see the row itself). */
         table.signatures td { width: 33.3%; text-align: center; padding: 0 8px; font-size: 9.5px; vertical-align: top; }
         .sig-line { border-top: 1px solid #0f172a; margin-top: 26px; padding-top: 3px; }
         .sig-role { color: #64748b; font-size: 8.5px; }
@@ -228,7 +230,11 @@
         $statePresets = [
             'approved'  => ['label' => 'Approved', 'rule' => '#15803D', 'fill' => '#F0FDF4', 'ink' => '#166534'],
             'active'    => ['label' => 'Active: Work In Progress', 'rule' => '#15803D', 'fill' => '#F0FDF4', 'ink' => '#166534'],
-            'submitted' => ['label' => 'Awaiting Approval', 'rule' => '#B45309', 'fill' => '#FFFBEB', 'ink' => '#92400E'],
+            // v2.127.0 -- two waits, named separately. "Awaiting Approval"
+            // on a permit HSE has not yet seen told a reader the wrong
+            // thing about which desk it is sitting on.
+            'submitted' => ['label' => 'Awaiting HSE Verification', 'rule' => '#B45309', 'fill' => '#FFFBEB', 'ink' => '#92400E'],
+            'verified'  => ['label' => 'Verified: Awaiting Final Approval', 'rule' => '#B45309', 'fill' => '#FFFBEB', 'ink' => '#92400E'],
             'rejected'  => ['label' => 'Rejected', 'rule' => '#B91C1C', 'fill' => '#FEF2F2', 'ink' => '#991B1B'],
             'cancelled' => ['label' => 'Cancelled', 'rule' => '#B91C1C', 'fill' => '#FEF2F2', 'ink' => '#991B1B'],
             'closed'    => ['label' => 'Closed', 'rule' => '#475569', 'fill' => '#F8FAFC', 'ink' => '#334155'],
@@ -254,7 +260,9 @@
                 @if(in_array($permit->status, ['approved', 'active', 'closed'], true) && $authorisedBy)
                     Authorised by {{ $authorisedBy }}
                 @elseif($permit->status === 'submitted')
-                    Not valid for work until approved
+                    Not valid for work until verified and approved
+                @elseif($permit->status === 'verified')
+                    Verified by {{ $verification['approver'] ?? 'HSE' }}. Not valid for work until approved
                 @elseif($permit->status === 'rejected')
                     Not authorised
                 @endif
@@ -447,7 +455,11 @@
             <table class="meta-table">
                 <tr>
                     <td class="meta-label">Requester</td><td class="meta-colon"></td><td>{{ $permit->requester->name ?? '-' }}</td>
-                    <td class="meta-label">HSE Approver</td><td class="meta-colon"></td><td>{{ $permit->hseApprover->name ?? ($permit->status === 'submitted' ? 'Menunggu Persetujuan' : '-') }}</td>
+                    {{-- v2.127.0: the two gates, each naming its own stage's
+                         wait. "Menunggu Persetujuan" on a permit HSE has not
+                         yet seen named the wrong desk. --}}
+                    <td class="meta-label">HSE Verified By</td><td class="meta-colon"></td><td>{{ $permit->hseVerifier->name ?? ($permit->status === 'submitted' ? 'Menunggu Verifikasi HSE' : '-') }}</td>
+                    <td class="meta-label">Approved By</td><td class="meta-colon"></td><td>{{ $permit->hseApprover->name ?? ($permit->status === 'verified' ? 'Menunggu Persetujuan Akhir' : '-') }}</td>
                 </tr>
                 @if($permit->closer)
                     <tr>
@@ -510,7 +522,32 @@
                 </div>
             </td>
             <td>
-                <div class="sig-head">HSE Approver</div>
+                {{-- v2.127.0 -- THE VERIFICATION, which is a different act by
+                     a different person. A permit now passes two gates: HSE
+                     verifies, then an approver signs, and the sheet shows
+                     both or neither -- never one standing in for the other.
+                     Absent entirely until the verification is recorded,
+                     because `$verification` is null until then and there is
+                     no boolean here to get it wrong. --}}
+                <div class="sig-head">HSE Verified By</div>
+                <div class="sig-body">
+                    @if($verification ?? null)
+                        @if(! empty($stamps['verification']))
+                            <img src="{{ $stamps['verification'] }}" style="width: 128px;" alt="Verified by {{ $verification['approver'] }}">
+                        @else
+                            <div class="sig-name">{{ $verification['approver'] }}</div>
+                            @if($verification['role'])<div class="sig-when">{{ $verification['role'] }}</div>@endif
+                        @endif
+                    @else
+                        <div class="sig-name">{{ $permit->hseVerifier->name ?? '' }}</div>
+                        <div class="sig-when">@if($permit->status === 'submitted')Awaiting verification @endif</div>
+                        <div class="sig-space"></div>
+                        <div class="sig-rule">Signature</div>
+                    @endif
+                </div>
+            </td>
+            <td>
+                <div class="sig-head">Approved By</div>
                 <div class="sig-body">
                     @if($authorization ?? null)
                         {{-- v2.72.0: an authorised permit shows the seal where the
@@ -544,17 +581,14 @@
                     @endif
                 </div>
             </td>
-            <td>
-                {{-- v2.17.0: relabeled from "Area Authority / PIC" now that
-                     Penanggung Jawab is a real, separately-shown field above. --}}
-                <div class="sig-head">Area Authority</div>
-                <div class="sig-body">
-                    <div class="sig-name">{{ $permit->areaAuthority->name ?? '' }}</div>
-                    <div class="sig-when">&nbsp;</div>
-                    <div class="sig-space"></div>
-                    <div class="sig-rule">Signature</div>
-                </div>
-            </td>
+            {{-- v2.127.0: the Area Authority column is GONE from this row.
+                 `area_authority_id` has had no writer anywhere in this
+                 codebase since it was added -- the v2.72.0 comment above
+                 already said it "will currently ALWAYS render blank" -- and
+                 with verification and approval now needing a column each,
+                 four columns on A4 crushed all three seals to illegibility.
+                 A blank box for an unwired field is not worth the width of
+                 a seal that carries a signature. --}}
         </tr>
     </table>
 

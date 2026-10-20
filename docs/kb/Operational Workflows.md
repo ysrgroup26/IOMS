@@ -108,21 +108,31 @@ completed`, with `rejected`/`cancelled` branches.
 ## Permit To Work
 
 ```
-draft ──> submitted ──> approved ──> active ──> closed
-             │
-             ├──> rejected ──> draft
-             └──> cancelled
+draft ──> submitted ──> verified ──> approved ──> active ──> closed
+             │             │
+             ├─────────────┼──> rejected ──> draft
+             └─────────────┴──> cancelled
 ```
 
 `active` is distinct from `approved`: approval authorises the work, activation is the moment it
 begins. A permit can only close from `active`, and `closed` is final. PTW has its own field
 experience and a dedicated access permission — see [[Domain Glossary]] on *My Work vs PTW Access*.
 
-**ONE approval gate, not two** (v2.125.0, confirmed by driving the flow). `canCreatePtw()` decides
-who may raise a permit; `canManageHse()` decides the approval, which writes `hse_approver_id` and
-`confirmed_ppe_ids` together. There is no separate HSE-verification step and no second approver
-column, so a design or a stamp that shows "verified" and "approved" as two acts is showing one act
-twice — see **ADR 065**, which is explicit that no stage was invented to make a visual fit.
+**TWO gates, in a mandatory order** (v2.127.0, **ADR 067** — this supersedes v2.125.0's single
+gate, which the owner specified away). `canCreatePtw()` still decides who may raise a permit.
+Stage 1 is HSE **verification**, which writes `hse_verifier_id`, `verified_at` and
+`confirmed_ppe_ids`; stage 2 is final **approval**, which writes `hse_approver_id` and
+`approved_at`. Who holds each is the company's own configuration — `ptw_workflow_settings`, roles
+and named people per stage, set in Settings → Permit to Work Workflow and read by the one
+`PtwWorkflowService` that both the gate and the button ask.
+
+The order is enforced by the **state machine**: `submitted => approved` is not in
+`PermitToWork::$transitions`, so it cannot be reached by calling the transition route directly or
+by holding both authorities. Verify authority does not imply approve authority — separate columns,
+separate methods, authorised per target — and a stage left empty falls back to that stage's default
+rather than disabling it. **Activate** is deliberately open to either gate-holder as well as HSE,
+because a company routing approval to a manager otherwise had an approved permit nobody could
+activate.
 
 **What the creator gets, and does not get.** `requested_by` is always the authenticated user and has
 no key in `StorePermitToWorkRequest`, so nothing client-side can set it. The PIC field defaults to
@@ -134,6 +144,15 @@ three slots and stay distinguishable when all three differ.
 that release every workflow notification in the product carried a null url, so the chain fired and
 had nowhere to go. The requester is not told about their own action — `notificationRecipient()`
 skips actor == recipient, deliberately.
+
+**The audience is derived from the permit's current status**, never from the action being taken:
+`pendingStage()` maps `submitted → verify` and `verified → approve`, so there is no code path that
+can tell the approver about a permit still awaiting verification. And **the decision is committed
+before anybody is told about it** — the transition runs under `lockForUpdate()` inside a
+transaction, and the notification is attempted afterwards, best-effort, with `report()` on failure.
+`HasWorkflow::notifyStatusChange()` needed the same fix: it notified inside the caller's
+transaction, so a throwing notifier rolled the decision back. That was true for every workflow
+model in the product, not just PTW (ADR 067).
 
 ## Leave
 

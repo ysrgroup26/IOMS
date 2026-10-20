@@ -675,6 +675,39 @@ an account whose `is_active` is false on its next request. That column had been 
 sign-in forms, so deactivating somebody did nothing about the session they already held; with a
 five-year cookie that stopped being tolerable.
 
+## Notification Center
+
+**Where:** the bell in the top bar, on every authenticated page
+(`Layouts/AuthenticatedLayout.jsx` → `NotificationsMenu`). Rows come from the `notifications` table
+through `App\Services\NotificationService`, which is the only class that writes them.
+
+**v2.129.0 — it updates itself** (ADR 069). Before this release the badge, the list and the counts
+were rebuilt only when a page was *visited*, so a permit that came back for correction while
+somebody sat on the dashboard said nothing until they clicked elsewhere. Now:
+
+- **Live sync** while a tab is visible: `GET /notifications/live?cursor=N` returns only what is
+  newer, plus the unread count and the PPE alert count. Paused while the tab is hidden (that case
+  belongs to push) and slowed after two minutes idle. One poller per tab, shared by the bell, the
+  toasts and any watching page.
+- **Toasts** (`Components/shared/NotificationToasts.jsx`) — bottom on a phone, top-right on a
+  desktop, three at most, eight seconds, and never offering a link the server would refuse (the
+  same `route_prefix` check the bell makes, ADR 061).
+- **A sound**, synthesised rather than shipped as a file: off under `prefers-reduced-motion`,
+  per-device, never without a user gesture, never twice within four seconds, and never for a
+  silent data refresh.
+- **Web push** for a device that is not looking: a per-device control in the bell, which offers
+  itself only where the platform will honour it (an iPhone in Safari is told to install the app,
+  not that its browser is unsupported) and reports *granted* only when a subscription actually
+  exists.
+- **Mark read in place** — `POST /notifications/{id}/read` answers JSON and the row greys out
+  without reloading the page underneath. The older `PUT` routes, which answer a redirect, remain
+  for a click that also navigates. **A read notification stays in the history**; nothing is deleted
+  by being read.
+
+**Reusable, deliberately.** Nothing above is PTW-specific: a module gets all of it by calling
+`notify()`, and a detail page follows its own record with one `useWatchedRecord()` call. See
+`ARCHITECTURE.md` § Real-time notification delivery for the two steps.
+
 ## Admin Space — the authority boundary (v2.84.1)
 
 **Rule:** administrative authority belongs to Admin Space; operational authority belongs to the

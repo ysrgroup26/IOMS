@@ -211,3 +211,174 @@ self.addEventListener('fetch', (event) => {
         })()
     );
 });
+
+/* =============================================================================
+ * v2.129.0 -- BEING WOKEN UP
+ * =============================================================================
+ *
+ * Everything above is about caching, and deliberately caches almost nothing.
+ * Everything below is the OTHER reason a service worker exists here: it is
+ * the only code in a browser that runs when IOMS is not open, which is what
+ * makes a permit waiting for approval reach a phone in somebody's pocket.
+ *
+ * THE PUSH CARRIES NOTHING, AND THAT IS THE DESIGN. The server sends a
+ * payloadless "tickle" (see App\Services\Notifications\WebPushService), and
+ * this worker then FETCHES the notification over the person's own
+ * authenticated session. So nothing operational crosses a lock screen that
+ * the server did not just authorise: if the session has ended, or the account
+ * was deactivated, or its access was narrowed, the fetch says so and the
+ * person sees a generic line instead of a permit's details.
+ *
+ * The honest cost: a device that is online but signed out shows "IOMS" and
+ * nothing more. That is a worse notification, not a wrong one.
+ */
+
+/** Where a tap goes when the server could not tell us anything better. */
+const FALLBACK_URL = '/dashboard';
+
+self.addEventListener('push', (event) => {
+    /*
+     * waitUntil keeps the worker alive for the fetch. Without it the worker
+     * can be killed the instant this handler returns, which on a cold start
+     * is well before a network round trip -- the notification then never
+     * appears and nothing anywhere says why.
+     */
+    event.waitUntil(
+        (async () => {
+            let title = 'IOMS';
+            let body = 'Ada pemberitahuan baru.';
+            let url = FALLBACK_URL;
+            let tag = 'ioms-generic';
+
+            try {
+                /*
+                 * `credentials: 'include'` is what makes this the PERSON's
+                 * request rather than an anonymous one -- a service worker
+                 * fetch does not send cookies otherwise, and the endpoint
+                 * would answer as a guest.
+                 *
+                 * ONE request, with NO cursor: this asks "what is the
+                 * newest thing and how many are unread", which is exactly
+                 * what a notification has to show. `latest` is carried for
+                 * display and advances nothing -- the tab's own cursor is
+                 * its own business.
+                 *
+                 * A woken worker is on a cold start with a short lifetime,
+                 * so a second round trip here is one too many.
+                 */
+                const response = await fetch('/notifications/live', {
+                    credentials: 'include',
+                    headers: { Accept: 'application/json' },
+                    cache: 'no-store',
+                });
+
+                if (response.ok) {
+                    const data = await response.json();
+                    const count = Number(data.unread_count || 0);
+                    const newest = data.latest || null;
+
+                    if (newest) {
+                        title = newest.title || title;
+                        body = newest.body || '';
+                        url = newest.url || FALLBACK_URL;
+                        // One notification per record: a permit that moved
+                        // three times replaces its own line instead of
+                        // stacking three.
+                        tag = newest.subject ? `ioms-${newest.subject.type}-${newest.subject.id}` : `ioms-${newest.id}`;
+                    } else if (count > 0) {
+                        body = count === 1 ? 'Ada 1 pemberitahuan baru.' : `Ada ${count} pemberitahuan baru.`;
+                    }
+                }
+            } catch (error) {
+                // Offline, or the session is gone. The generic line above
+                // stands: the person taps it, IOMS opens, and the
+                // Notification Center shows the truth.
+            }
+
+            await self.registration.showNotification(title, {
+                body,
+                tag,
+                renotify: true,
+                icon: '/branding/ioms-icon-192.png',
+                badge: '/branding/ioms-maskable-192.png',
+                data: { url },
+                // Not `requireInteraction`: an operations notification that
+                // will not dismiss itself is a notification people turn off.
+            });
+        })()
+    );
+});
+
+self.addEventListener('notificationclick', (event) => {
+    event.notification.close();
+
+    const target = (event.notification.data && event.notification.data.url) || FALLBACK_URL;
+
+    event.waitUntil(
+        (async () => {
+            const clients = await self.clients.matchAll({ type: 'window', includeUncontrolled: true });
+
+            /*
+             * An IOMS tab that is already open is FOCUSED and navigated,
+             * rather than a second one being opened beside it. A person who
+             * taps a notification and finds two copies of the app has to
+             * work out which one is theirs.
+             */
+            for (const client of clients) {
+                if (new URL(client.url).origin === self.location.origin) {
+                    await client.focus();
+
+                    if ('navigate' in client) {
+                        try {
+                            await client.navigate(target);
+                        } catch (error) {
+                            // Some browsers refuse navigate() on a client
+                            // the worker did not create. Focus already
+                            // happened, which is the important half.
+                        }
+                    }
+
+                    return;
+                }
+            }
+
+            /*
+             * No tab open. `openWindow` loads the destination as an
+             * ORDINARY authenticated request: the server decides whether
+             * this account may see it, and an expired session lands on the
+             * login page with the destination remembered as `intended`.
+             * Nothing here checks permission, because nothing here could be
+             * trusted to.
+             */
+            await self.clients.openWindow(target);
+        })()
+    );
+});
+
+/**
+ * A subscription can be rotated by the push service itself, without anybody
+ * doing anything. Re-subscribing here keeps the DEVICE reachable.
+ *
+ * The server's row is deliberately NOT updated from here. A POST from a
+ * service worker carries no CSRF token and would be refused, and sending a
+ * request built to be refused is worse than not sending one: it looks like
+ * delivery. The client posts its current subscription every time IOMS is
+ * opened with permission granted, and the row -- keyed by endpoint -- is
+ * corrected then. The window in between is one in which a push goes to an
+ * address that answers 410, which deletes the stale row. Nothing is lost:
+ * the notification is in the Notification Center either way.
+ */
+self.addEventListener('pushsubscriptionchange', (event) => {
+    event.waitUntil(
+        (async () => {
+            try {
+                if (!event.newSubscription && event.oldSubscription?.options) {
+                    await self.registration.pushManager.subscribe(event.oldSubscription.options);
+                }
+            } catch (error) {
+                // The next time the app is opened, the client subscribes
+                // again and the row is corrected then.
+            }
+        })()
+    );
+});

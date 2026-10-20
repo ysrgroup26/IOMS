@@ -509,6 +509,30 @@ class HandleInertiaRequests extends Middleware
             // it). Wrapped in a closure so it's only queried on requests
             // where Inertia actually needs it (partial reloads skip unused
             // props).
+            /*
+             * v2.129.0 -- HOW THIS TAB STAYS LIVE.
+             *
+             * The cadence is configuration, not a constant compiled into the
+             * bundle, because it is the one dial an owner may need to turn:
+             * a yard of three hundred users on shared hosting is a different
+             * request budget from a yard of twelve. `transport` names what is
+             * running rather than leaving the client to infer it -- 'none'
+             * switches live delivery off entirely and the Notification
+             * Center goes back to updating on navigation.
+             *
+             * `push_enabled` says only whether this INSTALLATION has a VAPID
+             * key pair. Whether a given BROWSER can actually be woken is a
+             * question only that browser can answer (iOS needs the app
+             * installed; permission may be denied), and `lib/webPush.js`
+             * asks it there.
+             */
+            'realtime' => fn () => [
+                'transport' => $user ? config('realtime.transport') : 'none',
+                'interval' => (int) config('realtime.interval'),
+                'idle_interval' => (int) config('realtime.idle_interval'),
+                'idle_after' => (int) config('realtime.idle_after'),
+                'push_enabled' => (bool) config('realtime.push.public_key'),
+            ],
             'notifications' => fn () => [
                 'ppe_alert_count' => $user ? $this->workCenter->ppeAlertCount() : 0,
                 'unread_count' => $user ? \App\Models\Notification::where('user_id', $user->id)->unread()->count() : 0,

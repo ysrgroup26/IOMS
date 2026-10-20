@@ -7,6 +7,9 @@ import {
     FlaskConical, AlertTriangle,
     // v2.83.0 -- the Admin Space entry in the header.
     Settings,
+    // v2.129.0 -- the bell's two device controls: sound, and whether this
+    // browser may be woken when IOMS is not open.
+    Volume2, VolumeX, BellRing, BellOff,
 } from 'lucide-react';
 import { cn } from '@/lib/utils';
 import { useClock } from '@/lib/useClock';
@@ -28,6 +31,10 @@ import {
     DropdownMenu, DropdownMenuTrigger, DropdownMenuContent,
     DropdownMenuItem, DropdownMenuLabel, DropdownMenuSeparator,
 } from '@/Components/ui/dropdown-menu';
+import { LiveNotificationsProvider, useLiveNotifications } from '@/lib/useLiveNotifications';
+import NotificationToasts from '@/Components/shared/NotificationToasts';
+import { isSoundEnabled, setSoundEnabled } from '@/lib/notificationSound';
+import { pushState, resolvePushState, enablePush, disablePush, registerPushSubscription } from '@/lib/webPush';
 
 const EXPANDED_MENUS_KEY = 'ioms-sidebar-expanded';
 
@@ -125,7 +132,31 @@ function entryBoundary(items) {
     return last >= 0 && last < items.length - 1 ? last : -1;
 }
 
+/**
+ * v2.129.0 -- THE SHELL, WRAPPED IN THE LIVE NOTIFICATION STATE.
+ *
+ * The provider sits OUTSIDE the shell rather than inside it so that the
+ * cursor, the merged list and the unread count survive every navigation the
+ * shell re-renders through: a notification that arrived two seconds before
+ * somebody clicked a menu item must not be dropped because the tree
+ * remounted. `LiveNotificationsProvider` owns the one poller per tab (see
+ * lib/realtime.js) and every surface -- the bell, the toasts, a watching
+ * detail page -- reads it from there.
+ */
 export default function AuthenticatedLayout({ children }) {
+    const { auth } = usePage().props;
+
+    return (
+        <LiveNotificationsProvider>
+            <AuthenticatedShell>{children}</AuthenticatedShell>
+            {/* Outside the shell's scroll containers and above its z-indexes,
+                so an arrival is visible whatever the page is doing. */}
+            <NotificationToasts user={auth?.user} />
+        </LiveNotificationsProvider>
+    );
+}
+
+function AuthenticatedShell({ children }) {
     const { auth, company, version, modules, workspace_catalog: workspaceCatalog } = usePage().props;
     const [sidebarOpen, setSidebarOpen] = useState(false);
     const [expandedMenus, setExpandedMenus] = useState(() => {
@@ -1359,29 +1390,123 @@ function relativeTime(isoString) {
  * needs looking at," Work Center is "something needs YOU to act."
  */
 function NotificationsMenu() {
-    const { notifications, auth } = usePage().props;
-    const ppeAlertCount = notifications?.ppe_alert_count ?? 0;
-    const unreadCount = notifications?.unread_count ?? 0;
-    const items = notifications?.items ?? [];
+    const { auth } = usePage().props;
+
+    /*
+     * v2.129.0 -- THE BELL READS LIVE STATE, NOT A PROP BAG.
+     *
+     * Every number and every row here used to come from the shared Inertia
+     * prop, which is rebuilt only when a page is VISITED -- so a permit that
+     * came back for correction while somebody sat on the dashboard was
+     * invisible until they clicked something. That is the defect this release
+     * exists to remove.
+     *
+     * The provider merges the page's props with whatever has arrived since
+     * (lib/useLiveNotifications.jsx), so the badge, the list and the toasts
+     * are one state. Marking read posts JSON and updates in place: the PUT
+     * routes that answer a redirect are still there for a click that also
+     * navigates, but reloading the page a person is reading in order to grey
+     * out one row is the behaviour being removed.
+     */
+    const {
+        items,
+        unreadCount,
+        ppeAlertCount,
+        markRead: markReadInPlace,
+        markAllRead,
+        pushEnabled,
+    } = useLiveNotifications();
+
     const badgeCount = unreadCount + ppeAlertCount;
+
+    /* ------------------------------------------------------------------
+     * Sound, and device notifications: two controls, both per DEVICE.
+     *
+     * Neither is an account setting. The same person wants a chime on the
+     * phone in their pocket and silence on the shared terminal in the guard
+     * house, and permission is granted to a browser, not to a login.
+     * ------------------------------------------------------------------ */
+    const [soundOn, setSoundOn] = useState(false);
+    const [push, setPush] = useState({ status: 'unavailable', reason: '' });
+    const [pushBusy, setPushBusy] = useState(false);
+
+    useEffect(() => {
+        // Read in an effect, not in useState's initialiser: localStorage and
+        // Notification.permission are both browser-only, and this component
+        // is rendered during a server-prop hydration pass.
+        setSoundOn(isSoundEnabled());
+        setPush(pushState());
+
+        /*
+         * Then the question only the subscription can answer. Permission
+         * being granted is not the same as this browser being REGISTERED
+         * with its push service, and the bell must not claim the second from
+         * the first -- browser-verified: a profile with permission granted
+         * and `pushManager.subscribe()` refusing was reported as "this
+         * device receives IOMS notifications".
+         */
+        resolvePushState().then(setPush);
+    }, []);
+
+    /*
+     * RE-ASSERT THE SUBSCRIPTION WHENEVER THE APP IS OPEN with permission
+     * already granted. A push service can rotate an endpoint on its own, and
+     * the service worker cannot post the new one (it has no CSRF token), so
+     * this is where the server's row is corrected. Cheap: it only talks to
+     * the server when a subscription actually exists.
+     */
+    useEffect(() => {
+        if (!pushEnabled) return;
+        if (push.status !== 'granted') return;
+
+        registerPushSubscription(document.querySelector('meta[name="csrf-token"]')?.content ?? '');
+    }, [pushEnabled, push.status]);
+
+    function toggleSound(event) {
+        event.preventDefault();
+        const next = !soundOn;
+        setSoundOn(next);
+        setSoundEnabled(next);
+    }
+
+    async function togglePush(event) {
+        event.preventDefault();
+
+        const token = document.querySelector('meta[name="csrf-token"]')?.content ?? '';
+        setPushBusy(true);
+
+        try {
+            if (push.status === 'granted') {
+                await disablePush(token);
+                setPush(await resolvePushState());
+            } else {
+                const outcome = await enablePush(token);
+
+                if (outcome === 'failed') {
+                    // Said plainly rather than resolved into a cheerful
+                    // "active": the browser allowed it and then would not
+                    // register, which is a state a person can act on (try
+                    // another browser, install the app) only if told.
+                    setPush({
+                        status: 'unsupported-device',
+                        reason: 'Browser ini mengizinkan notifikasi tetapi tidak dapat mendaftarkan perangkat.',
+                    });
+                } else {
+                    setPush(await resolvePushState());
+                }
+            }
+        } finally {
+            setPushBusy(false);
+        }
+    }
 
     /*
      * v2.125.0 -- A NOTIFICATION THAT LOOKS INTERACTIVE MUST BE.
      *
-     * Three things were wrong with one line of code. The producers created
-     * every workflow notification with a null url (fixed in
-     * HasWorkflow/ApprovalEngine), so `if (notification.url)` was never
-     * true and the click only ever marked the row read -- the reported
-     * symptom, "notifikasi hanya menampilkan teks". Second, a row with a
-     * destination the reader is REFUSED would now navigate straight into a
-     * 403, which reads as a broken account. Third, every row looked
-     * identically tappable either way.
-     *
-     * So the offer is bound to what the server allows, from the same
-     * source the sidebar and the dashboard tiles read (ADR 061): the
-     * stored route prefix checked against this account's own
-     * allowed/blocked prefixes. A row that cannot open says so and still
-     * marks read; a row that can, opens.
+     * The offer is bound to what the server allows, from the same source the
+     * sidebar and the dashboard tiles read (ADR 061): the stored route prefix
+     * checked against this account's own allowed/blocked prefixes. A row that
+     * cannot open says so and still marks read; a row that can, opens.
      */
     function canOpen(notification) {
         if (!notification.url) return false;
@@ -1389,19 +1514,24 @@ function NotificationsMenu() {
         return !isRouteBlockedForUser(notification.route_prefix, auth?.user);
     }
 
-    function markRead(notification) {
-        if (!notification.read_at) {
-            router.put(route('notifications.read', notification.id), {}, { preserveScroll: true, preserveState: true });
-        }
+    function open(notification) {
+        markReadInPlace(notification);
+
         if (canOpen(notification)) {
             router.visit(notification.url);
         }
     }
 
-    function markAllRead(e) {
-        e.preventDefault();
-        router.put(route('notifications.read-all'), {}, { preserveScroll: true, preserveState: true });
-    }
+    const pushLabel = {
+        granted: 'Notifikasi perangkat aktif',
+        permitted: 'Memeriksa perangkat…',
+        available: 'Aktifkan notifikasi perangkat',
+        denied: 'Notifikasi perangkat diblokir',
+        'needs-install': 'Tambahkan ke Home Screen dahulu',
+        'unsupported-device': 'Perangkat ini tidak dapat didaftarkan',
+        unconfigured: 'Notifikasi perangkat belum tersedia',
+        unavailable: 'Perangkat ini tidak mendukung',
+    }[push.status] ?? 'Notifikasi perangkat';
 
     return (
         <DropdownMenu>
@@ -1421,7 +1551,7 @@ function NotificationsMenu() {
                 <div className="flex items-center justify-between px-2 py-1.5">
                     <DropdownMenuLabel className="p-0 text-[10px] uppercase tracking-wide text-graphite-400">Notifications</DropdownMenuLabel>
                     {unreadCount > 0 && (
-                        <button onClick={markAllRead} className="text-[11px] font-medium text-brand-600 hover:underline">
+                        <button onClick={(e) => { e.preventDefault(); markAllRead(); }} className="text-[11px] font-medium text-brand-600 hover:underline">
                             Mark all read
                         </button>
                     )}
@@ -1448,7 +1578,7 @@ function NotificationsMenu() {
                     return (
                         <DropdownMenuItem
                             key={item.id}
-                            onSelect={() => markRead(item)}
+                            onSelect={() => open(item)}
                             /* Unread carries weight and a tinted ground;
                                read is deliberately quiet. Same row, two
                                registers -- which is what makes a glance at
@@ -1478,6 +1608,41 @@ function NotificationsMenu() {
                         </DropdownMenuItem>
                     );
                 })}
+
+                {/* ----------------------------------------------------------
+                    The two device controls, at the BOTTOM: they are settings,
+                    and a settings row above the notifications would be the
+                    first thing a person reads when they opened the bell to
+                    find out what happened.
+                   ---------------------------------------------------------- */}
+                <DropdownMenuSeparator />
+                <DropdownMenuItem
+                    onSelect={(e) => { e.preventDefault(); toggleSound(e); }}
+                    className="flex items-center gap-2 py-2 text-xs"
+                >
+                    {soundOn ? <Volume2 className="h-3.5 w-3.5 text-brand-600" /> : <VolumeX className="h-3.5 w-3.5 text-graphite-400" />}
+                    <span className="flex-1">{soundOn ? 'Suara notifikasi aktif' : 'Suara notifikasi nonaktif'}</span>
+                </DropdownMenuItem>
+
+                {/* Offered only where it can work. An "Enable" button that a
+                    browser cannot honour is the ADR 061 failure in a new
+                    place: an offer the server -- here, the platform -- will
+                    refuse. An iPhone in Safari is told to install, not that
+                    its browser is unsupported. */}
+                {pushEnabled && push.status !== 'unavailable' && push.status !== 'unconfigured' && (
+                    <DropdownMenuItem
+                        onSelect={(e) => { e.preventDefault(); if (!pushBusy && ['granted', 'available', 'unsupported-device'].includes(push.status)) togglePush(e); }}
+                        className="flex items-start gap-2 py-2 text-xs"
+                    >
+                        {push.status === 'granted'
+                            ? <BellRing className="mt-0.5 h-3.5 w-3.5 shrink-0 text-brand-600" />
+                            : <BellOff className="mt-0.5 h-3.5 w-3.5 shrink-0 text-graphite-400" />}
+                        <span className="min-w-0 flex-1">
+                            <span className="block">{pushBusy ? 'Memproses…' : pushLabel}</span>
+                            <span className="mt-0.5 block text-[10px] leading-snug text-graphite-400">{push.reason}</span>
+                        </span>
+                    </DropdownMenuItem>
+                )}
             </DropdownMenuContent>
         </DropdownMenu>
     );

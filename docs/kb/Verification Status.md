@@ -34,6 +34,46 @@ and driving the screen in a browser, the twelve-to-six month edit **saves and pe
 `ReleaseStatusService` and the hardened `app:deploy` exist to close that gap, and
 `DeploymentIdentityTest` pins them. See `docs/ADR/057-a-release-must-be-able-to-prove-what-is-running.md`.
 
+### What was actually run for v2.129.0
+
+**Level: two concurrent browser sessions against MySQL 8, plus a stand-in push service. NOT
+deployed, and NO real device push was ever received.**
+
+| Claim | How it was checked |
+|---|---|
+| A badge changes while somebody watches it, with no navigation | An approver left on the dashboard, touching nothing: **4 → 5 unread** when HSE verified a permit in another session, `framenavigated` count **0** |
+| The approver is not asked before a verification exists | Same session: the badge was unchanged through the permit's *submission*, and moved only after verification |
+| A toast appears, and is readable on a phone | Screenshotted at 1440 (top-right) and 390 (above the tab bar), with the body and a *Lihat* action |
+| An open detail page follows its own record | A permit's page, open in a second session, went to **Active** and **lost its Activate button** when a different session activated it — zero navigations, and no toast, because nothing was being asked of that person |
+| A dropped connection loses nothing and doubles nothing | Offline for the length of two verifications: badge frozen at 5; on reconnect **7**, exactly **two** toasts, and the bell held **five unique** approval rows with no duplicates |
+| The push sender is correct | Against a stand-in push service: `Authorization: vapid t=…, k=…`, `TTL`, `Urgency: high`, a per-record `Topic`, and a **zero-length body**; 201 recorded `last_pushed_at`, **410 deleted the subscription** |
+| A real decision wakes a real device | A permit verified over **real HTTP** woke the approver's registered device **after the response** |
+| The VAPID token would be accepted | Signed, then verified against **only the published public key** — the same check a push service performs |
+
+**Two defects of my own, found by driving it rather than reading it:**
+
+1. `useWatchedRecord()` did nothing on **every page in the product**. Every page wraps its own
+   `<AuthenticatedLayout>`, so a page is the *parent* of anything the layout provides and cannot read
+   its context. Nothing threw; found by watching the request query string.
+2. The bell claimed *"this device receives IOMS notifications"* from `Notification.permission`
+   alone, while `pushManager.subscribe()` was refusing.
+
+**And one defect found by a test**, which is the one worth remembering: `absent` and `cursor=0` were
+read as the same question, so **live delivery silently did not work for any account that had never
+received a notification**.
+
+**Automated:** `RealtimeNotificationTest` — 26 tests over the PTW chain, the cursor contract,
+idempotent retries, per-user and per-tenant isolation, change-marker scoping, read state, the push
+address book, and a failing push service proving it cannot undo a decision. Full suite green:
+**1605 tests, 8148 assertions** (`vendor/bin/phpunit`, 2026-10-20), `npm run build` clean.
+
+**NOT verified — a real device push.** Headless Chromium here has no push service connection
+(`pushManager.subscribe()` answers *"Registration failed - permission denied"*), so the browser half
+of push has been exercised only in code and against a stand-in service. Android Chrome, desktop
+Chrome/Firefox/Edge and an installed iOS 16.4+ PWA are where it must be confirmed on a device. The
+honest claim today: **the sender works, and the subscription flow refuses to claim more than it can
+prove.**
+
 ### What was actually run for v2.128.0
 
 **Level: the real UI and rendered artefacts, against MySQL 8 on this machine. NOT deployed, and NOT

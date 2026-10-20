@@ -44,6 +44,22 @@
     <meta name="viewport" content="width=device-width, initial-scale=1">
     <meta name="csrf-token" content="{{ csrf_token() }}">
 
+    {{-- v2.129.0 -- THE APPLICATION SERVER KEY A BROWSER SUBSCRIBES WITH.
+
+         Public by definition: it is what IOMS hands every push service, and
+         a subscription is bound to it. The PRIVATE half lives in .env and is
+         never rendered anywhere.
+
+         A meta tag rather than an Inertia prop because the service worker
+         registration and the permission control both need it synchronously,
+         before React has resolved a page -- and because an absent tag is the
+         clearest possible statement that this installation has not turned
+         push on, which is what stops the product asking for a permission it
+         could not then use. See ADR 069. --}}
+    @if (config('realtime.push.public_key'))
+        <meta name="ioms-vapid-key" content="{{ config('realtime.push.public_key') }}">
+    @endif
+
     {{-- v2.90.0 -- every active IOMS icon is generated from the canonical,
          owner-supplied transparent artwork in config/branding.php.
 

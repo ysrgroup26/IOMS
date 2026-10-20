@@ -3448,3 +3448,56 @@ centre, with the word missing entirely.
 
 Invisible in the markup, obvious in a screenshot -- the same lesson as "measure a renderer's
 limits" one release earlier. **When you inline an SVG, scope every rule to the element you mean.**
+
+
+---
+
+## CRITICAL — Known Pitfall (v2.129.0) — every page wraps its own layout, so layout context is invisible to the page
+
+`resources/js/Pages/**` each render `<AuthenticatedLayout>` themselves; nothing uses Inertia's
+persistent-layout pattern (the same fact `navigationMemory.js` exists because of). So a page
+component is the **parent** of everything the layout renders — and a React context published by the
+layout **cannot be read from the page inside it**.
+
+v2.129.0's first implementation put the live-notification registry in a provider inside
+`AuthenticatedLayout` and offered pages a `useWatchedRecord()` hook that read it. The hook resolved
+to the inert fallback on **every page in the product** and silently did nothing. Nothing threw,
+nothing logged, and the feature looked finished; it was found by watching the request query string,
+which never carried the `watch` parameter the hook was supposed to add.
+
+Two ways out, and the second is usually right here:
+
+1. put the provider above `<App>` in `app.jsx` — correct, but it changes how every page mounts;
+2. **keep cross-cutting state in a module, not in context** (`lib/realtime.js` holds the registry;
+   the provider and the pages both write to it).
+
+The general rule: **before publishing state from the layout, check which side of it the consumer is
+on.** In this codebase the page is almost always above.
+
+---
+
+## Known Pitfall (v2.129.0) — `Http::fake()` merges, and the first stub wins
+
+A catch-all `Http::fake()` in `setUp()` and a specific `Http::fake(['*' => Http::response('', 410)])`
+inside a test do not do what they look like: stubs are **merged**, and the one registered *first*
+answers. The per-test stub was silently ignored and a test asserting that a 410 deletes a dead push
+subscription passed a 200 instead.
+
+Fake in the test that needs it, not in `setUp()` — or use `Http::preventStrayRequests()` there,
+which fails loudly instead of answering quietly.
+
+---
+
+## A permission is not a capability: ask the thing that will actually answer
+
+v2.129.0. The bell reported *"this device receives IOMS notifications"* from
+`Notification.permission === 'granted'`. Permission only means the person agreed to be interrupted;
+whether the browser can actually be woken depends on `pushManager.subscribe()` succeeding, and it
+does not always — a Chromium build with no push service connection fails with *"Registration
+failed - permission denied"* on a profile whose permission says granted. Caught in a browser.
+
+This is ADR 061's rule in a new place: **an offer is bound to what the server allows** becomes, on a
+device, *a claim is bound to what the platform will honour*. `resolvePushState()` asks the
+subscription itself, `enablePush()` returns `failed` rather than `granted` when registration is
+refused, and the UI says the device could not be registered — which a person can act on (try
+another browser, install the app) only if they are told.

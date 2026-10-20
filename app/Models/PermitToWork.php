@@ -390,4 +390,93 @@ class PermitToWork extends Model
     {
         return 'Permit to Work';
     }
+
+    /**
+     * v2.129.0 -- WHAT THE REQUESTER IS TOLD, AT EACH STAGE, IN THEIR WORDS.
+     *
+     * The trait's default is "Permit to Work PTW-2026-00010 is now Active",
+     * which is accurate and says nothing a person can act on. A permit has a
+     * real lifecycle and each step means something different to whoever
+     * raised it:
+     *
+     *   verified  -- HSE is satisfied. Nothing is required of you.
+     *   approved  -- it is authorised; it still has to be activated.
+     *   active    -- THE WORK MAY START. This is the one that matters.
+     *   rejected  -- it came back, and the body is the reason why.
+     *   closed    -- the job is finished and the permit is spent.
+     *
+     * Each title names the STATE and each body says what follows from it, so
+     * the notification is readable on a lock screen without opening
+     * anything. The number is in the body rather than the title because a
+     * title truncated on a phone should keep the meaning, not the reference.
+     *
+     * English title, Indonesian body -- the language hierarchy
+     * (docs/CONVENTIONS.md): a title is a label, a body is help text.
+     *
+     * @return array{title: string, body: ?string}
+     */
+    protected function statusNotificationCopy(string $newStatus, array $meta): array
+    {
+        $number = $this->ptw_number;
+        $where = trim(implode(' · ', array_filter([
+            $this->permit_type ? \Illuminate\Support\Str::headline($this->permit_type) : null,
+            $this->location,
+        ])));
+
+        $copy = match ($newStatus) {
+            self::STATUS_VERIFIED => [
+                'title' => 'Permit verified by HSE',
+                'body' => $number.' telah diverifikasi HSE dan menunggu persetujuan akhir.',
+            ],
+            self::STATUS_APPROVED => [
+                'title' => 'Permit approved',
+                'body' => $number.' telah disetujui dan siap diaktifkan.',
+            ],
+            self::STATUS_ACTIVE => [
+                'title' => 'Permit is now active',
+                'body' => $number.' telah disetujui dan sekarang ACTIVE. Pekerjaan boleh dimulai.',
+            ],
+            self::STATUS_REJECTED => [
+                'title' => 'Permit returned for revision',
+                // The reason IS the notification here, so it leads; the
+                // number follows it rather than pushing it onto a second line.
+                'body' => ($meta['comments'] ?? null)
+                    ? $meta['comments'].' ('.$number.')'
+                    : $number.' dikembalikan untuk diperbaiki.',
+            ],
+            self::STATUS_CLOSED => [
+                'title' => 'Permit closed',
+                'body' => $number.' telah ditutup.',
+            ],
+            self::STATUS_CANCELLED => [
+                'title' => 'Permit cancelled',
+                'body' => $number.' dibatalkan dan tidak dapat digunakan lagi.',
+            ],
+            // Submitted, draft, anything added later: the trait's own
+            // sentence, which is never wrong.
+            default => null,
+        };
+
+        if ($copy === null) {
+            /*
+             * The trait's own sentence, written out rather than reached
+             * with `parent::` -- `statusNotificationCopy()` comes from a
+             * TRAIT, and `parent::` on a trait method resolves to
+             * Eloquent\Model, which has none. A fatal error inside a
+             * notification would have taken the transition down with it.
+             */
+            return [
+                'title' => $this->documentLabel().' '.$this->displayNumber().' is now '.$this->statusLabel($newStatus),
+                'body' => $meta['comments'] ?? null,
+            ];
+        }
+
+        // Where the work is, when the permit says -- one short line that
+        // makes a notification about "a permit" into one about THIS job.
+        if ($where !== '' && $newStatus !== self::STATUS_REJECTED) {
+            $copy['body'] = $copy['body'].' '.$where.'.';
+        }
+
+        return $copy;
+    }
 }

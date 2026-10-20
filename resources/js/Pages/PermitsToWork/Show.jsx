@@ -1,6 +1,7 @@
 import { Head, Link, router, useForm } from '@inertiajs/react';
 import { useState } from 'react';
 import AuthenticatedLayout from '@/Layouts/AuthenticatedLayout';
+import { useWatchedRecord } from '@/lib/useLiveNotifications';
 import { Card, CardContent, CardHeader, CardTitle } from '@/Components/ui/card';
 import { Button } from '@/Components/ui/button';
 import { Label } from '@/Components/ui/label';
@@ -92,6 +93,29 @@ function PpePanel({ ppe, hazards, status }) {
 }
 
 export default function PermitToWorkShow({ permit: p, activities, canManage, rejectionReason, authorization, verification, stamps = {}, workflow, ppe }) {
+    /*
+     * v2.129.0 -- THIS PAGE UPDATES ITSELF WHEN THE PERMIT MOVES.
+     *
+     * A verifier and an approver work the same permit minutes apart, often
+     * with both pages open. Before this release the second one was looking at
+     * a stale permit until they reloaded -- the Approve button missing, or
+     * worse, still present for a decision already taken.
+     *
+     * The notification says only that something happened; the STATE comes
+     * from a partial Inertia reload of exactly these props, which re-runs
+     * `show()` and therefore `assertInCurrentTenant()`, the entitlement
+     * middleware and both gates in `PtwWorkflowService`. So the page is
+     * refreshed without a full navigation AND without a second path to
+     * record state -- which is where isolation defects live (ADR 069).
+     *
+     * `workflow` is in the list deliberately: the buttons on offer must
+     * change with the status, or the page is honest about the permit and
+     * wrong about what may be done to it.
+     */
+    useWatchedRecord('PermitToWork', p.id, [
+        'permit', 'activities', 'authorization', 'verification', 'stamps', 'workflow', 'rejectionReason', 'ppe',
+    ]);
+
     const [gasTestOpen, setGasTestOpen] = useState(false);
     // v1.10.9: location pre-filled from this permit's own p.location (the
     // scope a PTW is raised for) but independently editable -- a gas

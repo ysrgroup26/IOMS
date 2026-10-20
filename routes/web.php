@@ -60,6 +60,7 @@ use App\Http\Controllers\MyWorkAccountController;
 use App\Http\Controllers\MilestoneController;
 use App\Http\Controllers\NcrController;
 use App\Http\Controllers\NotificationController;
+use App\Http\Controllers\NotificationStreamController;
 use App\Http\Controllers\P3kBoxController;
 use App\Http\Controllers\PaymentWebhookController;
 use App\Http\Controllers\PermitToWorkController;
@@ -477,6 +478,31 @@ Route::middleware(['auth', 'restrict.platform-admin'])->group(function () {
     // HandleInertiaRequests, these are just the two write actions.
     Route::put('/notifications/{notification}/read', [NotificationController::class, 'markRead'])->name('notifications.read');
     Route::put('/notifications/read-all', [NotificationController::class, 'markAllRead'])->name('notifications.read-all');
+
+    /*
+     * v2.129.0 -- REAL-TIME NOTIFICATION DELIVERY.
+     *
+     * All under the existing `notifications` prefix on purpose: it is
+     * already on `RestrictMyWorkUser::ALLOWED_PREFIXES` and already
+     * universal in `RestrictDepartmentAccess`, so a field worker's phone
+     * reaches them without a new entry anywhere in the routing layer --
+     * the known pitfall in docs/CONVENTIONS.md about a new prefix costing
+     * a 403 three times.
+     *
+     * `live` is the cursor endpoint every open tab asks. It is a GET that
+     * answers only about the authenticated user, with no record state in
+     * it at all (see the controller for why that boundary matters).
+     *
+     * The two JSON read actions exist beside the redirect-answering ones
+     * above rather than replacing them: a click that NAVIGATES wants a
+     * redirect, a bell marking a row read in place must not reload the
+     * page underneath it.
+     */
+    Route::get('/notifications/live', [NotificationStreamController::class, 'poll'])->name('notifications.live');
+    Route::post('/notifications/{notification}/read', [NotificationStreamController::class, 'markRead'])->name('notifications.read.json');
+    Route::post('/notifications/read-all', [NotificationStreamController::class, 'markAllRead'])->name('notifications.read-all.json');
+    Route::post('/notifications/push-subscription', [NotificationStreamController::class, 'subscribe'])->name('notifications.push.subscribe');
+    Route::delete('/notifications/push-subscription', [NotificationStreamController::class, 'unsubscribe'])->name('notifications.push.unsubscribe');
 
     // Employees: viewable by all roles; mutation actions are policy-gated inside the controller/routes below.
     Route::get('/employees', [EmployeeController::class, 'index'])->name('employees.index');

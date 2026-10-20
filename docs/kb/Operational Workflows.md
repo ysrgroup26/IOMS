@@ -154,6 +154,14 @@ transaction, and the notification is attempted afterwards, best-effort, with `re
 transaction, so a throwing notifier rolled the decision back. That was true for every workflow
 model in the product, not just PTW (ADR 067).
 
+**And it arrives without a refresh** (v2.129.0, **ADR 069**). Every notification this chain produces
+is delivered live to an open tab through a cursor-based delta endpoint, and to a backgrounded or
+closed app through self-hosted web push -- so a verifier learns a permit is waiting without
+navigating, and an approver's open page follows the permit when somebody else moves it. PTW words
+its own notifications per status (`statusNotificationCopy()`): a permit becoming ACTIVE reads "the
+work may start", not "status changed." The delivery is deferred to after the commit, so nothing is
+announced for a decision that rolled back, and a failed push cannot undo one that did not.
+
 ## Leave
 
 `draft → submitted → approved → cancelled`, with `rejected → draft`. Uses the same Approval Engine.

@@ -439,6 +439,29 @@ class TransitiveTenantIsolationTest extends TestCase
              * and Pay Outstanding does not reach another customer's invoice.
              */
             'SubscriptionAddOn',
+            /*
+             * v2.129.0 -- `PushSubscription` is a DELIVERY ADDRESS for a
+             * browser, owned by a USER and by nothing else.
+             *
+             * It carries no tenant_id and no company_id on purpose: there is
+             * nothing tenant-shaped about it. Every read goes through the
+             * owning account -- `where('user_id', $user->id)`, or
+             * `$user->pushSubscriptions` -- and a row is only ever reachable
+             * from an account that has already been authenticated and
+             * resolved. `User` itself carries the tenant scope, so the
+             * boundary is enforced one step earlier than this table.
+             *
+             * A tenant scope here would make the table LOOK safer while
+             * changing nothing, and would break the one case that must keep
+             * working: `WebPushService` deleting a dead endpoint, which
+             * happens in response to a push service's 410 and belongs to no
+             * request and no tenant context at all.
+             *
+             * `RealtimeNotificationTest` asserts the boundary that does
+             * exist: one person cannot unsubscribe another person's device,
+             * and nobody receives another tenant's notifications.
+             */
+            'PushSubscription',
             // The approval engine walks these across tenants from a
             // scheduled command; the tenancy check lives in
             // ApprovalEngine::authorize(), asserted above.

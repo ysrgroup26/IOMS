@@ -3,6 +3,7 @@ import FilterBar from '@/Components/shared/FilterBar';
 import PageHeader from '@/Components/shared/PageHeader';
 import PtwQuotaNotice from '@/Components/shared/PtwQuotaNotice';
 import AuthenticatedLayout from '@/Layouts/AuthenticatedLayout';
+import { useWatchedRecord } from '@/lib/useLiveNotifications';
 import { Card, CardContent } from '@/Components/ui/card';
 import { Button } from '@/Components/ui/button';
 import { Input } from '@/Components/ui/input';
@@ -47,6 +48,17 @@ import { picName } from '@/lib/permitPicName';
  * from a defined container.
  */
 export default function PermitsToWorkIndex({ permits, filters, can }) {
+    /*
+     * v2.129.0 -- THE REGISTER REFRESHES ITSELF WHEN ANY PERMIT MOVES.
+     *
+     * Watched by TYPE rather than by id: a list cannot know which permits it
+     * is showing before a notification arrives, and the one thing it is for
+     * is noticing that something changed. Only the `permits` prop reloads --
+     * the filters and the gate are already correct -- and the reload re-runs
+     * `index()`, so the page can never show a row this account may not see.
+     */
+    useWatchedRecord('PermitToWork', '*', ['permits']);
+
     function applyFilters(overrides = {}) {
         router.get(route('permits-to-work.index'), { ...filters, ...overrides }, { preserveState: true, replace: true });
     }

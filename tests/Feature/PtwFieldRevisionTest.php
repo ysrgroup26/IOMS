@@ -290,7 +290,13 @@ class PtwFieldRevisionTest extends TestCase
         $this->assertNotNull($notification, 'The requester must be told their permit came back.');
         $this->assertSame(route('permits-to-work.show', $permit), $notification->url);
         $this->assertSame('permits-to-work.show', $notification->meta['route'] ?? null);
-        $this->assertSame('Area belum diisolasi.', $notification->body, 'The reason it came back IS the notification.');
+        // v2.129.0: PTW now words its own notifications (ADR 069), and a
+        // returned permit leads with the REASON and names the permit after
+        // it -- the reason is what the person has to act on, and a body
+        // truncated on a phone must not lose it.
+        $this->assertStringStartsWith('Area belum diisolasi.', $notification->body,
+            'The reason it came back IS the notification, and it leads.');
+        $this->assertStringContainsString($permit->ptw_number, $notification->body);
     }
 
     /** No PHP class name may reach somebody holding a phone. */
@@ -308,9 +314,22 @@ class PtwFieldRevisionTest extends TestCase
 
         $title = Notification::where('user_id', $requester->id)->latest()->value('title');
 
+        $body = Notification::where('user_id', $requester->id)->latest()->value('body');
+
+        /*
+         * v2.129.0 -- THE RULE IS UNCHANGED; THE SHAPE MOVED.
+         *
+         * No PHP class name may reach somebody holding a phone, and the
+         * words must be the product's own: both still asserted. What changed
+         * is where the NUMBER sits. PTW now writes its own notification copy
+         * (ADR 069), and the title states what happened ("Permit approved")
+         * while the body names the permit -- because a title truncated on a
+         * lock screen should keep the meaning rather than the reference.
+         */
         $this->assertStringNotContainsString('PermitToWork', $title);
-        $this->assertStringContainsString('Permit to Work', $title);
-        $this->assertStringContainsString($permit->ptw_number, $title, 'Which permit is the first thing asked.');
+        $this->assertStringStartsWith('Permit ', $title, "The product's own words, not a class name.");
+        $this->assertStringContainsString($permit->ptw_number, $title.' '.$body,
+            'Which permit is still asked, and still answered.');
     }
 
     /**

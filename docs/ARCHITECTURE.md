@@ -58,6 +58,48 @@ calls `$approval->approvable->transitionTo(...)`, passing the approval's comment
 decision. (Earlier code called `$approval->approvable()->update([...])` directly, bypassing
 validation entirely and risking a duplicate log entry — see `CONVENTIONS.md`'s pitfalls list.)
 
+### Real-time notification delivery (v2.129.0)
+
+The shared foundation every module inherits by calling
+`NotificationService::notify()`. See ADR 069 for what was evaluated and rejected.
+
+**The row is the record; delivery is best effort on top.** `notifications` is what the Notification
+Center lists, what survives a lost connection, and what a module can be audited against. Two
+channels put it in front of somebody:
+
+| While | Channel | Where it lives |
+|---|---|---|
+| a tab is open | **live sync** — a cursor-based delta endpoint | `NotificationStreamController::poll()`, `resources/js/lib/realtime.js` |
+| the app is backgrounded or closed | **web push** — VAPID, self-hosted, no provider | `App\Services\Notifications\WebPushService`, `public/service-worker.js` |
+
+**No WebSocket server**: cPanel shared hosting runs no long-running process, which is the same
+reason Inertia SSR is off. `config('realtime.transport')` names the transport (`sync` | `none`) so
+a hosted provider can be added as a third value without rewriting anything above it.
+
+**The cursor is the delivery guarantee.** The client asks "what has happened since id N?", so a tab
+that was offline receives exactly what it missed, once. A *first* ask omits `cursor` entirely and
+receives no items (opening a tab must not replay a person's history as new); `cursor=0` means "I
+have seen nothing" and does receive them — the two are different questions and conflating them
+broke live delivery for every account that had never received a notification.
+
+**Adding a module takes two things and no new mechanism:**
+
+1. call `NotificationService::notify()` — which every workflow model already does through
+   `HasWorkflow` — and optionally override `statusNotificationCopy()` to say something better than
+   "status changed";
+2. call `useWatchedRecord('ModelName', id, ['prop', ...])` on the page, and add the model to
+   `NotificationStreamController::WATCHABLE` if its detail page should follow changes nobody
+   notified this viewer about.
+
+**An open page is refreshed by Inertia's partial reload, never from the notification payload** —
+`router.reload({ only: [...] })` re-runs the controller and therefore every scope, gate and
+entitlement check. There is deliberately no endpoint that reports record state.
+
+**Two rules on delivery**, both enforced in `NotificationService::deliver()`: never before the
+commit (`DB::afterCommit` — a push must not announce a decision that can still roll back), and
+never at the caller's expense (`app()->terminating` — the push happens after the response, so a
+dead endpoint costs the person who pressed Approve nothing). No queue worker is required.
+
 ### Activity Timeline
 
 **What it is**: `ActivityLog`, a polymorphic model (`subject_type`/`subject_id`) with a

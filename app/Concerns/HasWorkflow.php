@@ -92,6 +92,32 @@ trait HasWorkflow
         $this->notifyStatusChange($newStatus, $user, $meta);
     }
 
+    /**
+     * v2.129.0 -- WHAT THE OWNER OF A RECORD IS TOLD, IN WORDS A MODEL CHOOSES.
+     *
+     * The default is the sentence every workflow model has always sent:
+     * "<document> <number> is now <status>", with a rejection reason as the
+     * body when there is one. It is correct and it is generic, which is right
+     * for a model whose transitions carry no particular meaning.
+     *
+     * A model with a real lifecycle can say something better. PTW does: a
+     * permit becoming ACTIVE is not "status changed", it is "the work may
+     * start", and a person reading a phone notification needs the second one.
+     * Overriding this is the seam -- one method, returning a title and an
+     * optional body -- rather than a notification builder per module, which
+     * is what the brief means by a foundation the next module can use rather
+     * than rebuild (ADR 069).
+     *
+     * @return array{title: string, body: ?string}
+     */
+    protected function statusNotificationCopy(string $newStatus, array $meta): array
+    {
+        return [
+            'title' => $this->documentLabel().' '.$this->displayNumber().' is now '.$this->statusLabel($newStatus),
+            'body' => $meta['comments'] ?? null,
+        ];
+    }
+
     public function canTransitionTo(string $newStatus): bool
     {
         return in_array($newStatus, static::$transitions[$this->status] ?? [], true);
@@ -141,12 +167,14 @@ trait HasWorkflow
          * courtesy on top, and a courtesy is allowed to fail as long as it
          * fails loudly in the log and quietly everywhere else.
          */
+        $copy = $this->statusNotificationCopy($newStatus, $meta);
+
         try {
             app(NotificationService::class)->notify(
             $recipient,
             $category,
-            $this->documentLabel().' '.$this->displayNumber().' is now '.$this->statusLabel($newStatus),
-            $meta['comments'] ?? null,
+            $copy['title'],
+            $copy['body'],
             $this->notificationUrl(),
             $this,
             // The route NAME travels with the row, so a surface rendering

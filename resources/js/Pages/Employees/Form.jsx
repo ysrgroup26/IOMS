@@ -164,6 +164,7 @@ export default function EmployeeForm({ employee, companies, departments, positio
                                 value={data.employee_id}
                                 onChange={(e) => setData('employee_id', e.target.value)}
                                 placeholder="EMP-0001"
+                                uppercase
                             />
                         )}
                     </FormField>

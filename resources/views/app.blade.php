@@ -16,25 +16,52 @@
     $htmlLang = $seoPage['lang'] ?? 'en';
 
     /*
-     * v2.128.0 -- THE BOOT SPLASH, on the application only.
+     * v2.128.0 -- THE BOOT SPLASH. v2.130.0 -- ON EVERY PAGE, INCLUDING THE
+     * ONE PEOPLE ACTUALLY ARRIVE ON.
      *
-     * $seoPage is non-null exactly for the public marketing pages in
-     * config/seo.php. Those arrive with content a visitor can read at once,
-     * so covering them with a splash would hide what is already there; the
-     * application arrives as an empty div and is what needs covering.
+     * It was `$seoPage === null`, i.e. the authenticated application only,
+     * on the stated reasoning that a public page "arrives with content a
+     * visitor can read at once". THAT REASONING WAS WRONG ON THE FACTS, and
+     * measuring it is what showed it: Inertia SSR is off for EVERY page in
+     * this product, public ones included, so `/` paints a BLANK WHITE SCREEN
+     * until its bundle runs -- confirmed by loading it at 390x844 with the
+     * bundle blocked and reading `document.body.innerText`, which was empty.
+     *
+     * And `/` is the page a phone lands on: somebody typing the domain gets
+     * the marketing site, not `/dashboard`. So the splash built last release
+     * was never on the path the report was about, which is why the owner
+     * reported that nothing had changed. It had changed -- somewhere nobody
+     * starts.
+     *
+     * The `noscript` summary for crawlers is untouched, and the `.ioms-js`
+     * class still keeps the splash away from any client that will not run
+     * the code that removes it.
      *
      * The lockup is read from disk and inlined rather than linked, so it
      * paints with this response instead of after a second request. A
      * missing file yields an empty string and the splash degrades to the
      * white ground and the bar -- never a broken-image box.
      */
-    $iomsBootSplash = $seoPage === null;
+    $iomsBootSplash = true;
     $iomsBootLockup = '';
 
     if ($iomsBootSplash) {
         $iomsLockupPath = public_path(ltrim(config('branding.assets.lockup_stacked', '/branding/ioms-lockup-stacked.svg'), '/'));
+        /*
+         * The declaration AND the comments are stripped. The lockup file
+         * carries a long explanation of how it was composed from the
+         * official artwork, which belongs to whoever opens the file and not
+         * to every page load -- and once this splash reached the PUBLIC
+         * pages, that comment's em dashes tripped the public-copy rule
+         * `LandingPositioningTest` enforces. Smaller response, and the
+         * explanation stays where it is useful.
+         */
         $iomsBootLockup = is_file($iomsLockupPath)
-            ? preg_replace('/<\?xml.*?\?>/s', '', (string) file_get_contents($iomsLockupPath))
+            ? trim(preg_replace(
+                ['/<\?xml.*?\?>/s', '/<!--.*?-->/s'],
+                '',
+                (string) file_get_contents($iomsLockupPath),
+            ))
             : '';
     }
 @endphp
@@ -351,7 +378,25 @@
          a system rather than a claim written by marketing.
 
          One combined request, weights restricted to those actually used. --}}
-    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800&family=Archivo:wght@500;600;700&family=IBM+Plex+Mono:wght@400;500&display=swap" rel="stylesheet">
+    {{-- v2.130.0 -- ARCHIVO ACROSS BOTH AXES, AND INTO THE APPLICATION.
+
+         It was `Archivo:wght@500;600;700`, loaded for the public website
+         only, while the authenticated product set every heading and every
+         KPI figure in Inter at 600 -- a weight that is neither regular nor
+         bold, and the reason the interface read as unfinished rather than
+         as quiet.
+
+         Now the variable font is requested across the weight range to 900
+         AND the width range to 75%, because the two axes do different work:
+         weight gives a page title authority, width turns a document's type
+         band into signage ("HOT WORK" on a permit). Both are used by the
+         named roles in resources/css/app.css and nowhere else.
+
+         The PDF cannot reach this stylesheet and does not try: it embeds
+         static instances of the same family from resources/fonts (see
+         pdf/partials/fonts.blade.php), so paper and screen are the same
+         typeface rather than two that merely agree in spirit. --}}
+    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800&family=Archivo:wdth,wght@75..100,400..900&family=IBM+Plex+Mono:wght@400;500;600&display=swap" rel="stylesheet">
 
     @routes
     @viteReactRefresh

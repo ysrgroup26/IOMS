@@ -11,6 +11,7 @@ use Illuminate\Http\Request;
 use Illuminate\Validation\Rule;
 use Inertia\Inertia;
 use Inertia\Response;
+use App\Support\IdentifierCase;
 
 /**
  * v2.3.0 (HSE Operations + IOMS OS Ecosystem pass, Part 7/8/9/10/11).
@@ -116,6 +117,11 @@ class WasteContainerController extends Controller
      */
     private function validated(Request $request, $companyIds, bool $forUpdate = false): array
     {
+        // v2.130.0 -- a container code ("DRM-001") is an identifier, and is
+        // stored in the case it is read in. One place, because store and
+        // update both come through here. @see \App\Support\IdentifierCase
+        $request->merge(IdentifierCase::in($request->only(['code']), ['code']));
+
         $rules = [
             'container_type' => ['required', 'string', 'max:255'],
             'code' => ['nullable', 'string', 'max:100'],

@@ -245,6 +245,28 @@ self.addEventListener('push', (event) => {
      */
     event.waitUntil(
         (async () => {
+            /*
+             * v2.130.0 -- NOT TWICE FOR ONE NOTIFICATION.
+             *
+             * A push is delivered whether or not IOMS is open, and a person
+             * with the app in front of them has already been told: the live
+             * sync put a toast on screen, moved the badge and played the
+             * sound. Showing a system notification as well is the same
+             * event twice, from two mechanisms, a second apart.
+             *
+             * So a VISIBLE window at this origin means the in-page channel
+             * has it, and the worker stands down. A window that exists but
+             * is hidden -- another tab, a minimised browser, a phone with
+             * the screen off -- is exactly the case push is for, and still
+             * gets the notification.
+             */
+            const open = await self.clients.matchAll({ type: 'window', includeUncontrolled: true });
+
+            if (open.some((client) => client.visibilityState === 'visible'
+                && new URL(client.url).origin === self.location.origin)) {
+                return;
+            }
+
             let title = 'IOMS';
             let body = 'Ada pemberitahuan baru.';
             let url = FALLBACK_URL;

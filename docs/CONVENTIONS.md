@@ -3501,3 +3501,73 @@ device, *a claim is bound to what the platform will honour*. `resolvePushState()
 subscription itself, `enablePush()` returns `failed` rather than `granted` when registration is
 refused, and the UI says the device could not be registered — which a person can act on (try
 another browser, install the app) only if they are told.
+
+
+---
+
+## CRITICAL — Known Pitfall (v2.130.0) — `<meta name="csrf-token">` goes stale, and Inertia never refreshes it
+
+A POST from React that signs itself with the meta tag answers **419 for anybody who signed in
+during that visit**, which is almost everybody.
+
+The tag is rendered once, with the document. Signing in REGENERATES the session and its token --
+and Inertia does not reload the document when it navigates: it swaps the page component inside the
+same document. So after login the tag still carries the login page's token.
+
+It is invisible to the test suite, because Laravel disables CSRF verification in tests, and it
+looks correct in review because reading the meta tag is what every tutorial says to do.
+
+**Use `lib/csrf.js`.** It reads the `XSRF-TOKEN` cookie, which Laravel rewrites on every response
+and which is therefore current by construction -- the same source axios and Inertia use, which is
+why Inertia's own requests never had this problem.
+
+**And send ONE token.** `VerifyCsrfToken::getTokenFromRequest()` reads `X-CSRF-TOKEN` first and
+only falls back to `X-XSRF-TOKEN`, so sending both means the stale meta always wins. Measured:
+both headers -> 419; the cookie alone -> 200.
+
+---
+
+## A badge counts one kind of thing
+
+v2.130.0. The notification bell showed `unreadCount + ppeAlertCount`. A PPE alert is a live
+computed count of equipment expiring -- it cannot be read, it belongs to nobody, and it never goes
+down. A tenant with two expiring items had a bell permanently showing 2, so reading every
+notification in the product changed nothing and the number stopped meaning anything.
+
+**A count on a control must answer the question that control is for.** A bell asks "how many things
+have I not seen?"; anything that cannot be seen-and-dismissed does not belong in its number. Put
+the other count where its own words are next to it.
+
+The same rule caught the unread TREATMENT: `bg-brand-50/40` over a white menu is very nearly white,
+so read and unread were indistinguishable on a phone in daylight. A state worth tracking is a state
+worth being able to see.
+
+---
+
+## Known Pitfall (v2.130.0) — dompdf cannot render a variable font, and will not tell you
+
+Google Fonts now ships most families as a single variable TTF. Dompdf draws **every weight as the
+default instance** from one -- so a `font-weight: 800` rule produces Regular, the document merely
+looks ordinary, and nothing raises. The same silence applies to a webfont URL dompdf cannot fetch,
+a path outside its chroot, and a truncated file.
+
+Instance the weights you need as static TTFs (`fontTools.varLib.instancer`), commit them, and
+declare them with `file://` paths inside `base_path()`. Then **verify with `pdffonts`** -- the
+embedded face names are the only honest confirmation that the typography you wrote is the
+typography the PDF carries. See `resources/views/pdf/partials/fonts.blade.php`.
+
+---
+
+## A fix on a path nobody starts from is not a fix
+
+v2.130.0. v2.128.0 added a boot splash and the owner reported that nothing had changed. Both were
+true: the splash rendered only when `$seoPage === null` -- the authenticated application -- on the
+reasoning that a public page "arrives with content a visitor can read at once".
+
+Inertia SSR is off for **every** page in this product. Loaded at 390x390 with the bundle blocked,
+`/` had an empty `document.body.innerText`. And `/` is where somebody typing the domain on a phone
+lands.
+
+**Before fixing a reported experience, establish which URL the report is about** -- by opening it,
+in that viewport, with the thing you are about to change disabled. A reasoned-about entry point and
+the real one are different things, and the gap between them is invisible in a diff.

@@ -675,6 +675,22 @@ an account whose `is_active` is false on its next request. That column had been 
 sign-in forms, so deactivating somebody did nothing about the session they already held; with a
 five-year cookie that stopped being tolerable.
 
+## Identifiers and automatic upper case (v2.130.0)
+
+Some values are identifiers: a badge number, an operating unit code, a shift letter, a warehouse
+code. They are printed on documents, matched on import and read back by people, and IOMS stores
+them upper case.
+
+- **In the form**: `<Input uppercase />` (`Components/ui/input.jsx`) transforms on the event and
+  preserves the caret, so editing the middle of a code works. Applied to the employee badge number,
+  company code, department code, warehouse code, shift code, hazard category code, waste container
+  and storage point codes, and the My Work access code.
+- **On the server**: `App\Support\IdentifierCase` normalises the same fields **before validation**,
+  so a unique rule compares what will be stored. A form is not the only way a value arrives.
+- **Never**: a person's name, an email address, a password, an address, free text, a machine key
+  (`used_oil`) or a value whose case carries meaning (the regulatory waste code `B105d`). Two `code`
+  fields in `WasteMasterController` are treated differently for exactly this reason.
+
 ## Notification Center
 
 **Where:** the bell in the top bar, on every authenticated page
@@ -703,6 +719,16 @@ somebody sat on the dashboard said nothing until they clicked elsewhere. Now:
   without reloading the page underneath. The older `PUT` routes, which answer a redirect, remain
   for a click that also navigates. **A read notification stays in the history**; nothing is deleted
   by being read.
+
+**v2.130.0 — the badge counts unread notifications and nothing else** (ADR 070). It was
+`unreadCount + ppeAlertCount`; a PPE alert is a live computed count that cannot be read, so the bell
+showed a number that never went down. The PPE row stays inside the menu as a link. Unread rows carry
+a full `brand-50` tint and a left rule (the previous `/40` was indistinguishable from white on a
+phone), and read state is **reconciled** from the `unread_ids` the live endpoint returns — so a
+notification opened on one device greys out on another rather than only dropping the count.
+
+Marking read posts through `lib/csrf.js`, **not** the `csrf-token` meta tag: see `CONVENTIONS.md`
+for the 419 that made the badge appear stuck for every freshly signed-in user.
 
 **Reusable, deliberately.** Nothing above is PTW-specific: a module gets all of it by calling
 `notify()`, and a detail page follows its own record with one `useWatchedRecord()` call. See

@@ -89,9 +89,25 @@ class AppShellAndBootSplashTest extends TestCase
         $response->assertSee('#01c1ed', false);
     }
 
-    public function test_the_splash_stays_off_the_public_pages_that_already_have_content(): void
+    /**
+     * v2.130.0 -- AND ON THE PUBLIC PAGES TOO, which is where a phone
+     * actually arrives.
+     *
+     * This test asserted the opposite until the reasoning behind it was
+     * MEASURED: `/` was said to "arrive with content a visitor can read at
+     * once". It does not. Inertia SSR is off for every page in this
+     * product, so `/` paints a blank white screen until its bundle runs --
+     * loaded at 390x844 with the bundle blocked, `document.body.innerText`
+     * was empty.
+     *
+     * Somebody typing the domain on a phone lands on `/`, not on
+     * `/dashboard`, so the splash built in v2.128.0 was never on the path
+     * the owner was reporting about. That is why they said nothing had
+     * changed: it had changed somewhere nobody starts.
+     */
+    public function test_the_splash_covers_the_public_entry_point_as_well(): void
     {
-        $this->get('/')->assertOk()->assertDontSee('id="ioms-boot"', false);
+        $this->get('/')->assertOk()->assertSee('id="ioms-boot"', false);
     }
 
     /**
@@ -198,6 +214,17 @@ class AppShellAndBootSplashTest extends TestCase
     |--------------------------------------------------------------------------
     */
 
+    /**
+     * v2.128.0's rule, still standing after v2.130.0's typographic pass --
+     * and the pass is what makes it worth keeping.
+     *
+     * The type band ("HOT WORK") was given a condensed 800 face with real
+     * authority, which made it tempting to let it become the biggest thing
+     * on the sheet. It is not: the ISSUER is the document's primary
+     * identity, and the band takes its authority from letterforms, weight
+     * and tracking instead of from size. Both instructions hold rather than
+     * one being traded for the other.
+     */
     public function test_the_company_name_outranks_the_document_title_on_a_permit(): void
     {
         $blade = (string) file_get_contents(resource_path('views/pdf/permit-to-work.blade.php'));

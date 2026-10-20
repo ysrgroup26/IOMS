@@ -11,6 +11,7 @@ use Illuminate\Http\Request;
 use Illuminate\Validation\Rule;
 use Inertia\Inertia;
 use Inertia\Response;
+use App\Support\IdentifierCase;
 
 /** Milestone 4, Acceleration Part 1B. Warehouse + Storage Location master, one setup page (mirrors Hse/Master.jsx's multi-section pattern). */
 class WarehouseController extends Controller
@@ -35,6 +36,10 @@ class WarehouseController extends Controller
         abort_unless($request->user()->canManageWarehouse(), 403);
         $tenantCompanyIds = Company::query()->pluck('id');
 
+        // v2.130.0 -- a warehouse code is an identifier. Merged BEFORE validation so the unique
+        // rules below compare the value that will be stored.
+        $request->merge(IdentifierCase::in($request->only(['code']), ['code']));
+
         $data = $request->validate([
             'company_id' => ['required', Rule::in($tenantCompanyIds)],
             'code' => ['required', 'string', 'max:20', 'unique:warehouses,code'],
@@ -54,6 +59,11 @@ class WarehouseController extends Controller
         abort_unless($request->user()->canManageWarehouse(), 403);
         $this->assertInCurrentTenant($warehouse);
         $tenantCompanyIds = Company::query()->pluck('id');
+
+        // v2.130.0 -- a warehouse code is an identifier. Merged BEFORE
+        // validation so the unique rule compares the value that will be
+        // stored. @see \App\Support\IdentifierCase
+        $request->merge(IdentifierCase::in($request->only(['code']), ['code']));
 
         $data = $request->validate([
             'company_id' => ['required', Rule::in($tenantCompanyIds)],

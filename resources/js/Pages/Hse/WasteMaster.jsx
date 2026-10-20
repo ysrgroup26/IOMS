@@ -252,7 +252,7 @@ function StorageLocationsSection({ storageLocations, companies, can }) {
                         )}
                         <div className="grid grid-cols-2 gap-4">
                             <div className="space-y-1.5"><Label>Name</Label><Input value={data.name} onChange={(e) => setData('name', e.target.value)} placeholder="e.g. TPS Area A" />{errors.name && <p className="text-xs text-red-600">{errors.name}</p>}</div>
-                            <div className="space-y-1.5"><Label>Code</Label><Input value={data.code} onChange={(e) => setData('code', e.target.value)} placeholder="e.g. TPS-A" />{errors.code && <p className="text-xs text-red-600">{errors.code}</p>}</div>
+                            <div className="space-y-1.5"><Label>Code</Label><Input value={data.code} onChange={(e) => setData('code', e.target.value)} placeholder="e.g. TPS-A" uppercase />{errors.code && <p className="text-xs text-red-600">{errors.code}</p>}</div>
                         </div>
                         <div className="space-y-1.5"><Label>Physical Location (optional)</Label><Input value={data.location} onChange={(e) => setData('location', e.target.value)} /></div>
                         <div className="grid grid-cols-3 gap-4">

@@ -87,6 +87,15 @@ class NotificationStreamController extends Controller
     /** A tab shows a handful of records at most; more than this is probing. */
     private const MAX_WATCHED = 5;
 
+    /**
+     * How many unread ids travel with each answer.
+     *
+     * The bell holds thirty rows, so reconciling more than that would be
+     * reporting state about rows nothing is showing. A person with more
+     * unread than this has a count, which is the number that matters.
+     */
+    private const MAX_TRACKED_IDS = 50;
+
     public function __construct(private readonly WorkCenterService $workCenter) {}
 
     /**
@@ -155,6 +164,31 @@ class NotificationStreamController extends Controller
          */
         $latest = $query->clone()->orderByDesc('id')->first(['id', 'title', 'body', 'url', 'notifiable_type', 'notifiable_id']);
 
+        /*
+         * v2.130.0 -- WHICH OF THE ROWS ON SCREEN ARE STILL UNREAD.
+         *
+         * The count alone cannot keep a list honest. A person who opens a
+         * notification on their phone leaves a tab on the desk showing the
+         * same row in its unread treatment: the badge drops (it is the
+         * server's number), the ROW does not, because a row only ever
+         * arrived as "new" and nothing ever told this tab it had been read
+         * somewhere else.
+         *
+         * So the ids that are still unread travel with every answer,
+         * bounded to the window the bell actually shows. A client marks
+         * everything outside that set as read. It is a reconciliation
+         * rather than an event, which is what makes it idempotent: a
+         * missed poll, a replayed one and a reconnect all converge on the
+         * same answer, and a row can never flip back to unread because
+         * the server said it was read.
+         */
+        $unreadIds = $query->clone()
+            ->unread()
+            ->orderByDesc('id')
+            ->limit(self::MAX_TRACKED_IDS)
+            ->pluck('id')
+            ->all();
+
         return response()->json([
             // Where to ask from next time. The newest row that EXISTS, not
             // the newest row returned: a person with 200 missed
@@ -186,6 +220,7 @@ class NotificationStreamController extends Controller
                     ? ['type' => class_basename($n->notifiable_type), 'id' => (int) $n->notifiable_id]
                     : null,
             ])->values(),
+            'unread_ids' => $unreadIds,
             'markers' => $this->markersFor($validated['watch'] ?? null),
             'latest' => $latest === null ? null : [
                 'id' => $latest->id,

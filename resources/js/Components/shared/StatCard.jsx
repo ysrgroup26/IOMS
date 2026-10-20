@@ -141,7 +141,11 @@ export default function StatCard({ icon: Icon, value, label, hint, href, accent,
                     <Icon className={isSmall ? 'h-[15px] w-[15px]' : 'h-4 w-4'} />
                 </div>
                 <div className="min-w-0 flex-1">
-                    <p className={cn('truncate font-semibold leading-tight text-navy-900 dark:text-slate-50', isSmall ? 'text-base' : 'text-lg')}>{value}</p>
+                    {/* v2.130.0 -- `type-metric`: Archivo at 800 with tabular
+                        figures. A KPI tile exists to be SCANNED, and a
+                        column of semibold Inter numerals with proportional
+                        figures is neither scannable nor aligned. */}
+                    <p className={cn('type-metric truncate leading-tight text-navy-900 dark:text-slate-50', isSmall ? 'text-[17px]' : 'text-[21px]')}>{value}</p>
                     {/* v2.68.0: was `truncate`. A stat's VALUE may be
                         clipped safely -- it is a number and the card links
                         to the full record -- but the label is the only

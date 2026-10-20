@@ -90,6 +90,72 @@
 }
 
 @layer components {
+    /* =====================================================================
+       v2.130.0 -- THE TYPOGRAPHIC ROLES.
+       =====================================================================
+
+       Three families, each with a job, named here rather than spelled out
+       at four hundred call sites:
+
+         Inter    -- the INTERFACE voice. Tables, forms, navigation, labels,
+                     body copy. It is the right tool for dense operational
+                     text and nothing here changes that.
+         Archivo  -- the DISPLAY voice. A grotesque with squarer bowls and
+                     tighter apertures than Inter, so a heading set in it
+                     cannot be mistaken for the UI around it. Carried at
+                     800 and at 75% width, which is where it stops being a
+                     bigger paragraph and starts being signage.
+         IBM Plex Mono -- IDENTIFIERS. A permit number, a badge number, a
+                     code: monospaced so a 0 cannot be read as an O, and
+                     because a reading taken off a system should look like
+                     one.
+
+       WHY WEIGHTS JUMP RATHER THAN DRIFT. Page titles and metrics were
+       `font-semibold` -- 600, which on Inter is neither regular nor bold
+       and reads as a heading somebody forgot to finish. The roles below use
+       800 where authority is the point and 400/500 everywhere else, so the
+       contrast is a decision rather than an accident. Nothing is bold
+       merely to be louder than its neighbour.
+       ===================================================================== */
+
+    /* A page's own title: the largest thing on screen that is not data. */
+    .type-page-title {
+        @apply font-display font-extrabold tracking-[-0.02em];
+    }
+
+    /* A DOCUMENT's type -- "HOT WORK", "PERMIT TO WORK". Condensed, because
+       a controlled document's type band is signage on paper: it has to hold
+       the eye at the top of a sheet and survive a monochrome print. The
+       width axis does the work that extra size would otherwise have to. */
+    .type-document-title {
+        font-family: Archivo, Inter, ui-sans-serif, system-ui, sans-serif;
+        font-stretch: 75%;
+        font-weight: 800;
+        letter-spacing: 0.01em;
+    }
+
+    /* The eyebrow above it: the same family, wide and quiet, so the two
+       read as one block rather than as two unrelated lines. */
+    .type-document-eyebrow {
+        font-family: Archivo, Inter, ui-sans-serif, system-ui, sans-serif;
+        font-weight: 600;
+        letter-spacing: 0.18em;
+        text-transform: uppercase;
+    }
+
+    /* A number somebody scans rather than reads. Tabular figures so a
+       column of them lines up, which is the whole point of a KPI tile. */
+    .type-metric {
+        @apply font-display font-extrabold tracking-[-0.01em];
+        font-variant-numeric: tabular-nums;
+    }
+
+    /* An identifier: a permit number, a code, a badge number. */
+    .type-code {
+        @apply font-mono;
+        letter-spacing: 0.04em;
+    }
+
     .card-base {
         @apply bg-card border border-border rounded-xl shadow-card;
     }

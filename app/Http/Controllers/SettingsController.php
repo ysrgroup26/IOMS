@@ -31,6 +31,7 @@ use Inertia\Inertia;
 use Inertia\Response;
 use Spatie\Permission\Models\Role;
 use App\Models\Invoice;
+use App\Support\IdentifierCase;
 
 /**
  * Settings module. Two permission tiers, enforced both by route middleware
@@ -862,6 +863,11 @@ class SettingsController extends Controller
         // organizations CAN both have an operating unit named "GAJ".
         $tenantId = $request->user()->tenant_id;
 
+        // v2.130.0 -- an operating unit code is an identifier. Merged BEFORE
+        // validation, so the unique rule compares the value that will
+        // actually be stored. @see \App\Support\IdentifierCase
+        $request->merge(IdentifierCase::in($request->only(['code']), ['code']));
+
         $data = $request->validate([
             'name' => ['required', 'string', 'max:255', Rule::unique('companies', 'name')->where('tenant_id', $tenantId)],
             'code' => ['nullable', 'string', 'max:20', Rule::unique('companies', 'code')->where('tenant_id', $tenantId)],
@@ -898,6 +904,11 @@ class SettingsController extends Controller
 
     public function updateCompanyEntity(Request $request, Company $company): RedirectResponse
     {
+        // v2.130.0 -- an operating unit code is an identifier. Merged BEFORE
+        // validation, so the unique rule compares the value that will
+        // actually be stored. @see \App\Support\IdentifierCase
+        $request->merge(IdentifierCase::in($request->only(['code']), ['code']));
+
         $data = $request->validate([
             'name' => ['required', 'string', 'max:255', Rule::unique('companies', 'name')->where('tenant_id', $company->tenant_id)->ignore($company->id)],
             'code' => ['nullable', 'string', 'max:20', Rule::unique('companies', 'code')->where('tenant_id', $company->tenant_id)->ignore($company->id)],
@@ -1042,6 +1053,11 @@ class SettingsController extends Controller
          */
         $request->merge(['name' => NameFormatter::department($request->input('name'))]);
 
+        // v2.130.0 -- a department code is an identifier. Merged BEFORE
+        // validation, so the unique rule compares the value that will
+        // actually be stored. @see \App\Support\IdentifierCase
+        $request->merge(IdentifierCase::in($request->only(['code']), ['code']));
+
         $data = $request->validate([
             'company_id' => ['required', 'exists:companies,id'],
             'name' => ['required', 'string', 'max:255', Rule::unique('departments', 'name')->where('company_id', $request->input('company_id'))],
@@ -1065,6 +1081,11 @@ class SettingsController extends Controller
         $this->assertCompanyInTenant($department->company_id);
 
         $companyId = $request->input('company_id', $department->company_id);
+
+        // v2.130.0 -- a department code is an identifier. Merged BEFORE
+        // validation, so the unique rule compares the value that will
+        // actually be stored. @see \App\Support\IdentifierCase
+        $request->merge(IdentifierCase::in($request->only(['code']), ['code']));
 
         $data = $request->validate([
             'company_id' => ['required', 'exists:companies,id'],

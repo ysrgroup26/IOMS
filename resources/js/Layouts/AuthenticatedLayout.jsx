@@ -33,7 +33,7 @@ import {
 } from '@/Components/ui/dropdown-menu';
 import { LiveNotificationsProvider, useLiveNotifications } from '@/lib/useLiveNotifications';
 import NotificationToasts from '@/Components/shared/NotificationToasts';
-import { isSoundEnabled, setSoundEnabled } from '@/lib/notificationSound';
+import { isSoundEnabled, setSoundEnabled, primeNotificationSound, previewNotificationSound } from '@/lib/notificationSound';
 import { pushState, resolvePushState, enablePush, disablePush, registerPushSubscription } from '@/lib/webPush';
 
 const EXPANDED_MENUS_KEY = 'ioms-sidebar-expanded';
@@ -1417,7 +1417,24 @@ function NotificationsMenu() {
         pushEnabled,
     } = useLiveNotifications();
 
-    const badgeCount = unreadCount + ppeAlertCount;
+    /*
+     * v2.130.0 -- THE BADGE IS THE UNREAD COUNT, AND NOTHING ELSE.
+     *
+     * THE DEFECT, exactly as reported: "the badge still shows 2 after the
+     * notifications have been opened." It was `unreadCount + ppeAlertCount`,
+     * and `ppeAlertCount` is not a notification at all -- it is a LIVE
+     * COMPUTED COUNT of PPE items expiring or expired, which cannot be read
+     * and does not go away when anybody opens anything. A tenant with two
+     * expiring items had a bell permanently showing 2, so reading every
+     * notification changed nothing and the badge stopped meaning anything.
+     *
+     * A badge on a bell answers one question -- "how many things have I not
+     * seen?" -- and the only honest answer is the unread notification count.
+     * The PPE alert keeps its row INSIDE the menu, where it is a link to the
+     * list somebody would act on, and where its own number is next to the
+     * words that explain it.
+     */
+    const badgeCount = unreadCount;
 
     /* ------------------------------------------------------------------
      * Sound, and device notifications: two controls, both per DEVICE.
@@ -1464,9 +1481,26 @@ function NotificationsMenu() {
 
     function toggleSound(event) {
         event.preventDefault();
+
         const next = !soundOn;
         setSoundOn(next);
         setSoundEnabled(next);
+
+        /*
+         * v2.130.0 -- THE CLICK THAT TURNS SOUND ON IS THE GESTURE THAT
+         * MAKES SOUND POSSIBLE.
+         *
+         * A browser refuses audio until an AudioContext is created inside a
+         * real user gesture, and a notification arrives on a timer with no
+         * gesture anywhere near it. Priming here is what makes the NEXT
+         * notification audible instead of silent -- and the preview is the
+         * confirmation somebody pressing this is entitled to: they hear
+         * what they just turned on.
+         */
+        if (next) {
+            primeNotificationSound();
+            previewNotificationSound();
+        }
     }
 
     async function togglePush(event) {
@@ -1537,7 +1571,7 @@ function NotificationsMenu() {
         <DropdownMenu>
             <DropdownMenuTrigger
                 className="relative shrink-0 rounded-md p-2 text-navy-300 outline-none transition-colors hover:bg-white/[0.08] hover:text-white dark:hover:bg-slate-800"
-                title={badgeCount > 0 ? `${badgeCount} notification(s)` : 'No notifications'}
+                title={badgeCount > 0 ? `${badgeCount} unread notification(s)` : 'No unread notifications'}
                 aria-label={badgeCount > 0 ? `Notifications, ${badgeCount} unread` : 'Notifications'}
             >
                 <Bell className="h-[18px] w-[18px]" />
@@ -1583,11 +1617,20 @@ function NotificationsMenu() {
                                read is deliberately quiet. Same row, two
                                registers -- which is what makes a glance at
                                the list tell you whether anything is new. */
+                            /* v2.130.0 -- UNREAD IS BLUE, READ IS ORDINARY.
+                               The tint was `brand-50/40`, which at 40%
+                               opacity over a white menu is very nearly
+                               white: on a phone in daylight the two states
+                               were indistinguishable, which is half of why
+                               the badge was the only signal anybody had.
+                               Full brand-50 plus the rule down the left is
+                               a state somebody can see at a glance; a read
+                               row drops both and is simply a row. */
                             className={cn(
-                                'flex items-start gap-2 rounded-md border-l-2 py-2',
+                                'flex items-start gap-2 rounded-md border-l-2 py-2 transition-colors',
                                 unread
-                                    ? 'border-l-brand-500 bg-brand-50/40 dark:bg-brand-950/20'
-                                    : 'border-l-transparent',
+                                    ? 'border-l-brand-500 bg-brand-50 dark:bg-brand-950/40'
+                                    : 'border-l-transparent bg-transparent',
                                 openable ? 'cursor-pointer' : 'cursor-default'
                             )}
                         >

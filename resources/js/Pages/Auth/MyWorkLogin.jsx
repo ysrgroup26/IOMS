@@ -91,6 +91,7 @@ export default function MyWorkLogin({ identifier = '' }) {
                             type={showCode ? 'text' : 'password'}
                             value={data.access_code}
                             onChange={(e) => setData('access_code', e.target.value)}
+                            uppercase
                             autoComplete="one-time-code"
                             autoCapitalize="characters"
                             placeholder="XXXX-XXXX"

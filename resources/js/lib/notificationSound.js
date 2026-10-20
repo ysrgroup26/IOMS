@@ -149,6 +149,60 @@ export function playNotificationSound() {
     }
 }
 
+/**
+ * v2.130.0 -- ARM THE AUDIO FROM THE GESTURE THAT ASKED FOR IT.
+ *
+ * Browsers do not refuse sound because of a flag somebody set; they refuse
+ * it until an AudioContext has been created or resumed INSIDE a real user
+ * gesture. So the sound toggle is not only a preference, it is the
+ * opportunity: called from the click handler, this creates the context, so
+ * every later notification -- which arrives on a timer, with no gesture
+ * anywhere near it -- can play.
+ *
+ * Without this the first notification after turning sound on was silent,
+ * and the person reasonably concluded the feature did not work.
+ *
+ * Returns whether the context is now usable, so the control can say
+ * something true rather than something hopeful.
+ */
+export function primeNotificationSound() {
+    if (typeof window === 'undefined') return false;
+
+    gestured = true;
+
+    try {
+        const AudioContextClass = window.AudioContext || window.webkitAudioContext;
+        if (!AudioContextClass) return false;
+
+        context = context || new AudioContextClass();
+
+        if (context.state === 'suspended') context.resume();
+
+        return true;
+    } catch (error) {
+        return false;
+    }
+}
+
+/**
+ * Play the tone now, ignoring the rate limit.
+ *
+ * Only for the confirmation a person asked for by turning sound on -- "this
+ * is what it will sound like". The rate limit exists to stop a batch of
+ * arrivals chiming six times; it has no business suppressing a sound
+ * somebody pressed a button to hear.
+ */
+export function previewNotificationSound() {
+    lastPlayedAt = 0;
+
+    return playNotificationSound();
+}
+
+/** Whether a sound would actually be heard if a notification arrived now. */
+export function isSoundArmed() {
+    return gestured && isSoundEnabled();
+}
+
 /** Test seam: lets a check assert the gate rather than wait for a real click. */
 export function __setGesturedForTesting(value) {
     gestured = value;

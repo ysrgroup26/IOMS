@@ -169,7 +169,7 @@ function ShiftSection({ shifts, companies, can }) {
                             </div>
                             <div className="space-y-1.5">
                                 <Label>Code</Label>
-                                <Input value={data.code} onChange={(e) => setData('code', e.target.value)} placeholder="e.g. M" />
+                                <Input value={data.code} onChange={(e) => setData('code', e.target.value)} placeholder="e.g. M" uppercase />
                                 {errors.code && <p className="text-xs text-red-600">{errors.code}</p>}
                             </div>
                         </div>

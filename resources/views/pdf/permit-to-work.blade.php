@@ -3,6 +3,8 @@
 <head>
     <meta charset="utf-8">
     <title>{{ $permit->ptw_number }}</title>
+    @include('pdf.partials.fonts')
+
     <style>
         {{--
             v2.20.0 (PTW Experience & Visual Polish pass, Part 6/7). Kept
@@ -39,11 +41,34 @@
            line instead of stacking, per this pass's own "side-by-side
            compact rows, not a tall stack" direction. */
         .doc-title-block { border-bottom: 2px solid #0f172a; padding-bottom: 6px; margin: 8px 0 10px 0; }
-        .doc-title-eyebrow { font-size: 7.5px; text-transform: uppercase; letter-spacing: 1.5px; color: #64748b; margin: 0 0 2px 0; }
+        /*
+         * v2.130.0 -- THE TYPE BAND IS SIGNAGE.
+         *
+         * "HOT WORK" was 16px Helvetica bold: correct, ordinary, and
+         * smaller than the company name above it. It is now the condensed
+         * display instance at 800 and 26px -- narrower per letter, so it
+         * can be half as large again without taking the line, which is what
+         * makes a controlled document read as an official form rather than
+         * as a page with a heading on it. The eyebrow shares the family so
+         * the two lines read as one block.
+         */
+        .doc-title-eyebrow { font-family: "IOMS Display", sans-serif; font-weight: 600; font-size: 7.5px; text-transform: uppercase; letter-spacing: 1.8px; color: #64748b; margin: 0 0 2px 0; }
         table.doc-title-row { width: 100%; border-collapse: collapse; }
         table.doc-title-row td { padding: 0; vertical-align: bottom; }
-        .doc-title-main { font-size: 16px; font-weight: bold; text-transform: uppercase; color: #0f172a; margin: 0; }
-        .doc-title-number { font-size: 9.5px; color: #64748b; margin: 0; text-align: right; }
+        /*
+         * TWENTY-TWO, NOT TWENTY-SIX, and the difference is the owner's
+         * earlier instruction holding: the ISSUER is the document's primary
+         * identity (v2.128.0) and must not be out-sized by the type band.
+         * Authority here comes from the condensed letterforms, the 800
+         * weight and the tracking -- not from being the biggest thing on the
+         * sheet. A condensed 22px reads with far more presence than the
+         * 16px Helvetica bold it replaces while staying under the 24px name
+         * above it, so both instructions are satisfied rather than traded.
+         */
+        .doc-title-main { font-family: "IOMS Title", sans-serif; font-weight: 800; font-size: 22px; line-height: 1.06; text-transform: uppercase; letter-spacing: 0.3px; color: #0f172a; margin: 0; }
+        /* An identifier, set as one: the same monospaced voice the screen
+           uses for a permit number, so the two are recognisably one thing. */
+        .doc-title-number { font-family: "DejaVu Sans Mono", monospace; font-size: 9px; letter-spacing: 0.3px; color: #475569; margin: 0; text-align: right; }
 
         .meta-table { width: 100%; border-collapse: collapse; margin-bottom: 2px; }
         .meta-table td { padding: 2px 0; font-size: 9.5px; vertical-align: top; }
@@ -52,7 +77,7 @@
 
         /* Numbered section header -- unchanged concept, tightened band. */
         .section { border: 1px solid #e2e8f0; border-radius: 3px; margin-top: 6px; }
-        .section-head { background-color: #f8fafc; border-bottom: 1px solid #e2e8f0; padding: 3px 8px; font-weight: bold; font-size: 9px; text-transform: uppercase; letter-spacing: 0.5px; color: #1e293b; }
+        .section-head { background-color: #f8fafc; border-bottom: 1px solid #e2e8f0; padding: 3px 8px; font-family: "IOMS Display", sans-serif; font-weight: 700; font-size: 9px; text-transform: uppercase; letter-spacing: 0.6px; color: #1e293b; }
         .section-head .idx { color: #94a3b8; margin-right: 4px; }
         .section-body { padding: 6px 8px; }
         .field-label { font-size: 7.5px; text-transform: uppercase; letter-spacing: 0.5px; color: #94a3b8; margin: 0 0 1px 0; }
@@ -120,7 +145,7 @@
          * small print. Dompdf honours the generic `sans-serif` only (ADR
          * 065's measured constraint), which this inherits from `body`.
          */
-        .doc-company-name { font-size: 19px; font-weight: bold; color: #0f2747; letter-spacing: 0.1px; line-height: 1.15; }
+        .doc-company-name { font-family: "IOMS Display", sans-serif; font-weight: 800; font-size: 24px; color: #0f2747; letter-spacing: -0.1px; line-height: 1.12; }
         .doc-company-legal { font-size: 9.5px; color: #475569; margin-top: 2px; }
         .doc-company-meta { font-size: 8.5px; color: #475569; line-height: 1.5; margin-top: 3px; }
         .doc-ident-cell { width: 34%; text-align: right; }
@@ -134,7 +159,7 @@
            hue the printer will flatten to grey. */
         table.status-bar { width: 100%; border-collapse: collapse; margin: 0 0 8px 0; }
         table.status-bar td { padding: 5px 10px; font-size: 9px; vertical-align: middle; }
-        .status-bar .sb-state { font-size: 12px; font-weight: bold; text-transform: uppercase; letter-spacing: 1px; }
+        .status-bar .sb-state { font-family: "IOMS Display", sans-serif; font-size: 12px; font-weight: 800; text-transform: uppercase; letter-spacing: 1px; }
         .status-bar .sb-meta { font-size: 8.5px; text-align: right; }
 
         /* Bordered authorisation boxes -- an auditable signing area rather

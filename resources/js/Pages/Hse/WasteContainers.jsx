@@ -155,7 +155,7 @@ export default function WasteContainers({ containers, summary, storageLocations,
                         )}
                         <div className="grid grid-cols-2 gap-4">
                             <div className="space-y-1.5"><Label>Container Type</Label><Input value={data.container_type} onChange={(e) => setData('container_type', e.target.value)} placeholder="e.g. Drum Limbah B3" />{errors.container_type && <p className="text-xs text-red-600">{errors.container_type}</p>}</div>
-                            <div className="space-y-1.5"><Label>Code (optional)</Label><Input value={data.code} onChange={(e) => setData('code', e.target.value)} placeholder="e.g. DRM-001" /></div>
+                            <div className="space-y-1.5"><Label>Code (optional)</Label><Input value={data.code} onChange={(e) => setData('code', e.target.value)} placeholder="e.g. DRM-001" uppercase /></div>
                         </div>
                         <div className="grid grid-cols-3 gap-4">
                             <div className="space-y-1.5"><Label>Total</Label><Input type="number" min="0" value={data.total_quantity} onChange={(e) => setData('total_quantity', e.target.value)} />{errors.total_quantity && <p className="text-xs text-red-600">{errors.total_quantity}</p>}</div>

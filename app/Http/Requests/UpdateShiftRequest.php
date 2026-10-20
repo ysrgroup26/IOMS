@@ -5,12 +5,26 @@ namespace App\Http\Requests;
 use App\Models\Company;
 use Illuminate\Foundation\Http\FormRequest;
 use Illuminate\Validation\Rule;
+use App\Support\IdentifierCase;
 
 class UpdateShiftRequest extends FormRequest
 {
     public function authorize(): bool
     {
         return $this->user()->isAdmin();
+    }
+
+    /**
+     * v2.130.0 -- an identifier is stored in the case it is read in.
+     *
+     * Before validation, so the UNIQUE rule below compares the value that
+     * will actually be stored: normalising afterwards would let `gaj` pass
+     * a uniqueness check against a stored `GAJ` and then collide on write.
+     * @see \App\Support\IdentifierCase
+     */
+    protected function prepareForValidation(): void
+    {
+        $this->merge(IdentifierCase::in($this->only(['code']), ['code']));
     }
 
     public function rules(): array

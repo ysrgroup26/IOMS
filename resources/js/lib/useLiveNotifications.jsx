@@ -2,6 +2,7 @@ import { createContext, useCallback, useContext, useEffect, useMemo, useState } 
 import { router, usePage } from '@inertiajs/react';
 import { startRealtime, subscribeRealtime, applyLocalUnreadCount, pollNow, watchRecord, propsWatching } from '@/lib/realtime';
 import { playNotificationSound } from '@/lib/notificationSound';
+import { csrfHeaders } from '@/lib/csrf';
 
 /**
  * v2.129.0 -- THE ONE PLACE A PAGE ASKS "HAS ANYTHING HAPPENED?"
@@ -87,9 +88,43 @@ export function LiveNotificationsProvider({ children }) {
             idleAfter: realtime?.idle_after ?? 120,
         });
 
-        return subscribeRealtime(({ items: arriving, unreadCount: unread, ppeAlertCount: ppe, changed, first }) => {
+        return subscribeRealtime(({ items: arriving, unreadCount: unread, ppeAlertCount: ppe, unreadIds, changed, first }) => {
             if (typeof unread === 'number') setUnreadCount(unread);
             if (typeof ppe === 'number') setPpeAlertCount(ppe);
+
+            /*
+             * v2.130.0 -- READ STATE IS RECONCILED FROM THE SERVER, not
+             * inferred from what this tab happens to have clicked.
+             *
+             * The server sends the ids it still considers unread; anything
+             * on screen and outside that set is marked read here. That is
+             * what carries a notification opened on a phone across to a tab
+             * left open on a desk -- the badge was already the server's
+             * number, but the ROW kept its unread treatment until a
+             * navigation rebuilt the list, which is the defect reported.
+             *
+             * One-directional on purpose: this marks rows READ, never back
+             * to unread. A row the window does not cover (beyond
+             * MAX_TRACKED_IDS) therefore keeps whatever it had rather than
+             * being wrongly greyed out.
+             */
+            if (Array.isArray(unreadIds)) {
+                const stillUnread = new Set(unreadIds);
+
+                setItems((current) => {
+                    let changedAny = false;
+
+                    const next = current.map((item) => {
+                        if (item.read_at || stillUnread.has(item.id)) return item;
+
+                        changedAny = true;
+
+                        return { ...item, read_at: new Date().toISOString() };
+                    });
+
+                    return changedAny ? next : current;
+                });
+            }
 
             /*
              * A WATCHED RECORD MOVED, with or without a notification for
@@ -166,11 +201,9 @@ export function LiveNotificationsProvider({ children }) {
             const response = await fetch(`/notifications/${notification.id}/read`, {
                 method: 'POST',
                 credentials: 'same-origin',
-                headers: {
-                    Accept: 'application/json',
-                    'X-CSRF-TOKEN': document.querySelector('meta[name="csrf-token"]')?.content ?? '',
-                    'X-Requested-With': 'XMLHttpRequest',
-                },
+                // The CURRENT token, not the document's -- see lib/csrf.js
+                // for the 419 that made the badge look stuck.
+                headers: csrfHeaders(),
             });
 
             if (response.ok) {
@@ -194,11 +227,7 @@ export function LiveNotificationsProvider({ children }) {
             await fetch('/notifications/read-all', {
                 method: 'POST',
                 credentials: 'same-origin',
-                headers: {
-                    Accept: 'application/json',
-                    'X-CSRF-TOKEN': document.querySelector('meta[name="csrf-token"]')?.content ?? '',
-                    'X-Requested-With': 'XMLHttpRequest',
-                },
+                headers: csrfHeaders(),
             });
             applyLocalUnreadCount(0);
         } catch (error) {

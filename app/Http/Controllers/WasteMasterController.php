@@ -12,6 +12,7 @@ use Illuminate\Http\Request;
 use Illuminate\Validation\Rule;
 use Inertia\Inertia;
 use Inertia\Response;
+use App\Support\IdentifierCase;
 
 /**
  * v1.11.4 (HSE Waste Management, Part 12/15). Waste Types + Waste
@@ -102,6 +103,11 @@ class WasteMasterController extends Controller
     {
         abort_unless($request->user()->canManageHse(), 403);
         $companyIds = Company::query()->pluck('id');
+
+        // v2.130.0 -- a storage point code is an identifier. Merged BEFORE validation so the
+        // stored value matches what the form shows and what an
+        // import would match. @see \App\Support\IdentifierCase
+        $request->merge(IdentifierCase::in($request->only(['code']), ['code']));
 
         $data = $request->validate([
             'company_id' => ['required', Rule::in($companyIds)],

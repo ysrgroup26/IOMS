@@ -1,3 +1,5 @@
+import { csrfHeaders } from '@/lib/csrf';
+
 /**
  * v2.129.0 -- ASKING TO BE ALLOWED TO INTERRUPT SOMEBODY.
  *
@@ -160,7 +162,7 @@ export async function resolvePushState() {
  * service worker cannot post that itself (it has no CSRF token), so the app
  * re-asserts the current subscription whenever it is open.
  */
-export async function registerPushSubscription(csrfToken) {
+export async function registerPushSubscription(csrfToken = null) { // eslint-disable-line no-unused-vars
     const key = publicKey();
     const { status } = pushState();
 
@@ -183,12 +185,7 @@ export async function registerPushSubscription(csrfToken) {
         const response = await fetch('/notifications/push-subscription', {
             method: 'POST',
             credentials: 'same-origin',
-            headers: {
-                'Content-Type': 'application/json',
-                Accept: 'application/json',
-                'X-CSRF-TOKEN': csrfToken,
-                'X-Requested-With': 'XMLHttpRequest',
-            },
+            headers: { 'Content-Type': 'application/json', ...csrfHeaders() },
             body: JSON.stringify(subscription.toJSON()),
         });
 
@@ -205,7 +202,7 @@ export async function registerPushSubscription(csrfToken) {
  *
  * @returns {Promise<'granted'|'denied'|'default'|'unavailable'>}
  */
-export async function enablePush(csrfToken) {
+export async function enablePush(csrfToken = null) { // eslint-disable-line no-unused-vars
     const { status } = pushState();
 
     if (status !== 'permitted' && status !== 'available') return 'unavailable';
@@ -229,7 +226,7 @@ export async function enablePush(csrfToken) {
 }
 
 /** Stop this browser being woken, and forget its address on the server. */
-export async function disablePush(csrfToken) {
+export async function disablePush(csrfToken = null) { // eslint-disable-line no-unused-vars
     try {
         const registration = await navigator.serviceWorker.ready;
         const subscription = await registration.pushManager.getSubscription();
@@ -243,12 +240,7 @@ export async function disablePush(csrfToken) {
         await fetch('/notifications/push-subscription', {
             method: 'DELETE',
             credentials: 'same-origin',
-            headers: {
-                'Content-Type': 'application/json',
-                Accept: 'application/json',
-                'X-CSRF-TOKEN': csrfToken,
-                'X-Requested-With': 'XMLHttpRequest',
-            },
+            headers: { 'Content-Type': 'application/json', ...csrfHeaders() },
             body: JSON.stringify({ endpoint }),
         });
 

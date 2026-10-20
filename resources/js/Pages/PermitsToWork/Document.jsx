@@ -182,7 +182,7 @@ export default function PermitToWorkDocument({ permit: p, company, documentTempl
                                     beside it is `shrink-0`, so the two
                                     cannot collide at any width.
                                 */}
-                                <p className="break-words text-lg font-bold leading-tight text-navy-900 dark:text-slate-100 sm:text-xl">{branding?.company_name || company?.name || appName}</p>
+                                <p className="type-page-title break-words text-xl leading-tight text-navy-900 dark:text-slate-100 sm:text-2xl">{branding?.company_name || company?.name || appName}</p>
                                 {/* The legal name under the trading name, the
                                     way the PDF letterhead sets it, so the two
                                     read as one document. */}
@@ -225,12 +225,24 @@ export default function PermitToWorkDocument({ permit: p, company, documentTempl
                         text-xl) to fit real A4 page-count targets. Still
                         the single largest, boldest element on the page. */}
                     <div className="mt-4 border-b-2 border-graphite-900 pb-3 dark:border-slate-200">
-                        <p className="text-[10px] font-semibold uppercase tracking-[0.2em] text-graphite-400">Permit To Work</p>
+                        {/* v2.130.0 -- THE TYPE BAND IS SIGNAGE, NOT A HEADING.
+                            "HOT WORK" was Inter bold with tight tracking --
+                            correct, ordinary, and indistinguishable from any
+                            other heading in the product. A controlled
+                            document's type is the thing a person reads from
+                            arm's length on a bulkhead, and it is now set in
+                            the condensed display voice (Archivo 800 at 75%
+                            width): narrower per letter, so it can be larger
+                            without taking the line, which is what makes it
+                            read as an official form rather than as a title.
+                            The PDF embeds the same instance, so paper and
+                            screen are the same typeface (ADR 070). */}
+                        <p className="type-document-eyebrow text-[10px] text-graphite-400">Permit To Work</p>
                         <div className="mt-0.5 flex flex-wrap items-baseline justify-between gap-x-4 gap-y-0.5">
-                            <h1 className="text-xl font-bold uppercase tracking-tight text-graphite-900 sm:text-2xl">
+                            <h1 className="type-document-title text-[19px] uppercase leading-[1.06] text-graphite-900 sm:text-[22px]">
                                 {titleCase(p.permit_type)}
                             </h1>
-                            <p className="font-mono text-xs text-graphite-500">{p.ptw_number}</p>
+                            <p className="type-code text-xs text-graphite-500">{p.ptw_number}</p>
                         </div>
                     </div>
 

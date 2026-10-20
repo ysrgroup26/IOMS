@@ -87,7 +87,7 @@ export default function WarehousesMaster({ warehouses, companies, can }) {
                             </Select>
                         </div>
                         <div className="grid grid-cols-2 gap-4">
-                            <div className="space-y-1.5"><Label>Code</Label><Input value={data.code} onChange={(e) => setData('code', e.target.value)} />{errors.code && <p className="text-xs text-red-600">{errors.code}</p>}</div>
+                            <div className="space-y-1.5"><Label>Code</Label><Input value={data.code} onChange={(e) => setData('code', e.target.value)} uppercase />{errors.code && <p className="text-xs text-red-600">{errors.code}</p>}</div>
                             <div className="space-y-1.5"><Label>Name</Label><Input value={data.name} onChange={(e) => setData('name', e.target.value)} />{errors.name && <p className="text-xs text-red-600">{errors.name}</p>}</div>
                         </div>
                         <div className="space-y-1.5"><Label>Location</Label><Input value={data.location} onChange={(e) => setData('location', e.target.value)} /></div>

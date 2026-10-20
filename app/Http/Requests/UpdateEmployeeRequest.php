@@ -8,12 +8,27 @@ use App\Models\Employee;
 use App\Models\Position;
 use Illuminate\Foundation\Http\FormRequest;
 use Illuminate\Validation\Rule;
+use App\Support\IdentifierCase;
 
 class UpdateEmployeeRequest extends FormRequest
 {
     public function authorize(): bool
     {
         return $this->user()->isAdmin();
+    }
+
+
+    /**
+     * v2.130.0 -- the badge number is stored in the case it is read in.
+     *
+     * Before validation, so the UNIQUE rules below compare the value that
+     * will actually be stored. Normalising after validation would let
+     * `gaj` pass a uniqueness check against a stored `GAJ` and then collide
+     * on write. @see \App\Support\IdentifierCase
+     */
+    protected function prepareForValidation(): void
+    {
+        $this->merge(IdentifierCase::in($this->only(['employee_id']), ['employee_id']));
     }
 
     public function rules(): array

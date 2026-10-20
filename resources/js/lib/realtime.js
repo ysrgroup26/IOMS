@@ -237,6 +237,19 @@ async function poll({ immediate = false } = {}) {
                 items: first ? [] : fresh,
                 unreadCount: state.unreadCount,
                 ppeAlertCount: state.ppeAlertCount,
+                /*
+                 * Reconciliation, not an event: the ids the SERVER still
+                 * considers unread. A subscriber marks everything outside
+                 * this set as read, which is what carries a read made on a
+                 * phone across to a tab left open on a desk. Idempotent by
+                 * construction -- a replayed poll converges on the same
+                 * answer, and nothing can flip a row back to unread.
+                 *
+                 * Null when the server did not say (an older response), so
+                 * a subscriber can tell "nothing is unread" from "I was not
+                 * told" -- an empty array means the first.
+                 */
+                unreadIds: Array.isArray(data.unread_ids) ? data.unread_ids : null,
                 changed,
                 first,
             });
@@ -314,7 +327,7 @@ export function subscribeRealtime(listener) {
     // Hand a new subscriber what is already known, so a component mounting
     // between polls is not blank until the next one.
     if (state.unreadCount !== null) {
-        listener({ items: [], unreadCount: state.unreadCount, ppeAlertCount: state.ppeAlertCount, changed: [], first: true });
+        listener({ items: [], unreadCount: state.unreadCount, ppeAlertCount: state.ppeAlertCount, unreadIds: null, changed: [], first: true });
     }
 
     return () => listeners.delete(listener);
@@ -330,7 +343,7 @@ export function applyLocalUnreadCount(count) {
     if (typeof count !== 'number') return;
 
     state.unreadCount = count;
-    emit({ items: [], unreadCount: state.unreadCount, ppeAlertCount: state.ppeAlertCount, changed: [], first: true });
+    emit({ items: [], unreadCount: state.unreadCount, ppeAlertCount: state.ppeAlertCount, unreadIds: null, changed: [], first: true });
 }
 
 /**

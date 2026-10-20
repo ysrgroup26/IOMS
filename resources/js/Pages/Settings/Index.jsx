@@ -1628,7 +1628,7 @@ function OperatingUnitsTab({ companies, organization }) {
                             )}
                             <div className="grid gap-3 sm:grid-cols-2">
                                 <div className="space-y-1.5"><Label>Name</Label><Input value={data.name} onChange={(e) => setData('name', e.target.value)} placeholder="e.g. Galangan Utama" /></div>
-                                <div className="space-y-1.5"><Label>Code</Label><Input value={data.code} onChange={(e) => setData('code', e.target.value)} placeholder="e.g. GAJ" /></div>
+                                <div className="space-y-1.5"><Label>Code</Label><Input value={data.code} onChange={(e) => setData('code', e.target.value)} placeholder="e.g. GAJ" uppercase /></div>
                             </div>
                             <div className="space-y-1.5">
                                 <Label>Legal Entity <span className="font-normal text-graphite-400">(opsional)</span></Label>
@@ -1705,7 +1705,7 @@ function EditOperatingUnitDialog({ company, onClose }) {
                     )}
                     <div className="grid gap-3 sm:grid-cols-2">
                         <div className="space-y-1.5"><Label>Name</Label><Input value={data.name} onChange={(e) => setData('name', e.target.value)} /></div>
-                        <div className="space-y-1.5"><Label>Code</Label><Input value={data.code} onChange={(e) => setData('code', e.target.value)} /></div>
+                        <div className="space-y-1.5"><Label>Code</Label><Input value={data.code} onChange={(e) => setData('code', e.target.value)} uppercase /></div>
                     </div>
                     <div className="space-y-1.5">
                         <Label>Legal Entity <span className="font-normal text-graphite-400">(opsional)</span></Label>
@@ -1824,7 +1824,7 @@ function DepartmentsTab({ departments, companies, filters }) {
                             {(control) => <Input {...control} value={data.name} onChange={(e) => setData('name', e.target.value)} />}
                         </FormField>
                         <FormField label="Code" name="code" error={errors.code} hint="Short identifier used on documents and exports.">
-                            {(control) => <Input {...control} value={data.code} onChange={(e) => setData('code', e.target.value)} />}
+                            {(control) => <Input {...control} value={data.code} onChange={(e) => setData('code', e.target.value)} uppercase />}
                         </FormField>
                         <div className="space-y-1.5">
                             <Label>Display Order</Label>

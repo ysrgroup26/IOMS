@@ -34,6 +34,39 @@ and driving the screen in a browser, the twelve-to-six month edit **saves and pe
 `ReleaseStatusService` and the hardened `app:deploy` exist to close that gap, and
 `DeploymentIdentityTest` pins them. See `docs/ADR/057-a-release-must-be-able-to-prove-what-is-running.md`.
 
+### What was actually run for v2.130.0
+
+**Level: two viewports in a real browser against MySQL 8, plus a rendered PDF inspected with
+`pdffonts`. NOT deployed, and still no real device push.**
+
+| Claim | How it was checked |
+|---|---|
+| The badge counts unread notifications only | Two unread → **2**; opened one → **1**; opened the second → **badge absent**; reload and navigate to another module → still absent |
+| Unread looks unread | Row backgrounds read from the DOM: `rgb(239, 246, 255)` while unread, `rgba(0,0,0,0)` once read, with the other row's tint unchanged |
+| Marking read actually persists | The `POST /notifications/{id}/read` response status was watched: **419 before the fix, 200 after** |
+| Identifiers upper-case themselves | `emp-0042` → `EMP-0042`; a character inserted at position 4 left the caret at **5**, not at the end; a paste uppercased; `full_name` untouched. Both 1440 and 390 |
+| The splash is on the path people start from | `/`, `/login`, `/dashboard` and `/my-work/login` all painted it with the bundle blocked, and it was gone after mount. `/` had previously been measured with an **empty** `body.innerText` |
+| Typography reaches the screen | Computed styles: page title **Archivo 800 / 23px**, document type band **Archivo 800 at `font-stretch: 75%`**, KPI figure **Archivo 800 with tabular figures** |
+| Typography reaches the PDF | `pdffonts` on a rendered permit: `ArchivoRoman-CondensedExtraBold`, `-ExtraBold`, `-Bold`, all embedded CID TrueType, Indonesian text intact |
+| The issuer still outranks the type band | Re-rendered and looked at: the company name at 24px above "HOT WORK" at 22px condensed |
+
+**Three defects found by driving it, not by reading it:**
+
+1. **The 419.** Marking read failed for every freshly signed-in user, because `<meta csrf-token>` is
+   stale after a session regeneration and Inertia never reloads the document. Invisible to the suite
+   — Laravel disables CSRF verification in tests.
+2. **Sending both tokens did not fix it.** Laravel prefers `X-CSRF-TOKEN`, so the stale value still
+   won; only the cookie alone answered 200.
+3. **The splash was on the wrong path.** `/` is where a phone lands, and it was blank.
+
+**Automated:** `NotificationBadgeAndTypographyTest` — 20 tests over the badge arithmetic, the
+count-down, unread-id reconciliation, per-user isolation, live config on non-dashboard pages,
+identifier normalisation (and its exclusions), the embedded fonts and the weight rules. Full suite
+green: **1625 tests, 8219 assertions** (`vendor/bin/phpunit`, 2026-10-20), `npm run build` clean.
+
+**Still not verified: a real device push** (unchanged from v2.129.0, tracked as RT-001) and
+production.
+
 ### What was actually run for v2.129.0
 
 **Level: two concurrent browser sessions against MySQL 8, plus a stand-in push service. NOT

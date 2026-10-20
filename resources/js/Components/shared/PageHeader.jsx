@@ -141,7 +141,12 @@ export default function PageHeader({ title, subtitle, icon: Icon, kind, children
                     {/* flex so a title that carries an inline StatusBadge lines
                         up with its text instead of the badge sitting on the
                         baseline. A plain string title is unaffected. */}
-                    <h1 className="flex flex-wrap items-center gap-2 text-[22px] font-semibold leading-tight tracking-tight text-navy-900 dark:text-slate-50">
+                    {/* v2.130.0 -- `type-page-title`: Archivo at 800, not
+                        Inter at 600. A page's own name is the one piece of
+                        type on the screen that is allowed to be loud, and
+                        semibold Inter made every page look like a section
+                        of some larger page. See resources/css/app.css. */}
+                    <h1 className="type-page-title flex flex-wrap items-center gap-2 text-[23px] leading-tight text-navy-900 dark:text-slate-50">
                         {title}
                         {/* Beside the title, not above it: the kind qualifies
                             this page, and a chip on its own line reads as an

@@ -1654,6 +1654,35 @@ v1.9.0 sections for the full reasoning.
   version turning it back on. Don't remove the dark-mode Tailwind classes (`dark:*`) when touching
   a page; they're dead code for now, not wrong code.
 
+### Typography: three families, named as roles (v2.130.0)
+
+`resources/css/app.css` defines the roles; nothing should spell a font family out at a call site.
+
+| Role | Class | Family |
+|---|---|---|
+| Interface | (default) | **Inter** -- tables, forms, navigation, labels, body |
+| Page title | `.type-page-title` | **Archivo** 800 |
+| Document type band | `.type-document-title` | **Archivo** 800 at `font-stretch: 75%` |
+| Document eyebrow | `.type-document-eyebrow` | **Archivo** 600, tracked |
+| Metric / KPI figure | `.type-metric` | **Archivo** 800, tabular figures |
+| Identifier | `.type-code` | **IBM Plex Mono** |
+
+Weights jump rather than drift: 800 where authority is the point, 400/500 elsewhere. **600 is the
+weight this release removed** -- it was on every page title and KPI figure and reads as a heading
+somebody forgot to finish.
+
+**The PDF uses the same family, not a similar one.** Dompdf cannot reach the webfont stylesheet and
+must not fetch at render time, so `resources/views/pdf/partials/fonts.blade.php` declares static
+instances from `resources/fonts` with `file://` paths inside `base_path()` (dompdf's chroot). They
+are *instances* because dompdf cannot render a variable font -- see `CONVENTIONS.md`. Verify any
+change with `pdffonts`.
+
+### `lib/csrf.js` -- the token that is still valid (v2.130.0)
+
+Any `fetch` POST from React signs itself with `csrfHeaders()`, never with the `csrf-token` meta
+tag: the tag goes stale the moment a session regenerates, and Inertia does not reload the document.
+See `CONVENTIONS.md` for the 419 this caused and why only one token may be sent.
+
 ### The boot splash is painted by the server (v2.128.0)
 
 Inertia SSR is off, so the body the server sends is an empty `<div id="app">` and the screen is

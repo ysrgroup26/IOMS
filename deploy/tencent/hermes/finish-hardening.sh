@@ -27,16 +27,18 @@ set -euo pipefail
 here="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
 . "$here/../lib.sh"
 
-AGENT=ubuntu ADMIN=iomsadmin UNIT=hermes-gateway.service ACLI_DECISION=""
+AGENT=ubuntu ADMIN=iomsadmin UNIT=hermes-gateway.service ACLI_DECISION="" AUDIT_ONLY=0
 while [[ $# -gt 0 ]]; do
     case "$1" in
         --agent-user) AGENT="$2"; shift 2 ;; --admin-user) ADMIN="$2"; shift 2 ;;
         --unit) UNIT="$2"; shift 2 ;; --acli) ACLI_DECISION="$2"; shift 2 ;;
+        --audit-only) AUDIT_ONLY=1; shift ;;
         *) die "Unknown option: $1" ;;
     esac
 done
 [[ $EUID -eq 0 ]] || die "Run as root (sudo, as $ADMIN)."
 [[ "${SUDO_USER:-}" != "$AGENT" ]] || die "Run this as $ADMIN, not as the agent account."
+[[ -z "$ACLI_DECISION" || "$ACLI_DECISION" =~ ^(disable|keep)$ ]] || die "--acli takes disable or keep"
 UID_A="$(id -u "$AGENT")"
 STAMP="$(date +%Y%m%d-%H%M%S)"
 BK="/root/hermes-finish-$STAMP"; install -d -m 700 "$BK"
@@ -62,10 +64,17 @@ for f in /etc/sudoers /etc/sudoers.d/*; do
     [[ -f "$f" && "$f" != /etc/sudoers.d/ioms-ops ]] || continue
     # User_Alias names that contain the agent
     aliases="$(grep -E '^\s*User_Alias' "$f" 2>/dev/null | grep -wE "$AGENT" | sed -E 's/^\s*User_Alias\s+([A-Z0-9_]+).*/\1/' || true)"
-    while IFS= read -r line; do
+    # Every line, including an UNTERMINATED last line (`read` alone drops it --
+    # which is how a one-rule vendor file like acli got no verdict at all),
+    # with backslash continuations joined.
+    while IFS= read -r line || [[ -n "$line" ]]; do
         [[ "$line" =~ ^[[:space:]]*($|#|Defaults|User_Alias|Cmnd_Alias|Host_Alias|Runas_Alias|@include|#include) ]] && continue
         who="$(awk '{print $1}' <<<"$line")"
-        if applies_to_agent "$who" || grep -qwx "$who" <<<"$aliases"; then
+        if ! { applies_to_agent "$who" || grep -qwx "$who" <<<"$aliases"; }; then
+            echo "   does not reach $AGENT  ${f}:  $line   (granted to '$who')"
+            continue
+        fi
+        if true; then
             cmds="${line#*:}"; [[ "$line" == *:* ]] || cmds="$(cut -d= -f2- <<<"$line")"
             verdict=other
             if grep -qE "$ROOTISH" <<<" $cmds"; then verdict=rootish; fi
@@ -75,12 +84,12 @@ for f in /etc/sudoers /etc/sudoers.d/*; do
             done
             if [[ $verdict == rootish ]]; then ROOTISH_LINES+=("$f|$line"); else OTHER_LINES+=("$f|$line"); fi
         fi
-    done < "$f"
+    done < <(sed -e ':a' -e '/\\$/N; s/\\\n//; ta' "$f")
 done
 
 if [[ -f /etc/sudoers.d/acli ]]; then
     echo; echo "   /etc/sudoers.d/acli (full content -- sudoers files hold no secrets):"
-    sed 's/^/     | /' /etc/sudoers.d/acli
+    sed 's/^/     | /' /etc/sudoers.d/acli; [[ -z "$(tail -c1 /etc/sudoers.d/acli)" ]] || echo "     (the last line has no trailing newline)"
     for bin in $(grep -vE '^\s*#' /etc/sudoers.d/acli | grep -oE '/[^ ,]+' | sort -u); do
         [[ -e "$bin" ]] || continue
         echo "     binary $bin: $(stat -c '%U:%G %a' "$bin"), package: $(dpkg -S "$bin" 2>/dev/null | cut -d: -f1 || echo none), type: $(file -b "$bin" | cut -c1-50)"
@@ -89,6 +98,16 @@ fi
 
 for e in "${ROOTISH_LINES[@]}"; do echo "   ROOT-EQUIVALENT  ${e%%|*}:  ${e#*|}"; done
 for e in "${OTHER_LINES[@]}"; do echo "   NEEDS DECISION   ${e%%|*}:  ${e#*|}"; done
+
+# The ground truth is what sudo itself grants, not what this parser understood.
+granted_beyond_ops() { sudo -l -U "$AGENT" | sed -n '/may run/,$p' | tail -n +2 | grep -v '/usr/local/bin/ioms-ops' | grep -vE '^\s*$' || true; }
+
+if [[ $AUDIT_ONLY -eq 1 ]]; then
+    extra="$(granted_beyond_ops)"
+    if [[ -z "$extra" ]]; then echo; echo "   VERDICT: only ioms-ops reaches $AGENT. No change needed."; exit 0; fi
+    echo; echo "   VERDICT: sudo still grants $AGENT beyond ioms-ops:"; sed 's/^/     /' <<<"$extra"
+    exit 3
+fi
 
 disable_line() { # file line
     local f="$1" line="$2"
@@ -115,6 +134,17 @@ if [[ ${#OTHER_LINES[@]} -gt 0 && -z "$ACLI_DECISION" ]]; then
 fi
 
 echo; echo "   $AGENT may now run:"; sudo -l -U "$AGENT" | sed -n '/may run/,$p' | sed 's/^/     /'
+extra="$(granted_beyond_ops)"
+if [[ -n "$extra" ]]; then
+    if [[ "$ACLI_DECISION" == keep ]]; then
+        sha="$(cat /etc/sudoers.d/* 2>/dev/null | sha256sum | cut -c1-16)"
+        echo "$(date -Is) $SUDO_USER kept for $AGENT (sudoers.d sha $sha): $(tr '\n' ';' <<<"$extra")" >> /root/ioms-sudo-review.log
+        warn "Kept by your decision, recorded in /root/ioms-sudo-review.log: $extra"
+    else
+        echo "$extra" | sed 's/^/   STILL GRANTED  /'
+        die "$AGENT can still run the above as root. Decide: re-run with --acli disable or --acli keep. Nothing after this step was run."
+    fi
+fi
 
 # ================================================================== 2. restart Hermes properly
 log "2. Restarting Hermes through its user manager"

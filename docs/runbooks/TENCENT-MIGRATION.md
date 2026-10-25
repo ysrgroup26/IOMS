@@ -126,6 +126,20 @@ mode, package and type, and classifies every rule that reaches `ubuntu`:
 | **Root-equivalent** | `ALL`; a wildcard; a shell, interpreter, editor or pager; a package/service/container manager; a file-writing tool (`tee`, `cp`, `dd`, `chmod`, `install`, `rsync`, `tar`…); `git`, `curl`, `find`, `env`, `sudo`; or **any binary or directory the agent can write to** | Disabled automatically, with a backup and `visudo` validation (automatic restore on failure). Keeping it would make every other boundary decorative |
 | **Needs decision** | a specific, root-owned binary that isn't in the list above (for example a vendor CLI) | **Left in place**. Re-run with `--acli disable` or `--acli keep` after reading the printed details |
 
+**Correction to `a0182e5`:** that version could finish **silently** with an `acli` rule still in force. A
+one-rule file without a trailing newline was never read (`read` drops an unterminated last line), and
+nothing compared the result with what `sudo` actually grants. Now every line is read (continuations
+joined), every line gets a verdict, and `sudo -l -U ubuntu` is the deciding check: if anything besides
+`ioms-ops` remains, the script **stops with an error** unless you chose `--acli disable` or
+`--acli keep` (keep is recorded in `/root/ioms-sudo-review.log`). `--audit-only` changes nothing and exits
+0 only when `ioms-ops` is all that reaches `ubuntu`.
+
+**Disabling a root rule doesn't cost Hermes its tools or channels.** Its gateway is a *user* service; its
+channel configuration and keys live in `~/.hermes`; it restarts itself with `systemctl --user restart
+hermes-gateway`, which needs no sudo. Root is only needed for things `ioms-ops` already provides. If a
+vendor tool turns out to be needed as root for a specific job, that job becomes a validated `ioms-ops`
+subcommand rather than a blanket rule.
+
 Rehearsed both ways (§10): `systemctl restart hermes-gateway` → root-equivalent (systemctl); a vendor
 binary → needs decision; the same binary made writable by `ubuntu` → root-equivalent.
 

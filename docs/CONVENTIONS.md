@@ -3,6 +3,13 @@
 House style, and a deliberately honest list of mistakes that have actually happened in this
 codebase's history — kept here so they don't get repeated in a slightly different shape.
 
+## Known Pitfall (2026-10-25): `while read` drops a last line with no newline
+
+A one-rule sudoers file written without a trailing newline (`/etc/sudoers.d/acli`) was printed by `cat`
+but never seen by `while IFS= read -r line`, so the audit gave it no verdict and finished "clean". Use
+`while IFS= read -r line || [[ -n "$line" ]]`. And never let a parser be the last word on a security
+property: check the system's own answer (`sudo -l -U`), and fail when the two disagree.
+
 ## Known Pitfall (2026-10-25): a gate that ends in `| tail` reports `tail`'s success
 
 `php artisan test | tail -4` exits 0 when tests fail, so the deploy gate once let a failing suite

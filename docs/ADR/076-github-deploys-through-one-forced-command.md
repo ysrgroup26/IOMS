@@ -54,6 +54,31 @@ drops, column changes). Pinned by `tests/Unit/MigrationPolicyTest.php`. Because 
 ignored by older code, automatic code rollback after such a deploy stays safe; the pre-deploy backup
 still exists.
 
+## What the rehearsal found
+
+Run on a replica of the Tencent layout (the same `/srv/ioms/app`, MySQL, PHP-FPM, nginx behind Caddy
+with the Cloudflare Origin certificate, `ioms-backup`), through `sshd` and the forced command exactly as
+GitHub would connect. Two defects that reading had not found:
+
+1. **`ioms-ops deploy` did not deploy the commit it tested.** It checked out the target and then ran
+   `./deploy.sh`, whose first step is `git pull`: the checkout moved to whatever `origin/main` had
+   become, so the code that went live was not the code the test gate passed, and a destructive
+   migration ran that the policy never saw. This was already true before today for plain
+   `ioms-ops deploy` whenever `main` moved during the test gate. `ioms-ops` now runs the steps after the
+   pull itself (`composer install`, `php artisan app:deploy`) on exactly the target, the way its
+   rollback always did, and treats a checkout that is not the target as unhealthy.
+2. **The policy's verdict was read from the wrong pipeline element.** `PIPESTATUS[1]` was the
+   `while` loop (always 0), so a `dropColumn` the classifier had correctly marked `review` was deployed.
+   The decision is now made from the classifier's output, and fails closed: only one `additive` line
+   per changed file passes.
+
+After both fixes, on the replica: `8621e15` deployed with the test gate (1654 passed), backup, health
+and a matching `IOMS_RESULT`; an additive migration deployed by itself and added its column; a
+`dropColumn` was refused `needs_approval` with production left on the previous commit and the column
+intact; a release that answered 500 everywhere rolled back by itself (`rolled_back`); redeploying the
+running SHA was a no-op; and the forced command refused `id`, a shell, `deploy <sha>; id` and port
+forwarding.
+
 ## Not done, deliberately
 
 - TerasAkademi's `git reset --hard` and unconditional `migrate`: this design refuses both.

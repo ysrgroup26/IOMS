@@ -89,6 +89,13 @@ server-side route allow-list still controls what that account may reach. See [[D
 
 ## What shipped most recently
 
+Release automation (ADR 076, after `2.133.0`): `.github/workflows/deploy.yml` deploys every CI-green
+`main` commit to Tencent through a forced-command SSH key and `ioms-ops`; additive migrations no longer
+wait for a person. Rehearsed end to end on a replica (and two deploy defects fixed). **Not active on
+Tencent until** the owner runs `enable-ci-deploy.sh` once and stores two repository secrets. Whether
+v2.133.0 is live on Tencent is **unverified** (no evidence reached GitHub). Runbook:
+`docs/runbooks/RELEASE-LOOP.md`.
+
 `2.133.0` (2026-10-25): **Safety Equipment Register** at `/hse/equipment` with a record page per unit,
 derived standings (ADR 074), generated IDs, functional QR labels, and Equipment Types that can set
 their tracked lifecycles; supplies stay separate. **Release loop** (ADR 075): GitHub Actions CI

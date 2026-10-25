@@ -205,16 +205,24 @@ do_restart() {
 # Classifies the migrations between two commits. The classifier is root-owned and
 # installed (never read from the checkout), and runs as the APP USER on the file
 # contents piped in -- repository code is never executed, and never as root.
-migration_policy() { # cur target -> 0 when every changed migration is additive
+migration_policy() { # from to -> 0 only when every changed migration is judged additive
     [[ -r "$MIGRATION_POLICY" ]] || { echo "  migration policy not installed -- treating as needs approval"; return 1; }
-    local from="$1" to="$2" status path rest
-    "${G[@]}" diff --name-status "$from" "$to" -- database/migrations/ | while IFS=$'\t' read -r status path rest; do
+    local from="$1" to="$2" verdict
+    # FAIL CLOSED, decided from the classifier's OUTPUT rather than an exit status read out of
+    # a pipeline (an earlier version read PIPESTATUS of the wrong element, saw the while-loop's
+    # 0, and let a dropColumn through -- found by the ADR 076 rehearsal). Anything other than
+    # one "additive" line per changed file -- review, no output, a crash -- needs a person.
+    verdict="$("${G[@]}" diff --name-status "$from" "$to" -- database/migrations/ | while IFS=$'\t' read -r status path rest; do
         [[ "$status" == R* && -n "$rest" ]] && path="$rest"
         printf '==== %s %s\n' "${status:0:1}" "$path"
         [[ "$status" == D ]] || "${G[@]}" show "$to:$path" 2>/dev/null
         printf '\n'
-    done | sudo -u "$APP_USER" php "$MIGRATION_POLICY" | sed 's/^/  migration: /'
-    return "${PIPESTATUS[1]}"
+    done | sudo -u "$APP_USER" php "$MIGRATION_POLICY" 2>&1)"
+    printf '%s\n' "$verdict" | sed 's/^/  migration: /'
+    local changed judged
+    changed="$("${G[@]}" diff --name-only "$from" "$to" -- database/migrations/ | grep -c .)"
+    judged="$(printf '%s\n' "$verdict" | grep -c '^additive ')"
+    [[ "$changed" -gt 0 && "$judged" -eq "$changed" ]] && ! printf '%s\n' "$verdict" | grep -qv '^additive '
 }
 
 test_gate() { # sha -- run the suite on the TARGET commit, in-memory SQLite, never the live DB
@@ -239,8 +247,8 @@ test_gate() { # sha -- run the suite on the TARGET commit, in-memory SQLite, nev
 
 # The machine-readable result of the last deploy attempt (ADR 075). One of:
 # deployed noop tests_failed needs_approval rate_limited locked fetch_failed
-# not_fast_forward bad_target backup_failed rolled_back rollback_failed
-# unhealthy_held
+# not_fast_forward bad_target backup_failed deploy_failed rolled_back
+# rollback_failed unhealthy_held
 outcome() { # outcome target
     jq -n --arg t "$(date -Is)" --arg o "$1" --arg sha "${2:-}" --arg by "$CALLER" \
         '{time:$t, outcome:$o, target:$sha, caller:$by}' > "$STATE/last-deploy.json.tmp" \
@@ -252,10 +260,20 @@ deploy_to() { # target-sha previous-sha allow-auto-rollback(0|1)
     local target="$1" prev="$2" auto_rb="$3"
     echo "  backup ..."; /usr/local/bin/ioms-backup >/dev/null || { echo "  backup FAILED -- not deploying"; outcome backup_failed "$target"; return 1; }
     echo "  deploying ${target:0:7} ..."
-    as_app "git fetch -q origin main && git checkout -q -B main '$target' && ./deploy.sh" 2>&1 | redact | grep -E 'signature|Deployment complete|ERROR|Error|FAIL' || true
+    # NOT ./deploy.sh: its first step is `git pull`, which moved the checkout past the
+    # tested commit to whatever origin/main had become -- the release that went live was
+    # not the one the test gate passed, and migrations ran that the migration policy never
+    # saw (found by the ADR 076 rehearsal). The two steps after the pull are run here, on
+    # exactly $target, the same way the rollback below already does it.
+    as_app "git checkout -q -B main '$target'" || { echo "  checkout FAILED -- nothing deployed"; outcome deploy_failed "$target"; return 1; }
+    [[ "$(head_sha)" == "$target" ]] || { echo "  checkout is at $(head_sha | cut -c1-7), not ${target:0:7} -- stopping"; outcome deploy_failed "$target"; return 1; }
+    as_app "composer install --no-dev --optimize-autoloader --no-interaction -q && php artisan app:deploy" 2>&1 | redact | grep -E 'signature|Deployment complete|ERROR|Error|FAIL|Migrat' || true
+    if [[ "$(head_sha)" != "$target" ]]; then
+        echo "  the checkout moved during the deploy (now $(head_sha | cut -c1-7)) -- treating as unhealthy"
+    fi
     worker_restart
     echo "  health check ..."
-    if local_health > "$STATE/last-health.txt" 2>&1; then
+    if [[ "$(head_sha)" == "$target" ]] && local_health > "$STATE/last-health.txt" 2>&1; then
         echo "  healthy -- ${target:0:7} is live"; echo "$target" > "$STATE/last-good"; outcome deployed "$target"; return 0
     fi
     grep FAIL "$STATE/last-health.txt" | sed 's/^/    /'

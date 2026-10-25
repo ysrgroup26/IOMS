@@ -201,7 +201,7 @@ jobs:
           gh api "repos/$GITHUB_REPOSITORY/deployments/$ID/statuses" -f state=failure \
             -f description="${OUTCOME:-unknown} (exit ${RC:-?})" -f log_url="$RUN_URL" >/dev/null
           # A person must decide: migrations that are not additive, a failed rollback, an unreachable host.
-          case "$OUTCOME" in needs_approval|rollback_failed|unhealthy_held|unreachable) human=1 ;; *) human=0 ;; esac
+          case "$OUTCOME" in needs_approval|rollback_failed|unhealthy_held|unreachable|deploy_failed) human=1 ;; *) human=0 ;; esac
           marker="<!-- ioms-deploy:deploy:$SHA -->"
           body="$marker
           | | |

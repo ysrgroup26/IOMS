@@ -3689,3 +3689,18 @@ posts it and reads it back. (Fixed in `SafetyEquipmentController::validated()` a
 the most specific match win: when any child owns the URL (`isChildRouteActive`, which also honours an
 item's `activePaths`), no prefix-matched leaf lights. A new item that covers several paths declares
 them in `activePaths` rather than loosening the prefix rule.
+
+## CRITICAL: Known Pitfall (v2.133.0): `deploy.sh` pulls, so a deployer must not call it
+
+`deploy.sh` begins with `git pull`. It is right for cPanel, where a person runs it in place. It is
+wrong for any tool that has already chosen and tested a commit: `ioms-ops` checked out the tested SHA
+and then called `deploy.sh`, which moved the checkout to the newest `origin/main`, untested and
+unscreened by the migration policy. A deployer runs `composer install --no-dev --optimize-autoloader`
+and `php artisan app:deploy` itself, on the commit it tested, and verifies `git rev-parse HEAD` before
+declaring it healthy. (ADR 076.)
+
+## Known Pitfall (v2.133.0): an exit status read out of a pipeline is easy to read from the wrong element
+
+`"${PIPESTATUS[1]}"` after `a | while ...; done | b | c` is the `while` loop, which succeeds. A safety
+decision made that way passed a destructive migration. Decide from captured OUTPUT and fail closed
+(no output, unexpected output or a crash all mean no), or capture each stage separately.

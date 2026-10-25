@@ -42,6 +42,19 @@ approved migration deploy, artisan allow-list and refusals, redaction of tokens 
 **Not run anywhere:** restarting `user@1000.service` (no systemd in a container), and nothing on
 `43.173.21.31`.
 
+### What was actually run for the release automation (ADR 076)
+
+- On a replica of the Tencent layout in this environment (`/srv/ioms/app`, MySQL 8, PHP-FPM, nginx
+  behind Caddy with the Origin certificate, `ioms-backup`), via `sshd` and the forced command:
+  `8621e15` deployed from GitHub with the server-side test gate (1654 passed), backup, health check,
+  `IOMS_RESULT` matching; additive migration auto-deployed; `dropColumn` refused `needs_approval`;
+  broken release auto-rolled back; same SHA a no-op; forced command refused shell, `id`, injection and
+  forwarding. Two defects found and fixed (ADR 076).
+- `tests/Unit/MigrationPolicyTest.php`, actionlint on both workflows, ESLint (0 errors after declaring
+  `Notification`), Pint on changed files.
+- **Not run:** anything on Tencent (this environment is denied the host); a GitHub-hosted runner
+  reaching Tencent over SSH (needs the owner's secrets and an open port 22).
+
 ### What was actually run for v2.133.0
 
 - **Suite:** full `php artisan test` (results recorded in the release commit); 9 new tests in

@@ -1,34 +1,41 @@
 #!/usr/bin/env bash
 #
-# ioms-ops -- the ONLY privileged command Hermes Agent may run on the IOMS host.
+# ioms-ops -- what Hermes Agent may do as root on the IOMS host.
 #
-# Installed root-owned at /usr/local/bin/ioms-ops by install-ops-guard.sh, and
-# reachable by the Hermes user through exactly one sudoers line:
+# Installed root-owned at /usr/local/bin/ioms-ops by install-ops-guard.sh and
+# reachable by the agent account through ONE sudoers line:
 #
-#     <hermes-user> ALL=(root) NOPASSWD: /usr/local/bin/ioms-ops
+#     <agent> ALL=(root) NOPASSWD: /usr/local/bin/ioms-ops
 #
-# There is no shell passthrough. Every subcommand is listed below, every
-# argument is validated against a pattern, and every call -- allowed,
-# refused or failed -- is appended to /var/log/ioms-ops.log (append-only).
+# DESIGN: the agent is meant to be USEFUL. Routine operations run on their own,
+# protected by automatic guard rails (tests, backups, health checks, automatic
+# rollback, rate limits) instead of by a person. A person is asked only for the
+# few operations whose failure cannot be undone automatically. Nothing gives a
+# shell, the database or the secrets.
 #
-#   READ (runs immediately)      status | health [URL] | logs app|nginx|worker|migration [N]
-#                                | git-status | disk | backup | backups
-#   CHANGE (needs approval)      request deploy | request restart nginx|php8.3-fpm|ioms-worker
-#                                | request rollback <commit>
-#   EXECUTE an approved request  run <request-id>
-#   APPROVE (a human, never the agent)  approve <request-id> | deny <request-id> | pending
+# AUTONOMOUS (no approval)
+#   status | health [URL] | policy
+#   logs app|worker|nginx|nginx-access|php|backup|migration|ops [N]   (secrets and tokens redacted)
+#   git-status | disk | db-stats | backups | backup
+#   deploy            fast-forward to origin/main: tests on the target commit,
+#                     backup, deploy, health check, AUTOMATIC ROLLBACK if it fails.
+#                     A change containing database migrations is not autonomous
+#                     (use: request deploy).
+#   restart nginx|php8.3-fpm|ioms-worker|mysql (nginx/php-fpm config-tested first)
+#   artisan <allowed command> [args]           (see `ioms-ops policy`)
+#   maintenance off                            (bring the site back up)
 #
-# NOT AVAILABLE THROUGH THIS TOOL AT ALL, by design: restoring a backup over
-# the live database, dropping or replacing data, editing .env, changing the
-# firewall, DNS, users or packages, rebooting, reinstalling. Those are done
-# by a person at a root shell.
+# NEEDS A PERSON (request -> approve by someone who is not the agent -> run)
+#   request deploy            for a change WITH migrations
+#   request rollback <sha>    to a commit that is not the last good deploy
+#   request maintenance-on
+#   run <id> | pending | approve <id> | deny <id>
 #
-# WHY APPROVAL IS SAFE AGAINST THE AGENT ITSELF: sudo sets SUDO_USER to the
-# account that invoked it, and the agent cannot change that. `approve`
-# refuses when SUDO_USER is the agent's user, so an agent can ask and can
-# execute what a human approved -- never both ask and approve. An approval
-# expires after 30 minutes and is bound to the exact commit it named, so a
-# push between approval and execution cannot ride on it.
+# NOT AVAILABLE AT ALL: a shell, tinker, raw SQL, .env, restoring over the live
+# database, dropping data, firewall, DNS, users, packages, reboot, reinstall.
+#
+# Every call -- allowed, refused or failed -- is one JSON line in
+# /var/log/ioms-ops.log (append-only).
 
 set -uo pipefail
 umask 027
@@ -41,161 +48,257 @@ CONF=/etc/ioms-ops.conf
 HERMES_USER="hermes"
 DEFAULT_URL="https://iomsuite.com"
 APPROVAL_TTL=1800
-[[ -r "$CONF" ]] && . "$CONF"   # HERMES_USER, DEFAULT_URL (root-owned, 644)
+MAX_DEPLOYS_PER_HOUR=6
+MAX_RESTARTS_PER_HOUR=12
+TEST_GATE=on
+[[ -r "$CONF" ]] && . "$CONF"   # root-owned, 644: HERMES_USER, DEFAULT_URL, limits, TEST_GATE
 
 CALLER="${SUDO_USER:-$(id -un)}"
 REQ_ID_RE='^[0-9]{8}-[0-9]{6}-[a-f0-9]{6}$'
 SHA_RE='^[0-9a-f]{7,40}$'
+G=(git -c safe.directory="$APP_DIR" -C "$APP_DIR")
 
 [[ $EUID -eq 0 ]] || { echo "ioms-ops must run through sudo." >&2; exit 1; }
-mkdir -p "$STATE/requests"; chmod 750 "$STATE"
+mkdir -p "$STATE/requests" "$STATE/rate"; chmod 750 "$STATE"
 
-audit() { # result exit-code detail...
-    local result="$1" code="$2"; shift 2
+ORIG_ARGS="$*"
+audit() {
     printf '{"time":"%s","caller":"%s","command":%s,"result":"%s","exit":%s}\n' \
-        "$(date -Is)" "$CALLER" "$(printf '%s' "$ORIG_ARGS" | jq -Rs .)" "$result" "$code" >> "$AUDIT"
+        "$(date -Is)" "$CALLER" "$(printf '%s' "$ORIG_ARGS" | jq -Rs .)" "$1" "$2" >> "$AUDIT"
 }
 refuse() { echo "REFUSED: $*" >&2; audit refused 1; exit 1; }
 
-# Removes anything shaped like a credential before log text leaves the host.
+# Credentials and bearer tokens, plus the IOMS URLs whose path IS a credential
+# (order status, verification, signed links).
 redact() {
-    # Bearer FIRST: the generic rule would otherwise consume the word
-    # "Bearer" as the value and leave the token itself in the output
-    # (found by the rehearsal: "Authorization: [REDACTED] eyJ...").
     sed -E \
         -e 's/(Bearer )[A-Za-z0-9._~+\/=-]+/\1[REDACTED]/Ig' \
         -e 's/((password|passwd|secret|token|api[_-]?key|signature)["'"'"' ]*[:=] *)"[^"]*"/\1"[REDACTED]"/Ig' \
         -e "s/((password|passwd|secret|token|api[_-]?key|signature)[\"' ]*[:=] *)'[^']*'/\1'[REDACTED]'/Ig" \
         -e 's/((password|passwd|secret|token|api[_-]?key|authorization|signature)["'"'"' ]*[:=][ "'"'"']*)(Bearer \[REDACTED\]|"\[REDACTED\]"|'"'"'\[REDACTED\]'"'"'|[^ ,"'"'"'&]+)/\1[REDACTED]/Ig' \
-        -e 's/(mysql:\/\/[^:]+:)[^@]+@/\1[REDACTED]@/g'
+        -e 's/(mysql:\/\/[^:]+:)[^@]+@/\1[REDACTED]@/g' \
+        -e 's#(/get-started/(verify/)?)[A-Za-z0-9]{16,}#\1[TOKEN]#g' \
+        -e 's#(/(reset-password|email/verify|verify-email)/)[^ ?"]+#\1[TOKEN]#g' \
+        -e 's#([?&](signature|token|expires|hash)=)[^ &"]+#\1[REDACTED]#g'
 }
 
 as_app() { sudo -u "$APP_USER" -H bash -c "cd '$APP_DIR' && $*"; }
+head_sha() { "${G[@]}" rev-parse HEAD; }
 
-ORIG_ARGS="$*"
-cmd="${1:-help}"; shift || true
+rate_ok() { # bucket limit -- sliding hour
+    local f="$STATE/rate/$1" now; now="$(date +%s)"
+    touch "$f"; awk -v n="$now" '$1 > n-3600' "$f" > "$f.tmp"; mv "$f.tmp" "$f"
+    [[ "$(wc -l < "$f")" -lt "$2" ]] || return 1
+    echo "$now" >> "$f"
+}
+
+local_health() { # against this host, keeping the real name for TLS/SNI
+    bash /usr/local/lib/ioms-ops/healthcheck.sh "$DEFAULT_URL" --resolve 127.0.0.1 --insecure
+}
 
 # ------------------------------------------------------------------ read
 do_status() {
-    echo "commit:   $(git -c safe.directory="$APP_DIR" -C "$APP_DIR" log -1 --format='%h %s (%cr)' 2>/dev/null)"
-    echo "branch:   $(git -c safe.directory="$APP_DIR" -C "$APP_DIR" rev-parse --abbrev-ref HEAD 2>/dev/null)"
+    echo "commit:   $("${G[@]}" log -1 --format='%h %s (%cr)' 2>/dev/null)"
+    echo "branch:   $("${G[@]}" rev-parse --abbrev-ref HEAD 2>/dev/null)"
     echo "version:  $(as_app "php artisan tinker --execute='echo config(\"ioms.version\");'" 2>/dev/null)"
     echo "worker:   $(supervisorctl status ioms-worker 2>/dev/null | awk '{print $2}')"
-    for s in nginx php8.3-fpm mysql; do echo "$(printf '%-9s' "$s:") $(pgrep -f "$s" >/dev/null && echo running || echo DOWN)"; done
-    echo "load:     $(cut -d' ' -f1-3 /proc/loadavg)   mem free: $(free -m | awk '/Mem:/ {print $7}') MB"
-    echo "disk /:   $(df -h / | awk 'NR==2 {print $5" used"}')"
+    for s in nginx php-fpm mysqld; do echo "$(printf '%-9s' "$s:") $(pgrep -x "$s" >/dev/null || pgrep -f "$s:" >/dev/null && echo running || echo DOWN)"; done
+    echo "load:     $(cut -d' ' -f1-3 /proc/loadavg)   mem available: $(free -m | awk '/Mem:/ {print $7}') MB"
+    echo "disk /:   $(df -h / | awk 'NR==2 {print $5" used, "$4" free"}')"
     echo "backup:   $(ls -1d /var/backups/ioms/*/ 2>/dev/null | tail -1 || echo none)"
+    echo "last good deploy: $(cat "$STATE/last-good" 2>/dev/null || echo unknown)"
 }
 
 do_logs() {
-    local which="${1:-app}" n="${2:-100}" file
-    [[ "$n" =~ ^[0-9]{1,4}$ ]] || refuse "N must be a number up to 9999"
+    local which="${1:-app}" n="${2:-200}" file
+    [[ "$n" =~ ^[0-9]{1,5}$ ]] || refuse "N must be a number"
     case "$which" in
-        app) file="$(ls -1t "$APP_DIR"/storage/logs/*.log 2>/dev/null | head -1)" ;;
-        nginx) file=/var/log/nginx/error.log ;;
+        app) file="$(ls -1t "$APP_DIR"/storage/logs/laravel*.log 2>/dev/null | head -1)" ;;
         worker) file="$APP_DIR/storage/logs/worker.log" ;;
+        nginx) file=/var/log/nginx/error.log ;;
+        nginx-access) file=/var/log/nginx/access.log ;;
+        php) file=/var/log/php8.3-fpm-ioms.log ;;
+        backup) file=/var/log/ioms-backup.log ;;
         migration) file=/var/log/ioms-migration.log ;;
-        *) refuse "logs: app|nginx|worker|migration" ;;
+        ops) file="$AUDIT" ;;
+        *) refuse "logs: app|worker|nginx|nginx-access|php|backup|migration|ops" ;;
     esac
     [[ -r "$file" ]] || { echo "(no $which log)"; return 0; }
     tail -n "$n" "$file" | redact
 }
 
-do_health() {
-    local url="${1:-$DEFAULT_URL}"
-    [[ "$url" =~ ^https?://[A-Za-z0-9.-]+(:[0-9]+)?/?$ ]] || refuse "health: URL must be scheme://host"
-    bash /usr/local/lib/ioms-ops/healthcheck.sh "$url"
+do_db_stats() {
+    # Counts and sizes only -- never row contents.
+    local q="SELECT table_name, table_rows, ROUND((data_length+index_length)/1048576,1) AS mb
+             FROM information_schema.tables WHERE table_schema='ioms' ORDER BY (data_length+index_length) DESC LIMIT 25"
+    mysql --defaults-extra-file=/root/ioms-db.cnf -t -e "$q"
+    mysql --defaults-extra-file=/root/ioms-db.cnf -N -e "SELECT 'jobs pending', COUNT(*) FROM ioms.jobs; SELECT 'jobs failed', COUNT(*) FROM ioms.failed_jobs; SELECT 'migrations applied', COUNT(*) FROM ioms.migrations;" 2>/dev/null
 }
 
-# ------------------------------------------------------------------ change
-new_request() { # action target
-    local id; id="$(date +%Y%m%d-%H%M%S)-$(openssl rand -hex 3)"
-    local current target_commit=""
-    current="$(git -c safe.directory="$APP_DIR" -C "$APP_DIR" rev-parse HEAD)"
-    case "$1" in
-        deploy)
-            as_app "git fetch -q origin main" || refuse "git fetch failed"
-            target_commit="$(git -c safe.directory="$APP_DIR" -C "$APP_DIR" rev-parse origin/main)"
-            [[ "$target_commit" != "$current" ]] || { echo "Already at origin/main ($current). Nothing to deploy."; audit noop 0; exit 0; }
-            ;;
-        rollback) target_commit="$(git -c safe.directory="$APP_DIR" -C "$APP_DIR" rev-parse "$2^{commit}" 2>/dev/null)" || refuse "unknown commit $2" ;;
-        restart) target_commit="" ;;
+do_policy() {
+    cat <<EOF
+Autonomous: status health policy logs git-status disk db-stats backups backup
+            deploy (no migrations; tests + backup + health + auto-rollback; ${MAX_DEPLOYS_PER_HOUR}/hour)
+            restart nginx|php8.3-fpm|ioms-worker|mysql (${MAX_RESTARTS_PER_HOUR}/hour)
+            maintenance off
+            artisan: ${ARTISAN_ALLOWED[*]}
+Approval:   request deploy (with migrations) | request rollback <sha> | request maintenance-on
+Never:      shell, tinker, raw SQL, .env, restore over live DB, firewall, DNS, users, packages, reboot
+Test gate:  ${TEST_GATE}
+EOF
+}
+
+# ------------------------------------------------------------------ artisan
+ARTISAN_ALLOWED=(about migrate:status route:list schedule:list schedule:run queue:failed queue:retry
+    queue:restart config:cache config:clear cache:clear route:cache route:clear view:cache view:clear
+    event:cache event:clear optimize optimize:clear storage:link ioms:mail-check ioms:duitku-check)
+
+do_artisan() {
+    local c="${1:-}"; shift || true
+    [[ " ${ARTISAN_ALLOWED[*]} " == *" $c "* ]] || refuse "artisan '$c' is not on the list (ioms-ops policy)"
+    local a
+    for a in "$@"; do
+        [[ "$a" =~ ^[A-Za-z0-9@._:=/-]{1,120}$ ]] || refuse "argument '$a' has characters outside [A-Za-z0-9@._:=/-]"
+        [[ "$a" != --env* && "$a" != --database* ]] || refuse "--env/--database are not allowed"
+    done
+    # Only quote what exists: printf '%q ' with no arguments yields '' -- an
+    # empty argument that made every bare artisan command fail.
+    local args=""; [[ $# -gt 0 ]] && args="$(printf '%q ' "$@")"
+    as_app "php artisan $c $args" 2>&1 | redact
+    return "${PIPESTATUS[0]}"
+}
+
+# ------------------------------------------------------------------ restart
+do_restart() {
+    case "${1:-}" in
+        # reload-or-restart: a plain reload does nothing to an nginx that is down.
+        nginx) nginx -t 2>&1 | tail -1 && { systemctl reload-or-restart nginx 2>/dev/null || { service nginx status >/dev/null 2>&1 && service nginx reload || service nginx start; }; } ;;
+        php8.3-fpm) php-fpm8.3 -t 2>&1 | tail -1 && { systemctl restart php8.3-fpm 2>/dev/null || service php8.3-fpm restart; } ;;
+        ioms-worker) supervisorctl restart ioms-worker ;;
+        mysql) systemctl restart mysql 2>/dev/null || service mysql restart ;;
+        *) refuse "restart: nginx|php8.3-fpm|ioms-worker|mysql" ;;
     esac
-    jq -n --arg id "$id" --arg action "$1" --arg arg "${2:-}" --arg by "$CALLER" \
-          --arg current "$current" --arg target "$target_commit" --arg at "$(date +%s)" \
-          '{id:$id, action:$action, arg:$arg, requested_by:$by, requested_at:($at|tonumber),
-            current_commit:$current, target_commit:$target, status:"pending"}' > "$STATE/requests/$id.json"
-    echo "Request $id created: $1 ${2:-}"
-    if [[ -n "$target_commit" ]]; then
-        echo "From $current to $target_commit:"
-        git -c safe.directory="$APP_DIR" -C "$APP_DIR" log --oneline "$current..$target_commit" 2>/dev/null | head -20
-        git -c safe.directory="$APP_DIR" -C "$APP_DIR" diff --stat "$current" "$target_commit" 2>/dev/null | tail -1
-        if git -c safe.directory="$APP_DIR" -C "$APP_DIR" diff --name-only "$current" "$target_commit" 2>/dev/null | grep -q '^database/migrations/'; then
-            echo "NOTE: this change includes DATABASE MIGRATIONS."
-        fi
+}
+
+# ------------------------------------------------------------------ deploy
+test_gate() { # sha -- run the suite on the TARGET commit, in-memory SQLite, never the live DB
+    [[ "$TEST_GATE" == on ]] || { echo "  test gate: off"; return 0; }
+    # Under the app user's own tree: $STATE is root-only and the suite runs as $APP_USER.
+    local sha="$1" ci; ci="$(dirname "$APP_DIR")/ci"; local wt="$ci/$1"
+    install -d -m 750 -o "$APP_USER" -g "$APP_USER" "$ci"; rm -rf "$wt"
+    echo "  test gate: suite on ${sha:0:7} (in-memory SQLite) ..."
+    sudo -u "$APP_USER" -H bash -c "
+        set -eo pipefail   # the suite's exit status, not tail's (a failing test once passed this gate)
+        git -C '$APP_DIR' worktree add --detach -f '$wt' '$sha' >/dev/null 2>&1
+        cd '$wt'
+        cp '$APP_DIR/.env.example' .env
+        composer install -q --no-interaction --no-progress >/dev/null 2>&1
+        nice -n 10 php artisan test --compact > '$wt.out' 2>&1 || { grep -E 'FAILED|Tests:' '$wt.out' | head -20; exit 1; }
+        grep -E 'Tests:|Duration' '$wt.out'
+    " ; local rc=$?
+    sudo -u "$APP_USER" git -C "$APP_DIR" worktree remove --force "$wt" >/dev/null 2>&1 || rm -rf "$wt"
+    rm -f "$wt.out"
+    return $rc
+}
+
+deploy_to() { # target-sha previous-sha allow-auto-rollback(0|1)
+    local target="$1" prev="$2" auto_rb="$3"
+    echo "  backup ..."; /usr/local/bin/ioms-backup >/dev/null || { echo "  backup FAILED -- not deploying"; return 1; }
+    echo "  deploying ${target:0:7} ..."
+    as_app "git fetch -q origin main && git checkout -q -B main '$target' && ./deploy.sh" 2>&1 | redact | grep -E 'signature|Deployment complete|ERROR|Error|FAIL' || true
+    supervisorctl restart ioms-worker >/dev/null 2>&1 || true
+    echo "  health check ..."
+    if local_health > "$STATE/last-health.txt" 2>&1; then
+        echo "  healthy -- ${target:0:7} is live"; echo "$target" > "$STATE/last-good"; return 0
     fi
-    echo "A person must approve it:  sudo ioms-ops approve $id"
+    grep FAIL "$STATE/last-health.txt" | sed 's/^/    /'
+    if [[ "$auto_rb" == 1 ]]; then
+        echo "  UNHEALTHY -- rolling back automatically to ${prev:0:7}"
+        as_app "git checkout -q -B main '$prev' && composer install --no-dev --optimize-autoloader -q && php artisan app:deploy" >/dev/null 2>&1
+        supervisorctl restart ioms-worker >/dev/null 2>&1 || true
+        if local_health >/dev/null 2>&1; then echo "  rolled back; ${prev:0:7} is live and healthy"; else echo "  ROLLBACK ALSO UNHEALTHY -- a person must look now"; fi
+    else
+        echo "  UNHEALTHY -- not rolled back automatically (this deploy ran migrations). A person must decide."
+    fi
+    return 1
+}
+
+do_deploy_auto() {
+    exec 9>"$STATE/deploy.lock"; flock -n 9 || refuse "another deploy is running"
+    as_app "git fetch -q origin main" || refuse "git fetch failed"
+    local cur target; cur="$(head_sha)"; target="$("${G[@]}" rev-parse origin/main)"
+    [[ "$target" != "$cur" ]] || { echo "Already at origin/main (${cur:0:7})."; return 0; }
+    "${G[@]}" merge-base --is-ancestor "$cur" "$target" || refuse "origin/main is not a fast-forward of ${cur:0:7} (history rewritten?) -- request deploy"
+    if "${G[@]}" diff --name-only "$cur" "$target" | grep -q '^database/migrations/'; then
+        refuse "this change has DATABASE MIGRATIONS -- not autonomous. Use: ioms-ops request deploy"
+    fi
+    rate_ok deploy "$MAX_DEPLOYS_PER_HOUR" || refuse "deploy limit reached (${MAX_DEPLOYS_PER_HOUR}/hour)"
+    echo "Deploy ${cur:0:7} -> ${target:0:7}:"; "${G[@]}" log --oneline "$cur..$target" | head -10 | sed 's/^/  /'
+    test_gate "$target" || refuse "tests FAILED on ${target:0:7}; nothing was deployed"
+    deploy_to "$target" "$cur" 1
+}
+
+# ------------------------------------------------------------------ approval
+new_request() { # action [arg]
+    local id cur target=""; id="$(date +%Y%m%d-%H%M%S)-$(openssl rand -hex 3)"; cur="$(head_sha)"
+    case "$1" in
+        deploy) as_app "git fetch -q origin main" || refuse "git fetch failed"; target="$("${G[@]}" rev-parse origin/main)"
+                [[ "$target" != "$cur" ]] || { echo "Already at origin/main."; audit noop 0; exit 0; } ;;
+        rollback) target="$("${G[@]}" rev-parse "$2^{commit}" 2>/dev/null)" || refuse "unknown commit $2" ;;
+    esac
+    jq -n --arg id "$id" --arg action "$1" --arg arg "${2:-}" --arg by "$CALLER" --arg current "$cur" \
+          --arg target "$target" --arg at "$(date +%s)" \
+          '{id:$id, action:$action, arg:$arg, requested_by:$by, requested_at:($at|tonumber), current_commit:$current, target_commit:$target, status:"pending"}' \
+          > "$STATE/requests/$id.json"
+    echo "Request $id: $1 ${2:-}"
+    if [[ -n "$target" ]]; then
+        "${G[@]}" log --oneline "$cur..$target" 2>/dev/null | head -15 | sed 's/^/  /'
+        "${G[@]}" diff --name-only "$cur" "$target" 2>/dev/null | grep '^database/migrations/' | sed 's/^/  MIGRATION /'
+    fi
+    echo "A person approves it with:  sudo ioms-ops approve $id"
 }
 
 load_request() {
-    [[ "$1" =~ $REQ_ID_RE ]] || refuse "bad request id"
-    REQ="$STATE/requests/$1.json"
-    [[ -f "$REQ" ]] || refuse "no such request $1"
+    [[ "${1:-}" =~ $REQ_ID_RE ]] || refuse "bad request id"
+    REQ="$STATE/requests/$1.json"; [[ -f "$REQ" ]] || refuse "no such request $1"
 }
+set_req() { jq "$@" "$REQ" > "$REQ.tmp" && mv "$REQ.tmp" "$REQ"; }
 
 do_approve() {
     load_request "$1"
     [[ "$CALLER" != "$HERMES_USER" ]] || refuse "the agent account cannot approve its own requests"
     [[ "$(jq -r .status "$REQ")" == pending ]] || refuse "request is $(jq -r .status "$REQ")"
-    jq --arg by "$CALLER" --arg at "$(date +%s)" '.status="approved" | .approved_by=$by | .approved_at=($at|tonumber)' "$REQ" > "$REQ.tmp" && mv "$REQ.tmp" "$REQ"
-    echo "Approved $1 ($(jq -r '.action+" "+.arg' "$REQ")). Valid for $((APPROVAL_TTL / 60)) minutes."
+    set_req --arg by "$CALLER" --arg at "$(date +%s)" '.status="approved" | .approved_by=$by | .approved_at=($at|tonumber)'
+    echo "Approved $1 ($(jq -r '.action+" "+.arg' "$REQ")). The agent may run it within $((APPROVAL_TTL / 60)) minutes."
 }
 
 do_deny() {
-    load_request "$1"
-    [[ "$CALLER" != "$HERMES_USER" ]] || refuse "the agent account cannot decide requests"
-    jq --arg by "$CALLER" '.status="denied" | .denied_by=$by' "$REQ" > "$REQ.tmp" && mv "$REQ.tmp" "$REQ"
-    echo "Denied $1."
+    load_request "$1"; [[ "$CALLER" != "$HERMES_USER" ]] || refuse "the agent account cannot decide requests"
+    set_req --arg by "$CALLER" '.status="denied" | .denied_by=$by'; echo "Denied $1."
 }
 
 do_run() {
     load_request "$1"
     [[ "$(jq -r .status "$REQ")" == approved ]] || refuse "request $1 is $(jq -r .status "$REQ"), not approved"
     local age=$(( $(date +%s) - $(jq -r .approved_at "$REQ") ))
-    [[ $age -le $APPROVAL_TTL ]] || { jq '.status="expired"' "$REQ" > "$REQ.tmp" && mv "$REQ.tmp" "$REQ"; refuse "approval expired ${age}s ago"; }
-    [[ "$(git -c safe.directory="$APP_DIR" -C "$APP_DIR" rev-parse HEAD)" == "$(jq -r .current_commit "$REQ")" ]] || refuse "the server moved since the request was made; request again"
-
-    local action arg target rc=0
-    action="$(jq -r .action "$REQ")"; arg="$(jq -r .arg "$REQ")"; target="$(jq -r .target_commit "$REQ")"
-    jq '.status="running"' "$REQ" > "$REQ.tmp" && mv "$REQ.tmp" "$REQ"
-
+    [[ $age -le $APPROVAL_TTL ]] || { set_req '.status="expired"'; refuse "approval expired ${age}s ago"; }
+    [[ "$(head_sha)" == "$(jq -r .current_commit "$REQ")" ]] || refuse "the server moved since the request; request again"
+    exec 9>"$STATE/deploy.lock"; flock -n 9 || refuse "another deploy is running"
+    local action target cur rc=0; action="$(jq -r .action "$REQ")"; target="$(jq -r .target_commit "$REQ")"; cur="$(head_sha)"
+    set_req '.status="running"'
     case "$action" in
-        deploy|rollback)
-            echo "Backing up before $action ..."
-            /usr/local/bin/ioms-backup || { rc=1; }
-            if [[ $rc -eq 0 ]]; then
-                if [[ "$action" == deploy ]]; then
-                    as_app "git fetch -q origin main && test \"\$(git rev-parse origin/main)\" = '$target'" \
-                        || { echo "origin/main moved since approval; request again." >&2; rc=1; }
-                    [[ $rc -eq 0 ]] && { as_app "./deploy.sh" 2>&1 | redact; rc=${PIPESTATUS[0]}; }
-                else
-                    as_app "git checkout -q -B main '$target'" && { as_app "composer install --no-dev --optimize-autoloader -q && php artisan app:deploy" 2>&1 | redact; rc=${PIPESTATUS[0]}; } || rc=1
-                    echo "NOTE: rollback moves CODE only. Migrations already applied are not reversed."
-                fi
-                supervisorctl restart ioms-worker >/dev/null 2>&1 || true
-            fi
-            ;;
-        restart)
-            case "$arg" in
-                nginx|php8.3-fpm) (systemctl restart "$arg" 2>/dev/null || service "$arg" restart); rc=$? ;;
-                ioms-worker) supervisorctl restart ioms-worker; rc=$? ;;
-                *) rc=1 ;;
-            esac
-            ;;
+        deploy)
+            as_app "git fetch -q origin main"
+            [[ "$("${G[@]}" rev-parse origin/main)" == "$target" ]] || { set_req '.status="stale"'; refuse "origin/main moved since approval"; }
+            test_gate "$target" || { set_req '.status="failed"'; refuse "tests FAILED on ${target:0:7}"; }
+            deploy_to "$target" "$cur" 0; rc=$? ;;
+        rollback)
+            deploy_to "$target" "$cur" 0; rc=$?
+            echo "  NOTE: a rollback moves CODE only; migrations already applied stay applied." ;;
+        maintenance-on)
+            as_app "php artisan down --retry=60"; rc=$? ;;
     esac
-
-    jq --arg rc "$rc" --arg at "$(date +%s)" '.status=(if $rc=="0" then "done" else "failed" end) | .exit=($rc|tonumber) | .finished_at=($at|tonumber)' "$REQ" > "$REQ.tmp" && mv "$REQ.tmp" "$REQ"
-    echo "Request $1: $([[ $rc -eq 0 ]] && echo done || echo FAILED)"
+    set_req --arg rc "$rc" '.status=(if $rc=="0" then "done" else "failed" end) | .exit=($rc|tonumber)'
     return $rc
 }
 
@@ -207,28 +310,40 @@ do_pending() {
 }
 
 # ------------------------------------------------------------------ dispatch
-rc=0
+cmd="${1:-help}"; shift || true
 case "$cmd" in
     status) do_status ;;
+    health) url="${1:-$DEFAULT_URL}"; [[ "$url" =~ ^https?://[A-Za-z0-9.-]+(:[0-9]+)?/?$ ]] || refuse "health: URL must be scheme://host"
+            if [[ "$url" == "$DEFAULT_URL" ]]; then local_health; else bash /usr/local/lib/ioms-ops/healthcheck.sh "$url"; fi ;;
+    policy) do_policy ;;
     logs) do_logs "$@" ;;
-    health) do_health "$@" ;;
-    git-status) git -c safe.directory="$APP_DIR" -C "$APP_DIR" status --short --branch; git -c safe.directory="$APP_DIR" -C "$APP_DIR" log --oneline -5 ;;
+    git-status) "${G[@]}" status --short --branch; "${G[@]}" log --oneline -8 ;;
     disk) df -h / /var; du -sh /var/backups/ioms "$APP_DIR/storage" 2>/dev/null ;;
+    db-stats) do_db_stats ;;
     backup) /usr/local/bin/ioms-backup ;;
     backups) ls -1d /var/backups/ioms/*/ 2>/dev/null | tail -14 ;;
+    deploy) do_deploy_auto ;;
+    restart) rate_ok restart "$MAX_RESTARTS_PER_HOUR" || refuse "restart limit reached (${MAX_RESTARTS_PER_HOUR}/hour)"; do_restart "${1:-}" ;;
+    artisan) do_artisan "$@" ;;
+    maintenance)
+        case "${1:-}" in
+            off) as_app "php artisan up" ;;
+            on) refuse "maintenance on takes the site down -- use: ioms-ops request maintenance-on" ;;
+            *) refuse "maintenance off | request maintenance-on" ;;
+        esac ;;
     request)
         case "${1:-}" in
             deploy) new_request deploy ;;
-            restart) [[ "${2:-}" =~ ^(nginx|php8\.3-fpm|ioms-worker)$ ]] || refuse "restart: nginx|php8.3-fpm|ioms-worker"; new_request restart "$2" ;;
             rollback) [[ "${2:-}" =~ $SHA_RE ]] || refuse "rollback needs a commit sha"; new_request rollback "$2" ;;
-            *) refuse "request: deploy | restart <service> | rollback <commit>" ;;
+            maintenance-on) new_request maintenance-on ;;
+            *) refuse "request: deploy | rollback <sha> | maintenance-on" ;;
         esac ;;
     run) do_run "${1:-}" ;;
     approve) do_approve "${1:-}" ;;
     deny) do_deny "${1:-}" ;;
     pending) do_pending ;;
-    help|-h|--help) sed -n '2,32p' "$0" ;;
-    *) refuse "unknown command '$cmd' (see: ioms-ops help)" ;;
+    help|-h|--help) sed -n '2,37p' "$0" ;;
+    *) refuse "unknown command '$cmd' (see: ioms-ops help, ioms-ops policy)" ;;
 esac
 rc=$?
 audit "$([[ $rc -eq 0 ]] && echo ok || echo failed)" "$rc"

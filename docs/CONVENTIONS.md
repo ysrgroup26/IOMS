@@ -3,6 +3,24 @@
 House style, and a deliberately honest list of mistakes that have actually happened in this
 codebase's history — kept here so they don't get repeated in a slightly different shape.
 
+## Known Pitfall (2026-10-25): a gate that ends in `| tail` reports `tail`'s success
+
+`php artisan test | tail -4` exits 0 when tests fail, so the deploy gate once let a failing suite
+through. Any gate written as a pipeline runs under `set -o pipefail`, or captures to a file and tests the
+command itself.
+
+## Known Pitfall (2026-10-25): a developer `.env` can hide a failing test
+
+`ProductRevisionV252Test` passed locally because the local `.env` still set `IOMS_HELLO_EMAIL=hello@`,
+and failed in the server's clean worktree, which copies `.env.example`. A test about a config DEFAULT must
+not depend on the developer's environment. The server's test gate is the stricter, more honest run.
+
+## Known Pitfall (2026-10-25): a systemd user unit inherits its manager's groups
+
+Removing a user from `sudo` and restarting their `systemctl --user` unit yields a new process **with the
+old groups**: the parent is `user@UID.service`, started before the change. Restart the manager
+(`systemctl restart user@UID.service`) and verify `/proc/<pid>/status`.
+
 ## Known Pitfall (v2.132.0): `mysqldump` reads `[client]` and rejects `database=`
 
 A defaults file with `database=ioms` under `[client]` works for `mysql` and makes `mysqldump` exit with

@@ -82,7 +82,7 @@ if [[ "$VERSION_ID" == "22.04" ]] && ! apt-cache policy php8.3-fpm | grep -qE 'C
 fi
 
 apt-get install -y php8.3-fpm php8.3-cli php8.3-mysql php8.3-mbstring php8.3-xml php8.3-zip \
-    php8.3-gd php8.3-curl php8.3-intl php8.3-bcmath php8.3-opcache php8.3-gmp
+    php8.3-gd php8.3-curl php8.3-intl php8.3-bcmath php8.3-opcache php8.3-gmp php8.3-sqlite3
 
 if ! command -v composer >/dev/null 2>&1; then
     log "Installing Composer (checksum-verified)"

@@ -77,6 +77,6 @@ sudo -u "$HUSER" test -r /var/backups/ioms 2>/dev/null && flag "$HUSER can read 
 [[ $risk -eq 0 ]] && echo "  ok    $HUSER has no privilege beyond ioms-ops, and cannot read IOMS secrets or backups."
 
 echo
-echo "Hermes runs:   sudo ioms-ops status | logs app 200 | health | request deploy | run <id>"
+echo "Hermes runs:   sudo ioms-ops policy | status | logs app 200 | deploy | restart <svc> | artisan <cmd> | request deploy"
 echo "A person runs: sudo ioms-ops pending | approve <id> | deny <id>"
 exit $risk

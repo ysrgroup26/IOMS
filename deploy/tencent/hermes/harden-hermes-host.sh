@@ -151,9 +151,13 @@ log "Restarting Hermes so its process drops the old groups"
 restarted=0
 for u in $sys_units; do systemctl restart "$(basename "$u")" && restarted=1; done
 if [[ -n "$user_units" ]]; then
+    # Restart the USER MANAGER, not the unit: a unit restarted by `systemctl
+    # --user` inherits the manager's supplementary groups, which still include
+    # sudo/adm (found on the real instance). Login sessions are not affected.
     uid="$(id -u "$AGENT")"
+    systemctl restart "user@$uid.service" && restarted=1
     for u in $user_units; do
-        sudo -u "$AGENT" XDG_RUNTIME_DIR="/run/user/$uid" systemctl --user restart "$(basename "$u")" && restarted=1
+        systemctl --user -M "$AGENT@" start "$(basename "$u")" 2>/dev/null || true
     done
 fi
 [[ $restarted -eq 1 ]] && sleep 5

@@ -57,6 +57,17 @@ case "$stage" in
         bash "$KIT/deploy/tencent/hermes/harden-hermes-host.sh" --agent-user ubuntu --admin-user iomsadmin
         say "Stage 1 complete. Now:  su - iomsadmin   then   sudo bash $KIT/deploy/tencent/bootstrap.sh stage2"
         ;;
+    stage1b)
+        # Finishes stage 1 on an instance where it already ran: audits the
+        # remaining sudo rules (acli), restarts Hermes through its user
+        # manager, installs the current ioms-ops, and builds Hermes' dev
+        # workspace. Run as iomsadmin.
+        [[ "${SUDO_USER:-}" != ubuntu ]] || { echo "Run stage1b as iomsadmin: su - iomsadmin" >&2; exit 1; }
+        kit
+        bash "$KIT/deploy/tencent/hermes/finish-hardening.sh" "${@:2}"
+        bash "$KIT/deploy/tencent/hermes/setup-dev-workspace.sh"
+        say "Stage 1b complete. Next: sudo bash $KIT/deploy/tencent/bootstrap.sh stage2"
+        ;;
     stage2)
         [[ "${SUDO_USER:-}" != ubuntu ]] || { echo "Stage 2 must not run as ubuntu (the Hermes account). Use: su - iomsadmin" >&2; exit 1; }
         kit

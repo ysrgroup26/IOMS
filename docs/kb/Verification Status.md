@@ -34,6 +34,14 @@ and driving the screen in a browser, the twelve-to-six month edit **saves and pe
 `ReleaseStatusService` and the hardened `app:deploy` exist to close that gap, and
 `DeploymentIdentityTest` pins them. See `docs/ADR/057-a-release-must-be-able-to-prove-what-is-running.md`.
 
+### What was actually run for the powerful-Hermes model (ADR 073)
+
+Rehearsed in the Ubuntu 24.04 container: the `acli` audit (three cases), the dev workspace, autonomous
+deploy (pass; failing tests refused; failed backup stops; site-breaking commit auto-rolled-back), the
+approved migration deploy, artisan allow-list and refusals, redaction of tokens in nginx access logs.
+**Not run anywhere:** restarting `user@1000.service` (no systemd in a container), and nothing on
+`43.173.21.31`.
+
 ### What was actually run for the Hermes hardening (v2.132.0, follow-up)
 
 - `bootstrap.sh stage1` → `stage2` in the Ubuntu 24.04 container, reproducing the instance: `ubuntu`

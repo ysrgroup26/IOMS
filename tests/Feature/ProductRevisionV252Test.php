@@ -460,8 +460,14 @@ class ProductRevisionV252Test extends TestCase
             $this->assertStringContainsString('@', $address);
         }
 
-        // Four distinct inboxes -- a prospect writing to sales and a
-        // customer chasing an invoice must not land in the same place.
-        $this->assertCount(4, array_unique(config('ioms.emails')));
+        // A customer chasing an invoice, a support request and automated
+        // mail must not land in the same place. v2.131.0: sales (`hello`)
+        // deliberately SHARES support@ by default, because the Zoho
+        // organisation has no hello@ and a published address that bounces
+        // is worse than a shared one. This assertion passed locally for a
+        // release only because a developer .env still set hello@ -- the
+        // server's clean test gate is what caught it.
+        $emails = config('ioms.emails');
+        $this->assertCount(3, array_unique([$emails['support'], $emails['billing'], $emails['noreply']]));
     }
 }

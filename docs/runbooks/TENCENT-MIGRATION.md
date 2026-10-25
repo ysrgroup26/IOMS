@@ -55,6 +55,15 @@ It takes a root-owned copy of the kit, writes the inspection report to `/root/`,
 and asks you to confirm in a **second** OrcaTerm tab that `su - iomsadmin -c 'sudo -v'` works, before it
 removes anything from `ubuntu`.
 
+**Stage 1b, as `iomsadmin`** (closes §3.1's two open items, installs the current `ioms-ops`, builds
+Hermes' workspace):
+
+```bash
+su - iomsadmin
+sudo bash -c 'git -C /opt/ioms-kit pull --ff-only'
+sudo bash /opt/ioms-kit/deploy/tencent/bootstrap.sh stage1b            # add: --acli disable|keep after reviewing
+```
+
 **Stage 2, as `iomsadmin`** (from now on, always):
 
 ```bash
@@ -74,85 +83,93 @@ file as a safety net. What decides the margin is Hermes (§3): an agent runtime 
 hold 0.5–1.5 GB. Measure it in the inspection report (`ps … --sort=-rss`) and again under load in §6. If
 free memory falls under ~600 MB during the load check, move Hermes to its own instance (§3, option B).
 
-## 3. Hermes Agent: kept and governed, not trusted
+## 3. Hermes Agent: a powerful operator, not root
 
-Your direction is to keep Hermes and evaluate it as an operations agent (Git workflow, deploys, logs,
-health checks). Nothing in the kit removes, reinstalls or reconfigures it. `provision.sh` refuses to run
-if anything other than nginx holds ports 80/443, and changes the firewall only with `--apply-firewall`.
+The goal is a Hermes that **develops and operates IOMS on its own**: code, tests, logs, routine deploys,
+restarts, caches, queues. What it gives up is the one thing that makes a compromised or confused agent
+catastrophic: **unbounded root**, which means reading every customer's data and every payment and mail
+secret, or destroying them without a trace.
 
-**What Hermes is (public sources):** an MIT-licensed autonomous agent by Nous Research. On Lighthouse
-it's a one-click application image that pre-installs its runtime (Tencent mentions Redis and systemd).
-It is driven by chat or terminal, calls an LLM provider with an API key, and **can run shell commands**.
+### 3.1 State on the instance (owner's checks, 2026-10-25)
 
-**What it is on this instance:** answered by `inspect-instance.sh` ("HERMES AGENT" section), as a
-checklist:
+- Hermes runs as `ubuntu` (UID 1000) via the **user** unit `~/.config/systemd/user/hermes-gateway.service`.
+- `ubuntu` had `NOPASSWD: ALL`, which makes Hermes root.
+- `bootstrap.sh stage1` has run: `iomsadmin` exists, `ubuntu`'s cloud-init rule is disabled, and `ubuntu`
+  is out of `sudo`/`adm` and holds `ioms-ops`.
+- **Two items left open:**
+  1. Hermes' process still carries the old `sudo` group.
+  2. `/etc/sudoers.d/acli` grants `ubuntu` additional rules.
 
-| Question | Where in the report | Acceptable answer |
+### 3.2 Why Hermes kept the `sudo` group, and the correct restart
+
+A new process inherits the supplementary groups of its parent. A user unit's parent is the **user
+manager** (`user@1000.service`), which was started while `ubuntu` was still in `sudo`. So
+`systemctl --user restart hermes-gateway` produces a fresh process **with the old groups**, every time.
+
+The correct method is `systemctl restart user@1000.service`, run from the system manager:
+
+1. It stops every `ubuntu` user unit cleanly, including Hermes. Nothing is killed by name.
+2. It starts a new user manager with groups read fresh from `/etc/group`.
+3. `hermes-gateway` comes back because it's enabled. The script starts it explicitly if not.
+
+Login sessions (OrcaTerm) live in `session-*.scope`, outside the user manager, and aren't touched.
+`finish-hardening.sh` checks that the old PIDs are gone and the new ones differ, and reads
+`/proc/<pid>/status` for every process of the new manager to confirm none carries `sudo` or `adm`.
+
+### 3.3 `/etc/sudoers.d/acli`: audited before it is changed
+
+`finish-hardening.sh` prints the whole file (sudoers files hold no secrets), with each binary's owner,
+mode, package and type, and classifies every rule that reaches `ubuntu`:
+
+| Verdict | Rule | Action |
 |---|---|---|
-| Which user does it run as? | process USER column, unit `User=` | A dedicated unprivileged user. **Root is not acceptable** for co-hosting |
-| Does it listen publicly? | `ss -tulpn` | Nothing on 0.0.0.0 except via the Lighthouse firewall's explicit allow |
-| What shell/tool access is enabled? | config.yaml tool lines | Terminal tool on is fine **only** under that dedicated user |
-| Memory at idle? | `ps --sort=-rss` | Leaves ≥ 2.5 GB for IOMS |
-| Where are its keys? | credential file names | Readable by its user only |
+| **Root-equivalent** | `ALL`; a wildcard; a shell, interpreter, editor or pager; a package/service/container manager; a file-writing tool (`tee`, `cp`, `dd`, `chmod`, `install`, `rsync`, `tar`…); `git`, `curl`, `find`, `env`, `sudo`; or **any binary or directory the agent can write to** | Disabled automatically, with a backup and `visudo` validation (automatic restore on failure). Keeping it would make every other boundary decorative |
+| **Needs decision** | a specific, root-owned binary that isn't in the list above (for example a vendor CLI) | **Left in place**. Re-run with `--acli disable` or `--acli keep` after reading the printed details |
 
-**On this instance Hermes is effectively root.** It runs as `ubuntu`, and `ubuntu` has `NOPASSWD: ALL`
-(cloud-init's `/etc/sudoers.d/90-cloud-init-users`). Against root, file modes, a 640 `.env` and the
-`ioms-ops` allow-list protect nothing: Hermes could read the database, `.env`, Duitku and Zoho secrets,
-or every dump. So **root is removed from Hermes before any IOMS secret or data reaches the host**, by
-`hermes/harden-hermes-host.sh` (stage 1):
+Rehearsed both ways (§10): `systemctl restart hermes-gateway` → root-equivalent (systemctl); a vendor
+binary → needs decision; the same binary made writable by `ubuntu` → root-equivalent.
 
-1. Creates `iomsadmin`, a **human** admin with a password and password-protected sudo, copies
-   `ubuntu`'s SSH keys to it, and verifies it (password set, `sudo` group, `(ALL) ALL`). You also
-   confirm it from a second tab. Nothing is removed until this passes, because your own OrcaTerm
-   session is `ubuntu` too and would otherwise lose its way to root.
-2. Backs up `/etc/sudoers` and `/etc/sudoers.d` and `ubuntu`'s privileged groups to
-   `/root/hermes-hardening-<stamp>/`.
-3. Comments out `ubuntu`'s sudo rules (never deletes them), removes it from
-   `sudo`/`admin`/`wheel`/`lxd`/`docker`, and validates with `visudo`, restoring the backup automatically
-   on failure.
-4. Grants `ubuntu` exactly `sudo ioms-ops` (`install-ops-guard.sh`).
-5. Restarts Hermes' systemd units, because a running process keeps the groups it started with, then
-   reads `/proc/<pid>/status` to prove no Hermes process still carries the `sudo` group. A Hermes started
-   by hand (tmux, nohup) is reported for you to restart.
+### 3.4 What Hermes can do afterwards
 
-Impact on Hermes: same user, home, configuration, API keys and processes. It loses root: `sudo apt …` or
-`sudo systemctl …` from its terminal tool now fails, and operational work goes through `sudo ioms-ops`.
-**Refused before anything changes:** a Hermes unit that starts it *through* sudo; and a unit without
-`User=ubuntu`, which may be running it as root, triggers a warning to review.
-**Undo:** `sudo bash /opt/ioms-kit/deploy/tencent/hermes/harden-hermes-host.sh --undo /root/hermes-hardening-<stamp>` (as `iomsadmin`).
-**Approvals:** `ioms-ops approve` refuses `ubuntu`, so you approve as `iomsadmin`.
+| Area | Hermes, autonomously | How |
+|---|---|---|
+| **Code** | read, change, branch, commit; with a GitHub token, push | its own clone `~/IOMS` (`setup-dev-workspace.sh`): its own SQLite database, mail to log, no production secret |
+| **Tests and tooling** | `php artisan test`, `composer`, `npm run build/lint` | the same workspace; PHP 8.3, Composer, Node installed system-wide |
+| **Routine deploy** | `sudo ioms-ops deploy`: fast-forward to `origin/main` | test gate on the **target** commit (in-memory SQLite) → backup → deploy → health check → **automatic rollback** if unhealthy. 6/hour |
+| **Services** | `sudo ioms-ops restart nginx|php8.3-fpm|ioms-worker|mysql` | config-tested first; reload-or-restart; 12/hour |
+| **Laravel ops** | `sudo ioms-ops artisan` `about`, `migrate:status`, `route:list`, `schedule:list/run`, `queue:failed/retry/restart`, `config/route/view/event:cache/clear`, `optimize(:clear)`, `storage:link`, `ioms:mail-check`, `ioms:duitku-check` | arguments validated; output redacted |
+| **Logs** | `sudo ioms-ops logs app|worker|nginx|nginx-access|php|backup|migration|ops [N]` | passwords, keys, bearer tokens, signed-URL parameters and **order-status tokens in URLs** redacted |
+| **Diagnostics** | `status`, `health`, `git-status`, `disk`, `db-stats` (counts and sizes, never rows), `backup`, `backups`, `policy` | |
+| **Recovery** | `maintenance off`; restart a down service; rollback happens automatically after a failed routine deploy | |
 
-**The control (`deploy/tencent/hermes/`), rehearsed in §10:**
+**A person approves** (`ioms-ops request …`, approved by `iomsadmin`; the agent's own account is refused):
+a deploy that contains **database migrations**, a rollback to an arbitrary commit (code can't un-apply a
+migration), and putting the site **into** maintenance. Approvals expire in 30 minutes and are bound to
+the exact commit. The approved deploy still goes through the test gate and backup.
 
-- Hermes' only privilege is `sudo /usr/local/bin/ioms-ops`. That's one sudoers line, validated with
-  `visudo` before it's installed.
-- **Read, immediately:** `status`, `health`, `logs app|nginx|worker|migration [N]` (credentials redacted),
-  `git-status`, `disk`, `backup`, `backups`.
-- **Change, only with approval:** Hermes runs `request deploy | restart <svc> | rollback <sha>` and
-  gets an id. A person runs `sudo ioms-ops approve <id>`. Hermes then runs `run <id>`.
-  - sudo records the real caller, so **the agent's account can't approve its own requests**.
-  - Approvals expire in 30 minutes and are bound to the exact commit.
-  - Deploy and rollback take a backup first.
-- **Not reachable at all:** restoring over the live database, dropping data, editing `.env`, firewall,
-  DNS, users, packages, reboot, reinstall.
-- **Audit:** `/var/log/ioms-ops.log`, one JSON line per call (caller, command, result), append-only
-  (`chattr +a`).
-- **Isolation:** `/srv/ioms` and `/var/backups/ioms` are mode 750, owned by `ioms` and root, so the Hermes
-  user can't read the code's `.env` or any dump. The installer **audits** the Hermes user and exits
-  non-zero listing every risk it finds: root, membership of `sudo`/`docker`/`lxd`/`ioms`, other sudoers
-  rules, readable secrets. It changes none of them; that's your call.
+**Not available to Hermes, and why:**
 
-**Decision rule:**
+| Withheld | Reason |
+|---|---|
+| A root shell, `sudo` for anything but `ioms-ops` | root reads every tenant's data and every secret, and can erase the audit trail |
+| `tinker`, raw SQL | arbitrary reads of personal data and password hashes, arbitrary writes without the app's rules |
+| Production `.env` | DB password, Duitku key, Zoho password, `APP_KEY` (which forges signed links and decrypts data) |
+| Restore over the live database, dropping data | irreversible; a person does it from a root shell |
+| Firewall, DNS, users, packages, reboot, reinstall | infrastructure changes with blast radius beyond IOMS |
 
-- **A, co-host:** keep Hermes on this instance if the installer reports no risks and §6's load check
-  leaves headroom.
-- **B, separate:** if Hermes runs as root, or is in `docker`/`sudo` and that can't be removed without
-  breaking the image, it can't be contained on the host that holds customer data and payment
-  credentials. Give IOMS a second, clean Ubuntu 24.04 Lighthouse instance, and keep this one for Hermes,
-  which can still operate IOMS over SSH as a user whose only sudo right is `ioms-ops`.
+If Hermes needs something that isn't there, the answer is a new **validated subcommand** in `ioms-ops`
+(rehearsed, audited, rate-limited), not a wider sudoers line.
 
-Reinstalling the current instance isn't needed for either option, and isn't done without your explicit
-authorisation after a snapshot.
+### 3.5 Administrator access and recovery
+
+`iomsadmin` is the human administrator (password plus sudo). If it's ever locked out, any one of these
+works:
+
+- (a) Lighthouse console → **Reset password**.
+- (b) Lighthouse **Automation Tools (TAT)**, which runs as root: `usermod -aG sudo iomsadmin && passwd -u iomsadmin`.
+- (c) Restore snapshot `ioms-before-migration-20261025`.
+- (d) Restore the backups `harden-hermes-host.sh` and `finish-hardening.sh` write to
+  `/root/hermes-hardening-*` and `/root/hermes-finish-*`.
 
 ## 4. Provision (on the instance)
 
@@ -378,6 +395,31 @@ Defects the rehearsal found that reading had not:
     agent with **no** `ioms-ops` rule. The mode is now set only on a new log.
 11. The agent stayed in `adm`, which reads nginx access logs, and those carry order-status tokens in URLs.
     `adm` is now removed too, and logs reach Hermes only through `ioms-ops logs`, which redacts.
+12. **The test gate let a failing suite through.** It took its exit status from `tail`, not from
+    `php artisan test`. Now under `pipefail`, and it names the failing tests.
+13. That gate then caught a real repository defect: `ProductRevisionV252Test` still required four
+    distinct mailboxes after v2.131.0 made `hello` share `support@`. It passed on the developer machine
+    only because a local `.env` still set `hello@`.
+14. `ioms-ops artisan` passed an empty argument (`printf '%q '` with no arguments), so every bare
+    command failed.
+15. `ioms-ops restart nginx` reloaded an nginx that was down, which does nothing. It is now
+    reload-or-restart. `mysql` was added to the restart list after Hermes saw it down and couldn't act.
+
+**Powerful-Hermes rehearsal (same container, stand-in Hermes as `ubuntu`):**
+
+| Case | Result |
+|---|---|
+| `acli` with a `systemctl` rule and a vendor binary | `systemctl` disabled (root-equivalent), vendor binary left for decision; same binary made writable by `ubuntu` → disabled |
+| `setup-dev-workspace.sh` | clone, Composer, SQLite workspace, a test file passes as `ubuntu`; production `.env` unreadable |
+| A: autonomous `deploy` of a normal change | test gate 1,645 passed → backup → deploy → healthy, no approval |
+| A, with the test still broken | **refused, nothing deployed** (after fix 12) |
+| A, with MySQL down | backup failed → **deploy stopped, nothing changed**; Hermes then restarted MySQL, PHP-FPM, nginx and the worker itself |
+| B: change containing a migration | autonomous deploy refused → `request deploy` → `ubuntu` cannot approve → `iomsadmin` approves → test gate, backup, deploy, migration applied, healthy |
+| C: change that breaks the site (500s) | health check failed → **automatic rollback** to the last good commit, healthy again |
+| artisan allow-list, `tinker`/`db:wipe`/`--env`/`$(id)` | allowed ones run; the others refused |
+| `logs nginx-access` | order-status token and signed-URL parameters redacted |
+| User-manager restart of Hermes | **not rehearsable** here (no systemd in a container); runs for the first time on the instance, with its own checks |
+
 
 ## 11. What is blocked, and on whom
 

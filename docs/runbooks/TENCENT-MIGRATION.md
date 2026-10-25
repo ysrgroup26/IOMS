@@ -206,6 +206,63 @@ works:
 - (d) Restore the backups `harden-hermes-host.sh` and `finish-hardening.sh` write to
   `/root/hermes-hardening-*` and `/root/hermes-finish-*`.
 
+### 3.7 Caddy holds 80/443: IOMS goes *behind* it, not in its place
+
+**Finding (stage 2, 2026-10-25):** port 80 is held by **Caddy** (PID 1010), not nginx. On the Hermes
+template Caddy is very likely the front door of the **Hermes dashboard**. The dashboard binds
+`127.0.0.1:9119`, has no login of its own, and is normally published through Caddy (Hermes docs;
+dashboard guides). Stopping Caddy or taking its ports would break Hermes. `provision.sh` stopped before
+installing anything, as designed.
+
+**The migration doesn't need nginx on 80/443.** It needs something to terminate TLS for `iomsuite.com`
+and hand requests to PHP. Options:
+
+| Option | Hermes impact | Verdict |
+|---|---|---|
+| Stop/replace Caddy with nginx | breaks the dashboard; rewrites Hermes' config | rejected |
+| nginx on 80/443 alongside Caddy | impossible (same ports) | rejected |
+| Serve IOMS directly from Caddy (`php_fastcgi`) | one site in Caddy | workable, but discards the rehearsed nginx layer |
+| **Caddy keeps 80/443; nginx on `127.0.0.1:8081`; one IOMS site in Caddy** | **one `import` line added, verified** | **chosen** |
+| A second instance for IOMS | none | cleanest isolation; costs a second instance |
+
+**How it's done (rehearsed with a real Caddy and a stand-in dashboard, §10):**
+
+1. `provision.sh` detects Caddy on 80/443 and switches to **caddy mode** by itself (`--front auto`):
+   - nginx listens on `127.0.0.1:8081` only.
+   - Its install runs under `policy-rc.d`, because Ubuntu's nginx starts itself on port 80 and would
+     fail half-configured.
+   - The visitor IP is trusted from `CF-Connecting-IP` only when it arrives from 127.0.0.1.
+   - It writes `/etc/caddy/ioms.caddy` (IOMS hostnames, the Origin certificate, `reverse_proxy
+     127.0.0.1:8081`) **without activating it**.
+2. `caddy-site.sh` (read-only) shows:
+   - Caddy's config source and every site and upstream it serves;
+   - whether the combined config passes `caddy validate`;
+   - the exact one-line diff it would apply.
+
+   It refuses if Caddy is driven by JSON/`--resume`, if Caddy can't read the key, or if `iomsuite.com`
+   is already defined.
+3. `caddy-site.sh --apply`:
+   - backs up the Caddyfile, adds `import /etc/caddy/ioms.caddy`, validates, and **reloads
+     gracefully** (no drop);
+   - then checks every site that existed **before** (each name on 80/443, plus the bare IP). If any of
+     them answers differently, it restores the backup and reloads;
+   - then checks that IOMS answers through Caddy exactly what nginx answers directly;
+   - re-running is idempotent, and `--undo <backup>` reverses it.
+
+**Security finding to decide (not changed by any script):** `caddy-site.sh` reports whether Caddy proxies
+`:9119`/`:8642` **without authentication**. If it does, anyone who reaches the instance's IP can drive
+Hermes. Hermes now has no root, but it still holds its LLM keys and channels. Fix it in Caddy with
+`basic_auth` on that site, or restrict it to your IP. That's a change to Hermes' own site, so it's yours
+to make. **In Caddy mode `cloudflare-lockdown.sh` refuses to run**, because a port-level Cloudflare-only
+rule would also cut off the dashboard. Restrict IOMS inside its own Caddy site after cutover instead.
+
+**Order on this instance:**
+
+1. `bootstrap.sh stage2` (caddy mode; nothing is published).
+2. Export and `migrate.sh import`.
+3. `caddy-site.sh`, then `caddy-site.sh --apply`.
+4. `migrate.sh verify --url https://iomsuite.com --resolve 127.0.0.1 --e2e`.
+
 ## 4. Provision (on the instance)
 
 **Origin certificate first (Cloudflare dashboard):** SSL/TLS → Origin Server → Create Certificate → RSA,

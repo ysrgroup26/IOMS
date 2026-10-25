@@ -20,6 +20,12 @@ here="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
 [[ $EUID -eq 0 ]] || die "Run as root."
 
 mode="${1:-apply}"
+# Caddy mode (Hermes image): 80/443 also carry the Hermes dashboard and any
+# other Caddy site. A port-level Cloudflare-only rule would cut those off, so it
+# is refused here; restrict the IOMS site inside Caddy instead (runbook 3.7).
+if ss -tlnpH '( sport = :443 )' 2>/dev/null | grep -q '"caddy"' && [[ "$mode" != --undo ]]; then
+    die "Caddy owns 80/443 (it also serves Hermes). A port-level lockdown would cut Hermes off. See TENCENT-MIGRATION.md 3.7."
+fi
 ranges="$(cloudflare_ranges)"
 [[ "$(wc -l <<<"$ranges")" -ge 10 ]] || die "Cloudflare range list looks wrong ($(wc -l <<<"$ranges") entries); refusing."
 

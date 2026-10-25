@@ -79,7 +79,14 @@ case "$stage" in
             say "Paste the PRODUCTION APP_KEY (from IDCloudHost: grep ^APP_KEY= ~/ioms/.env). Input is hidden."
             bash "$KIT/deploy/tencent/migrate.sh" env-set APP_KEY
         fi
-        say "Stage 2 complete. Next: export on IDCloudHost, then migrate.sh import (runbook section 5)."
+        if [[ -f /etc/caddy/ioms.caddy ]]; then
+            say "Stage 2 complete (CADDY MODE: Caddy keeps 80/443 for Hermes; IOMS is NOT yet published)."
+            echo "Next: export on IDCloudHost -> migrate.sh import (runbook 5), then:"
+            echo "  sudo bash $KIT/deploy/tencent/caddy-site.sh            # read-only"
+            echo "  sudo bash $KIT/deploy/tencent/caddy-site.sh --apply    # one import line, verified, auto-undo"
+        else
+            say "Stage 2 complete. Next: export on IDCloudHost, then migrate.sh import (runbook section 5)."
+        fi
         ;;
     *)
         sed -n '2,32p' "$0"; exit 2 ;;

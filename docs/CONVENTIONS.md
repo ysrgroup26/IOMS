@@ -3,6 +3,26 @@
 House style, and a deliberately honest list of mistakes that have actually happened in this
 codebase's history — kept here so they don't get repeated in a slightly different shape.
 
+## Known Pitfall (2026-10-25): `diff` exits 1 when it finds what you were looking for
+
+In `caddy-site.sh` a regression check printed the difference with `diff a b | sed …` under
+`set -euo pipefail`. `diff` returns 1 when the files differ, so the script **died on that line, before
+its own restore**, and the hijacked Caddy config stayed live. A rollback path is only real once it has
+been exercised: the rehearsal hijacked a site on purpose to prove it. Any diagnostic `diff`/`grep` in a
+`set -e` script ends in `|| true`.
+
+## Known Pitfall (2026-10-25): Ubuntu's nginx starts itself on install
+
+`apt-get install nginx` starts nginx with a default site on port 80. On a host where another server
+(Caddy, on the Hermes image) owns 80, the start fails and the package is left half-configured. Install
+under a temporary `/usr/sbin/policy-rc.d` that exits 101, remove the default site, then start nginx on
+its real address.
+
+## Known Pitfall (2026-10-25): `curl --resolve` still goes through `HTTPS_PROXY`
+
+A local check `curl --resolve host:443:127.0.0.1 https://host/` is sent to an environment proxy if one
+is set, and the proxy, not the local server, answers. Local checks pass `--noproxy '*'`.
+
 ## Known Pitfall (2026-10-25): one `apt-get install` line fails as a whole
 
 `setup-dev-workspace.sh` asked for PHP extensions and `nodejs npm` in one command. On the Tencent image

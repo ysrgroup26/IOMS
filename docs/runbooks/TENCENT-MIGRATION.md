@@ -282,7 +282,72 @@ bash provision.sh --domain iomsuite.com --domain www.iomsuite.com --domain stagi
 Lighthouse console → Firewall: allow **22 from your IP only** (OrcaTerm works without public 22), and
 80/443. Remove any other inbound rule the image added unless the inspection showed Hermes needs it.
 
-## 5. Application and data
+## 5. Application and data: the fast path (one command per side)
+
+**Method:** an encrypted **server-to-server pull over HTTPS**. Tencent downloads the bundle straight from
+the existing IDCloudHost website, so there's no File Manager download and no OrcaTerm upload. SSH to
+IDCloudHost isn't required: cPanel Terminal is enough.
+
+| Considered | Verdict |
+|---|---|
+| SSH from Tencent to IDCloudHost (rsync/stream) | fastest if it exists, but not guaranteed on shared hosting |
+| Remote MySQL (cPanel → Remote MySQL → allow `43.173.21.31`) | opens 3306 on shared hosting; storage still needs another route |
+| cPanel File Manager download + OrcaTerm upload | works, but slow and manual, and the dump passes through your PC |
+| **Encrypted bundle, published briefly under a random name, pulled by Tencent** | **chosen**: needs only cPanel Terminal and the site that already runs |
+
+**Why it's safe:**
+
+- AES-256 with a one-time random key that exists only in the transfer code.
+- The file name is 128 random bits.
+- Tencent checks the SHA-256 of the encrypted file before decrypting, and of every file after.
+- The published file is removed as soon as the access log shows the download, after `--wait` minutes,
+  or on Ctrl-C.
+- The plain export stays only in your cPanel home (mode 700) and in `/root` on Tencent.
+
+**IDCloudHost (cPanel Terminal).** The script is fetched with `git fetch`/`git show`, which doesn't touch
+the live code; `git pull` would:
+
+```bash
+cd ~/ioms && git fetch -q origin main && git show origin/main:deploy/tencent/cpanel-handoff.sh > ~/ioms-handoff.sh
+bash ~/ioms-handoff.sh            # rehearsal: production keeps serving
+bash ~/ioms-handoff.sh --final    # cutover day: maintenance mode first, so no write is lost
+```
+
+It prints one line, the **transfer code**, and waits.
+
+**Tencent (as `iomsadmin`):**
+
+```bash
+sudo git -C /opt/ioms-kit pull --ff-only
+sudo bash /opt/ioms-kit/deploy/tencent/migrate-all.sh            # add --replace on later runs
+```
+
+It asks for the transfer code (hidden) and, only the first time, the Zoho app password (hidden; Enter =
+later). Everything else is automatic and skipped when already done:
+
+1. Download, checksum and decrypt the bundle.
+2. Apply production's configuration from the bundle:
+   - `APP_KEY` must **match**, and is never overwritten;
+   - Duitku is forced to **sandbox**;
+   - VAPID keys carry over, so existing push subscriptions keep working;
+   - Google sign-in and `IOMS_*` carry over;
+   - neither database nor mail credentials travel.
+3. **Hold** the scheduler and the queue worker. A copy of production with live mail must not email
+   customers before cutover. `ioms-ops` respects the hold.
+4. Import: backup, then load, then **per-table row-count parity**, then storage, then migrations.
+5. Validate the Origin certificate at `/root/origin.pem` + `/root/origin.key`: Cloudflare Origin CA,
+   key matches, covers `iomsuite.com` and `*.iomsuite.com`. Without one, IOMS is **not published**.
+6. Publish (`caddy-site.sh --apply`).
+7. Verify: pages and security surface, e2e register/sign-out/sign-in, Duitku sandbox, Zoho, backup and
+   restore check.
+8. Print one table: PASS / BLOCKED / FAIL per gate, and **READY FOR CUTOVER** only if everything passes.
+
+**After the DNS switch you approve:** `sudo bash /opt/ioms-kit/deploy/tencent/migrate-all.sh go-live`
+releases the scheduler and worker.
+**Recovery:** `migrate.sh restore --from /var/backups/ioms/<stamp> --yes-overwrite-database` (takes a
+backup of the current state first), and `caddy-site.sh --undo /root/caddy-backup-<stamp>`.
+
+### 5.1 Manual steps (fallback, as before)
 
 ```bash
 bash migrate.sh app                                    # clones main into /srv/ioms/app, .env: mail=log, payment=none

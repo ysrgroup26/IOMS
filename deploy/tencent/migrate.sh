@@ -13,6 +13,8 @@
 #   migrate.sh fresh                          no export: empty database + seeders
 #   migrate.sh verify --url URL [--resolve IP] [--mail-to ADDR] [--e2e] [--allow-no-payment]
 #   migrate.sh status                         one screen: versions, services, release
+#   migrate.sh restore --from BACKUPDIR --yes-overwrite-database
+#                                             RECOVERY: put a /var/backups/ioms/<stamp> back
 #
 # Order on a new instance: preflight -> provision.sh -> app -> env-set (secrets)
 # -> import (or fresh) -> verify. Re-running any phase is safe.
@@ -33,7 +35,7 @@ as_app() { sudo -u "$APP_USER" -H bash -c "cd '$APP_DIR' && $*"; }
 artisan() { as_app "php artisan $*"; }
 
 # Keys whose values are secrets: never printed, only accepted on stdin.
-SECRET_KEYS='^(APP_KEY|DB_PASSWORD|MAIL_PASSWORD|DUITKU_API_KEY|MIDTRANS_SERVER_KEY|VAPID_PRIVATE_KEY|GOOGLE_CLIENT_SECRET|AWS_SECRET_ACCESS_KEY|REDIS_PASSWORD)$'
+SECRET_KEYS='^(APP_KEY|DB_PASSWORD|MAIL_PASSWORD|DUITKU_API_KEY|MIDTRANS_SERVER_KEY|IOMS_VAPID_PRIVATE_KEY|VAPID_PRIVATE_KEY|GOOGLE_CLIENT_SECRET|AWS_SECRET_ACCESS_KEY|REDIS_PASSWORD)$'
 
 env_set_raw() { # key value -- atomic, keeps mode and owner
     local key="$1" val="$2" f="$APP_DIR/.env" tmp
@@ -255,6 +257,32 @@ phase_verify() {
     [[ $fail -eq 0 ]] && log "VERIFY PASSED" || die "VERIFY FAILED -- see above."
 }
 
+phase_restore() {
+    # RECOVERY. Destructive by nature (it replaces the live database with a
+    # backup), so it needs an explicit flag AND, on a terminal, typing RESTORE.
+    # A fresh backup of the current state is taken first, so a restore can
+    # itself be undone.
+    local from="" yes=0
+    while [[ $# -gt 0 ]]; do
+        case "$1" in --from) from="$2"; shift 2 ;; --yes-overwrite-database) yes=1; shift ;; *) die "Unknown: $1" ;; esac
+    done
+    [[ -f "$from/ioms.sql.gz" ]] || die "--from must be a backup directory (with ioms.sql.gz), e.g. $(ls -1d /var/backups/ioms/*/ 2>/dev/null | tail -1)"
+    [[ $yes -eq 1 ]] || die "This REPLACES the live database. Re-run with --yes-overwrite-database."
+    ( cd "$from" && sha256sum -c SHA256SUMS >/dev/null ) || die "Backup checksums do not match; refusing."
+    if [[ -t 0 ]]; then read -r -p "Type RESTORE to replace the live database with $from: " ok; [[ "$ok" == RESTORE ]] || die "Not restored."; fi
+    log "Backing up the CURRENT state first"
+    /usr/local/bin/ioms-backup
+    as_app "php artisan down --retry=60" || true
+    mysql --defaults-extra-file=/root/ioms-db.cnf -N -e "SELECT table_name FROM information_schema.tables WHERE table_schema='ioms'" \
+      | awk '{print "DROP TABLE IF EXISTS `"$1"`;"}' | { echo "SET FOREIGN_KEY_CHECKS=0;"; cat; echo "SET FOREIGN_KEY_CHECKS=1;"; } \
+      | mysql --defaults-extra-file=/root/ioms-db.cnf ioms
+    gunzip -c "$from/ioms.sql.gz" | mysql --defaults-extra-file=/root/ioms-db.cnf ioms
+    tar -C "$APP_DIR" --no-same-owner -xzf "$from/storage-app.tar.gz"; chown -R "$APP_USER:$APP_USER" "$APP_DIR/storage/app"
+    as_app "php artisan up"
+    note "restore from $from"
+    log "Restored from $from (the state before this restore is the newest backup)."
+}
+
 phase_status() {
     echo "Code:     $(git -c safe.directory="$APP_DIR" -C "$APP_DIR" log -1 --format='%h %s (%cr)' 2>/dev/null || echo none)"
     echo "Version:  $(artisan "tinker --execute='echo config(\"ioms.version\");'" 2>/dev/null || echo '?')"
@@ -273,5 +301,6 @@ case "$cmd" in
     fresh) phase_fresh ;;
     verify) phase_verify "$@" ;;
     status) phase_status ;;
+    restore) phase_restore "$@" ;;
     *) sed -n '2,20p' "$0"; exit 2 ;;
 esac

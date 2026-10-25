@@ -3,6 +3,20 @@
 House style, and a deliberately honest list of mistakes that have actually happened in this
 codebase's history — kept here so they don't get repeated in a slightly different shape.
 
+## Known Pitfall (2026-10-25): `curl … | grep -q` under pipefail fails on success
+
+`grep -q` exits at its first match; `curl`, still writing a large page, gets SIGPIPE, and with
+`pipefail` the pipeline reports failure for a page that was correct. The health check's e2e reported
+"account area FAIL" only once the page grew. Capture first (`body="$(curl …)"`), then
+`grep -q … <<<"$body"`.
+
+## Known Pitfall (2026-10-25): a repeated `.env` key -- Laravel uses the LAST one
+
+Production `.env` files accumulate duplicates (`PAYMENT_GATEWAY=` and later `PAYMENT_GATEWAY=duitku`).
+phpdotenv as Laravel loads it keeps the **last** occurrence (verified). Anything that reads `.env` with
+`grep` must do the same (`tac | awk -F= '!seen[$1]++' | tac`), or it acts on a value the application
+never sees.
+
 ## Known Pitfall (2026-10-25): `diff` exits 1 when it finds what you were looking for
 
 In `caddy-site.sh` a regression check printed the difference with `diff a b | sed …` under

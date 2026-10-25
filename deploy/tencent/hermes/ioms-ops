@@ -83,6 +83,10 @@ redact() {
 }
 
 as_app() { sudo -u "$APP_USER" -H bash -c "cd '$APP_DIR' && $*"; }
+# During the migration the queue worker is HELD (migrate-all.sh): a copy of
+# production must not process customers' jobs before the cutover.
+held() { [[ -f /var/lib/ioms-migrate/hold ]]; }
+worker_restart() { held && { echo "  worker held for the migration -- not restarted"; return 0; }; supervisorctl restart ioms-worker >/dev/null 2>&1 || true; }
 head_sha() { "${G[@]}" rev-parse HEAD; }
 
 rate_ok() { # bucket limit -- sliding hour
@@ -174,7 +178,7 @@ do_restart() {
         # reload-or-restart: a plain reload does nothing to an nginx that is down.
         nginx) nginx -t 2>&1 | tail -1 && { systemctl reload-or-restart nginx 2>/dev/null || { service nginx status >/dev/null 2>&1 && service nginx reload || service nginx start; }; } ;;
         php8.3-fpm) php-fpm8.3 -t 2>&1 | tail -1 && { systemctl restart php8.3-fpm 2>/dev/null || service php8.3-fpm restart; } ;;
-        ioms-worker) supervisorctl restart ioms-worker ;;
+        ioms-worker) held && refuse "the worker is held for the migration (migrate-all.sh go-live releases it)"; supervisorctl restart ioms-worker ;;
         mysql) systemctl restart mysql 2>/dev/null || service mysql restart ;;
         *) refuse "restart: nginx|php8.3-fpm|ioms-worker|mysql" ;;
     esac
@@ -206,7 +210,7 @@ deploy_to() { # target-sha previous-sha allow-auto-rollback(0|1)
     echo "  backup ..."; /usr/local/bin/ioms-backup >/dev/null || { echo "  backup FAILED -- not deploying"; return 1; }
     echo "  deploying ${target:0:7} ..."
     as_app "git fetch -q origin main && git checkout -q -B main '$target' && ./deploy.sh" 2>&1 | redact | grep -E 'signature|Deployment complete|ERROR|Error|FAIL' || true
-    supervisorctl restart ioms-worker >/dev/null 2>&1 || true
+    worker_restart
     echo "  health check ..."
     if local_health > "$STATE/last-health.txt" 2>&1; then
         echo "  healthy -- ${target:0:7} is live"; echo "$target" > "$STATE/last-good"; return 0
@@ -215,7 +219,7 @@ deploy_to() { # target-sha previous-sha allow-auto-rollback(0|1)
     if [[ "$auto_rb" == 1 ]]; then
         echo "  UNHEALTHY -- rolling back automatically to ${prev:0:7}"
         as_app "git checkout -q -B main '$prev' && composer install --no-dev --optimize-autoloader -q && php artisan app:deploy" >/dev/null 2>&1
-        supervisorctl restart ioms-worker >/dev/null 2>&1 || true
+        worker_restart
         if local_health >/dev/null 2>&1; then echo "  rolled back; ${prev:0:7} is live and healthy"; else echo "  ROLLBACK ALSO UNHEALTHY -- a person must look now"; fi
     else
         echo "  UNHEALTHY -- not rolled back automatically (this deploy ran migrations). A person must decide."

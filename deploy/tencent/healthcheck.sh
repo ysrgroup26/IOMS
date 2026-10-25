@@ -27,10 +27,13 @@ while [[ $# -gt 0 ]]; do
         *) echo "Unknown option: $1" >&2; exit 2 ;;
     esac
 done
-HOST="${BASE#*://}"; HOST="${HOST%%/*}"; HOST="${HOST%%:*}"
+HOSTPORT="${BASE#*://}"; HOSTPORT="${HOSTPORT%%/*}"; HOST="${HOSTPORT%%:*}"
 SCHEME="${BASE%%://*}"
+PORT=""; [[ "$HOSTPORT" == *:* ]] && PORT="${HOSTPORT##*:}"
 CURL=(curl -s --max-time 20)
 [[ -n "$RESOLVE" ]] && CURL+=(--resolve "$HOST:443:$RESOLVE" --resolve "$HOST:80:$RESOLVE" --noproxy "$HOST")
+# An explicit port (e.g. the loopback nginx behind Caddy, http://iomsuite.com:8081)
+[[ -n "$RESOLVE" && -n "$PORT" ]] && CURL+=(--resolve "$HOST:$PORT:$RESOLVE")
 [[ $INSECURE -eq 1 ]] && CURL+=(-k)
 fail=0
 
@@ -86,7 +89,9 @@ if [[ $E2E -eq 1 ]]; then
     page /register >/dev/null
     r="$(post /register "name=E2E+Check&email=$email&password=$pass&password_confirmation=$pass&terms=1")"
     [[ "$r" == "302 "*"/register/welcome" ]] && echo "  ok    register -> welcome" || { echo "  FAIL  register answered: $r"; fail=1; }
-    page /register/welcome | grep -qE 'Auth(\\)?/AccountCreated' && echo "  ok    welcome page renders for the new account" || { echo "  FAIL  welcome page"; fail=1; }
+    # Capture, then search: `page | grep -q` under pipefail reported a FAIL
+    # whenever grep matched early and curl, still writing, got SIGPIPE.
+    body="$(page /register/welcome)"; grep -qE 'Auth(\\)?/AccountCreated' <<<"$body" && echo "  ok    welcome page renders for the new account" || { echo "  FAIL  welcome page"; fail=1; }
 
     r="$(post /logout "")"
     [[ "$r" == 302* ]] && echo "  ok    sign out" || { echo "  FAIL  sign out: $r"; fail=1; }
@@ -94,7 +99,7 @@ if [[ $E2E -eq 1 ]]; then
     page /login >/dev/null
     r="$(post /login "email=$email&password=$pass")"
     [[ "$r" == "302 "* && "$r" != *"/login" ]] && echo "  ok    sign in -> ${r#302 }" || { echo "  FAIL  sign in answered: $r"; fail=1; }
-    page /account | grep -qE 'Account(\\)?/Overview' && echo "  ok    account area renders" || { echo "  FAIL  account area"; fail=1; }
+    body="$(page /account)"; grep -qE 'Account(\\)?/Overview' <<<"$body" && echo "  ok    account area renders" || { echo "  FAIL  account area"; fail=1; }
     echo "  note  throwaway account: $email (inert: no organization, no subscription)"
 fi
 

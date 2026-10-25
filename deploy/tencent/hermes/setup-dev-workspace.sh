@@ -39,11 +39,64 @@ HOME_A="$(getent passwd "$AGENT" | cut -d: -f6)"
 WS="$HOME_A/IOMS"
 
 log "Toolchain (system packages, installed by root once)"
-export DEBIAN_FRONTEND=noninteractive
-apt-get install -y -q git unzip sqlite3 php8.3-cli php8.3-sqlite3 php8.3-mbstring php8.3-xml php8.3-zip \
-    php8.3-gd php8.3-curl php8.3-intl php8.3-bcmath php8.3-gmp >/dev/null
-[[ $NODE -eq 1 ]] && apt-get install -y -q nodejs npm >/dev/null
-command -v composer >/dev/null || die "composer missing: run provision.sh first."
+# SAFE AND IDEMPOTENT BY CONSTRUCTION (rewritten after the instance answered
+# "held broken packages"):
+#   - only MISSING packages are requested, so a re-run requests nothing;
+#   - every install is SIMULATED first (apt-get -s), and refused if the
+#     simulation fails, would REMOVE anything (--no-remove), or would UPGRADE
+#     an installed PHP, MySQL or Node.js package;
+#   - Node.js is never installed over an existing one. The Hermes image ships
+#     its own Node.js (NodeSource style: npm bundled, and Conflicts: npm), and
+#     asking for Ubuntu's `npm` beside it is exactly what made APT refuse the
+#     whole request -- PHP included;
+#   - no `apt-get upgrade`, no `--fix-broken`, no removals, ever.
+export DEBIAN_FRONTEND=noninteractive LANG=C LC_ALL=C
+
+missing() { local p; for p in "$@"; do dpkg-query -W -f='${Status}' "$p" 2>/dev/null | grep -q 'install ok installed' || echo "$p"; done; }
+
+safe_install() { # label pkg...
+    local label="$1"; shift
+    local need; need="$(missing "$@")"
+    if [[ -z "$need" ]]; then echo "  ok    $label: already installed"; return 0; fi
+    local sim; sim="$(apt-get install -s -y --no-remove $need 2>&1)" || {
+        echo "  FAIL  $label: APT cannot install: $(tr '\n' ' ' <<<"$need")"
+        grep -E '^ [a-z0-9].* : |^E: ' <<<"$sim" | sed 's/^/        /' | head -15
+        return 1
+    }
+    local risky; risky="$(grep -E '^Inst ' <<<"$sim" | grep -E '\[' | awk '{print $2}' | grep -E '^(php|mysql|libmysql|mariadb|nodejs|libnode)' || true)"
+    if [[ -n "$risky" ]]; then
+        echo "  FAIL  $label: would UPGRADE installed runtime packages: $(tr '\n' ' ' <<<"$risky") -- not doing that here."
+        return 1
+    fi
+    apt-get install -y -q --no-remove $need >/dev/null && echo "  ok    $label: installed $(tr '\n' ' ' <<<"$need")"
+}
+
+safe_install "PHP 8.3 toolchain" git unzip sqlite3 php8.3-cli php8.3-sqlite3 php8.3-mbstring php8.3-xml \
+    php8.3-zip php8.3-gd php8.3-curl php8.3-intl php8.3-bcmath php8.3-gmp \
+    || die "PHP toolchain not installable as-is. Nothing was changed. Send the lines above."
+
+if ! command -v composer >/dev/null 2>&1; then
+    # Checksum-verified, same as provision.sh, so this script does not depend
+    # on provision having run.
+    expected="$(curl -fsSL https://composer.github.io/installer.sig)" || die "Cannot download Composer's signature (network?). Nothing else was changed."
+    curl -fsSL https://getcomposer.org/installer -o /tmp/composer-setup.php || die "Cannot download the Composer installer (network?)."
+    [[ "$expected" == "$(php -r "echo hash_file('sha384', '/tmp/composer-setup.php');")" ]] || die "Composer installer checksum mismatch."
+    php /tmp/composer-setup.php --quiet --install-dir=/usr/local/bin --filename=composer; rm -f /tmp/composer-setup.php
+    echo "  ok    composer installed (checksum verified)"
+else
+    echo "  ok    composer: already installed"
+fi
+
+if [[ $NODE -eq 1 ]]; then
+    if command -v node >/dev/null 2>&1 && command -v npm >/dev/null 2>&1; then
+        echo "  ok    Node.js: using the existing $(node -v) / npm $(npm -v) ($(command -v node)) -- not touched"
+    elif command -v node >/dev/null 2>&1; then
+        warn "Node.js $(node -v) exists without npm; NOT installing Ubuntu's npm beside it (that conflict is what broke APT). Frontend build/lint unavailable; PHP work unaffected."
+        NODE=0
+    else
+        safe_install "Node.js (Ubuntu)" nodejs npm || { warn "Node.js not installable cleanly; skipped. PHP work unaffected."; NODE=0; }
+    fi
+fi
 echo "  php $(php -r 'echo PHP_VERSION;'), composer $(composer --version 2>/dev/null | awk '{print $3}')$( [[ $NODE -eq 1 ]] && echo ", node $(node -v)")"
 
 log "Workspace $WS (owned by $AGENT)"

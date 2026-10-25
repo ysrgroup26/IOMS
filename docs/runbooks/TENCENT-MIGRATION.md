@@ -174,6 +174,27 @@ the exact commit. The approved deploy still goes through the test gate and backu
 If Hermes needs something that isn't there, the answer is a new **validated subcommand** in `ioms-ops`
 (rehearsed, audited, rate-limited), not a wider sudoers line.
 
+**Toolchain (fix after the instance's first run):** `setup-dev-workspace.sh` failed with APT's "held broken
+packages". The Hermes image's own Node.js conflicts with Ubuntu's `npm`, and the single install command
+took the PHP packages down with it. Now the script installs only missing packages, simulates each group
+first, refuses removals and runtime upgrades, and **uses the existing Node.js rather than installing
+one**. Read-only diagnosis: §3.6.
+
+### 3.6 Read-only APT diagnosis
+
+```bash
+export LANG=C
+dpkg-query -W -f='${Package} ${Version} ${Status}\n' nodejs npm php8.3-cli mysql-server 2>/dev/null
+command -v node npm; node -v; npm -v
+grep -rl nodesource /etc/apt/sources.list /etc/apt/sources.list.d/ 2>/dev/null
+apt-mark showhold
+apt-get check
+apt-get install -s --no-remove nodejs npm 2>&1 | tail -12
+apt-get install -s --no-remove git unzip sqlite3 php8.3-cli php8.3-sqlite3 php8.3-mbstring php8.3-xml php8.3-zip php8.3-gd php8.3-curl php8.3-intl php8.3-bcmath php8.3-gmp 2>&1 | tail -4
+```
+
+`-s` only simulates, so none of these changes anything.
+
 ### 3.5 Administrator access and recovery
 
 `iomsadmin` is the human administrator (password plus sudo). If it's ever locked out, any one of these

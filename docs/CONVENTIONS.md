@@ -3,6 +3,15 @@
 House style, and a deliberately honest list of mistakes that have actually happened in this
 codebase's history — kept here so they don't get repeated in a slightly different shape.
 
+## Known Pitfall (2026-10-25): one `apt-get install` line fails as a whole
+
+`setup-dev-workspace.sh` asked for PHP extensions and `nodejs npm` in one command. On the Tencent image
+Node.js comes NodeSource-style (npm bundled, `Conflicts: npm`), so Ubuntu's `npm` was unsatisfiable, and
+APT refused the entire request ("held broken packages", shown in Mandarin by the image's locale), PHP
+included. Install in groups, request only missing packages, simulate first (`apt-get install -s
+--no-remove`), refuse upgrades of installed runtimes, and never install a language runtime over one that
+is already there. Read APT output with `LANG=C`.
+
 ## Known Pitfall (2026-10-25): `while read` drops a last line with no newline
 
 A one-rule sudoers file written without a trailing newline (`/etc/sudoers.d/acli`) was printed by `cat`

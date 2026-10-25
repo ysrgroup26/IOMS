@@ -138,11 +138,18 @@ class DuitkuGateway implements PaymentGatewayInterface
      * dashboard, and a hardcoded list would offer a channel this merchant
      * cannot take, or hide one they are paying for.
      *
-     * NOTE THE DIFFERENT SIGNATURE. This endpoint uses plain
-     * SHA256(merchantcode + amount + datetime + apiKey) -- NOT the
-     * HMAC-SHA256 the inquiry and callback use. That is Duitku's own
-     * inconsistency, documented as such, and getting it wrong here fails as
-     * "no methods available" rather than as an error.
+     * v2.131.0 -- THE SAME HMAC AS EVERY OTHER CALL. This endpoint used to
+     * be signed with plain SHA256(merchantcode + amount + datetime + apiKey),
+     * which Duitku's documentation changelog has since declared obsolete
+     * alongside MD5: the current reference gives
+     *
+     *     signature = HMAC_SHA256(merchantcode + amount + datetime, apiKey)
+     *
+     * The old signature fails exactly the way this docblock warned it
+     * would -- not as an error, but as "no methods available", so the
+     * customer lands on "Sesi pembayaran belum tersedia" and checkout can
+     * never start. That is a payment flow that cannot be completed end to
+     * end, on the one page a payment provider's reviewer tests.
      *
      * A failure returns an EMPTY list, never a throw: being unable to list
      * methods must leave the customer on a page that says payment cannot
@@ -159,7 +166,7 @@ class DuitkuGateway implements PaymentGatewayInterface
                     'merchantcode' => $this->merchantCode,
                     'amount' => (string) $amount,
                     'datetime' => $datetime,
-                    'signature' => hash('sha256', $this->merchantCode.$amount.$datetime.$this->apiKey),
+                    'signature' => hash_hmac('sha256', $this->merchantCode.$amount.$datetime, $this->apiKey),
                 ]);
         } catch (\Throwable $e) {
             Log::error('Duitku payment methods could not be fetched.', ['error' => $e->getMessage()]);
@@ -171,6 +178,8 @@ class DuitkuGateway implements PaymentGatewayInterface
             Log::error('Duitku refused to list payment methods.', [
                 'http_status' => $response->status(),
                 'status_code' => $response->json('responseCode'),
+                // Duitku's own words, e.g. "Invalid Signature" -- no secret.
+                'message' => $response->json('responseMessage') ?? $response->json('Message'),
             ]);
 
             return [];
@@ -226,7 +235,12 @@ class DuitkuGateway implements PaymentGatewayInterface
                 'email' => $this->payerEmail($invoice),
                 'customerVaName' => $this->payerName($invoice),
                 'callbackUrl' => route('webhooks.payment.duitku'),
-                'returnUrl' => route('subscription.billing'),
+                // v2.131.0: where the CALLER says the customer belongs. This
+                // was always the tenant billing page, so a new customer
+                // paying an onboarding invoice came back from Duitku to a
+                // sign-in wall instead of their order status. UX only --
+                // nothing is settled by arriving here.
+                'returnUrl' => $options['finish_url'] ?? route('subscription.billing'),
                 'expiryPeriod' => max(1, (int) config('payment.checkout_expiry_hours', 24) * 60),
                 'signature' => $this->requestSignature($orderId, $amount),
             ]);

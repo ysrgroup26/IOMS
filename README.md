@@ -463,34 +463,47 @@ IOMS_HELLO_EMAIL=hello@iomsuite.com
 IOMS_WEBSITE=iomsuite.com
 ```
 
-### Production mail (v2.57.0)
+### Production mail (v2.57.0; moved to Zoho in v2.131.0)
 
-The four mailboxes live on cPanel. IOMS sends through the `noreply@` account and never through the
-other three — they exist to receive replies.
+`iomsuite.com` mail is hosted on **Zoho Mail**: one mailbox, `support@`, with the aliases `noreply@`,
+`billing@` and `social@`. MX, SPF and DKIM point at Zoho, so cPanel's `mail.iomsuite.com` is no longer
+an authorised sender for the domain — mail sent through it fails SPF/DKIM, and the cPanel `noreply@`
+login may no longer exist at all. IOMS authenticates as the **mailbox** and sends **as the alias**.
 
 **Safe to commit; these are configuration, not credentials:**
 
 ```env
 MAIL_MAILER=smtp
-MAIL_HOST=mail.iomsuite.com
+MAIL_HOST=smtppro.zoho.com
 MAIL_PORT=465
 MAIL_SCHEME=smtps
-MAIL_USERNAME=noreply@iomsuite.com
+MAIL_USERNAME=support@iomsuite.com
+MAIL_FROM_ADDRESS=noreply@iomsuite.com
 ```
 
-**Entered by hand on the server, never in git — this is the only mail secret:**
+`smtppro.zoho.com` is Zoho's host for organisation (custom-domain) accounts; confirm the exact host and
+data centre in Zoho Mail → Settings → Mail Accounts → SMTP before entering it.
+
+**Entered by hand on the server, never in git — this is the only mail secret:** a Zoho
+**application-specific password** for `support@` (Zoho → My Account → Security → App Passwords).
 
 ```env
 MAIL_PASSWORD=
 ```
 
-`MAIL_FROM_ADDRESS` does not need setting: `config/mail.php` falls back to `IOMS_NOREPLY_EMAIL`, so
-configuring the four mailboxes is enough and the sender identity follows. Set it only to override.
+`MAIL_FROM_ADDRESS` falls back to `IOMS_NOREPLY_EMAIL`. Zoho only sends as `noreply@` when that alias is
+assigned to `support@`; otherwise the transport refuses with a "sender not allowed" error, which
+`ioms:mail-check` prints.
 
 **There is no `MAIL_ENCRYPTION`.** Laravel 11 removed it — the key does not exist in `config/mail.php`,
 so `MAIL_ENCRYPTION=ssl` would silently do nothing. Implicit TLS on port 465 comes from the *scheme*;
 Laravel infers `smtps` from the port on its own, and `MAIL_SCHEME=smtps` states it so the setting
 survives a later port change.
+
+A mail failure no longer breaks the flow that sent it (v2.131.0): registration, password reset and
+verification resend all log the transport error and tell the person plainly that the email did not go.
+The full DNS checklist (single SPF, `zmail._domainkey`, DMARC, legacy cPanel records) is in
+`docs/runbooks/EMAIL-ZOHO.md`.
 
 Who each message replies to, all from `IOMS <noreply@iomsuite.com>`:
 
@@ -499,12 +512,13 @@ Who each message replies to, all from `IOMS <noreply@iomsuite.com>`:
 | Invoice issued | `billing@` |
 | Workspace activated | `support@` |
 | Password reset | `support@` |
-| Registration verification | `hello@` |
+| Registration verification | `hello@` (defaults to `support@` — no `hello@` exists in Zoho) |
 
-Check delivery after entering the password (writes a real message, so use your own address):
+Check delivery after entering the password (writes a real message, so use your own address). It
+prints the settings it will use — never the password — and the transport's own error if it refuses:
 
 ```bash
-php artisan tinker --execute="Mail::raw('IOMS SMTP check', fn(\$m) => \$m->to('you@example.com')->subject('IOMS SMTP check'));"
+php artisan ioms:mail-check you@example.com
 ```
 
 **`APP_NAME` must be `IOMS`.** The long-form expansion is not the product name — see

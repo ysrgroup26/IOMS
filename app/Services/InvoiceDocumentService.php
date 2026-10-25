@@ -36,8 +36,10 @@ class InvoiceDocumentService
 
         return [
             'name' => config('app.name', 'IOMS'),
-            // Only when an operator has actually been configured.
-            'legal_name' => $legal['entity_name'] ?: null,
+            // v2.131.0: the LEGAL MERCHANT, not the public operator line.
+            // An invoice is a contract document and names who is paid; the
+            // website's brand cleanup must never strip that from it.
+            'legal_name' => config('ioms.merchant.legal_name') ?: ($legal['entity_name'] ?: null),
             /*
              * v2.72.0 -- the IOMS mark, on the one document IOMS ISSUES.
              *
@@ -77,7 +79,7 @@ class InvoiceDocumentService
             'address' => $legal['address'] ?: null,
             'locality' => null,
             'country' => null,
-            'phone' => null,
+            'phone' => $legal['phone'] ?? null,
             'email' => config('ioms.emails.billing'),
             'website' => config('ioms.website'),
             // Deliberately absent: NPWP/NIB are merchant-verification data,

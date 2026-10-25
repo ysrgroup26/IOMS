@@ -17,7 +17,7 @@ return [
     |
     */
 
-    'version' => '2.130.0',
+    'version' => '2.131.0',
 
     // Tester / Beta / Stable -- tracks the release stage explicitly.
     // Previously only implied in conversation, never actually stored.
@@ -49,9 +49,9 @@ return [
 
     'edition' => 'Enterprise Edition',
 
-    'build' => '2026.10.20.04',
+    'build' => '2026.10.25.01',
 
-    'release_date' => '2026-10-20',
+    'release_date' => '2026-10-25',
 
     /*
     |--------------------------------------------------------------------------
@@ -106,7 +106,24 @@ return [
     | none of those are public identity. A global replace would rewrite
     | technical identifiers to fix a brand line.
     */
-    'company' => 'Tahada Group',
+    /*
+    | v2.131.0 -- IOMS IS THE BRAND, AND THE BRAND IS ALL A PUBLIC PAGE NAMES.
+    |
+    | The payment provider's onboarding review (Duitku, project D25218) found
+    | the website presenting IOMS as a product while the footer, the sign-in
+    | page and the About dialog credited "Tahada Group" -- a brand/ownership
+    | mismatch on the page a merchant is verified against. This key now holds
+    | the product brand, and the "Designed & Developed by" line is gone from
+    | every surface. Three identities, kept apart on purpose:
+    |
+    |   PRODUCT BRAND     this key            -> every public surface
+    |   PLATFORM OPERATOR legal.entity_name   -> Terms/Contact, ONLY if set
+    |   LEGAL MERCHANT    merchant.legal_name -> the invoice issuer block
+    |
+    | Nothing legal was deleted or renamed: the merchant identity still
+    | issues the invoice, and historical invoices are rendered from it.
+    */
+    'company' => env('IOMS_BRAND_OWNER', 'IOMS'),
 
     'copyright_year' => '2026',
 
@@ -219,13 +236,32 @@ return [
         // the Contact page showed no operator at all. The entity is known
         // now, so the default states it; the env override is unchanged for a
         // deployment that is operated by someone else.
-        'entity_name' => env('IOMS_LEGAL_ENTITY', 'PT Tahada Vistara Bersama'),
+        // v2.131.0: null by default again, so no operator entity is
+        // published on the website unless the owner sets one deliberately
+        // (the onboarding review asked for exactly this). The registered
+        // entity has not gone anywhere -- see `merchant` below.
+        'entity_name' => env('IOMS_LEGAL_ENTITY'),
         'address' => env('IOMS_LEGAL_ADDRESS'),
+        // v2.131.0: a published telephone number for customers and for the
+        // payment provider's review. Null until a VERIFIED number is set --
+        // an invented number on a merchant's contact page is worse than none.
+        'phone' => env('IOMS_SUPPORT_PHONE'),
         'jurisdiction' => env('IOMS_JURISDICTION'),
         'venue' => env('IOMS_LEGAL_VENUE'),
         // The date the current published policies took effect. Shown so a
         // customer can tell which version they agreed to.
         'effective_date' => env('IOMS_LEGAL_EFFECTIVE_DATE', '2026-09-08'),
+    ],
+
+    /*
+    | v2.131.0 -- THE LEGAL MERCHANT: who issues the invoice and receives the
+    | payment. A contractual fact, not website copy, so it lives apart from
+    | the public brand. It must name the SAME entity the payment provider's
+    | merchant account is registered to; IOMS_MERCHANT_LEGAL_NAME overrides it
+    | if that account is held by someone else.
+    */
+    'merchant' => [
+        'legal_name' => env('IOMS_MERCHANT_LEGAL_NAME', 'PT Tahada Vistara Bersama'),
     ],
 
     'emails' => [
@@ -237,7 +273,11 @@ return [
         // system sends on its own; not monitored for replies.
         'noreply' => env('IOMS_NOREPLY_EMAIL', 'noreply@iomsuite.com'),
         // Sales, prospective customers, public website enquiries.
-        'hello' => env('IOMS_HELLO_EMAIL', 'hello@iomsuite.com'),
+        // v2.131.0: defaults to support@ -- the Zoho organisation has ONE
+        // mailbox (support@) plus aliases noreply@, billing@ and social@,
+        // and no hello@. A published address that bounces is worse than a
+        // shared one. Set IOMS_HELLO_EMAIL once a hello@ alias exists.
+        'hello' => env('IOMS_HELLO_EMAIL', 'support@iomsuite.com'),
     ],
 
     /*
@@ -249,13 +289,11 @@ return [
     'documentation_url' => env('IOMS_DOCUMENTATION_URL'),
 
     'whats_new' => [
-        'Lonceng notifikasi kini menghitung notifikasi belum dibaca saja; angkanya turun saat notifikasi dibuka dan hilang saat habis',
-        'Notifikasi belum dibaca bertanda biru muda, dan kembali normal setelah dibaca -- tersinkron antar perangkat',
-        'Suara notifikasi langsung diaktifkan saat Anda menyalakannya, lengkap dengan contoh bunyinya',
-        'Layar pembuka kini muncul juga di halaman awal yang dibuka dari ponsel, bukan hanya di dalam aplikasi',
-        'Kode dan nomor identitas otomatis menjadi huruf besar saat diketik atau ditempel, tanpa mengubah nama, email, atau alamat',
-        'Tipografi baru di seluruh aplikasi: judul halaman, angka KPI, dan judul dokumen kini tegas dan berkarakter',
-        'Judul dokumen Izin Kerja seperti HOT WORK tampil berwibawa, dan huruf yang sama ikut tertanam di file PDF',
+        'Pendaftaran akun tidak lagi gagal saat server email bermasalah; Anda diberi tahu jika email konfirmasi belum terkirim',
+        'Tombol kirim ulang email konfirmasi kini menyampaikan hasil yang sebenarnya',
+        'Harga pesanan yang belum dibayar selalu mengikuti harga paket terbaru di halaman status, invoice, dan pembayaran',
+        'Pilihan metode pembayaran Duitku kini tampil dengan benar, dan setelah membayar Anda kembali ke halaman status pesanan',
+        'Situs publik menampilkan IOMS sebagai merek produk; alamat usaha dan nomor telepon tampil di halaman Kontak setelah diatur',
     ],
    /*
     |--------------------------------------------------------------------------
@@ -269,6 +307,7 @@ return [
     */
 
     'version_history' => [
+        ['version' => '2.131.0', 'date' => '2026-10-25', 'summary' => 'A MERCHANT IS REVIEWED ON WHAT A STRANGER CAN REACH. Duitku\'s onboarding review (project D25218) found four things a visitor with no account could see, and each is fixed at its source. THE REGISTRATION HTTP 500 WAS A MAIL FAILURE. POST /register wrote the users row and then sent the verification email SYNCHRONOUSLY; every other Mailable in IOMS was already guarded and this one and the password reset were not. With the mailboxes moved from cPanel to Zoho the SMTP transport threw, the reviewer saw a 500, and a retry said the address was already registered because the account existed. Reproduced with a test before it was fixed, and again in a browser against MySQL with SMTP refusing connections: the request now answers 302, the account is created, and the welcome page says plainly that the email did not go. Resend and forgot-password tell the truth the same way, and no transport detail reaches the browser. THREE IDENTITIES, KEPT APART: IOMS is the product brand and the only name on a public page; the platform operator is published only when IOMS_LEGAL_ENTITY is set; the LEGAL MERCHANT, PT Tahada Vistara Bersama, still issues the invoice, because an invoice names who is paid. The Designed & Developed by line is gone from sign-in, the app shell and About, and the developer\'s personal name no longer travels in every page\'s props. No legal record was rewritten. ONE ORDER, ONE PRICE. Starter is Rp189.000 since v2.82.0. An order raised under the old catalogue kept Rp299.000 on its status page and was SENT TO DUITKU AT THAT FIGURE, because only checkout repriced. Every entry point now asks one rule: a paid invoice is never touched, an invoice with a live payment session is not moved, otherwise the order follows the catalogue and the change is logged. A provisioned customer keeps their agreed price by design. TWO DUITKU ADAPTER DEFECTS, found by reading the current documentation: the payment-method list was signed with plain SHA-256, which Duitku declared obsolete -- the list came back empty and checkout could never start -- and the return URL ignored the caller, sending a new customer back from Duitku to a sign-in wall. Both pinned at the HTTP boundary; neither yet exercised against sandbox.duitku.com, which the development network blocks. MAIL MOVES TO ZOHO SMTP in the documented configuration (support@ authenticates, noreply@ is the alias it sends as), hello@ defaults to support@ because no hello@ exists, and php artisan ioms:mail-check reports what the transport said without printing the password. TENCENT LIGHTHOUSE MIGRATION PREPARED, NOT EXECUTED: a read-only inspection script, provisioning that refuses to displace whatever holds ports 80/443 and never touches Hermes Agent, backups with a restore check, a health check proven against a local production-mode instance, and a runbook with capacity, the Hermes assessment, cutover and rollback. No SSH, console, Cloudflare or cPanel access was available. Also fixed: a calendar-dependent add-on test that failed on 25 October (the product was right). See ADR 071.'],
         ['version' => '2.130.0', 'date' => '2026-10-20', 'summary' => 'A BADGE THAT COUNTS ONE THING, A SPLASH ON THE PAGE PEOPLE ACTUALLY OPEN, AND TYPE WITH A VOICE. THE REPORTED DEFECT -- "the badge still shows 2 after the notifications have been opened" -- was arithmetic: the bell showed `unreadCount + ppeAlertCount`, and a PPE alert is a LIVE COMPUTED COUNT of equipment expiring. It cannot be read, it belongs to nobody, and it never goes down, so a tenant with two expiring items had a bell permanently showing 2 and reading every notification in the product changed nothing. A badge on a bell answers one question and the only honest answer is the unread count; the PPE alert keeps its row inside the menu where its number sits next to the words that explain it. FIXING THE ARITHMETIC WAS NOT ENOUGH, and the rest took a browser to find: marking a notification read answered 419 for anybody who had signed in during that visit. `<meta name="csrf-token"` is rendered once with the document, signing in REGENERATES the session token, and Inertia swaps pages WITHOUT reloading the document -- so the tag carried the login page\'s token and every mark-read was signed with a value the session had already replaced. It passed every server-side test because Laravel disables CSRF verification in tests. POSTs now read the `XSRF-TOKEN` COOKIE, which Laravel rewrites on every response; and they send ONE token, because `VerifyCsrfToken` prefers `X-CSRF-TOKEN` and picked the stale one when both were sent -- measured: both headers 419, the cookie alone 200. READ STATE IS NOW RECONCILED rather than inferred: the ids still unread travel with every answer, so a notification opened on a phone greys its row out on a tab left open on a desk, and a replayed poll converges on the same answer rather than flipping a row back. The unread tint was `brand-50/40`, very nearly white over a white menu and indistinguishable from read on a phone in daylight; it is full `brand-50` with a rule down the left. SOUND NEEDED THE GESTURE THAT ASKED FOR IT. A browser refuses audio until an AudioContext is created inside a real user gesture, and a notification arrives on a timer; the toggle now primes the context and plays the tone once, so the next notification is audible instead of silent. THE SPLASH WAS BUILT ON A PATH NOBODY STARTS FROM. v2.128.0 rendered it only on authenticated pages, on the stated reasoning that a public page arrives with readable content. MEASURED, THAT WAS FALSE: Inertia SSR is off for every page, and `/` loaded at 390x844 with the bundle blocked had an EMPTY body. Somebody typing the domain on a phone lands on `/`, so the fix had been shipped somewhere nobody starts -- which is exactly why the owner saw no change. It now renders everywhere, with the crawler summary and the no-JavaScript gate untouched. TYPOGRAPHY IS THREE FAMILIES WITH THREE JOBS, named as roles rather than spelled out at four hundred call sites: Inter keeps the interface, Archivo at 800 takes page titles and KPI figures, Archivo AT 75% WIDTH takes a document\'s type band, and IBM Plex Mono takes identifiers. The weight that went is 600 -- neither regular nor bold, and it was on every page title and every KPI number in the product. "HOT WORK" now reads as signage because of the WIDTH axis rather than because it is bigger: the issuer still outranks it, which keeps v2.128.0\'s instruction intact rather than trading one for the other. AND THE PDF IS THE SAME TYPEFACE, NOT A SIMILAR ONE. Dompdf cannot reach a webfont stylesheet and must not fetch at render time, so the permit embeds STATIC INSTANCES committed to the repository -- instances because dompdf cannot render a variable font and would silently draw every weight as Regular. Confirmed with `pdffonts`: three embedded CID TrueType faces, Indonesian text intact. IDENTIFIERS UPPER-CASE THEMSELVES, per field, on the event, with the caret preserved -- a badge number, an operating unit code, a shift letter. Never a name, an email, a password, an address, a machine key (`used_oil`) or a value whose case carries meaning (`B105d` is spelled that way by law), and the server normalises the same fields BEFORE validation so a unique rule compares what will actually be stored. 1625 tests and 8219 assertions pass; 20 are new. NOT verified: a real device push, unchanged since v2.129.0 -- headless Chromium has no push service, so Android, iPhone and desktop background delivery still need a device and a VAPID key pair on the server. See ADR 070.'],
         ['version' => '2.129.0', 'date' => '2026-10-20', 'summary' => 'NOTIFICATIONS THAT ARRIVE WITHOUT A REFRESH -- LIVE IN THE TAB, PUSHED TO THE PHONE. The notifications were already real, stored, addressed and routable, and they were INVISIBLE until a page was navigated: every count and every row reached the browser through the shared Inertia props, which are rebuilt on a VISIT. So a permit that came back for correction while somebody sat on the dashboard existed, pointed at the right place, and said nothing until they clicked something else. TWO CHANNELS, CHOSEN AGAINST THE DEPLOYMENT IOMS ACTUALLY HAS. While a tab is open, a CURSOR-BASED delta endpoint: the client asks what has happened since id N, so a tab that was asleep, offline or behind a captive portal receives exactly what it missed, in order, once -- nothing lost, because the rows were written before anybody was told, and nothing doubled, because the cursor only advances past rows that arrived. While the app is backgrounded or closed, self-hosted VAPID WEB PUSH. NO WEBSOCKET SERVER, and that is a hosting fact rather than a preference: Reverb needs a long-running process and an open port, and IOMS deploys to cPanel shared hosting -- the same reason Inertia SSR is off in this product. A hosted provider would work and was rejected for the owner\'s reasons rather than mine: an account to create, credentials to hold, a per-message price list, and a dependency whose outage is IOMS\'s outage. `config(\\\'realtime.transport\\\')` names what is running, so one can be added later as a third value without rewriting anything above it. NO COMPOSER PACKAGE EITHER, and that claim was MEASURED. A payloadless push needs exactly one ES256-signed JWT, which PHP\'s own openssl signs unaided -- a probe generated a P-256 pair, expressed the public key as the 65-byte uncompressed point the Push API expects, signed a token and verified it against ONLY the published public key, which is the same check a push service performs. THE PUSH CARRIES NOTHING, deliberately. The service worker, woken by it, fetches the notification over the person\'s own authenticated session: so nothing operational crosses a lock screen the server did not just re-authorise, the push service never sees anything at all, and read state cannot drift from what is actually unread. The honest cost is stated -- a device that is online but signed out shows a generic line. AN OPEN PAGE IS REFRESHED BY INERTIA, NEVER FROM THE PAYLOAD. A notification says only that something happened; `router.reload({ only: [...] })` re-runs the controller and therefore every tenant scope, both PTW gates and every entitlement check. There is deliberately no endpoint that reports record state. A page may additionally follow its own record by an opaque, allow-listed, COMPANY-SCOPED change marker -- one integer that moves when something happens and says nothing about what -- which is what lets an approver\'s open permit go to ACTIVE, and lose its Activate button, when somebody else activates it. AND DELIVERY CAN NEITHER ANNOUNCE NOR UNDO A DECISION: it is deferred to after the commit (so a rolled-back transaction announces nothing) and to after the response (so a dead push endpoint costs the person who pressed Approve nothing). The sound is synthesised rather than shipped as a file, and bounded by four rules: not without a gesture, not twice in four seconds, not for a silent data refresh, and not against a per-device preference. EVERY MODULE INHERITS ALL OF IT by calling `NotificationService::notify()`, which every workflow model already does; PTW now words its own copy per status, so a permit becoming ACTIVE reads \\\'the work may start\\\' rather than \\\'status changed\\\'. Driven with two concurrent browser sessions against MySQL 8: a badge moving 4 -> 5 with ZERO navigations, a toast at 390 and 1440 pixels, an open permit page following a change nobody notified its viewer about, and an offline tab catching up to exactly two missed notifications with no duplicates. Two defects of my own were found that way -- a page-level hook that silently did nothing on EVERY page in the product (every page wraps its own layout, so a page is the parent of anything the layout provides), and a bell that claimed a device was receiving notifications from permission alone while the subscription was being refused. A third was found by a test: `absent` and `cursor=0` were read as the same question, so live delivery silently did not work for any account that had never received a notification. 1605 tests and 8148 assertions pass; 26 are new. NOT verified: a real device push -- headless Chromium has no push service, so Android, iPhone and desktop delivery must be confirmed on a device, and that is recorded as an open item rather than claimed. See ADR 069.'],
         ['version' => '2.128.0', 'date' => '2026-10-20', 'summary' => 'A JOB TITLE IS CONFIGURED, AND A ROLE IS NOT ONE -- PLUS THE FIRST PAINT, REMEMBER ME, AND TWO FIELDS THAT CLIPPED. A VERIFIED seal printed `HSE` and an APPROVED seal printed `MANAGER`. Those are IOMS PERMISSIONS: they decide who may press the button, nobody\'s job is "hse", and no customer words a job that way. v2.125.0 already read the title from `positions.name` WHERE IT EXISTED; what was missing is the case that produced the complaint -- an account with no linked Employee, which has no position and fell through a third branch to `roleLabel()`. An administrator, or a head-office approver, is exactly that account. THAT FALLBACK IS GONE AND NOTHING HARDCODED REPLACED IT: each PTW stage now carries a configured job title, set per operating unit in Settings beside the roles and people that stage routes to, free text because an enum would be IOMS deciding what a yard calls its people. It is SNAPSHOTTED at action time, so re-wording it afterwards cannot rewrite a permit already filed, and a stage with none configured prints NO title line rather than a fabricated one. Authority is untouched -- a title is a label, it grants nobody anything, and a test asserts exactly that. AND `is_active` TURNED OUT TO BE CHECKED ONLY AT THE DOOR: two sign-in forms read it and nothing else did, so deactivating an account stopped its next sign-in and did nothing about the session it already held. Found by writing the test for it. `EnsureAccountIsActive` now runs first in the web group. THE APP OPENED ON A BLANK SCREEN WITH A DARK BAND ABOVE IT. Inertia SSR is off, so the body the server sends is an empty div -- and inside an installed app, with no address bar and no spinner, blank reads as a crash; while `theme_color` was the product navy, which is what Android paints the status bar with, and the iOS status-bar style was `black-translucent`, which draws WHITE glyphs over a white page. The splash is now rendered by the SERVER, in the same response, because React is the thing being waited for: white ground, the official lockup STACKED -- symbol above word -- a minimal indeterminate bar, and nothing invented. The artwork is composed from the owner\'s own paths, coordinate for coordinate, with both bounding boxes MEASURED in a real renderer rather than read off the padded viewBoxes; a test fails if anybody redraws it. The platform splash, the boot splash and the application are now one white. REMEMBER ME ON MY WORK, through Laravel\'s own remember token: the cookie carries the user id and a random token, never the access code and never a hash of it. A remembered worker reopening the app lands straight on My Work, and signing out returns them to the badge-number form rather than the email one they cannot use -- one logout served both account classes and sent everybody to the wrong door. TWO PTW FIELDS SHOWED THEIR EXAMPLE TWICE, once clipped mid-word inside a one-line placeholder and once in full underneath. The example now lives in the box, which grows to hold it. Three obvious fixes were rejected and one is the trap: an autosized textarea CANNOT do this, because the scrollHeight of an empty textarea is one row however long its placeholder is -- and the placeholder is the only thing on screen at that moment. A mirror element solves it in CSS alone. AND THE PERMIT LETTERHEAD LED WITH THE WRONG THING: the company name was 14px, SMALLER than the document\'s own 16px title, so the first thing a reader\'s eye found was the words HOT WORK and the issuer came third. 19px now, with only those three rules moved. Driven in a browser at 390 and 1440 pixels against MySQL 8 and checked by looking at the rendered PDF. Two defects of my own were found that way and not by the suite: a bare `svg` selector that overrode the lockup\'s nested geometry and drew the symbol at full width with the word missing entirely, and the `is_active` gap above. 1579 tests and 8074 assertions pass; 29 are new. NOT verified on iOS -- there is no Apple device here, and that is recorded as an open limitation rather than claimed. See ADR 068.'],

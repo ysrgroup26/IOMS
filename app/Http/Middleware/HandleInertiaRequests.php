@@ -595,7 +595,6 @@ class HandleInertiaRequests extends Middleware
                 'edition' => config('ioms.edition'),
                 'build' => config('ioms.build'),
                 'release_date' => config('ioms.release_date'),
-                'developer' => config('ioms.developer'),
                 'company' => config('ioms.company'),
                 'copyright_year' => config('ioms.copyright_year'),
                 'license' => config('ioms.license'),
@@ -704,6 +703,10 @@ class HandleInertiaRequests extends Middleware
                 // but online payment is not enabled on this deployment.
                 // Reporting that as `success` would overstate it.
                 'info' => fn () => $request->session()->get('info'),
+                // v2.131.0: flashed by Platform Support when a reply is saved
+                // but its email fails -- read by those pages, never shared
+                // until now, so the warning silently vanished.
+                'warning' => fn () => $request->session()->get('warning'),
                 /*
                  * v2.123.0 -- the one plain-text copy of a My Work access
                  * code, on its way to the panel that shows it.

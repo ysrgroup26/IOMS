@@ -268,7 +268,8 @@
                  * Organization keeps the search identity intact while making
                  * the publisher accurate.
                  */
-                'legalName' => config('ioms.legal.entity_name'),
+                // v2.131.0: only when an operator is deliberately published.
+                'legalName' => config('ioms.legal.entity_name') ?: null,
                 'url' => $homeUrl,
                 // The LIGHT-surface raster lockup: a search engine composites
                 // it onto its own white ground, where the near-white dark
@@ -330,6 +331,8 @@
                 $graph[] = $software;
             }
 
+            // v2.131.0: an unset fact is omitted, never published as null.
+            $graph[0] = array_filter($graph[0], fn ($v) => $v !== null);
             $structuredData = ['@context' => 'https://schema.org', '@graph' => $graph];
         @endphp
 

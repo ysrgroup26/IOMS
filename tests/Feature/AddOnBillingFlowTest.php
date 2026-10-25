@@ -195,6 +195,13 @@ class AddOnBillingFlowTest extends TestCase
 
     public function test_two_add_ons_bought_apart_fall_due_apart(): void
     {
+        // v2.131.0: pinned to a date whose month and the next have the same
+        // length. Run on 25 October the test failed with 9 != 10: +1 month
+        // from 25 Oct and from 4 Nov straddles a 30-day November, and the
+        // product was right -- each add-on did end a month after ITS OWN
+        // payment. A calendar-dependent assertion is not a regression.
+        $this->travelTo(now()->setDate(2027, 1, 5)->startOfDay());
+
         $first = $this->service()->purchase($this->subscription, SubscriptionAddOn::TYPE_ADDITIONAL_USERS, 1);
         $this->settle($first);
 

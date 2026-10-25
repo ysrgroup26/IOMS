@@ -33,7 +33,21 @@ class PasswordResetLinkController extends Controller
     {
         $request->validate(['email' => ['required', 'email']]);
 
-        $status = Password::sendResetLink($request->only('email'));
+        // v2.131.0: the reset Mailable is sent synchronously, so a broken
+        // SMTP transport used to surface here as an HTTP 500. Logged, and
+        // answered with a message that says what happened and nothing about
+        // the transport.
+        try {
+            $status = Password::sendResetLink($request->only('email'));
+        } catch (\Throwable $e) {
+            \Illuminate\Support\Facades\Log::error('Password reset email could not be sent.', [
+                'error' => $e::class.': '.$e->getMessage(),
+            ]);
+
+            return back()->withErrors([
+                'email' => 'Email reset kata sandi belum dapat dikirim saat ini. Silakan coba lagi beberapa menit lagi.',
+            ])->onlyInput('email');
+        }
 
         return $status === Password::RESET_LINK_SENT
             ? back()->with('success', __($status))

@@ -215,8 +215,10 @@ class PublicSearchIdentityTest extends TestCase
 
         $org = $graph['Organization'];
         $this->assertSame('IOMS', $org['name']);
-        $this->assertSame('Tahada Group', config('ioms.company'));
-        $this->assertSame(config('ioms.legal.entity_name'), $org['legalName']);
+        // v2.131.0: the brand is the only identity a public page names. No
+        // operator entity is published unless one is configured on purpose.
+        $this->assertSame('IOMS', config('ioms.company'));
+        $this->assertArrayNotHasKey('legalName', $org);
         $this->assertSame('https://iomsuite.com/', $org['url']);
         $this->assertSame('https://iomsuite.com/branding/ioms-logo.png', $org['logo']);
 

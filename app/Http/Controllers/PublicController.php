@@ -299,6 +299,7 @@ class PublicController extends Controller
             'emails' => config('ioms.emails'),
             'operator' => LegalDocuments::operator(),
             'address' => config('ioms.legal.address') ?: null,
+            'phone' => config('ioms.legal.phone') ?: null,
             'sandboxEnabled' => (bool) config('ioms.sandbox.enabled'),
         ]);
     }

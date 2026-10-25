@@ -192,15 +192,18 @@ class InvoiceDocumentTest extends TestCase
         // With no legal entity configured the block would say "IOMS" and a
         // website -- a third repetition of the name, in a box whose whole
         // purpose is registered detail.
-        config(['ioms.legal.entity_name' => null, 'ioms.legal.address' => null]);
+        config(['ioms.legal.entity_name' => null, 'ioms.legal.address' => null, 'ioms.merchant.legal_name' => null]);
 
         $this->assertStringNotContainsString('Diterbitkan Oleh', $this->render());
     }
 
     public function test_the_issuer_block_appears_once_a_registered_identity_is_configured(): void
     {
+        // v2.131.0: the issuer is the LEGAL MERCHANT -- who is paid -- which
+        // the website's brand cleanup deliberately does not touch.
         config([
-            'ioms.legal.entity_name' => 'PT Contoh Operasi Nusantara',
+            'ioms.legal.entity_name' => null,
+            'ioms.merchant.legal_name' => 'PT Contoh Operasi Nusantara',
             'ioms.legal.address' => 'Jakarta, Indonesia',
         ]);
 

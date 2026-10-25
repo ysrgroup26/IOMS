@@ -129,6 +129,14 @@ class RegisteredUserController extends Controller
         Auth::login($user);
         $request->session()->regenerate();
 
+        // v2.131.0: the send is guarded in the model, so a dead mail server
+        // no longer turns a created account into an HTTP 500. The person is
+        // told the email did not go, and offered a resend, rather than told
+        // to check an inbox that will stay empty.
+        if ($user->verificationMailDelivered === false) {
+            $request->session()->flash('verification_mail_failed', true);
+        }
+
         return redirect()->route('register.welcome');
     }
 
@@ -152,6 +160,7 @@ class RegisteredUserController extends Controller
                 'name' => $user->name,
                 'email' => $user->email,
                 'email_verified' => $user->hasVerifiedEmail(),
+                'verification_mail_failed' => (bool) $request->session()->get('verification_mail_failed', false),
             ],
         ]);
     }

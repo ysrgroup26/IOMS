@@ -180,6 +180,7 @@ class RegistrationController extends Controller
     public function status(string $token): Response
     {
         $registration = TenantRegistration::where('token', $token)->with('package', 'invoice')->firstOrFail();
+        $this->repriceOpenOrder($registration);
 
         $package = $registration->package;
         $cycle = $registration->billing_cycle;
@@ -241,12 +242,11 @@ class RegistrationController extends Controller
             $invoice = $registration->invoice;
 
             if ($invoice && $invoice->status !== Invoice::STATUS_PAID) {
-                $invoice->update([
-                    'amount' => $amount,
-                    'currency' => $package->currency,
-                ]);
+                // v2.131.0: through the one repricing rule, which refuses
+                // to move an invoice the provider is already collecting.
+                $this->repriceOpenOrder($registration);
 
-                return $invoice;
+                return $invoice->fresh();
             }
 
             if ($invoice) {
@@ -401,6 +401,7 @@ class RegistrationController extends Controller
             return redirect()->route('login');
         }
 
+        $this->repriceOpenOrder($registration);
         $invoice = $registration->invoice;
 
         // No invoice yet means checkout was never started -- send them back
@@ -492,6 +493,7 @@ class RegistrationController extends Controller
     public function startPayment(Request $request, string $token): RedirectResponse
     {
         $registration = $this->findOpen($token);
+        $this->repriceOpenOrder($registration);
         $invoice = $registration->invoice;
 
         if (! $invoice || ! $this->paymentConfigured()) {
@@ -607,6 +609,7 @@ class RegistrationController extends Controller
             ->with('invoice', 'package')
             ->firstOrFail();
 
+        $this->repriceOpenOrder($registration);
         $invoice = $registration->invoice;
 
         abort_if($invoice === null, 404);
@@ -628,6 +631,79 @@ class RegistrationController extends Controller
     private function findOpen(string $token): TenantRegistration
     {
         return TenantRegistration::where('token', $token)->with('package')->firstOrFail();
+    }
+
+    /**
+     * v2.131.0 -- AN OPEN ORDER IS BILLED AT TODAY'S CATALOGUE, EVERYWHERE.
+     *
+     * The defect: Master Admin showed Starter at Rp189.000 while a customer's
+     * invoice read Rp299.000. The catalogue was right (v2.82.0 repriced it in
+     * a migration). The stale figure lived on an order raised BEFORE that,
+     * and only `checkout()` ever repriced one -- the status page printed the
+     * registration's own snapshot, and `pay()` / `startPayment()` asked the
+     * payment provider to collect the invoice's old amount as it stood. So
+     * the plan, the page, the invoice and the payment request could name
+     * three different prices for one order.
+     *
+     * The rule now lives here and every entry point asks it:
+     *
+     *   - a PAID invoice is never touched -- it is a financial record;
+     *   - an invoice with a LIVE payment session is not touched either: the
+     *     provider was asked for that amount, and the callback's amount
+     *     check would (rightly) refuse a settlement that disagreed with it.
+     *     The session expires, and the next one is raised at the new price;
+     *   - otherwise the registration and its invoice both follow the
+     *     catalogue, and the change is written to the activity log.
+     *
+     * A PROVISIONED customer's agreed price is not this method's business:
+     * `subscriptions.agreed_price_*` (ADR 041, v2.60.0) keeps a live customer
+     * on what they agreed, deliberately.
+     */
+    private function repriceOpenOrder(TenantRegistration $registration): void
+    {
+        $package = $registration->package;
+
+        if (! $package || in_array($registration->status, [
+            TenantRegistration::STATUS_PAID,
+            TenantRegistration::STATUS_PROVISIONED,
+            TenantRegistration::STATUS_CANCELLED,
+        ], true)) {
+            return;
+        }
+
+        $amount = $this->pricing->amountFor($package, $registration->billing_cycle);
+        $invoice = $registration->invoice;
+
+        if ($invoice && ($invoice->status === Invoice::STATUS_PAID || PaymentTransaction::liveFor($invoice))) {
+            return;
+        }
+
+        $was = (float) ($invoice?->amount ?? $registration->amount);
+
+        if ($was === (float) $amount
+            && (float) $registration->amount === (float) $amount
+            && $registration->currency === $package->currency) {
+            return;
+        }
+
+        DB::transaction(function () use ($registration, $invoice, $amount, $package) {
+            $registration->update(['amount' => $amount, 'currency' => $package->currency]);
+            $invoice?->update(['amount' => $amount, 'currency' => $package->currency]);
+        });
+
+        if ($was !== (float) $amount) {
+            \App\Models\ActivityLog::record(
+                'updated',
+                sprintf(
+                    'Open order %s repriced to the current %s catalogue: %s -> %s.',
+                    $registration->reference,
+                    $package->name,
+                    $this->pricing->format($was, $package->currency),
+                    $this->pricing->format((float) $amount, $package->currency),
+                ),
+                $registration
+            );
+        }
     }
 
     /**

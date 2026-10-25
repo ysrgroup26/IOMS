@@ -24,9 +24,9 @@ the date in the frontmatter, not remembered.
 | | |
 |---|---|
 | Product | **IOMS — Industrial Operations Platform** |
-| Public company identity | **Tahada Group**; legal entity **PT Tahada Vistara Bersama** |
-| Version | **2.124.0**, stage **Beta**, edition **Enterprise Edition** |
-| Build | `2026.10.19.01`, release date `2026-10-19` |
+| Public company identity | **IOMS** only (v2.131.0, ADR 071). Operator entity published only when `IOMS_LEGAL_ENTITY` is set; legal merchant **PT Tahada Vistara Bersama** issues invoices (`ioms.merchant.legal_name`) |
+| Version | **2.131.0**, stage **Beta**, edition **Enterprise Edition** |
+| Build | `2026.10.25.01`, release date `2026-10-25` |
 | Stack | Laravel 12 · Inertia.js · React 18 · Tailwind · MySQL · Sanctum |
 
 The naming rules are not cosmetic — see [[Product Identity and Principles]].
@@ -88,6 +88,16 @@ replace the role. A My Work User authenticates through the same login and lands 
 server-side route allow-list still controls what that account may reach. See [[Domain Glossary]].
 
 ## What shipped most recently
+
+`2.131.0` (2026-10-25) — Duitku onboarding (D25218): registration no longer answers HTTP 500 when SMTP
+fails (verification and password-reset mail are guarded, and the person is told the email didn't
+go); public pages name IOMS only, with the legal merchant kept on invoices; open orders follow the
+current catalogue everywhere (the Rp189.000 vs Rp299.000 report), never moving a paid invoice or one
+with a live session; the Duitku payment-method list is signed with HMAC-SHA256 and the return URL
+honours the caller; mail documented on Zoho SMTP with `ioms:mail-check`; Tencent Lighthouse migration
+**prepared, not executed** (`deploy/tencent/`, `docs/runbooks/TENCENT-MIGRATION.md`). Open: verified
+business address and phone, sandbox transaction from staging, DNS/DKIM checks, Hermes decision. See
+ADR 071.
 
 `2.117.0` (2026-10-13) — Corrective My Work navigation now follows department membership, the Full
 User landing preference, or the My Work account class, while route authorization remains unchanged.

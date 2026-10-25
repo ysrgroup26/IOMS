@@ -309,7 +309,7 @@ class User extends Authenticatable implements MustVerifyEmail
      * Mailable so the Mailable stays a dumb renderer, the same shape as
      * every other IOMS mail class.
      */
-    public function sendEmailVerificationNotification(): void
+    public function sendEmailVerificationNotification(): bool
     {
         $minutes = (int) config('auth.verification.expire', 60);
 
@@ -319,9 +319,39 @@ class User extends Authenticatable implements MustVerifyEmail
             ['id' => $this->getKey(), 'hash' => sha1($this->getEmailForVerification())],
         );
 
-        \Illuminate\Support\Facades\Mail::to($this->email)
-            ->send(new \App\Mail\VerifyAccountEmail($this, $url, $minutes));
+        /*
+         * v2.131.0 -- A MAIL FAILURE IS NOT A REGISTRATION FAILURE.
+         *
+         * This was the one transactional send in IOMS without a guard, and
+         * it runs inside POST /register AFTER the users row is written. A
+         * broken SMTP transport therefore answered HTTP 500 to a person
+         * whose account in fact existed -- and their retry was then told
+         * the address was already registered. Logged (with no credential:
+         * the transport message names a host, never a password) and
+         * reported to the caller, which says so honestly to the person.
+         */
+        try {
+            \Illuminate\Support\Facades\Mail::to($this->email)
+                ->send(new \App\Mail\VerifyAccountEmail($this, $url, $minutes));
+        } catch (\Throwable $e) {
+            \Illuminate\Support\Facades\Log::error('Account verification email could not be sent.', [
+                'user_id' => $this->getKey(),
+                'error' => $e::class.': '.$e->getMessage(),
+            ]);
+
+            return $this->verificationMailDelivered = false;
+        }
+
+        return $this->verificationMailDelivered = true;
     }
+
+    /**
+     * Whether the last verification send in THIS request reached the mail
+     * transport. Not an attribute and never persisted: Laravel's own
+     * Registered listener makes the send, so this is how the registering
+     * controller learns the outcome without sending twice.
+     */
+    public ?bool $verificationMailDelivered = null;
 
     /**
      * v2.74.0 -- LINK A GOOGLE IDENTITY TO THIS ACCOUNT.

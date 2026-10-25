@@ -138,6 +138,9 @@ function AccountTopBar({ hasOrganization }) {
 function VerifyEmailPanel({ email }) {
     const { post, processing } = useForm({});
     const [sent, setSent] = useState(false);
+    // v2.131.0: the server says whether the send happened. A redirect is a
+    // "success" to Inertia either way, so the flash decides the label.
+    const [failure, setFailure] = useState(null);
 
     return (
         <div className="mb-6 flex flex-col gap-3 rounded-xl border border-amber-200 bg-amber-50 p-4 sm:flex-row sm:items-center sm:justify-between dark:border-amber-900 dark:bg-amber-950/30">
@@ -149,6 +152,7 @@ function VerifyEmailPanel({ email }) {
                         Kami mengirim tautan konfirmasi ke <strong>{email}</strong>. Konfirmasi diperlukan
                         sebelum Anda dapat berlangganan.
                     </p>
+                    {failure && <p role="alert" className="mt-1.5 text-xs font-medium text-red-700">{failure}</p>}
                 </div>
             </div>
 
@@ -157,7 +161,14 @@ function VerifyEmailPanel({ email }) {
                 size="sm"
                 className="shrink-0 border-amber-300 bg-white hover:bg-amber-100"
                 disabled={processing || sent}
-                onClick={() => post(route('verification.send'), { preserveScroll: true, onSuccess: () => setSent(true) })}
+                onClick={() => post(route('verification.send'), {
+                    preserveScroll: true,
+                    onSuccess: (page) => {
+                        const error = page.props.flash?.error;
+                        setFailure(error || null);
+                        setSent(!error);
+                    },
+                })}
             >
                 {processing ? <Loader2 className="h-4 w-4 animate-spin" /> : null}
                 {sent ? 'Email sent' : 'Resend email'}

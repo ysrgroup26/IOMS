@@ -63,7 +63,10 @@ class EmailIdentityTest extends TestCase
         $this->assertSame('support@iomsuite.com', config('ioms.emails.support'));
         $this->assertSame('billing@iomsuite.com', config('ioms.emails.billing'));
         $this->assertSame('noreply@iomsuite.com', config('ioms.emails.noreply'));
-        $this->assertSame('hello@iomsuite.com', config('ioms.emails.hello'));
+        // v2.131.0: no hello@ exists in the Zoho organisation, so sales
+        // enquiries share the support mailbox until an alias is created.
+        // An explicit IOMS_HELLO_EMAIL on a server still wins.
+        $this->assertSame(env('IOMS_HELLO_EMAIL', 'support@iomsuite.com'), config('ioms.emails.hello'));
     }
 
     /**
@@ -120,7 +123,7 @@ class EmailIdentityTest extends TestCase
         $envelope = (new VerifyRegistrationEmail($registration, 'https://iomsuite.com/verify'))->envelope();
 
         $this->assertSame('noreply@iomsuite.com', $envelope->from->address);
-        $this->assertSame('hello@iomsuite.com', $envelope->replyTo[0]->address);
+        $this->assertSame(config('ioms.emails.hello'), $envelope->replyTo[0]->address);
     }
 
     /* ================================================================

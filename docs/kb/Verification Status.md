@@ -34,6 +34,21 @@ and driving the screen in a browser, the twelve-to-six month edit **saves and pe
 `ReleaseStatusService` and the hardened `app:deploy` exist to close that gap, and
 `DeploymentIdentityTest` pins them. See `docs/ADR/057-a-release-must-be-able-to-prove-what-is-running.md`.
 
+### What was actually run for v2.131.0
+
+- Full SQLite suite (counts in the commit message), plus the new tests: `RegistrationSurvivesMailFailureTest`,
+  `OpenOrderRepricingTest`, `MailCheckCommandTest`, and two added to `DuitkuPaymentFlowTest`.
+- The 500 was **reproduced first** (a test with a throwing transport returned 500), and the repricing
+  tests were run against the pre-fix controller and failed (Duitku asked for Rp299.000).
+- Browser (Chromium, 390 px) against MySQL with `MAIL_HOST=127.0.0.1:1`: `/register` → 302 → "Your
+  account is ready" with the not-sent notice; the error was logged and not shown.
+- `deploy/tencent/healthcheck.sh` passed against a local production-mode server; no public page or
+  built asset contains "Tahada".
+- **Not run:** anything against `sandbox.duitku.com`, `iomsuite.com` DNS, Zoho, Cloudflare, cPanel or
+  the Tencent instance. The development network policy denied all of them, and no credentials were
+  available. The Duitku signature formulas were checked against Duitku's current documentation via
+  web search, not by a live request.
+
 ### What was actually run for v2.130.0
 
 **Level: two viewports in a real browser against MySQL 8, plus a rendered PDF inspected with

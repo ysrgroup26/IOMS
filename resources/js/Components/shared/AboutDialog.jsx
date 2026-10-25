@@ -1,5 +1,5 @@
 import { usePage } from '@inertiajs/react';
-import { CheckCircle2, Calendar, Code2, ShieldCheck, Globe, LifeBuoy, BookOpen } from 'lucide-react';
+import { CheckCircle2, Calendar, ShieldCheck, Globe, LifeBuoy, BookOpen } from 'lucide-react';
 import {
     Dialog, DialogContent, DialogHeader, DialogTitle, DialogDescription,
 } from '@/Components/ui/dialog';
@@ -89,7 +89,6 @@ export default function AboutDialog({ open, onOpenChange }) {
                     </DialogDescription>
 
                     <dl className="divide-y divide-graphite-100 rounded-xl border border-graphite-100 dark:divide-slate-800 dark:border-slate-700">
-                        <Row icon={Code2} label="Designed & Developed by" value={version?.company} />
                         <Row label="Backend" value="Laravel 12" />
                         <Row label="Frontend" value="React + Inertia.js" />
                         <Row label="Copyright" value={`© ${version?.copyright_year} ${version?.company}. All Rights Reserved.`} />

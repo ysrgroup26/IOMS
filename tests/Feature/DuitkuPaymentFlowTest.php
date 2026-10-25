@@ -240,6 +240,43 @@ class DuitkuPaymentFlowTest extends TestCase
      * caller swallowed as "checkout could not be created" -- a payment the
      * customer could not make, for no reason they could see.
      */
+    /**
+     * v2.131.0 -- the payment-method list is signed with HMAC-SHA256 like
+     * every other Duitku call. The plain-SHA256 signature it used is
+     * obsolete; Duitku rejects it and the list comes back empty, so checkout
+     * could never start.
+     */
+    public function test_the_payment_method_list_is_signed_with_hmac(): void
+    {
+        $this->travelTo(now()->setDate(2027, 1, 5)->setTime(10, 0, 0));
+
+        app(PaymentGatewayInterface::class)->getPaymentMethods(189000);
+
+        Http::assertSent(function ($request) {
+            if (! str_contains($request->url(), 'getpaymentmethod')) {
+                return false;
+            }
+
+            $expected = hash_hmac('sha256', 'DXXXX'.'189000'.'2027-01-05 10:00:00', 'test-api-key');
+
+            return $request['signature'] === $expected
+                && $request['signature'] !== hash('sha256', 'DXXXX1890002027-01-05 10:00:00test-api-key');
+        });
+    }
+
+    /** v2.131.0 -- a new customer returns to their order, not a sign-in wall. */
+    public function test_an_onboarding_payment_returns_to_the_order_status_page(): void
+    {
+        $registration = $this->registration();
+
+        $this->reachCheckout($registration);
+        $this->choosePaymentMethod($registration);
+
+        Http::assertSent(fn ($request) => str_contains($request->url(), 'v2/inquiry')
+            && $request['returnUrl'] === route('register.status', $registration->token)
+            && $request['callbackUrl'] === route('webhooks.payment.duitku'));
+    }
+
     public function test_two_references_minted_in_the_same_second_are_distinct(): void
     {
         $invoice = $this->bareInvoice();

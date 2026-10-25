@@ -73,7 +73,10 @@ class EmailVerificationController extends Controller
             return back()->with('success', 'Your email address is already confirmed.');
         }
 
-        $request->user()->sendEmailVerificationNotification();
+        // v2.131.0: never claim a send that did not happen.
+        if (! $request->user()->sendEmailVerificationNotification()) {
+            return back()->with('error', 'Email konfirmasi belum dapat dikirim saat ini. Silakan coba lagi beberapa menit lagi, atau hubungi support.');
+        }
 
         return back()->with('success', 'Confirmation email sent. Please check your inbox.');
     }

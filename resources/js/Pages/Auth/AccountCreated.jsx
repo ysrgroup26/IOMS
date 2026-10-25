@@ -55,11 +55,22 @@ export default function AccountCreated({ account }) {
                     </div>
                 </div>
 
-                {!account.email_verified && (
+                {!account.email_verified && !account.verification_mail_failed && (
                     <p className="mt-2.5 flex items-start gap-2 border-t border-success/20 pt-2.5 text-xs leading-relaxed text-graphite-600">
                         <Mail className="mt-0.5 h-3.5 w-3.5 shrink-0 text-graphite-400" aria-hidden="true" />
                         Kami telah mengirim tautan konfirmasi ke alamat tersebut. Konfirmasi diperlukan
                         sebelum Anda dapat berlangganan.
+                    </p>
+                )}
+
+                {/* v2.131.0: the account exists but the email did not go.
+                    Said plainly, with the way forward, rather than telling
+                    them to check an inbox that will stay empty. */}
+                {!account.email_verified && account.verification_mail_failed && (
+                    <p role="status" className="mt-2.5 flex items-start gap-2 border-t border-success/20 pt-2.5 text-xs leading-relaxed text-amber-800">
+                        <Mail className="mt-0.5 h-3.5 w-3.5 shrink-0 text-amber-600" aria-hidden="true" />
+                        Akun Anda sudah dibuat, tetapi email konfirmasi belum dapat dikirim. Buka area akun
+                        dan pilih Resend email beberapa menit lagi.
                     </p>
                 )}
             </div>

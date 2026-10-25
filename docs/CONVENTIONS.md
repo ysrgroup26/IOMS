@@ -3,6 +3,26 @@
 House style, and a deliberately honest list of mistakes that have actually happened in this
 codebase's history — kept here so they don't get repeated in a slightly different shape.
 
+## Known Pitfall (v2.131.0): a synchronous email after a write is a 500 that leaves the write behind
+
+`POST /register` created the `users` row, then `event(new Registered)` sent the verification email
+**synchronously**. When SMTP broke (the mailboxes moved from cPanel to Zoho), the transport threw, the
+person saw HTTP 500, and their retry was told the address was already registered, because the row
+existed. Every other Mailable in IOMS was already in a try/catch; the two sent from `User` overrides
+(verification, password reset) were not, because they don't look like mail sends at the call site.
+
+**Rule:** any `Mail::...->send()` on a request path is wrapped, logs `$e::class.': '.$e->getMessage()`
+(no credential), and the caller tells the person the truth (not sent, try resend) rather than
+claiming success. Test it with `Mail::shouldReceive('to')->andThrow(new TransportException(...))`.
+`php artisan ioms:mail-check` is how a server proves it can send.
+
+## Known Pitfall (v2.131.0): "+1 month" is not 30 days, so an assertion about the gap is a calendar test
+
+`AddOnBillingFlowTest` asserted two add-ons bought ten days apart end ten days apart. Run on 25 October
+it failed with 9: +1 month from 25 Oct and from 4 Nov straddles a 30-day November. The product was
+right. Pin `travelTo()` a date whose month and the next are the same length, or assert each end date
+against its own purchase date.
+
 ## Known Pitfall (v2.113.0): an INNER JOIN in an ORDERING scope is a FILTER nobody reads as one
 
 `Employee::scopeOrderedForDisplay()` INNER JOINed `departments` to sort by the department's display

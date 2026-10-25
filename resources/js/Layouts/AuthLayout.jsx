@@ -129,11 +129,8 @@ export default function AuthLayout({ title, heading, subheading, children, foote
                         {/* Edition/version already sit on the navy panel at lg+;
                             repeated here only where that panel is collapsed. */}
                         <p className="lg:hidden">{version?.edition} &middot; v{version?.number}</p>
-                        <p>
-                            Designed &amp; Developed by{' '}
-                            <span className="font-medium text-graphite-500">{version?.company}</span>
-                        </p>
-                        <p>&copy; {version?.copyright_year} All Rights Reserved.</p>
+                        {/* v2.131.0: no developer attribution -- IOMS is the brand. */}
+                        <p>&copy; {version?.copyright_year} {version?.company}. All Rights Reserved.</p>
                     </div>
                 </div>
             </main>

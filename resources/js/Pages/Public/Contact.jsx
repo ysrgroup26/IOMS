@@ -22,7 +22,7 @@ import { LifeBuoy, Receipt, Briefcase, ArrowRight, MapPin } from 'lucide-react';
  * Three mailboxes, each with a stated job, so a customer chasing an invoice
  * and a prospect asking about plans do not land in the same inbox.
  */
-export default function Contact({ emails, operator, address, sandboxEnabled }) {
+export default function Contact({ emails, operator, address, phone, sandboxEnabled }) {
     const channels = [
         {
             icon: LifeBuoy,
@@ -80,14 +80,22 @@ export default function Contact({ emails, operator, address, sandboxEnabled }) {
                     ))}
                 </div>
 
-                {/* Rendered only when an address intended for publication exists. */}
-                {(operator || address) && (
+                {/* Rendered only when a fact intended for publication exists.
+                    v2.131.0: the business address and telephone number are
+                    configured values (IOMS_LEGAL_ADDRESS, IOMS_SUPPORT_PHONE);
+                    nothing here is ever a placeholder. */}
+                {(operator || address || phone) && (
                     <div className="mt-6 rounded-xl border border-graphite-200 bg-graphite-50 p-5">
                         <p className="flex items-center gap-1.5 text-xs font-semibold uppercase tracking-wide text-graphite-400">
-                            <MapPin className="h-3.5 w-3.5" /> Operator
+                            <MapPin className="h-3.5 w-3.5" /> Business Contact
                         </p>
                         {operator && <p className="mt-2 text-sm font-medium text-graphite-800">{operator}</p>}
                         {address && <p className="mt-1 text-sm leading-relaxed text-graphite-600">{address}</p>}
+                        {phone && (
+                            <p className="mt-1 text-sm text-graphite-600">
+                                <a href={`tel:${phone.replace(/[^+\d]/g, '')}`} className="font-medium text-brand-700 hover:underline">{phone}</a>
+                            </p>
+                        )}
                     </div>
                 )}
 

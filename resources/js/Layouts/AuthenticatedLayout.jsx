@@ -735,7 +735,6 @@ function AuthenticatedShell({ children }) {
                 <div className="shrink-0 border-t border-graphite-100 px-4 py-2 text-center dark:border-slate-800">
                     <p className="text-[10px] text-graphite-400 dark:text-slate-500">&copy; {version?.copyright_year} IOMS Enterprise</p>
                     <p className="text-[10px] text-graphite-400 dark:text-slate-500">All Rights Reserved.</p>
-                    <p className="mt-1 text-[10px] text-graphite-400 dark:text-slate-500">Designed &amp; Developed by {version?.company}</p>
                 </div>
             </aside>
 

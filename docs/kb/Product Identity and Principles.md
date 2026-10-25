@@ -22,13 +22,16 @@ of truth for it and states the rule directly:
 - **"Integrated Operations Management System" is forbidden as branding.** The expansion is not the
   product name.
 
-### The company behind the product (v2.89.0)
+### The company behind the product (v2.89.0, revised v2.131.0)
 
-**Tahada Group** is the public-facing company identity. The registered legal entity is **PT Tahada
-Vistara Bersama**. These are separate facts: the public site, sign-in and company attribution use the
-group brand; legal pages and structured `legalName` use the legal entity; structured Organization
-`name` remains **IOMS**. `config/ioms.php` keeps these values in their separate roles. Do not globally
-replace YSR: technical and internal YSR identifiers are not public company copy.
+**IOMS is the only identity a public page names** (ADR 071). Duitku's merchant review flagged the
+v2.89.0 arrangement, with IOMS as the product and "Tahada Group" credited in the footer, sign-in and
+About, as a brand/ownership mismatch. Three identities are now kept apart: the **product brand**
+(`ioms.company` = IOMS), the **platform operator** (`ioms.legal.entity_name`, null unless set
+deliberately), and the **legal merchant** that issues invoices and receives payment
+(`ioms.merchant.legal_name`, PT Tahada Vistara Bersama). Never globally replace "Tahada": the invoice
+must keep naming who is paid. Do not globally replace YSR either: technical and internal YSR
+identifiers are not public company copy.
 
 That prohibition exists because it was violated: v2.38.0 found the long form hardcoded as a
 fallback in **twelve** places — `app.jsx`, the shared Inertia props, four Excel/PDF export classes,

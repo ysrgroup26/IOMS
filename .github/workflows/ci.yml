@@ -31,6 +31,8 @@ jobs:
     timeout-minutes: 30
     steps:
       - uses: actions/checkout@v4
+        with:
+          fetch-depth: 50
 
       - uses: shivammathur/setup-php@v2
         with:
@@ -48,6 +50,45 @@ jobs:
 
       - name: npm ci
         run: npm ci --no-audit --no-fund
+
+      # --- static checks (ADR 076). Each fails the run; none needs a secret.
+      - name: ESLint (undefined identifiers, unreachable code, hooks order)
+        run: npm run lint
+
+      # Pint on the PHP files THIS push or pull request changes. The repository
+      # predates Pint and a whole-tree gate would block every release on old
+      # style debt; new and edited code is held to it.
+      - name: Pint (changed PHP files)
+        env:
+          BEFORE: ${{ github.event.before }}
+          BASE: ${{ github.event.pull_request.base.sha }}
+        run: |
+          set -euo pipefail
+          base="${BASE:-$BEFORE}"
+          if [[ -z "$base" || "$base" =~ ^0+$ ]] || ! git cat-file -e "$base^{commit}" 2>/dev/null; then
+            git fetch -q --depth=50 origin "${GITHUB_BASE_REF:-main}" || true
+            base="$(git merge-base HEAD "origin/${GITHUB_BASE_REF:-main}" 2>/dev/null || git rev-parse HEAD~1)"
+          fi
+          mapfile -t files < <(git diff --name-only --diff-filter=AM "$base" HEAD -- '*.php' | grep -v '^database/migrations/' || true)
+          if [[ ${#files[@]} -eq 0 ]]; then echo "no changed PHP files"; exit 0; fi
+          printf '  %s\n' "${files[@]}"
+          vendor/bin/pint --test "${files[@]}"
+
+      - name: Deploy scripts parse
+        run: |
+          set -euo pipefail
+          for f in deploy.sh deploy/tencent/*.sh deploy/tencent/hermes/*.sh deploy/tencent/hermes/ioms-ops \
+                   deploy/tencent/hermes/ioms-ci-deploy deploy/tencent/hermes/ioms-release-watch; do
+            bash -n "$f" && echo "ok  $f"
+          done
+          php -l deploy/tencent/hermes/migration-policy.php
+
+      - name: Workflows (actionlint)
+        run: |
+          set -euo pipefail
+          curl -sSL -o /tmp/al.tgz https://github.com/rhysd/actionlint/releases/download/v1.7.7/actionlint_1.7.7_linux_amd64.tar.gz
+          tar -xzf /tmp/al.tgz -C /tmp actionlint
+          /tmp/actionlint -shellcheck= .github/workflows/*.yml
 
       - name: Prepare environment
         run: |

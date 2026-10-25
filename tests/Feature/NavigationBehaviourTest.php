@@ -200,7 +200,7 @@ class NavigationBehaviourTest extends TestCase
         $layout = $this->layout();
 
         $this->assertStringNotContainsString(
-            "text-[11px] font-medium text-navy-400 transition-all duration-150 hover:bg-white/[0.06]",
+            'text-[11px] font-medium text-navy-400 transition-all duration-150 hover:bg-white/[0.06]',
             $layout,
             'The group header must not render smaller and dimmer than the items it contains.'
         );

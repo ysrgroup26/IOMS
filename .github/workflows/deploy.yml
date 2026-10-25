@@ -1,0 +1,224 @@
+# IOMS deploy (ADR 076).
+#
+# The TerasAkademi model -- GitHub Actions reaches the VPS over SSH after a push to main --
+# with IOMS's safety kept ON THE SERVER, where a workflow cannot skip it:
+#
+#   CI passes on a main commit
+#     -> this workflow SSHes to the `iomsci` account, whose ONLY permitted command is
+#        ioms-ci-deploy, asking for `deploy <that exact sha>`
+#     -> ioms-ops runs the suite again on that sha, refuses non-additive migrations,
+#        backs up, deploys, health-checks, and rolls back automatically if unhealthy
+#     -> the outcome is recorded as a GitHub Deployment (environment "tencent"), and a
+#        failure opens a redacted `deploy-failure` issue for the remediation session.
+#
+# Secrets (set once by the owner from enable-ci-deploy.sh's output; never printed here):
+#   IOMS_DEPLOY_SSH_KEY      private key that can run ioms-ci-deploy and nothing else
+#   IOMS_DEPLOY_KNOWN_HOSTS  the server's pinned host key line
+#   IOMS_DEPLOY_HOST         optional; defaults to the Tencent instance address
+# Until they exist this workflow reports "not configured" and changes nothing.
+name: Deploy
+
+on:
+  workflow_run:
+    workflows: [CI]
+    types: [completed]
+    branches: [main]
+  workflow_dispatch:
+    inputs:
+      sha:
+        description: 'Commit on main to deploy (default: the latest main commit)'
+        required: false
+
+concurrency:
+  group: ioms-deploy-tencent
+  cancel-in-progress: false
+
+permissions:
+  contents: read
+  deployments: write
+  issues: write
+  checks: read
+
+env:
+  DEFAULT_HOST: 43.173.21.31
+  ENVIRONMENT: tencent
+
+jobs:
+  deploy:
+    name: Deploy to Tencent
+    if: github.event_name == 'workflow_dispatch' || github.event.workflow_run.event == 'push'
+    runs-on: ubuntu-24.04
+    timeout-minutes: 60
+    steps:
+      - name: Resolve the commit and its CI result
+        id: target
+        env:
+          GH_TOKEN: ${{ github.token }}
+          RUN_SHA: ${{ github.event.workflow_run.head_sha }}
+          RUN_CONCLUSION: ${{ github.event.workflow_run.conclusion }}
+          INPUT_SHA: ${{ github.event.inputs.sha }}
+        run: |
+          set -euo pipefail
+          if [[ -n "$RUN_SHA" ]]; then
+            sha="$RUN_SHA"; ci="$RUN_CONCLUSION"
+          else
+            sha="${INPUT_SHA:-$(gh api "repos/$GITHUB_REPOSITORY/commits/main" --jq .sha)}"
+            sha="$(gh api "repos/$GITHUB_REPOSITORY/commits/$sha" --jq .sha)"
+            ci="$(gh api "repos/$GITHUB_REPOSITORY/commits/$sha/check-runs" \
+                  --jq '[.check_runs[] | select(.name=="Tests and build")] | sort_by(.started_at) | last | .conclusion // "missing"')"
+          fi
+          [[ "$sha" =~ ^[0-9a-f]{40}$ ]] || { echo "::error::not a commit id: $sha"; exit 1; }
+          echo "sha=$sha" >> "$GITHUB_OUTPUT"; echo "ci=$ci" >> "$GITHUB_OUTPUT"
+          echo "Target ${sha:0:7}, CI: $ci"
+
+      - name: CI was superseded -- nothing to do
+        if: steps.target.outputs.ci == 'cancelled' || steps.target.outputs.ci == 'skipped'
+        run: |
+          echo "CI on this commit was ${{ steps.target.outputs.ci }} (a newer push superseded it); its own run deploys."
+
+      - name: CI did not pass -- file it, deploy nothing
+        if: steps.target.outputs.ci != 'success' && steps.target.outputs.ci != 'cancelled' && steps.target.outputs.ci != 'skipped'
+        env:
+          GH_TOKEN: ${{ github.token }}
+          SHA: ${{ steps.target.outputs.sha }}
+          CI: ${{ steps.target.outputs.ci }}
+          RUN_URL: ${{ github.event.workflow_run.html_url }}
+        run: |
+          set -euo pipefail
+          marker="<!-- ioms-deploy:ci:$SHA -->"
+          body="$marker
+          CI (\`Tests and build\`) concluded \`$CI\` on \`$SHA\`. Nothing was deployed.
+
+          Run: ${RUN_URL:-n/a}
+
+          Filed by \`.github/workflows/deploy.yml\`. The remediation session works \`deploy-failure\` issues without \`needs-human\` (docs/runbooks/RELEASE-LOOP.md)."
+          existing="$(gh api "repos/$GITHUB_REPOSITORY/issues?state=open&labels=deploy-failure&per_page=50" --jq ".[] | select((.body // "") | startswith(\"$marker\")) | .number" | head -1)"
+          if [[ -z "$existing" ]]; then
+            gh api "repos/$GITHUB_REPOSITORY/issues" -f title="CI failed on main at ${SHA:0:7}" -f body="$body" -f 'labels[]=deploy-failure' >/dev/null
+          fi
+          echo "::error::CI concluded $CI on ${SHA:0:7}; not deploying."
+          exit 1
+
+      - name: Check the deploy is configured
+        if: steps.target.outputs.ci == 'success'
+        id: configured
+        env:
+          KEY: ${{ secrets.IOMS_DEPLOY_SSH_KEY }}
+        run: |
+          if [[ -z "$KEY" ]]; then
+            echo "ok=false" >> "$GITHUB_OUTPUT"
+            echo "::warning::IOMS_DEPLOY_SSH_KEY is not set: nothing was deployed. Run deploy/tencent/hermes/enable-ci-deploy.sh on the server once and store its output as repository secrets (ADR 076)."
+            echo "### Deploy not configured" >> "$GITHUB_STEP_SUMMARY"
+            echo "CI passed, but the deploy secrets are not set, so nothing was deployed. See ADR 076." >> "$GITHUB_STEP_SUMMARY"
+          else
+            echo "ok=true" >> "$GITHUB_OUTPUT"
+          fi
+
+      - name: Open a GitHub deployment
+        if: steps.configured.outputs.ok == 'true'
+        id: deployment
+        env:
+          GH_TOKEN: ${{ github.token }}
+          SHA: ${{ steps.target.outputs.sha }}
+        run: |
+          set -euo pipefail
+          # required_contexts is empty on purpose: CI was already checked above, on this exact sha.
+          id="$(jq -n --arg ref "$SHA" --arg env "$ENVIRONMENT" --arg d "ioms-ops deploy ${SHA:0:7}" \
+                '{ref:$ref, environment:$env, auto_merge:false, required_contexts:[], description:$d}' \
+                | gh api "repos/$GITHUB_REPOSITORY/deployments" --input - --jq .id)"
+          gh api "repos/$GITHUB_REPOSITORY/deployments/$id/statuses" -f state=in_progress -f description="deploying ${SHA:0:7}" >/dev/null
+          echo "id=$id" >> "$GITHUB_OUTPUT"
+
+      - name: Deploy through ioms-ops (test gate, backup, health, rollback)
+        if: steps.configured.outputs.ok == 'true'
+        id: deploy
+        env:
+          KEY: ${{ secrets.IOMS_DEPLOY_SSH_KEY }}
+          KNOWN: ${{ secrets.IOMS_DEPLOY_KNOWN_HOSTS }}
+          HOST_SECRET: ${{ secrets.IOMS_DEPLOY_HOST }}
+          SHA: ${{ steps.target.outputs.sha }}
+        run: |
+          set -uo pipefail
+          host="${HOST_SECRET:-$DEFAULT_HOST}"
+          d="$(mktemp -d)"; chmod 700 "$d"; trap 'rm -rf "$d"' EXIT
+          printf '%s\n' "$KEY" > "$d/key"; chmod 600 "$d/key"
+          if [[ -n "$KNOWN" ]]; then printf '%s\n' "$KNOWN" > "$d/known"; hk=(-o StrictHostKeyChecking=yes -o UserKnownHostsFile="$d/known")
+          else echo "::warning::IOMS_DEPLOY_KNOWN_HOSTS not set; trusting the host key on first use"; hk=(-o StrictHostKeyChecking=accept-new -o UserKnownHostsFile="$d/known"); fi
+          ssh_run() { ssh -i "$d/key" "${hk[@]}" -o BatchMode=yes -o IdentitiesOnly=yes -o ConnectTimeout=20 \
+                        -o ServerAliveInterval=30 -o ServerAliveCountMax=10 "iomsci@$host" "$@"; }
+          # Bounded retries, for TRANSIENT causes only: the connection (ssh exit 255) or
+          # another deploy holding the lock. Anything the code decided is never retried.
+          for attempt in 1 2 3; do
+            ssh_run "deploy $SHA" > out.txt 2>&1; rc=$?
+            outcome="$(sed -n 's/^IOMS_RESULT //p' out.txt | tail -1 | jq -r '.last_deploy.outcome // empty' 2>/dev/null || true)"
+            if [[ $rc -eq 255 || "$outcome" == locked ]] && [[ $attempt -lt 3 ]]; then
+              echo "attempt $attempt: transient (${outcome:-connection}); retrying in $((attempt * 60))s"; sleep $((attempt * 60)); continue
+            fi
+            break
+          done
+          # Second line of defence against anything sensitive reaching GitHub.
+          sed -E -i \
+            -e 's/(gh[pousr]_|github_pat_)[A-Za-z0-9_]{10,}/[REDACTED]/g' \
+            -e 's/((password|passwd|secret|token|api[_-]?key|authorization|signature)["'"'"' ]*[:=][ "'"'"']*)[^ ,"'"'"'&]+/\1[REDACTED]/Ig' \
+            -e 's/-----BEGIN [A-Z ]*PRIVATE KEY-----.*/[REDACTED KEY]/' out.txt
+          cat out.txt
+          result="$(sed -n 's/^IOMS_RESULT //p' out.txt | tail -1)"
+          running=""; [[ -n "$result" ]] && running="$(jq -r '.running // empty' <<<"$result" 2>/dev/null || true)"
+          [[ $rc -eq 255 ]] && outcome="${outcome:-unreachable}"
+          echo "rc=$rc" >> "$GITHUB_OUTPUT"; echo "outcome=${outcome:-unknown}" >> "$GITHUB_OUTPUT"; echo "running=$running" >> "$GITHUB_OUTPUT"
+          {
+            echo "### Deploy ${SHA:0:7}: ${outcome:-unknown}"
+            echo "Running on the server after the deploy: \`${running:-unknown}\`"
+            echo; echo '```'; tail -n 120 out.txt; echo '```'
+          } >> "$GITHUB_STEP_SUMMARY"
+          [[ $rc -eq 0 && "$running" == "$SHA" ]] && exit 0
+          echo "::error::deploy of ${SHA:0:7} did not finish healthy (exit $rc, outcome ${outcome:-unknown}, running ${running:-unknown})"
+          exit 1
+
+      - name: Record the result
+        if: always() && steps.configured.outputs.ok == 'true' && steps.deployment.outputs.id != ''
+        env:
+          GH_TOKEN: ${{ github.token }}
+          SHA: ${{ steps.target.outputs.sha }}
+          ID: ${{ steps.deployment.outputs.id }}
+          RC: ${{ steps.deploy.outputs.rc }}
+          OUTCOME: ${{ steps.deploy.outputs.outcome }}
+          RUNNING: ${{ steps.deploy.outputs.running }}
+          RUN_URL: ${{ github.server_url }}/${{ github.repository }}/actions/runs/${{ github.run_id }}
+        run: |
+          set -uo pipefail
+          if [[ "$RC" == 0 && "$RUNNING" == "$SHA" ]]; then
+            gh api "repos/$GITHUB_REPOSITORY/deployments/$ID/statuses" -f state=success \
+              -f description="${SHA:0:7} live and healthy (${OUTCOME})" -f log_url="$RUN_URL" >/dev/null
+            # Close what this deploy resolved.
+            for n in $(gh api "repos/$GITHUB_REPOSITORY/issues?state=open&labels=deploy-failure&per_page=50" \
+                         --jq '.[] | select((.body // "") | startswith("<!-- ioms-deploy:")) | .number'); do
+              gh api "repos/$GITHUB_REPOSITORY/issues/$n/comments" -f body="Resolved: \`${SHA:0:7}\` deployed and healthy. $RUN_URL" >/dev/null
+              gh api -X PATCH "repos/$GITHUB_REPOSITORY/issues/$n" -f state=closed -f state_reason=completed >/dev/null
+            done
+            exit 0
+          fi
+          gh api "repos/$GITHUB_REPOSITORY/deployments/$ID/statuses" -f state=failure \
+            -f description="${OUTCOME:-unknown} (exit ${RC:-?})" -f log_url="$RUN_URL" >/dev/null
+          # A person must decide: migrations that are not additive, a failed rollback, an unreachable host.
+          case "$OUTCOME" in needs_approval|rollback_failed|unhealthy_held|unreachable) human=1 ;; *) human=0 ;; esac
+          marker="<!-- ioms-deploy:deploy:$SHA -->"
+          body="$marker
+          | | |
+          |---|---|
+          | Commit | \`$SHA\` |
+          | Outcome | \`${OUTCOME:-unknown}\` (exit ${RC:-?}) |
+          | Running after the attempt | \`${RUNNING:-unknown}\` |
+          | Escalated to a person | $([[ $human == 1 ]] && echo yes || echo no) |
+          | Log | $RUN_URL |
+
+          The redacted server output is in the run's summary and log. ioms-ops rolls back automatically when a deploy is unhealthy, so production stays on the last good commit unless the outcome says otherwise.
+
+          Filed by \`.github/workflows/deploy.yml\` (ADR 076). Remediation: docs/runbooks/RELEASE-LOOP.md."
+          labels=(-f 'labels[]=deploy-failure'); [[ $human == 1 ]] && labels+=(-f 'labels[]=needs-human')
+          existing="$(gh api "repos/$GITHUB_REPOSITORY/issues?state=open&labels=deploy-failure&per_page=50" --jq ".[] | select((.body // "") | startswith(\"$marker\")) | .number" | head -1)"
+          if [[ -n "$existing" ]]; then
+            gh api "repos/$GITHUB_REPOSITORY/issues/$existing/comments" -f body="$body" >/dev/null
+          else
+            gh api "repos/$GITHUB_REPOSITORY/issues" -f title="Deploy failed: ${OUTCOME:-unknown} on ${SHA:0:7}" -f body="$body" "${labels[@]}" >/dev/null
+          fi

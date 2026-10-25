@@ -294,7 +294,7 @@ return [
         'Cadangan data harian dengan uji pemulihan, sehingga cadangan terbukti bisa dipakai',
         'Pekerjaan operasional server dapat dibantu agent dengan persetujuan manusia untuk tindakan berisiko',
     ],
-   /*
+    /*
     |--------------------------------------------------------------------------
     | Version History
     |--------------------------------------------------------------------------

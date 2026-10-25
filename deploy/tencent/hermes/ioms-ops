@@ -14,14 +14,14 @@
 # shell, the database or the secrets.
 #
 # AUTONOMOUS (no approval)
-#   status | health [URL] | policy
+#   status | release-json | health [URL] | policy
 #   logs app|worker|nginx|nginx-access|php|backup|migration|ops [N]   (secrets and tokens redacted)
 #   git-status | disk | db-stats | backups | backup
 #   deploy [sha]      fast-forward to origin/main (or to <sha>, which must be on
 #                     origin/main): tests on the target commit, backup, deploy,
-#                     health check, AUTOMATIC ROLLBACK if it fails. A change
-#                     containing database migrations is not autonomous
-#                     (use: request deploy). Every attempt leaves its outcome in
+#                     health check, AUTOMATIC ROLLBACK if it fails. New migrations
+#                     are autonomous only when ALL are additive (migration-policy.php,
+#                     ADR 076); anything else needs `request deploy`. Every attempt leaves its outcome in
 #                     /var/lib/ioms-ops/last-deploy.json for ioms-release-watch.
 #   restart nginx|php8.3-fpm|ioms-worker|mysql (nginx/php-fpm config-tested first)
 #   artisan <allowed command> [args]           (see `ioms-ops policy`)
@@ -53,7 +53,12 @@ APPROVAL_TTL=1800
 MAX_DEPLOYS_PER_HOUR=6
 MAX_RESTARTS_PER_HOUR=12
 TEST_GATE=on
-[[ -r "$CONF" ]] && . "$CONF"   # root-owned, 644: HERMES_USER, DEFAULT_URL, limits, TEST_GATE
+# ADR 076: a release whose new migrations are ALL additive (new tables, nullable or
+# defaulted columns, indexes) deploys without a person; anything else still needs
+# `request deploy`. `off` restores "every migration needs a person".
+AUTO_MIGRATIONS=additive
+MIGRATION_POLICY=/usr/local/lib/ioms-ops/migration-policy.php
+[[ -r "$CONF" ]] && . "$CONF"   # root-owned, 644: HERMES_USER, DEFAULT_URL, limits, TEST_GATE, AUTO_MIGRATIONS
 
 CALLER="${SUDO_USER:-$(id -un)}"
 REQ_ID_RE='^[0-9]{8}-[0-9]{6}-[a-f0-9]{6}$'
@@ -115,6 +120,15 @@ do_status() {
     echo "last good deploy: $(cat "$STATE/last-good" 2>/dev/null || echo unknown)"
 }
 
+# One JSON object: what is running and how the last deploy attempt ended. Read by
+# ioms-ci-deploy so GitHub records the result; contains no secret.
+do_release_json() {
+    jq -cn --arg head "$(head_sha)" --arg good "$(cat "$STATE/last-good" 2>/dev/null)" \
+        --argjson last "$(cat "$STATE/last-deploy.json" 2>/dev/null || echo null)" \
+        --arg held "$(held && echo true || echo false)" \
+        '{running:$head, last_good:$good, last_deploy:$last, migration_hold:($held=="true")}'
+}
+
 do_logs() {
     local which="${1:-app}" n="${2:-200}" file
     [[ "$n" =~ ^[0-9]{1,5}$ ]] || refuse "N must be a number"
@@ -144,11 +158,12 @@ do_db_stats() {
 do_policy() {
     cat <<EOF
 Autonomous: status health policy logs git-status disk db-stats backups backup
-            deploy (no migrations; tests + backup + health + auto-rollback; ${MAX_DEPLOYS_PER_HOUR}/hour)
+            deploy [sha] (tests + backup + health + auto-rollback; ${MAX_DEPLOYS_PER_HOUR}/hour;
+                    migrations only when all additive: AUTO_MIGRATIONS=${AUTO_MIGRATIONS})
             restart nginx|php8.3-fpm|ioms-worker|mysql (${MAX_RESTARTS_PER_HOUR}/hour)
             maintenance off
             artisan: ${ARTISAN_ALLOWED[*]}
-Approval:   request deploy (with migrations) | request rollback <sha> | request maintenance-on
+Approval:   request deploy (non-additive migrations) | request rollback <sha> | request maintenance-on
 Never:      shell, tinker, raw SQL, .env, restore over live DB, firewall, DNS, users, packages, reboot
 Test gate:  ${TEST_GATE}
 EOF
@@ -187,6 +202,21 @@ do_restart() {
 }
 
 # ------------------------------------------------------------------ deploy
+# Classifies the migrations between two commits. The classifier is root-owned and
+# installed (never read from the checkout), and runs as the APP USER on the file
+# contents piped in -- repository code is never executed, and never as root.
+migration_policy() { # cur target -> 0 when every changed migration is additive
+    [[ -r "$MIGRATION_POLICY" ]] || { echo "  migration policy not installed -- treating as needs approval"; return 1; }
+    local from="$1" to="$2" status path rest
+    "${G[@]}" diff --name-status "$from" "$to" -- database/migrations/ | while IFS=$'\t' read -r status path rest; do
+        [[ "$status" == R* && -n "$rest" ]] && path="$rest"
+        printf '==== %s %s\n' "${status:0:1}" "$path"
+        [[ "$status" == D ]] || "${G[@]}" show "$to:$path" 2>/dev/null
+        printf '\n'
+    done | sudo -u "$APP_USER" php "$MIGRATION_POLICY" | sed 's/^/  migration: /'
+    return "${PIPESTATUS[1]}"
+}
+
 test_gate() { # sha -- run the suite on the TARGET commit, in-memory SQLite, never the live DB
     [[ "$TEST_GATE" == on ]] || { echo "  test gate: off"; return 0; }
     # Under the app user's own tree: $STATE is root-only and the suite runs as $APP_USER.
@@ -256,7 +286,11 @@ do_deploy_auto() { # [sha] -- default origin/main
     [[ "$target" != "$cur" ]] || { echo "Already at ${cur:0:7}."; outcome noop "$target"; return 0; }
     "${G[@]}" merge-base --is-ancestor "$cur" "$target" || deploy_refuse not_fast_forward "${target:0:7} is not a fast-forward of ${cur:0:7} (history rewritten?) -- request deploy" "$target"
     if "${G[@]}" diff --name-only "$cur" "$target" | grep -q '^database/migrations/'; then
-        deploy_refuse needs_approval "this change has DATABASE MIGRATIONS -- not autonomous. Use: ioms-ops request deploy" "$target"
+        if [[ "$AUTO_MIGRATIONS" == additive ]] && migration_policy "$cur" "$target"; then
+            echo "  migrations: additive only -- autonomous (backup is taken before they run)"
+        else
+            deploy_refuse needs_approval "this change has DATABASE MIGRATIONS that are not purely additive -- not autonomous. Use: ioms-ops request deploy" "$target"
+        fi
     fi
     rate_ok deploy "$MAX_DEPLOYS_PER_HOUR" || deploy_refuse rate_limited "deploy limit reached (${MAX_DEPLOYS_PER_HOUR}/hour)" "$target"
     echo "Deploy ${cur:0:7} -> ${target:0:7}:"; "${G[@]}" log --oneline "$cur..$target" | head -10 | sed 's/^/  /'
@@ -339,6 +373,7 @@ do_pending() {
 cmd="${1:-help}"; shift || true
 case "$cmd" in
     status) do_status ;;
+    release-json) do_release_json ;;
     health) url="${1:-$DEFAULT_URL}"; [[ "$url" =~ ^https?://[A-Za-z0-9.-]+(:[0-9]+)?/?$ ]] || refuse "health: URL must be scheme://host"
             if [[ "$url" == "$DEFAULT_URL" ]]; then local_health; else bash /usr/local/lib/ioms-ops/healthcheck.sh "$url"; fi ;;
     policy) do_policy ;;

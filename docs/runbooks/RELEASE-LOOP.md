@@ -1,6 +1,43 @@
 # Runbook: the IOMS release loop
 
-Reasoning: `docs/ADR/075-a-release-loop-is-bounded-and-the-server-never-edits-code.md`.
+Reasoning: `docs/ADR/075-a-release-loop-is-bounded-and-the-server-never-edits-code.md` and
+`docs/ADR/076-github-deploys-through-one-forced-command.md`.
+
+## Primary path (ADR 076): push to main, and it deploys itself
+
+```
+push to main -> CI (tests, build, ESLint, Pint on changed PHP, script parse, actionlint)
+             -> .github/workflows/deploy.yml (only when CI passed, on that exact SHA)
+             -> ssh iomsci@tencent "deploy <sha>"   (forced command: ioms-ci-deploy, nothing else)
+             -> ioms-ops deploy <sha>: test gate on the server, migration policy, backup,
+                deploy.sh, health check, AUTOMATIC ROLLBACK when unhealthy
+             -> GitHub Deployment "tencent" = success/failure + the server's IOMS_RESULT JSON
+             -> on failure: redacted deploy-failure issue (+ needs-human when a person must act)
+```
+
+**One-time setup (owner):**
+
+1. On the server, as root (one line; it installs the tools from `origin/main` and does not touch the
+   running app):
+   ```
+   cd /srv/ioms/app && sudo -u ioms git fetch -q origin main && git -c safe.directory=$PWD show origin/main:deploy/tencent/hermes/enable-ci-deploy.sh | sudo bash -s
+   ```
+2. Paste the two values it prints into GitHub, under Settings, then Secrets and variables, then
+   Actions: `IOMS_DEPLOY_SSH_KEY` and `IOMS_DEPLOY_KNOWN_HOSTS`.
+
+From then on every CI-green push to `main` deploys. To deploy again by hand, use Actions, then Deploy,
+then Run workflow (optionally with a SHA). To stop automatic deploys, delete `IOMS_DEPLOY_SSH_KEY`, or
+run `enable-ci-deploy.sh --revoke` on the server.
+
+**Migrations.** Additive migrations (new tables, nullable or defaulted columns, indexes) deploy on their
+own. Anything else stops with `needs_approval` and a `needs-human` issue; deploy it with
+`sudo ioms-ops request deploy`, a person approves, then `sudo ioms-ops run <id>`.
+`AUTO_MIGRATIONS=off` in `/etc/ioms-ops.conf` restores "every migration needs a person".
+
+The pull watcher below remains for a host that must not accept inbound SSH. Enable one of the two
+paths, not both.
+
+## Alternative path (ADR 075): the server pulls
 
 ## The pieces and where they live
 

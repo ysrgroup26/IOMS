@@ -1,0 +1,39 @@
+#!/usr/bin/env bash
+#
+# ioms-ci-deploy -- the ONLY thing the CI deploy account can run (ADR 076).
+#
+# Installed root-owned at /usr/local/sbin/ioms-ci-deploy by enable-ci-deploy.sh and
+# bound to the `iomsci` account's single SSH key as a forced command:
+#
+#     restrict,command="/usr/local/sbin/ioms-ci-deploy" ssh-ed25519 AAAA... ioms-ci
+#
+# so whatever the GitHub workflow asks for arrives here in SSH_ORIGINAL_COMMAND and
+# nothing else can run: no shell, no port forwarding, no file copy. Accepted:
+#
+#     deploy <40-hex sha>   -> sudo ioms-ops deploy <sha>   (tests, backup, health, rollback,
+#                                                           migration policy -- all inside ioms-ops)
+#     status                -> sudo ioms-ops status / health
+#
+# Ends with one line `IOMS_RESULT <json>` that the workflow records on GitHub.
+set -uo pipefail
+OPS=/usr/local/bin/ioms-ops
+read -r verb arg extra <<<"${SSH_ORIGINAL_COMMAND:-}"
+
+result() { printf 'IOMS_RESULT %s\n' "$(sudo -n "$OPS" release-json 2>/dev/null || echo '{}')"; }
+
+case "$verb" in
+    deploy)
+        if [[ ! "${arg:-}" =~ ^[0-9a-f]{40}$ || -n "${extra:-}" ]]; then
+            echo "REFUSED: usage: deploy <40-character commit id>"; exit 2
+        fi
+        sudo -n "$OPS" deploy "$arg"; rc=$?
+        echo; echo "== status"; sudo -n "$OPS" status
+        echo; echo "== health"; sudo -n "$OPS" health; hrc=$?
+        result
+        [[ $rc -eq 0 && $hrc -eq 0 ]]; exit $? ;;
+    status)
+        sudo -n "$OPS" status; echo; sudo -n "$OPS" health; hrc=$?
+        result; exit $hrc ;;
+    *)
+        echo "REFUSED: this key may only run: deploy <sha> | status"; exit 2 ;;
+esac

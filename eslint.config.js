@@ -43,6 +43,8 @@ export default [
                 matchMedia: 'readonly', getComputedStyle: 'readonly',
                 HTMLElement: 'readonly', Node: 'readonly', AbortController: 'readonly',
                 queueMicrotask: 'readonly', structuredClone: 'readonly',
+                // v2.129.0 web push (lib/webPush.js): the Notifications API permission object.
+                Notification: 'readonly',
                 process: 'readonly', global: 'readonly',
                 // Ziggy's route() helper, published globally by @routes.
                 route: 'readonly', Ziggy: 'readonly', axios: 'readonly',

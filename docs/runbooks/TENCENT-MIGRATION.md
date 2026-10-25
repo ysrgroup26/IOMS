@@ -38,21 +38,33 @@ mail:   iomsuite.com MX/SPF/DKIM/DMARC ──▶ Zoho          (independent of w
 | `cloudflare-lockdown.sh` | instance, after cutover | 80/443 from Cloudflare only (`--dry-run`, `--undo`) |
 | `hermes/install-ops-guard.sh`, `hermes/ioms-ops` | instance | Hermes' single, audited, approval-gated sudo command (§4) |
 
-## 1. Get onto the instance
+## 1. Get onto the instance: two stages, one command each
 
-You need a shell: Lighthouse console → the instance → **Login** (OrcaTerm, in the browser), or SSH with a
-key. Then:
+**Known facts (owner's OrcaTerm check, 2026-10-25):** Ubuntu 24.04 LTS; Hermes runs as `ubuntu` (UID 1000);
+`ubuntu` has **full passwordless sudo**; no Docker; snapshot `ioms-before-migration-20261025` exists.
+
+**Stage 1, in OrcaTerm as `ubuntu`** (the only time `ubuntu` is used for administration):
 
 ```bash
-sudo -i
-# FIRST, before any change: Lighthouse console → Snapshots → Create
-git clone https://github.com/ysrgroup26/IOMS.git /opt/ioms-kit
-bash /opt/ioms-kit/deploy/tencent/inspect-instance.sh > /root/inspection-$(date +%F).txt 2>&1
-bash /opt/ioms-kit/deploy/tencent/migrate.sh preflight
+sudo git clone --depth 1 https://github.com/ysrgroup26/IOMS.git /opt/ioms-kit
+sudo bash /opt/ioms-kit/deploy/tencent/bootstrap.sh stage1
 ```
 
-Read the report. It decides two things: whether the OS is Ubuntu 22.04/24.04 (the scripts refuse anything
-else), and what Hermes is (§3).
+It takes a root-owned copy of the kit, writes the inspection report to `/root/`, then runs
+`hermes/harden-hermes-host.sh` (§3). It asks you for a password for the new human admin `iomsadmin`,
+and asks you to confirm in a **second** OrcaTerm tab that `su - iomsadmin -c 'sudo -v'` works, before it
+removes anything from `ubuntu`.
+
+**Stage 2, as `iomsadmin`** (from now on, always):
+
+```bash
+su - iomsadmin
+sudo bash /opt/ioms-kit/deploy/tencent/bootstrap.sh stage2
+```
+
+It runs `provision.sh` (self-signed origin certificate until the Cloudflare one is installed, firewall
+unchanged), `migrate.sh app` (`main`, mail and payment inert), and a hidden prompt for the **production**
+`APP_KEY`. Then it stops, waiting for the export (§5).
 
 ## 2. Capacity
 
@@ -83,11 +95,34 @@ checklist:
 | Memory at idle? | `ps --sort=-rss` | Leaves ≥ 2.5 GB for IOMS |
 | Where are its keys? | credential file names | Readable by its user only |
 
-**The control (`deploy/tencent/hermes/`), rehearsed in §10:**
+**On this instance Hermes is effectively root.** It runs as `ubuntu`, and `ubuntu` has `NOPASSWD: ALL`
+(cloud-init's `/etc/sudoers.d/90-cloud-init-users`). Against root, file modes, a 640 `.env` and the
+`ioms-ops` allow-list protect nothing: Hermes could read the database, `.env`, Duitku and Zoho secrets,
+or every dump. So **root is removed from Hermes before any IOMS secret or data reaches the host**, by
+`hermes/harden-hermes-host.sh` (stage 1):
 
-```bash
-sudo bash /opt/ioms-kit/deploy/tencent/hermes/install-ops-guard.sh --hermes-user <user-from-report>
-```
+1. Creates `iomsadmin`, a **human** admin with a password and password-protected sudo, copies
+   `ubuntu`'s SSH keys to it, and verifies it (password set, `sudo` group, `(ALL) ALL`). You also
+   confirm it from a second tab. Nothing is removed until this passes, because your own OrcaTerm
+   session is `ubuntu` too and would otherwise lose its way to root.
+2. Backs up `/etc/sudoers` and `/etc/sudoers.d` and `ubuntu`'s privileged groups to
+   `/root/hermes-hardening-<stamp>/`.
+3. Comments out `ubuntu`'s sudo rules (never deletes them), removes it from
+   `sudo`/`admin`/`wheel`/`lxd`/`docker`, and validates with `visudo`, restoring the backup automatically
+   on failure.
+4. Grants `ubuntu` exactly `sudo ioms-ops` (`install-ops-guard.sh`).
+5. Restarts Hermes' systemd units, because a running process keeps the groups it started with, then
+   reads `/proc/<pid>/status` to prove no Hermes process still carries the `sudo` group. A Hermes started
+   by hand (tmux, nohup) is reported for you to restart.
+
+Impact on Hermes: same user, home, configuration, API keys and processes. It loses root: `sudo apt …` or
+`sudo systemctl …` from its terminal tool now fails, and operational work goes through `sudo ioms-ops`.
+**Refused before anything changes:** a Hermes unit that starts it *through* sudo; and a unit without
+`User=ubuntu`, which may be running it as root, triggers a warning to review.
+**Undo:** `sudo bash /opt/ioms-kit/deploy/tencent/hermes/harden-hermes-host.sh --undo /root/hermes-hardening-<stamp>` (as `iomsadmin`).
+**Approvals:** `ioms-ops approve` refuses `ubuntu`, so you approve as `iomsadmin`.
+
+**The control (`deploy/tencent/hermes/`), rehearsed in §10:**
 
 - Hermes' only privilege is `sudo /usr/local/bin/ioms-ops`. That's one sudoers line, validated with
   `visudo` before it's installed.
@@ -160,8 +195,9 @@ bash deploy/tencent/export-cpanel.sh         # -> ~/ioms-export-<stamp>/
 > `export-cpanel.sh` alone through File Manager and run it from your home directory with
 > `APP=~/ioms bash export-cpanel.sh`.
 
-Move the directory to the instance (download from cPanel File Manager, upload through OrcaTerm/`scp`),
-then:
+Move the directory to the instance: download it from cPanel File Manager, then upload it through
+OrcaTerm **while logged in as `iomsadmin`**, whose home is mode 700. An upload made as `ubuntu` lands
+where Hermes can read every tenant's data, and `import` refuses an export inside `/home/ubuntu`. Then:
 
 ```bash
 bash migrate.sh import --from /root/ioms-export-<stamp>
@@ -312,6 +348,12 @@ Run with the real scripts. The source was the local MySQL `ioms_ui` copy (141 ta
 | `migrate.sh verify --resolve 127.0.0.1 --e2e --allow-no-payment` | **VERIFY PASSED** (payment skipped: no sandbox key here) |
 | Hermes guard (stand-in user) | 14 checks, all as designed after fix 7 (see §3) |
 | `cloudflare-lockdown.sh --dry-run` | 22 rules; **not applied** (no netfilter in a container) |
+| `bootstrap.sh stage1` as an `ubuntu` with `NOPASSWD: ALL` and a stand-in Hermes running as it | after fixes 10 and 11: ubuntu's rule disabled, removed from `sudo` and `adm`, left with only `ioms-ops`; `iomsadmin` reaches root with its password |
+| A process still carrying the old `sudo` group | can't escalate (`ubuntu`'s password is locked); the script says so and asks for a Hermes restart |
+| After the restart, from the agent's account | **denied:** root, IOMS `.env`, `/root/ioms-db.cnf`, backups, MySQL, nginx logs, writing to the kit. **Allowed:** its own `~/.hermes`, `sudo ioms-ops status` |
+| `harden-hermes-host.sh --undo` | sudoers and groups restored, `ubuntu` back to root |
+| `bootstrap.sh stage2` as `iomsadmin` (and as `ubuntu`) | passes (refused) |
+| `import --from /home/ubuntu/...` (and from `iomsadmin`'s home) | refused (passes with 141/141 parity; export left root-owned, mode 700) |
 
 Defects the rehearsal found that reading had not:
 
@@ -332,6 +374,10 @@ Defects the rehearsal found that reading had not:
    now leaves running services alone (systemd path unaffected).
 9. `backup.sh` wrote `SHA256SUMS` from `sha256sum ./*`, which checksummed the half-written file itself,
    so **no backup could ever pass verification**. It now names the three files.
+10. Re-running `install-ops-guard.sh` aborted at `chmod` on the already append-only audit log, leaving the
+    agent with **no** `ioms-ops` rule. The mode is now set only on a new log.
+11. The agent stayed in `adm`, which reads nginx access logs, and those carry order-status tokens in URLs.
+    `adm` is now removed too, and logs reach Hermes only through `ioms-ops logs`, which redacts.
 
 ## 11. What is blocked, and on whom
 

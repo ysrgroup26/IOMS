@@ -40,7 +40,10 @@ install -m 755 -o root -g root "$here/../healthcheck.sh" /usr/local/lib/ioms-ops
 printf 'HERMES_USER=%q\nDEFAULT_URL=%q\n' "$HUSER" "https://iomsuite.com" > /etc/ioms-ops.conf
 chmod 644 /etc/ioms-ops.conf
 install -d -m 750 /var/lib/ioms-ops /var/lib/ioms-ops/requests
-touch /var/log/ioms-ops.log; chmod 640 /var/log/ioms-ops.log
+# Already append-only on a re-run, where chmod is refused: only set the
+# mode on a log that is new (found by the rehearsal -- a re-run aborted
+# here, leaving the agent with no ioms-ops rule at all).
+if [[ ! -e /var/log/ioms-ops.log ]]; then touch /var/log/ioms-ops.log; chmod 640 /var/log/ioms-ops.log; fi
 if chattr +a /var/log/ioms-ops.log 2>/dev/null; then
     echo "  audit log is append-only (chattr +a): entries cannot be edited or removed, even through ioms-ops"
 else

@@ -143,6 +143,16 @@ phase_import() {
         case "$1" in --from) from="$2"; shift 2 ;; --replace) replace=1; shift ;; *) die "Unknown: $1" ;; esac
     done
     [[ -d "$from" ]] || die "--from DIR (an export-cpanel.sh directory) is required."
+    # The export is every tenant's data and every password hash. Hermes runs
+    # as `ubuntu`, so an export left in /home/ubuntu (where an OrcaTerm upload
+    # lands when logged in as ubuntu) is readable by the agent: refuse it, and
+    # lock any other location down to root before reading it.
+    local real; real="$(readlink -f "$from")"
+    local agent_home; agent_home="$(getent passwd "${HERMES_USER:-ubuntu}" | cut -d: -f6)"
+    if [[ -n "$agent_home" && "$real" == "$agent_home"* ]]; then
+        die "The export is inside $agent_home, which the Hermes account can read. Move it first: sudo mv '$real' /root/ && sudo chmod -R go-rwx /root/$(basename "$real")"
+    fi
+    chown -R root:root "$real"; chmod -R go-rwx "$real"
     log "Verifying the export's checksums"
     ( cd "$from" && sha256sum -c SHA256SUMS )
 

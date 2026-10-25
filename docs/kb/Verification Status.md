@@ -34,6 +34,15 @@ and driving the screen in a browser, the twelve-to-six month edit **saves and pe
 `ReleaseStatusService` and the hardened `app:deploy` exist to close that gap, and
 `DeploymentIdentityTest` pins them. See `docs/ADR/057-a-release-must-be-able-to-prove-what-is-running.md`.
 
+### What was actually run for the Hermes hardening (v2.132.0, follow-up)
+
+- `bootstrap.sh stage1` → `stage2` in the Ubuntu 24.04 container, reproducing the instance: `ubuntu`
+  UID 1000 with cloud-init `NOPASSWD: ALL`, and a stand-in Hermes running as `ubuntu`. Verified: the
+  agent account is denied root, `.env`, DB credentials, backups, MySQL and nginx logs; `iomsadmin` gets
+  root with its password; `--undo` restores the previous state; an export in `/home/ubuntu` is refused.
+  Two defects were found and fixed (runbook §10, items 10 and 11).
+- **Not run on the instance:** this environment is still denied `43.173.21.31`.
+
 ### What was actually run for v2.132.0
 
 - The full Tencent kit, **in an Ubuntu 24.04.5 container** (root, no systemd), with the real scripts:

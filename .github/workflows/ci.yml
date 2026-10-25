@@ -1,0 +1,64 @@
+# IOMS continuous integration.
+#
+# The first step of the release loop (docs/ADR/074): a commit is a release
+# CANDIDATE only once this workflow has passed on it. The Tencent release
+# watcher (deploy/tencent/hermes/ioms-release-watch) asks GitHub for this
+# workflow's conclusion on the exact SHA before it deploys anything, and it
+# runs the suite again on the server against that same SHA -- CI is the
+# first gate, never the only one.
+#
+# No secret is used or needed: the suite runs on in-memory SQLite with the
+# throwaway APP_KEY that phpunit.xml already pins.
+name: CI
+
+on:
+  push:
+    branches: [main, 'claude/**']
+  pull_request:
+  workflow_dispatch:
+
+concurrency:
+  group: ci-${{ github.ref }}
+  cancel-in-progress: true
+
+permissions:
+  contents: read
+
+jobs:
+  test:
+    name: Tests and build
+    runs-on: ubuntu-24.04
+    timeout-minutes: 30
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: shivammathur/setup-php@v2
+        with:
+          php-version: '8.3'
+          extensions: mbstring, intl, gd, zip, pdo_sqlite, sqlite3, bcmath, exif
+          coverage: none
+
+      - name: Composer install
+        run: composer install --no-interaction --prefer-dist --no-progress
+
+      - uses: actions/setup-node@v4
+        with:
+          node-version: '22'
+          cache: npm
+
+      - name: npm ci
+        run: npm ci --no-audit --no-fund
+
+      - name: Prepare environment
+        run: |
+          cp .env.example .env
+          php artisan key:generate --force
+
+      # Build into a scratch directory so the committed public/build (what
+      # cPanel serves, since it runs no Node) is never overwritten here; the
+      # point is to prove the frontend compiles.
+      - name: Frontend build compiles
+        run: npx vite build --outDir "$RUNNER_TEMP/build-check" --emptyOutDir
+
+      - name: Test suite
+        run: php artisan test

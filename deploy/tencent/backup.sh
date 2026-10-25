@@ -20,7 +20,9 @@ mysqldump --defaults-extra-file=/root/ioms-db.cnf --single-transaction --quick \
     --routines --triggers --no-tablespaces ioms | gzip -9 > "$DEST/ioms.sql.gz"
 tar -C "$APP" -czf "$DEST/storage-app.tar.gz" storage/app
 cp "$APP/.env" "$DEST/env.backup"
-( cd "$DEST" && sha256sum ./* > SHA256SUMS )
+# Name the files: `./*` would include SHA256SUMS itself, half-written, so no
+# backup could ever verify (found by the rehearsal's restore check).
+( cd "$DEST" && sha256sum ioms.sql.gz storage-app.tar.gz env.backup > SHA256SUMS )
 
 find /var/backups/ioms -mindepth 1 -maxdepth 1 -type d -mtime +"$KEEP_DAYS" -exec rm -rf {} +
 echo "$(date -Is) backup ok: $DEST ($(du -sh "$DEST" | cut -f1))"

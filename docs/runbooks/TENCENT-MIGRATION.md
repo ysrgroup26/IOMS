@@ -1,6 +1,6 @@
 # Migrating IOMS from IDCloudHost (cPanel) to Tencent Cloud Lighthouse
 
-**Status (v2.132.0):** the whole migration has been **rehearsed end to end** on Ubuntu 24.04 in a container,
+**Status (v2.132.0):** the whole migration, including deploy and rollback through Hermes, has been **rehearsed end to end** on Ubuntu 24.04 in a container,
 using the same scripts, a production-shaped export and nginx over HTTPS (§10). **Nothing has run on the
 Tencent instance yet.** This development environment can't reach `43.173.21.31` (its network policy
 denies the host, and outbound SSH is unreachable), and no SSH key, Cloudflare, Zoho or Duitku credential
@@ -306,7 +306,10 @@ Run with the real scripts. The source was the local MySQL `ioms_ui` copy (141 ta
 | `import --replace` | backup taken, checksums OK, **141/141 tables row-count identical**, 719 files, migrations "Nothing to migrate", signature printed (after fix 4) |
 | `healthcheck.sh --resolve 127.0.0.1 --insecure --e2e` via nginx/HTTPS | **all pass**, including register/sign-out/sign-in |
 | Browser (Chromium) as an **imported** HSE account | sign-in, Employees, PTW list + detail, PPE, Incidents 200; permit PDF 418 KB; no 5xx |
-| Backup + restore check | pass (after fix 5) |
+| Backup + restore check | pass (after fixes 5 and 9): 7 key tables restored with identical counts |
+| Hermes: `request deploy` → self-approve refused → person approves → `run` | deployed `main` 2.131.0 → 2.132.0, backup taken first, signature `988bfd11b4e2` |
+| Hermes: `request rollback e6a5852` → approve → `run`, then deploy forward | 2.132.0 → 2.131.0 (`4504f078bccf`) → 2.132.0; health check passes after each |
+| `migrate.sh verify --resolve 127.0.0.1 --e2e --allow-no-payment` | **VERIFY PASSED** (payment skipped: no sandbox key here) |
 | Hermes guard (stand-in user) | 14 checks, all as designed after fix 7 (see §3) |
 | `cloudflare-lockdown.sh --dry-run` | 22 rules; **not applied** (no netfilter in a container) |
 
@@ -327,6 +330,8 @@ Defects the rehearsal found that reading had not:
    rules are fixed and re-tested.
 8. `svc enable` restarted an already-running supervisord in no-systemd mode and never brought it back. It
    now leaves running services alone (systemd path unaffected).
+9. `backup.sh` wrote `SHA256SUMS` from `sha256sum ./*`, which checksummed the half-written file itself,
+   so **no backup could ever pass verification**. It now names the three files.
 
 ## 11. What is blocked, and on whom
 

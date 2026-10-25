@@ -17,9 +17,9 @@ can't reach the instance: the network policy denies `43.173.21.31`, and no SSH k
 
 `deploy/tencent/migrate.sh` (preflight · app · env-set · import · verify) runs on the instance. Before
 anyone runs it there, every phase was run for real in an Ubuntu 24.04 container, against a
-production-shaped export and nginx over HTTPS. It found eight defects that careful reading had not,
+production-shaped export and nginx over HTTPS. It found nine defects that careful reading had not,
 including one that would have silently broken every nightly backup (`mysqldump` rejecting `database=` in
-`[client]`) and one that hid every error (PHP-FPM as `www-data` couldn't write `storage/logs`). A script
+`[client]`), one that made every backup fail its own checksum, and one that hid every error (PHP-FPM as `www-data` couldn't write `storage/logs`). A script
 that has only been read is a hypothesis.
 
 **Rejected:** writing the runbook as prose commands for a person to adapt. Every adaptation is a new,

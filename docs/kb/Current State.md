@@ -25,8 +25,8 @@ the date in the frontmatter, not remembered.
 |---|---|
 | Product | **IOMS — Industrial Operations Platform** |
 | Public company identity | **IOMS** only (v2.131.0, ADR 071). Operator entity published only when `IOMS_LEGAL_ENTITY` is set; legal merchant **PT Tahada Vistara Bersama** issues invoices (`ioms.merchant.legal_name`) |
-| Version | **2.131.0**, stage **Beta**, edition **Enterprise Edition** |
-| Build | `2026.10.25.01`, release date `2026-10-25` |
+| Version | **2.132.0**, stage **Beta**, edition **Enterprise Edition** |
+| Build | `2026.10.25.02`, release date `2026-10-25` |
 | Stack | Laravel 12 · Inertia.js · React 18 · Tailwind · MySQL · Sanctum |
 
 The naming rules are not cosmetic — see [[Product Identity and Principles]].
@@ -88,6 +88,13 @@ replace the role. A My Work User authenticates through the same login and lands 
 server-side route allow-list still controls what that account may reach. See [[Domain Glossary]].
 
 ## What shipped most recently
+
+`2.132.0` (2026-10-25): Tencent Lighthouse migration kit, **rehearsed end to end in an Ubuntu 24.04
+container, not yet run on the instance**. This environment is denied `43.173.21.31`. `migrate.sh`
+orchestrates the move with per-table parity proof. Cloudflare stays the DNS/proxy layer (Origin CA,
+Full (strict), lockdown after cutover). Hermes is kept behind `ioms-ops` (allow-list, approval by a
+person, append-only audit). `ioms:duitku-check` validates sandbox credentials without creating anything.
+The rehearsal fixed eight defects. Cutover awaits the owner's approval. See ADR 072.
 
 `2.131.0` (2026-10-25) — Duitku onboarding (D25218): registration no longer answers HTTP 500 when SMTP
 fails (verification and password-reset mail are guarded, and the person is told the email didn't

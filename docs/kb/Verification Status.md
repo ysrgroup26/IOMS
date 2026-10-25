@@ -34,6 +34,18 @@ and driving the screen in a browser, the twelve-to-six month edit **saves and pe
 `ReleaseStatusService` and the hardened `app:deploy` exist to close that gap, and
 `DeploymentIdentityTest` pins them. See `docs/ADR/057-a-release-must-be-able-to-prove-what-is-running.md`.
 
+### What was actually run for v2.132.0
+
+- The full Tencent kit, **in an Ubuntu 24.04.5 container** (root, no systemd), with the real scripts:
+  provision ×4, app from GitHub `main`, env-set, import with and without `--replace` (141/141 tables
+  row-identical, 719 files), nginx + HTTPS, `healthcheck.sh --e2e` (all pass), Chromium as an imported
+  account across five modules and a 418 KB permit PDF, backup + restore check, the Hermes guard with a
+  stand-in user (bypass attempts refused, approval flow, redaction, append-only audit), and the lockdown
+  dry run. Details: `docs/runbooks/TENCENT-MIGRATION.md` §10.
+- **Not run:** anything on `43.173.21.31`, Cloudflare, Zoho, or a live Duitku sandbox request. `ufw`
+  rules weren't applied (no netfilter in a container), and systemd unit handling was exercised only
+  through the `service` fallback.
+
 ### What was actually run for v2.131.0
 
 - Full SQLite suite (counts in the commit message), plus the new tests: `RegistrationSurvivesMailFailureTest`,

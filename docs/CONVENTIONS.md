@@ -3,6 +3,18 @@
 House style, and a deliberately honest list of mistakes that have actually happened in this
 codebase's history — kept here so they don't get repeated in a slightly different shape.
 
+## Known Pitfall (v2.132.0): `mysqldump` reads `[client]` and rejects `database=`
+
+A defaults file with `database=ioms` under `[client]` works for `mysql` and makes `mysqldump` exit with
+"unknown variable 'database=ioms'". Every nightly backup on the new host would have failed. Put
+`database=` under `[mysql]` only. Found by running the backup, not by reading the script.
+
+## Known Pitfall (v2.132.0): PHP-FPM's stock pool runs as www-data
+
+With the code owned by `ioms`, `www-data` can read it but can't write `storage/logs`, so the first error
+is also the first one that can't be logged. IOMS on its own host gets its own pool (`ioms.conf`, user
+`ioms`, socket `/run/php/ioms-fpm.sock`). Don't point nginx back at `php8.3-fpm.sock`.
+
 ## Known Pitfall (v2.131.0): a synchronous email after a write is a 500 that leaves the write behind
 
 `POST /register` created the `users` row, then `event(new Registered)` sent the verification email

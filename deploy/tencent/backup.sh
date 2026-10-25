@@ -13,6 +13,8 @@ APP="/srv/ioms/app"
 KEEP_DAYS="${KEEP_DAYS:-14}"
 umask 077
 mkdir -p "$DEST"
+# A failed run must not leave a directory that looks like a backup.
+trap 'rc=$?; [[ $rc -ne 0 ]] && { rm -rf "$DEST"; echo "$(date -Is) BACKUP FAILED ($rc)" >&2; }' EXIT
 
 mysqldump --defaults-extra-file=/root/ioms-db.cnf --single-transaction --quick \
     --routines --triggers --no-tablespaces ioms | gzip -9 > "$DEST/ioms.sql.gz"

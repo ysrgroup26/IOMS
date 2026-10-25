@@ -1,250 +1,341 @@
 # Migrating IOMS from IDCloudHost (cPanel) to Tencent Cloud Lighthouse
 
-**Status (v2.131.0): prepared, not executed.** The scripts in `deploy/tencent/` and this runbook are
-committed and syntax-checked, and `healthcheck.sh` passed against a local production-mode instance.
-**Nothing has run on the Tencent instance:** this development environment can't reach
-`43.173.21.31` (HTTP and SSH were refused by the network policy), and no SSH key, Lighthouse console
-access, Cloudflare access or cPanel access was available. Every step below says who runs it and what
-evidence counts as done.
+**Status (v2.132.0):** the whole migration has been **rehearsed end to end** on Ubuntu 24.04 in a container,
+using the same scripts, a production-shaped export and nginx over HTTPS (§10). **Nothing has run on the
+Tencent instance yet.** This development environment can't reach `43.173.21.31` (its network policy
+denies the host, and outbound SSH is unreachable), and no SSH key, Cloudflare, Zoho or Duitku credential
+is available here. The commands below run **on the instance**, by you or by Hermes through `ioms-ops`
+(§4).
 
-Production stays on IDCloudHost until §8's cutover is approved **and** §9's checks pass.
+Production stays on IDCloudHost until the cutover in §8 is approved **and** its checks pass.
 
 | | |
 |---|---|
-| Instance | Tencent Cloud Lighthouse, Jakarta, `43.173.21.31` |
-| Size | 2 vCPU, 4 GB RAM, 60 GB system disk |
-| Bought via | the Hermes Agent page — OS, image and services **unverified** |
-| Domain | `iomsuite.com`, DNS on Cloudflare, currently pointing at IDCloudHost |
-| Deploy today | cPanel Terminal: `cd ~/ioms && git pull origin main && ./deploy.sh` |
+| Instance | Tencent Cloud Lighthouse, Jakarta, `43.173.21.31`, 2 vCPU / 4 GB / 60 GB, Running |
+| Domain | `iomsuite.com`, added in the Lighthouse console. **"Add DNS record" was left at Later, and must stay that way** |
+| DNS / proxy / WAF | **Cloudflare**, which keeps its nameservers. Only the website A records change, at cutover |
+| Mail | Zoho (MX, SPF, `zmail._domainkey`, DMARC), **untouched by this migration** |
+| Today | IDCloudHost cPanel, `git pull origin main && ./deploy.sh` |
+
+```
+visitor ──HTTPS──▶ Cloudflare (proxy, WAF, edge cert) ──HTTPS, Full (strict)──▶ Tencent nginx (Origin CA cert)
+                                                                                 └─ PHP-FPM pool "ioms" ─ MySQL 8 (127.0.0.1)
+mail:   iomsuite.com MX/SPF/DKIM/DMARC ──▶ Zoho          (independent of where the website runs)
+```
 
 ---
 
-## 1. Capacity assessment
+## 0. The kit (`deploy/tencent/`)
 
-IOMS is a Laravel/PHP-FPM app on MySQL with no Node at runtime (assets are prebuilt and committed) and
-no long-running process today. For the current customer base that means:
-
-| Consumer | Typical resident memory |
-|---|---|
-| MySQL 8 (`innodb_buffer_pool_size` 512M–1G) | 0.6–1.2 GB |
-| PHP-FPM, 12 children × ~60–80 MB | 0.7–1.0 GB at peak |
-| nginx, queue worker, cron | < 0.2 GB |
-| OS | 0.3 GB |
-| **IOMS total** | **~2–2.7 GB** |
-
-**Verdict:** 2 vCPU / 4 GB / 60 GB is enough for IOMS on its own, with headroom. Dompdf renders and
-Excel imports are the CPU spikes, and they're short. What changes the verdict is **Hermes Agent**
-sharing the box (§3): a Python agent with its own runtime, optional Redis, and LLM tool calls can hold
-0.5–1.5 GB and burst CPU. Both fit only if Hermes is idle most of the time, and the 2 GB swap file that
-`provision.sh` adds is a safety net, not capacity. Disk: 60 GB is ample (the app plus 14 nightly
-backups are well under 10 GB at current data volumes; check with `du` after the first backup).
-
-## 2. Step 1–2: inspect before touching anything
-
-Owner (or whoever holds SSH), on the instance:
-
-```bash
-git clone https://github.com/ysrgroup26/IOMS.git /tmp/ioms-src     # or scp deploy/tencent/
-sudo bash /tmp/ioms-src/deploy/tencent/inspect-instance.sh > ~/inspection-$(date +%F).txt 2>&1
-```
-
-It is **read-only**. It reports the OS, capacity, listening ports, services, containers, Hermes
-processes/units/directories (file **names** only, never contents), outbound connections, accounts,
-SSH settings, cron, firewall, existing software and disk use. Read it before sharing it.
-
-**Do not reinstall, reset or "Reinstall System" the instance** before this report has been read and
-anything Hermes holds (§3) has been either kept or exported. Lighthouse snapshots are free for a
-small number of copies: **take one now**, before anything else (console → Snapshots → Create).
-
-## 3. Hermes Agent assessment
-
-**What it is (public sources):** Hermes Agent is an MIT-licensed autonomous AI agent by Nous Research.
-Tencent Lighthouse offers it as a one-click "Application Image" (AI Agent category), which
-pre-installs its runtime; Tencent's guides recommend 2 vCPU / 4 GB and mention Redis and systemd being
-configured. It connects to an LLM provider with an API key and is usually driven through a chat
-channel (Telegram, WhatsApp, etc.) or a terminal. Its tools can include **running shell commands** on
-the host.
-
-**What it is on this instance:** unknown until `inspect-instance.sh` runs. The report's "HERMES
-AGENT" section answers: which user it runs as, which units start it, what it listens on, how much
-memory it holds, which directories hold its state, and whether a terminal/shell toolset is enabled.
-
-**Is IOMS dependent on it?** No. Nothing in this repository calls, configures or needs Hermes.
-
-**Risk of co-hosting it with production IOMS:**
-
-| Concern | Why it matters here |
-|---|---|
-| Shell access | An agent that can run commands as a user with access to `/srv/ioms` can read `.env` (database password, Duitku API key, Zoho app password) and the database. A prompt-injected or misused agent becomes a path to customer data and payment credentials |
-| Credentials on the box | Its own LLM API key and chat-bot tokens sit beside IOMS's secrets |
-| Resource contention | Memory/CPU bursts during agent runs compete with PHP-FPM and MySQL (§1) |
-| Exposed ports | A web UI or gateway port open to the internet is attack surface on the production IP |
-| Image provenance | A marketplace image is built by someone else; its packages and defaults need the same review as anything else on a production host |
-
-**Recommendation (decision for the owner):** run production IOMS on a host **without** Hermes. In
-order of preference:
-
-1. **Separate:** keep Hermes on this instance if it's wanted, and buy a second Lighthouse instance
-   (clean Ubuntu 24.04 LTS image) for IOMS. Cleanest isolation, and the Hermes data is untouched.
-2. **Clean OS on this instance:** if Hermes isn't wanted, export anything it holds (its config
-   directory and memory/state per the report; LLM keys are re-issuable at the provider, so rotate
-   rather than copy them), take a snapshot, then "Reinstall System" with **Ubuntu 24.04 LTS**
-   (not the Hermes application image). Needs explicit owner authorisation.
-3. **Co-host (least preferred):** only if Hermes runs as its own unprivileged user with no
-   shell/terminal toolset, no read access to `/srv/ioms` (`provision.sh` makes it mode 750, owned by
-   `ioms`), no public port (Lighthouse firewall), and a memory cap (`MemoryMax=1G` in its systemd
-   unit). Disable it entirely (`systemctl disable --now <unit>`) during the cutover window.
-
-`provision.sh` does not stop, remove or reconfigure Hermes. It refuses to run if something other than
-nginx holds ports 80/443, and it changes the firewall only with `--apply-firewall`.
-
-## 4. Steps 3–5: prepare the server
-
-Ubuntu 22.04 or 24.04 (the script refuses anything else):
-
-```bash
-sudo bash deploy/tencent/provision.sh --domain staging.iomsuite.com            # no firewall change yet
-# read the listening-ports list it prints; then, once Hermes' needs are known:
-sudo bash deploy/tencent/provision.sh --domain staging.iomsuite.com --apply-firewall --tls
-```
-
-Installs nginx, PHP-FPM 8.3 (+ gd, zip, intl, bcmath, gmp, mbstring, xml, curl, mysql), MySQL 8 bound
-to 127.0.0.1, Composer (checksum-verified), supervisor (queue worker), the scheduler cron,
-`/usr/local/bin/ioms-backup` at 01:30 daily, logrotate (14 days), unattended security upgrades,
-fail2ban, a 2 GB swap file, and (with `--tls`) a Let's Encrypt certificate. The generated database
-password goes to `/root/ioms-db.cnf` (mode 600) only.
-
-Also in the **Lighthouse console firewall**, which sits in front of `ufw`: allow 22 (ideally your IP
-only), 80, 443; nothing else. SSH: key-only (`PasswordAuthentication no`) once your key works.
-
-**Staging DNS:** in Cloudflare add `staging.iomsuite.com  A  43.173.21.31`, **DNS only** (grey) until the
-certificate is issued. This touches no production record.
-
-## 5. Steps 6–8: deploy, then migrate data
-
-As the `ioms` user:
-
-```bash
-sudo -u ioms git clone https://github.com/ysrgroup26/IOMS.git /srv/ioms/app
-sudo -u ioms cp /srv/ioms/app/.env.example /srv/ioms/app/.env
-sudo -u ioms nano /srv/ioms/app/.env      # see the table below; never paste secrets into chat or git
-cd /srv/ioms/app && sudo -u ioms php artisan key:generate   # STAGING ONLY -- see note
-sudo -u ioms ./deploy.sh --first
-```
-
-| `.env` key | Staging value |
-|---|---|
-| `APP_ENV` / `APP_DEBUG` | `production` / `false` |
-| `APP_URL` | `https://staging.iomsuite.com` |
-| `DB_*` | `127.0.0.1`, `ioms`, `ioms`, password from `/root/ioms-db.cnf` |
-| `SESSION_SECURE_COOKIE` | `true` |
-| `TRUSTED_PROXIES` | unset (no proxy in front) or Cloudflare ranges once proxied |
-| `MAIL_*` | Zoho, per `docs/runbooks/EMAIL-ZOHO.md` |
-| `PAYMENT_GATEWAY`, `DUITKU_*` | **Sandbox** credentials only; `DUITKU_IS_PRODUCTION=false` |
-| `QUEUE_CONNECTION` | `database` (the supervisor worker drains it) |
-
-> [!warning] APP_KEY
-> For the **final** migration, copy `APP_KEY` from the IDCloudHost `.env`. Encrypted columns,
-> signed URLs already in customers' inboxes, and existing sessions depend on it; a new key would
-> make them unreadable or invalid. `key:generate` is for staging only.
-
-**Data, on IDCloudHost (cPanel Terminal), read-only for production:**
-
-```bash
-cd ~/ioms
-mysqldump --single-transaction --quick --routines --triggers --no-tablespaces \
-  -u"$(grep ^DB_USERNAME .env | cut -d= -f2)" -p "$(grep ^DB_DATABASE .env | cut -d= -f2)" \
-  | gzip > ~/ioms-$(date +%F).sql.gz                      # prompts for the password
-tar -czf ~/ioms-storage-$(date +%F).tar.gz storage/app
-sha256sum ~/ioms-*.gz > ~/ioms-transfer.sha256
-```
-
-Copy the three files to the instance (`scp`, or download them from cPanel File Manager and upload), then:
-
-```bash
-sha256sum -c ioms-transfer.sha256
-gunzip -c ioms-YYYY-MM-DD.sql.gz | mysql --defaults-extra-file=/root/ioms-db.cnf ioms
-sudo -u ioms tar -C /srv/ioms/app -xzf ioms-storage-YYYY-MM-DD.tar.gz
-cd /srv/ioms/app && sudo -u ioms php artisan migrate --force && sudo -u ioms php artisan storage:link
-```
-
-A rehearsal copy may be loaded into staging. Treat it as **production data**: don't email customers
-from staging. Set `MAIL_MAILER=log` on staging while it holds a copy of real data.
-
-## 6. Step 9: checks on the staging URL
-
-| Check | How | Pass |
+| File | Runs where | What it does |
 |---|---|---|
-| Public and security surface | `bash deploy/tencent/healthcheck.sh https://staging.iomsuite.com` | `ALL CHECKS PASSED` |
-| Release identity (ADR 057) | `php artisan app:deploy` output vs Master Admin → Running Release | Same signature |
-| Registration | Register a fresh test account in a browser | Lands on "Your account is ready", no 500 |
-| Mail | `php artisan ioms:mail-check you@…` with Zoho configured | both `accepted`, headers pass |
-| Sign-in | Existing (copied) account | Signs in, lands on its workspace |
-| Duitku Sandbox | `docs/PAYMENTS-DUITKU.md` §6 checklist with **sandbox** credentials and the staging callback URL registered in the Duitku sandbox dashboard | Invoice `paid` only after the callback; replay settles nothing |
-| PDF | Open any permit or invoice PDF | Renders with embedded fonts |
-| Queue / scheduler | `supervisorctl status ioms-worker`; `php artisan schedule:list` | RUNNING; three jobs listed |
-| Backup / restore | `sudo ioms-backup && sudo bash deploy/tencent/restore-check.sh` | Row counts match |
-| Load | 20 concurrent `curl` of `/` and `/login` for 60 s | No 5xx, memory below 3.2 GB with Hermes in its final state |
+| `inspect-instance.sh` | instance | Read-only report: OS, ports, services, Hermes, accounts, firewall, disk |
+| `provision.sh` | instance | nginx, PHP-FPM 8.3 (own `ioms` pool), MySQL, supervisor worker, cron, Origin cert, Cloudflare real-IP, backups, optional firewall |
+| `migrate.sh` | instance | `preflight` · `app` · `env-set` · `env-show` · `import` · `fresh` · `verify` · `status` |
+| `export-cpanel.sh` | IDCloudHost | Dump + `storage/app` + per-table row counts + checksums. Read-only for production |
+| `healthcheck.sh` | anywhere | Public pages, security surface, TLS, optional `--e2e` register/sign-in, `--resolve` to test the origin before DNS |
+| `backup.sh` / `restore-check.sh` | instance (cron) | Nightly dump + files + `.env`, 14 days; the restore check proves the newest dump loads |
+| `cloudflare-lockdown.sh` | instance, after cutover | 80/443 from Cloudflare only (`--dry-run`, `--undo`) |
+| `hermes/install-ops-guard.sh`, `hermes/ioms-ops` | instance | Hermes' single, audited, approval-gated sudo command (§4) |
 
-## 7. Backups and monitoring
+## 1. Get onto the instance
 
-- Nightly: database dump, `storage/app`, `.env` → `/var/backups/ioms/<date>/`, 14 days, checksummed.
-- **Off-site (owner decision):** a backup on the same disk doesn't survive losing the instance. Choose
-  Tencent COS (or another host) and add the copy line in `backup.sh`. Also enable Lighthouse scheduled
-  snapshots.
-- Weekly: `restore-check.sh`.
-- Monitoring, free tiers: Lighthouse built-in CPU/memory/disk alarms (console → Monitoring), plus an
-  external uptime check on `https://iomsuite.com/login` and on the callback path's 403.
+You need a shell: Lighthouse console → the instance → **Login** (OrcaTerm, in the browser), or SSH with a
+key. Then:
 
-## 8. Steps 10–11: cutover and rollback, needing explicit owner approval
+```bash
+sudo -i
+# FIRST, before any change: Lighthouse console → Snapshots → Create
+git clone https://github.com/ysrgroup26/IOMS.git /opt/ioms-kit
+bash /opt/ioms-kit/deploy/tencent/inspect-instance.sh > /root/inspection-$(date +%F).txt 2>&1
+bash /opt/ioms-kit/deploy/tencent/migrate.sh preflight
+```
 
-**Approval needed for one action only: changing the production `@`/`www` records in Cloudflare.**
-Everything before it is reversible and doesn't touch production.
+Read the report. It decides two things: whether the OS is Ubuntu 22.04/24.04 (the scripts refuse anything
+else), and what Hermes is (§3).
 
-**T-24h:** lower the TTL of `iomsuite.com` and `www` A records to 300 s (Cloudflare "Auto" with proxy
-on is already short; with proxy off set 5 min).
+## 2. Capacity
 
-**T-0 (low-traffic window, e.g. 22:00 WIB):**
+IOMS alone at current volumes is roughly 2–2.7 GB resident: MySQL 0.6–1.2 GB, PHP-FPM up to 12 children
+at 60–80 MB, plus the worker and the OS. **2 vCPU / 4 GB / 60 GB is enough for IOMS**, with a 2 GB swap
+file as a safety net. What decides the margin is Hermes (§3): an agent runtime plus optional Redis can
+hold 0.5–1.5 GB. Measure it in the inspection report (`ps … --sort=-rss`) and again under load in §6. If
+free memory falls under ~600 MB during the load check, move Hermes to its own instance (§3, option B).
 
-1. IDCloudHost: `php artisan down` (maintenance page). Writes stop. **Nothing is deleted.**
-2. Final dump + `storage/app` tarball + checksums (§5); copy; load into the Tencent `ioms` database
-   (drop and recreate it first if a rehearsal copy is there: `DROP DATABASE ioms; CREATE DATABASE ioms …`).
-3. Tencent `.env`: `APP_URL=https://iomsuite.com`, **production `APP_KEY` copied from IDCloudHost**,
-   Zoho mail, Duitku (still sandbox unless production approval and credentials exist).
-4. `./deploy.sh`, then `certbot --nginx -d iomsuite.com -d www.iomsuite.com` (needs DNS pointing
-   here, so with Cloudflare **proxied** use a Cloudflare Origin Certificate instead, SSL mode
-   **Full (strict)**).
-5. Cloudflare: change `@` and `www` A records to `43.173.21.31`. **This is the approved step.**
-6. Duitku dashboard: callback URL stays `https://iomsuite.com/webhooks/payment/duitku`, no change.
-7. §9 checks.
+## 3. Hermes Agent: kept and governed, not trusted
 
-**Rollback (any §9 failure that can't be fixed in 30 minutes):**
+Your direction is to keep Hermes and evaluate it as an operations agent (Git workflow, deploys, logs,
+health checks). Nothing in the kit removes, reinstalls or reconfigures it. `provision.sh` refuses to run
+if anything other than nginx holds ports 80/443, and changes the firewall only with `--apply-firewall`.
 
-1. Cloudflare: point `@` and `www` back to the IDCloudHost IP (write it down **before** step 5).
+**What Hermes is (public sources):** an MIT-licensed autonomous agent by Nous Research. On Lighthouse
+it's a one-click application image that pre-installs its runtime (Tencent mentions Redis and systemd).
+It is driven by chat or terminal, calls an LLM provider with an API key, and **can run shell commands**.
+
+**What it is on this instance:** answered by `inspect-instance.sh` ("HERMES AGENT" section), as a
+checklist:
+
+| Question | Where in the report | Acceptable answer |
+|---|---|---|
+| Which user does it run as? | process USER column, unit `User=` | A dedicated unprivileged user. **Root is not acceptable** for co-hosting |
+| Does it listen publicly? | `ss -tulpn` | Nothing on 0.0.0.0 except via the Lighthouse firewall's explicit allow |
+| What shell/tool access is enabled? | config.yaml tool lines | Terminal tool on is fine **only** under that dedicated user |
+| Memory at idle? | `ps --sort=-rss` | Leaves ≥ 2.5 GB for IOMS |
+| Where are its keys? | credential file names | Readable by its user only |
+
+**The control (`deploy/tencent/hermes/`), rehearsed in §10:**
+
+```bash
+sudo bash /opt/ioms-kit/deploy/tencent/hermes/install-ops-guard.sh --hermes-user <user-from-report>
+```
+
+- Hermes' only privilege is `sudo /usr/local/bin/ioms-ops`. That's one sudoers line, validated with
+  `visudo` before it's installed.
+- **Read, immediately:** `status`, `health`, `logs app|nginx|worker|migration [N]` (credentials redacted),
+  `git-status`, `disk`, `backup`, `backups`.
+- **Change, only with approval:** Hermes runs `request deploy | restart <svc> | rollback <sha>` and
+  gets an id. A person runs `sudo ioms-ops approve <id>`. Hermes then runs `run <id>`.
+  - sudo records the real caller, so **the agent's account can't approve its own requests**.
+  - Approvals expire in 30 minutes and are bound to the exact commit.
+  - Deploy and rollback take a backup first.
+- **Not reachable at all:** restoring over the live database, dropping data, editing `.env`, firewall,
+  DNS, users, packages, reboot, reinstall.
+- **Audit:** `/var/log/ioms-ops.log`, one JSON line per call (caller, command, result), append-only
+  (`chattr +a`).
+- **Isolation:** `/srv/ioms` and `/var/backups/ioms` are mode 750, owned by `ioms` and root, so the Hermes
+  user can't read the code's `.env` or any dump. The installer **audits** the Hermes user and exits
+  non-zero listing every risk it finds: root, membership of `sudo`/`docker`/`lxd`/`ioms`, other sudoers
+  rules, readable secrets. It changes none of them; that's your call.
+
+**Decision rule:**
+
+- **A, co-host:** keep Hermes on this instance if the installer reports no risks and §6's load check
+  leaves headroom.
+- **B, separate:** if Hermes runs as root, or is in `docker`/`sudo` and that can't be removed without
+  breaking the image, it can't be contained on the host that holds customer data and payment
+  credentials. Give IOMS a second, clean Ubuntu 24.04 Lighthouse instance, and keep this one for Hermes,
+  which can still operate IOMS over SSH as a user whose only sudo right is `ioms-ops`.
+
+Reinstalling the current instance isn't needed for either option, and isn't done without your explicit
+authorisation after a snapshot.
+
+## 4. Provision (on the instance)
+
+**Origin certificate first (Cloudflare dashboard):** SSL/TLS → Origin Server → Create Certificate → RSA,
+hostnames `iomsuite.com, *.iomsuite.com`, 15 years. Save the certificate and private key **on the
+instance** as `/root/origin.pem` and `/root/origin.key` (paste them in an editor there; don't send them
+through chat or email).
+
+```bash
+cd /opt/ioms-kit/deploy/tencent
+bash provision.sh --domain iomsuite.com --domain www.iomsuite.com --domain staging.iomsuite.com \
+     --origin-cert /root/origin.pem --origin-key /root/origin.key
+# after confirming what Hermes needs to listen on:
+bash provision.sh --domain iomsuite.com --domain www.iomsuite.com --domain staging.iomsuite.com \
+     --apply-firewall --ssh-from <your-public-ip>/32
+```
+
+Lighthouse console → Firewall: allow **22 from your IP only** (OrcaTerm works without public 22), and
+80/443. Remove any other inbound rule the image added unless the inspection showed Hermes needs it.
+
+## 5. Application and data
+
+```bash
+bash migrate.sh app                                    # clones main into /srv/ioms/app, .env: mail=log, payment=none
+# APP_KEY must be the PRODUCTION key: encrypted columns, signed links and sessions depend on it.
+# On IDCloudHost:  grep ^APP_KEY= ~/ioms/.env   -> copy the value to the clipboard, then here:
+bash migrate.sh env-set APP_KEY                        # hidden prompt; a secret given as an argument is refused
+bash migrate.sh env-set APP_URL https://iomsuite.com
+```
+
+**Export on IDCloudHost** (cPanel Terminal; production keeps serving):
+
+```bash
+cd ~/ioms && git pull origin main            # brings export-cpanel.sh only; see note
+bash deploy/tencent/export-cpanel.sh         # -> ~/ioms-export-<stamp>/
+```
+
+> `git pull` on production also brings v2.131/2.132 code without running `deploy.sh`. Code files change
+> but no migration or cache rebuild runs. If you'd rather not touch production code at all, upload
+> `export-cpanel.sh` alone through File Manager and run it from your home directory with
+> `APP=~/ioms bash export-cpanel.sh`.
+
+Move the directory to the instance (download from cPanel File Manager, upload through OrcaTerm/`scp`),
+then:
+
+```bash
+bash migrate.sh import --from /root/ioms-export-<stamp>
+```
+
+It verifies checksums, refuses a non-empty database unless `--replace` (which backs up first), loads the
+dump, **proves the row count of every table equals the source**, restores `storage/app`, and runs
+`deploy.sh` (migrations to this release, caches, storage link, release signature).
+
+**Secrets and services** (each prompt hidden):
+
+```bash
+bash migrate.sh env-set MAIL_MAILER smtp
+bash migrate.sh env-set MAIL_HOST smtppro.zoho.com
+bash migrate.sh env-set MAIL_PORT 465
+bash migrate.sh env-set MAIL_SCHEME smtps
+bash migrate.sh env-set MAIL_USERNAME support@iomsuite.com
+bash migrate.sh env-set MAIL_PASSWORD                  # Zoho app-specific password
+bash migrate.sh env-set PAYMENT_GATEWAY duitku
+bash migrate.sh env-set DUITKU_MERCHANT_CODE D25218    # the SANDBOX project code
+bash migrate.sh env-set DUITKU_API_KEY                 # SANDBOX key
+bash migrate.sh env-set DUITKU_IS_PRODUCTION false
+bash migrate.sh env-show                               # secrets shown as (set)
+sudo -u ioms bash -c 'cd /srv/ioms/app && php artisan config:cache'
+```
+
+> [!warning] A copy of production data with live mail
+> Turning on SMTP before cutover means the Tencent copy can email real customers: the scheduler's
+> subscription notices, approval escalations. Either set mail last, right before the checks, or stop the
+> scheduler until cutover by commenting out the `schedule:run` line in `/etc/cron.d/ioms`.
+
+## 6. Verify on Tencent before DNS changes
+
+DNS still points at IDCloudHost, so tests go **directly to the origin** with `--resolve`, keeping the
+real host name for TLS SNI and routing:
+
+```bash
+bash migrate.sh verify --url https://iomsuite.com --resolve 127.0.0.1 --e2e --mail-to <your-own-address>
+```
+
+| Check | Pass |
+|---|---|
+| Public pages, `.env`/`.git` not served, unsigned callback refused, no debug output | `ALL CHECKS PASSED` |
+| `--e2e` register → welcome → sign out → sign in → account area | five `ok` lines |
+| Release identity | commit and signature printed; compare after cutover with Master Admin → Running Release |
+| Services | nginx, PHP-FPM, MySQL, cron, worker `RUNNING`, three scheduled jobs |
+| Permissions | `.env` 640 `ioms:ioms`, `/srv/ioms` 750, `APP_DEBUG=false` |
+| `ioms:duitku-check` | "sandbox accepted the signature and offered N method(s)" |
+| `ioms:mail-check` | both `accepted`; the headers of the received message show spf/dkim/dmarc `pass` |
+| Backup + restore check | row counts match |
+
+Then in a browser, before DNS: add `43.173.21.31 iomsuite.com www.iomsuite.com` to your own computer's
+`hosts` file (and accept the Origin certificate warning, since only Cloudflare trusts it), and:
+
+1. Sign in with a real account; open Employees, PTW, PPE, Incidents; open one permit PDF.
+2. **Duitku sandbox end to end:** register a test account, verify its email, Continue setup, Starter
+   monthly, choose a method, pay on the **sandbox** page. Duitku's callback only reaches Tencent after
+   cutover (it targets `https://iomsuite.com/webhooks/payment/duitku`), so before cutover this proves
+   inquiry and redirect. Settlement is proven in §9, again with sandbox money.
+3. Remove the `hosts` line.
+
+Load: `for i in $(seq 200); do curl -sk --resolve iomsuite.com:443:127.0.0.1 -o /dev/null https://iomsuite.com/login & done; wait; free -m`.
+No 5xx in `ioms-ops logs nginx`, and free memory stays above ~600 MB with Hermes in its final state.
+
+## 7. Cloudflare settings to prepare (no DNS change yet)
+
+| Setting | Value | Why |
+|---|---|---|
+| SSL/TLS mode | **Full (strict)**, applied to the new origin only (see note) | Cloudflare validates the Origin CA certificate |
+| Always Use HTTPS | On | |
+| Minimum TLS | 1.2 | |
+| Origin certificate | from §4 | |
+| Proxy status of `@`, `www` | **Proxied** (orange) | Traffic keeps flowing through Cloudflare's WAF |
+| Mail records | **unchanged**, DNS only (grey) | MX, `@` TXT SPF, `zmail._domainkey`, `_dmarc` |
+
+> [!note] Full (strict) is zone-wide
+> If IDCloudHost's certificate isn't publicly valid, switching the zone to Full (strict) **before**
+> cutover would break the current site. Either switch it **at** cutover (step 4 below), or first confirm
+> IDCloudHost presents a valid certificate (`openssl s_client -connect <idcloudhost-ip>:443 -servername iomsuite.com`).
+
+Write these down before cutover, because rollback restores them:
+
+| Record | Type | Current value (fill in from Cloudflare) | Proxy |
+|---|---|---|---|
+| `iomsuite.com` | A | `<IDCloudHost IP>` | |
+| `www` | A/CNAME | | |
+| SSL/TLS mode | — | | — |
+
+## 8. Cutover (needs your explicit approval) and rollback
+
+Approval is needed for **one action**: changing the `@` and `www` records in Cloudflare.
+
+**T-1 day:** run `export-cpanel.sh` and `import --replace` once more as a rehearsal, then `verify`.
+Lower nothing: proxied records switch immediately at Cloudflare's edge, so TTL isn't a factor.
+
+**T-0, a quiet window (e.g. 22:00 WIB):**
+
+1. IDCloudHost: `php artisan down --retry=60`. Writes stop; **nothing is deleted.**
+2. IDCloudHost: `bash deploy/tencent/export-cpanel.sh`.
+3. Tencent: `bash migrate.sh import --from <dir> --replace`. Parity must pass.
+4. Cloudflare: SSL/TLS **Full (strict)**; then `@` → `43.173.21.31` (proxied) and `www` → `43.173.21.31`
+   or a CNAME to `@` (proxied). **Change nothing else.**
+5. `bash healthcheck.sh https://iomsuite.com --e2e` from any machine, now **through Cloudflare**.
+6. One Duitku **sandbox** payment through to settlement: the callback now reaches Tencent. Invoice
+   `paid`, organization provisioned, a replayed callback settles nothing.
+7. Master Admin → Running Release signature equals the one `migrate.sh verify` printed.
+8. Leave IDCloudHost in maintenance mode, running. Don't cancel it.
+
+**Rollback (any failure in 5–7 that can't be fixed in 30 minutes):**
+
+1. Cloudflare: `@` and `www` back to the values recorded in §7; SSL mode back to its recorded value.
 2. IDCloudHost: `php artisan up`.
-3. Any orders or payments taken on Tencent during the window: export those rows
-   (`invoices`, `payment_transactions`, `tenant_registrations`, `users` created after T-0) and
-   re-apply them on IDCloudHost by hand. Duitku callbacks received at Tencent are in
-   `payment_webhook_events` there.
+3. Anything written on Tencent after step 3 (registrations, invoices, payment callbacks): `migrate.sh
+   status` shows the time window. Export those rows from Tencent and re-enter them on IDCloudHost by hand.
+   Duitku callbacks that reached Tencent are in its `payment_webhook_events`.
 
-## 9. Steps 12–13: verify live, then retire IDCloudHost later
+**After 24 h stable:** `bash cloudflare-lockdown.sh --dry-run`, then apply it, so the origin answers
+web traffic from Cloudflare only. Its own rollback is `--undo`.
 
-Live checks: `healthcheck.sh https://iomsuite.com`; Master Admin → Running Release signature matches;
-one registration; `ioms:mail-check`; one Duitku **sandbox** payment through staging, not production
-money ("Never use a real production transaction to test the integration"); the first nightly backup
-and a `restore-check.sh`.
+## 9. After cutover
 
-Keep IDCloudHost **running and paid** for at least 14 days after a clean cutover. Before cancelling,
-download a full cPanel backup (home directory, databases, mail) and keep it off-server.
+- Daily: backups run at 01:30. Weekly: `ioms-ops backups` and `ioms-restore-check`.
+- **Off-site copy (your decision):** a Tencent COS bucket or another host. Add the copy line in
+  `backup.sh`; also enable Lighthouse scheduled snapshots.
+- Monitoring: Lighthouse alarms for CPU/memory/disk, and an external uptime check on
+  `https://iomsuite.com/login`.
+- Keep IDCloudHost paid and untouched for 14 days. Before cancelling, download a full cPanel backup and
+  confirm cPanel mail was exported (`docs/runbooks/EMAIL-ZOHO.md` §5).
+- Duitku production stays off until merchant approval and production credentials exist.
 
-## 10. What is blocked, and on whom
+## 10. Rehearsal record (container, Ubuntu 24.04.5, 2026-10-25)
+
+Run with the real scripts. The source was the local MySQL `ioms_ui` copy (141 tables), exported by
+`export-cpanel.sh`.
+
+| Step | Result |
+|---|---|
+| `provision.sh` ×4 (idempotent) | pass after fixes 1, 2, 5, 6 below |
+| `migrate.sh app` from GitHub `main` | pass after fix 3 |
+| `env-set APP_KEY` via stdin | value identical to source; secret as argument refused; `env-show` masks |
+| `import` without `--replace` on a full database | refused |
+| `import --replace` | backup taken, checksums OK, **141/141 tables row-count identical**, 719 files, migrations "Nothing to migrate", signature printed (after fix 4) |
+| `healthcheck.sh --resolve 127.0.0.1 --insecure --e2e` via nginx/HTTPS | **all pass**, including register/sign-out/sign-in |
+| Browser (Chromium) as an **imported** HSE account | sign-in, Employees, PTW list + detail, PPE, Incidents 200; permit PDF 418 KB; no 5xx |
+| Backup + restore check | pass (after fix 5) |
+| Hermes guard (stand-in user) | 14 checks, all as designed after fix 7 (see §3) |
+| `cloudflare-lockdown.sh --dry-run` | 22 rules; **not applied** (no netfilter in a container) |
+
+Defects the rehearsal found that reading had not:
+
+1. nginx 1.24 (Ubuntu 24.04) rejects `http2 on;`, so the config now uses `listen 443 ssl http2`.
+2. A `[::]` listener stops nginx on a host without IPv6, so IPv6 listeners are emitted only when the
+   host has IPv6.
+3. Root `git` refused the `ioms`-owned repository ("dubious ownership"). Every root-side git call now
+   names it as a safe directory.
+4. The `ioms` user couldn't read an export in root's home, so extraction runs as root without the
+   archive's owners, then the files are handed to `ioms`.
+5. `mysqldump` rejected `database=` under `[client]` in `/root/ioms-db.cnf`, which would have broken
+   **every nightly backup**. The key moved to `[mysql]`, and an existing file is repaired.
+6. PHP-FPM ran as `www-data`, which couldn't write `storage/logs`, so the first 500 couldn't even be
+   logged. IOMS now has its own pool running as `ioms`.
+7. Log redaction left a Bearer token visible after "Authorization:", and part of a quoted password. Both
+   rules are fixed and re-tested.
+8. `svc enable` restarted an already-running supervisord in no-systemd mode and never brought it back. It
+   now leaves running services alone (systemd path unaffected).
+
+## 11. What is blocked, and on whom
 
 | Blocker | Needs |
 |---|---|
-| Running anything on the instance | SSH access (key) or Lighthouse console access |
-| Hermes decision (§3) | Owner, after reading the inspection report |
-| Reinstalling the instance, if chosen | Explicit owner authorisation, after a snapshot |
-| Staging DNS record | Cloudflare access |
-| Production DNS switch | Explicit owner approval at T-0 |
-| Data export | cPanel access |
-| Off-site backup target | Owner choice (Tencent COS bucket or other) |
+| Running the kit on Tencent | A shell on the instance (OrcaTerm or SSH). This environment is denied `43.173.21.31` |
+| Hermes user / risk decision | The inspection report |
+| Origin certificate | Cloudflare dashboard (§4) |
+| Data export | cPanel access (§5) |
+| Zoho SMTP password, Duitku sandbox key | Entered on the instance with `env-set`, never in chat |
+| DNS cutover | Your explicit approval at T-0 (§8) |
+| Off-site backup target | Your choice (§9) |

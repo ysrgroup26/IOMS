@@ -1,0 +1,344 @@
+#!/usr/bin/env bash
+#
+# ioms-release-watch -- the server half of the IOMS release loop (ADR 075).
+#
+#   commit on main -> CI passes on that SHA -> THIS deploys exactly that SHA
+#   through `ioms-ops deploy <sha>` (test gate, backup, deploy, health check,
+#   automatic rollback) -> watches production health -> files what failed as
+#   a GitHub issue the remediation session picks up.
+#
+# Runs as root from ioms-release-watch.timer every 5 minutes. Installed by
+# install-release-watch.sh. Commands:
+#
+#   tick              one pass: deploy if there is a new CI-green SHA, then health
+#   status            what it knows: running SHA, candidate, attempts, blocks, health
+#   unblock <sha>     let a blocked SHA be tried again (a person, after a fix)
+#   report-test       file a harmless test issue to prove reporting works
+#
+# GUARANTEES
+#   idempotent       a SHA already running is a no-op; a tick that overlaps another
+#                    exits at once (flock), and ioms-ops holds its own deploy lock.
+#   bounded          a SHA is attempted at most MAX_ATTEMPTS times, with backoff
+#                    BACKOFF_MIN * 2^(n-1) between attempts. A deterministic failure
+#                    (tests, CI, migrations awaiting approval) blocks the SHA at once:
+#                    retrying the same code cannot change the answer. Only a NEW
+#                    commit, or `unblock`, starts again. There is no repair loop on
+#                    the server: the server never edits code.
+#   escalation       a blocked SHA's issue carries `needs-human`; so does anything the
+#                    remediation session is not allowed to fix (migrations).
+#   no secrets       every log line and issue body passes through ioms-ops' redaction
+#                    and carries only status, commit ids and redacted log tails. The
+#                    GitHub token lives in /etc/ioms-release-watch.conf (root, 600)
+#                    and is sent only in an Authorization header to api.github.com.
+#
+# Without a token, deploys still happen (public CI status is read anonymously
+# when the repository is public) and failures are recorded locally under
+# /var/lib/ioms-ops/release/reports -- they are just not filed as issues.
+
+set -uo pipefail
+umask 027
+
+CONF="${IOMS_RELEASE_CONF:-/etc/ioms-release-watch.conf}"
+APP_DIR="${IOMS_APP_DIR:-/srv/ioms/app}"
+APP_USER="${IOMS_APP_USER:-ioms}"
+OPS_STATE="${IOMS_OPS_STATE:-/var/lib/ioms-ops}"
+STATE="$OPS_STATE/release"
+LOG="${IOMS_RELEASE_LOG:-/var/log/ioms-release-watch.log}"
+OPS="${IOMS_OPS_BIN:-/usr/local/bin/ioms-ops}"
+HOLD_FILE="${IOMS_HOLD_FILE:-/var/lib/ioms-migrate/hold}"
+GITHUB_API="https://api.github.com"
+GITHUB_REPO="ysrgroup26/IOMS"
+GITHUB_TOKEN=""
+CI_CHECK_NAME="Tests and build"
+REQUIRE_CI=1            # 1: deploy only a SHA whose CI check concluded "success"
+CI_WAIT_MAX_MIN=90      # a SHA whose CI never reports in this long is escalated
+MAX_ATTEMPTS=2
+BACKOFF_MIN=15
+HEALTH_FAILS_TO_REPORT=2
+[[ -r "$CONF" ]] && . "$CONF"
+
+[[ $EUID -eq 0 ]] || { echo "ioms-release-watch runs as root (systemd timer)." >&2; exit 1; }
+mkdir -p "$STATE"/{attempts,blocked,reports,seen}; chmod 750 "$STATE"
+G=(git -c safe.directory="$APP_DIR" -C "$APP_DIR")
+SHA_RE='^[0-9a-f]{40}$'
+
+# ------------------------------------------------------------------ logging
+# One JSON object per line. Values are strings; nothing secret is ever passed.
+jlog() { # level event [key value]...
+    local level="$1" event="$2"; shift 2
+    local args=(--arg time "$(date -Is)" --arg level "$level" --arg event "$event")
+    local filter='{time:$time, level:$level, event:$event}'
+    while [[ $# -ge 2 ]]; do args+=(--arg "$1" "$2"); filter="$filter + {\"$1\": \$$1}"; shift 2; done
+    jq -cn "${args[@]}" "$filter" >> "$LOG"
+    [[ -t 1 ]] && jq -cn "${args[@]}" "$filter"
+    return 0
+}
+
+# The same redaction ioms-ops applies to logs, plus anything that looks like a
+# GitHub token, in case one ever reached a log line.
+redact() {
+    sed -E \
+        -e 's/(gh[pousr]_|github_pat_)[A-Za-z0-9_]{10,}/[REDACTED]/g' \
+        -e 's/(Bearer )[A-Za-z0-9._~+\/=-]+/\1[REDACTED]/Ig' \
+        -e 's/((password|passwd|secret|token|api[_-]?key|authorization|signature)["'"'"' ]*[:=][ "'"'"']*)[^ ,"'"'"'&]+/\1[REDACTED]/Ig' \
+        -e 's/(mysql:\/\/[^:]+:)[^@]+@/\1[REDACTED]@/g' \
+        -e 's#([?&](signature|token|expires|hash)=)[^ &"]+#\1[REDACTED]#g'
+}
+
+# ------------------------------------------------------------------ GitHub
+gh_api() { # method path [json-body] -> body on stdout, returns 0 on 2xx
+    local method="$1" path="$2" body="${3:-}" out code
+    local args=(-sS --max-time 20 -X "$method" -H 'Accept: application/vnd.github+json' -H 'X-GitHub-Api-Version: 2022-11-28')
+    [[ -n "$GITHUB_TOKEN" ]] && args+=(-H "Authorization: Bearer $GITHUB_TOKEN")
+    [[ -n "$body" ]] && args+=(-H 'Content-Type: application/json' --data-binary @-)
+    out="$(mktemp)"
+    code="$(printf '%s' "$body" | curl "${args[@]}" -o "$out" -w '%{http_code}' "$GITHUB_API$path" 2>/dev/null)" || code=000
+    cat "$out"; rm -f "$out"
+    [[ "$code" =~ ^2 ]]
+}
+
+# CI conclusion for a SHA: success | failure | pending | missing | unknown
+ci_state() {
+    local sha="$1" body
+    body="$(gh_api GET "/repos/$GITHUB_REPO/commits/$sha/check-runs?per_page=50")" || { echo unknown; return; }
+    jq -r --arg n "$CI_CHECK_NAME" '
+        [.check_runs[] | select(.name == $n)] | sort_by(.started_at) | last
+        | if . == null then "missing"
+          elif .status != "completed" then "pending"
+          elif .conclusion == "success" then "success"
+          elif (.conclusion == "cancelled" or .conclusion == "skipped") then "pending"
+          else "failure" end' <<<"$body" 2>/dev/null || echo unknown
+}
+
+# File (or update) the issue for one SHA. Deduplicated by a marker in the body.
+report_issue() { # kind sha outcome attempt escalate(0|1) details-file
+    local kind="$1" sha="$2" outcome="$3" attempt="$4" escalate="$5" file="$6"
+    local short="${sha:0:7}" marker="ioms-release-watch:$kind:$sha"
+    local title labels details existing number
+    case "$kind" in
+        deploy) title="Deploy blocked: ${outcome//_/ } on $short" ;;
+        ci)     title="CI failed on main at $short" ;;
+        health) title="Production health check failing" ; marker="ioms-release-watch:health" ;;
+        *)      title="Release watch: $kind" ;;
+    esac
+    labels='["deploy-failure"]'
+    [[ "$kind" == health ]] && labels='["production-health"]'
+    [[ "$escalate" == 1 ]] && labels="$(jq -c '. + ["needs-human"]' <<<"$labels")"
+    details="$(redact < "$file" | tail -c 12000)"
+
+    local body
+    body="$(cat <<EOF
+<!-- $marker -->
+| | |
+|---|---|
+| Kind | \`$kind\` |
+| Commit | \`$sha\` |
+| Outcome | \`$outcome\` |
+| $([[ "$kind" == health ]] && echo "Consecutive failed checks | $attempt" || echo "Attempt | $attempt of $MAX_ATTEMPTS") |
+| Host | Tencent production (\`$(hostname -s)\`) |
+| Recorded | $(date -Is) |
+| Escalated to a person | $([[ "$escalate" == 1 ]] && echo yes || echo no) |
+
+Production state: $(production_line)
+
+<details><summary>Redacted output</summary>
+
+\`\`\`
+$details
+\`\`\`
+</details>
+
+Filed by \`ioms-release-watch\` (deploy/tencent/hermes). The remediation session works issues labelled
+\`deploy-failure\` or \`production-health\` that do not carry \`needs-human\`; see docs/runbooks/RELEASE-LOOP.md.
+EOF
+)"
+    if [[ -z "$GITHUB_TOKEN" ]]; then
+        jlog warn issue_not_filed reason "no GITHUB_TOKEN configured" kind "$kind" sha "$short"
+        return 0
+    fi
+
+    existing="$(gh_api GET "/repos/$GITHUB_REPO/issues?state=open&labels=$(jq -r '.[0]' <<<"$labels")&per_page=50")" || existing='[]'
+    number="$(jq -r --arg m "<!-- $marker -->" '[.[] | select(.body != null and (.body | startswith($m)))][0].number // empty' <<<"$existing" 2>/dev/null)"
+    if [[ -n "$number" ]]; then
+        gh_api POST "/repos/$GITHUB_REPO/issues/$number/comments" "$(jq -n --arg b "$body" '{body:$b}')" >/dev/null \
+            && gh_api POST "/repos/$GITHUB_REPO/issues/$number/labels" "$(jq -n --argjson l "$labels" '{labels:$l}')" >/dev/null
+        jlog info issue_updated number "$number" kind "$kind" sha "$short" outcome "$outcome"
+    else
+        number="$(gh_api POST "/repos/$GITHUB_REPO/issues" "$(jq -n --arg t "$title" --arg b "$body" --argjson l "$labels" '{title:$t, body:$b, labels:$l}')" | jq -r '.number // empty')"
+        jlog info issue_filed number "${number:-?}" kind "$kind" sha "$short" outcome "$outcome"
+    fi
+}
+
+close_issues() { # label marker-prefix comment
+    [[ -n "$GITHUB_TOKEN" ]] || return 0
+    local list n
+    list="$(gh_api GET "/repos/$GITHUB_REPO/issues?state=open&labels=$1&per_page=50")" || return 0
+    for n in $(jq -r --arg m "<!-- $2" '.[] | select(.body != null and (.body | startswith($m))) | .number' <<<"$list" 2>/dev/null); do
+        gh_api POST "/repos/$GITHUB_REPO/issues/$n/comments" "$(jq -n --arg b "$3" '{body:$b}')" >/dev/null
+        gh_api PATCH "/repos/$GITHUB_REPO/issues/$n" '{"state":"closed","state_reason":"completed"}' >/dev/null
+        jlog info issue_closed number "$n"
+    done
+}
+
+# ------------------------------------------------------------------ state
+running_sha() { "${G[@]}" rev-parse HEAD 2>/dev/null; }
+production_line() { echo "running \`$(running_sha | cut -c1-7)\`, last good \`$(cut -c1-7 "$OPS_STATE/last-good" 2>/dev/null || echo unknown)\`"; }
+attempts_of() { cat "$STATE/attempts/$1" 2>/dev/null | head -1 | awk '{print $1+0}'; }
+last_try_of() { cat "$STATE/attempts/$1" 2>/dev/null | head -1 | awk '{print $2+0}'; }
+is_blocked() { [[ -f "$STATE/blocked/$1" ]]; }
+block() { echo "$2" > "$STATE/blocked/$1"; jlog warn sha_blocked sha "${1:0:7}" reason "$2"; }
+
+save_report() { # sha outcome file -> path
+    local path="$STATE/reports/$(date +%Y%m%d-%H%M%S)-${1:0:7}-$2.txt"
+    redact < "$3" > "$path"; chmod 640 "$path"
+    ls -1t "$STATE"/reports/* 2>/dev/null | tail -n +201 | xargs -r rm -f   # keep the last 200
+    echo "$path"
+}
+
+# ------------------------------------------------------------------ tick
+deploy_pass() {
+    sudo -u "$APP_USER" -H git -c safe.directory="$APP_DIR" -C "$APP_DIR" fetch -q origin main 2>/dev/null || { jlog error fetch_failed; return 0; }
+    local cur target; cur="$(running_sha)"; target="$("${G[@]}" rev-parse origin/main)"
+    [[ "$target" =~ $SHA_RE ]] || { jlog error bad_origin_main; return 0; }
+
+    if [[ "$cur" == "$target" ]]; then
+        # Whatever was blocked or failing before is no longer what runs.
+        if [[ -f "$STATE/announced" && "$(cat "$STATE/announced")" != "$target" ]]; then
+            close_issues deploy-failure "ioms-release-watch:" "Resolved: production is now running \`${target:0:7}\` and passed its health check."
+        fi
+        echo "$target" > "$STATE/announced"
+        return 0
+    fi
+
+    is_blocked "$target" && { jlog debug skip_blocked sha "${target:0:7}" reason "$(cat "$STATE/blocked/$target")"; return 0; }
+
+    local n last now; n="$(attempts_of "$target")"; last="$(last_try_of "$target")"; now="$(date +%s)"
+    if [[ "$n" -gt 0 ]]; then
+        local wait=$(( BACKOFF_MIN * 60 * (1 << (n - 1)) ))
+        [[ $(( now - last )) -ge $wait ]] || { jlog debug backoff sha "${target:0:7}" attempt "$n" retry_in_s "$(( wait - (now - last) ))"; return 0; }
+    fi
+
+    # --- CI gate: deploy only what GitHub Actions passed, on this exact SHA.
+    local first_seen; [[ -f "$STATE/seen/$target" ]] || echo "$now" > "$STATE/seen/$target"; first_seen="$(cat "$STATE/seen/$target")"
+    if [[ "$REQUIRE_CI" == 1 ]]; then
+        local ci; ci="$(ci_state "$target")"
+        case "$ci" in
+            success) ;;
+            failure)
+                local f; f="$(mktemp)"; echo "CI check \"$CI_CHECK_NAME\" concluded failure on $target. Nothing was deployed." > "$f"
+                report_issue ci "$target" ci_failed 0 0 "$f"; save_report "$target" ci_failed "$f" >/dev/null; rm -f "$f"
+                block "$target" ci_failed; return 0 ;;
+            pending|missing|unknown)
+                if [[ $(( now - first_seen )) -gt $(( CI_WAIT_MAX_MIN * 60 )) ]]; then
+                    local f; f="$(mktemp)"; echo "No completed \"$CI_CHECK_NAME\" result for $target after ${CI_WAIT_MAX_MIN} minutes (state: $ci). Nothing was deployed." > "$f"
+                    report_issue deploy "$target" "ci_$ci" 0 1 "$f"; rm -f "$f"; block "$target" "ci_$ci"
+                else
+                    jlog info waiting_for_ci sha "${target:0:7}" ci "$ci"
+                fi
+                return 0 ;;
+        esac
+    fi
+
+    # --- Deploy through ioms-ops: the same guarded path a person or Hermes uses.
+    n=$(( n + 1 )); echo "$n $now" > "$STATE/attempts/$target"
+    jlog info deploy_start sha "${target:0:7}" from "${cur:0:7}" attempt "$n"
+    local out rc result; out="$(mktemp)"
+    "$OPS" deploy "$target" > "$out" 2>&1; rc=$?
+    result="$(jq -r 'select(.target == "'"$target"'") | .outcome' "$OPS_STATE/last-deploy.json" 2>/dev/null)"
+    [[ -n "$result" ]] || result="$([[ $rc -eq 0 ]] && echo deployed || echo unknown_failure)"
+    {
+        echo "ioms-ops deploy $target  (exit $rc, outcome $result)"; echo
+        cat "$out"
+        if [[ "$result" != deployed && "$result" != noop ]]; then
+            echo; echo "--- application log (last 60 lines, redacted by ioms-ops)"
+            "$OPS" logs app 60 2>/dev/null
+            echo; echo "--- health check"
+            cat "$OPS_STATE/last-health.txt" 2>/dev/null
+        fi
+    } > "$out.full" 2>&1
+    local report; report="$(save_report "$target" "$result" "$out.full")"
+    jlog info deploy_end sha "${target:0:7}" outcome "$result" exit "$rc" report "$report"
+
+    case "$result" in
+        deployed|noop)
+            rm -f "$STATE/attempts/$target"; echo "$target" > "$STATE/announced"
+            close_issues deploy-failure "ioms-release-watch:" "Resolved: \`${target:0:7}\` deployed and passed its health check." ;;
+        locked|rate_limited)
+            echo "$(( n - 1 )) $now" > "$STATE/attempts/$target" ;;   # not the code's fault; not counted
+        tests_failed|not_fast_forward|bad_target)
+            block "$target" "$result"; report_issue deploy "$target" "$result" "$n" 0 "$out.full" ;;
+        needs_approval)
+            block "$target" "$result"; report_issue deploy "$target" "$result" "$n" 1 "$out.full" ;;
+        rollback_failed|unhealthy_held)
+            block "$target" "$result"; report_issue deploy "$target" "$result" "$n" 1 "$out.full" ;;
+        *)  # rolled_back, backup_failed, fetch_failed, unknown_failure: may be transient
+            if [[ "$n" -ge "$MAX_ATTEMPTS" ]]; then
+                block "$target" "$result"; report_issue deploy "$target" "$result" "$n" 1 "$out.full"
+            else
+                report_issue deploy "$target" "$result" "$n" 0 "$out.full"
+            fi ;;
+    esac
+    rm -f "$out" "$out.full"
+}
+
+health_pass() {
+    # Before cutover the migration HOLD is in place (migrate-all.sh): the host
+    # is a copy that is not serving customers, so a failing check is not an
+    # incident and is not filed.
+    [[ -f "$HOLD_FILE" ]] && { jlog debug health_skipped reason "migration hold in place"; return 0; }
+    local out rc fails; out="$(mktemp)"
+    "$OPS" health > "$out" 2>&1; rc=$?
+    fails="$(cat "$STATE/health-fails" 2>/dev/null || echo 0)"
+    if [[ $rc -eq 0 ]]; then
+        if [[ "$fails" -ge "$HEALTH_FAILS_TO_REPORT" ]]; then
+            close_issues production-health "ioms-release-watch:health" "Recovered at $(date -Is): health check passing on $(running_sha | cut -c1-7)."
+            jlog info health_recovered after_failures "$fails"
+        fi
+        echo 0 > "$STATE/health-fails"
+    else
+        fails=$(( fails + 1 )); echo "$fails" > "$STATE/health-fails"
+        jlog warn health_failed consecutive "$fails"
+        # Reported when it crosses the threshold, again when it escalates to a
+        # person (6 checks, about 30 minutes, later), then every 12 checks
+        # (about an hour) while it stays down -- a note, not a flood.
+        local t="$HEALTH_FAILS_TO_REPORT"
+        if [[ "$fails" -ge "$t" ]] && [[ "$fails" -eq "$t" || "$fails" -eq $(( t + 6 )) || $(( (fails - t) % 12 )) -eq 0 ]]; then
+            { cat "$out"; echo; echo "--- application log (last 60 lines, redacted)"; "$OPS" logs app 60 2>/dev/null; } > "$out.full"
+            save_report "$(running_sha)" health_failed "$out.full" >/dev/null
+            # Down for about 30 minutes past the first report: a person is told.
+            report_issue health "$(running_sha)" health_failed "$fails" "$([[ "$fails" -ge $(( HEALTH_FAILS_TO_REPORT + 6 )) ]] && echo 1 || echo 0)" "$out.full"
+            rm -f "$out.full"
+        fi
+    fi
+    rm -f "$out"
+}
+
+do_status() {
+    local cur target; cur="$(running_sha)"; target="$("${G[@]}" rev-parse origin/main 2>/dev/null)"
+    echo "running:        ${cur:0:12}"
+    echo "origin/main:    ${target:0:12} (as of the last fetch)"
+    echo "last good:      $(cut -c1-12 "$OPS_STATE/last-good" 2>/dev/null || echo unknown)"
+    echo "last deploy:    $(jq -c . "$OPS_STATE/last-deploy.json" 2>/dev/null || echo none)"
+    echo "attempts:       $(n="$(attempts_of "$target")"; echo "${n:-0} of $MAX_ATTEMPTS for ${target:0:7}")"
+    echo "blocked:        $(ls -1 "$STATE/blocked" 2>/dev/null | while read -r s; do printf '%s(%s) ' "${s:0:7}" "$(cat "$STATE/blocked/$s")"; done)"
+    echo "health fails:   $(cat "$STATE/health-fails" 2>/dev/null || echo 0) consecutive"
+    echo "issue filing:   $([[ -n "$GITHUB_TOKEN" ]] && echo "on ($GITHUB_REPO)" || echo "off (no token in $CONF)")"
+    echo "CI required:    $([[ "$REQUIRE_CI" == 1 ]] && echo "yes, check \"$CI_CHECK_NAME\"" || echo no)"
+    echo "recent events:"; tail -8 "$LOG" 2>/dev/null | sed 's/^/  /'
+}
+
+cmd="${1:-tick}"; shift || true
+case "$cmd" in
+    tick)
+        exec 8>"$STATE/watch.lock"; flock -n 8 || exit 0
+        deploy_pass; health_pass ;;
+    status) do_status ;;
+    unblock)
+        [[ "${1:-}" =~ ^[0-9a-f]{7,40}$ ]] || { echo "usage: unblock <sha>" >&2; exit 2; }
+        found=0; for f in "$STATE"/blocked/"$1"*; do [[ -e "$f" ]] || continue; s="$(basename "$f")"; rm -f "$f" "$STATE/attempts/$s" "$STATE/seen/$s"; echo "unblocked ${s:0:7}"; jlog info sha_unblocked sha "${s:0:7}" by "${SUDO_USER:-root}"; found=1; done
+        [[ $found -eq 1 ]] || echo "nothing blocked matches $1" ;;
+    report-test)
+        f="$(mktemp)"; echo "Test issue from ioms-release-watch report-test. Safe to close." > "$f"
+        report_issue test "$(running_sha)" report_test 0 0 "$f"; rm -f "$f" ;;
+    *) sed -n '2,/^set -uo/p' "$0" | sed 's/^# \{0,1\}//; /^set -uo/d'; exit 2 ;;
+esac

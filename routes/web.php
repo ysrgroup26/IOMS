@@ -574,6 +574,12 @@ Route::middleware(['auth', 'restrict.platform-admin'])->group(function () {
     // HSE Master Data (Milestone 4, Workstream B0): viewable by all roles,
     // same pattern.
     Route::get('/hse/master', [HazardCategoryController::class, 'master'])->name('hse.master');
+    // v2.133.0 (ADR 074) -- the Safety Equipment Register and a unit's own
+    // record. Viewable by every role like the rest of HSE; every write
+    // stays in the role:super_admin,hse group below and is re-checked in
+    // the controller.
+    Route::get('/hse/equipment', [SafetyEquipmentController::class, 'index'])->name('safety-equipment.index');
+    Route::get('/hse/equipment/{safetyEquipment}', [SafetyEquipmentController::class, 'show'])->name('safety-equipment.show');
 
     // v1.11.4 (HSE Waste Management, Part 11-19). View routes open to
     // every role, same as every other HSE module above -- write

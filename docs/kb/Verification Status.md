@@ -42,6 +42,22 @@ approved migration deploy, artisan allow-list and refusals, redaction of tokens 
 **Not run anywhere:** restarting `user@1000.service` (no systemd in a container), and nothing on
 `43.173.21.31`.
 
+### What was actually run for v2.133.0
+
+- **Suite:** full `php artisan test` (results recorded in the release commit); 9 new tests in
+  `SafetyEquipmentRegisterTest` (derivation, action required, back-dated inspections, ID generation,
+  overview counts and filters, empty register, role boundaries, tenant isolation, old-tab redirect).
+- **CI on GitHub:** run 40193048791 (`main`) and 40193049020 (branch) concluded `success` for
+  `82efedf`, read through the public API. The GitHub MCP tools answered "invalid session" in this
+  session, so CI was checked anonymously.
+- **Browser:** MySQL 8 + `php artisan serve` + Playwright against seeded equipment, as HSE at 1440 px,
+  HRD at 1440 px and HSE at 390 px: register, overdue filter, search, record page, inspection dialog,
+  Equipment Types tab, and the `?tab=register` redirect. No page errors or console errors; HRD saw no
+  write actions. Screenshots were reviewed by eye.
+- **Release watcher:** run against a mock GitHub API, a stand-in `ioms-ops` and a real git remote
+  (scenarios in `docs/runbooks/RELEASE-LOOP.md`). **Not run on Tencent**, and `ioms-ops deploy <sha>`
+  was syntax-checked but not executed end to end.
+
 ### What was actually run for the Hermes hardening (v2.132.0, follow-up)
 
 - `bootstrap.sh stage1` → `stage2` in the Ubuntu 24.04 container, reproducing the instance: `ubuntu`

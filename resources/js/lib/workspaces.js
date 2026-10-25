@@ -341,7 +341,11 @@ export const WORKSPACES = [
                     // is the label, not the ownership. General operational
                     // equipment/inventory continues to live in Asset Management
                     // and Warehouse, untouched.
-                    { name: 'Safety Equipment & Compliance', href: 'hse.master', icon: ListChecks },
+                    // v2.133.0 (ADR 074): opens the register, which is now its
+                    // own page. `activePaths` keeps the item lit on a unit's
+                    // record and on the area's reference-data tabs, which
+                    // still live on hse.master.
+                    { name: 'Safety Equipment & Compliance', href: 'safety-equipment.index', icon: ListChecks, activePaths: ['/hse/equipment', '/hse/master'] },
                     // v2.52.0: the legal/normative requirements register every
                     // HSE management system asks for, which previously lived in
                     // someone's spreadsheet.

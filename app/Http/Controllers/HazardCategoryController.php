@@ -5,7 +5,6 @@ namespace App\Http\Controllers;
 use App\Http\Requests\StoreHazardCategoryRequest;
 use App\Http\Requests\UpdateHazardCategoryRequest;
 use App\Models\ActivityLog;
-use App\Models\Asset;
 use App\Models\Company;
 use App\Models\HazardCategory;
 use App\Models\HseChecklistTemplate;
@@ -25,8 +24,15 @@ use Inertia\Response;
  */
 class HazardCategoryController extends Controller
 {
-    public function master(): Response
+    public function master(): Response|RedirectResponse
     {
+        // v2.133.0 (ADR 074) -- the register left this page for its own.
+        // A bookmark to the old tab lands on the register, not on a tab
+        // that no longer exists.
+        if (request()->query('tab') === 'register') {
+            return redirect()->route('safety-equipment.index');
+        }
+
         $companyIds = Company::query()->pluck('id');
 
         return Inertia::render('Hse/Master', [
@@ -38,12 +44,22 @@ class HazardCategoryController extends Controller
             // Milestone 4, Workstream B10/B11/B12 -- Safety Equipment,
             // HSE Materials, and P3K masters live on this same shared setup
             // page rather than three more standalone routes.
-            'safetyEquipment' => SafetyEquipment::whereIn('company_id', $companyIds)->with('inspections.inspector:id,name')->orderBy('name')->get(),
+            // v2.133.0: the register itself is SafetyEquipmentController::index.
+            // Only the per-type unit count is needed here, so a type can say
+            // how many units depend on it before somebody deactivates it.
+            'equipmentCounts' => SafetyEquipment::whereIn('company_id', $companyIds)
+                ->whereNotNull('equipment_type_id')
+                ->selectRaw('equipment_type_id, COUNT(*) as aggregate')
+                ->groupBy('equipment_type_id')
+                ->pluck('aggregate', 'equipment_type_id'),
             // v1.11.1 (HSE Domain Hardening II, Part 7) -- configurable
             // equipment type master, replacing the old hardcoded
             // SafetyEquipment::TYPES array. See the owning migration's
             // own doc comment.
-            'equipmentTypes' => HseEquipmentType::whereIn('company_id', $companyIds)->active()->get(),
+            // v2.133.0: inactive types too -- they are reference data that
+            // can be reactivated, and hiding them made "deactivate" look
+            // like "delete".
+            'equipmentTypes' => HseEquipmentType::whereIn('company_id', $companyIds)->orderBy('sort_order')->orderBy('name')->get(),
             'hseMaterials' => HseMaterial::whereIn('company_id', $companyIds)->orderBy('name')->get(),
             'p3kBoxes' => P3kBox::whereIn('company_id', $companyIds)->with('inspector:id,name')->orderBy('location')->get(),
             // v1.11.2 (Final Completion Pass, Part 9) -- LSA/FFA/PPE
@@ -51,13 +67,6 @@ class HazardCategoryController extends Controller
             'checklistTemplates' => HseChecklistTemplate::whereIn('company_id', $companyIds)
                 ->orderBy('category')->orderBy('sort_order')->get(),
             'inspectionTypes' => HseInspection::TYPES,
-            // v1.11.3 (Global Dashboard/Overview UX Rework, Part 2) -- the
-            // optional SafetyEquipment.asset_id link (nullable FK, already
-            // wired at the model layer since 2026_08_22_100094, never
-            // exposed in the UI until now) needs a tenant-scoped Asset
-            // picker on the Safety Equipment form. Column-limited select,
-            // same tenant-scoping pattern as every other dropdown here.
-            'assets' => Asset::whereIn('company_id', $companyIds)->orderBy('name')->get(['id', 'name', 'asset_code']),
             'companies' => Company::active()->orderBy('name')->get(['id', 'name']),
             'can' => ['manage' => request()->user()->isAdmin()],
         ]);

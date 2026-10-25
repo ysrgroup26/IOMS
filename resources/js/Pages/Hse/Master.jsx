@@ -11,9 +11,10 @@ import { Table, TableHeader, TableBody, TableRow, TableHead, TableCell } from '@
 import { Select, SelectTrigger, SelectValue, SelectContent, SelectItem } from '@/Components/ui/select';
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogFooter } from '@/Components/ui/dialog';
 import { Checkbox } from '@/Components/ui/checkbox';
-import { Plus, Pencil, Trash2, AlertCircle, HardHat, ClipboardList, ShieldAlert, Package, ListChecks, ShieldCheck } from 'lucide-react';
+import { Plus, Pencil, Trash2, AlertCircle, ShieldCheck } from 'lucide-react';
 import { cn } from '@/lib/utils';
 import PageHeader from '@/Components/shared/PageHeader';
+import AreaNav, { AREA_GROUPS } from '@/Components/hse-equipment/AreaNav';
 
 /**
  * Milestone 4, Workstream B0 (HSE Foundation/Master Data), IA reworked
@@ -70,32 +71,11 @@ import PageHeader from '@/Components/shared/PageHeader';
  *   "HSE Supplies & Facilities" -> "Supplies & First Aid"
  * Routes, tab keys, data and every `?tab=` bookmark are unchanged.
  */
-const TAB_GROUPS = [
-    {
-        // v2.53.0 -- MASTER and REGISTER are different questions and get
-        // different tabs. The master defines TYPES (Gas Detector, Fire
-        // Extinguisher) and which lifecycles each one has; the register
-        // holds the actual units the company owns (GD-001, FE-002) with
-        // the dates that apply to them.
-        label: 'Registers',
-        kind: 'operational',
-        tabs: [
-            { key: 'register', label: 'Equipment Register', icon: HardHat },
-            { key: 'supplies', label: 'Supplies & First Aid', icon: Package },
-        ],
-    },
-    {
-        label: 'Reference Data',
-        kind: 'master',
-        tabs: [
-            { key: 'equipment-master', label: 'Equipment Types', icon: ListChecks },
-            { key: 'templates', label: 'Inspection Templates', icon: ClipboardList },
-            { key: 'hazards', label: 'Hazard Categories', icon: ShieldAlert },
-        ],
-    },
-];
-
-const TABS = TAB_GROUPS.flatMap((group) => group.tabs.map((tab) => ({ ...tab, kind: group.kind })));
+// v2.133.0 (ADR 074): the tab strip is the area's shared AreaNav. The
+// register left this page for its own route (`?tab=register` redirects
+// there server side); the four tabs below still switch in place.
+const TABS = AREA_GROUPS.flatMap((group) => group.tabs.map((tab) => ({ ...tab, kind: group.kind })))
+    .filter((tab) => !tab.route);
 
 function initialTab() {
     if (typeof window === 'undefined') return TABS[0].key;
@@ -103,7 +83,7 @@ function initialTab() {
     return TABS.some((t) => t.key === requested) ? requested : TABS[0].key;
 }
 
-export default function HseMaster({ hazardCategories, safetyEquipment, equipmentTypes, hseMaterials, p3kBoxes, checklistTemplates = [], inspectionTypes = [], assets = [], companies, can }) {
+export default function HseMaster({ hazardCategories, equipmentTypes, equipmentCounts = {}, hseMaterials, p3kBoxes, checklistTemplates = [], inspectionTypes = [], companies, can }) {
     const [activeTab, setActiveTab] = useState(initialTab);
     const active = TABS.find((t) => t.key === activeTab);
 
@@ -134,49 +114,15 @@ export default function HseMaster({ hazardCategories, safetyEquipment, equipment
                 subtitle={
                     active?.kind === 'master'
                         ? 'Definisi yang dipakai seluruh modul HSE. Mengubahnya mengubah pilihan yang tersedia bagi semua orang berikutnya, dan tidak mengubah data yang sudah tercatat.'
-                        : 'Daftar peralatan dan perlengkapan yang benar-benar dimiliki perusahaan, beserta tanggal inspeksi, kalibrasi, servis, atau kedaluwarsanya.'
+                        : 'Bahan habis pakai dan perlengkapan P3K. Stoknya dihitung dan diisi ulang, berbeda dengan peralatan yang diinspeksi per unit di Equipment Register.'
                 }
             />
 
-            {/* v2.71.0: the strip is grouped and labelled, so "which of
-                these hold real units and which define the options" is
-                answered before anything is clicked. Scrolls inside its own
-                wrapper -- the page never moves sideways (the same rule
-                ModuleTabNav follows). */}
-            <div className="mb-4 -mx-1 flex items-stretch gap-4 overflow-x-auto border-b border-graphite-200 px-1 dark:border-slate-800">
-                {TAB_GROUPS.map((group) => (
-                    <div key={group.label} className="shrink-0">
-                        <p className="px-1 pt-0.5 text-[10px] font-semibold uppercase tracking-wide text-graphite-400 dark:text-slate-500">
-                            {group.label}
-                        </p>
-                        <div className="flex gap-1">
-                            {group.tabs.map((tab) => (
-                                <button
-                                    key={tab.key}
-                                    type="button"
-                                    onClick={() => selectTab(tab.key)}
-                                    aria-current={activeTab === tab.key ? 'page' : undefined}
-                                    className={cn(
-                                        'flex shrink-0 items-center gap-1.5 whitespace-nowrap border-b-2 px-3 py-1.5 text-xs font-medium transition-colors',
-                                        activeTab === tab.key
-                                            ? 'border-brand-600 text-brand-700 dark:text-brand-400'
-                                            : 'border-transparent text-graphite-500 hover:border-graphite-300 hover:text-graphite-800 dark:text-slate-400 dark:hover:text-slate-200'
-                                    )}
-                                >
-                                    <tab.icon className="h-3.5 w-3.5" /> {tab.label}
-                                </button>
-                            ))}
-                        </div>
-                    </div>
-                ))}
-            </div>
+            <AreaNav active={activeTab} onSelect={selectTab} />
 
             <div className="space-y-4">
-                {activeTab === 'register' && (
-                    <SafetyEquipmentSection safetyEquipment={safetyEquipment} equipmentTypes={equipmentTypes} assets={assets} companies={companies} can={can} />
-                )}
                 {activeTab === 'equipment-master' && (
-                    <EquipmentTypesSection equipmentTypes={equipmentTypes} companies={companies} can={can} />
+                    <EquipmentTypesSection equipmentTypes={equipmentTypes} equipmentCounts={equipmentCounts} companies={companies} can={can} />
                 )}
                 {activeTab === 'templates' && (
                     <ChecklistTemplatesSection checklistTemplates={checklistTemplates} inspectionTypes={inspectionTypes} companies={companies} can={can} />
@@ -323,214 +269,6 @@ function HazardCategoriesSection({ hazardCategories, companies, can }) {
                 </DialogContent>
             </Dialog>
         </Card>
-    );
-}
-
-function SafetyEquipmentSection({ safetyEquipment, equipmentTypes, assets = [], companies, can }) {
-    const [open, setOpen] = useState(false);
-    const [editing, setEditing] = useState(null);
-    const [inspecting, setInspecting] = useState(null);
-    // v1.11.3.1 (production regression fix): Inertia React's
-    // useForm().transform() is a setter, not a chainable builder -- it
-    // returns undefined (sets an internal ref), it does NOT return the
-    // form object. `useForm({...}).transform(...)` therefore evaluated to
-    // `undefined`, and destructuring `{ data, ... }` from it threw
-    // exactly "Cannot destructure property 'data' of '...transform(...)'
-    // as it is undefined" on every render of this page -- confirmed from
-    // the actual error message, not guessed. Fixed by calling
-    // `transform()` as its own statement, using the destructured form's
-    // own `transform` function.
-    const { data, setData, post, put, processing, reset, errors, transform } = useForm({
-        company_id: companies[0]?.id ? String(companies[0].id) : '',
-        name: '', type: equipmentTypes[0]?.code || '', location: '', serial_number: '',
-        last_inspection_date: '', next_inspection_due: '', status: 'active', notes: '', asset_id: '',
-    });
-    transform((formData) => ({ ...formData, asset_id: formData.asset_id || null }));
-
-    function openCreate() { setEditing(null); reset(); setOpen(true); }
-    function openEdit(e) {
-        setEditing(e);
-        setData({
-            company_id: String(e.company_id), name: e.name, type: e.type, location: e.location || '',
-            serial_number: e.serial_number || '', last_inspection_date: e.last_inspection_date?.slice(0, 10) || '',
-            next_inspection_due: e.next_inspection_due?.slice(0, 10) || '', status: e.status, notes: e.notes || '',
-            asset_id: e.asset_id ? String(e.asset_id) : '',
-        });
-        setOpen(true);
-    }
-    function submit(ev) {
-        ev.preventDefault();
-        const options = { preserveScroll: true, onSuccess: () => { reset(); setOpen(false); } };
-        if (editing) { put(route('safety-equipment.update', editing.id), options); } else { post(route('safety-equipment.store'), options); }
-    }
-    function destroy(e) {
-        if (confirm(`Remove "${e.name}"?`)) router.delete(route('safety-equipment.destroy', e.id));
-    }
-
-    return (
-        <Card>
-            <CardHeader className="flex flex-row items-center justify-between">
-                <div>
-                    <CardTitle>Safety Equipment Register</CardTitle>
-                    <CardDescription>
-                        {safetyEquipment.length} unit terdaftar -- APAR, safety shower, dan fasilitas darurat lainnya.
-                        Tombol Inspect mencatat hasil inspeksi bertanggal untuk unit tersebut; catatan itu melekat pada
-                        unitnya, sehingga tetap dilakukan dari halaman ini.
-                    </CardDescription>
-                </div>
-                {can.manage && <Button onClick={openCreate}><Plus className="h-4 w-4" /> Add Equipment</Button>}
-            </CardHeader>
-            <CardContent>
-                <Table>
-                    <TableHeader><TableRow><TableHead>Name</TableHead><TableHead>Type</TableHead><TableHead>Location</TableHead><TableHead>Next Inspection</TableHead><TableHead>Status</TableHead>{can.manage && <TableHead />}</TableRow></TableHeader>
-                    <TableBody>
-                        {safetyEquipment.map((e) => (
-                            <TableRow key={e.id} className={e.is_overdue ? 'bg-red-50/50' : ''}>
-                                <TableCell className="font-medium">{e.name}</TableCell>
-                                <TableCell className="capitalize">{e.type.replace('_', ' ')}</TableCell>
-                                <TableCell>{e.location || '-'}</TableCell>
-                                <TableCell>{e.next_inspection_due ? new Date(e.next_inspection_due).toLocaleDateString('en-US', { day: 'numeric', month: 'short', year: 'numeric' }) : '-'}{e.is_overdue && <AlertCircle className="ml-1 inline h-3.5 w-3.5 text-red-500" />}</TableCell>
-                                <TableCell><Badge variant={e.status === 'active' ? 'success' : 'secondary'}>{e.status.replace('_', ' ')}</Badge></TableCell>
-                                {can.manage && (
-                                    <TableCell className="flex gap-1">
-                                        <Button variant="outline" size="sm" onClick={() => setInspecting(e)}>Inspect</Button>
-                                        <Button variant="ghost" size="icon" onClick={() => openEdit(e)}><Pencil className="h-4 w-4" /></Button>
-                                        <Button variant="ghost" size="icon" onClick={() => destroy(e)}><Trash2 className="h-4 w-4 text-red-500" /></Button>
-                                    </TableCell>
-                                )}
-                            </TableRow>
-                        ))}
-                    </TableBody>
-                </Table>
-            </CardContent>
-            {inspecting && <EquipmentInspectionDialog equipment={inspecting} onClose={() => setInspecting(null)} />}
-            <Dialog open={open} onOpenChange={setOpen}>
-                <DialogContent>
-                    <DialogHeader><DialogTitle>{editing ? 'Edit' : 'Add'} Safety Equipment</DialogTitle></DialogHeader>
-                    <form onSubmit={submit} className="space-y-4">
-                        <div className="space-y-1.5">
-                            <Label>Operating Unit</Label>
-                            <Select value={data.company_id} onValueChange={(v) => setData('company_id', v)}>
-                                <SelectTrigger><SelectValue /></SelectTrigger>
-                                <SelectContent>{companies.map((c) => <SelectItem key={c.id} value={String(c.id)}>{c.name}</SelectItem>)}</SelectContent>
-                            </Select>
-                        </div>
-                        <div className="grid grid-cols-2 gap-4">
-                            <div className="space-y-1.5"><Label>Name</Label><Input value={data.name} onChange={(e) => setData('name', e.target.value)} />{errors.name && <p className="text-xs text-red-600">{errors.name}</p>}</div>
-                            <div className="space-y-1.5">
-                                <Label>Type</Label>
-                                <Select value={data.type} onValueChange={(v) => setData('type', v)}>
-                                    <SelectTrigger><SelectValue /></SelectTrigger>
-                                    <SelectContent>
-                                        {/* v1.11.1: sourced from the configurable HseEquipmentType master
-                                            (Settings/HSE Master -- Equipment Types section below) instead
-                                            of a hardcoded list -- Super Admin can add new types (e.g. a
-                                            future category) without a code change. */}
-                                        {equipmentTypes.map((t) => <SelectItem key={t.code} value={t.code}>{t.name}</SelectItem>)}
-                                    </SelectContent>
-                                </Select>
-                            </div>
-                        </div>
-                        <div className="grid grid-cols-2 gap-4">
-                            <div className="space-y-1.5"><Label>Location</Label><Input value={data.location} onChange={(e) => setData('location', e.target.value)} /></div>
-                            <div className="space-y-1.5"><Label>Serial Number</Label><Input value={data.serial_number} onChange={(e) => setData('serial_number', e.target.value)} /></div>
-                        </div>
-                        <div className="grid grid-cols-2 gap-4">
-                            <div className="space-y-1.5"><Label>Last Inspection</Label><Input type="date" value={data.last_inspection_date} onChange={(e) => setData('last_inspection_date', e.target.value)} /></div>
-                            <div className="space-y-1.5"><Label>Next Inspection Due</Label><Input type="date" value={data.next_inspection_due} onChange={(e) => setData('next_inspection_due', e.target.value)} /></div>
-                        </div>
-                        <div className="space-y-1.5">
-                            <Label>Link to Company Asset (optional)</Label>
-                            <Select value={data.asset_id || '__none'} onValueChange={(v) => setData('asset_id', v === '__none' ? '' : v)}>
-                                <SelectTrigger><SelectValue placeholder="Not linked" /></SelectTrigger>
-                                <SelectContent>
-                                    <SelectItem value="__none">Not linked</SelectItem>
-                                    {assets.map((a) => <SelectItem key={a.id} value={String(a.id)}>{a.asset_code ? `${a.asset_code} -- ${a.name}` : a.name}</SelectItem>)}
-                                </SelectContent>
-                            </Select>
-                            <p className="text-xs text-graphite-400">Isi hanya jika unit ini juga tercatat di Asset Management (misalnya gas detector yang dikapitalisasi). Bersifat opsional -- pencatatan HSE tetap berjalan penuh tanpa ini.</p>
-                        </div>
-                        <div className="space-y-1.5">
-                            <Label>Status</Label>
-                            <Select value={data.status} onValueChange={(v) => setData('status', v)}>
-                                <SelectTrigger><SelectValue /></SelectTrigger>
-                                <SelectContent><SelectItem value="active">Active</SelectItem><SelectItem value="out_of_service">Out of Service</SelectItem></SelectContent>
-                            </Select>
-                        </div>
-                        <div className="space-y-1.5"><Label>Notes</Label><Textarea value={data.notes} onChange={(e) => setData('notes', e.target.value)} rows={2} /></div>
-                        <DialogFooter><Button type="button" variant="outline" onClick={() => setOpen(false)}>Cancel</Button><Button type="submit" disabled={processing}>Save</Button></DialogFooter>
-                    </form>
-                </DialogContent>
-            </Dialog>
-        </Card>
-    );
-}
-
-/**
- * v1.11.1 (HSE Domain Hardening II, Part 8). Real inspection history --
- * shows past SafetyEquipmentInspection rows (up to what the backend
- * eager-loaded) and a form to record a new one. Same "child table,
- * never overwritten" pattern GasTestRecord's own multi-stage history
- * already established.
- */
-function EquipmentInspectionDialog({ equipment, onClose }) {
-    const { data, setData, post, processing, reset } = useForm({
-        inspection_date: new Date().toISOString().slice(0, 10),
-        condition: 'good', result: 'pass', findings: '', next_inspection_due: '', notes: '',
-    });
-
-    function submit(e) {
-        e.preventDefault();
-        post(route('safety-equipment.inspections.store', equipment.id), { preserveScroll: true, onSuccess: () => reset() });
-    }
-
-    const RESULT_BADGE = { pass: 'success', fail: 'destructive', needs_action: 'secondary' };
-
-    return (
-        <Dialog open onOpenChange={(v) => !v && onClose()}>
-            <DialogContent className="max-h-[85vh] overflow-y-auto">
-                <DialogHeader><DialogTitle>Inspection History -- {equipment.name}</DialogTitle></DialogHeader>
-
-                <form onSubmit={submit} className="mb-4 grid grid-cols-2 gap-3 rounded-md border border-graphite-100 p-3 dark:border-slate-800">
-                    <div className="space-y-1"><Label className="text-xs">Date</Label><Input type="date" value={data.inspection_date} onChange={(e) => setData('inspection_date', e.target.value)} /></div>
-                    <div className="space-y-1">
-                        <Label className="text-xs">Condition</Label>
-                        <Select value={data.condition} onValueChange={(v) => setData('condition', v)}>
-                            <SelectTrigger><SelectValue /></SelectTrigger>
-                            <SelectContent>{['good', 'fair', 'poor', 'damaged'].map((c) => <SelectItem key={c} value={c} className="capitalize">{c}</SelectItem>)}</SelectContent>
-                        </Select>
-                    </div>
-                    <div className="space-y-1">
-                        <Label className="text-xs">Result</Label>
-                        <Select value={data.result} onValueChange={(v) => setData('result', v)}>
-                            <SelectTrigger><SelectValue /></SelectTrigger>
-                            <SelectContent><SelectItem value="pass">Pass</SelectItem><SelectItem value="fail">Fail</SelectItem><SelectItem value="needs_action">Needs Action</SelectItem></SelectContent>
-                        </Select>
-                    </div>
-                    <div className="space-y-1"><Label className="text-xs">Next Due</Label><Input type="date" value={data.next_inspection_due} onChange={(e) => setData('next_inspection_due', e.target.value)} /></div>
-                    <div className="col-span-2 space-y-1"><Label className="text-xs">Findings (if any)</Label><Textarea rows={2} value={data.findings} onChange={(e) => setData('findings', e.target.value)} /></div>
-                    <div className="col-span-2"><Button type="submit" size="sm" disabled={processing}>Save Inspection</Button></div>
-                </form>
-
-                {(equipment.inspections || []).length === 0 ? (
-                    <p className="text-center text-sm text-graphite-400">No inspections recorded yet.</p>
-                ) : (
-                    <ul className="divide-y divide-graphite-100 dark:divide-slate-800">
-                        {equipment.inspections.map((i) => (
-                            <li key={i.id} className="py-2 text-sm">
-                                <div className="flex items-center justify-between">
-                                    <span className="font-medium">{new Date(i.inspection_date).toLocaleDateString('en-US', { day: 'numeric', month: 'short', year: 'numeric' })}</span>
-                                    <Badge variant={RESULT_BADGE[i.result] ?? 'secondary'} className="capitalize">{i.result.replace('_', ' ')}</Badge>
-                                </div>
-                                <p className="text-xs text-graphite-400">Condition: {i.condition} -- {i.inspector?.name || 'Unknown'}</p>
-                                {i.findings && <p className="text-xs text-graphite-600 dark:text-slate-300">{i.findings}</p>}
-                            </li>
-                        ))}
-                    </ul>
-                )}
-                <DialogFooter><Button variant="outline" onClick={onClose}>Close</Button></DialogFooter>
-            </DialogContent>
-        </Dialog>
     );
 }
 
@@ -721,20 +459,39 @@ function P3kBoxSection({ p3kBoxes, companies, can }) {
  * Type <Select> immediately (both sections consume the same `equipmentTypes`
  * prop threaded from HazardCategoryController::master()).
  */
-function EquipmentTypesSection({ equipmentTypes, companies, can }) {
+const LIFECYCLE_FLAGS = [
+    ['tracks_inspection', 'Inspection'],
+    ['tracks_calibration', 'Calibration'],
+    ['tracks_service', 'Service'],
+    ['tracks_expiry', 'Expiry'],
+];
+
+/**
+ * v2.133.0 (ADR 074): a type now declares its unit ID prefix and which
+ * lifecycles it tracks. v2.53.0 added those columns and no form could set
+ * them, so every type tracked inspection only and every unit was an "EQ".
+ */
+function EquipmentTypesSection({ equipmentTypes, equipmentCounts = {}, companies, can }) {
     const [open, setOpen] = useState(false);
     const [editing, setEditing] = useState(null);
-    const { data, setData, post, put, processing, reset, errors } = useForm({
+    const blank = {
         company_id: companies[0]?.id ? String(companies[0].id) : '',
-        name: '', code: '', description: '', is_active: true, sort_order: 0,
-    });
+        name: '', code: '', code_prefix: '', description: '', is_active: true, sort_order: 0,
+        tracks_inspection: true, tracks_calibration: false, tracks_service: false, tracks_expiry: false,
+        inspection_interval_months: '',
+    };
+    const { data, setData, post, put, processing, reset, errors, transform } = useForm(blank);
+    transform((form) => ({ ...form, inspection_interval_months: form.inspection_interval_months === '' ? null : Number(form.inspection_interval_months) }));
 
     function openCreate() { setEditing(null); reset(); setOpen(true); }
     function openEdit(t) {
         setEditing(t);
         setData({
-            company_id: String(t.company_id), name: t.name, code: t.code,
+            company_id: String(t.company_id), name: t.name, code: t.code, code_prefix: t.code_prefix || '',
             description: t.description || '', is_active: t.is_active, sort_order: t.sort_order,
+            tracks_inspection: !!t.tracks_inspection, tracks_calibration: !!t.tracks_calibration,
+            tracks_service: !!t.tracks_service, tracks_expiry: !!t.tracks_expiry,
+            inspection_interval_months: t.inspection_interval_months ?? '',
         });
         setOpen(true);
     }
@@ -744,7 +501,7 @@ function EquipmentTypesSection({ equipmentTypes, companies, can }) {
         if (editing) { put(route('hse-equipment-types.update', editing.id), options); } else { post(route('hse-equipment-types.store'), options); }
     }
     function destroy(t) {
-        if (confirm(`Remove equipment type "${t.name}"? Only possible if no equipment currently uses it -- deactivate instead if unsure.`)) {
+        if (confirm(`Remove equipment type "${t.name}"? This is only possible when no unit uses it. Deactivate it instead if unsure.`)) {
             router.delete(route('hse-equipment-types.destroy', t.id));
         }
     }
@@ -754,23 +511,28 @@ function EquipmentTypesSection({ equipmentTypes, companies, can }) {
             <CardHeader className="flex flex-row items-center justify-between">
                 <div>
                     <CardTitle>Equipment Types</CardTitle>
-                    <CardDescription>{equipmentTypes.length} jenis tersedia -- APAR, HT, Gas Detector, Blower, TOA, dan jenis lain yang Anda tambahkan. Jenis di sini menjadi pilihan saat mendaftarkan unit di Equipment Register.</CardDescription>
+                    <CardDescription>{equipmentTypes.length} jenis. Jenis menentukan awalan ID unit dan tanggal apa yang dilacak (inspeksi, kalibrasi, servis, kedaluwarsa) di Equipment Register.</CardDescription>
                 </div>
                 {can.manage && <Button onClick={openCreate}><Plus className="h-4 w-4" /> Add Type</Button>}
             </CardHeader>
             <CardContent>
                 <Table>
-                    <TableHeader><TableRow><TableHead>Name</TableHead><TableHead>Code</TableHead><TableHead>Status</TableHead>{can.manage && <TableHead />}</TableRow></TableHeader>
+                    <TableHeader><TableRow><TableHead>Name</TableHead><TableHead>ID Prefix</TableHead><TableHead>Tracks</TableHead><TableHead>Units</TableHead><TableHead>Status</TableHead>{can.manage && <TableHead />}</TableRow></TableHeader>
                     <TableBody>
                         {equipmentTypes.map((t) => (
                             <TableRow key={t.id}>
-                                <TableCell className="font-medium">{t.name}</TableCell>
-                                <TableCell className="text-graphite-500"><code className="text-xs">{t.code}</code></TableCell>
+                                <TableCell className="font-medium">{t.name}<p className="font-mono text-[11px] text-graphite-400">{t.code}</p></TableCell>
+                                <TableCell className="font-mono text-xs">{t.code_prefix || <span className="font-sans text-graphite-400">EQ (default)</span>}</TableCell>
+                                <TableCell className="text-xs">
+                                    {LIFECYCLE_FLAGS.filter(([k]) => t[k]).map(([, label]) => label).join(', ') || <span className="text-graphite-400">Nothing</span>}
+                                    {t.inspection_interval_months && <span className="block text-[11px] text-graphite-400">every {t.inspection_interval_months} months</span>}
+                                </TableCell>
+                                <TableCell className="tabular-nums">{equipmentCounts[t.id] ?? 0}</TableCell>
                                 <TableCell><Badge variant={t.is_active ? 'success' : 'secondary'}>{t.is_active ? 'Active' : 'Inactive'}</Badge></TableCell>
                                 {can.manage && (
                                     <TableCell className="flex gap-1">
-                                        <Button variant="ghost" size="icon" onClick={() => openEdit(t)}><Pencil className="h-4 w-4" /></Button>
-                                        <Button variant="ghost" size="icon" onClick={() => destroy(t)}><Trash2 className="h-4 w-4 text-red-500" /></Button>
+                                        <Button variant="ghost" size="icon" aria-label={`Edit ${t.name}`} onClick={() => openEdit(t)}><Pencil className="h-4 w-4" /></Button>
+                                        <Button variant="ghost" size="icon" aria-label={`Remove ${t.name}`} onClick={() => destroy(t)}><Trash2 className="h-4 w-4 text-red-500" /></Button>
                                     </TableCell>
                                 )}
                             </TableRow>
@@ -779,10 +541,10 @@ function EquipmentTypesSection({ equipmentTypes, companies, can }) {
                 </Table>
             </CardContent>
             <Dialog open={open} onOpenChange={setOpen}>
-                <DialogContent>
+                <DialogContent className="max-h-[90vh] overflow-y-auto">
                     <DialogHeader><DialogTitle>{editing ? 'Edit' : 'Add'} Equipment Type</DialogTitle></DialogHeader>
                     <form onSubmit={submit} className="space-y-4">
-                        {!editing && (
+                        {!editing && companies.length > 1 && (
                             <div className="space-y-1.5">
                                 <Label>Operating Unit</Label>
                                 <Select value={data.company_id} onValueChange={(v) => setData('company_id', v)}>
@@ -792,15 +554,38 @@ function EquipmentTypesSection({ equipmentTypes, companies, can }) {
                             </div>
                         )}
                         <div className="grid grid-cols-2 gap-4">
-                            <div className="space-y-1.5"><Label>Name</Label><Input value={data.name} onChange={(e) => setData('name', e.target.value)} placeholder="e.g. Emergency Light" />{errors.name && <p className="text-xs text-red-600">{errors.name}</p>}</div>
+                            <div className="space-y-1.5"><Label>Name</Label><Input value={data.name} onChange={(e) => setData('name', e.target.value)} placeholder="Fire Extinguisher (APAR)" />{errors.name && <p className="text-xs text-red-600">{errors.name}</p>}</div>
                             <div className="space-y-1.5">
                                 <Label>Code</Label>
-                                <Input value={data.code} onChange={(e) => setData('code', e.target.value)} placeholder="e.g. emergency_light" disabled={!!editing} />
+                                <Input value={data.code} onChange={(e) => setData('code', e.target.value)} placeholder="fire_extinguisher" disabled={!!editing} />
                                 {errors.code && <p className="text-xs text-red-600">{errors.code}</p>}
-                                {editing && <p className="text-xs text-graphite-400">Kode tidak dapat diubah setelah ada unit yang memakainya.</p>}
+                                {editing && <p className="text-xs text-graphite-400">Kode tidak dapat diubah setelah dibuat.</p>}
                             </div>
                         </div>
-                        <div className="space-y-1.5"><Label>Description (optional)</Label><Textarea value={data.description} onChange={(e) => setData('description', e.target.value)} rows={2} /></div>
+                        <div className="grid grid-cols-2 gap-4">
+                            <div className="space-y-1.5">
+                                <Label>Unit ID Prefix</Label>
+                                <Input value={data.code_prefix} onChange={(e) => setData('code_prefix', e.target.value.toUpperCase())} placeholder="APAR" className="font-mono" maxLength={12} />
+                                {errors.code_prefix ? <p className="text-xs text-red-600">{errors.code_prefix}</p> : <p className="text-xs text-graphite-400">Unit baru mendapat ID seperti {(data.code_prefix || 'EQ')}-00001. ID yang sudah ada tidak berubah.</p>}
+                            </div>
+                            <div className="space-y-1.5">
+                                <Label>Inspection Interval (months)</Label>
+                                <Input type="number" min={1} max={120} value={data.inspection_interval_months} onChange={(e) => setData('inspection_interval_months', e.target.value)} placeholder="6" />
+                                {errors.inspection_interval_months ? <p className="text-xs text-red-600">{errors.inspection_interval_months}</p> : <p className="text-xs text-graphite-400">Dipakai untuk mengusulkan jatuh tempo berikutnya.</p>}
+                            </div>
+                        </div>
+                        <fieldset className="space-y-2">
+                            <legend className="text-sm font-medium">Tracked Lifecycles</legend>
+                            <p className="text-xs text-graphite-400">Hanya tanggal yang dicentang yang diminta saat mendaftarkan unit jenis ini.</p>
+                            <div className="grid grid-cols-2 gap-2">
+                                {LIFECYCLE_FLAGS.map(([key, label]) => (
+                                    <label key={key} className="flex items-center gap-2 text-sm">
+                                        <Checkbox checked={data[key]} onCheckedChange={(v) => setData(key, !!v)} /> {label}
+                                    </label>
+                                ))}
+                            </div>
+                        </fieldset>
+                        <div className="space-y-1.5"><Label>Description</Label><Textarea value={data.description} onChange={(e) => setData('description', e.target.value)} rows={2} /></div>
                         <label className="flex items-center gap-2 text-sm">
                             <Checkbox checked={data.is_active} onCheckedChange={(v) => setData('is_active', !!v)} />
                             Active
@@ -867,7 +652,7 @@ function ChecklistTemplatesSection({ checklistTemplates, inspectionTypes, compan
             <CardHeader className="flex flex-row items-center justify-between">
                 <div>
                     <CardTitle>Checklist Templates</CardTitle>
-                    <CardDescription>{checklistTemplates.length} template tersedia -- daftar poin yang dapat dipakai ulang untuk LSA, FFA, APD, dan kategori inspeksi lainnya. Dipanggil lewat tombol Load Template saat mengisi HSE Inspection.</CardDescription>
+                    <CardDescription>{checklistTemplates.length} template tersedia: daftar poin yang dapat dipakai ulang untuk LSA, FFA, PPE, dan kategori inspeksi lainnya. Dipanggil lewat tombol Load Template saat mengisi HSE Inspection.</CardDescription>
                 </div>
                 {can.manage && <Button onClick={openCreate}><Plus className="h-4 w-4" /> Add Template</Button>}
             </CardHeader>

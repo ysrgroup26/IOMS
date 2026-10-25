@@ -1,6 +1,6 @@
 # IOMS continuous integration.
 #
-# The first step of the release loop (docs/ADR/074): a commit is a release
+# The first step of the release loop (docs/ADR/075): a commit is a release
 # CANDIDATE only once this workflow has passed on it. The Tencent release
 # watcher (deploy/tencent/hermes/ioms-release-watch) asks GitHub for this
 # workflow's conclusion on the exact SHA before it deploys anything, and it

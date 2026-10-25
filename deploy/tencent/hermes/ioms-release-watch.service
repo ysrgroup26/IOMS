@@ -1,0 +1,11 @@
+[Unit]
+Description=IOMS release watch: deploy the CI-green main commit, then check health (ADR 075)
+After=network-online.target mysql.service php8.3-fpm.service
+Wants=network-online.target
+
+[Service]
+Type=oneshot
+ExecStart=/usr/local/sbin/ioms-release-watch tick
+# A deploy runs the full test suite on the target commit first; give it room.
+TimeoutStartSec=45min
+Nice=5

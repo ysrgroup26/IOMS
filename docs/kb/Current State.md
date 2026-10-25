@@ -25,7 +25,7 @@ the date in the frontmatter, not remembered.
 |---|---|
 | Product | **IOMS — Industrial Operations Platform** |
 | Public company identity | **IOMS** only (v2.131.0, ADR 071). Operator entity published only when `IOMS_LEGAL_ENTITY` is set; legal merchant **PT Tahada Vistara Bersama** issues invoices (`ioms.merchant.legal_name`) |
-| Version | **2.132.0**, stage **Beta**, edition **Enterprise Edition** |
+| Version | **2.133.0**, stage **Beta**, edition **Enterprise Edition** |
 | Build | `2026.10.25.02`, release date `2026-10-25` |
 | Stack | Laravel 12 · Inertia.js · React 18 · Tailwind · MySQL · Sanctum |
 
@@ -88,6 +88,13 @@ replace the role. A My Work User authenticates through the same login and lands 
 server-side route allow-list still controls what that account may reach. See [[Domain Glossary]].
 
 ## What shipped most recently
+
+`2.133.0` (2026-10-25): **Safety Equipment Register** at `/hse/equipment` with a record page per unit,
+derived standings (ADR 074), generated IDs, functional QR labels, and Equipment Types that can set
+their tracked lifecycles; supplies stay separate. **Release loop** (ADR 075): GitHub Actions CI
+(verified green), `ioms-release-watch` (rehearsed with stubs, not installed on Tencent), and a
+scheduled remediation session working `deploy-failure` / `production-health` issues. Runbook:
+`docs/runbooks/RELEASE-LOOP.md`.
 
 `2.132.0` (2026-10-25): Tencent Lighthouse migration kit, **rehearsed end to end in an Ubuntu 24.04
 container, not yet run on the instance**. This environment is denied `43.173.21.31`. `migrate.sh`

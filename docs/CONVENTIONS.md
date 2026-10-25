@@ -3671,3 +3671,21 @@ lands.
 **Before fixing a reported experience, establish which URL the report is about** -- by opening it,
 in that viewport, with the thing you are about to change disabled. A reasoned-about entry point and
 the real one are different things, and the gap between them is invisible in a diff.
+
+## Known Pitfall (v2.133.0): a column a migration adds is not a feature until a form writes it
+
+v2.53.0 added equipment-type lifecycle flags, an ID prefix, an interval, and per-unit codes and dates.
+The migration, the model `$fillable` and a seeder all had them, and **no controller validated them**,
+so `validate()` silently dropped every one of those fields and the UI never offered them. For seven
+months the documented model existed only in seeded demo data. When a migration adds a column a person
+is meant to set, the same change adds it to the request validation and the form, and a feature test
+posts it and reads it back. (Fixed in `SafetyEquipmentController::validated()` and
+`HseEquipmentTypeController`; see ADR 074.)
+
+## Known Pitfall (v2.133.0): a top-level sidebar item lights on a path PREFIX
+
+`isItemActive()` matches `'/' + routeName.split('.')[0]`, so `hse.dashboard` (Overview) matched every
+`/hse/...` URL and lit up beside the nested child that actually owned the page. The layout now lets
+the most specific match win: when any child owns the URL (`isChildRouteActive`, which also honours an
+item's `activePaths`), no prefix-matched leaf lights. A new item that covers several paths declares
+them in `activePaths` rather than loosening the prefix rule.

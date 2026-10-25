@@ -25,9 +25,18 @@ class HseEquipmentTypeController extends Controller
             'description' => ['nullable', 'string', 'max:1000'],
             'is_active' => ['boolean'],
             'sort_order' => ['nullable', 'integer', 'min:0'],
+            // v2.133.0 -- the lifecycle declaration v2.53.0 added to the
+            // table and no form could set. The register now asks only for
+            // the dates a type declares here (ADR 074).
+            'code_prefix' => ['nullable', 'string', 'max:12', 'alpha_num'],
+            'tracks_inspection' => ['boolean'],
+            'tracks_calibration' => ['boolean'],
+            'tracks_service' => ['boolean'],
+            'tracks_expiry' => ['boolean'],
+            'inspection_interval_months' => ['nullable', 'integer', 'min:1', 'max:120'],
         ]);
 
-        $type = HseEquipmentType::create($data);
+        $type = HseEquipmentType::create($this->normalise($data));
         ActivityLog::record('created', "HSE equipment type \"{$type->name}\" was added.", $type);
 
         return back()->with('success', 'Equipment type added.');
@@ -43,9 +52,18 @@ class HseEquipmentTypeController extends Controller
             'description' => ['nullable', 'string', 'max:1000'],
             'is_active' => ['boolean'],
             'sort_order' => ['nullable', 'integer', 'min:0'],
+            // v2.133.0 -- the lifecycle declaration v2.53.0 added to the
+            // table and no form could set. The register now asks only for
+            // the dates a type declares here (ADR 074).
+            'code_prefix' => ['nullable', 'string', 'max:12', 'alpha_num'],
+            'tracks_inspection' => ['boolean'],
+            'tracks_calibration' => ['boolean'],
+            'tracks_service' => ['boolean'],
+            'tracks_expiry' => ['boolean'],
+            'inspection_interval_months' => ['nullable', 'integer', 'min:1', 'max:120'],
         ]);
 
-        $hseEquipmentType->update($data);
+        $hseEquipmentType->update($this->normalise($data));
         ActivityLog::record('updated', "HSE equipment type \"{$hseEquipmentType->name}\" was updated.", $hseEquipmentType);
 
         return back()->with('success', 'Equipment type updated.');
@@ -56,8 +74,11 @@ class HseEquipmentTypeController extends Controller
         abort_unless($request->user()->isAdmin(), 403);
         abort_unless(Company::query()->pluck('id')->contains($hseEquipmentType->company_id), 404);
 
-        if (SafetyEquipment::where('company_id', $hseEquipmentType->company_id)->where('type', $hseEquipmentType->code)->exists()) {
-            return back()->with('error', 'Cannot delete a type that has equipment against it -- deactivate instead.');
+        $inUse = SafetyEquipment::where('company_id', $hseEquipmentType->company_id)
+            ->where(fn ($q) => $q->where('equipment_type_id', $hseEquipmentType->id)->orWhere('type', $hseEquipmentType->code))
+            ->exists();
+        if ($inUse) {
+            return back()->with('error', 'This type still has equipment registered against it. Deactivate it instead.');
         }
 
         $name = $hseEquipmentType->name;
@@ -65,5 +86,15 @@ class HseEquipmentTypeController extends Controller
         ActivityLog::record('deleted', "HSE equipment type \"{$name}\" was removed.");
 
         return back()->with('success', 'Equipment type removed.');
+    }
+
+    /** A prefix is stored upper case ("fe" and "FE" are one prefix), and an empty one is null, not "". */
+    private function normalise(array $data): array
+    {
+        if (array_key_exists('code_prefix', $data)) {
+            $data['code_prefix'] = $data['code_prefix'] ? strtoupper($data['code_prefix']) : null;
+        }
+
+        return $data;
     }
 }

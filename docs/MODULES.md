@@ -1625,6 +1625,17 @@ All three land on the shared `Hse/Master.jsx` page (extended from Workstream B0'
 section, not three new standalone routes), tenant-scoped, with the same per-instance
 `assertInCurrentTenant()`/`abort_unless()` ownership guard pattern on `update()`/`destroy()`.
 
+**v2.133.0 (ADR 074): the Safety Equipment Register is its own page.** `GET /hse/equipment`
+(`safety-equipment.index`, `Pages/Hse/Equipment/Index.jsx`) and `GET /hse/equipment/{id}`
+(`safety-equipment.show`, `Show.jsx`), viewable by every role; writes stay HSE/Super Admin. A unit's
+standing comes from `SafetyEquipment::complianceState()` (worst first: out_of_service,
+action_required, expired, overdue, due_soon, not_scheduled, compliant), using only the dates its
+`HseEquipmentType` tracks. IDs come from `SafetyEquipment::nextEquipmentCode()` (`{prefix}-00001`,
+per company). Shared UI lives in `resources/js/Components/hse-equipment/` (`AreaNav`,
+`ComplianceBadge`, `EquipmentFormDialog`, `InspectionDialog`, `QrLabel`, `compliance.js`).
+HSE Materials and P3K stay on `Hse/Master.jsx` under **Supplies**: consumables and first-aid stock
+are counted and restocked, not inspected unit by unit. `hse.master?tab=register` redirects.
+
 ## HSE Procurement (verified reuse, no new code)
 
 **Department:** HSE (Milestone 4, Workstream B13).

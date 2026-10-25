@@ -393,14 +393,14 @@ export default function HseDashboard({
                     value={overdueSafetyEquipmentCount}
                     label="Equipment Overdue"
                     accent={overdueSafetyEquipmentCount > 0 ? 'red' : 'green'}
-                    href={route('hse.master')}
+                    href={route('safety-equipment.index', { state: 'attention' })}
                 />
                 <KpiTile
                     icon={ShieldCheck}
                     value={overdueP3kCount}
                     label="P3K Overdue"
                     accent={overdueP3kCount > 0 ? 'red' : 'green'}
-                    href={route('hse.master')}
+                    href={route('hse.master', { tab: 'supplies' })}
                 />
                 {/* A COUNT OF ZERO IS NOT A CATEGORY. These tiles carry a
                     categorical accent only when they are actually counting
@@ -451,7 +451,7 @@ export default function HseDashboard({
                 <section className="mt-4">
                     <h2 className="mb-2 px-0.5 text-[13px] font-bold text-graphite-900 dark:text-slate-50">HSE Administration</h2>
                     <div className="grid grid-cols-2 gap-3 sm:grid-cols-3 lg:grid-cols-5 xl:grid-cols-7">
-                        <ModuleCard icon={ShieldCheck} title="Safety Equipment &amp; Compliance" description="Register peralatan keselamatan dan data acuan HSE." href="hse.master" />
+                        <ModuleCard icon={ShieldCheck} title="Safety Equipment &amp; Compliance" description="Register peralatan keselamatan, status inspeksi, dan data acuan HSE." href="safety-equipment.index" />
                     </div>
                 </section>
             )}

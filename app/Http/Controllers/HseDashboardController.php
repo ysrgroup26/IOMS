@@ -138,7 +138,7 @@ class HseDashboardController extends Controller
                 ->merge(SafetyEquipment::whereIn('company_id', $companyIds)->where('status', 'active')
                     ->whereNotNull('next_inspection_due')->whereDate('next_inspection_due', '<', now())
                     ->limit(5)->get(['id', 'name', 'next_inspection_due'])
-                    ->map(fn (SafetyEquipment $e) => ['type' => 'Equipment Overdue', 'label' => $e->name, 'date' => $e->next_inspection_due, 'href' => route('hse.master').'?tab=register']))
+                    ->map(fn (SafetyEquipment $e) => ['type' => 'Equipment Overdue', 'label' => $e->name, 'date' => $e->next_inspection_due, 'href' => route('safety-equipment.show', $e->id)]))
                 ->merge(P3kBox::whereIn('company_id', $companyIds)
                     ->whereNotNull('next_inspection_due')->whereDate('next_inspection_due', '<', now())
                     ->limit(5)->get(['id', 'location', 'next_inspection_due'])

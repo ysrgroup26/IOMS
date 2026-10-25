@@ -283,9 +283,12 @@ class NavigationBehaviourTest extends TestCase
     public function test_the_hse_control_tabs_declare_their_kind(): void
     {
         $master = $this->source('resources/js/Pages/Hse/Master.jsx');
+        // v2.133.0: the tabs are the area's shared AreaNav, which declares them.
+        $nav = $this->source('resources/js/Components/hse-equipment/AreaNav.jsx');
 
-        $this->assertStringContainsString("kind: 'operational'", $master);
-        $this->assertStringContainsString("kind: 'master'", $master);
+        $this->assertStringContainsString("kind: 'operational'", $nav);
+        $this->assertStringContainsString("kind: 'master'", $nav);
+        $this->assertStringContainsString('kind: group.kind', $master);
         $this->assertStringContainsString('kind={active?.kind}', $master, 'The chip must follow the open tab -- this page genuinely contains both kinds.');
     }
 }

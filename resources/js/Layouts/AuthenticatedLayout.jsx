@@ -65,6 +65,9 @@ function isItemActive(item, currentUrl) {
  * profile page (a sub-page one level deeper).
  */
 function isChildRouteActive(child, currentUrl) {
+    // v2.133.0: an item that owns a whole area (a register, its records and
+    // its reference-data tabs) names the paths it covers.
+    if (child.activePaths?.some((p) => currentUrl === p || currentUrl.startsWith(p + '/') || currentUrl.startsWith(p + '?'))) return true;
     try {
         const childPath = new URL(route(child.href)).pathname;
         return currentUrl === childPath
@@ -392,7 +395,13 @@ function AuthenticatedShell({ children }) {
 
     const navEntryBoundary = entryBoundary(visibleNav);
 
-    const activeNavItem = visibleNav.find((item) => isItemActive(item, currentUrl));
+    // v2.133.0 -- THE MOST SPECIFIC MATCH WINS. A top-level item lights on a
+    // path PREFIX (`hse.dashboard` -> every `/hse/...` URL), so on any HSE
+    // page that a nested child owns, Overview lit up beside the child that
+    // actually matched. When a child owns the URL, its group is the active
+    // item and no prefix-matched leaf lights.
+    const childOwnedItem = visibleNav.find((item) => item.children?.some((child) => isChildRouteActive(child, currentUrl)));
+    const activeNavItem = childOwnedItem ?? visibleNav.find((item) => isItemActive(item, currentUrl));
     // Only populated for a parent item that actually has children AND one
     // of them matches the current URL -- the one case the breadcrumb below
     // is allowed to render for (see Breadcrumb's own doc comment).
@@ -610,7 +619,7 @@ function AuthenticatedShell({ children }) {
                         // `children` groups.
                         const containsActiveChild = hasChildren && item.children.some((child) => isChildRouteActive(child, currentUrl));
                         const isExpanded = expandedMenus.includes(item.name) || containsActiveChild;
-                        const active = !hasChildren && isItemActive(item, currentUrl);
+                        const active = !hasChildren && !childOwnedItem && isItemActive(item, currentUrl);
 
                         if (hasChildren) {
                             return (
@@ -831,7 +840,21 @@ function TopBar({ onOpenSidebar, sidebarOpen, isDepartmentUser, departments, act
     return (
         <header
             aria-label="Application"
-            className="sticky top-0 z-30 flex h-14 items-center gap-2 border-b border-navy-800 bg-navy-900/95 px-3 shadow-sm backdrop-blur sm:gap-3 sm:px-5 dark:border-slate-800 dark:bg-slate-950/90"
+            data-space={space}
+            className={cn(
+                'sticky top-0 z-30 flex h-14 items-center gap-2 px-3 shadow-sm backdrop-blur sm:gap-3 sm:px-5',
+                // v2.133.0 -- ADMIN SPACE LOOKS LIKE A DIFFERENT PLACE. The
+                // bar was identical in both contexts and only one small
+                // button changed, so somebody configuring the account could
+                // not tell at a glance that they were not working inside a
+                // workspace. Inside Admin Space the bar takes the deeper
+                // navy and a steel rule along its foot; the lit entry below
+                // says the same thing in words, for anyone who cannot see
+                // the colour.
+                space === 'admin'
+                    ? 'border-b-2 border-steel-400 bg-navy-950/95 dark:border-steel-600 dark:bg-slate-950/95'
+                    : 'border-b border-navy-800 bg-navy-900/95 dark:border-slate-800 dark:bg-slate-950/90',
+            )}
         >
             <button
                 type="button"
@@ -1027,7 +1050,7 @@ function TopBar({ onOpenSidebar, sidebarOpen, isDepartmentUser, departments, act
                     className={cn(
                         'hidden h-8 shrink-0 items-center gap-1.5 rounded-md px-3 text-xs font-medium transition-colors sm:flex',
                         space === 'admin'
-                            ? 'border border-white/15 bg-white/[0.06] text-white dark:border-slate-700 dark:text-slate-300'
+                            ? 'border border-steel-300/50 bg-steel-500/25 font-semibold text-white shadow-inner dark:border-steel-600 dark:text-slate-100'
                             : 'border border-transparent text-navy-200 hover:bg-white/[0.08] hover:text-white dark:text-slate-300 dark:hover:bg-slate-800',
                     )}
                 >

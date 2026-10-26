@@ -11,6 +11,9 @@
 #     -> the outcome is recorded as a GitHub Deployment (environment "tencent"), and a
 #        failure opens a redacted `deploy-failure` issue for the remediation session.
 #
+# Run it by hand (Actions > Deploy > Run workflow) with action=status to read the server's
+# state and its last deploy attempt WITHOUT deploying anything; action=deploy deploys.
+#
 # Secrets (set once by the owner from enable-ci-deploy.sh's output; never printed here):
 #   IOMS_DEPLOY_SSH_KEY      private key that can run ioms-ci-deploy and nothing else
 #   IOMS_DEPLOY_KNOWN_HOSTS  the server's pinned host key line
@@ -25,8 +28,13 @@ on:
     branches: [main]
   workflow_dispatch:
     inputs:
+      action:
+        description: 'status = read the server state and the last deploy attempt (changes nothing); deploy = deploy'
+        type: choice
+        options: [status, deploy]
+        default: status
       sha:
-        description: 'Commit on main to deploy (default: the latest main commit)'
+        description: 'For deploy: commit on main (default: the latest main commit)'
         required: false
 
 concurrency:
@@ -43,22 +51,40 @@ env:
   DEFAULT_HOST: 43.173.21.31
   ENVIRONMENT: tencent
 
+# Every step sets its own error handling. The GitHub default (`bash -e`) killed the deploy
+# step the moment ssh returned non-zero -- before the server's answer was printed, recorded
+# or summarised -- so a failed deploy left no trace of WHY it failed.
+defaults:
+  run:
+    shell: bash --noprofile --norc {0}
+
 jobs:
   deploy:
     name: Deploy to Tencent
-    if: github.event_name == 'workflow_dispatch' || github.event.workflow_run.event == 'push'
+    # A commit whose message contains [skip deploy] is tested by CI but not deployed
+    # automatically (a manual run can still deploy it).
+    if: >-
+      github.event_name == 'workflow_dispatch' ||
+      (github.event.workflow_run.event == 'push' &&
+       !contains(github.event.workflow_run.head_commit.message, '[skip deploy]'))
     runs-on: ubuntu-24.04
     timeout-minutes: 60
     steps:
-      - name: Resolve the commit and its CI result
+      - uses: actions/checkout@v4
+        with:
+          sparse-checkout: .github/scripts
+
+      - name: Resolve the action, the commit and its CI result
         id: target
         env:
           GH_TOKEN: ${{ github.token }}
           RUN_SHA: ${{ github.event.workflow_run.head_sha }}
           RUN_CONCLUSION: ${{ github.event.workflow_run.conclusion }}
           INPUT_SHA: ${{ github.event.inputs.sha }}
+          INPUT_ACTION: ${{ github.event.inputs.action }}
         run: |
           set -euo pipefail
+          action="${INPUT_ACTION:-deploy}"
           if [[ -n "$RUN_SHA" ]]; then
             sha="$RUN_SHA"; ci="$RUN_CONCLUSION"
           else
@@ -68,8 +94,11 @@ jobs:
                   --jq '[.check_runs[] | select(.name=="Tests and build")] | sort_by(.started_at) | last | .conclusion // "missing"')"
           fi
           [[ "$sha" =~ ^[0-9a-f]{40}$ ]] || { echo "::error::not a commit id: $sha"; exit 1; }
-          echo "sha=$sha" >> "$GITHUB_OUTPUT"; echo "ci=$ci" >> "$GITHUB_OUTPUT"
-          echo "Target ${sha:0:7}, CI: $ci"
+          [[ "$action" == status ]] && ci=success   # reading state needs no CI result
+          {
+            echo "action=$action"; echo "sha=$sha"; echo "ci=$ci"
+          } >> "$GITHUB_OUTPUT"
+          echo "Action $action, target ${sha:0:7}, CI: $ci"
 
       - name: CI was superseded -- nothing to do
         if: steps.target.outputs.ci == 'cancelled' || steps.target.outputs.ci == 'skipped'
@@ -92,7 +121,8 @@ jobs:
           Run: ${RUN_URL:-n/a}
 
           Filed by \`.github/workflows/deploy.yml\`. The remediation session works \`deploy-failure\` issues without \`needs-human\` (docs/runbooks/RELEASE-LOOP.md)."
-          existing="$(gh api "repos/$GITHUB_REPOSITORY/issues?state=open&labels=deploy-failure&per_page=50" --jq ".[] | select((.body // "") | startswith(\"$marker\")) | .number" | head -1)"
+          existing="$(gh api "repos/$GITHUB_REPOSITORY/issues?state=open&labels=deploy-failure&per_page=100" \
+                      | .github/scripts/issue-by-marker.sh "$marker")"
           if [[ -z "$existing" ]]; then
             gh api "repos/$GITHUB_REPOSITORY/issues" -f title="CI failed on main at ${SHA:0:7}" -f body="$body" -f 'labels[]=deploy-failure' >/dev/null
           fi
@@ -108,14 +138,16 @@ jobs:
           if [[ -z "$KEY" ]]; then
             echo "ok=false" >> "$GITHUB_OUTPUT"
             echo "::warning::IOMS_DEPLOY_SSH_KEY is not set: nothing was deployed. Run deploy/tencent/hermes/enable-ci-deploy.sh on the server once and store its output as repository secrets (ADR 076)."
-            echo "### Deploy not configured" >> "$GITHUB_STEP_SUMMARY"
-            echo "CI passed, but the deploy secrets are not set, so nothing was deployed. See ADR 076." >> "$GITHUB_STEP_SUMMARY"
+            {
+              echo "### Deploy not configured"
+              echo "CI passed, but the deploy secrets are not set, so nothing was deployed. See ADR 076."
+            } >> "$GITHUB_STEP_SUMMARY"
           else
             echo "ok=true" >> "$GITHUB_OUTPUT"
           fi
 
       - name: Open a GitHub deployment
-        if: steps.configured.outputs.ok == 'true'
+        if: steps.configured.outputs.ok == 'true' && steps.target.outputs.action == 'deploy'
         id: deployment
         env:
           GH_TOKEN: ${{ github.token }}
@@ -129,7 +161,7 @@ jobs:
           gh api "repos/$GITHUB_REPOSITORY/deployments/$id/statuses" -f state=in_progress -f description="deploying ${SHA:0:7}" >/dev/null
           echo "id=$id" >> "$GITHUB_OUTPUT"
 
-      - name: Deploy through ioms-ops (test gate, backup, health, rollback)
+      - name: Run on the server (deploy through ioms-ops, or read status)
         if: steps.configured.outputs.ok == 'true'
         id: deploy
         env:
@@ -137,8 +169,9 @@ jobs:
           KNOWN: ${{ secrets.IOMS_DEPLOY_KNOWN_HOSTS }}
           HOST_SECRET: ${{ secrets.IOMS_DEPLOY_HOST }}
           SHA: ${{ steps.target.outputs.sha }}
+          ACTION: ${{ steps.target.outputs.action }}
         run: |
-          set -uo pipefail
+          set -uo pipefail   # deliberately NOT -e: a failing ssh must still be printed and recorded
           host="${HOST_SECRET:-$DEFAULT_HOST}"
           d="$(mktemp -d)"; chmod 700 "$d"; trap 'rm -rf "$d"' EXIT
           printf '%s\n' "$KEY" > "$d/key"; chmod 600 "$d/key"
@@ -146,12 +179,14 @@ jobs:
           else echo "::warning::IOMS_DEPLOY_KNOWN_HOSTS not set; trusting the host key on first use"; hk=(-o StrictHostKeyChecking=accept-new -o UserKnownHostsFile="$d/known"); fi
           ssh_run() { ssh -i "$d/key" "${hk[@]}" -o BatchMode=yes -o IdentitiesOnly=yes -o ConnectTimeout=20 \
                         -o ServerAliveInterval=30 -o ServerAliveCountMax=10 "iomsci@$host" "$@"; }
+          if [[ "$ACTION" == status ]]; then remote="status"; else remote="deploy $SHA"; fi
           # Bounded retries, for TRANSIENT causes only: the connection (ssh exit 255) or
           # another deploy holding the lock. Anything the code decided is never retried.
+          rc=0; outcome=""
           for attempt in 1 2 3; do
-            ssh_run "deploy $SHA" > out.txt 2>&1; rc=$?
+            rc=0; ssh_run "$remote" > out.txt 2>&1 || rc=$?
             outcome="$(sed -n 's/^IOMS_RESULT //p' out.txt | tail -1 | jq -r '.last_deploy.outcome // empty' 2>/dev/null || true)"
-            if [[ $rc -eq 255 || "$outcome" == locked ]] && [[ $attempt -lt 3 ]]; then
+            if [[ "$ACTION" == deploy ]] && [[ $rc -eq 255 || "$outcome" == locked ]] && [[ $attempt -lt 3 ]]; then
               echo "attempt $attempt: transient (${outcome:-connection}); retrying in $((attempt * 60))s"; sleep $((attempt * 60)); continue
             fi
             break
@@ -161,19 +196,46 @@ jobs:
             -e 's/(gh[pousr]_|github_pat_)[A-Za-z0-9_]{10,}/[REDACTED]/g' \
             -e 's/((password|passwd|secret|token|api[_-]?key|authorization|signature)["'"'"' ]*[:=][ "'"'"']*)[^ ,"'"'"'&]+/\1[REDACTED]/Ig' \
             -e 's/-----BEGIN [A-Z ]*PRIVATE KEY-----.*/[REDACTED KEY]/' out.txt
-          cat out.txt
+          echo "::group::Server output (ssh exit $rc)"; cat out.txt; echo "::endgroup::"
           result="$(sed -n 's/^IOMS_RESULT //p' out.txt | tail -1)"
-          running=""; [[ -n "$result" ]] && running="$(jq -r '.running // empty' <<<"$result" 2>/dev/null || true)"
+          running=""; target=""
+          if [[ -n "$result" ]]; then
+            running="$(jq -r '.running // empty' <<<"$result" 2>/dev/null || true)"
+            target="$(jq -r '.last_deploy.target // empty' <<<"$result" 2>/dev/null || true)"
+          fi
           [[ $rc -eq 255 ]] && outcome="${outcome:-unreachable}"
-          echo "rc=$rc" >> "$GITHUB_OUTPUT"; echo "outcome=${outcome:-unknown}" >> "$GITHUB_OUTPUT"; echo "running=$running" >> "$GITHUB_OUTPUT"
+          [[ -z "$result" && $rc -ne 255 ]] && outcome="${outcome:-no_result}"
           {
-            echo "### Deploy ${SHA:0:7}: ${outcome:-unknown}"
-            echo "Running on the server after the deploy: \`${running:-unknown}\`"
-            echo; echo '```'; tail -n 120 out.txt; echo '```'
+            echo "rc=$rc"; echo "outcome=${outcome:-unknown}"; echo "running=$running"
+          } >> "$GITHUB_OUTPUT"
+          {
+            if [[ "$ACTION" == status ]]; then
+              echo "### Server status"
+              echo "Running: \`${running:-unknown}\`. Last deploy attempt: \`${outcome:-none recorded}\` on \`${target:-n/a}\`."
+            else
+              echo "### Deploy ${SHA:0:7}: ${outcome:-unknown}"
+              echo "Running on the server after the deploy: \`${running:-unknown}\` (ssh exit $rc)"
+            fi
+            echo; echo '```'; tail -n 150 out.txt; echo '```'
           } >> "$GITHUB_STEP_SUMMARY"
+          if [[ $rc -eq 255 ]]; then
+            echo "::error::could not reach iomsci@$host over SSH (ssh exit 255): host unreachable, port 22 closed to GitHub, or the key/host key was refused. See the server output above."
+          fi
+          if [[ "$ACTION" == status ]]; then
+            [[ -n "$result" ]] && exit 0
+            echo "::error::the server did not return a status (ssh exit $rc)"; exit 1
+          fi
           [[ $rc -eq 0 && "$running" == "$SHA" ]] && exit 0
-          echo "::error::deploy of ${SHA:0:7} did not finish healthy (exit $rc, outcome ${outcome:-unknown}, running ${running:-unknown})"
+          echo "::error::deploy of ${SHA:0:7} did not finish healthy (ssh exit $rc, outcome ${outcome:-unknown}, running ${running:-unknown})"
           exit 1
+
+      - name: Keep the full server output
+        if: always() && steps.configured.outputs.ok == 'true' && hashFiles('out.txt') != ''
+        uses: actions/upload-artifact@v4
+        with:
+          name: server-output-${{ steps.target.outputs.action }}-${{ steps.target.outputs.sha }}
+          path: out.txt
+          retention-days: 14
 
       - name: Record the result
         if: always() && steps.configured.outputs.ok == 'true' && steps.deployment.outputs.id != ''
@@ -187,38 +249,40 @@ jobs:
           RUN_URL: ${{ github.server_url }}/${{ github.repository }}/actions/runs/${{ github.run_id }}
         run: |
           set -uo pipefail
+          # The deploy step may have died before setting its outputs; say so instead of "".
+          OUTCOME="${OUTCOME:-workflow_error}"; RC="${RC:-?}"
+          issues() { gh api "repos/$GITHUB_REPOSITORY/issues?state=open&labels=deploy-failure&per_page=100"; }
           if [[ "$RC" == 0 && "$RUNNING" == "$SHA" ]]; then
             gh api "repos/$GITHUB_REPOSITORY/deployments/$ID/statuses" -f state=success \
               -f description="${SHA:0:7} live and healthy (${OUTCOME})" -f log_url="$RUN_URL" >/dev/null
             # Close what this deploy resolved.
-            for n in $(gh api "repos/$GITHUB_REPOSITORY/issues?state=open&labels=deploy-failure&per_page=50" \
-                         --jq '.[] | select((.body // "") | startswith("<!-- ioms-deploy:")) | .number'); do
+            for n in $(issues | .github/scripts/issue-by-marker.sh --all '<!-- ioms-deploy:'); do
               gh api "repos/$GITHUB_REPOSITORY/issues/$n/comments" -f body="Resolved: \`${SHA:0:7}\` deployed and healthy. $RUN_URL" >/dev/null
               gh api -X PATCH "repos/$GITHUB_REPOSITORY/issues/$n" -f state=closed -f state_reason=completed >/dev/null
             done
             exit 0
           fi
           gh api "repos/$GITHUB_REPOSITORY/deployments/$ID/statuses" -f state=failure \
-            -f description="${OUTCOME:-unknown} (exit ${RC:-?})" -f log_url="$RUN_URL" >/dev/null
+            -f description="$OUTCOME (ssh exit $RC)" -f log_url="$RUN_URL" >/dev/null
           # A person must decide: migrations that are not additive, a failed rollback, an unreachable host.
-          case "$OUTCOME" in needs_approval|rollback_failed|unhealthy_held|unreachable|deploy_failed) human=1 ;; *) human=0 ;; esac
+          case "$OUTCOME" in needs_approval|rollback_failed|unhealthy_held|unreachable|deploy_failed|workflow_error) human=1 ;; *) human=0 ;; esac
           marker="<!-- ioms-deploy:deploy:$SHA -->"
           body="$marker
           | | |
           |---|---|
           | Commit | \`$SHA\` |
-          | Outcome | \`${OUTCOME:-unknown}\` (exit ${RC:-?}) |
+          | Outcome | \`$OUTCOME\` (ssh exit $RC) |
           | Running after the attempt | \`${RUNNING:-unknown}\` |
           | Escalated to a person | $([[ $human == 1 ]] && echo yes || echo no) |
           | Log | $RUN_URL |
 
-          The redacted server output is in the run's summary and log. ioms-ops rolls back automatically when a deploy is unhealthy, so production stays on the last good commit unless the outcome says otherwise.
+          The redacted server output is in the run's summary, its log (group \"Server output\") and the \`server-output-*\` artifact. ioms-ops rolls back automatically when a deploy is unhealthy, so production stays on the last good commit unless the outcome says otherwise.
 
           Filed by \`.github/workflows/deploy.yml\` (ADR 076). Remediation: docs/runbooks/RELEASE-LOOP.md."
           labels=(-f 'labels[]=deploy-failure'); [[ $human == 1 ]] && labels+=(-f 'labels[]=needs-human')
-          existing="$(gh api "repos/$GITHUB_REPOSITORY/issues?state=open&labels=deploy-failure&per_page=50" --jq ".[] | select((.body // "") | startswith(\"$marker\")) | .number" | head -1)"
+          existing="$(issues | .github/scripts/issue-by-marker.sh "$marker")"
           if [[ -n "$existing" ]]; then
             gh api "repos/$GITHUB_REPOSITORY/issues/$existing/comments" -f body="$body" >/dev/null
           else
-            gh api "repos/$GITHUB_REPOSITORY/issues" -f title="Deploy failed: ${OUTCOME:-unknown} on ${SHA:0:7}" -f body="$body" "${labels[@]}" >/dev/null
+            gh api "repos/$GITHUB_REPOSITORY/issues" -f title="Deploy failed: $OUTCOME on ${SHA:0:7}" -f body="$body" "${labels[@]}" >/dev/null
           fi

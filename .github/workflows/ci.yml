@@ -88,7 +88,16 @@ jobs:
           set -euo pipefail
           curl -sSL -o /tmp/al.tgz https://github.com/rhysd/actionlint/releases/download/v1.7.7/actionlint_1.7.7_linux_amd64.tar.gz
           tar -xzf /tmp/al.tgz -C /tmp actionlint
-          /tmp/actionlint -shellcheck= .github/workflows/*.yml
+          # Runs ShellCheck too (preinstalled on the runner), warnings and errors fail the run.
+          SHELLCHECK_OPTS=--severity=warning /tmp/actionlint .github/workflows/*.yml
+
+      # Regression for the Deploy workflow's jq quoting bug (a jq program built in a
+      # double-quoted shell string lost its "" and failed `Record the result`).
+      - name: Workflow helper scripts (jq, quoting)
+        run: |
+          set -euo pipefail
+          shellcheck -S warning .github/scripts/*.sh
+          bash .github/scripts/test-workflows.sh
 
       - name: Prepare environment
         run: |

@@ -25,8 +25,11 @@ push to main -> CI (tests, build, ESLint, Pint on changed PHP, script parse, act
 2. Paste the two values it prints into GitHub, under Settings, then Secrets and variables, then
    Actions: `IOMS_DEPLOY_SSH_KEY` and `IOMS_DEPLOY_KNOWN_HOSTS`.
 
-From then on every CI-green push to `main` deploys. To deploy again by hand, use Actions, then Deploy,
-then Run workflow (optionally with a SHA). To stop automatic deploys, delete `IOMS_DEPLOY_SSH_KEY`, or
+From then on every CI-green push to `main` deploys, unless its commit message contains `[skip deploy]`.
+By hand: Actions, then Deploy, then Run workflow. `action=status` (the default) reads the server's state
+and its last deploy attempt and changes nothing; `action=deploy` deploys (optionally a given SHA). The
+full redacted server output of every run is in the log group "Server output" and in the
+`server-output-*` artifact. To stop automatic deploys, delete `IOMS_DEPLOY_SSH_KEY`, or
 run `enable-ci-deploy.sh --revoke` on the server.
 
 **Migrations.** Additive migrations (new tables, nullable or defaulted columns, indexes) deploy on their

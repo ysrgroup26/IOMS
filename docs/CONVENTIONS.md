@@ -3704,3 +3704,20 @@ declaring it healthy. (ADR 076.)
 `"${PIPESTATUS[1]}"` after `a | while ...; done | b | c` is the `while` loop, which succeeds. A safety
 decision made that way passed a destructive migration. Decide from captured OUTPUT and fail closed
 (no output, unexpected output or a crash all mean no), or capture each stage separately.
+
+## Known Pitfall (v2.133.0): a GitHub Actions `run:` step is `bash -e`, whatever the script says
+
+GitHub runs `run:` with `bash -e {0}`; a script's own `set -uo pipefail` does not switch `-e` off. The
+Deploy workflow's `ssh ... > out.txt 2>&1; rc=$?` therefore never reached `rc=$?`: the step died on
+the failing ssh, before the server's answer was printed, summarised or written to the step outputs, so
+a failed deploy showed nothing but "exit code 1". The workflow now sets `defaults.run.shell` to plain
+bash, each step chooses its own flags, and a command whose failure must be handled is written
+`cmd || rc=$?`.
+
+## Known Pitfall (v2.133.0): never build a jq program inside a double-quoted shell string
+
+`--jq ".[] | select((.body // "") ...)"` lost its `""` (the inner quotes closed and reopened the shell
+string), so jq received `(.body // )` and the step failed. Pass values to jq with `--arg` and keep the
+program single-quoted. `.github/scripts/issue-by-marker.sh` does that for issue lookups, and
+`.github/scripts/test-workflows.sh` (run by CI) rejects a double-quoted `--jq` and compiles every jq
+program in the workflows.

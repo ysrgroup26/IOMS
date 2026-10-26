@@ -67,8 +67,13 @@ approved migration deploy, artisan allow-list and refusals, redaction of tokens 
   `?action=storage` → assign TPS → record shows Stored in that TPS (and the dashboard then reported the
   litre TPS as mixed units rather than computing a percentage). No console errors, no 4xx/5xx, no
   horizontal scroll at 390 px.
+- **Deployed (GitHub Deploy run 40360055864, 2026-10-26):** `ioms-ops` on Tencent re-ran the suite on
+  `ece02d7` (1669 passed), took a backup, deployed, printed signature `55ff9a319b56` and frontend
+  `assets/app-CHi7OwOZ.js, 2223 KB, 186/186 pages`, passed every health check against the pre-cutover
+  backend, and returned `IOMS_RESULT` running = last_good = `ece02d7`, migration hold still on.
 - **Not verified:** the production page in a browser. This environment cannot reach Tencent or the
-  public domain; production evidence comes from the GitHub deploy record only.
+  public domain, and IOMS on Tencent is not public before cutover; the evidence above is the server's
+  own report through GitHub.
 
 ### What was actually run for v2.133.0
 

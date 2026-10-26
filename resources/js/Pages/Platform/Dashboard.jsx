@@ -138,7 +138,22 @@ export default function PlatformDashboard({ stats, recent_tenants: recentTenants
                                 <dt className="text-xs uppercase tracking-wide text-graphite-400">Signature</dt>
                                 <dd className="font-mono text-xs text-navy-900">{release.fingerprint?.signature ?? 'unknown'}</dd>
                             </div>
+                            <div>
+                                <dt className="text-xs uppercase tracking-wide text-graphite-400">Frontend</dt>
+                                <dd className="font-mono text-xs text-navy-900">
+                                    {release.frontend?.entry ?? 'no manifest'} &middot; {release.frontend?.pages_in_bundle ?? 0}/{release.frontend?.pages_expected ?? 0} pages
+                                </dd>
+                            </div>
                         </dl>
+
+                        {release.frontend && (!release.frontend.entry_exists || release.frontend.missing_pages?.length > 0) && (
+                            <p className="mt-4 rounded-lg border border-danger/25 bg-danger/[0.06] p-3 text-sm leading-relaxed text-red-900">
+                                <span className="font-semibold">Bundle frontend tidak cocok dengan rilis ini.</span>{' '}
+                                {release.frontend.entry_exists
+                                    ? `${release.frontend.missing_pages.length} halaman tidak ada di bundle yang dilayani (public/build usang): ${release.frontend.missing_pages.slice(0, 5).join(', ')}.`
+                                    : 'public/build/manifest.json atau berkas entry-nya tidak ditemukan.'}
+                            </p>
+                        )}
 
                         {release.may_serve_stale_code && (
                             <p className="mt-4 rounded-lg border border-danger/25 bg-danger/[0.06] p-3 text-sm leading-relaxed text-red-900">

@@ -61,6 +61,9 @@ class ReleaseStatusService
         'app/Http/Controllers/SettingsController.php',
         'app/Models/PpeType.php',
         'config/ioms.php',
+        // v2.133.0: the frontend. A release whose PHP is current while the
+        // served bundle is not looked identical here before this line.
+        'public/build/manifest.json',
     ];
 
     /**
@@ -208,6 +211,66 @@ class ReleaseStatusService
         return ($opcache['enabled'] ?? false) === true && ($opcache['validate_timestamps'] ?? true) === false;
     }
 
+    /**
+     * v2.133.0 -- WHICH FRONTEND IS BEING SERVED, AND DOES IT MATCH THE CODE.
+     *
+     * IOMS serves the bundle committed under public/build (no host runs a
+     * JavaScript build). Pages are bundled EAGERLY (app.jsx's
+     * import.meta.glob), so the entry file holds one "./Pages/<Name>.jsx" key
+     * per page. A page file this release ships that the served bundle lacks
+     * means the PHP can render a component the browser does not have -- the
+     * "deployed, but the screen is the old one" class. Read-only.
+     *
+     * @return array{manifest: bool, entry: ?string, entry_exists: bool, entry_bytes: ?int,
+     *               pages_expected: int, pages_in_bundle: int, missing_pages: list<string>}
+     */
+    public function frontend(): array
+    {
+        $out = ['manifest' => false, 'entry' => null, 'entry_exists' => false, 'entry_bytes' => null,
+            'pages_expected' => 0, 'pages_in_bundle' => 0, 'missing_pages' => []];
+
+        try {
+            $manifestPath = public_path('build/manifest.json');
+            if (! is_readable($manifestPath)) {
+                return $out;
+            }
+            $manifest = json_decode((string) file_get_contents($manifestPath), true);
+            $out['manifest'] = is_array($manifest);
+            $entry = $manifest['resources/js/app.jsx']['file'] ?? null;
+            $out['entry'] = $entry;
+            $entryPath = $entry ? public_path('build/'.$entry) : null;
+            $out['entry_exists'] = $entryPath !== null && is_readable($entryPath);
+            if (! $out['entry_exists']) {
+                return $out;
+            }
+            $out['entry_bytes'] = filesize($entryPath) ?: null;
+
+            preg_match_all('#"\./Pages/([A-Za-z0-9/_-]+)\.jsx"#', (string) file_get_contents($entryPath), $m);
+            $inBundle = array_flip(array_unique($m[1]));
+            $out['pages_in_bundle'] = count($inBundle);
+
+            $root = resource_path('js/Pages');
+            if (is_dir($root)) {
+                $it = new \RecursiveIteratorIterator(new \RecursiveDirectoryIterator($root, \FilesystemIterator::SKIP_DOTS));
+                foreach ($it as $file) {
+                    if ($file->getExtension() !== 'jsx') {
+                        continue;
+                    }
+                    $name = str_replace('\\', '/', substr($file->getPathname(), strlen($root) + 1, -4));
+                    $out['pages_expected']++;
+                    if (! isset($inBundle[$name])) {
+                        $out['missing_pages'][] = $name;
+                    }
+                }
+                sort($out['missing_pages']);
+            }
+        } catch (Throwable) {
+            // Reported as "cannot tell" by the caller: manifest/entry stay false.
+        }
+
+        return $out;
+    }
+
     /** The whole answer, assembled once, for a console panel or a deploy log. */
     public function snapshot(): array
     {
@@ -217,6 +280,7 @@ class ReleaseStatusService
             'build' => (string) config('ioms.build'),
             'checkout' => $this->checkout(),
             'fingerprint' => $this->fingerprint(),
+            'frontend' => $this->frontend(),
             'opcache' => $this->opcache(),
             'may_serve_stale_code' => $this->mayServeStaleCode(),
             'config_cached' => file_exists(base_path('bootstrap/cache/config.php')),

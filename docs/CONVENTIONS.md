@@ -3730,3 +3730,15 @@ rollback failed health with `000` while the application was never looked at, and
 as `rollback_failed`. The target is now chosen by `health_target()` (backend before cutover, front
 after, or `HEALTH_URL`) and printed with every check. A health check that cannot reach its target
 says nothing about the release.
+
+## Known Pitfall (v2.133.0): the release signature did not cover the frontend
+
+`ReleaseStatusService`'s signature fingerprinted four PHP files, so a server serving the right PHP with
+a stale or replaced `public/build` produced the same signature, in the deploy log and on the release
+panel, as a correct one. "The UI is still the old one" was therefore unprovable either way. The
+signature now includes `public/build/manifest.json`; `frontend()` reports the served entry bundle and
+whether every page this release ships is in it (pages are bundled eagerly, one `./Pages/<Name>.jsx`
+key each); `app:deploy` prints it (`frontend signature ...`) and fails before `up` when a page is
+missing. CI's `check-build-fresh.sh` rejects a frontend change committed without its build. Vite's
+output is not byte-reproducible (minified names vary run to run), so that check compares git history,
+not bytes.

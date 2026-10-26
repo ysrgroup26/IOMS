@@ -181,6 +181,29 @@ class DeployCommand extends Command
 
         $failed = false;
 
+        /*
+         * v2.133.0 -- THE FRONTEND IS PART OF THE RELEASE. The signature above
+         * now covers public/build/manifest.json, and the served bundle must
+         * contain every page this release ships, or the browser is handed a
+         * component it does not have and keeps the old screen. Printed on
+         * lines carrying "signature" so the deploy logs (ioms-ops filters on
+         * that word) show them; a mismatch fails BEFORE `up`.
+         */
+        $fe = $state['frontend'];
+        $this->line(sprintf('  frontend signature  %s, %s KB, %d/%d pages in the served bundle',
+            $fe['entry'] ?? 'NO ENTRY IN MANIFEST', $fe['entry_bytes'] ? (int) round($fe['entry_bytes'] / 1024) : '?',
+            $fe['pages_in_bundle'], $fe['pages_expected']));
+        if (! $fe['manifest'] || ! $fe['entry_exists']) {
+            $failed = true;
+            $this->error('Frontend FAIL: public/build/manifest.json or its entry bundle is missing -- the browser would get no application.');
+        } elseif ($fe['missing_pages'] !== []) {
+            $failed = true;
+            $this->error(sprintf('Frontend FAIL: %d page(s) in this release are NOT in the served bundle (stale public/build):', count($fe['missing_pages'])));
+            foreach (array_slice($fe['missing_pages'], 0, 10) as $name) {
+                $this->line('  - '.$name);
+            }
+        }
+
         $pending = app(SchemaStatusService::class)->pendingMigrations();
         if ($pending !== []) {
             $failed = true;

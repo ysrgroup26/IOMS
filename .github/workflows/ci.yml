@@ -99,6 +99,11 @@ jobs:
           shellcheck -S warning .github/scripts/*.sh
           bash .github/scripts/test-workflows.sh
 
+      # The served frontend IS the committed public/build (no server runs a JS build).
+      # A frontend change without its build deploys new PHP against old screens.
+      - name: Committed frontend build is current
+        run: bash .github/scripts/check-build-fresh.sh
+
       - name: Prepare environment
         run: |
           cp .env.example .env

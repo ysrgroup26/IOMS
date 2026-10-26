@@ -2571,6 +2571,15 @@ not a live browser click-through; stated plainly, not claimed otherwise.
 
 ## HSE Waste Management (v1.11.4)
 
+> **v2.134.0 — the dashboard is a workspace (ADR 077).** `WasteDashboardController::index` derives
+> every figure from the tenant's records (summary, lifecycle, priorities, TPS inventory, recent
+> movements) and serves the paginated, filterable register (`q`, `view`, `status`, `category`,
+> `waste_type_id`, `storage_location_id` incl. `none`, `pickup` incl. `none`, `from`, `to`). Each row
+> carries `storage_state`, `pickup_state` and named `gaps`. New write:
+> `WasteRecordController::assignStorage` (`POST /waste-records/{id}/storage`, `waste-records.storage`).
+> Duration limits come only from `waste_types.storage_limit_days`; capacity is compared only when units
+> match. The record page opens a form directly with `?action=storage` or `?action=movement`.
+
 New HSE module, confirmed via repo-wide audit to not exist in any form before this pass. Built around
 the requested lifecycle: **Generated → Stored → Scheduled for Pickup → In Transit → Disposed →
 Closed** — guarded by `WasteRecord::ALLOWED_TRANSITIONS` (mirrors `WorkOrder`/`MaintenanceRequest`'s

@@ -106,6 +106,8 @@ class WasteRecordController extends Controller
         return Inertia::render('Hse/WasteManagement/Show', [
             'record' => $wasteRecord,
             'wasteVendors' => Vendor::whereIn('company_id', Company::query()->pluck('id'))->active()->wasteVendors()->get(['id', 'name']),
+            // v2.134.0: the TPS a record can be placed in -- its own operating unit's active ones.
+            'storageLocations' => WasteStorageLocation::where('company_id', $wasteRecord->company_id)->active()->get(['id', 'name', 'code']),
             'can' => ['manage' => request()->user()->canManageHse()],
         ]);
     }
@@ -132,5 +134,48 @@ class WasteRecordController extends Controller
         ActivityLog::record('updated', "Waste record {$wasteRecord->record_number} moved to {$data['status']}.", $wasteRecord);
 
         return back()->with('success', 'Status updated.');
+    }
+
+    /**
+     * v2.134.0 -- put a record in (or move it to another) TPS.
+     *
+     * The storage location could be chosen only when the record was
+     * created, so a record generated before it reached a TPS had no way to
+     * get one -- and the dashboard's "stored without a location" warning
+     * had no action behind it. A `generated` record that receives a
+     * location becomes `stored` through the same ALLOWED_TRANSITIONS guard
+     * transition() uses; nothing else about its lifecycle changes.
+     */
+    public function assignStorage(Request $request, WasteRecord $wasteRecord): RedirectResponse
+    {
+        abort_unless($request->user()->canManageHse(), 403);
+        abort_unless(Company::query()->pluck('id')->contains($wasteRecord->company_id), 404);
+        abort_unless(in_array($wasteRecord->status, WasteRecord::STORED_STATUSES, true), 422, 'Only waste that is still on site can be placed in a storage location.');
+
+        $data = $request->validate([
+            'storage_location_id' => ['required', Rule::in(
+                WasteStorageLocation::where('company_id', $wasteRecord->company_id)->active()->pluck('id')
+            )],
+            'received_date' => ['nullable', 'date', 'after_or_equal:'.$wasteRecord->generated_date?->toDateString(), 'before_or_equal:today'],
+        ], [
+            'storage_location_id.in' => 'Choose an active storage location of this operating unit.',
+        ]);
+
+        $from = $wasteRecord->storageLocation?->name;
+        $update = ['storage_location_id' => $data['storage_location_id']];
+        if (! $wasteRecord->received_date) {
+            $update['received_date'] = $data['received_date'] ?? now()->toDateString();
+        }
+        if ($wasteRecord->status === WasteRecord::STATUS_GENERATED && $wasteRecord->canTransitionTo(WasteRecord::STATUS_STORED)) {
+            $update['status'] = WasteRecord::STATUS_STORED;
+        }
+        $wasteRecord->update($update);
+        $to = $wasteRecord->fresh('storageLocation')->storageLocation?->name;
+
+        ActivityLog::record('updated', $from
+            ? "Waste record {$wasteRecord->record_number} moved from {$from} to {$to}."
+            : "Waste record {$wasteRecord->record_number} placed in {$to}.", $wasteRecord);
+
+        return back()->with('success', 'Storage location updated.');
     }
 }

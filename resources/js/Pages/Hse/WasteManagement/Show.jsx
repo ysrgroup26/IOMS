@@ -25,8 +25,19 @@ const STATUS_LABELS = {
  * existing document-upload convention -- multipart form, Inertia's
  * useForm auto-switches to FormData when a File is present in `data`).
  */
-export default function WasteRecordShow({ record, wasteVendors, can }) {
-    const [movementOpen, setMovementOpen] = useState(false);
+// v2.134.0: the dashboard's quick actions open the matching form here
+// (?action=movement | ?action=storage), so an action is never a dead link.
+function requestedAction() {
+    if (typeof window === 'undefined') return null;
+    return new URLSearchParams(window.location.search).get('action');
+}
+
+export default function WasteRecordShow({ record, wasteVendors, storageLocations = [], can }) {
+    const action = requestedAction();
+    const canMove = can.manage && record.status !== 'closed';
+    const canStore = can.manage && ['generated', 'stored', 'scheduled_pickup'].includes(record.status);
+    const [movementOpen, setMovementOpen] = useState(canMove && action === 'movement');
+    const [storageOpen, setStorageOpen] = useState(canStore && action === 'storage');
 
     function transition(status) {
         if (confirm(`Move this record to "${STATUS_LABELS[status] || status}"?`)) {
@@ -38,17 +49,17 @@ export default function WasteRecordShow({ record, wasteVendors, can }) {
         <AuthenticatedLayout>
             <Head title={record.record_number} />
 
-            <Link href={route('waste-records.index')} className="mb-3 inline-flex items-center gap-1 text-sm text-graphite-500 hover:text-graphite-800">
-                <ArrowLeft className="h-4 w-4" /> Back to Waste Records
+            <Link href={route('waste.dashboard')} className="mb-3 inline-flex items-center gap-1 text-sm text-graphite-500 hover:text-graphite-800">
+                <ArrowLeft className="h-4 w-4" /> Back to Waste Management
             </Link>
 
-            <PageHeader title={<>{record.record_number} <Badge variant={record.waste_type?.category === 'b3' ? 'destructive' : 'secondary'}>{record.waste_type?.category === 'b3' ? 'B3' : 'Non-B3'}</Badge></>} subtitle={<>{record.waste_type?.name} -- {record.quantity} {record.unit}</>}>
+            <PageHeader title={<>{record.record_number} <Badge variant={record.waste_type?.category === 'b3' ? 'destructive' : 'secondary'}>{record.waste_type?.category === 'b3' ? 'B3' : 'Non-B3'}</Badge></>} subtitle={<>{record.waste_type?.name}{record.waste_type?.waste_code ? ` (${record.waste_type.waste_code})` : ''} · {record.quantity} {record.unit}</>}>
                 <Badge variant="outline" className="text-sm">{STATUS_LABELS[record.status] || record.status}</Badge>
             </PageHeader>
 
             {record.is_storage_overdue && (
                 <div className="mb-3 flex items-center gap-2 rounded-lg border border-red-200 bg-red-50 px-3 py-2 text-sm text-red-700 dark:border-red-900 dark:bg-red-950/30 dark:text-red-400">
-                    <AlertCircle className="h-4 w-4 shrink-0" /> Storage duration has exceeded the configured operational threshold ({record.waste_type?.storage_limit_days} days) -- operational flag only, not a legal determination.
+                    <AlertCircle className="h-4 w-4 shrink-0" /> Storage duration has exceeded the configured operational threshold ({record.waste_type?.storage_limit_days} days). Operational flag only, not a legal determination.
                 </div>
             )}
             {!record.is_storage_overdue && record.is_approaching_storage_limit && (
@@ -71,10 +82,16 @@ export default function WasteRecordShow({ record, wasteVendors, can }) {
                         {record.notes && <p className="mt-2 border-t border-graphite-100 pt-2 text-xs text-graphite-500">{record.notes}</p>}
                         {can.manage && record.status !== 'closed' && (
                             <div className="mt-3 flex flex-wrap gap-1.5 border-t border-graphite-100 pt-3">
+                                {canStore && (
+                                    <Button size="sm" variant="outline" onClick={() => setStorageOpen((v) => !v)}>
+                                        {record.storage_location ? 'Move to Another TPS' : 'Assign Storage (TPS)'}
+                                    </Button>
+                                )}
                                 {record.status === 'generated' && <Button size="sm" variant="outline" onClick={() => transition('stored')}>Mark Stored</Button>}
                                 {record.status === 'disposed' && <Button size="sm" variant="outline" onClick={() => transition('closed')}>Close Record</Button>}
                             </div>
                         )}
+                        {storageOpen && <StorageForm record={record} storageLocations={storageLocations} onDone={() => setStorageOpen(false)} />}
                     </CardContent>
                 </Card>
 
@@ -84,7 +101,7 @@ export default function WasteRecordShow({ record, wasteVendors, can }) {
                             <CardTitle className="flex items-center gap-2"><Truck className="h-4 w-4 text-graphite-400" /> Movement / Disposal History</CardTitle>
                             <CardDescription>Riwayat pickup, pengangkutan, dan pembuangan untuk catatan ini</CardDescription>
                         </div>
-                        {can.manage && record.status !== 'closed' && <Button size="sm" onClick={() => setMovementOpen((v) => !v)}>{movementOpen ? 'Cancel' : 'Record Movement'}</Button>}
+                        {canMove && <Button size="sm" onClick={() => setMovementOpen((v) => !v)}>{movementOpen ? 'Cancel' : 'Record Movement'}</Button>}
                     </CardHeader>
                     <CardContent>
                         {movementOpen && <MovementForm record={record} wasteVendors={wasteVendors} onDone={() => setMovementOpen(false)} />}
@@ -134,6 +151,43 @@ export default function WasteRecordShow({ record, wasteVendors, can }) {
                 </Card>
             </div>
         </AuthenticatedLayout>
+    );
+}
+
+function StorageForm({ record, storageLocations, onDone }) {
+    const { data, setData, post, processing, errors } = useForm({ storage_location_id: record.storage_location_id ? String(record.storage_location_id) : '', received_date: '' });
+    const choices = storageLocations.filter((l) => String(l.id) !== String(record.storage_location_id));
+
+    function submit(e) {
+        e.preventDefault();
+        post(route('waste-records.storage', record.id), { preserveScroll: true, onSuccess: onDone });
+    }
+
+    if (storageLocations.length === 0) {
+        return <p className="mt-3 text-xs text-graphite-500">Belum ada lokasi penyimpanan (TPS) aktif. Tambahkan di Waste Master Data.</p>;
+    }
+
+    return (
+        <form onSubmit={submit} className="mt-3 space-y-2 rounded-lg border border-steel-200 bg-steel-50/50 p-3 dark:border-slate-700 dark:bg-slate-900/40">
+            <Label htmlFor="storage_location_id">Storage Location (TPS)</Label>
+            <Select value={data.storage_location_id} onValueChange={(v) => setData('storage_location_id', v)}>
+                <SelectTrigger id="storage_location_id"><SelectValue placeholder="Choose a TPS" /></SelectTrigger>
+                <SelectContent>{choices.map((l) => <SelectItem key={l.id} value={String(l.id)}>{l.code ? `${l.code} · ${l.name}` : l.name}</SelectItem>)}</SelectContent>
+            </Select>
+            {errors.storage_location_id && <p className="text-xs text-red-600">{errors.storage_location_id}</p>}
+            {!record.received_date && (
+                <>
+                    <Label htmlFor="received_date">Received at TPS</Label>
+                    <Input id="received_date" type="date" value={data.received_date} onChange={(e) => setData('received_date', e.target.value)} />
+                    <p className="text-[11px] text-graphite-400">Kosongkan bila diterima hari ini. Lama penyimpanan dihitung dari tanggal ini.</p>
+                    {errors.received_date && <p className="text-xs text-red-600">{errors.received_date}</p>}
+                </>
+            )}
+            <div className="flex gap-2 pt-1">
+                <Button type="submit" size="sm" disabled={processing || !data.storage_location_id}>Save</Button>
+                <Button type="button" size="sm" variant="ghost" onClick={onDone}>Cancel</Button>
+            </div>
+        </form>
     );
 }
 

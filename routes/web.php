@@ -600,6 +600,7 @@ Route::middleware(['auth', 'restrict.platform-admin'])->group(function () {
     Route::post('/waste-records', [WasteRecordController::class, 'store'])->name('waste-records.store');
     Route::get('/waste-records/{wasteRecord}', [WasteRecordController::class, 'show'])->name('waste-records.show');
     Route::post('/waste-records/{wasteRecord}/transition', [WasteRecordController::class, 'transition'])->name('waste-records.transition');
+    Route::post('/waste-records/{wasteRecord}/storage', [WasteRecordController::class, 'assignStorage'])->name('waste-records.storage');
     Route::post('/waste-records/{wasteRecord}/movements', [WasteMovementController::class, 'store'])->name('waste-movements.store');
     // v2.33.0 (Phase 4, Operational Document System): a GET/view route,
     // same open-to-every-role shape as `waste-records.show` right above

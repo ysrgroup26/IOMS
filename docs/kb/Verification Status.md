@@ -55,6 +55,21 @@ approved migration deploy, artisan allow-list and refusals, redaction of tokens 
 - **Not run:** anything on Tencent (this environment is denied the host); a GitHub-hosted runner
   reaching Tencent over SSH (needs the owner's secrets and an open port 22).
 
+### What was actually run for v2.134.0
+
+- **Suite:** full `php artisan test`: 1669 passed (8633 assertions), including 8 new tests in
+  `WasteWorkspaceTest` (counts and lifecycle, every filter, duration vs capacity and mixed units, named
+  gaps, the storage action's role/on-site/tenant rules, read access per role, the record page deep link).
+  ESLint and Pint (changed files) clean; `npm run build` committed.
+- **Browser (local MySQL 8, `php artisan serve`, Playwright Chromium) at 1440 and 390 px, as an HSE
+  account with eight seeded records:** all 17 interactive filters (8 cards, 6 lifecycle steps, 3 quick
+  actions) each produced exactly the expected record set; search, TPS `none`, row → record page, and
+  `?action=storage` → assign TPS → record shows Stored in that TPS (and the dashboard then reported the
+  litre TPS as mixed units rather than computing a percentage). No console errors, no 4xx/5xx, no
+  horizontal scroll at 390 px.
+- **Not verified:** the production page in a browser. This environment cannot reach Tencent or the
+  public domain; production evidence comes from the GitHub deploy record only.
+
 ### What was actually run for v2.133.0
 
 - **Suite:** full `php artisan test` (results recorded in the release commit); 9 new tests in

@@ -25,7 +25,7 @@ the date in the frontmatter, not remembered.
 |---|---|
 | Product | **IOMS — Industrial Operations Platform** |
 | Public company identity | **IOMS** only (v2.131.0, ADR 071). Operator entity published only when `IOMS_LEGAL_ENTITY` is set; legal merchant **PT Tahada Vistara Bersama** issues invoices (`ioms.merchant.legal_name`) |
-| Version | **2.133.0**, stage **Beta**, edition **Enterprise Edition** |
+| Version | **2.134.0**, stage **Beta**, edition **Enterprise Edition** |
 | Build | `2026.10.25.02`, release date `2026-10-25` |
 | Stack | Laravel 12 · Inertia.js · React 18 · Tailwind · MySQL · Sanctum |
 
@@ -95,6 +95,13 @@ wait for a person. Rehearsed end to end on a replica (and two deploy defects fix
 Tencent until** the owner runs `enable-ci-deploy.sh` once and stores two repository secrets. Whether
 v2.133.0 is live on Tencent is **unverified** (no evidence reached GitHub). Runbook:
 `docs/runbooks/RELEASE-LOOP.md`.
+
+`2.134.0` (2026-10-26): **Waste Management workspace** (ADR 077): clickable summary figures and lifecycle
+steps counted from real rows, a priority panel (storage limit exceeded/approaching, incomplete records by
+named gap, awaiting handover), TPS inventory where capacity is compared only for matching units, a
+filterable register with mobile cards, and one new write (assign/move TPS, HSE only). No migration.
+Also: old `/hse/master` links and the HSE Overview inspections KPI open the Safety Equipment register,
+and the release identity includes the served frontend bundle (CI rejects a stale committed build).
 
 `2.133.0` (2026-10-25): **Safety Equipment Register** at `/hse/equipment` with a record page per unit,
 derived standings (ADR 074), generated IDs, functional QR labels, and Equipment Types that can set

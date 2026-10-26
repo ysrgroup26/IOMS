@@ -79,6 +79,19 @@ intact; a release that answered 500 everywhere rolled back by itself (`rolled_ba
 running SHA was a no-op; and the forced command refused `id`, a shell, `deploy <sha>; id` and port
 forwarding.
 
+## The first real deploy (run 40317875872, 2026-10-26)
+
+`0ed5fe4` ended `rollback_failed`, read afterwards with the workflow's read-only `action=status`.
+The release was never the problem: the deploy's health check probed `https://iomsuite.com` on the
+server's own :443, and before cutover Caddy does not serve IOMS there (the `import
+/etc/caddy/ioms.caddy` line is added only by `caddy-site.sh --apply`). Every check answered `000`,
+so the new release AND the rollback were both judged unhealthy and the application was never
+examined. `ioms-ops` now checks the nginx app backend (its loopback port) until the front is live,
+the public front afterwards, or `HEALTH_URL` when configured, and says which. Reproduced on the
+replica (15 failures with the import removed, matching the run; all checks pass on the backend;
+a stopped PHP-FPM still fails). The same run exposed two workflow defects, fixed in `d9c630c`:
+`bash -e` discarded the server's answer, and a jq program built in a double-quoted string.
+
 ## Not done, deliberately
 
 - TerasAkademi's `git reset --hard` and unconditional `migrate`: this design refuses both.

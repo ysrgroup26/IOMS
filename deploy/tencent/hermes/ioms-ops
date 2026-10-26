@@ -58,7 +58,8 @@ TEST_GATE=on
 # `request deploy`. `off` restores "every migration needs a person".
 AUTO_MIGRATIONS=additive
 MIGRATION_POLICY=/usr/local/lib/ioms-ops/migration-policy.php
-[[ -r "$CONF" ]] && . "$CONF"   # root-owned, 644: HERMES_USER, DEFAULT_URL, limits, TEST_GATE, AUTO_MIGRATIONS
+HEALTH_URL=""   # optional override of the deploy health check target (see health_target)
+[[ -r "$CONF" ]] && . "$CONF"   # root-owned, 644: HERMES_USER, DEFAULT_URL, HEALTH_URL, limits, TEST_GATE, AUTO_MIGRATIONS
 
 CALLER="${SUDO_USER:-$(id -un)}"
 REQ_ID_RE='^[0-9]{8}-[0-9]{6}-[a-f0-9]{6}$'
@@ -103,8 +104,32 @@ rate_ok() { # bucket limit -- sliding hour
     echo "$now" >> "$f"
 }
 
+# Where the deploy's health check looks (ADR 076). It must be what actually serves IOMS:
+#   - HEALTH_URL in /etc/ioms-ops.conf, when set, always;
+#   - in caddy mode BEFORE cutover (Caddy does not yet import /etc/caddy/ioms.caddy), the nginx
+#     app backend on its loopback port: there is no IOMS front on :443 to check, and checking it
+#     anyway failed every deploy AND its rollback (run 40317875872: 000 on every page, "no
+#     certificate presented") while the application itself was never examined;
+#   - otherwise the public front (DEFAULT_URL) resolved to this host, TLS and redirect included.
+health_target() {
+    if [[ -n "${HEALTH_URL:-}" ]]; then echo "$HEALTH_URL configured"; return; fi
+    local port host
+    port="$(grep -hoE 'listen[[:space:]]+127\.0\.0\.1:[0-9]+' /etc/nginx/sites-enabled/* 2>/dev/null | head -1 | grep -oE '[0-9]+$' || true)"
+    if [[ -n "$port" ]] && ! grep -qsE '^[[:space:]]*import[[:space:]]+/etc/caddy/ioms\.caddy' /etc/caddy/Caddyfile; then
+        host="${DEFAULT_URL#*://}"; host="${host%%/*}"
+        echo "http://$host:$port backend-before-cutover"; return
+    fi
+    echo "$DEFAULT_URL front"
+}
 local_health() { # against this host, keeping the real name for TLS/SNI
-    bash /usr/local/lib/ioms-ops/healthcheck.sh "$DEFAULT_URL" --resolve 127.0.0.1 --insecure
+    local target url why
+    target="$(health_target)"; url="${target%% *}"; why="${target#* }"
+    echo "health target: $url ($why)"
+    if [[ "$url" == https://* ]]; then
+        bash /usr/local/lib/ioms-ops/healthcheck.sh "$url" --resolve 127.0.0.1 --insecure
+    else
+        bash /usr/local/lib/ioms-ops/healthcheck.sh "$url" --resolve 127.0.0.1
+    fi
 }
 
 # ------------------------------------------------------------------ read

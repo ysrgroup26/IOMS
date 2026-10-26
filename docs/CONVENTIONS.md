@@ -3721,3 +3721,12 @@ string), so jq received `(.body // )` and the step failed. Pass values to jq wit
 program single-quoted. `.github/scripts/issue-by-marker.sh` does that for issue lookups, and
 `.github/scripts/test-workflows.sh` (run by CI) rejects a double-quoted `--jq` and compiles every jq
 program in the workflows.
+
+## Known Pitfall (v2.133.0): a deploy health check must probe what actually serves the app
+
+`ioms-ops` checked `https://<domain>` on the server's own :443. Before cutover nothing serves IOMS
+there (Caddy imports the IOMS site only after `caddy-site.sh --apply`), so every deploy and its
+rollback failed health with `000` while the application was never looked at, and the result read
+as `rollback_failed`. The target is now chosen by `health_target()` (backend before cutover, front
+after, or `HEALTH_URL`) and printed with every check. A health check that cannot reach its target
+says nothing about the release.

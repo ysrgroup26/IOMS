@@ -28,8 +28,13 @@ class HazardCategoryController extends Controller
     {
         // v2.133.0 (ADR 074) -- the register left this page for its own.
         // A bookmark to the old tab lands on the register, not on a tab
-        // that no longer exists.
-        if (request()->query('tab') === 'register') {
+        // that no longer exists. So does a BARE /hse/master: until v2.133.0
+        // that URL WAS "Safety Equipment & Compliance" (the sidebar item,
+        // the HSE Overview KPI, every bookmark and installed-app shortcut),
+        // and without a tab it opened Supplies -- two plain tables under the
+        // same title, which read exactly like the old register. Reference
+        // data is always reached with an explicit ?tab= (AreaNav).
+        if (in_array(request()->query('tab'), [null, '', 'register'], true)) {
             return redirect()->route('safety-equipment.index');
         }
 

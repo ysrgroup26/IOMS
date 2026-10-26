@@ -252,7 +252,13 @@ class SafetyEquipmentRegisterTest extends TestCase
         $t = $this->tenant('types');
 
         $this->actingAs($t['user'])->get(route('hse.master', ['tab' => 'register']))->assertRedirect(route('safety-equipment.index'));
-        $this->actingAs($t['user'])->get(route('hse.master'))->assertOk()
+        // A bare /hse/master was "Safety Equipment & Compliance" until v2.133.0;
+        // without a tab it rendered Supplies, which read as the old register.
+        $this->actingAs($t['user'])->get(route('hse.master'))->assertRedirect(route('safety-equipment.index'));
+        $this->actingAs($t['user'])->get('/hse/master?tab=')->assertRedirect(route('safety-equipment.index'));
+        $this->actingAs($t['user'])->get(route('hse.master', ['tab' => 'supplies']))->assertOk()
+            ->assertInertia(fn (Assert $page) => $page->component('Hse/Master'));
+        $this->actingAs($t['user'])->get(route('hse.master', ['tab' => 'equipment-master']))->assertOk()
             ->assertInertia(fn (Assert $page) => $page->component('Hse/Master')->missing('safetyEquipment')->has('equipmentCounts'));
 
         $this->actingAs($t['user'])->post(route('hse-equipment-types.store'), [
@@ -264,5 +270,15 @@ class SafetyEquipmentRegisterTest extends TestCase
         $this->assertSame('LSA', $type->code_prefix);
         $this->assertSame(['inspection', 'service'], $type->trackedLifecycles());
         $this->assertSame(3, $type->inspection_interval_months);
+    }
+
+    public function test_the_hse_overview_sends_inspections_due_to_the_register(): void
+    {
+        $t = $this->tenant('overview-link');
+
+        $this->actingAs($t['user'])->get(route('hse.dashboard'))
+            ->assertOk()
+            ->assertInertia(fn (Assert $page) => $page->where('operationalKpis', fn ($kpis) => collect($kpis)
+                ->firstWhere('key', 'inspections')['href'] === route('safety-equipment.index', ['state' => 'attention'])));
     }
 }

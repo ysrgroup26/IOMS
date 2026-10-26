@@ -444,7 +444,9 @@ class HseDashboardController extends Controller
                     ['value' => $dueThisWeek, 'label' => 'this week'],
                     ['value' => $dueOverdue, 'label' => 'overdue'],
                 ],
-                'href' => route('hse.master'),
+                // Equipment AND P3K due: the register is where both start
+                // (P3K is one tab away under Supplies).
+                'href' => route('safety-equipment.index', ['state' => 'attention']),
                 'alert' => $dueOverdue > 0,
             ],
             [

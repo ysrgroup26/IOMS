@@ -2,7 +2,7 @@
 
 **Untuk:** tim onboarding Duitku — Project Code `D25218`
 **Produk:** IOMS (Industrial Operations Platform) — `https://iomsuite.com`
-**Versi aplikasi:** 2.131.0 · **Lingkungan pembayaran saat ini:** Sandbox
+**Versi aplikasi:** 2.134.1 · **Lingkungan pembayaran saat ini:** Sandbox
 
 Dokumen ini menjelaskan bagaimana IOMS memakai Duitku, berdasarkan kode yang berjalan. Hanya fungsi
 yang sudah diimplementasikan dan diuji yang dijelaskan sebagai fungsi; batasannya ditulis terpisah di
@@ -131,5 +131,6 @@ perubahan katalog tidak mengubah harga pelanggan berjalan tanpa keputusan operat
 ## 10. Kontak
 
 Email dukungan: `support@iomsuite.com` · Tagihan: `billing@iomsuite.com`
-Alamat usaha dan nomor telepon ditampilkan di `https://iomsuite.com/contact` setelah dikonfigurasi
-oleh pemilik (lihat `docs/ADR/071-...`).
+Alamat usaha dan nomor telepon ditampilkan di `https://iomsuite.com/contact` dan, sejak v2.134.1, di
+footer setiap halaman publik, dari konfigurasi yang sama (`IOMS_SUPPORT_PHONE`, `IOMS_LEGAL_ADDRESS`).
+Nilai yang belum dikonfigurasi tidak ditampilkan, bukan diisi perkiraan (lihat `docs/ADR/071-...`).

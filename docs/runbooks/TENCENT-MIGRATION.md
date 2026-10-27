@@ -272,10 +272,10 @@ through chat or email).
 
 ```bash
 cd /opt/ioms-kit/deploy/tencent
-bash provision.sh --domain iomsuite.com --domain www.iomsuite.com --domain staging.iomsuite.com \
+bash provision.sh --domain iomsuite.com --domain www.iomsuite.com \
      --origin-cert /root/origin.pem --origin-key /root/origin.key
 # after confirming what Hermes needs to listen on:
-bash provision.sh --domain iomsuite.com --domain www.iomsuite.com --domain staging.iomsuite.com \
+bash provision.sh --domain iomsuite.com --domain www.iomsuite.com \
      --apply-firewall --ssh-from <your-public-ip>/32
 ```
 
@@ -521,6 +521,17 @@ Lower nothing: proxied records switch immediately at Cloudflare's edge, so TTL i
 web traffic from Cloudflare only. Its own rollback is `--undo`.
 
 ## 9. After cutover
+
+> [!important] Staging is not hosted on this server (2026-10-27)
+> The Tencent instance runs ONE application and ONE database: production. Provisioning used to list
+> `staging.iomsuite.com` among its names, so that name opened production. It is now detached:
+> `caddy-site.sh --detach staging.iomsuite.com` answers it with 503 on Tencent, and every other name
+> is proven unchanged. `bootstrap.sh` no longer provisions it. Staging needs its own environment
+> (another instance, or a separate app + database here) before its DNS may point at this server.
+>
+> **Go-live** (worker + scheduler) is `migrate-all.sh go-live`, after `hold.sh status` shows the queue
+> you expect. It restores the worker's original supervisor program and the cron line
+> (`hold.sh release`).
 
 - Daily: backups run at 01:30. Weekly: `ioms-ops backups` and `ioms-restore-check`.
 - **Off-site copy (your decision):** a Tencent COS bucket or another host. Add the copy line in

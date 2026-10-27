@@ -18,7 +18,7 @@
 #     port Hermes depends on is a decision, not a side effect.
 #
 #   sudo bash provision.sh \
-#       --domain iomsuite.com --domain www.iomsuite.com --domain staging.iomsuite.com \
+#       --domain iomsuite.com --domain www.iomsuite.com \
 #       [--origin-cert /root/origin.pem --origin-key /root/origin.key] \
 #       [--apply-firewall --ssh-from 203.0.113.7/32]
 #

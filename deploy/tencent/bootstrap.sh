@@ -72,7 +72,7 @@ case "$stage" in
         [[ "${SUDO_USER:-}" != ubuntu ]] || { echo "Stage 2 must not run as ubuntu (the Hermes account). Use: su - iomsadmin" >&2; exit 1; }
         kit
         say "Provisioning"
-        bash "$KIT/deploy/tencent/provision.sh" --domain iomsuite.com --domain www.iomsuite.com --domain staging.iomsuite.com
+        bash "$KIT/deploy/tencent/provision.sh" --domain iomsuite.com --domain www.iomsuite.com
         say "Application (main)"
         bash "$KIT/deploy/tencent/migrate.sh" app
         if ! grep -qE '^APP_KEY=.+' /srv/ioms/app/.env; then

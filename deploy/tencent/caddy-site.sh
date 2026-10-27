@@ -7,6 +7,9 @@
 #   sudo bash caddy-site.sh --apply         add ONE line (`import /etc/caddy/ioms.caddy`) to the
 #                                           main Caddyfile, validate, graceful reload, verify
 #   sudo bash caddy-site.sh --undo DIR      put the backed-up Caddyfile back and reload
+#   sudo bash caddy-site.sh --detach NAME   take NAME (e.g. staging.iomsuite.com) off the IOMS site
+#                                           and answer it with 503 instead, so that name can never
+#                                           reach the production app and database here
 #   sudo bash caddy-site.sh --redirect      add an explicit http -> https redirect for the IOMS
 #                                           names to /etc/caddy/ioms.caddy (only that file),
 #                                           validate, reload, verify, auto-undo
@@ -38,9 +41,9 @@ export LANG=C
 CURL=(curl -s --noproxy '*' --max-time 15)
 code_of() { local c; c="$("${CURL[@]}" -o /dev/null -w '%{http_code}' "$@" 2>/dev/null)"; echo "${c:-000}"; }
 
-MODE=check UNDO=""
+MODE=check UNDO="" DETACH=""
 while [[ $# -gt 0 ]]; do
-    case "$1" in --apply) MODE=apply; shift ;; --redirect) MODE=redirect; shift ;; --undo) MODE=undo; UNDO="$2"; shift 2 ;; *) die "Unknown option: $1" ;; esac
+    case "$1" in --apply) MODE=apply; shift ;; --redirect) MODE=redirect; shift ;; --detach) MODE=detach; DETACH="${2:-}"; shift 2 ;; --undo) MODE=undo; UNDO="$2"; shift 2 ;; *) die "Unknown option: $1" ;; esac
 done
 [[ $EUID -eq 0 ]] || die "Run as root (sudo, as iomsadmin)."
 command -v caddy >/dev/null || die "caddy is not installed here."
@@ -78,7 +81,9 @@ snapshot() { # hostsfile -> lines "target code"
 }
 
 # The HTTPS site's names only: the `http://...` redirect site is not one of them.
-ioms_hosts() { grep -E '^[a-z0-9].*\{\s*$' "$SNIPPET" | grep -v '^http://' | sed 's/[{,]/ /g'; }
+# The FIRST https site in the snippet is the IOMS site; a detached name's own
+# block (--detach) comes later and is not one of its names.
+ioms_hosts() { grep -E '^[a-z0-9].*\{\s*$' "$SNIPPET" | grep -v '^http://' | head -1 | sed 's/[{,]/ /g'; }
 redirect_block() {
     printf '\n# http -> https for the IOMS names (caddy-site.sh --redirect)\n'
     printf '%s {\n    redir https://{host}{uri} 308\n}\n' "$(for h in $(ioms_hosts); do printf 'http://%s, ' "$h"; done | sed 's/, $//')"
@@ -162,6 +167,70 @@ diff -u "$CADDYFILE" "$TMP/Caddyfile" | tail -n +3 | sed 's/^/    /' || true
 
 if [[ $MODE == check ]]; then
     echo; echo "Read-only check complete. Nothing was changed."
+    exit 0
+fi
+
+# ------------------------------------------------------------------ detach
+if [[ $MODE == detach ]]; then
+    [[ "$DETACH" =~ ^[a-z0-9]([a-z0-9.-]*[a-z0-9])?$ ]] || die "Usage: --detach <hostname>"
+    grep -qF "$IMPORT_LINE" "$CADDYFILE" || die "IOMS is not published through Caddy yet."
+    log "Detach $DETACH from the IOMS site"
+    restore_both() { cp -a "$BK/Caddyfile" "$CADDYFILE"; cp -a "$BK/ioms.caddy" "$SNIPPET"; reload_caddy || true; }
+    if grep -qxF "# detached: $DETACH" "$SNIPPET"; then
+        echo "  $DETACH is already detached."
+    else
+        ioms_hosts | tr ' ' '\n' | grep -qxF "$DETACH" || die "$DETACH is not one of the IOMS site's names ($(ioms_hosts))."
+        [[ "$(ioms_hosts | wc -w)" -gt 1 ]] || die "Refusing to detach the IOMS site's last name."
+        tls_line="$(grep -m1 -E '^\s*tls ' "$SNIPPET" | sed 's/^\s*//')"
+        [[ -n "$tls_line" ]] || die "No tls line in $SNIPPET to answer $DETACH over HTTPS."
+        BK="/root/caddy-backup-$STAMP"; install -d -m 700 "$BK"
+        cp -a "$CADDYFILE" "$BK/Caddyfile"; cp -a "$SNIPPET" "$BK/ioms.caddy"
+        # Every OTHER name, production included, must answer exactly as before.
+        hosts_of "$CADDYFILE" | grep -vxF "$DETACH" > "$BK/hosts-before.txt" || true
+        snapshot "$BK/hosts-before.txt" > "$BK/before.txt"
+        # Drop the name (and http://name) from every site-address line.
+        awk -v h="$DETACH" '
+            /^[^ \t#].*\{[ \t]*$/ {
+                line = $0; sub(/[ \t]*\{[ \t]*$/, "", line)
+                n = split(line, a, /,[ \t]*/); out = ""
+                for (i = 1; i <= n; i++) if (a[i] != h && a[i] != "http://" h) out = out (out == "" ? "" : ", ") a[i]
+                print out " {"; next
+            }
+            { print }' "$BK/ioms.caddy" > "$TMP/ioms.caddy"
+        {
+            printf '\n# detached: %s\n' "$DETACH"
+            printf '# Not served by this server (caddy-site.sh --detach). This app is PRODUCTION;\n'
+            printf '# a name detached here must never reach it. Undo: caddy-site.sh --undo %s\n' "$BK"
+            printf '%s {\n    %s\n    respond "%s is not served here." 503\n}\n' "$DETACH" "$tls_line" "$DETACH"
+            printf 'http://%s {\n    respond "%s is not served here." 503\n}\n' "$DETACH" "$DETACH"
+        } >> "$TMP/ioms.caddy"
+        cp "$TMP/ioms.caddy" "$SNIPPET"
+        echo "  change to $SNIPPET:"; diff -u "$BK/ioms.caddy" "$SNIPPET" | tail -n +3 | sed 's/^/    /' || true
+        if ! caddy validate --config "$CADDYFILE" --adapter caddyfile >"$TMP/validate.log" 2>&1; then
+            sed 's/^/    /' "$TMP/validate.log" | tail -8
+            cp -a "$BK/ioms.caddy" "$SNIPPET"; die "caddy validate rejects it. $SNIPPET restored; nothing was reloaded."
+        fi
+        reload_caddy || { restore_both; die "Caddy refused the reload; restored. Nothing remains changed."; }
+        sleep 2
+        snapshot "$BK/hosts-before.txt" > "$BK/after.txt"
+        if ! diff -q "$BK/before.txt" "$BK/after.txt" >/dev/null; then
+            diff "$BK/before.txt" "$BK/after.txt" | sed 's/^/    /' || true
+            restore_both; die "Another site answered differently after the reload. Restored and reloaded; nothing remains changed."
+        fi
+        echo "  ok    every other site, production included, answers exactly as before ($(wc -l < "$BK/before.txt") checks)"
+        echo "  undo: sudo bash $0 --undo $BK"
+    fi
+    log "Checks"
+    s1="$(code_of -k --resolve "$DETACH:443:127.0.0.1" "https://$DETACH/login")"
+    s2="$(code_of --resolve "$DETACH:80:127.0.0.1" "http://$DETACH/login")"
+    dfail=0
+    [[ "$s1" == 503 ]] && echo "  ok    https://$DETACH/login -> 503 (not production)" || { echo "  FAIL  https://$DETACH/login -> $s1"; dfail=1; }
+    [[ "$s2" == 503 ]] && echo "  ok    http://$DETACH/login -> 503 (not production)" || { echo "  FAIL  http://$DETACH/login -> $s2"; dfail=1; }
+    if [[ $dfail -ne 0 ]] || ! redirect_check || ! ioms_check; then
+        [[ -n "${BK:-}" ]] && { restore_both; die "Checks failed; restored and reloaded. Nothing remains changed."; }
+        die "Checks failed."
+    fi
+    echo "Done."
     exit 0
 fi
 

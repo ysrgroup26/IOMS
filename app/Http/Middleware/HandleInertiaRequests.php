@@ -2,13 +2,18 @@
 
 namespace App\Http\Middleware;
 
+use App\Http\Controllers\Auth\GoogleAuthController;
 use App\Models\Company;
 use App\Models\CompanySetting;
 use App\Models\Module;
+use App\Models\Notification;
 use App\Models\Workspace;
 use App\Services\EntitlementService;
+use App\Services\PtwQuotaService;
+use App\Services\SearchIdentity;
 use App\Services\TenantReadinessService;
 use App\Services\WorkCenterService;
+use App\Support\CurrentTenant;
 use Illuminate\Http\Request;
 use Inertia\Middleware;
 
@@ -44,7 +49,7 @@ class HandleInertiaRequests extends Middleware
             // v2.75.0 -- a public page's full search title (config/seo.php),
             // null everywhere else. app.jsx uses it so the browser tab says
             // exactly what the server-rendered <title> said.
-            'seoTitle' => app(\App\Services\SearchIdentity::class)->page($request->route()?->getName())['title'] ?? null,
+            'seoTitle' => app(SearchIdentity::class)->page($request->route()?->getName())['title'] ?? null,
 
             'auth' => [
                 'user' => $user ? [
@@ -294,7 +299,7 @@ class HandleInertiaRequests extends Middleware
              * Carries no secret: it is a boolean derived from whether the
              * credentials are configured, never the credentials.
              */
-            'googleEnabled' => \App\Http\Controllers\Auth\GoogleAuthController::configured(),
+            'googleEnabled' => GoogleAuthController::configured(),
             'branding' => [
                 // v2.38.0: whether the tenant uploaded its OWN wordmark.
                 //
@@ -535,7 +540,7 @@ class HandleInertiaRequests extends Middleware
             ],
             'notifications' => fn () => [
                 'ppe_alert_count' => $user ? $this->workCenter->ppeAlertCount() : 0,
-                'unread_count' => $user ? \App\Models\Notification::where('user_id', $user->id)->unread()->count() : 0,
+                'unread_count' => $user ? Notification::where('user_id', $user->id)->unread()->count() : 0,
                 /*
                  * v2.125.0 -- `route_prefix` travels with the item.
                  *
@@ -553,9 +558,9 @@ class HandleInertiaRequests extends Middleware
                  * a link.
                  */
                 'items' => $user
-                    ? \App\Models\Notification::where('user_id', $user->id)->latest()->limit(10)
+                    ? Notification::where('user_id', $user->id)->latest()->limit(10)
                         ->get(['id', 'category', 'title', 'body', 'url', 'read_at', 'created_at', 'meta'])
-                        ->map(fn (\App\Models\Notification $n) => [
+                        ->map(fn (Notification $n) => [
                             ...$n->only(['id', 'category', 'title', 'body', 'url', 'read_at', 'created_at']),
                             'route_prefix' => is_string($n->meta['route'] ?? null)
                                 ? explode('.', $n->meta['route'])[0]
@@ -581,7 +586,7 @@ class HandleInertiaRequests extends Middleware
              * might notice it.
              */
             'ptw_quota' => fn () => $user && $user->tenant
-                ? app(\App\Services\PtwQuotaService::class)->balance($user->tenant)
+                ? app(PtwQuotaService::class)->balance($user->tenant)
                 : null,
             'work_center' => fn () => [
 
@@ -603,6 +608,11 @@ class HandleInertiaRequests extends Middleware
                 // v2.52.0: the four IOMS mailboxes, so a page links to the
                 // right one instead of sending a sales enquiry to support.
                 'emails' => config('ioms.emails'),
+                // v2.134.1: the public footer carries the same contact facts as
+                // /contact, from the same config. Null until the operator sets a
+                // verified value -- an invented phone or address is never shown.
+                'support_phone' => config('ioms.legal.phone') ?: null,
+                'business_address' => config('ioms.legal.address') ?: null,
                 'documentation_url' => config('ioms.documentation_url'),
                 'whats_new' => config('ioms.whats_new'),
                 /*
@@ -654,7 +664,7 @@ class HandleInertiaRequests extends Middleware
             // an unlabelled demo is how someone ends up entering real data
             // into it, or quoting demo numbers in a meeting.
             'sandbox' => [
-                'active' => app(\App\Support\CurrentTenant::class)->get()?->isDemo() ?? false,
+                'active' => app(CurrentTenant::class)->get()?->isDemo() ?? false,
             ],
             /*
              * v2.70.0 -- THE SUBSCRIPTION STATE THE SHELL CAN ACT ON.

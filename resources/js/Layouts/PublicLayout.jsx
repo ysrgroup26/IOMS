@@ -2,7 +2,7 @@ import { Link, usePage } from '@inertiajs/react';
 import { useState } from 'react';
 import { Button } from '@/Components/ui/button';
 import BrandWordmark from '@/Components/shared/BrandWordmark';
-import { Menu, X } from 'lucide-react';
+import { Mail, MapPin, Menu, Phone, X } from 'lucide-react';
 
 /**
  * v2.18.0 (Public Website / Landing Page Foundation). The public-facing
@@ -122,6 +122,26 @@ export default function PublicLayout({ children }) {
                             <p className="mt-2 max-w-xs text-xs leading-relaxed text-graphite-500">
                                 One standardized platform for HSE, people, operations and reporting. Built once, improved for everyone.
                             </p>
+                            {/* v2.134.1: the contact facts /contact shows, on every
+                                public page. Phone and address render only when the
+                                operator has configured a verified value. */}
+                            <address className="mt-4 space-y-1.5 text-xs not-italic leading-relaxed text-graphite-600">
+                                {version?.emails?.support && (
+                                    <a href={`mailto:${version.emails.support}`} className="flex items-center gap-1.5 hover:text-graphite-900">
+                                        <Mail className="h-3.5 w-3.5 shrink-0" aria-hidden="true" />{version.emails.support}
+                                    </a>
+                                )}
+                                {version?.support_phone && (
+                                    <a href={`tel:${version.support_phone.replace(/[^+\d]/g, '')}`} className="flex items-center gap-1.5 hover:text-graphite-900">
+                                        <Phone className="h-3.5 w-3.5 shrink-0" aria-hidden="true" />{version.support_phone}
+                                    </a>
+                                )}
+                                {version?.business_address && (
+                                    <p className="flex items-start gap-1.5">
+                                        <MapPin className="mt-0.5 h-3.5 w-3.5 shrink-0" aria-hidden="true" />{version.business_address}
+                                    </p>
+                                )}
+                            </address>
                         </div>
                         <div>
                             <p className="text-xs font-semibold uppercase tracking-wide text-graphite-400">Platform</p>

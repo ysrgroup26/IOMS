@@ -147,6 +147,39 @@ class PublicReadinessTest extends TestCase
             );
     }
 
+    /**
+     * v2.134.1 (Duitku review): the footer of every public page carries the
+     * same contact facts as /contact, from the same config -- and a phone or
+     * address that was never configured stays absent rather than invented.
+     */
+    public function test_the_public_footer_carries_the_contact_page_facts(): void
+    {
+        config(['ioms.legal.phone' => '+62 811 0000 0000', 'ioms.legal.address' => 'Jl. Contoh No. 1, Kota Contoh']);
+
+        $this->get(route('contact'))->assertOk()->assertInertia(fn ($page) => $page
+            ->where('phone', '+62 811 0000 0000')
+            ->where('address', 'Jl. Contoh No. 1, Kota Contoh'));
+
+        foreach (['home', 'pricing', 'contact', 'legal.terms'] as $name) {
+            $this->get(route($name))->assertOk()->assertInertia(fn ($page) => $page
+                ->where('version.emails.support', config('ioms.emails.support'))
+                ->where('version.support_phone', '+62 811 0000 0000')
+                ->where('version.business_address', 'Jl. Contoh No. 1, Kota Contoh'));
+        }
+    }
+
+    public function test_an_unconfigured_phone_or_address_is_never_published(): void
+    {
+        config(['ioms.legal.phone' => null, 'ioms.legal.address' => '']);
+
+        $this->get(route('home'))->assertOk()->assertInertia(fn ($page) => $page
+            ->where('version.support_phone', null)
+            ->where('version.business_address', null));
+        $this->get(route('contact'))->assertOk()->assertInertia(fn ($page) => $page
+            ->where('phone', null)
+            ->where('address', null));
+    }
+
     /* ================================================================
      * 2. NOTHING IS FABRICATED WHEN A FACT IS MISSING
      * ================================================================ */

@@ -293,6 +293,13 @@ if [[ "$FRONT" == caddy ]]; then
         echo "        output file /var/log/caddy/ioms-access.log"
         echo "    }"
         echo "}"
+        # Explicit, because a main Caddyfile with `auto_https off` and a catch-all
+        # HTTP site would otherwise answer http://<name> itself (caddy-site.sh --redirect).
+        echo
+        echo "# http -> https for the IOMS names (caddy-site.sh --redirect)"
+        echo "$(printf 'http://%s, ' "${DOMAINS[@]}" | sed 's/, $//') {"
+        echo "    redir https://{host}{uri} 308"
+        echo "}"
     } > /etc/caddy/ioms.caddy
     chmod 644 /etc/caddy/ioms.caddy
     echo "  wrote /etc/caddy/ioms.caddy; review it, then: bash $here/caddy-site.sh            (read-only check)"

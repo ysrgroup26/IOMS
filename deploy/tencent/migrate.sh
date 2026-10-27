@@ -230,10 +230,24 @@ phase_verify() {
     echo "  signature  $(artisan "tinker --execute='echo app(\\App\\Services\\ReleaseStatusService::class)->fingerprint()[\"signature\"];'" 2>/dev/null)"
 
     log "Services"
+    # Ask the init system; the process name is no guide (PHP-FPM's processes are
+    # `php-fpm: master process (...)`, which matched neither `php8.3-fpm` nor `php`,
+    # so a running FPM was reported FAIL on Tencent).
     for s in nginx php8.3-fpm mysql cron; do
-        if pgrep -f "$s" >/dev/null 2>&1 || pgrep -x "${s%%8.3-fpm}" >/dev/null 2>&1; then echo "  ok    $s"; else echo "  FAIL  $s"; fail=1; fi
+        if service_running "$s"; then echo "  ok    $s"; else echo "  FAIL  $s"; fail=1; fi
     done
-    if supervisorctl status ioms-worker 2>/dev/null | grep -q RUNNING; then echo "  ok    queue worker"; else echo "  FAIL  queue worker"; fail=1; fi
+    # migrate-all.sh holds the worker and the scheduler until go-live, so a copy of
+    # production cannot email customers. Under the hold, HELD is the pass and a
+    # running worker or an active schedule line is the failure.
+    local hold=/var/lib/ioms-migrate/hold worker
+    worker="$(supervisorctl status ioms-worker 2>/dev/null || true)"
+    if [[ -f "$hold" ]]; then
+        if grep -q RUNNING <<<"$worker"; then echo "  FAIL  queue worker is RUNNING during the migration hold"; fail=1
+        else echo "  held  queue worker (migration hold since $(cat "$hold"); released by migrate-all.sh go-live)"; fi
+        if grep -qE '^[^#].*schedule:run' /etc/cron.d/ioms 2>/dev/null; then echo "  FAIL  scheduler is active during the migration hold"; fail=1
+        else echo "  held  scheduler (same hold)"; fi
+    elif grep -q RUNNING <<<"$worker"; then echo "  ok    queue worker"
+    else echo "  FAIL  queue worker"; fail=1; fi
     artisan "schedule:list" | sed 's/^/  /'
 
     log "Permissions"

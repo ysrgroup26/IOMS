@@ -26,6 +26,17 @@ svc() { # svc <action> <unit>
     fi
 }
 
+# Is <unit> running? The init system answers; without systemd, the process
+# names those daemons really carry (PHP-FPM's is `php-fpm: master process`).
+service_running() { # service_running <unit>
+    if has_systemd; then systemctl is-active --quiet "$1"; return; fi
+    case "$1" in
+        php*-fpm) pgrep -f '^php-fpm: master process' >/dev/null ;;
+        mysql)    pgrep -x mysqld >/dev/null ;;
+        *)        pgrep -x "$1" >/dev/null ;;
+    esac
+}
+
 # The live Cloudflare ranges, falling back to the shipped copy.
 cloudflare_ranges() {
     local here; here="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"

@@ -412,12 +412,26 @@ real host name for TLS SNI and routing:
 bash migrate.sh verify --url https://iomsuite.com --resolve 127.0.0.1 --e2e --mail-to <your-own-address>
 ```
 
+> [!note] Three verify results seen on Tencent (2026-10-27), and what each meant
+> - **`http -> https (200)`, a genuine defect.** The Hermes Caddyfile turns `auto_https` off and has
+>   a catch-all HTTP site, so Caddy added no redirect and that catch-all answered
+>   `http://iomsuite.com` with *its own* content. Fix: `caddy-site.sh --redirect` adds an explicit
+>   `http://<name> { redir https://{host}{uri} 308 }` site to `/etc/caddy/ioms.caddy` only. It
+>   validates, reloads, proves every other site answers as before and auto-undoes otherwise.
+>   `provision.sh` now writes it from the start. Behind Cloudflare, "Always Use HTTPS" redirects at
+>   the edge anyway; this closes the origin.
+> - **`FAIL php8.3-fpm`, a false failure.** The check matched process names, and PHP-FPM's are
+>   `php-fpm: master process (...)`. Verify now asks systemd (`service_running` in `lib.sh`).
+> - **`FAIL queue worker`, the hold read as a fault.** Under `/var/lib/ioms-migrate/hold`, verify
+>   now reports the worker and scheduler as `held`, and FAILS if either is running. Released only by
+>   `migrate-all.sh go-live`.
+
 | Check | Pass |
 |---|---|
 | Public pages, `.env`/`.git` not served, unsigned callback refused, no debug output | `ALL CHECKS PASSED` |
 | `--e2e` register → welcome → sign out → sign in → account area | five `ok` lines |
 | Release identity | commit and signature printed; compare after cutover with Master Admin → Running Release |
-| Services | nginx, PHP-FPM, MySQL, cron, worker `RUNNING`, three scheduled jobs |
+| Services | nginx, PHP-FPM, MySQL, cron `ok`; worker and scheduler `held` before go-live (`ok`/`RUNNING` after); three scheduled jobs |
 | Permissions | `.env` 640 `ioms:ioms`, `/srv/ioms` 750, `APP_DEBUG=false` |
 | `ioms:duitku-check` | "sandbox accepted the signature and offered N method(s)" |
 | `ioms:mail-check` | both `accepted`; the headers of the received message show spf/dkim/dmarc `pass` |

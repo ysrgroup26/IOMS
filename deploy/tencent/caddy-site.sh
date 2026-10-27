@@ -7,6 +7,15 @@
 #   sudo bash caddy-site.sh --apply         add ONE line (`import /etc/caddy/ioms.caddy`) to the
 #                                           main Caddyfile, validate, graceful reload, verify
 #   sudo bash caddy-site.sh --undo DIR      put the backed-up Caddyfile back and reload
+#   sudo bash caddy-site.sh --redirect      add an explicit http -> https redirect for the IOMS
+#                                           names to /etc/caddy/ioms.caddy (only that file),
+#                                           validate, reload, verify, auto-undo
+#
+# Why --redirect exists: a main Caddyfile with `auto_https off` and a catch-all
+# HTTP site (the Hermes image) answers http://iomsuite.com itself -- 200 with
+# ITS content -- because Caddy adds no automatic redirect when auto_https is
+# off. An explicit `http://<name>` site is more specific than any catch-all,
+# so it wins with or without auto_https (reproduced with a real Caddy).
 #
 # --apply is safe to re-run (the import line is added once), and it undoes
 # itself when:
@@ -31,7 +40,7 @@ code_of() { local c; c="$("${CURL[@]}" -o /dev/null -w '%{http_code}' "$@" 2>/de
 
 MODE=check UNDO=""
 while [[ $# -gt 0 ]]; do
-    case "$1" in --apply) MODE=apply; shift ;; --undo) MODE=undo; UNDO="$2"; shift 2 ;; *) die "Unknown option: $1" ;; esac
+    case "$1" in --apply) MODE=apply; shift ;; --redirect) MODE=redirect; shift ;; --undo) MODE=undo; UNDO="$2"; shift 2 ;; *) die "Unknown option: $1" ;; esac
 done
 [[ $EUID -eq 0 ]] || die "Run as root (sudo, as iomsadmin)."
 command -v caddy >/dev/null || die "caddy is not installed here."
@@ -68,7 +77,22 @@ snapshot() { # hostsfile -> lines "target code"
     printf 'https://127.0.0.1 %s\n' "$(code_of -k https://127.0.0.1/)"
 }
 
-ioms_hosts() { grep -E '^[a-z0-9].*\{\s*$' "$SNIPPET" | sed 's/[{,]/ /g'; }
+# The HTTPS site's names only: the `http://...` redirect site is not one of them.
+ioms_hosts() { grep -E '^[a-z0-9].*\{\s*$' "$SNIPPET" | grep -v '^http://' | sed 's/[{,]/ /g'; }
+redirect_block() {
+    printf '\n# http -> https for the IOMS names (caddy-site.sh --redirect)\n'
+    printf '%s {\n    redir https://{host}{uri} 308\n}\n' "$(for h in $(ioms_hosts); do printf 'http://%s, ' "$h"; done | sed 's/, $//')"
+}
+# http://<name>/ must answer 301/308 to https://<name>/ for every IOMS name.
+redirect_check() {
+    local h out fail=0
+    for h in $(ioms_hosts); do
+        out="$("${CURL[@]}" -o /dev/null -w '%{http_code} %{redirect_url}' --resolve "$h:80:127.0.0.1" "http://$h/login" 2>/dev/null)"
+        if [[ "$out" =~ ^30[18]\ https://$h/login$ ]]; then echo "  ok    http://$h/login -> $out"
+        else echo "  FAIL  http://$h/login -> ${out:-000}"; fail=1; fi
+    done
+    return $fail
+}
 # Caddy forwards correctly when IOMS answers THROUGH Caddy exactly what nginx
 # answers DIRECTLY -- whatever the app's state (before the data import the
 # app may well answer 500; that is the app, not the proxy).
@@ -88,6 +112,7 @@ ioms_check() {
 if [[ $MODE == undo ]]; then
     [[ -f "$UNDO/Caddyfile" ]] || die "No Caddyfile backup in $UNDO"
     cp -a "$UNDO/Caddyfile" "$CADDYFILE"
+    [[ -f "$UNDO/ioms.caddy" ]] && cp -a "$UNDO/ioms.caddy" "$SNIPPET"
     caddy validate --config "$CADDYFILE" --adapter caddyfile >/dev/null 2>&1 || die "The backup does not validate?! Left in place: $CADDYFILE"
     reload_caddy; echo "Restored $CADDYFILE from $UNDO and reloaded Caddy."; exit 0
 fi
@@ -137,6 +162,45 @@ diff -u "$CADDYFILE" "$TMP/Caddyfile" | tail -n +3 | sed 's/^/    /' || true
 
 if [[ $MODE == check ]]; then
     echo; echo "Read-only check complete. Nothing was changed."
+    exit 0
+fi
+
+# ------------------------------------------------------------------ redirect
+if [[ $MODE == redirect ]]; then
+    grep -qF "$IMPORT_LINE" "$CADDYFILE" || die "IOMS is not published through Caddy yet: run --apply first."
+    log "http -> https for the IOMS names"
+    echo "  before:"; redirect_check || true
+    restore_both() { cp -a "$BK/Caddyfile" "$CADDYFILE"; cp -a "$BK/ioms.caddy" "$SNIPPET"; reload_caddy || true; }
+    if grep -qE '^http://' "$SNIPPET"; then
+        echo "  $SNIPPET already has its http site."
+    else
+        BK="/root/caddy-backup-$STAMP"; install -d -m 700 "$BK"
+        cp -a "$CADDYFILE" "$BK/Caddyfile"; cp -a "$SNIPPET" "$BK/ioms.caddy"
+        # Every site that is NOT IOMS must answer exactly as before.
+        hosts_of "$CADDYFILE" | grep -vxF -f <(ioms_hosts | tr ' ' '\n' | sed '/^$/d') > "$BK/hosts-before.txt" || true
+        snapshot "$BK/hosts-before.txt" > "$BK/before.txt"
+        redirect_block >> "$SNIPPET"
+        echo "  adds to $SNIPPET:"; redirect_block | sed 's/^/    | /'
+        if ! caddy validate --config "$CADDYFILE" --adapter caddyfile >"$TMP/validate.log" 2>&1; then
+            sed 's/^/    /' "$TMP/validate.log" | tail -8
+            cp -a "$BK/ioms.caddy" "$SNIPPET"; die "caddy validate rejects it. $SNIPPET restored; nothing was reloaded."
+        fi
+        reload_caddy || { restore_both; die "Caddy refused the reload; restored. Nothing remains changed."; }
+        sleep 2
+        snapshot "$BK/hosts-before.txt" > "$BK/after.txt"
+        if ! diff -q "$BK/before.txt" "$BK/after.txt" >/dev/null; then
+            diff "$BK/before.txt" "$BK/after.txt" | sed 's/^/    /' || true
+            restore_both; die "An EXISTING site answered differently after the reload. Restored and reloaded; nothing remains changed."
+        fi
+        echo "  ok    every other site answers exactly as before ($(wc -l < "$BK/before.txt") checks)"
+        echo "  undo: sudo bash $0 --undo $BK"
+    fi
+    log "IOMS through Caddy"
+    if ! redirect_check || ! ioms_check; then
+        [[ -n "${BK:-}" ]] && { restore_both; die "IOMS did not answer as expected; restored and reloaded. Nothing remains changed."; }
+        die "IOMS does not answer as expected."
+    fi
+    echo "Done."
     exit 0
 fi
 

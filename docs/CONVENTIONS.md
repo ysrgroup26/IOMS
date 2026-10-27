@@ -3742,3 +3742,18 @@ key each); `app:deploy` prints it (`frontend signature ...`) and fails before `u
 missing. CI's `check-build-fresh.sh` rejects a frontend change committed without its build. Vite's
 output is not byte-reproducible (minified names vary run to run), so that check compares git history,
 not bytes.
+
+## Known Pitfall (Tencent migration, 2026-10-27): a check must ask what it means, not match a name
+
+Three `migrate.sh verify` results on Tencent, three different truths:
+- **`FAIL php8.3-fpm` while systemd said running.** `pgrep -f php8.3-fpm || pgrep -x php`: PHP-FPM's
+  processes are titled `php-fpm: master process (...)`, so neither pattern matches a healthy FPM.
+  Ask the init system (`service_running` in `deploy/tencent/lib.sh`).
+- **`FAIL queue worker` during the migration hold.** The check knew nothing of the hold, so the safety
+  measure read as a fault, and a real fault (a worker started while held) would have read as `ok`.
+  Under the hold, `held` is the pass and RUNNING is the failure.
+- **`http -> https (200)`, which was real.** Caddy adds automatic HTTP→HTTPS redirects only while
+  `auto_https` is on. The Hermes Caddyfile turns it off and has a catch-all HTTP site, which then
+  answered `http://iomsuite.com` with its own content. Name the redirect explicitly
+  (`http://<name> { redir ... }`); a host-specific site beats any catch-all. Reproduced with a real
+  Caddy in all four shapes (auto on or off, catch-all present or absent).

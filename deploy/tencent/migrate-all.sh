@@ -65,22 +65,16 @@ mig() { bash "$here/migrate.sh" "$@"; }
 set_env() { printf '%s\n' "$2" | mig env-set "$1" >/dev/null; }   # value on stdin, never argv
 HOLD="$STATE/hold"
 
-hold_on() {
-    [[ -f "$HOLD" ]] && return 0
-    sed -i -E 's|^([^#].*schedule:run.*)$|# held by migrate-all until go-live: \1|' /etc/cron.d/ioms
-    supervisorctl stop ioms-worker >/dev/null 2>&1 || true
-    date -Is > "$HOLD"
-}
+# The hold itself lives in hold.sh: durable across supervisor restarts and
+# reboots (autostart=false), idempotent, and re-asserted every time.
+hold_on() { bash "$here/hold.sh" on >/dev/null || die "The migration hold could not be completed: sudo bash $here/hold.sh status"; }
 
 # ================================================================== go-live
 if [[ $CMD == go-live ]]; then
     log "Go-live: releasing the scheduler and the queue worker"
     [[ -f "$HOLD" ]] || { echo "  nothing is held."; exit 0; }
     if [[ -t 0 ]]; then read -r -p "  DNS for $DOMAIN already points at this server and you approved the cutover? Type GO-LIVE: " ok; [[ "$ok" == GO-LIVE ]] || die "Not released."; fi
-    sed -i -E 's|^# held by migrate-all until go-live: ||' /etc/cron.d/ioms
-    supervisorctl start ioms-worker >/dev/null 2>&1 || true
-    rm -f "$HOLD"
-    echo "  scheduler and worker running. Watch: sudo ioms-ops logs app 100"
+    bash "$here/hold.sh" release
     exit 0
 fi
 
@@ -160,9 +154,7 @@ elif [[ "$tables" -gt 0 && $REPLACE -eq 0 ]]; then
 else
     if [[ "$tables" -gt 0 ]]; then mig import --from "$WORK/export" --replace; else mig import --from "$WORK/export"; fi
     echo "$SUM" > "$STATE/imported"
-    hold_on   # the import's deploy step restarts the worker; keep it held
-    sed -i -E 's|^([^#].*schedule:run.*)$|# held by migrate-all until go-live: \1|' /etc/cron.d/ioms
-    supervisorctl stop ioms-worker >/dev/null 2>&1 || true
+    hold_on   # re-assert after the import (its deploy step must not have released anything)
 fi
 gate data PASS "every table's row count equals the source"
 gate storage PASS "$(tar -tzf "$WORK/export/storage-app.tar.gz" | grep -vc '/$') files"

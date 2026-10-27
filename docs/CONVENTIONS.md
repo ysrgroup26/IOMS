@@ -3754,6 +3754,8 @@ Three `migrate.sh verify` results on Tencent, three different truths:
   Under the hold, `held` is the pass and RUNNING is the failure.
 - **`http -> https (200)`, which was real.** Caddy adds automatic HTTP→HTTPS redirects only while
   `auto_https` is on. The Hermes Caddyfile turns it off and has a catch-all HTTP site, which then
-  answered `http://iomsuite.com` with its own content. Name the redirect explicitly
+  answered `http://iomsuite.com` with its own content (and a hold that is only a marker file is not a
+  hold: supervisor's `autostart=true` restarted the worker on every supervisor restart or reboot --
+  `hold.sh` makes it durable). Name the redirect explicitly
   (`http://<name> { redir ... }`); a host-specific site beats any catch-all. Reproduced with a real
   Caddy in all four shapes (auto on or off, catch-all present or absent).

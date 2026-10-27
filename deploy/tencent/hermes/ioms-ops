@@ -202,6 +202,8 @@ ARTISAN_ALLOWED=(about migrate:status route:list schedule:list schedule:run queu
 do_artisan() {
     local c="${1:-}"; shift || true
     [[ " ${ARTISAN_ALLOWED[*]} " == *" $c "* ]] || refuse "artisan '$c' is not on the list (ioms-ops policy)"
+    # The migration hold covers the scheduler too: schedule:run by hand would run it.
+    [[ "$c" == schedule:run ]] && held && refuse "the scheduler is held for the migration (migrate-all.sh go-live releases it)"
     local a
     for a in "$@"; do
         [[ "$a" =~ ^[A-Za-z0-9@._:=/-]{1,120}$ ]] || refuse "argument '$a' has characters outside [A-Za-z0-9@._:=/-]"

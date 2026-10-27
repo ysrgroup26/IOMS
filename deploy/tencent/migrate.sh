@@ -195,7 +195,10 @@ phase_import() {
     log "Migrating schema to this release"
     as_app "./deploy.sh"
     supervisorctl reread >/dev/null 2>&1 && supervisorctl update >/dev/null 2>&1 || true
-    supervisorctl restart ioms-worker >/dev/null 2>&1 || true
+    # Under the migration hold the worker stays stopped: imported rows include
+    # production's queued jobs, and they must not run before the cutover.
+    if [[ -f /var/lib/ioms-migrate/hold ]]; then echo "  worker held for the migration -- not restarted"
+    else supervisorctl restart ioms-worker >/dev/null 2>&1 || true; fi
     note "import: $from ok ($files files)"
 }
 
@@ -239,13 +242,12 @@ phase_verify() {
     # migrate-all.sh holds the worker and the scheduler until go-live, so a copy of
     # production cannot email customers. Under the hold, HELD is the pass and a
     # running worker or an active schedule line is the failure.
-    local hold=/var/lib/ioms-migrate/hold worker
+    local worker
     worker="$(supervisorctl status ioms-worker 2>/dev/null || true)"
-    if [[ -f "$hold" ]]; then
-        if grep -q RUNNING <<<"$worker"; then echo "  FAIL  queue worker is RUNNING during the migration hold"; fail=1
-        else echo "  held  queue worker (migration hold since $(cat "$hold"); released by migrate-all.sh go-live)"; fi
-        if grep -qE '^[^#].*schedule:run' /etc/cron.d/ioms 2>/dev/null; then echo "  FAIL  scheduler is active during the migration hold"; fail=1
-        else echo "  held  scheduler (same hold)"; fi
+    if [[ -f /var/lib/ioms-migrate/hold ]]; then
+        # hold.sh status fails unless the worker is stopped AND cannot restart
+        # itself, and the scheduler's cron line is commented out.
+        bash "$here/hold.sh" status | sed 's/^/  /' || fail=1
     elif grep -q RUNNING <<<"$worker"; then echo "  ok    queue worker"
     else echo "  FAIL  queue worker"; fail=1; fi
     artisan "schedule:list" | sed 's/^/  /'

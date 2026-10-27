@@ -481,6 +481,21 @@ Approval is needed for **one action**: changing the `@` and `www` records in Clo
 **T-1 day:** run `export-cpanel.sh` and `import --replace` once more as a rehearsal, then `verify`.
 Lower nothing: proxied records switch immediately at Cloudflare's edge, so TTL isn't a factor.
 
+> [!important] The hold is `deploy/tencent/hold.sh` (2026-10-27)
+> A marker file was not a hold: the worker's supervisor program has `autostart=true`, so a supervisor
+> restart or a reboot started it again (reproduced), and `migrate.sh import` restarted it itself.
+> `hold.sh on` sets `autostart=false`/`autorestart=false` (original kept in
+> `/var/lib/ioms-migrate/ioms-worker.conf.orig`), stops the worker, comments out `schedule:run`, and is
+> idempotent; `hold.sh status` exits 0 only when all of that holds and shows the queued job counts that
+> will run at release; `hold.sh release` (called by `migrate-all.sh go-live`) restores both. While held,
+> `migrate.sh import` does not restart the worker and `ioms-ops` refuses `artisan schedule:run`.
+>
+> **One-command path (current):** cPanel `bash ~/ioms-handoff.sh --final` (maintenance first, prints a
+> transfer code) → Tencent `sudo bash /opt/ioms-kit/deploy/tencent/migrate-all.sh --replace --skip-mail`
+> (paste the code; backup, import, per-table parity, hold re-asserted, verify) → DNS (below) →
+> `migrate-all.sh go-live` only when the queued jobs have been reviewed. The manual steps below are the
+> fallback.
+
 **T-0, a quiet window (e.g. 22:00 WIB):**
 
 1. IDCloudHost: `php artisan down --retry=60`. Writes stop; **nothing is deleted.**

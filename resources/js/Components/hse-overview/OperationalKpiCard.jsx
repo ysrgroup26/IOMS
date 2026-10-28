@@ -41,8 +41,8 @@ export default function OperationalKpiCard({ icon: Icon, label, value, detail = 
     const body = (
         <>
             <div className="flex items-start justify-between gap-2">
-                <span className={cn('inline-flex h-11 w-11 items-center justify-center rounded-2xl ring-1', tone.icon)}>
-                    <Icon className="h-[21px] w-[21px]" />
+                <span className={cn('h-9 w-9', tone.icon)}>
+                    <Icon className="h-[18px] w-[18px]" strokeWidth={1.9} />
                 </span>
 
                 {href && (
@@ -52,7 +52,7 @@ export default function OperationalKpiCard({ icon: Icon, label, value, detail = 
                 )}
             </div>
 
-            <p className={cn('mt-3 text-[30px] font-bold leading-none tracking-tight', tone.value)}>{value}</p>
+            <p className={cn('type-metric mt-2.5 text-[24px] leading-none', tone.value)}>{value}</p>
 
             <p className="mt-2 text-[13px] font-semibold leading-tight text-graphite-800 dark:text-slate-100">{label}</p>
 

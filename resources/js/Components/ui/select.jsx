@@ -24,7 +24,7 @@ const SelectTrigger = React.forwardRef(({ className, children, ...props }, ref) 
         // v1.11.12: same fix as Input -- h-9(36px) uniform (was h-8
         // shrinking to lg:h-7/28px), px-3(12px) horizontal padding.
         className={cn(
-            'flex h-10 w-full items-center justify-between rounded-lg border border-input bg-white/90 px-3.5 py-2 text-[13px] text-navy-900 shadow-[inset_0_1px_2px_0_rgba(30,64,120,0.04)] outline-none transition-[border-color,box-shadow] duration-fast ease-out-soft hover:border-steel-300 focus-visible:border-brand-400 focus-visible:ring-4 focus-visible:ring-brand-500/15 data-[state=open]:border-brand-400 data-[state=open]:ring-4 data-[state=open]:ring-brand-500/15 dark:border-slate-700 dark:bg-slate-900 dark:text-slate-100 dark:hover:border-slate-600',
+            'flex h-9 w-full items-center justify-between rounded-lg border border-input bg-white/90 px-3 py-1.5 text-[13px] text-navy-900 shadow-[inset_0_1px_2px_0_rgba(30,64,120,0.04)] outline-none transition-[border-color,box-shadow] duration-fast ease-out-soft hover:border-steel-300 focus-visible:border-brand-400 focus-visible:ring-4 focus-visible:ring-brand-500/15 data-[state=open]:border-brand-400 data-[state=open]:ring-4 data-[state=open]:ring-brand-500/15 dark:border-slate-700 dark:bg-slate-900 dark:text-slate-100 dark:hover:border-slate-600',
             'placeholder:text-graphite-400',
             'disabled:cursor-not-allowed disabled:opacity-50',
             className

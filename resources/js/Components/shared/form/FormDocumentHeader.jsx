@@ -62,7 +62,7 @@ export default function FormDocumentHeader({
                 // product's headers -- a cool wash and a lit top edge --
                 // so this reads as IOMS furniture rather than as a
                 // one-off panel invented for forms.
-                'surface relative overflow-hidden bg-gradient-to-br from-sky-50/90 via-white/85 to-white/80',
+                'surface relative overflow-hidden',
                 className
             )}
         >

@@ -54,7 +54,7 @@ export default function ModuleTabNav({ tabs }) {
     const { url } = usePage();
 
     return (
-        <div className="chrome mb-5 flex w-fit max-w-full gap-1 overflow-x-auto rounded-2xl p-1 shadow-card">
+        <div className="chrome mb-4 flex w-fit max-w-full gap-1 overflow-x-auto rounded-2xl p-1 shadow-card">
             {tabs.map((tab) => {
                 let active = false;
                 try {
@@ -67,7 +67,7 @@ export default function ModuleTabNav({ tabs }) {
                         key={tab.href}
                         href={route(tab.href)}
                         className={cn(
-                            'group flex shrink-0 flex-col items-start justify-center whitespace-nowrap rounded-xl px-3.5 py-2 outline-none transition-[background-color,box-shadow] duration-base ease-out-soft focus-visible:ring-4 focus-visible:ring-brand-500/15',
+                            'group flex shrink-0 flex-col items-start justify-center whitespace-nowrap rounded-xl px-3 py-1.5 outline-none transition-[background-color,box-shadow] duration-base ease-out-soft focus-visible:ring-4 focus-visible:ring-brand-500/15',
                             active
                                 ? 'bg-white shadow-[0_1px_2px_0_rgba(30,64,120,0.08),0_6px_16px_-10px_rgba(36,112,221,0.45)] ring-1 ring-brand-100'
                                 : 'hover:bg-white/60'

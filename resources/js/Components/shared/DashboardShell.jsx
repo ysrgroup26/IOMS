@@ -60,10 +60,10 @@ export default function DashboardShell({ title, subtitle, actions, children }) {
 
     return (
         <>
-            <div className="mb-5 flex flex-col items-start gap-3 pt-1 sm:flex-row sm:items-end sm:justify-between">
+            <div className="mb-4 flex flex-col items-start gap-3 pt-1 sm:flex-row sm:items-end sm:justify-between">
                 <div className="min-w-0">
-                    <h1 className="type-page-title text-[26px] leading-tight text-navy-900 lg:text-[30px]">{title}</h1>
-                    {subtitle && <p className="mt-1 text-[14px] leading-snug text-slate-500">{subtitle}</p>}
+                    <h1 className="type-page-title text-[22px] leading-tight text-navy-900 lg:text-[24px]">{title}</h1>
+                    {subtitle && <p className="mt-0.5 text-[13px] leading-snug text-slate-600">{subtitle}</p>}
                 </div>
                 {actions && <div className="flex w-full flex-wrap items-center gap-2 sm:w-auto">{actions}</div>}
             </div>

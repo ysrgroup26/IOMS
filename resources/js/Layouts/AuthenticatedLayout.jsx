@@ -571,7 +571,7 @@ function AuthenticatedShell({ children }) {
                     // disabled slate-300 < idle slate-600 < hover white/70 <
                     // active a raised white pill + brand ink + bold weight +
                     // aria-current, so the active row never depends on hue.
-                    'fixed inset-y-0 left-0 z-50 flex w-[264px] transform flex-col p-3 transition-transform duration-slow ease-out-soft lg:translate-x-0',
+                    'fixed inset-y-0 left-0 z-50 flex w-[248px] transform flex-col p-2.5 transition-transform duration-slow ease-out-soft lg:translate-x-0',
                     sidebarOpen ? 'translate-x-0' : '-translate-x-full'
                 )}
             >
@@ -601,7 +601,7 @@ function AuthenticatedShell({ children }) {
                     >
                         <div className="min-w-0 flex-1 overflow-visible">
                             <BrandWordmark className="h-8 w-auto max-w-full object-contain" tone="light" />
-                            <p className="mt-1 text-[10px] font-semibold uppercase leading-snug tracking-[0.08em] text-slate-400">{company?.subtitle || 'Industrial Operations Platform'}</p>
+                            <p className="mt-1 truncate text-[9.5px] font-semibold uppercase leading-snug tracking-[0.05em] text-slate-500">{company?.subtitle || 'Industrial Operations Platform'}</p>
                         </div>
                     </button>
                     <button
@@ -614,7 +614,7 @@ function AuthenticatedShell({ children }) {
                     </button>
                 </div>
 
-                <nav ref={navScrollRef} aria-label="Workspace" className="flex-1 space-y-1 overflow-y-auto px-3 pb-3 pt-1">
+                <nav ref={navScrollRef} aria-label="Workspace" className="flex-1 space-y-0.5 overflow-y-auto px-2.5 pb-3 pt-1">
                     {visibleNav.map((item, index) => {
                         const Icon = item.icon;
                         // Hairline between "where am I" and "what do I do".
@@ -630,7 +630,7 @@ function AuthenticatedShell({ children }) {
                             return (
                                 <div
                                     key={item.name}
-                                    className="flex h-10 cursor-not-allowed items-center gap-3 rounded-xl px-3 text-[13px] font-medium text-slate-300"
+                                    className="flex h-9 cursor-not-allowed items-center gap-2.5 rounded-xl px-3 text-[13px] font-medium text-slate-300"
                                     title={`${item.name} -- coming soon`}
                                     // The lock glyph is the only thing saying
                                     // "not yet", and it is decorative -- so the
@@ -678,14 +678,14 @@ function AuthenticatedShell({ children }) {
                                         onClick={() => toggleMenu(item.name)}
                                         aria-expanded={isExpanded}
                                         className={cn(
-                                            'flex h-10 w-full items-center gap-3 rounded-xl px-3 text-[13px] font-medium outline-none transition-colors duration-fast ease-out-soft hover:bg-white/70 hover:text-navy-900 focus-visible:ring-4 focus-visible:ring-brand-500/15',
+                                            'flex h-9 w-full items-center gap-2.5 rounded-xl px-3 text-[13px] font-medium outline-none transition-colors duration-fast ease-out-soft hover:bg-white/70 hover:text-navy-900 focus-visible:ring-4 focus-visible:ring-brand-500/15',
                                             // A collapsed group holding the active page keeps a
                                             // trace of it, so closing a section never hides where
                                             // you are entirely.
                                             containsActiveChild ? 'font-semibold text-navy-900' : 'text-slate-600'
                                         )}
                                     >
-                                        <Icon className={cn('h-[18px] w-[18px] shrink-0', containsActiveChild ? 'text-brand-600' : 'text-slate-400')} strokeWidth={1.75} />
+                                        <Icon className={cn('h-[17px] w-[17px] shrink-0', containsActiveChild ? 'text-brand-600' : 'text-slate-400')} strokeWidth={1.75} />
                                         <span className="flex-1 truncate text-left">{item.name}</span>
                                         <ChevronDown className={cn('h-3.5 w-3.5 shrink-0 text-slate-400 transition-transform duration-base ease-out-soft', isExpanded && 'rotate-180')} />
                                     </button>
@@ -726,7 +726,7 @@ function AuthenticatedShell({ children }) {
                                                             // subordinate WITHOUT shrinking below a
                                                             // comfortable scanning size.
                                                             className={cn(
-                                                                'flex h-9 items-center gap-2 rounded-lg px-2.5 text-[13px] leading-tight outline-none transition-colors duration-fast ease-out-soft focus-visible:ring-4 focus-visible:ring-brand-500/15',
+                                                                'flex h-8 items-center gap-2 rounded-lg px-2.5 text-[13px] leading-tight outline-none transition-colors duration-fast ease-out-soft focus-visible:ring-4 focus-visible:ring-brand-500/15',
                                                                 childActive ? 'bg-white font-semibold text-brand-700 shadow-[0_1px_2px_0_rgba(30,64,120,0.08)] ring-1 ring-brand-100' : 'font-medium text-slate-500 hover:bg-white/70 hover:text-navy-900'
                                                             )}
                                                         >
@@ -751,7 +751,7 @@ function AuthenticatedShell({ children }) {
                                 className={cn(
                                     // v1.11.13: bumped text-xs(12px) -> text-[13px], matching
                                     // this pass's "Main menu text: 13px/500" exactly.
-                                    'relative flex h-10 items-center gap-3 rounded-xl px-3 text-[13px] font-medium outline-none transition-[background-color,color,box-shadow] duration-fast ease-out-soft focus-visible:ring-4 focus-visible:ring-brand-500/15',
+                                    'relative flex h-9 items-center gap-2.5 rounded-xl px-3 text-[13px] font-medium outline-none transition-[background-color,color,box-shadow] duration-fast ease-out-soft focus-visible:ring-4 focus-visible:ring-brand-500/15',
                                     // v2.71.0: the hairline that separates "where am I"
                                     // (Dashboard / My Work / Overview) from "what do I do".
                                     dividerAfter && 'mb-2 after:absolute after:inset-x-0 after:-bottom-1.5 after:h-px after:bg-steel-100/80',
@@ -769,7 +769,7 @@ function AuthenticatedShell({ children }) {
                                         : 'text-slate-600 hover:bg-white/70 hover:text-navy-900'
                                 )}
                             >
-                                <Icon className={cn('h-[18px] w-[18px] shrink-0', active ? 'text-brand-600' : 'text-slate-400')} strokeWidth={1.75} />
+                                <Icon className={cn('h-[17px] w-[17px] shrink-0', active ? 'text-brand-600' : 'text-slate-400')} strokeWidth={1.75} />
                                 <span className="truncate">{item.name}</span>
                             </Link>
                         );
@@ -790,8 +790,8 @@ function AuthenticatedShell({ children }) {
             <AboutDialog open={aboutOpen} onOpenChange={setAboutOpen} />
 
             {/* Main content */}
-            {/* Must match the sidebar's own w-[264px] above -- a fixed sidebar needs an equal content offset or it overlaps. */}
-            <div className="lg:pl-[264px]">
+            {/* Must match the sidebar's own w-[248px] above -- a fixed sidebar needs an equal content offset or it overlaps. */}
+            <div className="lg:pl-[248px]">
                 <TopBar
                     onOpenSidebar={() => setSidebarOpen(true)}
                     sidebarOpen={sidebarOpen}
@@ -855,7 +855,7 @@ function AuthenticatedShell({ children }) {
 // who cannot see the colour.
 function pillClass(lit, kind = 'workspace') {
     return cn(
-        'h-9 shrink-0 items-center gap-1.5 whitespace-nowrap rounded-full px-3.5 text-[13px] outline-none transition-[background-color,color,box-shadow] duration-base ease-out-soft focus-visible:ring-4 focus-visible:ring-brand-500/20',
+        'h-8 shrink-0 items-center gap-1.5 whitespace-nowrap rounded-full px-3 text-[13px] outline-none transition-[background-color,color,box-shadow] duration-base ease-out-soft focus-visible:ring-4 focus-visible:ring-brand-500/20',
         lit
             ? kind === 'admin'
                 ? 'bg-gradient-to-b from-slate-600 to-navy-800 font-semibold text-white shadow-[0_6px_16px_-8px_rgba(15,39,71,0.7),inset_0_1px_0_0_rgba(255,255,255,0.18)]'
@@ -922,7 +922,7 @@ function TopBar({ onOpenSidebar, sidebarOpen, isDepartmentUser, departments, act
                 // navigation group, search, the round utility controls and the
                 // profile, each on the frosted chrome material, over a soft
                 // fade of the canvas so scrolled content never fights them.
-                'sticky top-0 z-30 flex h-[72px] items-center gap-2 bg-gradient-to-b from-[#EEF5FC] via-[#EEF5FC]/85 to-transparent px-3 sm:gap-2.5 sm:px-5 lg:px-6',
+                'sticky top-0 z-30 flex h-16 items-center gap-2 bg-gradient-to-b from-[#EEF5FC] via-[#EEF5FC]/85 to-transparent px-3 sm:gap-2.5 sm:px-5 lg:px-6',
                 // v2.133.0 -- ADMIN SPACE LOOKS LIKE A DIFFERENT PLACE. The
                 // bar was identical in both contexts and only one small
                 // button changed, so somebody configuring the account could
@@ -1192,10 +1192,10 @@ function TopBar({ onOpenSidebar, sidebarOpen, isDepartmentUser, departments, act
             {/* Profile menu: identity + About + Logout */}
             <DropdownMenu>
                 <DropdownMenuTrigger
-                    className="chrome flex h-11 min-w-0 max-w-[220px] shrink-0 items-center gap-2.5 rounded-full py-1 pl-1 pr-1 outline-none transition-colors duration-fast hover:bg-white focus-visible:ring-4 focus-visible:ring-brand-500/20 2xl:pr-3"
+                    className="chrome flex h-10 min-w-0 max-w-[220px] shrink-0 items-center gap-2.5 rounded-full py-1 pl-1 pr-1 outline-none transition-colors duration-fast hover:bg-white focus-visible:ring-4 focus-visible:ring-brand-500/20 2xl:pr-3"
                     aria-label={`Account menu for ${auth?.user?.name}`}
                 >
-                    <div className="icon-tile icon-tile-blue h-9 w-9 rounded-full text-[13px] font-bold">
+                    <div className="icon-tile icon-tile-blue h-8 w-8 text-[12px] font-bold">
                         {initials(auth?.user?.name)}
                     </div>
                     <span className="hidden min-w-0 flex-col items-start 2xl:flex">
@@ -1820,7 +1820,7 @@ function Breadcrumb({ activeItem, activeChild }) {
     if (!activeItem?.children?.length || !activeChild) return null;
 
     return (
-        <div className="flex items-center gap-1.5 px-4 pt-1 text-xs text-slate-400 sm:px-5 lg:px-7">
+        <div className="flex items-center gap-1.5 px-4 pt-1 text-xs text-slate-500 sm:px-5 lg:px-7">
             <span>{activeItem.name}</span>
             <ChevronRight className="h-3 w-3 shrink-0" />
             <span className="font-medium text-graphite-600 dark:text-slate-300">{activeChild.name}</span>

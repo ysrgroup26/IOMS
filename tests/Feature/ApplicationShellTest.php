@@ -55,7 +55,7 @@ class ApplicationShellTest extends TestCase
         // v2.136.0 (ADR 079): the basis is 220px, 340px from 2xl, and the
         // field is a 44px frosted pill; the rule is unchanged.
         $this->assertStringContainsString('w-[220px] min-w-0', $search, 'The width must be a basis it may shrink FROM, not a floor.');
-        $this->assertStringContainsString('h-11 w-full', $search, 'The input must fill whatever width its wrapper settles on.');
+        $this->assertStringContainsString('h-9 w-full', $search, 'The input must fill whatever width its wrapper settles on.');
     }
 
     /**
@@ -97,7 +97,7 @@ class ApplicationShellTest extends TestCase
         // rule is asserted where it now lives: in each of those, once.
         $css = $this->source('resources/css/app.css');
         $this->assertMatchesRegularExpression('/\.chrome-icon \{[^}]*shrink-0/s', $css, 'The round header controls may shrink again.');
-        $this->assertMatchesRegularExpression("/function pillClass\\([^)]*\\) \\{.*?'h-9 shrink-0/s", $layout, 'The navigation pills may shrink again.');
+        $this->assertMatchesRegularExpression("/function pillClass\\([^)]*\\) \\{.*?'h-8 shrink-0/s", $layout, 'The navigation pills may shrink again.');
 
         foreach ([
             'className="chrome-icon lg:hidden"' => 'hamburger',

@@ -125,14 +125,14 @@ export default function PageHeader({ title, subtitle, icon: Icon, kind, children
         // light, which is what separates this from a generic admin header at a
         // glance. Still overwhelmingly light -- this is tier three of the
         // hierarchy, not a second hero.
-        <div className="relative mb-5 flex flex-col items-start gap-3 pt-1 sm:flex-row sm:flex-wrap sm:items-end sm:justify-between">
+        <div className="relative mb-4 flex flex-col items-start gap-3 pt-1 sm:flex-row sm:flex-wrap sm:items-end sm:justify-between">
             <div className="flex min-w-0 items-start gap-3">
                 {/* Vertical navy rule: the smallest possible mark that ties a
                     module page back to the same brand ink as the rail and the
                     Dashboard, without tinting the whole panel. */}
                 {Icon ? (
-                    <span className="icon-tile icon-tile-blue mt-0.5 h-11 w-11 rounded-2xl">
-                        <Icon className="h-5 w-5" strokeWidth={1.75} />
+                    <span className="icon-tile icon-tile-blue mt-0.5 h-10 w-10">
+                        <Icon className="h-[19px] w-[19px]" strokeWidth={1.8} />
                     </span>
                 ) : null}
                 <div className="min-w-0">
@@ -144,7 +144,7 @@ export default function PageHeader({ title, subtitle, icon: Icon, kind, children
                         type on the screen that is allowed to be loud, and
                         semibold Inter made every page look like a section
                         of some larger page. See resources/css/app.css. */}
-                    <h1 className="type-page-title flex flex-wrap items-center gap-2 text-[26px] leading-tight text-navy-900 lg:text-[30px]">
+                    <h1 className="type-page-title flex flex-wrap items-center gap-2 text-[22px] leading-tight text-navy-900 lg:text-[24px]">
                         {title}
                         {/* Beside the title, not above it: the kind qualifies
                             this page, and a chip on its own line reads as an
@@ -155,7 +155,7 @@ export default function PageHeader({ title, subtitle, icon: Icon, kind, children
                             </span>
                         )}
                     </h1>
-                    {subtitle && <p className="mt-1 text-[14px] leading-snug text-slate-500">{subtitle}</p>}
+                    {subtitle && <p className="mt-0.5 text-[13px] leading-snug text-slate-600">{subtitle}</p>}
                 </div>
             </div>
             {children && <div className="flex w-full flex-wrap items-center gap-2 sm:w-auto">{children}</div>}

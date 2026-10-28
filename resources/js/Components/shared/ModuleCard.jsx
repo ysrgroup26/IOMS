@@ -44,11 +44,11 @@ import { cn } from '@/lib/utils';
 // v2.136.0 (ADR 079): a module card is a frosted bubble with a gradient
 // icon tile; the accent tints only the tile and a faint corner wash.
 const ACCENTS = {
-    brand: { chip: 'icon-tile icon-tile-blue', surface: 'from-sky-50/90' },
-    green: { chip: 'icon-tile icon-tile-green', surface: 'from-emerald-50/90' },
-    amber: { chip: 'icon-tile icon-tile-amber', surface: 'from-amber-50/90' },
-    red: { chip: 'icon-tile icon-tile-rose', surface: 'from-rose-50/90' },
-    purple: { chip: 'icon-tile icon-tile-violet', surface: 'from-violet-50/90' },
+    brand: { chip: 'icon-tile icon-tile-blue' },
+    green: { chip: 'icon-tile icon-tile-green' },
+    amber: { chip: 'icon-tile icon-tile-amber' },
+    red: { chip: 'icon-tile icon-tile-rose' },
+    purple: { chip: 'icon-tile icon-tile-violet' },
 };
 
 export default function ModuleCard({ icon: Icon, title, description, href, status = 'active', queryParams, size = 'default', accent }) {
@@ -64,7 +64,7 @@ export default function ModuleCard({ icon: Icon, title, description, href, statu
         <span
             className={cn(
                 'flex shrink-0 items-center justify-center',
-                isLarge ? 'h-12 w-12 rounded-2xl' : 'h-10 w-10',
+                isLarge ? 'h-11 w-11' : 'h-9 w-9',
                 tone.chip
             )}
         >
@@ -89,7 +89,7 @@ export default function ModuleCard({ icon: Icon, title, description, href, statu
                 {status === 'locked' && <Badge variant="destructive" className="shrink-0">Not in plan</Badge>}
                 {isActive && <ArrowRight className="h-3.5 w-3.5 shrink-0 text-graphite-300 dark:text-slate-600" />}
             </div>
-            <p className="mt-3 text-[14px] font-bold leading-snug text-navy-900">{title}</p>
+            <p className="mt-2.5 text-[13px] font-bold leading-snug text-navy-900">{title}</p>
             {description && <p className="mt-0.5 line-clamp-2 text-xs leading-relaxed text-slate-500">{description}</p>}
         </>
     );
@@ -98,9 +98,8 @@ export default function ModuleCard({ icon: Icon, title, description, href, statu
     // get a real surface and hover lift -- they should feel like doors, not
     // list rows.
     const className = cn(
-        'surface group block h-full bg-gradient-to-br via-white/85 to-white/80 transition-[box-shadow,transform] duration-base ease-out-soft',
-        isLarge ? 'p-5' : 'p-4',
-        tone.surface,
+        'surface group block h-full transition-[box-shadow,transform] duration-base ease-out-soft',
+        isLarge ? 'p-4' : 'p-3.5',
         isActive ? 'cursor-pointer hover:-translate-y-0.5 hover:shadow-card-hover' : 'cursor-not-allowed opacity-70'
     );
 

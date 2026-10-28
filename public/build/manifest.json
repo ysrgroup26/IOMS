@@ -24,18 +24,18 @@
     "src": "node_modules/@fontsource-variable/manrope/files/manrope-vietnamese-wght-normal.woff2"
   },
   "resources/css/app.css": {
-    "file": "assets/app-BxYnomXS.css",
+    "file": "assets/app-DkUXVB0r.css",
     "src": "resources/css/app.css",
     "isEntry": true
   },
   "resources/js/app.jsx": {
-    "file": "assets/app-wO6Mk5-g.js",
+    "file": "assets/app-efjRIumh.js",
     "name": "app",
     "src": "resources/js/app.jsx",
     "isEntry": true,
     "css": [
       "assets/app-DH1eaa6q.css",
-      "assets/app-BxYnomXS.css"
+      "assets/app-DkUXVB0r.css"
     ],
     "assets": [
       "assets/manrope-cyrillic-ext-wght-normal-C8S-KRRz.woff2",

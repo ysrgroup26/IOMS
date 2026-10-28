@@ -30,15 +30,15 @@ export default function KpiTile({ icon: Icon, value, label, reading, accent = 'b
     const body = (
         <>
             <div className="flex items-start justify-between gap-2">
-                <span className={cn('inline-flex h-9 w-9 items-center justify-center rounded-xl ring-1', tone.icon)}>
-                    <Icon className="h-[18px] w-[18px]" />
+                <span className={cn('h-9 w-9', tone.icon)}>
+                    <Icon className="h-[18px] w-[18px]" strokeWidth={1.9} />
                 </span>
                 {href && (
                     <ArrowUpRight className="h-3.5 w-3.5 shrink-0 text-graphite-300 transition-colors group-hover:text-graphite-500 dark:text-slate-600" />
                 )}
             </div>
 
-            <p className={cn('mt-3 text-[26px] font-bold leading-none tracking-tight', tone.value)}>{value}</p>
+            <p className={cn('type-metric mt-2.5 text-[22px] leading-none', tone.value)}>{value}</p>
 
             <p className="mt-1.5 text-[12px] font-semibold leading-tight text-graphite-700 dark:text-slate-200">{label}</p>
 

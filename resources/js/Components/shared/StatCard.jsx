@@ -77,28 +77,28 @@ export default function StatCard({ icon: Icon, value, label, hint, href, accent,
     // The surface carries only a faint wash of the same hue; the old 3px
     // coloured edge is gone because the tile already carries the semantic.
     const accentClasses = {
-        red: { tile: 'icon-tile-rose', wash: 'from-rose-50/90', spark: 'danger' },
-        amber: { tile: 'icon-tile-amber', wash: 'from-amber-50/90', spark: 'warning' },
-        green: { tile: 'icon-tile-green', wash: 'from-emerald-50/90', spark: 'success' },
-        purple: { tile: 'icon-tile-violet', wash: 'from-violet-50/90', spark: 'brand' },
-        neutral: { tile: 'icon-tile-slate', wash: 'from-slate-50/90', spark: 'neutral' },
+        red: { tile: 'icon-tile-rose', wash: 'tint-rose', spark: 'danger' },
+        amber: { tile: 'icon-tile-amber', wash: 'tint-amber', spark: 'warning' },
+        green: { tile: 'icon-tile-green', wash: null, spark: 'success' },
+        purple: { tile: 'icon-tile-violet', wash: null, spark: 'brand' },
+        neutral: { tile: 'icon-tile-slate', wash: null, spark: 'neutral' },
     };
 
-    const resolved = accentClasses[effectiveAccent] || { tile: 'icon-tile-blue', wash: 'from-sky-50/90', spark: 'brand' };
+    const resolved = accentClasses[effectiveAccent] || { tile: 'icon-tile-blue', wash: null, spark: 'brand' };
     const isSmall = size === 'sm';
 
     const content = (
         <Card
             className={cn(
-                'group relative h-full overflow-hidden bg-gradient-to-br via-white/85 to-white/80 transition-[box-shadow,transform] duration-base ease-out-soft',
+                'group relative h-full overflow-hidden transition-[box-shadow,transform] duration-base ease-out-soft',
                 resolved.wash,
                 href && 'cursor-pointer hover:shadow-card-hover motion-safe:hover:-translate-y-0.5'
             )}
         >
-            <CardContent className={cn('flex flex-col', isSmall ? 'gap-2 p-3.5 lg:p-3.5' : 'gap-3 p-4 lg:p-5')}>
+            <CardContent className={cn('flex flex-col', isSmall ? 'gap-2 p-3 lg:p-3' : 'gap-2.5 p-3.5 lg:p-4')}>
                 <div className="flex items-start justify-between gap-2">
-                    <div className={cn('icon-tile', resolved.tile, isSmall ? 'h-8 w-8 rounded-[10px]' : 'h-10 w-10')}>
-                        <Icon className={isSmall ? 'h-4 w-4' : 'h-[18px] w-[18px]'} strokeWidth={2} />
+                    <div className={cn('icon-tile', resolved.tile, isSmall ? 'h-8 w-8' : 'h-9 w-9')}>
+                        <Icon className={isSmall ? 'h-4 w-4' : 'h-[18px] w-[18px]'} strokeWidth={1.9} />
                     </div>
                     {trend ? (
                         <div className={cn('hidden shrink-0 sm:block', isSmall ? 'w-14' : 'w-20')} aria-hidden="true">
@@ -113,10 +113,10 @@ export default function StatCard({ icon: Icon, value, label, hint, href, accent,
                     ) : null}
                 </div>
                 <div className="min-w-0">
-                    <p className={cn('type-metric truncate leading-none text-navy-900', isSmall ? 'text-[22px]' : 'text-[30px]')}>{value}</p>
+                    <p className={cn('type-metric truncate leading-none text-navy-900', isSmall ? 'text-[19px]' : 'text-[24px]')}>{value}</p>
                     {/* v2.68.0: the label is never truncated -- it is the only
                         thing that says WHAT the number counts. */}
-                    <p className={cn('mt-1.5 line-clamp-2 font-semibold leading-snug text-slate-600', isSmall ? 'text-xs' : 'text-[13px]')}>{label}</p>
+                    <p className={cn('mt-1 line-clamp-2 font-semibold leading-snug text-slate-600', isSmall ? 'text-xs' : 'text-[13px]')}>{label}</p>
                 </div>
                 {hint && <p className="-mt-1.5 truncate text-[11px] font-medium text-slate-500">{hint}</p>}
             </CardContent>

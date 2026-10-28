@@ -42,7 +42,7 @@ import { Building2, ArrowUpRight } from 'lucide-react';
  */
 export default function OverviewHero({ companies = [], selectedCompany = 'all', onCompanyChange, fullCalendarHref }) {
     return (
-        <section className="surface-feature mb-5">
+        <section className="surface-feature mb-4">
             {/* The photograph, then the gradient that guarantees contrast
                 over it. `aria-hidden` and empty alt: it carries no
                 information a screen reader needs. */}
@@ -62,11 +62,11 @@ export default function OverviewHero({ companies = [], selectedCompany = 'all', 
                         HSE
                     </span>
 
-                    <h1 className="type-page-title mt-2 text-[28px] leading-tight text-white sm:text-[32px]">
+                    <h1 className="type-page-title mt-1.5 text-[22px] leading-tight text-white sm:text-[24px]">
                         HSE Overview
                     </h1>
 
-                    <p className="mt-1.5 max-w-xl text-[14px] leading-snug text-sky-100">
+                    <p className="mt-1.5 max-w-xl text-[13px] leading-snug text-sky-100">
                         Pantau kinerja keselamatan, pekerjaan yang terlambat, dan agenda HSE seluruh operasi dalam satu halaman.
                     </p>
                 </div>

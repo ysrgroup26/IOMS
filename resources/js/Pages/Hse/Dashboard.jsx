@@ -1,7 +1,6 @@
 import { Head, Link, router, usePage } from '@inertiajs/react';
 import { humanizeToken } from '@/lib/humanizeToken';
 import AuthenticatedLayout from '@/Layouts/AuthenticatedLayout';
-import ModuleCard from '@/Components/shared/ModuleCard';
 import ActivityList from '@/Components/shared/ActivityList';
 import StatusBadge from '@/Components/shared/StatusBadge';
 import { Card, CardContent, CardHeader, CardTitle, CardDescription } from '@/Components/ui/card';
@@ -17,34 +16,8 @@ import OverviewCalendar from '@/Components/hse-overview/OverviewCalendar';
 import ManHourPanel from '@/Components/hse-overview/ManHourPanel';
 import QuickAccess from '@/Components/hse-overview/QuickAccess';
 import {
-    AlertTriangle, HardHat, History, Eye, Flame, ShieldAlert, ClipboardCheck,
-    ClipboardList, FileWarning, Lock, UsersRound, FlaskConical, UserCheck, FileCheck,
-    FileStack, Recycle, PackageSearch, ShieldCheck, Recycle as RecycleIcon, LayoutGrid,
-    FileBarChart, PlusCircle, Info, CalendarCheck,
+    AlertTriangle, HardHat, History, Eye, Flame, ShieldAlert, ClipboardCheck, ClipboardList, PackageSearch, ShieldCheck, Recycle as RecycleIcon, FileBarChart, PlusCircle, Info, CalendarCheck,
 } from 'lucide-react';
-
-/* v2.68.0 -- LANGUAGE HIERARCHY (v2.53.0) APPLIED HERE AT LAST.
-   ENGLISH for module and feature names, navigation, headers, stat and
-   status labels, action labels; INDONESIAN for explanatory sentences,
-   help text and guidance. Each `title` below is the name of the page it
-   navigates to, which is the property that makes a menu item and its
-   destination verifiably the same thing. */
-const HSE_MODULES = [
-    { icon: Eye, title: 'Safety Observation', description: 'Pelaporan bahaya/nyaris celaka satu klik.', href: 'safety-observations.index' },
-    { icon: ClipboardCheck, title: 'HSE Inspection', description: 'Inspeksi terjadwal dengan temuan.', href: 'hse-inspections.index' },
-    { icon: UsersRound, title: 'Toolbox Meeting (TBM)', description: 'Catatan toolbox meeting.', href: 'tbm-meetings.index' },
-    { icon: ShieldAlert, title: 'HIRADC / Risk Assessment', description: 'Identifikasi bahaya & matriks risiko.', href: 'risk-assessments.index' },
-    { icon: FileWarning, title: 'JSA', description: 'Analisis keselamatan kerja dengan matriks risiko.', href: 'job-safety-analyses.index' },
-    { icon: Flame, title: 'Permit To Work (PTW)', description: 'Pekerjaan panas, ruang terbatas, dan lainnya.', href: 'permits-to-work.index' },
-    { icon: FlaskConical, title: 'Gas Test', description: 'Pembacaan atmosfer di semua izin kerja.', href: 'gas-test-records.index' },
-    { icon: Lock, title: 'LOTO', description: 'Isolasi energi lockout/tagout.', href: 'loto-records.index' },
-    { icon: ClipboardCheck, title: 'Corrective Actions (CAPA)', description: 'Pelacakan tindakan perbaikan lintas sumber.', href: 'corrective-actions.index' },
-    { icon: Recycle, title: 'Waste Management', description: 'Limbah B3/Non-B3, penyimpanan, dan pembuangan.', href: 'waste.dashboard' },
-    { icon: UserCheck, title: 'Contractor Management', description: 'Register kontraktor, pekerja, dokumen.', href: 'contractors.index' },
-    { icon: FileCheck, title: 'Visitor Management', description: 'Register akses lokasi.', href: 'visitors.index' },
-    { icon: FileStack, title: 'Document Control', description: 'Dokumen terkendali dengan riwayat versi.', href: 'controlled-documents.index' },
-    { icon: PackageSearch, title: 'Material Request', description: 'Pengajuan kebutuhan barang dan material HSE.', href: 'material-requests.index' },
-];
 
 /**
  * v2.109.0 -- Quick Access presentation. The SERVER decides which of
@@ -436,25 +409,11 @@ export default function HseDashboard({
                 />
             </div>
 
-            {/* Module directory, unchanged in content and gating. */}
-            <section>
-                <h2 className="mb-2 flex items-center gap-1.5 px-0.5 text-[13px] font-bold text-graphite-900 dark:text-slate-50">
-                    <LayoutGrid className="h-4 w-4 text-graphite-400" /> HSE Modules
-                </h2>
-                <div className="grid grid-cols-2 gap-3 sm:grid-cols-3 lg:grid-cols-5 xl:grid-cols-7">
-                    {HSE_MODULES.map((m) => <ModuleCard key={m.title} {...m} />)}
-                </div>
-            </section>
-
-            {/* HSE Administration row, gated exactly as before. */}
-            {canManageHse && (
-                <section className="mt-4">
-                    <h2 className="mb-2 px-0.5 text-[13px] font-bold text-graphite-900 dark:text-slate-50">HSE Administration</h2>
-                    <div className="grid grid-cols-2 gap-3 sm:grid-cols-3 lg:grid-cols-5 xl:grid-cols-7">
-                        <ModuleCard icon={ShieldCheck} title="Safety Equipment &amp; Compliance" description="Register peralatan keselamatan, status inspeksi, dan data acuan HSE." href="safety-equipment.index" />
-                    </div>
-                </section>
-            )}
+            {/* v2.137.0 -- the HSE Modules shortcut grid (and the lone HSE
+                Administration card under it) is gone from the Overview at the
+                owner's request. Every module it linked is still reached from
+                the HSE sidebar with the same routes and permissions; nothing
+                behind the cards was removed. */}
 
             {/* `auth` is read so the page fails loudly if the shared prop
                 ever stops being provided, rather than silently rendering

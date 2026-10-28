@@ -190,83 +190,168 @@
     }
 
     /* =====================================================================
-       v2.136.0 -- THE FROSTED SURFACE SYSTEM (ADR 079).
+       v2.137.0 -- MILKY FROSTED GLASS OVER THE IOMS BACKDROP (ADR 080).
        =====================================================================
 
-       Three layers, no more:
-         canvas  -- the icy atmosphere behind everything (.ioms-canvas)
-         surface -- a frosted bubble card: white at 82% over the canvas,
-                    a white hairline on top (the "lit edge") and a cool
-                    halo below. Blur is modest; this is frost, not glass.
-         chrome  -- the floating rail and top bar: the same material, a
-                    touch more opaque so navigation never competes with
-                    the content it frames.
+       Six layers, each with its OWN material, so depth reads without every
+       surface looking the same:
+         1 backdrop -- the supplied abstract geometric artwork, pre-diffused
+                       (blurred once at build time, not by the GPU on every
+                       frame) and fixed behind the viewport (.ioms-canvas)
+         2 veil     -- a light milky tint over it, heavier on the left where
+                       the rail and page titles sit, lighter on the right so
+                       the geometry stays visible in the gaps
+         3 chrome   -- the floating rail, top-bar pills, bottom bar
+         4 surface  -- primary cards: milky white glass that really DIFFUSES
+                       the artwork behind it (backdrop blur), never opaque
+         5 nested   -- inner boxes on a card: a quieter, more opaque wash
+         6 overlay  -- popovers, menus, dialogs: the most opaque glass
+       Text sits on a milky surface that is at least ~72% white, so body ink
+       (slate-600+) keeps AA over the darkest part of the artwork.
        ===================================================================== */
     .ioms-canvas {
-        background-color: hsl(208 60% 96%);
+        position: relative;
+        isolation: isolate;
+        background-color: #E8F1FC;
+    }
+    .ioms-canvas::before {
+        content: '';
+        position: fixed;
+        inset: 0;
+        z-index: -1;
+        pointer-events: none;
+        background-color: #E8F1FC;
         background-image:
-            radial-gradient(60rem 38rem at 8% -6%, rgba(147, 197, 253, 0.42), transparent 62%),
-            radial-gradient(48rem 34rem at 92% 4%, rgba(186, 230, 253, 0.55), transparent 60%),
-            radial-gradient(52rem 40rem at 70% 100%, rgba(165, 205, 250, 0.38), transparent 64%),
-            radial-gradient(40rem 30rem at 0% 90%, rgba(224, 242, 254, 0.9), transparent 60%),
-            linear-gradient(180deg, #F4F9FE 0%, #EAF3FC 55%, #E6F0FB 100%);
-        background-attachment: fixed;
+            linear-gradient(100deg, rgba(244, 249, 255, 0.62) 0%, rgba(244, 249, 255, 0.38) 38%, rgba(244, 249, 255, 0.16) 100%),
+            url('/images/app/ioms-backdrop.webp');
+        background-repeat: no-repeat;
+        /* `cover`, anchored right of centre: the hexagonal layers live in
+           the right two thirds of the artwork, so that is what a narrow or
+           very wide viewport keeps when it has to crop. */
+        background-size: cover;
+        background-position: 72% 42%;
+    }
+    @media (max-width: 767px) {
+        .ioms-canvas::before {
+            background-image:
+                linear-gradient(180deg, rgba(244, 249, 255, 0.58) 0%, rgba(244, 249, 255, 0.30) 100%),
+                url('/images/app/ioms-backdrop-sm.webp');
+            background-position: 64% 50%;
+        }
     }
 
     .surface {
-        @apply rounded-2xl border border-white/80 bg-white/[0.82] shadow-card backdrop-blur-md;
-        box-shadow: inset 0 1px 0 0 rgba(255, 255, 255, 0.9), 0 1px 2px 0 rgba(30, 64, 120, 0.04), 0 10px 30px -14px rgba(30, 64, 120, 0.16);
+        @apply rounded-2xl;
+        border: 1px solid rgba(255, 255, 255, 0.72);
+        background-image: linear-gradient(160deg, rgba(255, 255, 255, 0.86) 0%, rgba(255, 255, 255, 0.75) 100%);
+        -webkit-backdrop-filter: blur(20px) saturate(150%);
+        backdrop-filter: blur(20px) saturate(150%);
+        box-shadow:
+            inset 0 1px 0 0 rgba(255, 255, 255, 0.9),
+            inset 0 0 0 1px rgba(255, 255, 255, 0.18),
+            0 1px 2px 0 rgba(20, 50, 100, 0.05),
+            0 14px 34px -20px rgba(20, 60, 130, 0.38);
     }
 
     .chrome {
-        @apply border border-white/80 bg-white/[0.72] shadow-float backdrop-blur-xl backdrop-saturate-150;
+        border: 1px solid rgba(255, 255, 255, 0.75);
+        background-image: linear-gradient(160deg, rgba(255, 255, 255, 0.80) 0%, rgba(255, 255, 255, 0.66) 100%);
+        -webkit-backdrop-filter: blur(24px) saturate(160%);
+        backdrop-filter: blur(24px) saturate(160%);
+        box-shadow: inset 0 1px 0 0 rgba(255, 255, 255, 0.9), 0 1px 2px 0 rgba(20, 50, 100, 0.05), 0 12px 32px -18px rgba(20, 60, 130, 0.40);
+    }
+
+    /* Where backdrop-filter is not supported the glass becomes a calm,
+       nearly opaque milk instead of a see-through pane nobody can read. */
+    @supports not ((backdrop-filter: blur(1px)) or (-webkit-backdrop-filter: blur(1px))) {
+        .surface, .chrome, .chrome-icon { background-image: none; background-color: rgba(255, 255, 255, 0.94); }
     }
 
     /* A round frosted control in the top bar (notifications, work center,
-       install, compact search). 40px: a comfortable target at every width. */
+       install, compact search). 36px; the hit area stays comfortable. */
     .chrome-icon {
-        @apply relative grid h-10 w-10 shrink-0 place-items-center rounded-full border border-white/80 bg-white/70 text-slate-600 shadow-float outline-none backdrop-blur-xl transition-[background-color,color,box-shadow] duration-fast ease-out-soft hover:bg-white hover:text-navy-900 focus-visible:ring-4 focus-visible:ring-brand-500/20;
+        @apply chrome relative grid h-9 w-9 shrink-0 place-items-center rounded-full text-slate-600 outline-none transition-[color,box-shadow] duration-fast ease-out-soft hover:text-navy-900 focus-visible:ring-4 focus-visible:ring-brand-500/20;
     }
 
     /* A counter on a chrome control. Tabular so 9 -> 10 does not shift. */
     .chrome-count {
-        @apply absolute -right-1 -top-1 flex h-[18px] min-w-[18px] items-center justify-center rounded-full px-1 text-[10px] font-bold tabular-nums text-white ring-2 ring-white;
+        @apply absolute -right-1 -top-1 flex h-[17px] min-w-[17px] items-center justify-center rounded-full px-1 text-[10px] font-bold tabular-nums text-white ring-2 ring-white;
     }
 
-    /* An icon set on a small gradient tile -- KPI cards, quick actions,
-       section headers. The tone says what the feature MEANS. */
+    /* Muted ink on glass. The glass is a little darker than paper, so the
+       two quietest greys move one step deeper ON a glass surface only --
+       measured on the darkest part of the artwork, slate-500 fell to 3.6:1.
+       Two classes of specificity so a plain utility does not undo it, while
+       a hover: or focus: utility still wins. */
+    .surface .text-slate-500, .surface .text-graphite-500,
+    .chrome .text-slate-500, .chrome .text-graphite-500,
+    .surface-nested .text-slate-500, .surface-nested .text-graphite-500 { color: #4E5D70; }
+    .surface .text-slate-400, .surface .text-graphite-400,
+    .chrome .text-slate-400, .chrome .text-graphite-400,
+    .surface-nested .text-slate-400, .surface-nested .text-graphite-400 { color: #5F6E82; }
+
+    /* A nested box on a card (mini stats, list rows that are boxes). */
+    .surface-nested {
+        @apply rounded-xl;
+        border: 1px solid rgba(214, 228, 245, 0.8);
+        background-color: rgba(255, 255, 255, 0.62);
+    }
+
+    /* =====================================================================
+       FROSTED ICON CAPSULES. A small piece of tinted frosted material with
+       the icon in the semantic colour -- not a saturated square. Callers
+       set the size (36px in a KPI card, 32px in dense rows).
+       ===================================================================== */
     .icon-tile {
-        @apply inline-flex shrink-0 items-center justify-center rounded-xl text-white;
-        box-shadow: inset 0 1px 0 0 rgba(255, 255, 255, 0.35), 0 6px 14px -6px var(--tile-shadow, rgba(36, 112, 221, 0.55));
+        @apply inline-flex shrink-0 items-center justify-center rounded-full;
+        color: var(--cap-ink);
+        border: 1px solid var(--cap-ring);
+        background-image: linear-gradient(150deg, rgba(255, 255, 255, 0.95) 0%, var(--cap-tint) 100%);
+        box-shadow: inset 0 1px 0 0 rgba(255, 255, 255, 0.95), 0 4px 10px -6px var(--cap-shadow);
     }
-    .icon-tile-blue   { @apply bg-gradient-to-br from-sky-400 to-brand-600;      --tile-shadow: rgba(36, 112, 221, 0.55); }
-    .icon-tile-green  { @apply bg-gradient-to-br from-emerald-400 to-teal-600;   --tile-shadow: rgba(13, 148, 136, 0.5); }
-    .icon-tile-amber  { @apply bg-gradient-to-br from-amber-300 to-orange-500;   --tile-shadow: rgba(234, 120, 20, 0.5); }
-    .icon-tile-rose   { @apply bg-gradient-to-br from-rose-400 to-red-600;       --tile-shadow: rgba(225, 29, 72, 0.5); }
-    .icon-tile-violet { @apply bg-gradient-to-br from-violet-400 to-indigo-600;  --tile-shadow: rgba(109, 40, 217, 0.45); }
-    .icon-tile-slate  { @apply bg-gradient-to-br from-slate-400 to-slate-600;    --tile-shadow: rgba(71, 85, 105, 0.45); }
+    .icon-tile-blue   { --cap-ink: #1D5FD0; --cap-tint: rgba(207, 226, 252, 0.95); --cap-ring: rgba(165, 199, 245, 0.75); --cap-shadow: rgba(36, 99, 210, 0.55); }
+    .icon-tile-green  { --cap-ink: #0F7A63; --cap-tint: rgba(204, 240, 228, 0.95); --cap-ring: rgba(150, 214, 192, 0.75); --cap-shadow: rgba(15, 122, 99, 0.45); }
+    .icon-tile-amber  { --cap-ink: #B45309; --cap-tint: rgba(253, 234, 205, 0.95); --cap-ring: rgba(245, 205, 150, 0.8);  --cap-shadow: rgba(200, 120, 20, 0.45); }
+    .icon-tile-rose   { --cap-ink: #BE2F4A; --cap-tint: rgba(252, 217, 224, 0.95); --cap-ring: rgba(240, 170, 185, 0.75); --cap-shadow: rgba(190, 47, 74, 0.45); }
+    .icon-tile-violet { --cap-ink: #6D45C8; --cap-tint: rgba(229, 220, 251, 0.95); --cap-ring: rgba(196, 180, 240, 0.75); --cap-shadow: rgba(109, 69, 200, 0.42); }
+    .icon-tile-slate  { --cap-ink: #475569; --cap-tint: rgba(226, 233, 242, 0.95); --cap-ring: rgba(196, 208, 224, 0.8);  --cap-shadow: rgba(71, 85, 105, 0.38); }
+    .icon-tile-teal   { --cap-ink: #0E7490; --cap-tint: rgba(207, 238, 245, 0.95); --cap-ring: rgba(150, 210, 225, 0.75); --cap-shadow: rgba(14, 116, 144, 0.45); }
 
-    /* The soft version: a tinted tile with coloured ink, for dense lists
-       where a row of saturated tiles would shout. */
+    /* The quieter, squarer variant for dense lists and section headers. */
     .icon-soft {
-        @apply inline-flex shrink-0 items-center justify-center rounded-xl ring-1 ring-inset;
+        @apply icon-tile rounded-xl;
     }
-    .icon-soft-blue   { @apply bg-gradient-to-br from-sky-50 to-brand-100 text-brand-600 ring-brand-200/60; }
-    .icon-soft-green  { @apply bg-gradient-to-br from-emerald-50 to-teal-100 text-teal-700 ring-teal-200/60; }
-    .icon-soft-amber  { @apply bg-gradient-to-br from-amber-50 to-orange-100 text-orange-600 ring-orange-200/60; }
-    .icon-soft-rose   { @apply bg-gradient-to-br from-rose-50 to-red-100 text-red-600 ring-red-200/60; }
-    .icon-soft-violet { @apply bg-gradient-to-br from-violet-50 to-indigo-100 text-indigo-600 ring-indigo-200/60; }
-    .icon-soft-slate  { @apply bg-gradient-to-br from-slate-50 to-slate-100 text-slate-600 ring-slate-200/70; }
+    .icon-soft-blue   { @apply icon-tile-blue; }
+    .icon-soft-green  { @apply icon-tile-green; }
+    .icon-soft-amber  { @apply icon-tile-amber; }
+    .icon-soft-rose   { @apply icon-tile-rose; }
+    .icon-soft-violet { @apply icon-tile-violet; }
+    .icon-soft-slate  { @apply icon-tile-slate; }
 
-    /* The FEATURE panel -- what a full-colour navy hero card becomes. A
-       luminous azure gradient with a frosted sheen, white ink at AA. One
-       per screen at most; everything else stays on .surface. */
+    /* =====================================================================
+       SEMANTIC GLASS -- for the few cards whose information warrants
+       emphasis. The same milky glass with a muted tint at the top-left;
+       ordinary cards stay plain .surface.
+       ===================================================================== */
+    .tint-blue   { background-image: linear-gradient(150deg, rgba(219, 234, 254, 0.88) 0%, rgba(255, 255, 255, 0.74) 60%); }
+    .tint-green  { background-image: linear-gradient(150deg, rgba(209, 244, 230, 0.88) 0%, rgba(255, 255, 255, 0.74) 60%); }
+    .tint-amber  { background-image: linear-gradient(150deg, rgba(254, 240, 214, 0.90) 0%, rgba(255, 255, 255, 0.74) 60%); }
+    .tint-rose   { background-image: linear-gradient(150deg, rgba(253, 225, 231, 0.90) 0%, rgba(255, 255, 255, 0.74) 60%); }
+    .tint-violet { background-image: linear-gradient(150deg, rgba(234, 226, 252, 0.88) 0%, rgba(255, 255, 255, 0.74) 60%); }
+    .tint-slate  { background-image: linear-gradient(150deg, rgba(232, 238, 246, 0.90) 0%, rgba(255, 255, 255, 0.74) 60%); }
+
+    /* The FEATURE panel -- what a navy hero becomes. Deep steel-blue GLASS
+       (the artwork still diffuses through it), not a bright flat slab; white
+       ink keeps AA because the glass is at least 78% opaque navy-blue. One
+       per screen at most. */
     .surface-feature {
         @apply relative overflow-hidden rounded-2xl text-white;
+        border: 1px solid rgba(255, 255, 255, 0.22);
         background-image:
-            radial-gradient(36rem 20rem at 100% 0%, rgba(125, 211, 252, 0.45), transparent 60%),
-            radial-gradient(28rem 18rem at 0% 100%, rgba(30, 64, 175, 0.55), transparent 65%),
-            linear-gradient(135deg, #2A6FDB 0%, #1E5BC6 48%, #1A47A0 100%);
-        box-shadow: inset 0 1px 0 0 rgba(255, 255, 255, 0.25), 0 18px 40px -20px rgba(29, 78, 216, 0.55);
+            radial-gradient(30rem 16rem at 100% 0%, rgba(147, 197, 253, 0.28), transparent 62%),
+            linear-gradient(135deg, rgba(19, 52, 112, 0.90) 0%, rgba(28, 78, 160, 0.84) 55%, rgba(37, 99, 190, 0.80) 100%);
+        -webkit-backdrop-filter: blur(20px) saturate(140%);
+        backdrop-filter: blur(20px) saturate(140%);
+        box-shadow: inset 0 1px 0 0 rgba(255, 255, 255, 0.22), 0 18px 40px -22px rgba(15, 45, 110, 0.6);
     }
 }

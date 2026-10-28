@@ -17,7 +17,7 @@ return [
     |
     */
 
-    'version' => '2.136.0',
+    'version' => '2.137.0',
 
     // Tester / Beta / Stable -- tracks the release stage explicitly.
     // Previously only implied in conversation, never actually stored.
@@ -49,7 +49,7 @@ return [
 
     'edition' => 'Enterprise Edition',
 
-    'build' => '2026.10.28.02',
+    'build' => '2026.10.28.03',
 
     'release_date' => '2026-10-28',
 
@@ -289,12 +289,11 @@ return [
     'documentation_url' => env('IOMS_DOCUMENTATION_URL'),
 
     'whats_new' => [
-        'Tampilan baru seluruh aplikasi: latar biru es yang lembut, kartu frosted, dan sudut membulat yang konsisten',
-        'Huruf baru Manrope untuk teks dan angka, dengan angka tabel yang rata dan angka KPI yang lebih tegas',
-        'Navigasi atas berbentuk pill: pindah antar workspace HSE, HRD, Warehouse, dan Management dengan satu klik',
-        'Sidebar terang yang mengambang; menu yang aktif kini selalu hanya satu',
-        'Ikon fitur tampil di atas ubin bergradasi yang warnanya menunjukkan arti: biru informasi, hijau sesuai, kuning perhatian, merah kritis',
-        'Daftar CAPA kini menyebut sumber temuan dengan nama yang jelas, misalnya Equipment Inspection',
+        'Latar abstrak geometris IOMS kini tampil di balik seluruh aplikasi',
+        'Kartu berbahan kaca buram (frosted glass) yang memperlihatkan latar di belakangnya, tetap mudah dibaca',
+        'Ikon fitur dalam kapsul kaca dengan warna sesuai makna: biru, teal, hijau, kuning, merah, dan ungu',
+        'Ukuran tampilan dirapatkan agar nyaman dibaca pada zoom browser 100%',
+        'Bagian pintasan HSE Modules dihapus dari HSE Overview; semua modul tetap tersedia di sidebar HSE',
     ],
     /*
     |--------------------------------------------------------------------------
@@ -308,6 +307,7 @@ return [
     */
 
     'version_history' => [
+        ['version' => '2.137.0', 'date' => '2026-10-28', 'summary' => 'THE IOMS BACKDROP AND MILKY GLASS. The owner-supplied abstract geometric artwork is the backdrop of every signed-in screen: diffused once at build time, fixed behind the viewport, cover-sized and anchored so a crop keeps the hexagonal layers, under a milky veil heavier where titles and the rail sit. Cards are now genuine milky frosted glass that diffuses the artwork (backdrop blur 20px, 86-75% white, lit edge, ambient shadow) with a 94% white fallback; the rail, top-bar pills and bottom bar are a clearer chrome glass. Muted grey ink is deepened on glass after measuring 3.6:1 on the darkest part of the artwork. Semantic colour is reserved: ordinary cards are plain glass, a muted tint appears only where the information warrants it, and the feature panel is deep steel-blue glass instead of a bright slab. Icons sit in round frosted capsules with the glyph in its semantic colour (blue, teal, green, amber, rose, violet, slate). The scale was reduced per component for 100% browser zoom: titles 22-24px, KPI figures 24px, capsules and controls 36px, rail 248px, top bar 64px. HSE Overview no longer shows the HSE Modules shortcut grid; every module stays in the HSE sidebar with the same routes and permissions. See ADR 080.'],
         ['version' => '2.136.0', 'date' => '2026-10-28', 'summary' => 'ICY BLUE FROSTED: ONE VISUAL SYSTEM FOR THE WHOLE SIGNED-IN APPLICATION. TYPE: Manrope (variable, OFL) is the one interface face for text and numerals, BUNDLED by Vite so no CDN can block it; Satoshi was evaluated first but its only distribution (Fontshare) could not be reached or verified, so the brief\'s alternative was used. Titles and headline figures are 700 (never 600 or 800); table, input, badge and counter figures are tabular; a single headline figure is proportional so 11 does not read as 1 1. Archivo stays only for a controlled document\'s type band, because the PDF embeds it. MATERIAL: a fixed icy-blue canvas, frosted bubble cards (.surface, 20px), floating chrome for the rail, top-bar pills and the phone bottom bar, and one luminous azure feature panel replacing every navy hero. Icons sit on gradient tiles whose colour says what the feature means. SHELL: the navy rail is replaced, at the owner\'s direction, by a light floating rail whose active row is a raised white pill; the top bar is a row of pills with the workspaces as pills from 1280px (same list, same switch as the dropdown, which serves narrower widths). Only one rail row can be lit now: every Management item had matched every Management page. Buttons are pills, inputs 40px, dialogs 24px. Emoji are gone from the dashboard alerts. FIXED ON THE WAY: the CAPA register answered 500 outside production once two equipment inspections had follow-ups (lazy loading), and it showed class names such as SafetyEquipmentInspection as the source. No route, permission, data or label changed. Reviewed in a real browser on 127 signed-in screens at 1280px plus phone and tablet widths. See ADR 079.'],
         ['version' => '2.135.0', 'date' => '2026-10-28', 'summary' => 'THE SIGNED-IN APPLICATION GETS ONE VISUAL AND MOTION LANGUAGE, AND EQUIPMENT INSPECTIONS ARE JUDGED FROM A CHECKLIST. DESIGN FOUNDATION (every page): two motion curves and three durations as tokens, a page entrance on real visits only that ends at transform:none so fixed bars are not displaced, and a global prefers-reduced-motion rule; one concentric radius scale (controls 10px, cards 14px, dialogs 16px); 13px interface text at every width; buttons whose press animates with their colour and that carry a loading state which blocks double submission; inputs with a soft brand focus halo; calm sentence-case table headers; an announced flash message with an icon. The navy rail is kept (v2.42.0). EQUIPMENT IDS are PREFIX-NN (APAR-01): a number is taken once per operating unit however it is padded, APAR-01 finds a unit still labelled APAR-00001, and ioms:equipment-codes shortens existing codes only after proving there is no clash. INSPECTIONS: a checklist template belongs to an equipment type; items declare their check (Pass/Fail, a reading with limits, a date read off the unit), whether a Fail is critical, and whether it needs a photo. The SERVER judges: critical Fail is Fail, other Fail is Needs Action, an out-of-range reading or an expired date fails by itself, Damaged is never Pass. Findings need a risk level and, where asked, photo evidence; follow-ups are corrective actions with an owner and a due date, verified in the CAPA register. Reference lists for APAR, P3K and gas detectors start a template and name their basis; nothing is seeded. WASTE: the record form asks what, how much and where now; units come from one list plus the type\'s own, a count is whole, nothing converts liters to kilograms, and a record is stored in a TPS of its own operating unit. See ADR 078.'],
         ['version' => '2.134.1', 'date' => '2026-10-27', 'summary' => 'THE FOOTER CARRIES THE CONTACT FACTS. Duitku\'s merchant review checks that a visitor can find how to reach the business on the pages it reviews. /contact already published the support mailbox and, once configured, the business address and telephone; the footer of every public page carried only a link to it. The footer now shows the same three facts from the same configuration (IOMS_SUPPORT_EMAIL, IOMS_SUPPORT_PHONE, IOMS_LEGAL_ADDRESS). A phone or address that was never configured is not shown, rather than invented.'],

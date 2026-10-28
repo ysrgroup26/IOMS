@@ -13,12 +13,12 @@ import { cn } from '@/lib/utils';
 // full-colour tone -- becomes the azure feature panel (.surface-feature);
 // its callers keep white ink and need no change.
 const CARD_TONES = {
-    brand: 'border-white/80 bg-gradient-to-br from-brand-50/90 via-white/85 to-white/80',
-    steel: 'border-white/80 bg-gradient-to-br from-sky-50/90 via-white/85 to-white/80',
+    brand: 'tint-blue',
+    steel: 'tint-slate',
     navy: 'surface-feature border-white/20',
-    success: 'border-white/80 bg-gradient-to-br from-emerald-50/90 via-white/85 to-white/80',
-    warning: 'border-white/80 bg-gradient-to-br from-amber-50/90 via-white/85 to-white/80',
-    danger: 'border-white/80 bg-gradient-to-br from-rose-50/90 via-white/85 to-white/80',
+    success: 'tint-green',
+    warning: 'tint-amber',
+    danger: 'tint-rose',
 };
 
 const Card = React.forwardRef(({ className, tone, ...props }, ref) => (
@@ -33,7 +33,7 @@ Card.displayName = 'Card';
 // more compact card proportions -- still comfortably readable, just
 // less empty margin around section headers.
 const CardHeader = React.forwardRef(({ className, ...props }, ref) => (
-    <div ref={ref} className={cn('flex flex-col space-y-1 p-4 lg:p-5 lg:pb-3', className)} {...props} />
+    <div ref={ref} className={cn('flex flex-col space-y-0.5 p-4 pb-2.5', className)} {...props} />
 ));
 CardHeader.displayName = 'CardHeader';
 
@@ -42,7 +42,7 @@ CardHeader.displayName = 'CardHeader';
 // 600" line exactly (distinct from "Section Title: 14px/600" -- this
 // component is the per-Card header, not a page-level section divider).
 const CardTitle = React.forwardRef(({ className, ...props }, ref) => (
-    <h3 ref={ref} className={cn('text-[15px] font-bold tracking-[-0.01em] text-navy-900 dark:text-slate-100', className)} {...props} />
+    <h3 ref={ref} className={cn('text-[14px] font-bold tracking-[-0.01em] text-navy-900 dark:text-slate-100', className)} {...props} />
 ));
 CardTitle.displayName = 'CardTitle';
 
@@ -54,12 +54,12 @@ const CardDescription = React.forwardRef(({ className, ...props }, ref) => (
 CardDescription.displayName = 'CardDescription';
 
 const CardContent = React.forwardRef(({ className, ...props }, ref) => (
-    <div ref={ref} className={cn('p-4 pt-0 lg:p-5 lg:pt-1', className)} {...props} />
+    <div ref={ref} className={cn('p-4 pt-0', className)} {...props} />
 ));
 CardContent.displayName = 'CardContent';
 
 const CardFooter = React.forwardRef(({ className, ...props }, ref) => (
-    <div ref={ref} className={cn('flex items-center p-4 pt-0 lg:p-5 lg:pt-2', className)} {...props} />
+    <div ref={ref} className={cn('flex items-center p-4 pt-0', className)} {...props} />
 ));
 CardFooter.displayName = 'CardFooter';
 

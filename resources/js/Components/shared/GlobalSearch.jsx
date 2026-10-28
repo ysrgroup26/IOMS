@@ -165,7 +165,7 @@ export default function GlobalSearch() {
     function field(ref) {
         return (
             <div className="relative">
-                <Search className="pointer-events-none absolute left-4 top-1/2 h-4 w-4 -translate-y-1/2 text-slate-400" aria-hidden="true" />
+                <Search className="pointer-events-none absolute left-3.5 top-1/2 z-10 h-4 w-4 -translate-y-1/2 text-slate-500" aria-hidden="true" />
                 <input
                     ref={ref}
                     aria-label="Search IOMS"
@@ -179,7 +179,7 @@ export default function GlobalSearch() {
                     // it now appear only at xl, where the field is wide
                     // enough to spare 40px -- and where a keyboard is a safe
                     // assumption in the first place.
-                    className="h-11 w-full rounded-full border border-white/80 bg-white/70 pl-11 pr-4 text-[13px] text-navy-900 shadow-float outline-none backdrop-blur-xl transition-[background-color,box-shadow] duration-fast placeholder:text-slate-400 focus:bg-white focus:ring-4 focus:ring-brand-500/15 xl:pr-16"
+                    className="chrome h-9 w-full rounded-full pl-10 pr-4 text-[13px] text-navy-900 outline-none transition-[background-color,box-shadow] duration-fast placeholder:text-slate-500 focus:bg-white focus:ring-4 focus:ring-brand-500/15 xl:pr-16"
                 />
                 <kbd className="pointer-events-none absolute right-3 top-1/2 hidden -translate-y-1/2 rounded-md border border-steel-100 bg-white/80 px-1.5 py-0.5 font-sans text-[10px] font-semibold text-slate-500 xl:block">
                     Ctrl K

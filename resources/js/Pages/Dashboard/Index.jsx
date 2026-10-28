@@ -212,7 +212,7 @@ export default function Dashboard({
                     against the new dark surface; their dropdown panels
                     remain the app's normal white Popover content
                     (unaffected -- only the trigger's own chrome changed). */}
-                <div className="mb-5 flex flex-wrap items-end justify-between gap-3 pt-1">
+                <div className="mb-4 flex flex-wrap items-end justify-between gap-3 pt-1">
                     <div>
                         {/* Final UI Stabilization: no logo/wordmark at all
                             here anymore -- per explicit instruction,
@@ -230,12 +230,12 @@ export default function Dashboard({
                             filter controls, not a full PageHeader -- it
                             never needed the 24px "page title" treatment
                             PageHeader itself correctly uses elsewhere. */}
-                        <h1 className="type-page-title mt-1 text-[28px] leading-tight text-navy-900 lg:text-[32px]">Dashboard</h1>
+                        <h1 className="type-page-title mt-0.5 text-[22px] leading-tight text-navy-900 lg:text-[24px]">Dashboard</h1>
                         {/* v2.26.0 (Final Copy Consistency pass): was
                             fully English -- naturalized to Indonesian,
                             "Dashboard" and "KPI" kept as established
                             terminology. */}
-                        <p className="mt-1 text-[14px] text-slate-500">Ringkasan KPI operasional di seluruh departemen.</p>
+                        <p className="mt-0.5 text-[13px] text-slate-600">Ringkasan KPI operasional di seluruh departemen.</p>
                     </div>
                     <div className="flex flex-wrap items-center gap-2">
                         <Select
@@ -274,8 +274,8 @@ export default function Dashboard({
                 after release (computed server-side) plus a per-session
                 client-side dismiss. */}
             {showAnnouncement && !announcementDismissed && (
-                <div className="surface mt-4 flex items-start gap-3 bg-gradient-to-br from-sky-50/90 via-white/85 to-white/80 px-4 py-3.5">
-                    <div className="icon-tile icon-tile-blue h-9 w-9">
+                <div className="surface mt-4 flex items-start gap-3 px-4 py-3">
+                    <div className="icon-tile icon-tile-blue h-8 w-8">
                         <Sparkles className="h-4.5 w-4.5" />
                     </div>
                     <div className="min-w-0 flex-1">
@@ -344,7 +344,7 @@ export default function Dashboard({
                 3. `size="sm"` on both bands. These ten cards were the
                    tallest thing between a customer and their charts, and a
                    figure of 0 does not need 18px type to be read. */}
-            <h2 className="mt-6 text-[17px] font-bold tracking-[-0.015em] text-navy-900">Company Snapshot</h2>
+            <h2 className="mt-5 text-[15px] font-bold tracking-[-0.01em] text-navy-900">Company Snapshot</h2>
             {/* v2.84.0: Active Projects left this row with the Project
                 Management workspace. What remains is what a company-wide
                 snapshot can still say truthfully on every plan that has this
@@ -376,7 +376,7 @@ export default function Dashboard({
                 DIFFERENT department renders without a link instead of a
                 click that would 403 (RestrictDepartmentAccess itself is
                 unchanged; this only avoids exposing a link it would reject). */}
-            <h2 className="mt-6 text-[17px] font-bold tracking-[-0.015em] text-navy-900">Needs Attention</h2>
+            <h2 className="mt-5 text-[15px] font-bold tracking-[-0.01em] text-navy-900">Needs Attention</h2>
             <div className="mt-2.5 grid grid-cols-2 gap-3 sm:grid-cols-3 lg:grid-cols-6">
                 {/* v2.84.0 -- Pending Procurement, Active Assets and
                     Maintenance Due left this strip with the workspaces that
@@ -470,7 +470,7 @@ export default function Dashboard({
                 links into the KPI Records list pre-filtered to that
                 category + the current period/company. */}
             <div className="mt-3">
-                <h2 className="mb-2.5 mt-3 text-[17px] font-bold tracking-[-0.015em] text-navy-900">KPI Summary</h2>
+                <h2 className="mb-2.5 mt-3 text-[15px] font-bold tracking-[-0.01em] text-navy-900">KPI Summary</h2>
                 <div className="grid grid-cols-2 gap-3 sm:grid-cols-4 lg:grid-cols-4 2xl:grid-cols-8">
                     {summary.categories.map((c) => (
                         <KpiSummaryCard
@@ -580,11 +580,11 @@ export default function Dashboard({
                     </CardHeader>
                     <CardContent className="grid grid-cols-2 gap-3">
                         <div className="rounded-xl bg-white/70 p-3.5 ring-1 ring-inset ring-steel-100">
-                            <p className="type-metric text-[22px] leading-tight text-navy-900">{formatNumber(manpower.active_employees)}</p>
+                            <p className="type-metric text-[19px] leading-tight text-navy-900">{formatNumber(manpower.active_employees)}</p>
                             <p className="text-xs text-graphite-400">Active Employees</p>
                         </div>
                         <div className="rounded-xl bg-white/70 p-3.5 ring-1 ring-inset ring-steel-100">
-                            <p className="type-metric text-[22px] leading-tight text-navy-900">{formatNumber(manpower.on_shift_today)}</p>
+                            <p className="type-metric text-[19px] leading-tight text-navy-900">{formatNumber(manpower.on_shift_today)}</p>
                             <p className="text-xs text-graphite-400">On Shift Today</p>
                         </div>
                     </CardContent>
@@ -610,15 +610,15 @@ export default function Dashboard({
                         ) : (
                             <div className="grid grid-cols-3 gap-3">
                                 <div className="rounded-xl bg-white/70 p-3.5 text-center ring-1 ring-inset ring-steel-100">
-                                    <p className="type-metric text-[22px] leading-tight text-navy-900">{manhours?.today ?? '-'}</p>
+                                    <p className="type-metric text-[19px] leading-tight text-navy-900">{manhours?.today ?? '-'}</p>
                                     <p className="text-xs text-graphite-400">Today</p>
                                 </div>
                                 <div className="rounded-xl bg-white/70 p-3.5 text-center ring-1 ring-inset ring-steel-100">
-                                    <p className="type-metric text-[22px] leading-tight text-navy-900">{manhours?.this_month ?? '-'}</p>
+                                    <p className="type-metric text-[19px] leading-tight text-navy-900">{manhours?.this_month ?? '-'}</p>
                                     <p className="text-xs text-graphite-400">This Month</p>
                                 </div>
                                 <div className="rounded-xl bg-white/70 p-3.5 text-center ring-1 ring-inset ring-steel-100">
-                                    <p className="type-metric text-[22px] leading-tight text-navy-900">{manhours?.ytd ?? '-'}</p>
+                                    <p className="type-metric text-[19px] leading-tight text-navy-900">{manhours?.ytd ?? '-'}</p>
                                     <p className="text-xs text-graphite-400">YTD</p>
                                 </div>
                             </div>
@@ -856,13 +856,12 @@ function HeroSummary({ name, now, ltiCount, ppeAlertCount, readiness }) {
 
     return (
         <Card className={cn(
-            'bg-gradient-to-br via-white/85 to-white/80 transition-colors duration-slow',
-            tone === 'warning' && 'from-amber-50/90',
-            tone === 'healthy' && 'from-sky-50/90',
-            tone === 'setup' && 'from-brand-50/90'
+            'transition-colors duration-slow',
+            tone === 'warning' && 'tint-amber',
+            tone === 'setup' && 'tint-blue'
         )}>
-            <CardContent className="p-5 lg:p-5">
-                <h2 className="text-[20px] font-bold tracking-[-0.02em] text-navy-900">{greetingFor(now)}, {name}</h2>
+            <CardContent className="p-4">
+                <h2 className="text-[17px] font-bold tracking-[-0.015em] text-navy-900">{greetingFor(now)}, {name}</h2>
                 <p className="mt-1 text-[11px] font-semibold uppercase tracking-[0.1em] text-slate-400">
                     {tone === 'setup' ? 'Setup IOMS' : "Today's Alerts"}
                 </p>
@@ -944,11 +943,11 @@ function SummaryStat({ icon: Icon, value, label, accent, href }) {
             : 'icon-tile icon-tile-blue';
     const content = (
         <div className={cn('flex items-center gap-2 rounded-lg p-1 -m-1 transition-colors duration-200', href && 'cursor-pointer hover:bg-steel-50')}>
-            <div className={cn('h-10 w-10', chip)}>
+            <div className={cn('h-9 w-9', chip)}>
                 <Icon className="h-[18px] w-[18px]" />
             </div>
             <div className="min-w-0 space-y-0.5">
-                <p className={cn('type-metric text-[26px] leading-none', color)}>{value}</p>
+                <p className={cn('type-metric text-[22px] leading-none', color)}>{value}</p>
                 <p className="truncate text-xs font-medium text-slate-500">{label}</p>
             </div>
         </div>
@@ -958,9 +957,9 @@ function SummaryStat({ icon: Icon, value, label, accent, href }) {
 
 function LeaderboardCard({ icon: Icon, label, value, sub }) {
     return (
-        <Card className="bg-gradient-to-br from-sky-50/90 via-white/85 to-white/80">
+        <Card>
             <CardContent className="p-4">
-                <div className="icon-tile icon-tile-blue mb-3 h-10 w-10">
+                <div className="icon-tile icon-tile-blue mb-2.5 h-9 w-9">
                     <Icon className="h-4 w-4" />
                 </div>
                 <p className="text-[11px] font-medium uppercase tracking-wide text-graphite-400">{label}</p>

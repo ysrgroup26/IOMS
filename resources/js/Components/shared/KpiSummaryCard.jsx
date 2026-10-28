@@ -29,14 +29,15 @@ export default function KpiSummaryCard({ label, value, isNegative, icon, color, 
     // so each KPI card is tinted by its own category colour.
     // v2.136.0: the category's OWN admin-configured colour still drives the
     // tile and the wash -- now as a soft gradient rather than a flat fill.
-    const iconStyle = { backgroundImage: `linear-gradient(135deg, ${color}cc, ${color})`, color: '#ffffff', boxShadow: `inset 0 1px 0 0 rgba(255,255,255,0.3), 0 6px 14px -6px ${color}99` };
-    const surfaceStyle = { backgroundImage: `linear-gradient(to bottom right, ${color}17, rgba(255,255,255,0.85) 55%, rgba(255,255,255,0.8))` };
+    // A frosted capsule tinted with the category's colour; the glyph carries it.
+    const iconStyle = { backgroundImage: `linear-gradient(150deg, rgba(255,255,255,0.95), ${color}2e)`, color, border: `1px solid ${color}40`, boxShadow: `inset 0 1px 0 0 rgba(255,255,255,0.95), 0 4px 10px -6px ${color}88` };
+    const surfaceStyle = undefined;
     const valueColor = isNegative && value > 0 ? { color } : undefined;
 
     if (compact) {
         const content = (
             <div style={surfaceStyle} className="surface flex items-center gap-2.5 rounded-xl px-3 py-2.5 transition-[box-shadow,transform] duration-base ease-out-soft hover:shadow-card-hover motion-safe:hover:-translate-y-0.5">
-                <div className="flex h-8 w-8 shrink-0 items-center justify-center rounded-[10px]" style={iconStyle}>
+                <div className="flex h-8 w-8 shrink-0 items-center justify-center rounded-full" style={iconStyle}>
                     <Icon className="h-4 w-4" />
                 </div>
                 <div className="min-w-0 flex-1">
@@ -61,12 +62,12 @@ export default function KpiSummaryCard({ label, value, isNegative, icon, color, 
     const content = (
         <Card style={surfaceStyle} className="h-full transition-[box-shadow,transform] duration-base ease-out-soft hover:-translate-y-0.5 hover:shadow-card-hover">
             <CardContent className="flex items-center gap-3 p-4 lg:p-4">
-                <div className="flex h-10 w-10 shrink-0 items-center justify-center rounded-xl" style={iconStyle}>
+                <div className="flex h-9 w-9 shrink-0 items-center justify-center rounded-full" style={iconStyle}>
                     <Icon className="h-[18px] w-[18px]" />
                 </div>
                 <div className="min-w-0">
                     <p className="line-clamp-2 text-[13px] font-semibold text-slate-600">{label}</p>
-                    <p className="type-metric text-[26px] leading-tight text-navy-900" style={valueColor}>
+                    <p className="type-metric text-[22px] leading-tight text-navy-900" style={valueColor}>
                         {formatNumber(value)}
                     </p>
                 </div>

@@ -98,8 +98,8 @@ export default function EquipmentFormDialog({ open, onClose, unit = null, equipm
                             )}
                         </FormField>
                         <FormField label="Equipment ID" name="equipment_code" error={errors.equipment_code}
-                            hint={editing && unit.equipment_code ? 'ID yang sudah ada tidak diberi nomor ulang.' : `Kosongkan agar dibuat otomatis saat disimpan, misalnya ${prefix}-00001.`}>
-                            {(p) => <Input {...p} value={data.equipment_code} onChange={(e) => setData('equipment_code', e.target.value.toUpperCase())} placeholder={`${prefix}-00001`} className="font-mono" autoComplete="off" />}
+                            hint={editing && unit.equipment_code ? 'ID yang sudah ada tidak diberi nomor ulang.' : `Kosongkan agar dibuat otomatis saat disimpan, misalnya ${prefix}-01.`}>
+                            {(p) => <Input {...p} value={data.equipment_code} onChange={(e) => setData('equipment_code', e.target.value.toUpperCase())} placeholder={`${prefix}-01`} className="font-mono" autoComplete="off" />}
                         </FormField>
                         <FormField label="Name" name="name" required error={errors.name} className="sm:col-span-2">
                             {(p) => <Input {...p} value={data.name} onChange={(e) => setData('name', e.target.value)} placeholder="APAR CO2 5 kg, Workshop A" />}

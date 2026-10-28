@@ -2,6 +2,7 @@
 
 namespace Tests\Feature;
 
+use App\Models\ActivityLog;
 use App\Models\Company;
 use App\Models\HseEquipmentType;
 use App\Models\SafetyEquipment;
@@ -145,18 +146,58 @@ class SafetyEquipmentRegisterTest extends TestCase
         $this->actingAs($t['user'])->post(route('safety-equipment.store'), $payload(['equipment_code' => 'apar-00010']))->assertSessionHasNoErrors();
         $this->actingAs($t['user'])->post(route('safety-equipment.store'), $payload())->assertSessionHasNoErrors();
         $this->actingAs($t['user'])->post(route('safety-equipment.store'), $payload(['equipment_type_id' => $t['detector']->id]))->assertSessionHasNoErrors();
-        // A duplicate typed by hand is refused, inside one company.
-        $this->actingAs($t['user'])->post(route('safety-equipment.store'), $payload(['equipment_code' => 'APAR-00001']))->assertSessionHasErrors('equipment_code');
+        // A duplicate typed by hand is refused, inside one company -- also when
+        // only the padding differs (v2.135.0: APAR-1 is APAR-01's number).
+        $this->actingAs($t['user'])->post(route('safety-equipment.store'), $payload(['equipment_code' => 'APAR-01']))->assertSessionHasErrors('equipment_code');
+        $this->actingAs($t['user'])->post(route('safety-equipment.store'), $payload(['equipment_code' => 'APAR-1']))->assertSessionHasErrors('equipment_code');
+        $this->actingAs($t['user'])->post(route('safety-equipment.store'), $payload(['equipment_code' => 'apar-010']))->assertSessionHasErrors('equipment_code');
 
+        // Two-digit numbers (v2.135.0); numbering continues from the highest
+        // number in either form, so a typed APAR-00010 is followed by APAR-11.
         $codes = SafetyEquipment::withoutGlobalScopes()->orderBy('id')->pluck('equipment_code')->all();
-        $this->assertSame(['APAR-00001', 'APAR-00010', 'APAR-00011', 'EQ-00001'], $codes);
+        $this->assertSame(['APAR-01', 'APAR-00010', 'APAR-11', 'EQ-01'], $codes);
 
         // A legacy unit with no ID gets one on its next save; one with an ID keeps it.
         $legacy = $this->unit($t, ['equipment_code' => null, 'name' => 'Old']);
         $this->actingAs($t['user'])->put(route('safety-equipment.update', $legacy), $payload(['name' => 'Old']))->assertSessionHasNoErrors();
-        $this->assertSame('APAR-00012', $legacy->fresh()->equipment_code);
+        $this->assertSame('APAR-12', $legacy->fresh()->equipment_code);
         $this->actingAs($t['user'])->put(route('safety-equipment.update', $legacy), $payload(['name' => 'Renamed']))->assertSessionHasNoErrors();
-        $this->assertSame('APAR-00012', $legacy->fresh()->equipment_code);
+        $this->assertSame('APAR-12', $legacy->fresh()->equipment_code);
+    }
+
+    public function test_a_short_code_finds_a_unit_still_labelled_with_the_long_one(): void
+    {
+        $t = $this->tenant('short-search');
+        $old = $this->unit($t, ['equipment_code' => 'APAR-00007', 'name' => 'Lama']);
+        $this->unit($t, ['equipment_code' => 'APAR-17', 'name' => 'Lain']);
+
+        $this->actingAs($t['user'])->get(route('safety-equipment.index', ['q' => 'apar-07']))
+            ->assertOk()
+            ->assertInertia(fn ($page) => $page->where('equipment.data', fn ($rows) => collect($rows)->pluck('id')->all() === [$old->id]));
+    }
+
+    public function test_shortening_existing_codes_is_audited_first_and_refused_on_a_clash(): void
+    {
+        $t = $this->tenant('shorten');
+        $a = $this->unit($t, ['equipment_code' => 'APAR-00001', 'name' => 'A']);
+        $b = $this->unit($t, ['equipment_code' => 'APAR-00012', 'name' => 'B']);
+        $c = $this->unit($t, ['equipment_code' => 'FE/2024/7', 'name' => 'Hand-typed']);
+
+        // Read-only by default.
+        $this->artisan('ioms:equipment-codes')->assertSuccessful();
+        $this->assertSame('APAR-00001', $a->fresh()->equipment_code);
+
+        $this->artisan('ioms:equipment-codes', ['--apply' => true])->assertSuccessful();
+        $this->assertSame('APAR-01', $a->fresh()->equipment_code);
+        $this->assertSame('APAR-12', $b->fresh()->equipment_code);
+        $this->assertSame('FE/2024/7', $c->fresh()->equipment_code);
+        $this->assertTrue(ActivityLog::withoutGlobalScopes()->where('subject_id', $a->id)->where('description', 'like', '%APAR-00001 to APAR-01%')->exists());
+
+        // A number used twice blocks --apply entirely; nothing changes.
+        $d = $this->unit($t, ['equipment_code' => 'APAR-00005', 'name' => 'D']);
+        $this->unit($t, ['equipment_code' => 'APAR-5', 'name' => 'E']);
+        $this->artisan('ioms:equipment-codes', ['--apply' => true])->assertFailed();
+        $this->assertSame('APAR-00005', $d->fresh()->equipment_code);
     }
 
     public function test_the_overview_counts_are_counts_of_the_register_and_filters_narrow_it(): void

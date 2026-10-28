@@ -161,9 +161,18 @@ class SafetyEquipment extends Model
     }
 
     /**
-     * The next unit identifier for a company and prefix: FE-00001, EQ-00012.
+     * v2.135.0: a unit's number is padded to TWO digits (APAR-01 ... APAR-99,
+     * then APAR-100), because the code is read off a label in the field and
+     * APAR-00001 carried three zeros nobody says out loud. Earlier units keep
+     * the five-digit form until `ioms:equipment-codes --apply` shortens them;
+     * numbering continues from the highest NUMBER in either form.
+     */
+    public const CODE_DIGITS = 2;
+
+    /**
+     * The next unit identifier for a company and prefix: APAR-01, EQ-12.
      *
-     * Unique within a company (two tenants may both run an FE-00001, exactly
+     * Unique within a company (two tenants may both run an APAR-01, exactly
      * like a document number). Read under a row lock inside the caller's
      * transaction so two units saved at once cannot take the same number.
      * Codes a person typed by hand are respected and simply skipped over.
@@ -180,7 +189,30 @@ class SafetyEquipment extends Model
             ->map(fn ($code) => preg_match('/^'.preg_quote($prefix, '/').'-(\d+)$/', $code, $m) ? (int) $m[1] : 0)
             ->max() ?? 0;
 
-        return sprintf('%s-%05d', $prefix, $max + 1);
+        return self::compactCode($prefix, $max + 1);
+    }
+
+    /** PREFIX-NN with at least CODE_DIGITS digits: APAR-01, APAR-100. */
+    public static function compactCode(string $prefix, int $number): string
+    {
+        return sprintf('%s-%0'.self::CODE_DIGITS.'d', strtoupper($prefix), $number);
+    }
+
+    /**
+     * What makes two codes the SAME unit number, whatever their padding:
+     * APAR-00001, APAR-001 and apar-1 all give "APAR-1". A code that is not
+     * PREFIX-number (a hand-typed serial such as FE/2024/7) compares as
+     * itself, upper-cased. Used by validation (a number is taken once) and by
+     * search (APAR-01 finds a unit still labelled APAR-00001).
+     */
+    public static function codeKey(?string $code): ?string
+    {
+        $code = strtoupper(trim((string) $code));
+        if ($code === '') {
+            return null;
+        }
+
+        return preg_match('/^([A-Z0-9]+)-0*(\d+)$/', $code, $m) ? $m[1].'-'.(int) $m[2] : $code;
     }
 
     /** Computed, not stored -- true once past next_inspection_due and still in service. */

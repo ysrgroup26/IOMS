@@ -34,7 +34,12 @@
         --input: 214 32% 91%;
         --ring: 212 71% 45%;
 
-        --radius: 0.75rem;
+        /* v2.135.0 -- ONE RADIUS SCALE, concentric by construction:
+           sm 6px (chips, inner items) < md 8px (menu items, small
+           controls) < lg 10px (buttons, inputs, nav items) < xl 14px
+           (cards, panels, popovers) < 2xl 16px (dialogs). An item inside a
+           14px popover with 6px padding is 8px -- the curves stay parallel. */
+        --radius: 0.625rem;
     }
 
     .dark {
@@ -66,6 +71,20 @@
 
     * {
         @apply border-border;
+    }
+
+    /* v2.135.0 -- reduced motion is honoured everywhere, not per component:
+       every transition and animation collapses to (almost) nothing, so
+       state still changes instantly but nothing travels. */
+    @media (prefers-reduced-motion: reduce) {
+        *,
+        *::before,
+        *::after {
+            animation-duration: 0.01ms !important;
+            animation-iteration-count: 1 !important;
+            transition-duration: 0.01ms !important;
+            scroll-behavior: auto !important;
+        }
     }
 
     body {

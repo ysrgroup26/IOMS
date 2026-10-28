@@ -10,6 +10,8 @@ import {
     // v2.129.0 -- the bell's two device controls: sound, and whether this
     // browser may be woken when IOMS is not open.
     Volume2, VolumeX, BellRing, BellOff,
+    // v2.135.0 -- the flash message's success/failure glyphs.
+    CheckCircle2, AlertCircle,
 } from 'lucide-react';
 import { cn } from '@/lib/utils';
 import { useClock } from '@/lib/useClock';
@@ -588,7 +590,7 @@ function AuthenticatedShell({ children }) {
                             return (
                                 <div
                                     key={item.name}
-                                    className="flex h-9 cursor-not-allowed items-center gap-2.5 rounded-[10px] px-3 text-[13px] font-medium text-navy-500 dark:text-slate-600"
+                                    className="flex h-9 cursor-not-allowed items-center gap-2.5 rounded-lg px-3 text-[13px] font-medium text-navy-500 dark:text-slate-600"
                                     title={`${item.name} -- coming soon`}
                                     // The lock glyph is the only thing saying
                                     // "not yet", and it is decorative -- so the
@@ -636,7 +638,7 @@ function AuthenticatedShell({ children }) {
                                         onClick={() => toggleMenu(item.name)}
                                         aria-expanded={isExpanded}
                                         className={cn(
-                                            'flex h-9 w-full items-center gap-2.5 rounded-[10px] px-3 text-[13px] font-medium transition-all duration-150 hover:bg-white/[0.06] hover:text-white dark:hover:bg-slate-900 dark:hover:text-slate-100',
+                                            'flex h-9 w-full items-center gap-2.5 rounded-lg px-3 text-[13px] font-medium outline-none transition-colors duration-fast ease-out-soft hover:bg-white/[0.06] hover:text-white focus-visible:ring-2 focus-visible:ring-steel-300/70 dark:hover:bg-slate-900 dark:hover:text-slate-100',
                                             // A collapsed group holding the active page keeps a
                                             // trace of it, so closing a section never hides where
                                             // you are entirely.
@@ -684,7 +686,7 @@ function AuthenticatedShell({ children }) {
                                                             // subordinate WITHOUT shrinking below a
                                                             // comfortable scanning size.
                                                             className={cn(
-                                                                'flex h-[34px] items-center gap-2 rounded-lg px-2.5 text-[13px] leading-tight transition-colors duration-150',
+                                                                'flex h-[34px] items-center gap-2 rounded-md px-2.5 text-[13px] leading-tight outline-none transition-colors duration-fast ease-out-soft hover:bg-white/[0.05] focus-visible:ring-2 focus-visible:ring-steel-300/70',
                                                                 childActive ? 'font-semibold text-white dark:text-brand-400' : 'font-normal text-navy-400 hover:text-white dark:text-slate-500 dark:hover:text-slate-200'
                                                             )}
                                                         >
@@ -709,7 +711,7 @@ function AuthenticatedShell({ children }) {
                                 className={cn(
                                     // v1.11.13: bumped text-xs(12px) -> text-[13px], matching
                                     // this pass's "Main menu text: 13px/500" exactly.
-                                    'relative flex h-9 items-center gap-2.5 rounded-[10px] px-3 text-[13px] font-medium transition-all duration-150',
+                                    'relative flex h-9 items-center gap-2.5 rounded-lg px-3 text-[13px] font-medium outline-none transition-colors duration-fast ease-out-soft focus-visible:ring-2 focus-visible:ring-steel-300/70',
                                     // v2.71.0: the hairline that separates "where am I"
                                     // (Dashboard / My Work / Overview) from "what do I do".
                                     dividerAfter && 'mb-2 after:absolute after:inset-x-0 after:-bottom-2 after:h-px after:bg-white/[0.07] dark:after:bg-slate-800',
@@ -741,9 +743,9 @@ function AuthenticatedShell({ children }) {
                     centralized version config -- never hardcoded. User
                     identity/role lives only in the topbar profile menu now
                     (v1.5.1 -- avoids showing the same account info twice). */}
-                <div className="shrink-0 border-t border-graphite-100 px-4 py-2 text-center dark:border-slate-800">
-                    <p className="text-[10px] text-graphite-400 dark:text-slate-500">&copy; {version?.copyright_year} IOMS Enterprise</p>
-                    <p className="text-[10px] text-graphite-400 dark:text-slate-500">All Rights Reserved.</p>
+                <div className="shrink-0 border-t border-white/[0.07] px-4 py-2.5 text-center dark:border-slate-800">
+                    <p className="text-[11px] text-navy-400 dark:text-slate-500">&copy; {version?.copyright_year} IOMS Enterprise</p>
+                    <p className="text-[11px] text-navy-400 dark:text-slate-500">All Rights Reserved.</p>
                 </div>
             </aside>
 
@@ -785,7 +787,12 @@ function AuthenticatedShell({ children }) {
 
                 {/* tabIndex -1 so the skip link moves FOCUS here, not
                     only the viewport. */}
-                <main id="main-content" tabIndex={-1} className="p-5 pb-24 outline-none lg:p-8 lg:pb-8">{children}</main>
+                {/* v2.135.0: the page's content arrives (opacity + 6px rise, 260ms)
+                    when a VISIT mounts it. Every page wraps its own layout, so a
+                    visit remounts <main> and the animation plays once; a filter
+                    or partial reload preserves the page and plays nothing. The
+                    sidebar and topbar carry no animation, so they read as still. */}
+                <main id="main-content" tabIndex={-1} className="p-5 pb-24 outline-none motion-safe:animate-page-in lg:p-8 lg:pb-8">{children}</main>
             </div>
 
             <MobileBottomNav visibleNav={visibleNav} currentUrl={currentUrl} space={space} onOpenMore={() => setSidebarOpen(true)} />
@@ -1743,14 +1750,29 @@ function FlashMessages() {
 
     return (
         <div className="px-5 pt-4 lg:px-8">
+            {/* v2.135.0: the result of the action just taken. Announced
+                (role/aria-live) rather than only shown, with an icon so success
+                and failure never differ by colour alone. */}
             <div
+                role={flash.success ? 'status' : 'alert'}
+                aria-live={flash.success ? 'polite' : 'assertive'}
                 className={cn(
-                    'flex items-center justify-between rounded-lg border px-4 py-2.5 text-sm animate-fade-in',
-                    flash.success ? 'border-emerald-200 bg-emerald-50 text-emerald-700' : 'border-red-200 bg-red-50 text-red-700'
+                    'flex items-start justify-between gap-3 rounded-xl border px-4 py-3 text-[13px] shadow-card motion-safe:animate-fade-in',
+                    flash.success ? 'border-emerald-200 bg-emerald-50 text-emerald-800' : 'border-red-200 bg-red-50 text-red-800'
                 )}
             >
-                <span>{flash.success || flash.error}</span>
-                <button onClick={() => setDismissed(true)} className="ml-4 opacity-60 hover:opacity-100">
+                <span className="flex min-w-0 items-start gap-2.5">
+                    {flash.success
+                        ? <CheckCircle2 className="mt-px h-4 w-4 shrink-0 text-emerald-600" aria-hidden="true" />
+                        : <AlertCircle className="mt-px h-4 w-4 shrink-0 text-red-600" aria-hidden="true" />}
+                    <span>{flash.success || flash.error}</span>
+                </span>
+                <button
+                    type="button"
+                    onClick={() => setDismissed(true)}
+                    aria-label="Dismiss message"
+                    className="-m-1 shrink-0 rounded-md p-1 opacity-60 outline-none transition-opacity duration-fast hover:opacity-100 focus-visible:ring-2 focus-visible:ring-current"
+                >
                     <X className="h-4 w-4" />
                 </button>
             </div>

@@ -13,7 +13,7 @@ const badgeVariants = cva(
     // close, invisible when scanning a list. Weight to 600 and a subtle
     // ring so a badge reads as a deliberate STATE CHIP. Size, padding and
     // radius unchanged, so no table column reflows.
-    'inline-flex items-center rounded-full border px-2 py-1 text-[10px] font-semibold leading-none ring-1 ring-inset ring-black/[0.04] transition-colors',
+    'inline-flex items-center rounded-full border px-2 py-1 text-[11px] font-semibold leading-none ring-1 ring-inset ring-black/[0.04] transition-colors duration-fast',
     {
         variants: {
             variant: {

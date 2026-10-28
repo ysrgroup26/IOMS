@@ -23,7 +23,7 @@ const Card = React.forwardRef(({ className, tone, ...props }, ref) => (
     // and the card shadow token was nudged (see tailwind.config.js) so the
     // surface reads as raised rather than drawn. Radius, padding and every
     // sub-component are untouched.
-    <div ref={ref} className={cn('rounded-[10px] border shadow-card', tone ? CARD_TONES[tone] : 'border-steel-100 bg-white dark:border-slate-800 dark:bg-slate-900', className)} {...props} />
+    <div ref={ref} className={cn('rounded-xl border shadow-card', tone ? CARD_TONES[tone] : 'border-steel-100 bg-white dark:border-slate-800 dark:bg-slate-900', className)} {...props} />
 ));
 Card.displayName = 'Card';
 
@@ -41,7 +41,7 @@ CardHeader.displayName = 'CardHeader';
 // 600" line exactly (distinct from "Section Title: 14px/600" -- this
 // component is the per-Card header, not a page-level section divider).
 const CardTitle = React.forwardRef(({ className, ...props }, ref) => (
-    <h3 ref={ref} className={cn('text-[13px] font-semibold text-navy-800 dark:text-slate-100', className)} {...props} />
+    <h3 ref={ref} className={cn('text-sm font-semibold text-navy-800 dark:text-slate-100', className)} {...props} />
 ));
 CardTitle.displayName = 'CardTitle';
 

@@ -24,8 +24,8 @@ const SelectTrigger = React.forwardRef(({ className, children, ...props }, ref) 
         // v1.11.12: same fix as Input -- h-9(36px) uniform (was h-8
         // shrinking to lg:h-7/28px), px-3(12px) horizontal padding.
         className={cn(
-            'flex h-9 w-full items-center justify-between rounded-lg border border-input bg-white px-3 py-1.5 text-[13px] text-graphite-900 shadow-sm dark:border-slate-700 dark:bg-slate-900 dark:text-slate-100 lg:text-xs',
-            'placeholder:text-graphite-400 focus:outline-none focus:ring-2 focus:ring-ring focus:ring-offset-1',
+            'flex h-9 w-full items-center justify-between rounded-lg border border-input bg-white px-3 py-1.5 text-[13px] text-graphite-900 shadow-[0_1px_1px_0_rgba(15,39,71,0.04)] outline-none transition-[border-color,box-shadow] duration-fast ease-out-soft hover:border-graphite-300 focus-visible:border-ring focus-visible:ring-[3px] focus-visible:ring-ring/20 data-[state=open]:border-ring data-[state=open]:ring-[3px] data-[state=open]:ring-ring/20 dark:border-slate-700 dark:bg-slate-900 dark:text-slate-100 dark:hover:border-slate-600',
+            'placeholder:text-graphite-400',
             'disabled:cursor-not-allowed disabled:opacity-50',
             className
         )}
@@ -45,7 +45,7 @@ const SelectContent = React.forwardRef(({ className, children, position = 'poppe
             ref={ref}
             position={position}
             className={cn(
-                'relative z-[120] max-h-96 min-w-[8rem] overflow-hidden rounded-lg border border-graphite-200 bg-white shadow-card-hover dark:border-slate-700 dark:bg-slate-900',
+                'relative z-[120] max-h-96 min-w-[8rem] overflow-hidden rounded-xl border border-graphite-200/80 bg-white shadow-lift duration-base ease-out-soft dark:border-slate-700 dark:bg-slate-900',
                 'data-[state=open]:animate-in data-[state=closed]:animate-out data-[state=closed]:fade-out-0 data-[state=open]:fade-in-0 data-[state=closed]:zoom-out-95 data-[state=open]:zoom-in-95',
                 position === 'popper' && 'translate-y-1',
                 className
@@ -62,7 +62,7 @@ const SelectItem = React.forwardRef(({ className, children, ...props }, ref) => 
     <SelectPrimitive.Item
         ref={ref}
         className={cn(
-            'relative flex w-full cursor-pointer select-none items-center rounded-md py-1.5 pl-8 pr-2 text-[13px] text-graphite-800 outline-none dark:text-slate-200 lg:py-1 lg:text-xs',
+            'relative flex w-full cursor-pointer select-none items-center rounded-md py-1.5 pl-8 pr-2 text-[13px] text-graphite-800 outline-none transition-colors duration-fast dark:text-slate-200',
             'focus:bg-brand-50 focus:text-brand-700 data-[disabled]:pointer-events-none data-[disabled]:opacity-50 dark:focus:bg-slate-800 dark:focus:text-brand-400',
             className
         )}

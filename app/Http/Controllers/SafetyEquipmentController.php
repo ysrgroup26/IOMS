@@ -15,6 +15,7 @@ use Illuminate\Support\Carbon;
 use Illuminate\Support\Collection;
 use Illuminate\Support\Facades\DB;
 use Illuminate\Validation\Rule;
+use Illuminate\Validation\ValidationException;
 use Inertia\Inertia;
 use Inertia\Response;
 
@@ -64,10 +65,13 @@ class SafetyEquipmentController extends Controller
         $filtered = $rows
             ->when($filters['q'] !== '', function (Collection $c) use ($filters) {
                 $needle = mb_strtolower($filters['q']);
+                // APAR-01 also finds a unit still labelled APAR-00001.
+                $codeKey = preg_match('/^[A-Za-z0-9]+-\d+$/', $filters['q']) ? SafetyEquipment::codeKey($filters['q']) : null;
 
-                return $c->filter(fn ($r) => str_contains(mb_strtolower(implode(' ', array_filter([
-                    $r['equipment_code'], $r['name'], $r['serial_number'], $r['location'], $r['brand'], $r['model'],
-                ]))), $needle));
+                return $c->filter(fn ($r) => ($codeKey !== null && SafetyEquipment::codeKey($r['equipment_code']) === $codeKey)
+                    || str_contains(mb_strtolower(implode(' ', array_filter([
+                        $r['equipment_code'], $r['name'], $r['serial_number'], $r['location'], $r['brand'], $r['model'],
+                    ]))), $needle));
             })
             ->when($filters['type'] !== '', fn (Collection $c) => $c->filter(fn ($r) => $filters['type'] === 'unclassified'
                 ? $r['type_id'] === null
@@ -306,7 +310,7 @@ class SafetyEquipmentController extends Controller
             'asset_id' => ['nullable', Rule::in(Asset::whereIn('company_id', $tenantCompanyIds)->pluck('id'))],
         ], [
             'equipment_code.unique' => 'Another unit in this operating unit already uses this ID.',
-            'equipment_code.regex' => 'Use letters, numbers and dashes only, for example FE-00001.',
+            'equipment_code.regex' => 'Use letters, numbers and dashes only, for example APAR-01.',
         ]);
 
         $type = isset($data['equipment_type_id'])
@@ -317,6 +321,25 @@ class SafetyEquipmentController extends Controller
         $data['equipment_type_id'] = $type?->id;
         $data['type'] = $type?->code ?? ($data['type'] ?? null);
         $data['equipment_code'] = isset($data['equipment_code']) ? strtoupper(trim($data['equipment_code'])) : null;
+
+        // v2.135.0: the exact-string rule above cannot see that APAR-1 and
+        // APAR-00001 are the same unit number. While short and long codes
+        // coexist, a number is taken once per operating unit, however it is
+        // padded.
+        if ($data['equipment_code'] !== null) {
+            $key = SafetyEquipment::codeKey($data['equipment_code']);
+            $clash = SafetyEquipment::query()
+                ->where('company_id', (int) $data['company_id'])
+                ->when($existing, fn ($q) => $q->whereKeyNot($existing->id))
+                ->whereNotNull('equipment_code')
+                ->pluck('equipment_code')
+                ->first(fn ($code) => SafetyEquipment::codeKey($code) === $key);
+            if ($clash !== null) {
+                throw ValidationException::withMessages([
+                    'equipment_code' => "This number is already used by {$clash} in this operating unit.",
+                ]);
+            }
+        }
         $data['_prefix'] = $type?->code_prefix;
 
         return $data;

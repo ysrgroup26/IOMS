@@ -1,6 +1,7 @@
 import * as React from 'react';
 import { Slot } from '@radix-ui/react-slot';
 import { cva } from 'class-variance-authority';
+import { Loader2 } from 'lucide-react';
 import { cn } from '@/lib/utils';
 
 // v1.11.12 (Final Visual Design System pass): default button height was
@@ -18,8 +19,16 @@ import { cn } from '@/lib/utils';
 // button in the app, motion-safe-guarded so a `prefers-reduced-motion`
 // user gets none of it -- the smallest possible real interaction fix,
 // deliberately not a new animation dependency.
+// v2.135.0 (dashboard redesign): the press was `transition-colors` with an
+// `active:scale`, so the colour eased and the scale SNAPPED -- the one
+// motion meant as feedback was the one that was not animated. Colour,
+// shadow and transform now share one curve (`out-soft`, 150ms). Text is
+// 13px: 12px buttons were the most-cited "too small" in the review. A
+// `loading` button is disabled while it waits (no double submission),
+// says so to assistive tech (`aria-busy`), and keeps its width so the row
+// it sits in does not jump.
 const buttonVariants = cva(
-    'inline-flex items-center justify-center gap-1.5 whitespace-nowrap rounded-lg text-xs font-medium transition-colors motion-safe:active:scale-[0.98] focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2 disabled:pointer-events-none disabled:opacity-50 [&_svg]:shrink-0',
+    'inline-flex items-center justify-center gap-1.5 whitespace-nowrap rounded-lg text-[13px] font-medium transition-[color,background-color,border-color,box-shadow,transform,opacity] duration-fast ease-out-soft motion-safe:active:scale-[0.97] focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring/60 focus-visible:ring-offset-2 disabled:pointer-events-none disabled:opacity-50 [&_svg]:shrink-0',
     {
         variants: {
             variant: {
@@ -42,9 +51,9 @@ const buttonVariants = cva(
                 link: 'text-primary underline-offset-4 hover:underline',
             },
             size: {
-                default: 'h-9 px-3',
-                sm: 'h-7 rounded-md px-2.5 text-xs lg:h-6',
-                lg: 'h-9 rounded-md px-6',
+                default: 'h-9 px-3.5',
+                sm: 'h-8 rounded-md px-2.5 text-xs lg:h-7',
+                lg: 'h-10 px-6',
                 icon: 'h-9 w-9 lg:h-8 lg:w-8',
             },
         },
@@ -55,10 +64,23 @@ const buttonVariants = cva(
     }
 );
 
-const Button = React.forwardRef(({ className, variant, size, asChild = false, ...props }, ref) => {
+const Button = React.forwardRef(({ className, variant, size, asChild = false, loading = false, disabled, children, ...props }, ref) => {
     const Comp = asChild ? Slot : 'button';
+    // A Slot renders exactly one child, so the spinner is only added to a
+    // real <button>; an asChild link has nothing to submit twice anyway.
+    const busy = loading && !asChild;
     return (
-        <Comp className={cn(buttonVariants({ variant, size, className }))} ref={ref} {...props} />
+        <Comp
+            className={cn(buttonVariants({ variant, size, className }))}
+            ref={ref}
+            disabled={asChild ? disabled : disabled || busy}
+            aria-busy={busy || undefined}
+            {...props}
+        >
+            {/* A Slot accepts exactly ONE child: `{false}{children}` is two and
+                breaks every asChild button, so the child passes through alone. */}
+            {asChild ? children : <>{busy && <Loader2 className="h-4 w-4 animate-spin" aria-hidden="true" />}{children}</>}
+        </Comp>
     );
 });
 Button.displayName = 'Button';

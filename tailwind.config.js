@@ -176,7 +176,33 @@ export default {
                 // opposite of the intended restraint.
                 lift: '0 10px 24px -8px rgba(15, 39, 71, 0.18), 0 2px 6px -2px rgba(15, 39, 71, 0.08)',
             },
+            // v2.135.0 -- ONE MOTION LANGUAGE. Two curves and three durations,
+            // named once, so a button, a dropdown and a page all move the same
+            // way. `out-soft` decelerates (things arriving); `in-soft`
+            // accelerates (things leaving). Durations: fast 150ms (press,
+            // hover, focus), base 200ms (popovers, tabs), slow 260ms (pages,
+            // dialogs). prefers-reduced-motion collapses all of it in app.css.
+            transitionTimingFunction: {
+                'out-soft': 'cubic-bezier(0.22, 1, 0.36, 1)',
+                'in-soft': 'cubic-bezier(0.55, 0, 0.75, 0.06)',
+            },
+            transitionDuration: {
+                fast: '150ms',
+                base: '200ms',
+                slow: '260ms',
+            },
             keyframes: {
+                // The content of a page arriving after a real navigation. Only
+                // opacity and a 6px rise: transform/opacity are composited, so
+                // a long table animates as cheaply as a short one.
+                // Ends at `transform: none`, not translateY(0): an element that
+                // KEEPS a transform becomes the containing block of every
+                // position:fixed descendant, and a page's fixed bars would
+                // silently move with it.
+                'page-in': {
+                    '0%': { opacity: '0', transform: 'translateY(6px)' },
+                    '100%': { opacity: '1', transform: 'none' },
+                },
                 'fade-in': {
                     '0%': { opacity: '0', transform: 'translateY(4px)' },
                     '100%': { opacity: '1', transform: 'translateY(0)' },
@@ -266,7 +292,8 @@ export default {
                 },
             },
             animation: {
-                'fade-in': 'fade-in 0.2s ease-out',
+                'fade-in': 'fade-in 0.2s cubic-bezier(0.22, 1, 0.36, 1)',
+                'page-in': 'page-in 0.26s cubic-bezier(0.22, 1, 0.36, 1) both',
                 float: 'float 6s ease-in-out infinite',
                 'float-slow': 'float 9s ease-in-out infinite',
                 'pulse-glow': 'pulse-glow 4s ease-in-out infinite',

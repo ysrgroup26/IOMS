@@ -566,7 +566,7 @@ function EquipmentTypesSection({ equipmentTypes, equipmentCounts = {}, companies
                             <div className="space-y-1.5">
                                 <Label>Unit ID Prefix</Label>
                                 <Input value={data.code_prefix} onChange={(e) => setData('code_prefix', e.target.value.toUpperCase())} placeholder="APAR" className="font-mono" maxLength={12} />
-                                {errors.code_prefix ? <p className="text-xs text-red-600">{errors.code_prefix}</p> : <p className="text-xs text-graphite-400">Unit baru mendapat ID seperti {(data.code_prefix || 'EQ')}-00001. ID yang sudah ada tidak berubah.</p>}
+                                {errors.code_prefix ? <p className="text-xs text-red-600">{errors.code_prefix}</p> : <p className="text-xs text-graphite-400">Unit baru mendapat ID seperti {(data.code_prefix || 'EQ')}-01. ID yang sudah ada tidak berubah.</p>}
                             </div>
                             <div className="space-y-1.5">
                                 <Label>Inspection Interval (months)</Label>

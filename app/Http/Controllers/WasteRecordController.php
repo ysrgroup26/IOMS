@@ -7,6 +7,7 @@ use App\Models\Company;
 use App\Models\Project;
 use App\Models\ProjectActivity;
 use App\Models\Vendor;
+use App\Models\WasteContainerInventory;
 use App\Models\WasteMovement;
 use App\Models\WasteRecord;
 use App\Models\WasteStorageLocation;
@@ -15,6 +16,7 @@ use App\Services\NumberGeneratorService;
 use Illuminate\Http\RedirectResponse;
 use Illuminate\Http\Request;
 use Illuminate\Validation\Rule;
+use Illuminate\Validation\ValidationException;
 use Inertia\Inertia;
 use Inertia\Response;
 
@@ -61,6 +63,11 @@ class WasteRecordController extends Controller
             'storageLocations' => WasteStorageLocation::whereIn('company_id', $companyIds)->active()->get(),
             'projects' => Project::whereIn('company_id', $companyIds)->orderBy('name')->get(['id', 'name']),
             'companies' => Company::active()->orderBy('name')->get(['id', 'name']),
+            // v2.135.0: the units a quantity can be recorded in, and the
+            // company's own container types as suggestions (the container
+            // register counts drums; a record only names what holds it).
+            'units' => collect(WasteRecord::UNITS)->map(fn ($u, $key) => ['value' => $key, ...$u])->values(),
+            'containerTypes' => WasteContainerInventory::whereIn('company_id', $companyIds)->distinct()->orderBy('container_type')->pluck('container_type')->filter()->values(),
         ]);
     }
 
@@ -76,13 +83,33 @@ class WasteRecordController extends Controller
             'project_activity_id' => ['nullable', Rule::in(ProjectActivity::whereHas('project', fn ($q) => $q->whereIn('company_id', $companyIds))->pluck('id'))],
             'location' => ['nullable', 'string', 'max:255'],
             'storage_location_id' => ['nullable', Rule::in(WasteStorageLocation::whereIn('company_id', $companyIds)->pluck('id'))],
-            'quantity' => ['required', 'numeric', 'min:0.01'],
+            'quantity' => ['required', 'numeric', 'min:0.01', 'max:99999999'],
             'unit' => ['required', 'string', 'max:50'],
             'container' => ['nullable', 'string', 'max:100'],
-            'generated_date' => ['required', 'date'],
-            'received_date' => ['nullable', 'date', 'after_or_equal:generated_date'],
+            'generated_date' => ['required', 'date', 'before_or_equal:today'],
+            'received_date' => ['nullable', 'date', 'after_or_equal:generated_date', 'before_or_equal:today'],
             'notes' => ['nullable', 'string', 'max:1000'],
+        ], [
+            'received_date.after_or_equal' => 'The received date cannot be before the waste was generated.',
         ]);
+
+        // v2.135.0: a record is stored in a TPS of ITS OWN operating unit.
+        if (! empty($data['storage_location_id'])
+            && ! WasteStorageLocation::where('company_id', $data['company_id'])->active()->whereKey($data['storage_location_id'])->exists()) {
+            throw ValidationException::withMessages(['storage_location_id' => 'Choose an active TPS of this operating unit.']);
+        }
+
+        // v2.135.0: the unit must be one the system can reason about -- a
+        // standard unit, or the waste type's own -- and a count is whole.
+        $type = WasteType::whereIn('company_id', $companyIds)->find($data['waste_type_id']);
+        $data['unit'] = WasteRecord::normalizeUnit($data['unit']);
+        $typeUnit = WasteRecord::normalizeUnit($type?->unit);
+        if (! array_key_exists($data['unit'], WasteRecord::UNITS) && $data['unit'] !== $typeUnit) {
+            throw ValidationException::withMessages(['unit' => 'Choose one of the listed units.']);
+        }
+        if ((WasteRecord::UNITS[$data['unit']]['kind'] ?? null) === 'count' && floor((float) $data['quantity']) != (float) $data['quantity']) {
+            throw ValidationException::withMessages(['quantity' => 'A count must be a whole number.']);
+        }
 
         $data['record_number'] = $numberGenerator->generate('waste_record', $data['company_id']);
         $data['status'] = $data['storage_location_id'] ?? null ? WasteRecord::STATUS_STORED : WasteRecord::STATUS_GENERATED;

@@ -55,6 +55,36 @@ class WasteRecord extends Model
     /** Still physically present on-site -- the states storage-age monitoring applies to. */
     public const STORED_STATUSES = [self::STATUS_GENERATED, self::STATUS_STORED, self::STATUS_SCHEDULED_PICKUP];
 
+    /**
+     * v2.135.0 -- THE UNITS A QUANTITY CAN BE RECORDED IN, AND WHAT THEY
+     * MEASURE. A liter is not a kilogram: nothing converts between kinds,
+     * and the dashboard compares a TPS's capacity only where units are equal
+     * (ADR 077). A count is whole (2.5 drums is not a quantity). A waste
+     * type defined with another unit keeps it -- that unit is also accepted
+     * for records of that type, so existing master data is never refused.
+     */
+    public const UNITS = [
+        'kg' => ['label' => 'kg', 'kind' => 'mass'],
+        'ton' => ['label' => 'ton', 'kind' => 'mass'],
+        'liter' => ['label' => 'liter', 'kind' => 'volume'],
+        'm3' => ['label' => 'm³', 'kind' => 'volume'],
+        'unit' => ['label' => 'unit (pcs)', 'kind' => 'count'],
+    ];
+
+    /** A standard unit in its stored spelling ("Kg" -> "kg", "L" -> "liter"); anything else as typed. */
+    public static function normalizeUnit(?string $unit): string
+    {
+        $u = mb_strtolower(trim((string) $unit));
+
+        return match ($u) {
+            'kgs', 'kilogram' => 'kg',
+            'l', 'lt', 'ltr', 'litre' => 'liter',
+            'm³', 'm^3', 'cbm' => 'm3',
+            'pcs', 'pc', 'buah' => 'unit',
+            default => array_key_exists($u, self::UNITS) ? $u : trim((string) $unit),
+        };
+    }
+
     protected $fillable = [
         'record_number', 'company_id', 'waste_type_id', 'project_id', 'project_activity_id',
         'location', 'storage_location_id', 'quantity', 'unit', 'container',

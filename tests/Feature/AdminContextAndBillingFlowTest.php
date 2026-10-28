@@ -15,9 +15,11 @@ use App\Services\Payments\DuitkuGateway;
 use App\Services\Payments\NullPaymentGateway;
 use App\Services\SchemaStatusService;
 use App\Support\CurrentTenant;
+use Database\Seeders\WorkspaceSeeder;
 use Illuminate\Foundation\Testing\RefreshDatabase;
 use Illuminate\Support\Facades\Mail;
 use Illuminate\Support\Facades\Schema;
+use Illuminate\Testing\TestResponse;
 use Tests\TestCase;
 
 /**
@@ -51,7 +53,7 @@ class AdminContextAndBillingFlowTest extends TestCase
 
         Mail::fake();
         config(['saas.enforce_entitlement' => true, 'saas.enforce_workspace_entitlement' => true]);
-        $this->seed(\Database\Seeders\WorkspaceSeeder::class);
+        $this->seed(WorkspaceSeeder::class);
     }
 
     private function tenantOn(string $slug, array $subscription = []): Tenant
@@ -155,8 +157,8 @@ class AdminContextAndBillingFlowTest extends TestCase
          * it would use is blocked (ADR 061's addendum). The capability
          * check itself is unchanged.
          */
-        $this->assertStringContainsString("{auth?.user?.can_access_admin_space && !myWorkOnly", $layout);
-        $this->assertStringContainsString("blocked_route_prefixes", $layout);
+        $this->assertStringContainsString('{auth?.user?.can_access_admin_space && !myWorkOnly', $layout);
+        $this->assertStringContainsString('blocked_route_prefixes', $layout);
 
         // And the selector still names no workspace while none is active.
         $this->assertStringContainsString("{space === 'admin' ? 'Workspaces' :", $layout);
@@ -477,7 +479,7 @@ class AdminContextAndBillingFlowTest extends TestCase
         ]);
     }
 
-    private function postDuitkuCallback(Invoice $invoice): \Illuminate\Testing\TestResponse
+    private function postDuitkuCallback(Invoice $invoice): TestResponse
     {
         $orderId = 'INV'.$invoice->id.'-20260101120000';
         $amount = (string) (int) $invoice->amount;

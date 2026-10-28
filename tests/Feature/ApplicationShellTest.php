@@ -179,7 +179,7 @@ class ApplicationShellTest extends TestCase
         $trap = $this->source('resources/js/lib/useFocusTrap.js');
 
         $this->assertStringContainsString('document.activeElement', $trap, 'ENTER: the opener must be captured.');
-        $this->assertStringContainsString(".focus()", $trap);
+        $this->assertStringContainsString('.focus()', $trap);
         $this->assertStringContainsString("'Escape'", $trap, 'STAY: Escape must close it.');
         $this->assertStringContainsString("'Tab'", $trap, 'STAY: Tab must cycle inside it.');
         $this->assertStringContainsString('shiftKey', $trap, 'Shift+Tab must wrap backwards.');

@@ -5,17 +5,15 @@ namespace Tests\Feature;
 use App\Models\Company;
 use App\Models\Department;
 use App\Models\Employee;
-use App\Models\HazardCategory;
 use App\Models\Notification;
 use App\Models\Package;
 use App\Models\Position;
 use App\Models\Subscription;
 use App\Models\Tenant;
 use App\Models\User;
-use App\Models\Warehouse;
 use App\Models\Workspace;
-use App\Support\IdentifierCase;
 use App\Support\CurrentTenant;
+use App\Support\IdentifierCase;
 use Database\Seeders\ModuleSeeder;
 use Database\Seeders\WorkspaceSeeder;
 use Illuminate\Foundation\Testing\RefreshDatabase;
@@ -262,7 +260,7 @@ class NotificationBadgeAndTypographyTest extends TestCase
             'position_id' => $position->id,
             'join_date' => '2026-01-05',
             'status' => 'active',
-            'employment_type' => \App\Models\Employee::EMPLOYMENT_TYPE_PKWTT,
+            'employment_type' => Employee::EMPLOYMENT_TYPE_PKWTT,
         ])->assertSessionHasNoErrors()->assertRedirect();
 
         $employee = Employee::withoutGlobalScopes()->where('employee_id', 'EMP-0042')->sole();

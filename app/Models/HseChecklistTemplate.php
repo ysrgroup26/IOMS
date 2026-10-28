@@ -14,7 +14,10 @@ class HseChecklistTemplate extends Model
 {
     use BelongsToCompany;
 
-    protected $fillable = ['company_id', 'category', 'name', 'items', 'is_active', 'sort_order'];
+    protected $fillable = ['company_id', 'category', 'equipment_type_id', 'name', 'items', 'is_active', 'sort_order'];
+
+    /** v2.135.0 -- the category an equipment-type template is filed under (not an area-inspection type). */
+    public const EQUIPMENT_CATEGORY = 'equipment';
 
     protected function casts(): array
     {
@@ -37,5 +40,24 @@ class HseChecklistTemplate extends Model
     public function company()
     {
         return $this->belongsTo(Company::class);
+    }
+
+    public function equipmentType()
+    {
+        return $this->belongsTo(HseEquipmentType::class, 'equipment_type_id');
+    }
+
+    /** v2.135.0 -- the active template for one equipment type, preferring the unit's own operating unit. */
+    public static function forEquipmentType(?int $typeId, int $companyId): ?self
+    {
+        if (! $typeId) {
+            return null;
+        }
+
+        return self::query()->active()
+            ->where('equipment_type_id', $typeId)
+            ->orderByRaw('company_id = ? desc', [$companyId])
+            ->orderBy('sort_order')->orderBy('id')
+            ->first();
     }
 }

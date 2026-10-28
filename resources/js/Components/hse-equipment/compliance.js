@@ -68,3 +68,54 @@ export function relativeDue(value) {
     if (days === 0) return 'hari ini';
     return days < 0 ? `lewat ${Math.abs(days)} hari` : `${days} hari lagi`;
 }
+
+/** v2.135.0 -- how serious a finding is. Required when an inspection is not Pass. */
+export const RISK_LEVELS = {
+    low: { label: 'Low', tone: 'info', hint: 'Tidak memengaruhi fungsi alat; perbaiki pada pemeliharaan berikutnya.' },
+    medium: { label: 'Medium', tone: 'warning', hint: 'Fungsi alat berkurang; jadwalkan perbaikan.' },
+    high: { label: 'High', tone: 'danger', hint: 'Alat mungkin gagal saat dibutuhkan; perbaiki segera.' },
+    critical: { label: 'Critical', tone: 'danger', hint: 'Alat tidak boleh diandalkan; ganti atau tarik dari pemakaian.' },
+};
+
+/** v2.135.0 -- the kinds of check a checklist item can be (SafetyEquipmentInspection::CHECKS). */
+export const CHECKS = {
+    pass_fail: { label: 'Pass / Fail' },
+    reading: { label: 'Reading' },
+    date: { label: 'Date' },
+};
+
+/**
+ * The same rule the server applies (SafetyEquipmentInspection::judge), so the
+ * dialog can show the outcome while the inspector works. The server decides;
+ * this only previews.
+ */
+export function judgeItem(item, answer, inspectionDate) {
+    const check = item.check || 'pass_fail';
+    if (answer?.result === 'na') return 'na';
+    if (check === 'reading') {
+        if (answer?.value === undefined || answer.value === '' || Number.isNaN(Number(answer.value))) return null;
+        const n = Number(answer.value);
+        const below = item.min !== undefined && item.min !== null && item.min !== '' && n < Number(item.min);
+        const above = item.max !== undefined && item.max !== null && item.max !== '' && n > Number(item.max);
+        return below || above || answer.result === 'fail' ? 'fail' : 'pass';
+    }
+    if (check === 'date') {
+        if (!answer?.value) return null;
+        return answer.value < inspectionDate ? 'fail' : 'pass';
+    }
+    return answer?.result || null;
+}
+
+export function judgeChecklist(items, answers, inspectionDate, condition) {
+    let criticalFail = false;
+    let anyFail = false;
+    let unanswered = 0;
+    items.forEach((item, i) => {
+        const outcome = judgeItem(item, answers[i], inspectionDate);
+        if (outcome === null) unanswered += 1;
+        if (outcome === 'fail') { anyFail = true; criticalFail = criticalFail || !!item.critical; }
+    });
+    let result = criticalFail ? 'fail' : anyFail ? 'needs_action' : 'pass';
+    if (condition === 'damaged' && result === 'pass') result = 'needs_action';
+    return { result, unanswered };
+}

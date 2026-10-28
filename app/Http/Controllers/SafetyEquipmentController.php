@@ -5,9 +5,13 @@ namespace App\Http\Controllers;
 use App\Models\ActivityLog;
 use App\Models\Asset;
 use App\Models\Company;
+use App\Models\CorrectiveAction;
+use App\Models\HseChecklistTemplate;
 use App\Models\HseEquipmentType;
 use App\Models\SafetyEquipment;
 use App\Models\SafetyEquipmentInspection;
+use App\Models\User;
+use App\Support\CurrentTenant;
 use Illuminate\Http\RedirectResponse;
 use Illuminate\Http\Request;
 use Illuminate\Pagination\LengthAwarePaginator;
@@ -117,8 +121,11 @@ class SafetyEquipmentController extends Controller
     public function show(Request $request, SafetyEquipment $safetyEquipment): Response
     {
         abort_unless(Company::query()->pluck('id')->contains($safetyEquipment->company_id), 404);
-        $safetyEquipment->load(['equipmentType', 'latestInspection', 'company:id,name', 'asset:id,name,asset_code', 'inspections.inspector:id,name']);
+        $safetyEquipment->load(['equipmentType', 'latestInspection', 'company:id,name', 'asset:id,name,asset_code', 'inspections.inspector:id,name', 'inspections.correctiveActions.assignee:id,name']);
         $today = now()->startOfDay();
+        $canManage = $request->user()->canManageHse();
+        $template = HseChecklistTemplate::forEquipmentType($safetyEquipment->equipment_type_id, $safetyEquipment->company_id);
+        $tenantId = app(CurrentTenant::class)->id();
 
         return Inertia::render('Hse/Equipment/Show', [
             'equipment' => [
@@ -141,7 +148,20 @@ class SafetyEquipmentController extends Controller
                 'notes' => $i->notes,
                 'next_inspection_due' => $i->next_inspection_due?->toDateString(),
                 'inspector' => $i->inspector?->name,
+                'risk_level' => $i->risk_level,
+                'checklist' => $i->checklist,
+                'photos' => collect($i->photos ?? [])->map(fn ($p) => ['url' => asset('storage/'.$p['path']), 'name' => $p['name'] ?? null])->values(),
+                'actions' => $i->correctiveActions->map(fn (CorrectiveAction $a) => [
+                    'id' => $a->id, 'action' => $a->action, 'status' => $a->status, 'priority' => $a->priority,
+                    'due_date' => $a->due_date?->toDateString(), 'assignee' => $a->assignee?->name,
+                ])->values(),
             ]),
+            // v2.135.0: the checklist this unit's type is inspected against
+            // (null = the earlier free form), and who a follow-up can go to.
+            'checklistTemplate' => $template ? ['id' => $template->id, 'name' => $template->name, 'items' => $template->items] : null,
+            'assignees' => $canManage
+                ? User::when($tenantId, fn ($q) => $q->where('tenant_id', $tenantId))->where('is_active', true)->orderBy('name')->get(['id', 'name'])
+                : [],
             ...($request->user()->canManageHse() ? $this->formOptions(Company::query()->pluck('id')) : []),
             'activities' => ActivityLog::where('subject_type', SafetyEquipment::class)
                 ->where('subject_id', $safetyEquipment->id)
@@ -201,21 +221,83 @@ class SafetyEquipmentController extends Controller
         return redirect()->route('safety-equipment.index')->with('success', 'Equipment removed.');
     }
 
+    /**
+     * v2.135.0 -- AN INSPECTION IS JUDGED FROM ITS CHECKLIST.
+     *
+     * When the unit's type has an equipment checklist, the inspector answers
+     * each item and the SERVER decides the result (SafetyEquipmentInspection::
+     * judge): a critical Fail is Fail, any other Fail is Needs Action, an
+     * expired date or an out-of-range reading fails by itself, and Damaged is
+     * never Pass. The items are filed with the answers, so a later template
+     * edit cannot rewrite this inspection. Anything other than Pass needs a
+     * description and a risk level; a failed item that asks for evidence
+     * needs a photo; and each follow-up becomes a CorrectiveAction with an
+     * owner and a due date, closed and VERIFIED through the CAPA register.
+     *
+     * A type with no checklist keeps the earlier form (condition, result,
+     * findings). The one rule that is new for it too: an inspection that is
+     * not Pass now also needs a risk level, so every finding is ranked the
+     * same way whichever form recorded it.
+     */
     public function recordInspection(Request $request, SafetyEquipment $safetyEquipment): RedirectResponse
     {
         abort_unless($request->user()->canManageHse(), 403);
         abort_unless(Company::query()->pluck('id')->contains($safetyEquipment->company_id), 404);
 
+        $template = HseChecklistTemplate::forEquipmentType($safetyEquipment->equipment_type_id, $safetyEquipment->company_id);
+        $tenantId = app(CurrentTenant::class)->id();
+        $tenantUserIds = User::when($tenantId, fn ($q) => $q->where('tenant_id', $tenantId))->pluck('id');
+
         $data = $request->validate([
             'inspection_date' => ['required', 'date', 'before_or_equal:today'],
             'condition' => ['required', Rule::in(SafetyEquipmentInspection::CONDITIONS)],
-            'result' => ['required', Rule::in(SafetyEquipmentInspection::RESULTS)],
-            'findings' => ['nullable', 'string', 'max:1000', Rule::requiredIf(fn () => in_array($request->input('result'), ['fail', 'needs_action'], true))],
+            'result' => [$template ? 'nullable' : 'required', Rule::in(SafetyEquipmentInspection::RESULTS)],
+            'findings' => ['nullable', 'string', 'max:1000'],
+            'risk_level' => ['nullable', Rule::in(SafetyEquipmentInspection::RISK_LEVELS)],
             'next_inspection_due' => ['nullable', 'date', 'after:inspection_date'],
             'notes' => ['nullable', 'string', 'max:1000'],
+            'checklist' => [$template ? 'required' : 'nullable', 'array'],
+            'checklist.*.result' => ['nullable', Rule::in(['pass', 'fail', 'na'])],
+            'checklist.*.value' => ['nullable', 'string', 'max:40'],
+            'checklist.*.remark' => ['nullable', 'string', 'max:500'],
+            'photos' => ['nullable', 'array', 'max:6'],
+            'photos.*' => ['image', 'max:5120'],
+            'actions' => ['nullable', 'array', 'max:10'],
+            'actions.*.action' => ['required', 'string', 'max:500'],
+            'actions.*.assigned_to' => ['nullable', Rule::in($tenantUserIds)],
+            'actions.*.due_date' => ['nullable', 'date', 'after_or_equal:inspection_date'],
+            'actions.*.priority' => ['nullable', Rule::in(CorrectiveAction::PRIORITIES)],
         ], [
-            'findings.required' => 'Describe what was found when the result is Fail or Needs Action.',
+            'photos.*.image' => 'Each photo must be an image.',
+            'photos.*.max' => 'Each photo must be 5 MB or smaller.',
         ]);
+
+        $rows = null;
+        if ($template) {
+            $judged = SafetyEquipmentInspection::judge(
+                $template->items ?? [], $data['checklist'] ?? [], Carbon::parse($data['inspection_date'])->toDateString(), $data['condition'],
+            );
+            if ($judged['errors'] !== []) {
+                throw ValidationException::withMessages($judged['errors']);
+            }
+            $rows = $judged['rows'];
+            $data['result'] = $judged['result'];
+        }
+
+        $notPass = $data['result'] !== 'pass';
+        $missing = [];
+        if ($notPass && blank($data['findings'] ?? null)) {
+            $missing['findings'] = 'Describe what was found when the result is Fail or Needs Action.';
+        }
+        if ($notPass && empty($data['risk_level'])) {
+            $missing['risk_level'] = 'Choose the risk level of what was found.';
+        }
+        if ($rows && collect($rows)->contains(fn ($r) => $r['result'] === 'fail' && $r['photo_on_fail']) && empty($data['photos'])) {
+            $missing['photos'] = 'A failed item needs photo evidence. Add at least one photo.';
+        }
+        if ($missing !== []) {
+            throw ValidationException::withMessages($missing);
+        }
 
         // The type's declared interval proposes the next date when the
         // inspector left it blank -- a rule the company configured, not a
@@ -225,12 +307,41 @@ class SafetyEquipmentController extends Controller
             $data['next_inspection_due'] = Carbon::parse($data['inspection_date'])->addMonthsNoOverflow($interval)->toDateString();
         }
 
-        DB::transaction(function () use ($data, $safetyEquipment, $request) {
-            $safetyEquipment->inspections()->create([
+        $photos = $request->file('photos', []);
+        $actions = $data['actions'] ?? [];
+        unset($data['checklist'], $data['photos'], $data['actions']);
+        if (! $notPass) {
+            $data['risk_level'] = null;
+        }
+
+        $inspection = DB::transaction(function () use ($data, $safetyEquipment, $request, $template, $rows, $photos, $actions) {
+            $inspection = $safetyEquipment->inspections()->create([
                 ...$data,
                 'company_id' => $safetyEquipment->company_id,
                 'inspector_id' => $request->user()->id,
+                'checklist_template_id' => $template?->id,
+                'checklist' => $rows,
             ]);
+
+            if ($photos !== []) {
+                $inspection->update(['photos' => collect($photos)->map(fn ($file) => [
+                    'path' => $file->store("uploads/safety-equipment/{$safetyEquipment->id}/inspections/{$inspection->id}", 'public'),
+                    'name' => mb_substr($file->getClientOriginalName(), 0, 120),
+                ])->all()]);
+            }
+
+            $priority = ['low' => 'low', 'medium' => 'medium', 'high' => 'high', 'critical' => 'high'][$data['risk_level'] ?? ''] ?? 'medium';
+            foreach ($actions as $action) {
+                $inspection->correctiveActions()->create([
+                    'company_id' => $safetyEquipment->company_id,
+                    'action' => $action['action'],
+                    'assigned_to' => $action['assigned_to'] ?? null,
+                    'due_date' => $action['due_date'] ?? null,
+                    'priority' => $action['priority'] ?? $priority,
+                    'status' => CorrectiveAction::STATUS_OPEN,
+                    'created_by' => $request->user()->id,
+                ]);
+            }
 
             // Keep the denormalized fields in sync. An inspection dated
             // BEFORE the latest one on file is history being back-filled
@@ -242,13 +353,16 @@ class SafetyEquipmentController extends Controller
                     'next_inspection_due' => $data['next_inspection_due'] ?? $safetyEquipment->next_inspection_due,
                 ]);
             }
+
+            return $inspection;
         });
 
         $label = $safetyEquipment->equipment_code ?: $safetyEquipment->name;
         $result = ['pass' => 'Pass', 'fail' => 'Fail', 'needs_action' => 'Needs Action'][$data['result']];
-        ActivityLog::record('created', "Inspection recorded for {$label}: {$result}.", $safetyEquipment);
+        $followUps = count($actions) ? ' '.count($actions).' corrective action(s) raised.' : '';
+        ActivityLog::record('created', "Inspection recorded for {$label}: {$result}.{$followUps}", $safetyEquipment);
 
-        return back()->with('success', 'Inspection recorded.');
+        return back()->with('success', "Inspection recorded: {$result}.{$followUps}");
     }
 
     /**

@@ -10,7 +10,7 @@ import ComplianceBadge, { ResultBadge } from '@/Components/hse-equipment/Complia
 import EquipmentFormDialog from '@/Components/hse-equipment/EquipmentFormDialog';
 import InspectionDialog from '@/Components/hse-equipment/InspectionDialog';
 import QrLabel from '@/Components/hse-equipment/QrLabel';
-import { COMPLIANCE, CONDITIONS, LIFECYCLES, TONE_CLASSES, formatDate, relativeDue } from '@/Components/hse-equipment/compliance';
+import { COMPLIANCE, CONDITIONS, LIFECYCLES, RISK_LEVELS, TONE_CLASSES, formatDate, relativeDue } from '@/Components/hse-equipment/compliance';
 import { cn } from '@/lib/utils';
 import { ArrowLeft, ClipboardCheck, Pencil, Trash2, HardHat, CalendarClock, History, QrCode, ClipboardList } from 'lucide-react';
 
@@ -20,7 +20,7 @@ import { ArrowLeft, ClipboardCheck, Pencil, Trash2, HardHat, CalendarClock, Hist
  * the audit trail. The standing in the header is the server's derivation,
  * the same one the register shows.
  */
-export default function EquipmentShow({ equipment, inspections, activities, equipmentTypes = [], assets = [], companies = [], can }) {
+export default function EquipmentShow({ equipment, inspections, activities, equipmentTypes = [], assets = [], companies = [], checklistTemplate = null, assignees = [], can }) {
     const [editOpen, setEditOpen] = useState(false);
     const [inspectOpen, setInspectOpen] = useState(false);
     const standing = COMPLIANCE[equipment.compliance];
@@ -137,7 +137,38 @@ export default function EquipmentShow({ equipment, inspections, activities, equi
                                                 {i.inspector ? `By ${i.inspector}` : 'Inspector not recorded'}
                                                 {i.next_inspection_due && ` · next due ${formatDate(i.next_inspection_due)}`}
                                             </p>
+                                            {i.risk_level && (
+                                                <span className={cn('mt-1 inline-flex items-center rounded-md border px-1.5 py-px text-[11px] font-semibold', TONE_CLASSES[RISK_LEVELS[i.risk_level]?.tone ?? 'neutral'])}>
+                                                    Risk: {RISK_LEVELS[i.risk_level]?.label ?? i.risk_level}
+                                                </span>
+                                            )}
                                             {i.findings && <p className="mt-1 text-sm text-graphite-700 dark:text-slate-300">{i.findings}</p>}
+                                            <InspectionChecklist checklist={i.checklist} />
+                                            {i.photos?.length > 0 && (
+                                                <ul className="mt-2 flex flex-wrap gap-1.5" aria-label="Photo evidence">
+                                                    {i.photos.map((ph, n) => (
+                                                        <li key={n}>
+                                                            <a href={ph.url} target="_blank" rel="noreferrer" className="block h-14 w-14 overflow-hidden rounded-lg border border-graphite-200 outline-none transition-transform duration-fast ease-out-soft hover:scale-[1.03] focus-visible:ring-2 focus-visible:ring-ring/60">
+                                                                <img src={ph.url} alt={ph.name || `Photo ${n + 1}`} className="h-full w-full object-cover" loading="lazy" />
+                                                            </a>
+                                                        </li>
+                                                    ))}
+                                                </ul>
+                                            )}
+                                            {i.actions?.length > 0 && (
+                                                <ul className="mt-2 space-y-1">
+                                                    {i.actions.map((a) => (
+                                                        <li key={a.id} className="flex flex-wrap items-center gap-x-2 text-xs text-graphite-600 dark:text-slate-300">
+                                                            <span className={cn('rounded px-1.5 py-px font-semibold', a.status === 'verified' ? 'bg-emerald-100 text-emerald-800' : a.status === 'completed' ? 'bg-steel-100 text-steel-800' : 'bg-amber-100 text-amber-800')}>
+                                                                {ACTION_STATUS[a.status] ?? a.status}
+                                                            </span>
+                                                            <span className="text-graphite-800 dark:text-slate-200">{a.action}</span>
+                                                            <span className="text-graphite-500">{a.assignee ? `PIC ${a.assignee}` : 'PIC belum ditentukan'}{a.due_date && ` · tenggat ${formatDate(a.due_date)}`}</span>
+                                                        </li>
+                                                    ))}
+                                                    <li><Link href={route('corrective-actions.index')} className="text-xs font-medium text-brand-700 hover:underline">Kelola dan verifikasi di register CAPA</Link></li>
+                                                </ul>
+                                            )}
                                             {i.notes && <p className="mt-0.5 text-xs text-graphite-500 dark:text-slate-400">{i.notes}</p>}
                                         </li>
                                     ))}
@@ -194,9 +225,36 @@ export default function EquipmentShow({ equipment, inspections, activities, equi
             {can.manage && (
                 <>
                     <EquipmentFormDialog open={editOpen} onClose={() => setEditOpen(false)} unit={equipment} equipmentTypes={equipmentTypes} assets={assets} companies={companies} />
-                    <InspectionDialog open={inspectOpen} onClose={() => setInspectOpen(false)} unit={equipment} intervalMonths={equipment.interval_months} />
+                    <InspectionDialog open={inspectOpen} onClose={() => setInspectOpen(false)} unit={equipment} intervalMonths={equipment.interval_months} template={checklistTemplate} assignees={assignees} />
                 </>
             )}
         </AuthenticatedLayout>
+    );
+}
+
+const ACTION_STATUS = { open: 'Open', in_progress: 'In Progress', completed: 'Completed', verified: 'Verified', cancelled: 'Cancelled' };
+
+/** A filed checklist: only what did not pass is spelled out; the rest is counted. */
+function InspectionChecklist({ checklist }) {
+    if (!checklist?.length) return null;
+    const failed = checklist.filter((r) => r.result === 'fail');
+    const passed = checklist.filter((r) => r.result === 'pass').length;
+    const na = checklist.filter((r) => r.result === 'na').length;
+
+    return (
+        <div className="mt-1.5 text-xs">
+            <p className="text-graphite-500 dark:text-slate-400">
+                Checklist: {passed} pass{failed.length > 0 && `, ${failed.length} fail`}{na > 0 && `, ${na} N/A`}
+            </p>
+            {failed.length > 0 && (
+                <ul className="mt-1 space-y-0.5">
+                    {failed.map((r, n) => (
+                        <li key={n} className="text-red-700 dark:text-red-300">
+                            ✕ {r.label}{r.value && ` (${r.value}${r.unit ? ` ${r.unit}` : ''})`}{r.critical && ' · critical'}{r.remark && ` · ${r.remark}`}
+                        </li>
+                    ))}
+                </ul>
+            )}
+        </div>
     );
 }

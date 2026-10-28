@@ -103,7 +103,7 @@ class SafetyEquipmentRegisterTest extends TestCase
         $unit = $this->unit($t, ['next_inspection_due' => '2027-03-01', 'expiry_date' => '2028-01-01']);
 
         $this->actingAs($t['user'])->post(route('safety-equipment.inspections.store', $unit), [
-            'inspection_date' => '2026-10-20', 'condition' => 'poor', 'result' => 'needs_action', 'findings' => 'Pressure gauge in red',
+            'inspection_date' => '2026-10-20', 'condition' => 'poor', 'result' => 'needs_action', 'findings' => 'Pressure gauge in red', 'risk_level' => 'high',
         ])->assertSessionHasNoErrors();
         $this->assertSame('action_required', $unit->fresh()->complianceState());
 

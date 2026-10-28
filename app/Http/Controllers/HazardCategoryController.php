@@ -72,6 +72,10 @@ class HazardCategoryController extends Controller
             'checklistTemplates' => HseChecklistTemplate::whereIn('company_id', $companyIds)
                 ->orderBy('category')->orderBy('sort_order')->get(),
             'inspectionTypes' => HseInspection::TYPES,
+            // v2.135.0 -- reference lists an equipment checklist may START
+            // from (config/hse_checklists.php); nothing is saved until HSE
+            // reviews them in the editor.
+            'checklistLibrary' => collect(config('hse_checklists', []))->map(fn ($l, $key) => ['key' => $key, ...$l])->values(),
             'companies' => Company::active()->orderBy('name')->get(['id', 'name']),
             'can' => ['manage' => request()->user()->isAdmin()],
         ]);

@@ -117,6 +117,8 @@ class CorrectiveActionController extends Controller
             'SafetyObservation' => $a->source->observation_number,
             'HseInspection' => $a->source->inspection_number,
             'Incident' => $a->source->incident_number,
+            // v2.135.0: a finding from a safety-equipment inspection.
+            'SafetyEquipmentInspection' => trim(($a->source->safetyEquipment?->equipment_code ?? 'Equipment').' inspection '.$a->source->inspection_date?->toDateString()),
             default => (string) $a->source->getKey(),
         };
     }
@@ -131,6 +133,7 @@ class CorrectiveActionController extends Controller
             'SafetyObservation' => route('safety-observations.show', $a->source_id),
             'HseInspection' => route('hse-inspections.show', $a->source_id),
             'Incident' => route('incidents.show', $a->source_id),
+            'SafetyEquipmentInspection' => $a->source->safety_equipment_id ? route('safety-equipment.show', $a->source->safety_equipment_id) : null,
             default => null,
         };
     }

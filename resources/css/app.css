@@ -210,6 +210,7 @@
        (slate-600+) keeps AA over the darkest part of the artwork.
        ===================================================================== */
     .ioms-canvas {
+        --ioms-film: rgba(30, 48, 78, 0.22);
         position: relative;
         isolation: isolate;
         background-color: #E8F1FC;
@@ -221,7 +222,12 @@
         z-index: -1;
         pointer-events: none;
         background-color: #E8F1FC;
+        /* v2.137.0 -- THE FILM. A dark blue-grey tint laid over the artwork
+           AND its milky veil (it is the top layer), so the whole backdrop
+           sits about 17% darker (measured mean grey level) and calmer. It lives on this
+           ::before only: cards, text and icons are never under it. */
         background-image:
+            linear-gradient(var(--ioms-film), var(--ioms-film)),
             linear-gradient(100deg, rgba(244, 249, 255, 0.62) 0%, rgba(244, 249, 255, 0.38) 38%, rgba(244, 249, 255, 0.16) 100%),
             url('/images/app/ioms-backdrop.webp');
         background-repeat: no-repeat;
@@ -234,6 +240,7 @@
     @media (max-width: 767px) {
         .ioms-canvas::before {
             background-image:
+                linear-gradient(var(--ioms-film), var(--ioms-film)),
                 linear-gradient(180deg, rgba(244, 249, 255, 0.58) 0%, rgba(244, 249, 255, 0.30) 100%),
                 url('/images/app/ioms-backdrop-sm.webp');
             background-position: 64% 50%;

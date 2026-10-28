@@ -21,6 +21,10 @@ grid to be removed from HSE Overview only.
    fixed `::before` of `.ioms-canvas` (not `background-attachment: fixed`, which iOS ignores),
    `cover`-sized and anchored at 72% / 42% so a crop keeps the hexagonal layers, under a milky veil
    that is heavier on the left (rail, titles) and lighter on the right (gaps between cards).
+   A dark blue-grey FILM (`--ioms-film`, rgba(30,48,78,0.22)) is the top layer of that `::before`,
+   over both the artwork and the veil: measured on the backdrop alone it lowers the mean grey level
+   by 17.2% (16% opacity gave only 12.6%, so opacity was tuned by measurement, not assumed). It
+   never sits over cards, text or icons; muted ink on glass still measures 5.5:1 under it.
 2. **Milky glass with real diffusion.** `.surface` is a 86%->75% white gradient with
    `backdrop-filter: blur(20px) saturate(150%)`, a white hairline, an inner highlight and a cool
    ambient shadow; `.chrome` (rail, top-bar pills, bottom bar) is a little clearer and blurs more;

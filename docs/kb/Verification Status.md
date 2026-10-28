@@ -55,6 +55,20 @@ approved migration deploy, artisan allow-list and refusals, redaction of tokens 
 - **Not run:** anything on Tencent (this environment is denied the host); a GitHub-hosted runner
   reaching Tencent over SSH (needs the owner's secrets and an open port 22).
 
+### What was actually run for v2.135.0 (branch, not deployed)
+
+- **Suite:** 1684 passed after the last batch; new: SafetyEquipmentRegisterTest (+3),
+  EquipmentInspectionChecklistTest (7), WasteRecordFormTest (4). Migration applied on MySQL 8 locally and
+  classified `additive` by the deploy policy. ESLint 0 errors (8 pre-existing warnings), Pint clean.
+- **Browser (local MySQL, Playwright, 1440 and 390 px):** shared primitives on the dashboard, equipment
+  register and waste dashboard; a template created from the APAR reference list; a failed critical item
+  with photo and corrective action → Fail, Action Required, history shows risk, failed item, photo and
+  action; the waste form proposes the type's unit, warns on another kind, saves as Stored. Three defects
+  were found this way and fixed before commit: asChild buttons broken by the loading spinner (Slot), a
+  dialog stretched by an absolutely positioned file input, and the unsaved-changes guard blocking the
+  waste form's own Save.
+- **Not verified:** production (not deployed), the reference image (never received), dark mode.
+
 ### What was actually run for v2.134.0
 
 - **Suite:** full `php artisan test`: 1669 passed (8633 assertions), including 8 new tests in

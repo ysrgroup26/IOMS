@@ -1,3 +1,7 @@
+> [!note] v2.135.0 (ADR 078): new IDs are `{prefix}-01` (two-digit minimum), a number is taken once
+> however it is padded, and `ioms:equipment-codes` shortens existing `{prefix}-00001` codes after an
+> audit. Read "`{prefix}-00001`" below as the format at the time of this ADR.
+
 # ADR 074: An equipment unit's standing is derived, and the register is its own page
 
 - Status: accepted (v2.133.0)

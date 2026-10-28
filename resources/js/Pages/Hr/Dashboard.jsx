@@ -55,19 +55,19 @@ export default function HrDashboard({
                             <CardDescription>Seluruh perusahaan</CardDescription>
                         </CardHeader>
                         <CardContent className="grid grid-cols-2 gap-2 text-sm sm:grid-cols-4">
-                            <div className="rounded-lg border border-graphite-100 p-2.5 dark:border-slate-800">
+                            <div className="rounded-xl border border-steel-100 bg-white/60 p-2.5 dark:border-slate-800">
                                 <p className="text-xs text-graphite-400">Total</p>
                                 <p className="text-base font-semibold text-graphite-900 dark:text-slate-50">{totalEmployees}</p>
                             </div>
-                            <div className="rounded-lg border border-graphite-100 p-2.5 dark:border-slate-800">
+                            <div className="rounded-xl border border-steel-100 bg-white/60 p-2.5 dark:border-slate-800">
                                 <p className="text-xs text-graphite-400">Active</p>
                                 <p className="text-base font-semibold text-graphite-900 dark:text-slate-50">{activeEmployees}</p>
                             </div>
-                            <div className="rounded-lg border border-graphite-100 p-2.5 dark:border-slate-800">
+                            <div className="rounded-xl border border-steel-100 bg-white/60 p-2.5 dark:border-slate-800">
                                 <p className="text-xs text-graphite-400">On Shift Today</p>
                                 <p className="text-base font-semibold text-graphite-900 dark:text-slate-50">{onShiftToday}</p>
                             </div>
-                            <div className="rounded-lg border border-graphite-100 p-2.5 dark:border-slate-800">
+                            <div className="rounded-xl border border-steel-100 bg-white/60 p-2.5 dark:border-slate-800">
                                 <p className="text-xs text-graphite-400">Incomplete Profiles</p>
                                 <p className="text-base font-semibold text-graphite-900 dark:text-slate-50">{employeesNeedCompletionCount}</p>
                             </div>

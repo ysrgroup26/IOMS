@@ -399,7 +399,10 @@
          static instances of the same family from resources/fonts (see
          pdf/partials/fonts.blade.php), so paper and screen are the same
          typeface rather than two that merely agree in spirit. --}}
-    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800&family=Archivo:wdth,wght@75..100,400..900&family=IBM+Plex+Mono:wght@400;500;600&display=swap" rel="stylesheet">
+    {{-- v2.136.0: the interface face is Manrope, bundled by Vite (ADR 079), so
+         Inter is no longer requested. Archivo stays for the document type
+         band (screen = PDF) and Plex Mono for identifiers. --}}
+    <link href="https://fonts.googleapis.com/css2?family=Archivo:wdth,wght@75..100,400..900&family=IBM+Plex+Mono:wght@400;500;600&display=swap" rel="stylesheet">
 
     @routes
     @viteReactRefresh

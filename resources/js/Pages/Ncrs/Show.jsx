@@ -51,7 +51,7 @@ export default function NcrShow({ ncr: n, canManage, users }) {
                         </CardHeader>
                         <CardContent className="space-y-3">
                             {raiseOpen && (
-                                <form onSubmit={submitCapa} className="space-y-3 rounded-md border border-graphite-100 p-3">
+                                <form onSubmit={submitCapa} className="space-y-3 rounded-xl border border-steel-100 bg-white/60 p-3">
                                     <Input placeholder="Action" value={capaForm.data.action} onChange={(e) => capaForm.setData('action', e.target.value)} />
                                     <div className="grid grid-cols-3 gap-3">
                                         <Select value={capaForm.data.assigned_to} onValueChange={(v) => capaForm.setData('assigned_to', v)}>
@@ -71,7 +71,7 @@ export default function NcrShow({ ncr: n, canManage, users }) {
                                 <p className="text-sm text-graphite-400">No corrective actions raised.</p>
                             ) : (
                                 n.corrective_actions.map((a) => (
-                                    <div key={a.id} className="rounded-md border border-graphite-100 p-3 text-sm">
+                                    <div key={a.id} className="rounded-xl border border-steel-100 bg-white/60 p-3 text-sm">
                                         <p>{humanizeToken(a.action)}</p>
                                         <p className="mt-1 text-xs text-graphite-500">{a.assignee?.name || 'Unassigned'} {a.due_date && `· due ${new Date(a.due_date).toLocaleDateString('en-US', { day: 'numeric', month: 'short', year: 'numeric' })}`} · <StatusBadge value={a.status} /></p>
                                     </div>

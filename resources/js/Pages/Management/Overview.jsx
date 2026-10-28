@@ -264,7 +264,7 @@ export default function ManagementOverview({ summary, departments, hse, actions,
                             href={entry.href}
                             className="group flex flex-col gap-1 rounded-xl border border-graphite-100 bg-white p-3 transition-colors hover:border-brand-200 hover:bg-steel-50/60 dark:border-slate-800 dark:bg-slate-900 dark:hover:border-brand-900"
                         >
-                            <span className="flex h-8 w-8 items-center justify-center rounded-lg bg-gradient-to-br from-navy-800 to-brand-600 text-white">
+                            <span className="icon-tile icon-tile-blue h-9 w-9">
                                 <entry.icon className="h-4 w-4" />
                             </span>
                             <span className="mt-1 text-sm font-semibold text-graphite-900 dark:text-slate-100">{entry.label}</span>

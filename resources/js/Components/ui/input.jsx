@@ -96,10 +96,10 @@ const Input = React.forwardRef(({ className, type = 'text', uppercase = false, o
             // shrink). h-9(36px) uniform; horizontal padding bumped
             // px-2.5(10px)->px-3(12px) to match the spec's own number exactly.
             className={cn(
-                'flex h-9 w-full rounded-lg border border-input bg-white px-3 py-1.5 text-[13px] text-graphite-900 shadow-[0_1px_1px_0_rgba(15,39,71,0.04)] transition-[border-color,box-shadow] duration-fast ease-out-soft dark:border-slate-700 dark:bg-slate-900 dark:text-slate-100',
+                'flex h-10 w-full rounded-lg border border-input bg-white/90 px-3.5 py-2 text-[13px] text-navy-900 shadow-[inset_0_1px_2px_0_rgba(30,64,120,0.04)] transition-[border-color,box-shadow] duration-fast ease-out-soft dark:border-slate-700 dark:bg-slate-900 dark:text-slate-100',
                 'file:border-0 file:bg-transparent file:text-sm file:font-medium',
                 'placeholder:text-graphite-400 dark:placeholder:text-slate-500',
-                'outline-none hover:border-graphite-300 focus-visible:border-ring focus-visible:ring-[3px] focus-visible:ring-ring/20 dark:hover:border-slate-600',
+                'outline-none hover:border-steel-300 focus-visible:border-brand-400 focus-visible:bg-white focus-visible:ring-4 focus-visible:ring-brand-500/15 dark:hover:border-slate-600',
                 'disabled:cursor-not-allowed disabled:opacity-50',
                 // An identifier reads better set as one: slight tracking,
                 // and the monospaced face the product already uses for

@@ -118,7 +118,7 @@ export default function PtwQuota({ balance, packs = [], recent = [], canPurchase
                                 {packs.map((pack) => (
                                     <div
                                         key={pack.key}
-                                        className="flex flex-col rounded-xl border border-graphite-200 bg-white p-5 shadow-card"
+                                        className="flex flex-col surface p-5"
                                     >
                                         <p className="font-mono text-[11px] uppercase tracking-[0.16em] text-graphite-400">
                                             Top up
@@ -195,7 +195,7 @@ function Pool({ label, value, of, hint, tone = 'default' }) {
     return (
         <div
             className={cn(
-                'rounded-xl border bg-white p-5 shadow-card',
+                'surface p-5',
                 tone === 'spent' ? 'border-danger/30' : 'border-graphite-200'
             )}
         >

@@ -72,13 +72,17 @@ export default {
                     50: '#eff6ff',
                     100: '#dbeafe',
                     200: '#bfdbfe',
-                    300: '#8FBEEC',
-                    400: '#5CA0EA',
-                    500: '#3B85DD',
-                    600: '#2166C4',
-                    700: '#1A5099',
-                    800: '#163F78',
-                    900: '#12305A',
+                    // v2.136.0 (Icy Frosted): the mid stops move from the
+                    // navy/steel axis to a clear azure, so a primary action
+                    // reads against an icy-blue ground instead of sinking
+                    // into it. 50-200 are unchanged (near-white washes).
+                    300: '#93C2F8',
+                    400: '#5FA2F4',
+                    500: '#3A86EE',
+                    600: '#2470DD',
+                    700: '#1C5AB8',
+                    800: '#184891',
+                    900: '#153A70',
                 },
                 graphite: {
                     50: '#f8fafc',
@@ -136,19 +140,31 @@ export default {
                 navy: { DEFAULT: '#0F2747', 300: '#7C94B4', 400: '#54719A', 500: '#2F5484', 600: '#1F406B', 700: '#17335A', 800: '#122A4A', 900: '#0F2747', 950: '#0A1C33' },
                 steel: { DEFAULT: '#3B82B6', 50: '#EAF3FB', 100: '#D3E6F5', 200: '#AECFEA', 300: '#82B4DC', 400: '#5C9BCC', 500: '#3B82B6', 600: '#2E6894', 700: '#245273' },
             },
+            // v2.136.0 -- THE BUBBLE SCALE, still concentric: sm 8 (chips,
+            // inner items) < md 10 (menu items) < lg 12 (buttons, inputs, nav
+            // rows) < xl 16 (popovers, small panels) < 2xl 20 (cards) < 3xl 24
+            // (dialogs, the shell's floating rail and bar). Pills are `full`.
             borderRadius: {
                 lg: 'var(--radius)',
                 md: 'calc(var(--radius) - 2px)',
                 sm: 'calc(var(--radius) - 4px)',
                 xl: 'calc(var(--radius) + 4px)',
+                '2xl': 'calc(var(--radius) + 8px)',
+                '3xl': 'calc(var(--radius) + 12px)',
             },
             fontFamily: {
-                sans: ['Inter', 'ui-sans-serif', 'system-ui', 'sans-serif'],
+                // v2.136.0: Manrope is the ONE interface voice -- text and
+                // numerals alike, self-hosted from @fontsource-variable (see
+                // ADR 079 for why not Satoshi). Inter stays as the fallback.
+                sans: ['"Manrope Variable"', 'Manrope', 'Inter', 'ui-sans-serif', 'system-ui', 'sans-serif'],
                 // v2.85.0: the public website's headline and label voices.
                 // `sans` is untouched, so every authenticated surface keeps
                 // rendering in Inter exactly as before -- these two are
                 // opt-in per element via `font-display` / `font-mono`.
-                display: ['Archivo', 'Inter', 'ui-sans-serif', 'system-ui', 'sans-serif'],
+                display: ['"Manrope Variable"', 'Manrope', 'Inter', 'ui-sans-serif', 'system-ui', 'sans-serif'],
+                // A controlled document's condensed type band (PTW paper) --
+                // kept on Archivo so the screen matches the PDF.
+                document: ['Archivo', 'Inter', 'ui-sans-serif', 'system-ui', 'sans-serif'],
                 mono: ['"IBM Plex Mono"', 'ui-monospace', 'SFMono-Regular', 'monospace'],
             },
             boxShadow: {
@@ -162,11 +178,15 @@ export default {
                 // too. Nudged just enough for cards to read as RAISED on the
                 // tinted ground -- still a single soft layer, still not the
                 // "strong shadows" the v1.11.12 spec ruled out.
-                card: '0 1px 2px 0 rgba(15, 39, 71, 0.06)',
-                'card-hover': '0 6px 16px -2px rgba(15, 39, 71, 0.10)',
+                // v2.136.0: frosted bubble depth -- a hairline contact shadow
+                // plus a wide, faint cool halo. Never a glow.
+                card: '0 1px 2px 0 rgba(30, 64, 120, 0.04), 0 10px 30px -14px rgba(30, 64, 120, 0.16)',
+                'card-hover': '0 2px 4px 0 rgba(30, 64, 120, 0.05), 0 18px 40px -16px rgba(30, 64, 120, 0.24)',
                 // Panel = a section container that owns a region of the page
                 // (module panels, page header). One step above a data card.
-                panel: '0 2px 6px -1px rgba(15, 39, 71, 0.07)',
+                panel: '0 1px 2px 0 rgba(30, 64, 120, 0.04), 0 14px 36px -18px rgba(30, 64, 120, 0.20)',
+                // Floating chrome (rail, top bar) and popovers.
+                float: '0 1px 2px 0 rgba(30, 64, 120, 0.05), 0 16px 40px -20px rgba(30, 64, 120, 0.28)',
                 // v2.44.0: elevation for surfaces that should feel lit rather
                 // than merely outlined -- KPI/stat surfaces and domain panels.
                 // A cool navy-tinted shadow -- deliberately a NEUTRAL depth cue

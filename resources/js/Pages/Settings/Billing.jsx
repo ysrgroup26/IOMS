@@ -825,7 +825,7 @@ function Meter({ icon: Icon, label, used, limit }) {
             {pct !== null && (
                 <div className="mt-1.5 h-1.5 w-full overflow-hidden rounded-full bg-steel-100">
                     <div
-                        className={cn('h-full rounded-full', tight ? 'bg-danger' : 'bg-gradient-to-r from-navy-800 to-brand-600')}
+                        className={cn('h-full rounded-full', tight ? 'bg-danger' : 'bg-gradient-to-r from-sky-400 to-brand-600')}
                         style={{ width: `${pct}%` }}
                     />
                 </div>

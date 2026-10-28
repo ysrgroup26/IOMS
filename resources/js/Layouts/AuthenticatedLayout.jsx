@@ -60,6 +60,36 @@ function isItemActive(item, currentUrl) {
 }
 
 /**
+ * v2.136.0 -- ONE lit row. isItemActive() matches on the route NAME's first
+ * segment, so every Management item (`management.overview`, `.kpi`, `.hse`
+ * ...) matched every Management page and the whole list read as active --
+ * invisible on the old navy rail, glaring once active became a raised pill.
+ * Among the candidates, the item whose own path is the longest prefix of the
+ * current path wins; ties keep the first (the old behaviour).
+ */
+function pickActiveItem(items, currentUrl) {
+    const path = currentUrl.split('?')[0];
+    let best = null;
+    let bestLength = -1;
+    for (const item of items) {
+        if (item.children?.length || !isItemActive(item, currentUrl)) continue;
+        let itemPath = '';
+        try {
+            itemPath = new URL(route(item.href, item.queryParams)).pathname;
+        } catch {
+            itemPath = '';
+        }
+        const covers = itemPath && (path === itemPath || path.startsWith(itemPath.replace(/\/$/, '') + '/'));
+        const length = covers ? itemPath.length : 0;
+        if (length > bestLength) {
+            best = item;
+            bestLength = length;
+        }
+    }
+    return best;
+}
+
+/**
  * Exact pathname match by default -- several PPE children (dashboard/
  * employees/master/index) all start with the same `/ppe` segment, so a
  * naive prefix check would match all of them at once. The one exception:
@@ -403,7 +433,7 @@ function AuthenticatedShell({ children }) {
     // actually matched. When a child owns the URL, its group is the active
     // item and no prefix-matched leaf lights.
     const childOwnedItem = visibleNav.find((item) => item.children?.some((child) => isChildRouteActive(child, currentUrl)));
-    const activeNavItem = childOwnedItem ?? visibleNav.find((item) => isItemActive(item, currentUrl));
+    const activeNavItem = childOwnedItem ?? pickActiveItem(visibleNav, currentUrl);
     // Only populated for a parent item that actually has children AND one
     // of them matches the current URL -- the one case the breadcrumb below
     // is allowed to render for (see Breadcrumb's own doc comment).
@@ -447,7 +477,7 @@ function AuthenticatedShell({ children }) {
         // lets every existing white surface in the app read as RAISED -- one
         // change, no page edits, and it is the reason the rest of this pass
         // could stay restrained rather than recolouring components one by one.
-        <div className="relative min-h-screen bg-graphite-100 dark:bg-slate-950">
+        <div className="ioms-canvas relative min-h-screen">
             {/* v2.35.0 (Visual System + IA Refinement, Part 16 --
                 "too white" was the single most-repeated production
                 finding). The v2.29.0 tint only touched the top-left
@@ -461,8 +491,9 @@ function AuthenticatedShell({ children }) {
                 (doesn't scroll, doesn't repaint), still low-opacity, still
                 sits entirely behind white Cards/Sidebar/TopBar -- this is
                 the BACKGROUND layer, not a new card treatment. */}
-            <div className="pointer-events-none fixed inset-0 -z-10 bg-gradient-to-br from-steel-100/70 via-transparent to-transparent dark:from-blue-950/20" aria-hidden="true" />
-            <div className="pointer-events-none fixed inset-0 -z-10 bg-gradient-to-tl from-steel-200/50 via-transparent to-transparent dark:from-slate-900/40" aria-hidden="true" />
+            {/* v2.136.0: the canvas above IS the atmosphere now (.ioms-canvas,
+                ADR 079) -- icy radial washes fixed to the viewport, so a long
+                page reads as one frosted ground at any scroll position. */}
 
             {/* v2.67.0 -- the first thing a keyboard reaches on every page.
                 Without it, getting from the address bar to the actual
@@ -479,7 +510,7 @@ function AuthenticatedShell({ children }) {
             {/* Mobile overlay */}
             {sidebarOpen && (
                 <div
-                    className="fixed inset-0 z-40 bg-graphite-900/30 lg:hidden"
+                    className="fixed inset-0 z-40 bg-navy-900/20 backdrop-blur-sm lg:hidden"
                     onClick={() => setSidebarOpen(false)}
                     aria-hidden="true"
                 />
@@ -532,10 +563,19 @@ function AuthenticatedShell({ children }) {
                     // active white/[0.10] + white text + steel indicator -- and
                     // active additionally carries weight and a left bar, so it
                     // never depends on hue alone.
-                    'fixed inset-y-0 left-0 z-50 flex w-[240px] flex-col transform border-r border-navy-700 bg-gradient-to-b from-navy-900 via-navy-900 to-navy-950 transition-transform duration-200 ease-in-out dark:border-slate-800 dark:from-slate-950 dark:via-slate-950 dark:to-slate-900 lg:translate-x-0',
+                    // v2.136.0 (ADR 079) -- THE RAIL FLOATS. The navy rail ADR 078
+                    // kept is replaced, at the owner's direction, by a frosted
+                    // panel inset from the viewport edge: the same material as
+                    // the cards, a touch more opaque. The state ladder that the
+                    // navy rail needed is re-pitched for a light ground:
+                    // disabled slate-300 < idle slate-600 < hover white/70 <
+                    // active a raised white pill + brand ink + bold weight +
+                    // aria-current, so the active row never depends on hue.
+                    'fixed inset-y-0 left-0 z-50 flex w-[264px] transform flex-col p-3 transition-transform duration-slow ease-out-soft lg:translate-x-0',
                     sidebarOpen ? 'translate-x-0' : '-translate-x-full'
                 )}
             >
+                <div className="chrome flex min-h-0 flex-1 flex-col overflow-hidden rounded-3xl">
                 {/* Logo/title: clickable to open the About dialog.
                     v2.72.0: the official lockup, dark-surface variant, on
                     the navy rail. The sizing gymnastics that used to live
@@ -553,28 +593,28 @@ function AuthenticatedShell({ children }) {
                     only way to dismiss the drawer short of finding the
                     scrim. They are siblings now, and Close is a real
                     button with a name. */}
-                <div className="flex shrink-0 items-start gap-2 border-b border-white/10 dark:border-slate-800">
+                <div className="flex shrink-0 items-start gap-2 px-1 pb-2 pt-2">
                     <button
                         onClick={() => setAboutOpen(true)}
-                        className="flex min-w-0 flex-1 items-start px-4 pb-1.5 pt-3 text-left transition-colors hover:bg-white/[0.05] dark:hover:bg-slate-900/60"
+                        className="flex min-w-0 flex-1 items-start rounded-2xl px-3.5 pb-2 pt-3 text-left outline-none transition-colors duration-fast hover:bg-white/60 focus-visible:ring-4 focus-visible:ring-brand-500/15"
                         title="About IOMS"
                     >
                         <div className="min-w-0 flex-1 overflow-visible">
-                            <BrandWordmark className="h-8 w-auto max-w-full object-contain" tone="dark" />
-                            <p className="mt-0.5 text-[10px] font-medium uppercase leading-snug tracking-wide text-steel-300 dark:text-slate-500">{company?.subtitle || 'Industrial Operations Platform'}</p>
+                            <BrandWordmark className="h-8 w-auto max-w-full object-contain" tone="light" />
+                            <p className="mt-1 text-[10px] font-semibold uppercase leading-snug tracking-[0.08em] text-slate-400">{company?.subtitle || 'Industrial Operations Platform'}</p>
                         </div>
                     </button>
                     <button
                         type="button"
                         onClick={() => setSidebarOpen(false)}
                         aria-label="Close navigation"
-                        className="mr-2 mt-3 shrink-0 rounded p-1 text-navy-300 outline-none transition-colors hover:bg-white/[0.08] hover:text-white lg:hidden"
+                        className="mr-2 mt-3 shrink-0 rounded-full p-1.5 text-slate-500 outline-none transition-colors hover:bg-white hover:text-navy-900 lg:hidden"
                     >
                         <X className="h-5 w-5" />
                     </button>
                 </div>
 
-                <nav ref={navScrollRef} aria-label="Workspace" className="flex-1 space-y-0.5 overflow-y-auto px-3 pb-3 pt-1.5">
+                <nav ref={navScrollRef} aria-label="Workspace" className="flex-1 space-y-1 overflow-y-auto px-3 pb-3 pt-1">
                     {visibleNav.map((item, index) => {
                         const Icon = item.icon;
                         // Hairline between "where am I" and "what do I do".
@@ -590,7 +630,7 @@ function AuthenticatedShell({ children }) {
                             return (
                                 <div
                                     key={item.name}
-                                    className="flex h-9 cursor-not-allowed items-center gap-2.5 rounded-lg px-3 text-[13px] font-medium text-navy-500 dark:text-slate-600"
+                                    className="flex h-10 cursor-not-allowed items-center gap-3 rounded-xl px-3 text-[13px] font-medium text-slate-300"
                                     title={`${item.name} -- coming soon`}
                                     // The lock glyph is the only thing saying
                                     // "not yet", and it is decorative -- so the
@@ -598,7 +638,7 @@ function AuthenticatedShell({ children }) {
                                     // unreachable label.
                                     aria-label={`${item.name}, coming soon`}
                                 >
-                                    <Icon className="h-4 w-4 shrink-0 text-navy-600 dark:text-slate-700" />
+                                    <Icon className="h-[18px] w-[18px] shrink-0 text-slate-300" strokeWidth={1.75} />
                                     <span className="flex-1 truncate">{item.name}</span>
                                     <Lock className="h-3 w-3 shrink-0" />
                                 </div>
@@ -621,11 +661,11 @@ function AuthenticatedShell({ children }) {
                         // `children` groups.
                         const containsActiveChild = hasChildren && item.children.some((child) => isChildRouteActive(child, currentUrl));
                         const isExpanded = expandedMenus.includes(item.name) || containsActiveChild;
-                        const active = !hasChildren && !childOwnedItem && isItemActive(item, currentUrl);
+                        const active = !hasChildren && !childOwnedItem && item === activeNavItem;
 
                         if (hasChildren) {
                             return (
-                                <div key={item.name} className={cn(dividerAfter && 'mb-2 border-b border-white/[0.07] pb-2 dark:border-slate-800')}>
+                                <div key={item.name} className={cn(dividerAfter && 'mb-2 border-b border-steel-100/80 pb-2')}>
                                     {/* v2.71.0: a level-1 row, identical in size, weight and ink
                                         to every other top-level row -- see `isEntryItem` above for
                                         why the previous 11px/uppercase/muted treatment inverted the
@@ -638,16 +678,16 @@ function AuthenticatedShell({ children }) {
                                         onClick={() => toggleMenu(item.name)}
                                         aria-expanded={isExpanded}
                                         className={cn(
-                                            'flex h-9 w-full items-center gap-2.5 rounded-lg px-3 text-[13px] font-medium outline-none transition-colors duration-fast ease-out-soft hover:bg-white/[0.06] hover:text-white focus-visible:ring-2 focus-visible:ring-steel-300/70 dark:hover:bg-slate-900 dark:hover:text-slate-100',
+                                            'flex h-10 w-full items-center gap-3 rounded-xl px-3 text-[13px] font-medium outline-none transition-colors duration-fast ease-out-soft hover:bg-white/70 hover:text-navy-900 focus-visible:ring-4 focus-visible:ring-brand-500/15',
                                             // A collapsed group holding the active page keeps a
                                             // trace of it, so closing a section never hides where
                                             // you are entirely.
-                                            containsActiveChild ? 'text-white dark:text-slate-100' : 'text-navy-300 dark:text-slate-300'
+                                            containsActiveChild ? 'font-semibold text-navy-900' : 'text-slate-600'
                                         )}
                                     >
-                                        <Icon className={cn('h-4 w-4 shrink-0', containsActiveChild ? 'text-steel-300 dark:text-brand-400' : 'text-steel-400 dark:text-slate-500')} />
+                                        <Icon className={cn('h-[18px] w-[18px] shrink-0', containsActiveChild ? 'text-brand-600' : 'text-slate-400')} strokeWidth={1.75} />
                                         <span className="flex-1 truncate text-left">{item.name}</span>
-                                        <ChevronDown className={cn('h-3.5 w-3.5 shrink-0 text-navy-400 transition-transform duration-200 dark:text-slate-500', isExpanded && 'rotate-180')} />
+                                        <ChevronDown className={cn('h-3.5 w-3.5 shrink-0 text-slate-400 transition-transform duration-base ease-out-soft', isExpanded && 'rotate-180')} />
                                     </button>
                                     {/* CSS-grid expand/collapse -- same
                                         technique used for KPI Input's
@@ -660,7 +700,7 @@ function AuthenticatedShell({ children }) {
                                         left edge). */}
                                     <div className={cn('grid transition-[grid-template-rows] duration-200 ease-in-out', isExpanded ? 'grid-rows-[1fr]' : 'grid-rows-[0fr]')}>
                                         <div className="overflow-hidden">
-                                            <div className="ml-4 mt-0.5 space-y-0.5 border-l border-white/10 pl-2.5 dark:border-slate-800">
+                                            <div className="ml-[21px] mt-1 space-y-0.5 border-l border-steel-200/70 pl-3">
                                                 {item.children.map((child) => {
                                                     const childActive = isChildRouteActive(child, currentUrl);
                                                     const ChildIcon = child.icon;
@@ -686,8 +726,8 @@ function AuthenticatedShell({ children }) {
                                                             // subordinate WITHOUT shrinking below a
                                                             // comfortable scanning size.
                                                             className={cn(
-                                                                'flex h-[34px] items-center gap-2 rounded-md px-2.5 text-[13px] leading-tight outline-none transition-colors duration-fast ease-out-soft hover:bg-white/[0.05] focus-visible:ring-2 focus-visible:ring-steel-300/70',
-                                                                childActive ? 'font-semibold text-white dark:text-brand-400' : 'font-normal text-navy-400 hover:text-white dark:text-slate-500 dark:hover:text-slate-200'
+                                                                'flex h-9 items-center gap-2 rounded-lg px-2.5 text-[13px] leading-tight outline-none transition-colors duration-fast ease-out-soft focus-visible:ring-4 focus-visible:ring-brand-500/15',
+                                                                childActive ? 'bg-white font-semibold text-brand-700 shadow-[0_1px_2px_0_rgba(30,64,120,0.08)] ring-1 ring-brand-100' : 'font-medium text-slate-500 hover:bg-white/70 hover:text-navy-900'
                                                             )}
                                                         >
                                                             {ChildIcon && <ChildIcon className="h-3.5 w-3.5 shrink-0" />}
@@ -711,29 +751,26 @@ function AuthenticatedShell({ children }) {
                                 className={cn(
                                     // v1.11.13: bumped text-xs(12px) -> text-[13px], matching
                                     // this pass's "Main menu text: 13px/500" exactly.
-                                    'relative flex h-9 items-center gap-2.5 rounded-lg px-3 text-[13px] font-medium outline-none transition-colors duration-fast ease-out-soft focus-visible:ring-2 focus-visible:ring-steel-300/70',
+                                    'relative flex h-10 items-center gap-3 rounded-xl px-3 text-[13px] font-medium outline-none transition-[background-color,color,box-shadow] duration-fast ease-out-soft focus-visible:ring-4 focus-visible:ring-brand-500/15',
                                     // v2.71.0: the hairline that separates "where am I"
                                     // (Dashboard / My Work / Overview) from "what do I do".
-                                    dividerAfter && 'mb-2 after:absolute after:inset-x-0 after:-bottom-2 after:h-px after:bg-white/[0.07] dark:after:bg-slate-800',
+                                    dividerAfter && 'mb-2 after:absolute after:inset-x-0 after:-bottom-1.5 after:h-px after:bg-steel-100/80',
                                     // v1.11.12: active text was text-brand-700 (#1D4ED8) --
                                     // spec's exact "Active text: #2563EB" is brand-600, one
                                     // shade lighter. Active background (bg-brand-50 = #EFF6FF)
                                     // and the active indicator bar (bg-brand-600, a few lines
                                     // below) already matched exactly.
                                     active
-                                        ? 'bg-white/[0.10] font-semibold text-white dark:bg-brand-950/40 dark:text-brand-400'
+                                        ? 'bg-white font-semibold text-brand-700 shadow-[0_1px_2px_0_rgba(30,64,120,0.06),0_6px_16px_-8px_rgba(36,112,221,0.35)] ring-1 ring-brand-100'
                                         // v2.71.0: the navy scale already separates these --
                                         // navy-300 for a level-1 row, navy-400 for the
                                         // children nested under its neighbours. The group
                                         // header was the one row sitting on the wrong step.
-                                        : 'text-navy-300 hover:bg-white/[0.06] hover:text-white dark:text-slate-300 dark:hover:bg-slate-900 dark:hover:text-slate-100'
+                                        : 'text-slate-600 hover:bg-white/70 hover:text-navy-900'
                                 )}
                             >
-                                {active && (
-                                    <span className="absolute left-0 top-1/2 h-5 w-1 -translate-y-1/2 rounded-r-full bg-steel-400" />
-                                )}
-                                <Icon className={cn('h-4 w-4 shrink-0', active ? 'text-steel-300 dark:text-brand-400' : 'text-steel-400 dark:text-slate-500')} />
-                                {item.name}
+                                <Icon className={cn('h-[18px] w-[18px] shrink-0', active ? 'text-brand-600' : 'text-slate-400')} strokeWidth={1.75} />
+                                <span className="truncate">{item.name}</span>
                             </Link>
                         );
                     })}
@@ -743,17 +780,18 @@ function AuthenticatedShell({ children }) {
                     centralized version config -- never hardcoded. User
                     identity/role lives only in the topbar profile menu now
                     (v1.5.1 -- avoids showing the same account info twice). */}
-                <div className="shrink-0 border-t border-white/[0.07] px-4 py-2.5 text-center dark:border-slate-800">
-                    <p className="text-[11px] text-navy-400 dark:text-slate-500">&copy; {version?.copyright_year} IOMS Enterprise</p>
-                    <p className="text-[11px] text-navy-400 dark:text-slate-500">All Rights Reserved.</p>
+                <div className="shrink-0 border-t border-steel-100/80 px-4 py-3 text-center">
+                    <p className="text-[11px] text-slate-400">&copy; {version?.copyright_year} IOMS Enterprise</p>
+                    <p className="text-[11px] text-slate-400">All Rights Reserved.</p>
+                </div>
                 </div>
             </aside>
 
             <AboutDialog open={aboutOpen} onOpenChange={setAboutOpen} />
 
             {/* Main content */}
-            {/* Must match the sidebar's own w-[240px] above -- a fixed sidebar needs an equal content offset or it overlaps. */}
-            <div className="lg:pl-[240px]">
+            {/* Must match the sidebar's own w-[264px] above -- a fixed sidebar needs an equal content offset or it overlaps. */}
+            <div className="lg:pl-[264px]">
                 <TopBar
                     onOpenSidebar={() => setSidebarOpen(true)}
                     sidebarOpen={sidebarOpen}
@@ -792,7 +830,7 @@ function AuthenticatedShell({ children }) {
                     visit remounts <main> and the animation plays once; a filter
                     or partial reload preserves the page and plays nothing. The
                     sidebar and topbar carry no animation, so they read as still. */}
-                <main id="main-content" tabIndex={-1} className="p-5 pb-24 outline-none motion-safe:animate-page-in lg:p-8 lg:pb-8">{children}</main>
+                <main id="main-content" tabIndex={-1} className="px-4 pb-28 pt-4 outline-none motion-safe:animate-page-in sm:px-5 lg:px-6 lg:pb-10 lg:pt-5">{children}</main>
             </div>
 
             <MobileBottomNav visibleNav={visibleNav} currentUrl={currentUrl} space={space} onOpenMore={() => setSidebarOpen(true)} />
@@ -811,6 +849,37 @@ function AuthenticatedShell({ children }) {
  * no way to switch, so there is nothing to render, not a disabled or
  * single-option version of the same control.
  */
+// v2.136.0 -- one pill treatment for every item in the navigation group.
+// Lit: the azure gradient with white ink and weight; idle: slate ink on the
+// frosted group. `aria-current` on the caller carries the state for anyone
+// who cannot see the colour.
+function pillClass(lit, kind = 'workspace') {
+    return cn(
+        'h-9 shrink-0 items-center gap-1.5 whitespace-nowrap rounded-full px-3.5 text-[13px] outline-none transition-[background-color,color,box-shadow] duration-base ease-out-soft focus-visible:ring-4 focus-visible:ring-brand-500/20',
+        lit
+            ? kind === 'admin'
+                ? 'bg-gradient-to-b from-slate-600 to-navy-800 font-semibold text-white shadow-[0_6px_16px_-8px_rgba(15,39,71,0.7),inset_0_1px_0_0_rgba(255,255,255,0.18)]'
+                : 'bg-gradient-to-b from-brand-500 to-brand-600 font-semibold text-white shadow-[0_6px_16px_-8px_rgba(36,112,221,0.8),inset_0_1px_0_0_rgba(255,255,255,0.22)]'
+            : 'font-medium text-slate-600 hover:bg-white/80 hover:text-navy-900',
+    );
+}
+
+// The short name a workspace carries in the pill row -- the full name stays
+// in the title, the dropdown and everywhere else. A tenant's own label
+// override is used as given.
+const PILL_LABELS = {
+    'Health, Safety & Environment': 'HSE',
+    'People / HRD': 'HRD',
+    'Warehouse Logistics': 'Warehouse',
+};
+function pillLabel(workspace) {
+    return PILL_LABELS[workspace.label] ?? workspace.label;
+}
+
+function initials(name = '') {
+    return name.split(/\s+/).filter(Boolean).slice(0, 2).map((w) => w[0]).join('').toUpperCase() || '?';
+}
+
 function TopBar({ onOpenSidebar, sidebarOpen, isDepartmentUser, departments, activeWorkspace, space, canSwitchWorkspaces, onSwitchWorkspace, myWorkOnly = false }) {
     const { auth, organization } = usePage().props;
     const now = useClock();
@@ -849,7 +918,11 @@ function TopBar({ onOpenSidebar, sidebarOpen, isDepartmentUser, departments, act
             aria-label="Application"
             data-space={space}
             className={cn(
-                'sticky top-0 z-30 flex h-14 items-center gap-2 px-3 shadow-sm backdrop-blur sm:gap-3 sm:px-5',
+                // v2.136.0 (ADR 079) -- THE BAR IS A ROW OF FLOATING PILLS: the
+                // navigation group, search, the round utility controls and the
+                // profile, each on the frosted chrome material, over a soft
+                // fade of the canvas so scrolled content never fights them.
+                'sticky top-0 z-30 flex h-[72px] items-center gap-2 bg-gradient-to-b from-[#EEF5FC] via-[#EEF5FC]/85 to-transparent px-3 sm:gap-2.5 sm:px-5 lg:px-6',
                 // v2.133.0 -- ADMIN SPACE LOOKS LIKE A DIFFERENT PLACE. The
                 // bar was identical in both contexts and only one small
                 // button changed, so somebody configuring the account could
@@ -858,14 +931,14 @@ function TopBar({ onOpenSidebar, sidebarOpen, isDepartmentUser, departments, act
                 // navy and a steel rule along its foot; the lit entry below
                 // says the same thing in words, for anyone who cannot see
                 // the colour.
-                space === 'admin'
-                    ? 'border-b-2 border-steel-400 bg-navy-950/95 dark:border-steel-600 dark:bg-slate-950/95'
-                    : 'border-b border-navy-800 bg-navy-900/95 dark:border-slate-800 dark:bg-slate-950/90',
+                // Admin Space still LOOKS like a different place: its pill is
+                // lit (below) and the bar carries a steel hairline.
+                space === 'admin' && 'after:pointer-events-none after:absolute after:inset-x-6 after:bottom-1 after:h-px after:bg-gradient-to-r after:from-transparent after:via-steel-300 after:to-transparent',
             )}
         >
             <button
                 type="button"
-                className="shrink-0 rounded-md p-1 text-navy-300 outline-none transition-colors hover:bg-white/[0.08] hover:text-white lg:hidden"
+                className="chrome-icon lg:hidden"
                 onClick={onOpenSidebar}
                 aria-label="Open navigation"
                 aria-controls="ioms-sidebar"
@@ -873,6 +946,8 @@ function TopBar({ onOpenSidebar, sidebarOpen, isDepartmentUser, departments, act
             >
                 <Menu className="h-5 w-5" />
             </button>
+
+            <nav aria-label="Workspaces" className="chrome flex min-w-0 items-center gap-0.5 rounded-full p-1">
 
             {/* Dashboard: the Global Dashboard, NOT a Department -- always
                 pinned and visible for both Administrator and Department
@@ -911,10 +986,11 @@ function TopBar({ onOpenSidebar, sidebarOpen, isDepartmentUser, departments, act
             {auth?.user?.has_global_dashboard && space !== 'admin' && (
                 <Link
                     href={route('dashboard')}
-                    className="hidden h-8 shrink-0 items-center gap-1.5 rounded-md px-2.5 text-xs font-medium text-navy-200 transition-colors hover:bg-white/[0.08] hover:text-white lg:flex dark:text-slate-300 dark:hover:bg-slate-800"
+                    aria-current={route().current('dashboard') ? 'page' : undefined}
+                    className={cn('hidden lg:flex', pillClass(route().current('dashboard')))}
                 >
-                    <LayoutDashboard className="h-3.5 w-3.5 shrink-0" />
-                    <span className="hidden sm:inline">Dashboard</span>
+                    <LayoutDashboard className="h-4 w-4 shrink-0" strokeWidth={1.75} />
+                    <span>Dashboard</span>
                 </Link>
             )}
 
@@ -944,6 +1020,24 @@ function TopBar({ onOpenSidebar, sidebarOpen, isDepartmentUser, departments, act
                 never open. This is presentation only: `departments` is the
                 authorized list either way, and nothing here decides
                 access. */}
+            {/* v2.136.0: the workspaces as PILLS where there is room for them
+                (xl and up, at most six) -- the same list and the same switch
+                as the dropdown below, which takes over at narrower widths. */}
+            {(canSwitchWorkspaces || (space === 'admin' && departments.length > 0)) && departments.length <= 6 && departments.map((workspace) => {
+                const lit = space !== 'admin' && activeWorkspace?.key === workspace.key;
+                return (
+                    <button
+                        key={workspace.key}
+                        type="button"
+                        onClick={() => onSwitchWorkspace(workspace)}
+                        aria-current={lit ? 'true' : undefined}
+                        title={workspace.label}
+                        className={cn('hidden xl:flex', pillClass(lit))}
+                    >
+                        {pillLabel(workspace)}
+                    </button>
+                );
+            })}
             {(canSwitchWorkspaces || (space === 'admin' && departments.length > 0)) && (
                 <DropdownMenu>
                     {/* v2.67.0: `min-w-0` + `truncate`. This label is the
@@ -960,16 +1054,11 @@ function TopBar({ onOpenSidebar, sidebarOpen, isDepartmentUser, departments, act
                         the same control with no surface, which is how every
                         other inactive control in this header already reads. */}
                     <DropdownMenuTrigger
-                        className={cn(
-                            'flex h-8 min-w-0 items-center gap-1.5 rounded-md px-3 text-xs font-medium outline-none transition-colors',
-                            space === 'admin'
-                                ? 'border border-transparent text-navy-200 hover:bg-white/[0.08] hover:text-white dark:text-slate-400'
-                                : 'border border-white/15 bg-white/[0.06] text-white hover:bg-white/[0.12] dark:border-slate-700 dark:text-slate-300 dark:hover:bg-slate-800',
-                        )}
+                        className={cn(pillClass(space !== 'admin' && !!activeWorkspace), 'flex min-w-0 shrink', departments.length <= 6 && 'xl:hidden')}
                         aria-label="Switch workspace"
                         aria-current={space !== 'admin' ? 'true' : undefined}
                     >
-                        {space !== 'admin' && activeWorkspace && <activeWorkspace.icon className="h-3.5 w-3.5 shrink-0 text-steel-300" />}
+                        {space !== 'admin' && activeWorkspace && <activeWorkspace.icon className="h-4 w-4 shrink-0" strokeWidth={1.75} />}
                         {/* v2.84.0: "All Workspaces" is a first-class state --
                             the one a Business user is in on the Global
                             Company Dashboard -- not an empty label. The old
@@ -982,10 +1071,10 @@ function TopBar({ onOpenSidebar, sidebarOpen, isDepartmentUser, departments, act
                             Administration Overview is the header claiming two
                             contexts at once, which is what made Admin Space
                             feel like a page rather than a place. */}
-                        <span className="truncate">{space === 'admin' ? 'Workspaces' : (activeWorkspace?.label ?? 'All Workspaces')}</span>
-                        <ChevronDown className="h-3.5 w-3.5 shrink-0 text-steel-300" />
+                        <span className="truncate">{space === 'admin' ? 'Workspaces' : (activeWorkspace ? pillLabel(activeWorkspace) : 'All Workspaces')}</span>
+                        <ChevronDown className="h-3.5 w-3.5 shrink-0 opacity-70" />
                     </DropdownMenuTrigger>
-                    <DropdownMenuContent className="max-h-[70vh] overflow-y-auto">
+                    <DropdownMenuContent align="start" className="max-h-[70vh] overflow-y-auto">
                         <DropdownMenuLabel className="text-[10px] uppercase tracking-wide text-graphite-400">Workspaces</DropdownMenuLabel>
                         {departments.map((workspace) => (
                             <DropdownMenuItem key={workspace.key} onSelect={() => onSwitchWorkspace(workspace)}>
@@ -1011,10 +1100,12 @@ function TopBar({ onOpenSidebar, sidebarOpen, isDepartmentUser, departments, act
                    to nothing -- leaving a chip that read just
                    "Workspace". The search field is still the one item
                    allowed to give way (v2.67.0). */
-                <div className="flex h-8 shrink-0 items-center gap-1.5 rounded-md border border-white/10 bg-white/[0.04] px-3 text-xs font-medium text-white dark:border-slate-700 dark:text-slate-300">
-                    <activeWorkspace.icon className="h-3.5 w-3.5 shrink-0 text-steel-300" />
-                    <span className="max-w-[140px] truncate">{activeWorkspace.label}</span>
-                    <span className="hidden shrink-0 text-navy-300 lg:inline">Workspace</span>
+                <div className={cn(pillClass(true), 'flex cursor-default')}>
+                    <activeWorkspace.icon className="h-4 w-4 shrink-0" strokeWidth={1.75} />
+                    {/* The short name below lg (a 390px bar has room for "HSE",
+                        not "Health, Safety & Environment"); the full name above. */}
+                    <span className="max-w-[160px] truncate lg:hidden">{pillLabel(activeWorkspace)}</span>
+                    <span className="hidden max-w-[220px] truncate lg:inline">{activeWorkspace.label}</span>
                 </div>
             )}
 
@@ -1054,27 +1145,22 @@ function TopBar({ onOpenSidebar, sidebarOpen, isDepartmentUser, departments, act
                 <Link
                     href={auth?.user?.is_tenant_admin ? route('admin.index') : route('settings.index')}
                     aria-current={space === 'admin' ? 'page' : undefined}
-                    className={cn(
-                        'hidden h-8 shrink-0 items-center gap-1.5 rounded-md px-3 text-xs font-medium transition-colors sm:flex',
-                        space === 'admin'
-                            ? 'border border-steel-300/50 bg-steel-500/25 font-semibold text-white shadow-inner dark:border-steel-600 dark:text-slate-100'
-                            : 'border border-transparent text-navy-200 hover:bg-white/[0.08] hover:text-white dark:text-slate-300 dark:hover:bg-slate-800',
-                    )}
+                    className={cn('hidden sm:flex', pillClass(space === 'admin', 'admin'))}
                 >
-                    <Settings className="h-3.5 w-3.5 shrink-0" />
-                    <span className={cn('hidden', space === 'admin' ? 'sm:inline' : 'lg:inline')}>Admin Space</span>
+                    <Settings className="h-4 w-4 shrink-0" strokeWidth={1.75} />
+                    <span className={cn('hidden', space === 'admin' ? 'sm:inline' : '2xl:inline')}>Admin Space</span>
                 </Link>
             )}
+            </nav>
 
             <div className="min-w-0 flex-1" />
 
             {/* Current Date/Time -- collapsed to a single compact line
                 (v1.9.0) to reduce topbar clutter; still live via useClock(). */}
-            <div className="hidden shrink-0 text-xs text-navy-300 dark:text-slate-500 xl:block">
+            <div className="hidden shrink-0 text-xs font-medium tabular-nums text-slate-500 2xl:block">
                 {now.toLocaleDateString('en-US', { weekday: 'short', month: 'short', day: 'numeric' })} · {now.toLocaleTimeString('en-US', { hour: 'numeric', minute: '2-digit', hour12: true })}
             </div>
 
-            <div className="hidden h-5 w-px shrink-0 bg-white/15 xl:block" aria-hidden="true" />
 
             {/* Global Search (v1.6.3) -- real search across Employees and Projects. */}
             {/* v2.122.0: global search queries `search`, a route this
@@ -1086,7 +1172,7 @@ function TopBar({ onOpenSidebar, sidebarOpen, isDepartmentUser, departments, act
             {DARK_MODE_ENABLED && (
                 <button
                     onClick={toggleTheme}
-                    className="shrink-0 rounded-md p-2 text-navy-300 transition-colors hover:bg-white/[0.08] hover:text-white"
+                    className="chrome-icon"
                     title={theme === 'dark' ? 'Switch to light mode' : 'Switch to dark mode'}
                     aria-label={theme === 'dark' ? 'Switch to light mode' : 'Switch to dark mode'}
                 >
@@ -1106,22 +1192,22 @@ function TopBar({ onOpenSidebar, sidebarOpen, isDepartmentUser, departments, act
             {/* Profile menu: identity + About + Logout */}
             <DropdownMenu>
                 <DropdownMenuTrigger
-                    className="flex min-w-0 max-w-[180px] shrink-0 items-center gap-2 rounded-lg py-1 pl-1 pr-2 outline-none transition-colors hover:bg-white/[0.08] dark:hover:bg-slate-800"
+                    className="chrome flex h-11 min-w-0 max-w-[220px] shrink-0 items-center gap-2.5 rounded-full py-1 pl-1 pr-1 outline-none transition-colors duration-fast hover:bg-white focus-visible:ring-4 focus-visible:ring-brand-500/20 2xl:pr-3"
                     aria-label={`Account menu for ${auth?.user?.name}`}
                 >
-                    <div className="flex h-7 w-7 shrink-0 items-center justify-center rounded-full bg-white/[0.12] text-xs font-semibold text-white dark:bg-slate-800 dark:text-slate-300">
-                        {auth?.user?.name?.charAt(0)}
+                    <div className="icon-tile icon-tile-blue h-9 w-9 rounded-full text-[13px] font-bold">
+                        {initials(auth?.user?.name)}
                     </div>
-                    <span className="hidden min-w-0 flex-col items-start sm:flex">
-                        <span className="max-w-full truncate text-sm font-medium leading-tight text-white dark:text-slate-300">{auth?.user?.name?.split(' ')[0]}</span>
+                    <span className="hidden min-w-0 flex-col items-start 2xl:flex">
+                        <span className="max-w-full truncate text-[13px] font-bold leading-tight text-navy-900">{auth?.user?.name?.split(' ')[0]}</span>
                         {/* Milestone 3 (UAT #1/#3/#7 -- identity clarity): the
                             role is now visible in the header itself, not just
                             inside this dropdown once opened -- "Administrator"
                             vs "HSE" vs "Manager" etc. should never require a
                             click to discover. */}
-                        <span className="max-w-full truncate text-[10px] font-medium leading-tight text-steel-300 dark:text-brand-400">{auth?.user?.role_label}</span>
+                        <span className="max-w-full truncate text-[11px] font-medium leading-tight text-slate-500">{auth?.user?.role_label}</span>
                     </span>
-                    <ChevronDown className="hidden h-3.5 w-3.5 text-steel-300 dark:text-slate-500 sm:block" />
+                    <ChevronDown className="hidden h-3.5 w-3.5 text-slate-400 2xl:block" />
                 </DropdownMenuTrigger>
                 <DropdownMenuContent>
                     <DropdownMenuLabel>{auth?.user?.name}</DropdownMenuLabel>
@@ -1197,17 +1283,17 @@ function SandboxBanner() {
     }
 
     return (
-        <div className="flex flex-wrap items-center justify-between gap-2 border-b border-brand-800 bg-gradient-to-r from-navy-900 to-brand-800 px-5 py-2 text-xs text-white lg:px-8">
+        <div className="surface-feature mx-4 mb-1 flex flex-wrap items-center justify-between gap-2 rounded-2xl px-4 py-2.5 text-xs sm:mx-5 lg:mx-6">
             <span className="flex items-center gap-2">
-                <FlaskConical className="h-3.5 w-3.5 shrink-0 text-steel-300" />
+                <FlaskConical className="h-3.5 w-3.5 shrink-0 text-sky-200" />
                 <span>
                     <strong className="font-semibold">IOMS Sandbox</strong>
-                    <span className="text-navy-200">: demonstration company with sample data. Most actions are read-only.</span>
+                    <span className="text-sky-100">: demonstration company with sample data. Most actions are read-only.</span>
                 </span>
             </span>
             <a
                 href="/pricing"
-                className="rounded-md bg-white/[0.12] px-2.5 py-1 font-medium text-white transition-colors hover:bg-white/[0.2]"
+                className="rounded-full bg-white/[0.16] px-3 py-1 font-semibold text-white transition-colors hover:bg-white/[0.26]"
             >
                 Get your own workspace
             </a>
@@ -1308,7 +1394,7 @@ function SubscriptionBanner() {
     return (
         <div
             role="status"
-            className={`flex flex-wrap items-center justify-between gap-2 border-b px-5 py-2 text-xs lg:px-8 ${copy.tone}`}
+            className={`mx-4 mb-1 flex flex-wrap items-center justify-between gap-2 rounded-2xl border px-4 py-2.5 text-xs sm:mx-5 lg:mx-6 ${copy.tone}`}
         >
             <span className="flex min-w-0 items-start gap-2">
                 <AlertTriangle className="mt-0.5 h-3.5 w-3.5 shrink-0" />
@@ -1323,7 +1409,7 @@ function SubscriptionBanner() {
                 // to Billing to read, not to a renewal they cannot make.
                 <Link
                     href={route('subscription.billing')}
-                    className="shrink-0 rounded-md bg-black/[0.07] px-2.5 py-1 font-medium transition-colors hover:bg-black/[0.12]"
+                    className="shrink-0 rounded-full bg-black/[0.06] px-3 py-1 font-semibold transition-colors hover:bg-black/[0.1]"
                 >
                     {copy.action ?? 'View billing'}
                 </Link>
@@ -1346,13 +1432,13 @@ function WorkCenterMenu() {
                 on touch. These were icon-only buttons announcing as
                 "button". */}
             <DropdownMenuTrigger
-                className="relative shrink-0 rounded-md p-2 text-graphite-400 outline-none transition-colors hover:bg-graphite-100 hover:text-graphite-600 dark:hover:bg-slate-800"
+                className="chrome-icon"
                 title="Work Center"
                 aria-label={total > 0 ? `Work Center, ${total} item(s) awaiting you` : 'Work Center'}
             >
                 <ClipboardCheck className="h-[18px] w-[18px]" />
                 {total > 0 && (
-                    <span className="absolute -right-0.5 -top-0.5 flex h-4 min-w-[16px] items-center justify-center rounded-full bg-red-500 px-1 text-[9px] font-bold text-white">
+                    <span className="chrome-count bg-gradient-to-b from-rose-500 to-red-600">
                         {total > 99 ? '99+' : total}
                     </span>
                 )}
@@ -1599,13 +1685,13 @@ function NotificationsMenu() {
     return (
         <DropdownMenu>
             <DropdownMenuTrigger
-                className="relative shrink-0 rounded-md p-2 text-navy-300 outline-none transition-colors hover:bg-white/[0.08] hover:text-white dark:hover:bg-slate-800"
+                className="chrome-icon"
                 title={badgeCount > 0 ? `${badgeCount} unread notification(s)` : 'No unread notifications'}
                 aria-label={badgeCount > 0 ? `Notifications, ${badgeCount} unread` : 'Notifications'}
             >
                 <Bell className="h-[18px] w-[18px]" />
                 {badgeCount > 0 && (
-                    <span className="absolute -right-0.5 -top-0.5 flex h-4 min-w-[16px] items-center justify-center rounded-full bg-amber-500 px-1 text-[9px] font-bold text-white">
+                    <span className="chrome-count bg-gradient-to-b from-amber-400 to-orange-500">
                         {badgeCount > 99 ? '99+' : badgeCount}
                     </span>
                 )}
@@ -1734,7 +1820,7 @@ function Breadcrumb({ activeItem, activeChild }) {
     if (!activeItem?.children?.length || !activeChild) return null;
 
     return (
-        <div className="flex items-center gap-1.5 px-5 pt-3 text-xs text-graphite-400 dark:text-slate-500 lg:px-8">
+        <div className="flex items-center gap-1.5 px-4 pt-1 text-xs text-slate-400 sm:px-5 lg:px-7">
             <span>{activeItem.name}</span>
             <ChevronRight className="h-3 w-3 shrink-0" />
             <span className="font-medium text-graphite-600 dark:text-slate-300">{activeChild.name}</span>
@@ -1749,7 +1835,7 @@ function FlashMessages() {
     if (dismissed || (!flash?.success && !flash?.error)) return null;
 
     return (
-        <div className="px-5 pt-4 lg:px-8">
+        <div className="px-4 pt-3 sm:px-5 lg:px-6">
             {/* v2.135.0: the result of the action just taken. Announced
                 (role/aria-live) rather than only shown, with an icon so success
                 and failure never differ by colour alone. */}

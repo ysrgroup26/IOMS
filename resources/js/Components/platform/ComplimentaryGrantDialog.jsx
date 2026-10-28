@@ -202,7 +202,7 @@ export default function ComplimentaryGrantDialog({
                             <Field label="Billing" value="Complimentary. Tidak ada tagihan sampai masa berakhir." />
                         </FieldGrid>
 
-                        <div className="rounded-lg border border-graphite-200 bg-graphite-50 p-3 text-sm text-graphite-600">
+                        <div className="rounded-xl border border-steel-100 bg-steel-50/50 p-3 text-sm text-graphite-600">
                             <span className="block text-[11px] font-medium uppercase tracking-wide text-graphite-400">Reason</span>
                             {data.reason}
                         </div>

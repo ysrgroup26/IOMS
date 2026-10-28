@@ -28,13 +28,13 @@ import { humanizeToken } from '@/lib/humanizeToken';
 // change reads as a smooth state change, not an instant snap -- the
 // same micro-interaction convention this pass introduces on ModuleTabNav
 // and Table row hover.
-const TAB_CLASS = 'rounded-md px-4 py-1.5 text-sm font-medium text-graphite-500 transition-colors duration-150 hover:text-graphite-800 data-[state=active]:bg-brand-50 data-[state=active]:text-brand-700';
+const TAB_CLASS = 'rounded-xl px-3.5 py-2 text-[13px] font-medium text-slate-500 outline-none transition-[background-color,color,box-shadow] duration-base ease-out-soft hover:bg-white/60 hover:text-navy-900 focus-visible:ring-4 focus-visible:ring-brand-500/15 data-[state=active]:bg-white data-[state=active]:font-bold data-[state=active]:text-brand-700 data-[state=active]:shadow-[0_1px_2px_0_rgba(30,64,120,0.08),0_6px_16px_-10px_rgba(36,112,221,0.45)] data-[state=active]:ring-1 data-[state=active]:ring-brand-100';
 
 // v2.31.0 (Interior UI Transformation Phase 3, Part 9): a plain vertical
 // rule between Settings' tab clusters -- purely visual grouping, not a
 // Tabs.Trigger, so it carries no RBAC/routing behavior of its own.
 function TabDivider() {
-    return <span className="mx-1 hidden h-5 w-px shrink-0 bg-graphite-200 sm:block" aria-hidden="true" />;
+    return <span className="mx-1 hidden h-5 w-px shrink-0 bg-steel-200/70 sm:block" aria-hidden="true" />;
 }
 
 // Milestone 3 (UAT #1/#3/#7 -- identity clarity): matches
@@ -122,7 +122,7 @@ export default function SettingsIndex({ company, companies, departments, positio
                     elements, same values, same conditional RBAC gates,
                     same tab bodies below; this changes only how the list
                     reads, not which tab does what or who can see it. */}
-                <Tabs.List className="inline-flex flex-wrap items-center gap-x-1 gap-y-1 rounded-lg border border-graphite-200 bg-white p-1 shadow-sm">
+                <Tabs.List className="chrome inline-flex flex-wrap items-center gap-1 rounded-2xl p-1 shadow-card">
                     {canSystem && <Tabs.Trigger value="branding" className={TAB_CLASS}>Branding</Tabs.Trigger>}
                     {canSystem && <Tabs.Trigger value="modules" className={TAB_CLASS}>Module Visibility</Tabs.Trigger>}
                     {canSystem && <Tabs.Trigger value="companies" className={TAB_CLASS}>Operating Units</Tabs.Trigger>}
@@ -571,7 +571,7 @@ function RolesTab({ roles, permissionCatalog }) {
                             </div>
                             <div className="grid grid-cols-2 gap-2">
                                 {permissions.map((permission) => (
-                                    <label key={permission} className="flex items-center justify-between rounded-lg border border-graphite-100 px-3 py-2">
+                                    <label key={permission} className="flex items-center justify-between rounded-xl border border-steel-100 bg-white/60 px-3 py-2">
                                         <span className="text-sm text-graphite-700">{permission.split('.').slice(1).join('.')}</span>
                                         <Checkbox checked={data.permissions.includes(permission)} onCheckedChange={() => toggle(permission)} />
                                     </label>
@@ -747,7 +747,7 @@ function DocumentTemplatesTab({ documentTemplates, moduleKeys }) {
                 ) : (
                     <div className="space-y-2">
                         {documentTemplates.map((t) => (
-                            <div key={t.id} className="rounded-lg border border-graphite-100 dark:border-slate-800">
+                            <div key={t.id} className="rounded-xl border border-steel-100 bg-white/60 dark:border-slate-800">
                                 {editingId === t.id ? (
                                     <form onSubmit={(e) => submitEdit(e, t.id)} className="space-y-3 p-4">
                                         <div className="grid grid-cols-1 gap-3 sm:grid-cols-2">
@@ -1364,7 +1364,7 @@ function NotificationPreferencesTab({ preferences }) {
             <CardContent>
                 <form onSubmit={submit} className="space-y-3">
                     {Object.entries(NOTIFICATION_CATEGORY_INFO).map(([key, { label, description }]) => (
-                        <label key={key} className="flex items-center justify-between rounded-lg border border-graphite-100 px-3 py-2.5">
+                        <label key={key} className="flex items-center justify-between rounded-xl border border-steel-100 bg-white/60 px-3 py-2.5">
                             <div>
                                 <p className="text-sm font-medium text-graphite-700">{label}</p>
                                 <p className="text-xs text-graphite-400">{description}</p>
@@ -1546,7 +1546,7 @@ function ModulesTab() {
                             </div>
                             <div className="space-y-2">
                                 {entries.map(([key, label]) => (
-                                    <label key={key} className="flex items-center justify-between rounded-lg border border-graphite-100 px-3 py-2.5">
+                                    <label key={key} className="flex items-center justify-between rounded-xl border border-steel-100 bg-white/60 px-3 py-2.5">
                                         <span className="text-sm font-medium text-graphite-700">{label}</span>
                                         <Checkbox checked={data.enabled_modules.includes(key)} onCheckedChange={() => toggle(key)} />
                                     </label>
@@ -1557,7 +1557,7 @@ function ModulesTab() {
                     {ungrouped.length > 0 && (
                         <div className="space-y-2">
                             {ungrouped.map(([key, label]) => (
-                                <label key={key} className="flex items-center justify-between rounded-lg border border-graphite-100 px-3 py-2.5">
+                                <label key={key} className="flex items-center justify-between rounded-xl border border-steel-100 bg-white/60 px-3 py-2.5">
                                     <span className="text-sm font-medium text-graphite-700">{label}</span>
                                     <Checkbox checked={data.enabled_modules.includes(key)} onCheckedChange={() => toggle(key)} />
                                 </label>
@@ -2147,7 +2147,7 @@ function KpiCategoriesTab({ kpiCategories, companies }) {
                             </Select>
                         </div>
 
-                        <div className="space-y-2 rounded-lg border border-graphite-100 p-3">
+                        <div className="space-y-2 rounded-xl border border-steel-100 bg-white/60 p-3">
                             <label className="flex items-center gap-2 text-sm">
                                 <Checkbox checked={data.is_negative} onCheckedChange={(v) => setData('is_negative', !!v)} />
                                 Incident Category (e.g. LTI, Fatality) -- shown in red when non-zero
@@ -2922,7 +2922,7 @@ function UserRolesDialog({ user, customRoles, onClose }) {
                 <DialogHeader><DialogTitle>Custom Roles for {user.name}</DialogTitle></DialogHeader>
                 <form onSubmit={submit} className="space-y-3">
                     {customRoles.map((r) => (
-                        <label key={r.id} className="flex items-center justify-between rounded-lg border border-graphite-100 px-3 py-2">
+                        <label key={r.id} className="flex items-center justify-between rounded-xl border border-steel-100 bg-white/60 px-3 py-2">
                             <span className="text-sm text-graphite-700">{r.name}</span>
                             <Checkbox checked={data.role_ids.includes(r.id)} onCheckedChange={() => toggle(r.id)} />
                         </label>

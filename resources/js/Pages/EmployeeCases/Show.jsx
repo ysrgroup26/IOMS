@@ -175,7 +175,7 @@ export default function EmployeeCaseShow({ employeeCase, activities, standing, p
                             </div>
 
                             {(c.status === 'closed' || c.status === 'dismissed') && (
-                                <div className="rounded-lg border border-graphite-200 bg-graphite-50 p-3 dark:border-slate-800 dark:bg-slate-800/50">
+                                <div className="rounded-xl border border-steel-100 bg-steel-50/50 p-3 dark:border-slate-800 dark:bg-slate-800/50">
                                     <p className="text-xs uppercase tracking-wide text-graphite-400">
                                         {c.status === 'dismissed' ? 'Dismissed' : 'Closed'} · {formatDate(c.closed_at)} · {c.closer?.name || '-'}
                                     </p>

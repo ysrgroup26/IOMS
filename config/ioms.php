@@ -17,7 +17,7 @@ return [
     |
     */
 
-    'version' => '2.135.0',
+    'version' => '2.136.0',
 
     // Tester / Beta / Stable -- tracks the release stage explicitly.
     // Previously only implied in conversation, never actually stored.
@@ -49,7 +49,7 @@ return [
 
     'edition' => 'Enterprise Edition',
 
-    'build' => '2026.10.28.01',
+    'build' => '2026.10.28.02',
 
     'release_date' => '2026-10-28',
 
@@ -289,11 +289,12 @@ return [
     'documentation_url' => env('IOMS_DOCUMENTATION_URL'),
 
     'whats_new' => [
-        'Tampilan dashboard lebih rapi: sudut membulat yang konsisten, teks lebih mudah dibaca, dan animasi halus yang menghormati pengaturan kurangi gerakan',
-        'Kode peralatan kini ringkas, misalnya APAR-01; pencarian APAR-01 tetap menemukan unit berlabel lama',
-        'Inspeksi peralatan memakai checklist per jenis alat (APAR, P3K, gas detector) dengan poin kritis, foto bukti, tingkat risiko, dan tindakan perbaikan',
-        'Hasil inspeksi ditentukan sistem dari jawaban checklist: alat kedaluwarsa atau rusak langsung berstatus Action Required',
-        'Form pencatatan limbah lebih sederhana dan satuan kuantitas kini divalidasi, tanpa menyamakan liter dengan kilogram',
+        'Tampilan baru seluruh aplikasi: latar biru es yang lembut, kartu frosted, dan sudut membulat yang konsisten',
+        'Huruf baru Manrope untuk teks dan angka, dengan angka tabel yang rata dan angka KPI yang lebih tegas',
+        'Navigasi atas berbentuk pill: pindah antar workspace HSE, HRD, Warehouse, dan Management dengan satu klik',
+        'Sidebar terang yang mengambang; menu yang aktif kini selalu hanya satu',
+        'Ikon fitur tampil di atas ubin bergradasi yang warnanya menunjukkan arti: biru informasi, hijau sesuai, kuning perhatian, merah kritis',
+        'Daftar CAPA kini menyebut sumber temuan dengan nama yang jelas, misalnya Equipment Inspection',
     ],
     /*
     |--------------------------------------------------------------------------
@@ -307,6 +308,7 @@ return [
     */
 
     'version_history' => [
+        ['version' => '2.136.0', 'date' => '2026-10-28', 'summary' => 'ICY BLUE FROSTED: ONE VISUAL SYSTEM FOR THE WHOLE SIGNED-IN APPLICATION. TYPE: Manrope (variable, OFL) is the one interface face for text and numerals, BUNDLED by Vite so no CDN can block it; Satoshi was evaluated first but its only distribution (Fontshare) could not be reached or verified, so the brief\'s alternative was used. Titles and headline figures are 700 (never 600 or 800); table, input, badge and counter figures are tabular; a single headline figure is proportional so 11 does not read as 1 1. Archivo stays only for a controlled document\'s type band, because the PDF embeds it. MATERIAL: a fixed icy-blue canvas, frosted bubble cards (.surface, 20px), floating chrome for the rail, top-bar pills and the phone bottom bar, and one luminous azure feature panel replacing every navy hero. Icons sit on gradient tiles whose colour says what the feature means. SHELL: the navy rail is replaced, at the owner\'s direction, by a light floating rail whose active row is a raised white pill; the top bar is a row of pills with the workspaces as pills from 1280px (same list, same switch as the dropdown, which serves narrower widths). Only one rail row can be lit now: every Management item had matched every Management page. Buttons are pills, inputs 40px, dialogs 24px. Emoji are gone from the dashboard alerts. FIXED ON THE WAY: the CAPA register answered 500 outside production once two equipment inspections had follow-ups (lazy loading), and it showed class names such as SafetyEquipmentInspection as the source. No route, permission, data or label changed. Reviewed in a real browser on 127 signed-in screens at 1280px plus phone and tablet widths. See ADR 079.'],
         ['version' => '2.135.0', 'date' => '2026-10-28', 'summary' => 'THE SIGNED-IN APPLICATION GETS ONE VISUAL AND MOTION LANGUAGE, AND EQUIPMENT INSPECTIONS ARE JUDGED FROM A CHECKLIST. DESIGN FOUNDATION (every page): two motion curves and three durations as tokens, a page entrance on real visits only that ends at transform:none so fixed bars are not displaced, and a global prefers-reduced-motion rule; one concentric radius scale (controls 10px, cards 14px, dialogs 16px); 13px interface text at every width; buttons whose press animates with their colour and that carry a loading state which blocks double submission; inputs with a soft brand focus halo; calm sentence-case table headers; an announced flash message with an icon. The navy rail is kept (v2.42.0). EQUIPMENT IDS are PREFIX-NN (APAR-01): a number is taken once per operating unit however it is padded, APAR-01 finds a unit still labelled APAR-00001, and ioms:equipment-codes shortens existing codes only after proving there is no clash. INSPECTIONS: a checklist template belongs to an equipment type; items declare their check (Pass/Fail, a reading with limits, a date read off the unit), whether a Fail is critical, and whether it needs a photo. The SERVER judges: critical Fail is Fail, other Fail is Needs Action, an out-of-range reading or an expired date fails by itself, Damaged is never Pass. Findings need a risk level and, where asked, photo evidence; follow-ups are corrective actions with an owner and a due date, verified in the CAPA register. Reference lists for APAR, P3K and gas detectors start a template and name their basis; nothing is seeded. WASTE: the record form asks what, how much and where now; units come from one list plus the type\'s own, a count is whole, nothing converts liters to kilograms, and a record is stored in a TPS of its own operating unit. See ADR 078.'],
         ['version' => '2.134.1', 'date' => '2026-10-27', 'summary' => 'THE FOOTER CARRIES THE CONTACT FACTS. Duitku\'s merchant review checks that a visitor can find how to reach the business on the pages it reviews. /contact already published the support mailbox and, once configured, the business address and telephone; the footer of every public page carried only a link to it. The footer now shows the same three facts from the same configuration (IOMS_SUPPORT_EMAIL, IOMS_SUPPORT_PHONE, IOMS_LEGAL_ADDRESS). A phone or address that was never configured is not shown, rather than invented.'],
         ['version' => '2.134.0', 'date' => '2026-10-26', 'summary' => 'WASTE MANAGEMENT BECOMES A WORKSPACE, AND THE OLD SAFETY EQUIPMENT DOOR OPENS THE REGISTER. WASTE: the dashboard was static tiles. Now eight summary figures (total, B3 on site, non-B3 on site, awaiting pickup or in transit, disposed or closed, approaching the storage limit, storage limit exceeded, incomplete) and the six lifecycle steps are counts of real rows, and each one filters the register to exactly those rows. The lifecycle is shown as the model allows: a record may go straight to pickup without a TPS, and the stepper says how many did. A Priority & Follow-up panel lists exceeded and approaching storage limits, incomplete records by named gap, and waste awaiting handover, each linking to the record or its action. STORAGE DURATION IS NOT STORAGE CAPACITY: duration comes only from the limit the company set per waste type, and a type without one is no limit set, never within limit; capacity is compared only where the record units match the TPS capacity unit, and mixed units are reported, never converted. The 80 percent filling-up marker is a display threshold and says so. Missing data (no TPS, a B3 type without a waste code, a B3 movement without transporter or manifest, a handover without a document) is a finding, never a pass. ONE NEW WRITE: assign or move a record to a TPS, HSE only, tenant-scoped, active TPS of the same company, only while the waste is on site, Generated to Stored through the existing transition guard, keeping the original received date so moving a drum does not reset its storage age. Pickup and handover keep their existing movement form, reached by a deep link. The register searches and filters by category, type, status, TPS, pickup or handover state and date range, and becomes cards on a phone. No migration. SAFETY EQUIPMENT: production was serving the redesign (186 of 186 pages in the bundle), but old /hse/master links and bookmarks, and the HSE Overview inspections KPI, opened the Supplies tables under the Safety Equipment title. They now open /hse/equipment. The release identity now includes the served frontend bundle, app:deploy fails on a bundle missing a page, and CI rejects a commit whose committed build is older than its frontend sources. See ADR 077.'],

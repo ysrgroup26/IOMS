@@ -212,7 +212,7 @@ export default function OverviewCalendar({ events = [], window: dataWindow, toda
     const monthHasEvents = Array.from(byDay.keys()).some((k) => k.startsWith(current));
 
     return (
-        <section className="flex h-full flex-col overflow-hidden rounded-2xl border border-graphite-200/80 bg-white shadow-[0_1px_2px_rgba(16,24,40,0.04)] dark:border-slate-800 dark:bg-slate-900">
+        <section className="flex h-full flex-col overflow-hidden surface dark:border-slate-800 dark:bg-slate-900">
             <header className="flex items-center justify-between gap-2 border-b border-graphite-100 px-4 py-3 dark:border-slate-800">
                 <div className="min-w-0">
                     <h2 className="flex items-center gap-1.5 text-[13px] font-bold text-graphite-900 dark:text-slate-50">

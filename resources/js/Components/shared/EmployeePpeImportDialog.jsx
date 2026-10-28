@@ -314,7 +314,7 @@ export default function EmployeePpeImportDialog({ open, onOpenChange, companies 
 
                 {stage === 'upload' && (
                     <div className="space-y-4">
-                        <div className="rounded-lg border border-graphite-100 bg-graphite-50/60 p-3">
+                        <div className="rounded-xl border border-steel-100 bg-white/60 bg-graphite-50/60 p-3">
                             <p className="mb-2 text-[13px] text-graphite-600">
                                 Satu baris untuk satu karyawan, dan satu kolom tanggal untuk setiap jenis APD.
                                 Sel yang dikosongkan berarti tidak ada catatan pemberian dan tidak akan
@@ -444,7 +444,7 @@ export default function EmployeePpeImportDialog({ open, onOpenChange, companies 
                             and "8 rows" alone hides how much was issued.
                         */}
                         <div className="grid grid-cols-4 gap-2 text-center">
-                            <div className="rounded-lg border border-graphite-100 p-2.5">
+                            <div className="rounded-xl border border-steel-100 bg-white/60 p-2.5">
                                 <p className="text-lg font-semibold text-navy-900">{report.total_rows}</p>
                                 <p className="text-[11px] text-graphite-500">Rows Read</p>
                             </div>
@@ -454,11 +454,11 @@ export default function EmployeePpeImportDialog({ open, onOpenChange, companies 
                                     {stage === 'preview' ? 'PPE To Issue' : 'PPE Issued'}
                                 </p>
                             </div>
-                            <div className="rounded-lg border border-graphite-100 p-2.5">
+                            <div className="rounded-xl border border-steel-100 bg-white/60 p-2.5">
                                 <p className="text-lg font-semibold text-navy-900">{report.employees_touched ?? 0}</p>
                                 <p className="text-[11px] text-graphite-500">Employees</p>
                             </div>
-                            <div className="rounded-lg border border-graphite-100 p-2.5">
+                            <div className="rounded-xl border border-steel-100 bg-white/60 p-2.5">
                                 <p className="text-lg font-semibold text-navy-900">{report.skipped?.length ?? 0}</p>
                                 <p className="text-[11px] text-graphite-500">Skipped</p>
                             </div>
@@ -472,7 +472,7 @@ export default function EmployeePpeImportDialog({ open, onOpenChange, companies 
                         )}
 
                         {report.already_held > 0 && (
-                            <div className="flex items-start gap-2 rounded-lg border border-graphite-100 bg-graphite-50/60 p-3">
+                            <div className="flex items-start gap-2 rounded-xl border border-steel-100 bg-white/60 bg-graphite-50/60 p-3">
                                 <ShieldCheck className="mt-0.5 h-4 w-4 shrink-0 text-brand-600" />
                                 <p className="text-xs leading-relaxed text-graphite-600">
                                     <span className="font-semibold text-navy-900">{report.already_held} baris</span>{' '}
@@ -526,7 +526,7 @@ export default function EmployeePpeImportDialog({ open, onOpenChange, companies 
                         )}
 
                         {report.skipped?.length > 0 && (
-                            <div className="rounded-lg border border-graphite-100 p-3">
+                            <div className="rounded-xl border border-steel-100 bg-white/60 p-3">
                                 <p className="mb-1 text-xs font-semibold text-graphite-600">Baris yang dilewati</p>
                                 <ul className="max-h-32 space-y-0.5 overflow-y-auto text-xs text-graphite-500">
                                     {report.skipped.slice(0, 20).map((s) => (

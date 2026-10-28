@@ -153,7 +153,7 @@ export default function CalendarIndex({ events, range, eventTypes, companies, ca
                         ) : (
                             <ul className="space-y-1.5">
                                 {(eventsByDay[format(selectedDay, 'yyyy-MM-dd')] || []).map((e) => (
-                                    <li key={e.id} className="flex cursor-pointer items-center justify-between rounded-md border border-graphite-100 px-2.5 py-1.5 text-sm hover:bg-graphite-50 dark:border-slate-800 dark:hover:bg-slate-800" onClick={() => setDetailEvent(e)}>
+                                    <li key={e.id} className="flex cursor-pointer items-center justify-between rounded-xl border border-steel-100 bg-white/60 px-2.5 py-1.5 text-sm hover:bg-graphite-50 dark:border-slate-800 dark:hover:bg-slate-800" onClick={() => setDetailEvent(e)}>
                                         <span>{e.title}</span>
                                         <Badge variant={TYPE_BADGE[e.event_type] ?? 'secondary'} className="capitalize">{e.event_type}</Badge>
                                     </li>

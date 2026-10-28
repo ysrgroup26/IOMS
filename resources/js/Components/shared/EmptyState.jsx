@@ -23,12 +23,12 @@ export default function EmptyState({ icon: Icon = Inbox, title, description, act
         // nothing here yet" look like a designed state -- the same reasoning
         // as HSE's "-- / not available" blocks. Dashed, not solid, so it is
         // never mistaken for a data card.
-        <div className="flex flex-col items-center justify-center gap-2 rounded-xl border border-dashed border-steel-200 bg-gradient-to-b from-steel-50/60 to-white/40 px-6 py-10 text-center dark:border-slate-700 dark:from-slate-900/40 dark:to-transparent">
-            <div className="flex h-11 w-11 items-center justify-center rounded-full bg-gradient-to-br from-navy-800 to-brand-600 text-white shadow-[0_3px_8px_-3px_rgba(33,102,196,0.38)] dark:from-brand-950 dark:to-brand-900 dark:text-brand-300">
-                <Icon className="h-5 w-5" />
+        <div className="flex flex-col items-center justify-center gap-2 rounded-2xl border border-dashed border-steel-200/90 bg-white/45 px-6 py-12 text-center">
+            <div className="icon-soft icon-soft-blue mb-1 h-12 w-12 rounded-2xl">
+                <Icon className="h-5 w-5" strokeWidth={1.75} />
             </div>
-            <p className="text-sm font-semibold text-navy-800 dark:text-slate-300">{title}</p>
-            {description && <p className="max-w-xs text-xs text-graphite-400 dark:text-slate-500">{description}</p>}
+            <p className="text-[15px] font-bold text-navy-900">{title}</p>
+            {description && <p className="max-w-sm text-[13px] leading-relaxed text-slate-500">{description}</p>}
             {action && <div className="mt-2">{action}</div>}
         </div>
     );

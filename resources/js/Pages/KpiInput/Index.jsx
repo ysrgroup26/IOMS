@@ -30,16 +30,16 @@ export default function KpiInputIndex({ departments, companies, categories, quic
             />
 
             <Tabs.Root defaultValue="single" className="space-y-4">
-                <Tabs.List className="inline-flex rounded-lg border border-graphite-200 bg-white p-1 shadow-sm">
+                <Tabs.List className="chrome inline-flex gap-1 rounded-2xl p-1 shadow-card">
                     <Tabs.Trigger
                         value="single"
-                        className="rounded-md px-4 py-1.5 text-sm font-medium text-graphite-500 data-[state=active]:bg-brand-50 data-[state=active]:text-brand-700"
+                        className="rounded-xl px-3.5 py-2 text-[13px] font-medium text-slate-500 outline-none transition-[background-color,color,box-shadow] duration-base ease-out-soft hover:bg-white/60 hover:text-navy-900 focus-visible:ring-4 focus-visible:ring-brand-500/15 data-[state=active]:bg-white data-[state=active]:font-bold data-[state=active]:text-brand-700 data-[state=active]:shadow-[0_1px_2px_0_rgba(30,64,120,0.08),0_6px_16px_-10px_rgba(36,112,221,0.45)] data-[state=active]:ring-1 data-[state=active]:ring-brand-100"
                     >
                         Single Input
                     </Tabs.Trigger>
                     <Tabs.Trigger
                         value="attendance"
-                        className="rounded-md px-4 py-1.5 text-sm font-medium text-graphite-500 data-[state=active]:bg-brand-50 data-[state=active]:text-brand-700"
+                        className="rounded-xl px-3.5 py-2 text-[13px] font-medium text-slate-500 outline-none transition-[background-color,color,box-shadow] duration-base ease-out-soft hover:bg-white/60 hover:text-navy-900 focus-visible:ring-4 focus-visible:ring-brand-500/15 data-[state=active]:bg-white data-[state=active]:font-bold data-[state=active]:text-brand-700 data-[state=active]:shadow-[0_1px_2px_0_rgba(30,64,120,0.08),0_6px_16px_-10px_rgba(36,112,221,0.45)] data-[state=active]:ring-1 data-[state=active]:ring-brand-100"
                     >
                         Quick Attendance
                     </Tabs.Trigger>

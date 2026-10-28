@@ -194,7 +194,7 @@ export default function EmployeeImportDialog({ open, onOpenChange, companies }) 
 
                 {stage === 'upload' && (
                     <div className="space-y-4">
-                        <div className="rounded-lg border border-graphite-100 bg-graphite-50/60 p-3">
+                        <div className="rounded-xl border border-steel-100 bg-white/60 bg-graphite-50/60 p-3">
                             <p className="mb-2 text-[13px] text-graphite-600">
                                 Unduh templat, isi data karyawan, lalu unggah di bawah. Berkas Anda sendiri
                                 juga dapat diunggah langsung tanpa templat.
@@ -274,7 +274,7 @@ export default function EmployeeImportDialog({ open, onOpenChange, companies }) 
                             never presented as a certainty.
                         */}
                         {mapping?.format_label && (
-                            <div className="rounded-lg border border-graphite-100 bg-graphite-50/60 p-3">
+                            <div className="rounded-xl border border-steel-100 bg-white/60 bg-graphite-50/60 p-3">
                                 <p className="mb-1.5 text-xs font-semibold text-graphite-600">Detected Source</p>
                                 <p className="text-xs text-graphite-500">
                                     <span className="text-graphite-700">{mapping.format_label}</span>
@@ -337,7 +337,7 @@ export default function EmployeeImportDialog({ open, onOpenChange, companies }) 
                         )}
 
                         {mapping && (mapping.unmatched_headings.length > 0 || mapping.missing_fields.length > 0) && (
-                            <div className="rounded-lg border border-graphite-100 bg-graphite-50/60 p-3">
+                            <div className="rounded-xl border border-steel-100 bg-white/60 bg-graphite-50/60 p-3">
                                 <p className="mb-1.5 text-xs font-semibold text-graphite-600">Column Mapping</p>
                                 <p className="mb-2 text-xs text-graphite-500">
                                     IOMS membaca berkas Anda memakai pencocokan kolom berikut.
@@ -388,7 +388,7 @@ export default function EmployeeImportDialog({ open, onOpenChange, companies }) 
                         )}
 
                         {(Object.keys(preview.departments.suggestions).length > 0 || Object.keys(preview.positions.suggestions).length > 0) && (
-                            <div className="rounded-lg border border-graphite-100 bg-graphite-50/60 p-3">
+                            <div className="rounded-xl border border-steel-100 bg-white/60 bg-graphite-50/60 p-3">
                                 <p className="mb-1.5 text-xs font-semibold text-graphite-600">Possible Typos (not auto-created)</p>
                                 {Object.entries({ ...preview.departments.suggestions, ...preview.positions.suggestions }).map(([typo, match]) => (
                                     <p key={typo} className="text-xs text-graphite-500">
@@ -419,7 +419,7 @@ export default function EmployeeImportDialog({ open, onOpenChange, companies }) 
 
                 {stage === 'summary' && result && (
                     <div className="space-y-4">
-                        <div className="flex items-center gap-3 rounded-lg border border-graphite-100 bg-graphite-50/60 p-3">
+                        <div className="flex items-center gap-3 rounded-xl border border-steel-100 bg-white/60 bg-graphite-50/60 p-3">
                             <CheckCircle2 className="h-8 w-8 shrink-0 text-emerald-500" />
                             <div>
                                 <p className="text-sm font-semibold text-graphite-800">{result.total_rows} Rows Found</p>
@@ -493,7 +493,7 @@ function RowNotes({ title, hint, rows }) {
 
 function PreviewStat({ label, value, small, accent }) {
     return (
-        <div className="rounded-lg border border-graphite-100 p-2.5">
+        <div className="rounded-xl border border-steel-100 bg-white/60 p-2.5">
             <p className="text-[11px] uppercase tracking-wide text-graphite-400">{label}</p>
             <p className={`font-bold text-graphite-800 ${small ? 'text-[13px]' : 'text-lg'} ${accent === 'amber' ? 'text-amber-600' : ''}`}>{value}</p>
         </div>

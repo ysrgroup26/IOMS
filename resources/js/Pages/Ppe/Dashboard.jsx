@@ -70,7 +70,7 @@ export default function PpeDashboard({ totalActive, expiringSoonCount, expiredCo
                         {countsByType.length === 0 ? (
                             <p className="py-6 text-center text-sm text-graphite-400">No data yet.</p>
                         ) : countsByType.map((t) => (
-                            <div key={t.name} className="flex items-center justify-between rounded-lg border border-graphite-100 px-3 py-1.5 text-[13px]">
+                            <div key={t.name} className="flex items-center justify-between rounded-xl border border-steel-100 bg-white/60 px-3 py-1.5 text-[13px]">
                                 <span className="font-medium text-graphite-800">{t.name}</span>
                                 <Badge variant="secondary">{formatNumber(t.total)}</Badge>
                             </div>

@@ -96,7 +96,7 @@ export default function PpeEmployeeProfile({ employee, assignments, ppeTypes, ca
 
                         <dl className="grid gap-2 sm:grid-cols-3">
                             {Object.entries(compliance.groups ?? {}).map(([role, group]) => (
-                                <div key={role} className="rounded-lg border border-graphite-100 p-2.5 dark:border-slate-800">
+                                <div key={role} className="rounded-xl border border-steel-100 bg-white/60 p-2.5 dark:border-slate-800">
                                     <dt className="text-[11px] uppercase tracking-wide text-graphite-400">
                                         {complianceRoleLabels[role] ?? role}
                                     </dt>

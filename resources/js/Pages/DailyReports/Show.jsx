@@ -86,7 +86,7 @@ export default function DailyReportShow({ report, can }) {
                                             <img
                                                 src={p.url}
                                                 alt={p.caption || 'Report documentation'}
-                                                className="aspect-square w-full rounded-lg border border-graphite-100 object-cover transition-opacity hover:opacity-90"
+                                                className="aspect-square w-full rounded-xl border border-steel-100 bg-white/60 object-cover transition-opacity hover:opacity-90"
                                             />
                                         </a>
                                     ))}

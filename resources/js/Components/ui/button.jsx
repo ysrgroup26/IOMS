@@ -28,7 +28,7 @@ import { cn } from '@/lib/utils';
 // says so to assistive tech (`aria-busy`), and keeps its width so the row
 // it sits in does not jump.
 const buttonVariants = cva(
-    'inline-flex items-center justify-center gap-1.5 whitespace-nowrap rounded-lg text-[13px] font-medium transition-[color,background-color,border-color,box-shadow,transform,opacity] duration-fast ease-out-soft motion-safe:active:scale-[0.97] focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring/60 focus-visible:ring-offset-2 disabled:pointer-events-none disabled:opacity-50 [&_svg]:shrink-0',
+    'inline-flex items-center justify-center gap-1.5 whitespace-nowrap rounded-full text-[13px] font-semibold transition-[color,background-color,border-color,box-shadow,transform,opacity] duration-fast ease-out-soft motion-safe:active:scale-[0.97] focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring/60 focus-visible:ring-offset-2 disabled:pointer-events-none disabled:opacity-50 [&_svg]:shrink-0',
     {
         variants: {
             variant: {
@@ -40,21 +40,21 @@ const buttonVariants = cva(
                 // Deliberately NOT navy: a navy button on a navy-anchored shell
                 // loses its affordance, and the action hierarchy matters more
                 // than tonal uniformity.
-                default: 'bg-primary text-primary-foreground shadow-[0_1px_2px_0_rgba(15,39,71,0.20),inset_0_1px_0_0_rgba(255,255,255,0.14)] hover:bg-brand-700 hover:shadow-[0_2px_6px_-1px_rgba(15,39,71,0.28),inset_0_1px_0_0_rgba(255,255,255,0.14)]',
-                destructive: 'bg-destructive text-destructive-foreground shadow-sm hover:bg-red-700',
+                default: 'bg-gradient-to-b from-brand-500 to-brand-600 text-white shadow-[0_6px_16px_-8px_rgba(36,112,221,0.75),inset_0_1px_0_0_rgba(255,255,255,0.22)] hover:from-brand-600 hover:to-brand-700 hover:shadow-[0_10px_22px_-10px_rgba(36,112,221,0.85),inset_0_1px_0_0_rgba(255,255,255,0.22)]',
+                destructive: 'bg-gradient-to-b from-rose-500 to-red-600 text-white shadow-[0_6px_16px_-8px_rgba(225,29,72,0.7),inset_0_1px_0_0_rgba(255,255,255,0.2)] hover:from-rose-600 hover:to-red-700',
                 // Secondary actions live in the same cool family as the
                 // surfaces, so an outline button beside a primary reads as a
                 // quieter sibling rather than a different design system.
-                outline: 'border border-steel-200 bg-white text-navy-700 shadow-[0_1px_2px_0_rgba(15,39,71,0.05)] hover:border-steel-300 hover:bg-steel-50 hover:text-navy-900 dark:border-slate-700 dark:bg-transparent dark:text-slate-200 dark:hover:bg-slate-800 dark:hover:text-slate-100',
-                secondary: 'bg-steel-100 text-navy-800 hover:bg-steel-200 dark:bg-slate-800 dark:text-slate-200 dark:hover:bg-slate-700',
-                ghost: 'text-navy-600 hover:bg-steel-50 hover:text-navy-900 dark:text-slate-300 dark:hover:bg-slate-800 dark:hover:text-slate-100',
+                outline: 'border border-white/90 bg-white/80 text-navy-800 shadow-[0_1px_2px_0_rgba(30,64,120,0.06)] backdrop-blur hover:border-steel-200 hover:bg-white hover:text-navy-900 dark:border-slate-700 dark:bg-transparent dark:text-slate-200 dark:hover:bg-slate-800 dark:hover:text-slate-100',
+                secondary: 'bg-brand-50 text-brand-700 ring-1 ring-inset ring-brand-100 hover:bg-brand-100 dark:bg-slate-800 dark:text-slate-200 dark:hover:bg-slate-700',
+                ghost: 'text-navy-700 hover:bg-white/70 hover:text-navy-900 dark:text-slate-300 dark:hover:bg-slate-800 dark:hover:text-slate-100',
                 link: 'text-primary underline-offset-4 hover:underline',
             },
             size: {
-                default: 'h-9 px-3.5',
-                sm: 'h-8 rounded-md px-2.5 text-xs lg:h-7',
-                lg: 'h-10 px-6',
-                icon: 'h-9 w-9 lg:h-8 lg:w-8',
+                default: 'h-10 px-4',
+                sm: 'h-8 px-3 text-xs',
+                lg: 'h-11 px-6',
+                icon: 'h-9 w-9',
             },
         },
         defaultVariants: {

@@ -66,18 +66,18 @@ export default function SubscriptionPlans({ plans, currentPlan, currentPlanId, c
                 title="Paket Berlangganan"
                 subtitle="Bandingkan paket IOMS dan lihat modul/departemen apa saja yang tercakup di setiap paket."
             >
-                <div className="inline-flex items-center rounded-lg border border-graphite-200 bg-white p-0.5 dark:border-slate-700 dark:bg-slate-900">
+                <div className="chrome inline-flex items-center gap-0.5 rounded-full p-1">
                     <button
                         type="button"
                         onClick={() => setInterval('monthly')}
-                        className={`rounded-md px-3 py-1.5 text-sm font-medium transition-colors ${interval === 'monthly' ? 'bg-graphite-900 text-white dark:bg-slate-100 dark:text-slate-900' : 'text-graphite-500 dark:text-slate-400'}`}
+                        className={`rounded-full px-4 py-1.5 text-[13px] transition-colors duration-base ${interval === 'monthly' ? 'bg-gradient-to-b from-brand-500 to-brand-600 font-semibold text-white shadow-[0_6px_16px_-8px_rgba(36,112,221,0.8)]' : 'font-medium text-slate-500 hover:text-navy-900'}`}
                     >
                         Bulanan
                     </button>
                     <button
                         type="button"
                         onClick={() => setInterval('yearly')}
-                        className={`rounded-md px-3 py-1.5 text-sm font-medium transition-colors ${interval === 'yearly' ? 'bg-graphite-900 text-white dark:bg-slate-100 dark:text-slate-900' : 'text-graphite-500 dark:text-slate-400'}`}
+                        className={`rounded-full px-4 py-1.5 text-[13px] transition-colors duration-base ${interval === 'yearly' ? 'bg-gradient-to-b from-brand-500 to-brand-600 font-semibold text-white shadow-[0_6px_16px_-8px_rgba(36,112,221,0.8)]' : 'font-medium text-slate-500 hover:text-navy-900'}`}
                     >
                         Tahunan
                     </button>

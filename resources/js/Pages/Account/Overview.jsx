@@ -48,7 +48,7 @@ export default function AccountOverview({ account, hasOrganization, organization
     const allowedPrefixes = auth?.user?.allowed_route_prefixes ?? null;
 
     return (
-        <div className="min-h-screen bg-steel-50/60">
+        <div className="ioms-canvas min-h-screen">
             <Head title="Account" />
 
             <AccountTopBar hasOrganization={hasOrganization} />
@@ -107,20 +107,20 @@ export default function AccountOverview({ account, hasOrganization, organization
  */
 function AccountTopBar({ hasOrganization }) {
     return (
-        <div className="border-b border-steel-200/70 bg-navy-900">
-            <div className="mx-auto flex w-full max-w-5xl items-center justify-between gap-3 px-4 py-3 sm:px-6">
-                <BrandWordmark className="h-7 w-auto" tone="dark" />
+        <div className="px-3 pt-3 sm:px-5">
+            <div className="chrome mx-auto flex w-full max-w-5xl items-center justify-between gap-3 rounded-full py-2 pl-5 pr-2">
+                <BrandWordmark className="h-7 w-auto" tone="light" />
 
                 <div className="flex items-center gap-2">
                     {hasOrganization && (
-                        <Button variant="ghost" size="sm" asChild className="text-navy-300 hover:bg-white/[0.08] hover:text-white">
+                        <Button variant="ghost" size="sm" asChild className="text-slate-600 hover:bg-white hover:text-navy-900">
                             <Link href={route('dashboard')}>Open IOMS <ArrowRight className="h-4 w-4" /></Link>
                         </Button>
                     )}
                     <Button
                         variant="ghost"
                         size="sm"
-                        className="text-navy-300 hover:bg-white/[0.08] hover:text-white"
+                        className="text-slate-600 hover:bg-white hover:text-navy-900"
                         onClick={() => router.post(route('logout'))}
                     >
                         <LogOut className="h-4 w-4" /> Sign out

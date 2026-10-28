@@ -12,7 +12,7 @@ const DialogOverlay = React.forwardRef(({ className, ...props }, ref) => (
     <DialogPrimitive.Overlay
         ref={ref}
         className={cn(
-            'fixed inset-0 z-[100] bg-graphite-900/35 backdrop-blur-[2px] duration-slow ease-out-soft',
+            'fixed inset-0 z-[100] bg-navy-900/25 backdrop-blur-sm duration-slow ease-out-soft',
             // Root-cause replacement (Final UI Stabilization): the old
             // `animate-fade-in` was a generic, one-shot CSS keyframe with
             // no relationship to Radix's actual open/closed state -- it
@@ -67,14 +67,14 @@ const DialogContent = React.forwardRef(({ className, children, ...props }, ref) 
             ref={ref}
             className={cn(
                 'fixed left-1/2 top-1/2 z-[110] grid w-[calc(100%-2rem)] max-w-lg max-h-[85vh] -translate-x-1/2 -translate-y-1/2 gap-4 overflow-y-auto',
-                'rounded-2xl border border-graphite-200/80 bg-white p-5 shadow-lift duration-slow ease-out-soft dark:border-slate-700 dark:bg-slate-900',
+                'rounded-3xl border border-white/80 bg-white/95 p-6 shadow-float backdrop-blur-xl duration-slow ease-out-soft dark:border-slate-700 dark:bg-slate-900',
                 'data-[state=open]:animate-in data-[state=closed]:animate-out data-[state=closed]:fade-out-0 data-[state=open]:fade-in-0 data-[state=closed]:zoom-out-95 data-[state=open]:zoom-in-95',
                 className
             )}
             {...props}
         >
             {children}
-            <DialogPrimitive.Close className="absolute right-4 top-4 rounded-md p-1 text-graphite-400 hover:bg-graphite-100 hover:text-graphite-600 focus:outline-none dark:text-slate-500 dark:hover:bg-slate-800 dark:hover:text-slate-300">
+            <DialogPrimitive.Close className="absolute right-4 top-4 rounded-full p-1.5 text-graphite-400 transition-colors hover:bg-steel-50 hover:text-graphite-600 focus:outline-none dark:text-slate-500 dark:hover:bg-slate-800 dark:hover:text-slate-300">
                 <X className="h-4 w-4" />
                 <span className="sr-only">Close</span>
             </DialogPrimitive.Close>
@@ -92,7 +92,7 @@ const DialogFooter = ({ className, ...props }) => (
 );
 
 const DialogTitle = React.forwardRef(({ className, ...props }, ref) => (
-    <DialogPrimitive.Title ref={ref} className={cn('text-base font-semibold text-graphite-800 dark:text-slate-100', className)} {...props} />
+    <DialogPrimitive.Title ref={ref} className={cn('text-lg font-bold tracking-[-0.015em] text-navy-900 dark:text-slate-100', className)} {...props} />
 ));
 DialogTitle.displayName = DialogPrimitive.Title.displayName;
 

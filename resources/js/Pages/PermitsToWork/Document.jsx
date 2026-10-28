@@ -141,7 +141,7 @@ export default function PermitToWorkDocument({ permit: p, company, documentTempl
 
             {/* The "paper" -- A4-proportioned on desktop, full-width and
                 naturally stacking on mobile. */}
-            <div id="ptw-print-area" className="mx-auto max-w-[794px] rounded-xl border border-graphite-200 bg-white shadow-card dark:border-slate-700 sm:shadow-card-hover">
+            <div id="ptw-print-area" className="mx-auto max-w-[794px] rounded-2xl border border-white bg-white shadow-card sm:shadow-card-hover">
                 <div className="p-5 sm:p-8">
                     {/* Company identity header */}
                     <div className="flex flex-wrap items-start justify-between gap-4">

@@ -44,7 +44,7 @@ export default function EquipmentShow({ equipment, inspections, activities, equi
             </div>
 
             {/* Record header: deep navy, the unit's ID set as an identifier. */}
-            <header className="mb-4 overflow-hidden rounded-xl border border-navy-800 bg-gradient-to-br from-navy-950 via-navy-900 to-navy-700 px-4 py-4 text-white shadow-panel sm:px-5">
+            <header className="surface-feature mb-5 px-5 py-5 text-white sm:px-6">
                 <div className="flex flex-col gap-3 sm:flex-row sm:items-start sm:justify-between">
                     <div className="flex min-w-0 items-start gap-3">
                         <span className="flex h-11 w-11 shrink-0 items-center justify-center rounded-lg bg-white/10 ring-1 ring-white/15">

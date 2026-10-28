@@ -22,11 +22,10 @@ export default function SectionHeader({ title, description, action }) {
         <div className="mb-3 flex items-end justify-between gap-3">
             <div className="min-w-0 flex-1">
                 <div className="flex items-center gap-2">
-                    <span className="h-3 w-0.5 shrink-0 rounded-full bg-navy-700 dark:bg-brand-500" aria-hidden="true" />
-                    <h2 className="text-[11px] font-semibold uppercase tracking-[0.12em] text-navy-700 dark:text-slate-300">{title}</h2>
-                    <span className="h-px min-w-4 flex-1 bg-gradient-to-r from-steel-200 to-transparent dark:from-slate-700" aria-hidden="true" />
+                    <h2 className="text-[17px] font-bold tracking-[-0.015em] text-navy-900">{title}</h2>
+                    <span className="h-px min-w-4 flex-1 bg-gradient-to-r from-steel-200/80 to-transparent" aria-hidden="true" />
                 </div>
-                {description && <p className="mt-0.5 pl-3.5 text-xs text-graphite-500 dark:text-slate-500">{description}</p>}
+                {description && <p className="mt-0.5 text-[13px] text-slate-500">{description}</p>}
             </div>
             {action && <div className="shrink-0">{action}</div>}
         </div>

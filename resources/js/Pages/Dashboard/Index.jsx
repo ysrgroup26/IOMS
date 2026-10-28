@@ -212,7 +212,7 @@ export default function Dashboard({
                     against the new dark surface; their dropdown panels
                     remain the app's normal white Popover content
                     (unaffected -- only the trigger's own chrome changed). */}
-                <div className="mb-4 flex max-h-[220px] flex-wrap items-center justify-between gap-3 rounded-xl bg-gradient-to-br from-navy-900 via-navy-800 to-brand-700 px-4 py-3 shadow-card-hover dark:from-slate-950 dark:via-navy-900 dark:to-blue-950">
+                <div className="mb-5 flex flex-wrap items-end justify-between gap-3 pt-1">
                     <div>
                         {/* Final UI Stabilization: no logo/wordmark at all
                             here anymore -- per explicit instruction,
@@ -221,7 +221,7 @@ export default function Dashboard({
                             previous session did) was itself the "duplicate
                             branding" this issue is about. Just the page
                             title and subtitle. */}
-                        <p className="text-[10px] font-semibold uppercase tracking-[0.18em] text-brand-200">IOMS &middot; Industrial Operations Platform</p>
+                        <p className="text-[11px] font-semibold uppercase tracking-[0.14em] text-brand-600">IOMS &middot; Industrial Operations Platform</p>
                         {/* v1.11.10 (Visual Correction, Part 0): reverted from
                             text-xl (20px, bumped in v1.11.9) back to
                             text-base (16px) -- direct user feedback that the
@@ -230,19 +230,19 @@ export default function Dashboard({
                             filter controls, not a full PageHeader -- it
                             never needed the 24px "page title" treatment
                             PageHeader itself correctly uses elsewhere. */}
-                        <h1 className="mt-0.5 text-base font-bold tracking-tight text-white">Dashboard</h1>
+                        <h1 className="type-page-title mt-1 text-[28px] leading-tight text-navy-900 lg:text-[32px]">Dashboard</h1>
                         {/* v2.26.0 (Final Copy Consistency pass): was
                             fully English -- naturalized to Indonesian,
                             "Dashboard" and "KPI" kept as established
                             terminology. */}
-                        <p className="text-[11px] text-brand-100/80">Ringkasan KPI operasional di seluruh departemen.</p>
+                        <p className="mt-1 text-[14px] text-slate-500">Ringkasan KPI operasional di seluruh departemen.</p>
                     </div>
                     <div className="flex flex-wrap items-center gap-2">
                         <Select
                             value={filters.company_id ? String(filters.company_id) : 'all'}
                             onValueChange={(v) => updateFilters({ company_id: v === 'all' ? null : Number(v) })}
                         >
-                            <SelectTrigger className="w-40 border-white/20 bg-white/10 text-white [&_svg]:text-white/70"><SelectValue placeholder="Operating Unit" /></SelectTrigger>
+                            <SelectTrigger className="w-44 rounded-full"><SelectValue placeholder="Operating Unit" /></SelectTrigger>
                         <SelectContent>
                             <SelectItem value="all">All Operating Units</SelectItem>
                             {companies.map((c) => <SelectItem key={c.id} value={String(c.id)}>{c.name}</SelectItem>)}
@@ -255,7 +255,7 @@ export default function Dashboard({
                         departments={[]}
                         showDepartment={false}
                         onChange={handlePeriodChange}
-                        triggerClassName="border-white/20 bg-white/10 text-white [&_svg]:text-white/70"
+                        triggerClassName="rounded-full"
                     />
                 </div>
                 </div>
@@ -274,13 +274,13 @@ export default function Dashboard({
                 after release (computed server-side) plus a per-session
                 client-side dismiss. */}
             {showAnnouncement && !announcementDismissed && (
-                <div className="mt-3 flex items-start gap-3 rounded-xl border border-brand-200 bg-brand-50/60 px-4 py-3">
-                    <div className="flex h-8 w-8 shrink-0 items-center justify-center rounded-lg bg-brand-100 text-brand-700">
+                <div className="surface mt-4 flex items-start gap-3 bg-gradient-to-br from-sky-50/90 via-white/85 to-white/80 px-4 py-3.5">
+                    <div className="icon-tile icon-tile-blue h-9 w-9">
                         <Sparkles className="h-4.5 w-4.5" />
                     </div>
                     <div className="min-w-0 flex-1">
                         <div className="flex items-center gap-2">
-                            <p className="text-sm font-semibold text-graphite-900">Version {version?.number} Released</p>
+                            <p className="text-sm font-bold text-navy-900">Version {version?.number} Released</p>
                             <Badge variant="outline" className="text-[10px]">
                                 {version?.release_date && new Date(version.release_date).toLocaleDateString('en-US', { day: 'numeric', month: 'short', year: 'numeric' })}
                             </Badge>
@@ -310,7 +310,7 @@ export default function Dashboard({
                             </ul>
                         )}
                     </div>
-                    <button onClick={() => setAnnouncementDismissed(true)} className="rounded p-1 text-graphite-400 hover:bg-white hover:text-graphite-600">
+                    <button onClick={() => setAnnouncementDismissed(true)} className="rounded-full p-1.5 text-slate-400 transition-colors hover:bg-white hover:text-navy-900">
                         <X className="h-4 w-4" />
                     </button>
                 </div>
@@ -344,7 +344,7 @@ export default function Dashboard({
                 3. `size="sm"` on both bands. These ten cards were the
                    tallest thing between a customer and their charts, and a
                    figure of 0 does not need 18px type to be read. */}
-            <p className="mt-3 text-[11px] font-semibold uppercase tracking-wide text-graphite-400 dark:text-slate-500">Company Snapshot</p>
+            <h2 className="mt-6 text-[17px] font-bold tracking-[-0.015em] text-navy-900">Company Snapshot</h2>
             {/* v2.84.0: Active Projects left this row with the Project
                 Management workspace. What remains is what a company-wide
                 snapshot can still say truthfully on every plan that has this
@@ -356,7 +356,7 @@ export default function Dashboard({
                 is the gate the header's own Admin Space entry already
                 uses; without it the number still shows, as a fact rather
                 than a door. */}
-            <div className="mt-1.5 grid grid-cols-1 gap-2.5 sm:grid-cols-2">
+            <div className="mt-2.5 grid grid-cols-1 gap-3 sm:grid-cols-2">
                 {/* v2.122.0: the value is the number alone, as it is on
                     every other card in the product -- the label already
                     says what is being counted, and baking the noun in
@@ -376,8 +376,8 @@ export default function Dashboard({
                 DIFFERENT department renders without a link instead of a
                 click that would 403 (RestrictDepartmentAccess itself is
                 unchanged; this only avoids exposing a link it would reject). */}
-            <p className="mt-3 text-[11px] font-semibold uppercase tracking-wide text-graphite-400 dark:text-slate-500">Needs Attention</p>
-            <div className="mt-1.5 grid grid-cols-2 gap-2.5 sm:grid-cols-3 lg:grid-cols-6">
+            <h2 className="mt-6 text-[17px] font-bold tracking-[-0.015em] text-navy-900">Needs Attention</h2>
+            <div className="mt-2.5 grid grid-cols-2 gap-3 sm:grid-cols-3 lg:grid-cols-6">
                 {/* v2.84.0 -- Pending Procurement, Active Assets and
                     Maintenance Due left this strip with the workspaces that
                     owned them. The queries were real; the departments are no
@@ -470,8 +470,8 @@ export default function Dashboard({
                 links into the KPI Records list pre-filtered to that
                 category + the current period/company. */}
             <div className="mt-3">
-                <p className="mb-1.5 text-[11px] font-semibold uppercase tracking-wide text-graphite-400">KPI Summary</p>
-                <div className="grid grid-cols-2 gap-2 sm:grid-cols-4 lg:grid-cols-4 2xl:grid-cols-8">
+                <h2 className="mb-2.5 mt-3 text-[17px] font-bold tracking-[-0.015em] text-navy-900">KPI Summary</h2>
+                <div className="grid grid-cols-2 gap-3 sm:grid-cols-4 lg:grid-cols-4 2xl:grid-cols-8">
                     {summary.categories.map((c) => (
                         <KpiSummaryCard
                             key={c.id}
@@ -579,12 +579,12 @@ export default function Dashboard({
                         <CardDescription>Workforce currently on record.</CardDescription>
                     </CardHeader>
                     <CardContent className="grid grid-cols-2 gap-3">
-                        <div className="rounded-lg border border-graphite-100 p-3 dark:border-slate-800">
-                            <p className="text-base font-semibold text-graphite-900 dark:text-slate-50">{formatNumber(manpower.active_employees)}</p>
+                        <div className="rounded-xl bg-white/70 p-3.5 ring-1 ring-inset ring-steel-100">
+                            <p className="type-metric text-[22px] leading-tight text-navy-900">{formatNumber(manpower.active_employees)}</p>
                             <p className="text-xs text-graphite-400">Active Employees</p>
                         </div>
-                        <div className="rounded-lg border border-graphite-100 p-3 dark:border-slate-800">
-                            <p className="text-base font-semibold text-graphite-900 dark:text-slate-50">{formatNumber(manpower.on_shift_today)}</p>
+                        <div className="rounded-xl bg-white/70 p-3.5 ring-1 ring-inset ring-steel-100">
+                            <p className="type-metric text-[22px] leading-tight text-navy-900">{formatNumber(manpower.on_shift_today)}</p>
                             <p className="text-xs text-graphite-400">On Shift Today</p>
                         </div>
                     </CardContent>
@@ -609,16 +609,16 @@ export default function Dashboard({
                             <p className="py-3 text-center text-xs text-graphite-400">Belum ada data Man-Hour.</p>
                         ) : (
                             <div className="grid grid-cols-3 gap-3">
-                                <div className="rounded-lg border border-graphite-100 p-3 text-center dark:border-slate-800">
-                                    <p className="text-base font-semibold text-graphite-900 dark:text-slate-50">{manhours?.today ?? '-'}</p>
+                                <div className="rounded-xl bg-white/70 p-3.5 text-center ring-1 ring-inset ring-steel-100">
+                                    <p className="type-metric text-[22px] leading-tight text-navy-900">{manhours?.today ?? '-'}</p>
                                     <p className="text-xs text-graphite-400">Today</p>
                                 </div>
-                                <div className="rounded-lg border border-graphite-100 p-3 text-center dark:border-slate-800">
-                                    <p className="text-base font-semibold text-graphite-900 dark:text-slate-50">{manhours?.this_month ?? '-'}</p>
+                                <div className="rounded-xl bg-white/70 p-3.5 text-center ring-1 ring-inset ring-steel-100">
+                                    <p className="type-metric text-[22px] leading-tight text-navy-900">{manhours?.this_month ?? '-'}</p>
                                     <p className="text-xs text-graphite-400">This Month</p>
                                 </div>
-                                <div className="rounded-lg border border-graphite-100 p-3 text-center dark:border-slate-800">
-                                    <p className="text-base font-semibold text-graphite-900 dark:text-slate-50">{manhours?.ytd ?? '-'}</p>
+                                <div className="rounded-xl bg-white/70 p-3.5 text-center ring-1 ring-inset ring-steel-100">
+                                    <p className="type-metric text-[22px] leading-tight text-navy-900">{manhours?.ytd ?? '-'}</p>
                                     <p className="text-xs text-graphite-400">YTD</p>
                                 </div>
                             </div>
@@ -673,7 +673,7 @@ export default function Dashboard({
                                     <Link
                                         key={r.project_id}
                                         href={route('projects.show', r.project_id)}
-                                        className="block rounded-lg border border-graphite-100 px-3 py-2 text-sm text-graphite-700 hover:bg-graphite-50"
+                                        className="block rounded-xl border border-steel-100 bg-white/60 px-3 py-2 text-sm text-graphite-700 hover:bg-graphite-50"
                                     >
                                         {r.label}
                                     </Link>
@@ -768,7 +768,7 @@ export default function Dashboard({
                 department (see DashboardStatsService::leaderboards()); no
                 fabricated "Tasks" metric, since no task-tracking module
                 exists yet. */}
-            <Card className="mt-3 rounded-2xl bg-white/85 backdrop-blur-sm">
+            <Card className="mt-4">
                 <CardHeader>
                     <CardTitle className="flex items-center gap-2"><Building2 className="h-3.5 w-3.5 text-graphite-400" /> Top Department Workload</CardTitle>
                     <CardDescription>KPI activity volume by department this year</CardDescription>
@@ -832,7 +832,7 @@ export default function Dashboard({
  * v2.39.0 -- THREE states, not two.
  *
  * This component previously had exactly two: `hasWarnings` (amber) or
- * "✅ Great job! No critical issues detected today." (green). A brand-new
+ * "Great job! No critical issues detected today." (green). A brand-new
  * tenant with an entirely empty database fell into the second one, so
  * IOMS congratulated a customer on safety performance it had no data for
  * -- verified in a browser on a genuinely empty tenant, where every KPI
@@ -856,14 +856,14 @@ function HeroSummary({ name, now, ltiCount, ppeAlertCount, readiness }) {
 
     return (
         <Card className={cn(
-            'shadow-card backdrop-blur-sm transition-colors duration-300',
-            tone === 'warning' && 'border-amber-200/70 bg-gradient-to-br from-amber-50/50 via-white to-white',
-            tone === 'healthy' && 'border-graphite-200 bg-gradient-to-br from-brand-50/40 via-white to-white',
-            tone === 'setup' && 'border-brand-200/70 bg-gradient-to-br from-brand-50/60 via-white to-white'
+            'bg-gradient-to-br via-white/85 to-white/80 transition-colors duration-slow',
+            tone === 'warning' && 'from-amber-50/90',
+            tone === 'healthy' && 'from-sky-50/90',
+            tone === 'setup' && 'from-brand-50/90'
         )}>
-            <CardContent className="p-3.5">
-                <h2 className="text-[13px] font-bold text-graphite-900">{greetingFor(now)}, {name} 👋</h2>
-                <p className="mt-1 text-[11px] font-semibold uppercase tracking-wide text-graphite-400">
+            <CardContent className="p-5 lg:p-5">
+                <h2 className="text-[20px] font-bold tracking-[-0.02em] text-navy-900">{greetingFor(now)}, {name}</h2>
+                <p className="mt-1 text-[11px] font-semibold uppercase tracking-[0.1em] text-slate-400">
                     {tone === 'setup' ? 'Setup IOMS' : "Today's Alerts"}
                 </p>
 
@@ -908,21 +908,21 @@ function HeroSummary({ name, now, ltiCount, ppeAlertCount, readiness }) {
                             rather than competing with them -- but the SURFACE
                             color is no longer neutral either way (v2.30.0). */}
                         <div className={cn(
-                            'mt-3 flex items-start gap-1.5 rounded-lg border px-3 py-1.5 text-[11px]',
+                            'mt-4 flex items-start gap-2 rounded-xl border px-3.5 py-2.5 text-xs',
                             hasWarnings ? 'border-amber-200 bg-amber-50' : 'border-emerald-200 bg-emerald-50'
                         )}>
                             {hasWarnings ? (
                                 <>
                                     <AlertTriangle className="mt-0.5 h-3.5 w-3.5 shrink-0 text-amber-500" />
                                     <span className="text-amber-800">
-                                        {ppeAlertCount > 0 && <>⚠️ {ppeAlertCount} PPE item(s) require attention. </>}
-                                        {ltiCount > 0 && <>⚠️ {ltiCount} Lost Time Incident(s) recorded this period.</>}
+                                        {ppeAlertCount > 0 && <>{ppeAlertCount} PPE item(s) require attention. </>}
+                                        {ltiCount > 0 && <>{ltiCount} Lost Time Incident(s) recorded this period.</>}
                                     </span>
                                 </>
                             ) : (
                                 <>
                                     <CheckCircle2 className="mt-0.5 h-3.5 w-3.5 shrink-0 text-emerald-500" />
-                                    <span className="text-emerald-800">✅ Great job! No critical issues detected today.</span>
+                                    <span className="text-emerald-800">Great job! No critical issues detected today.</span>
                                 </>
                             )}
                         </div>
@@ -938,18 +938,18 @@ function SummaryStat({ icon: Icon, value, label, accent, href }) {
     // v2.49.0: was a flat graphite chip regardless of accent, so an alert
     // that mattered looked identical to one that did not.
     const chip = accent === 'red'
-        ? 'bg-gradient-to-br from-danger to-red-600 text-white shadow-[0_3px_8px_-3px_rgba(220,38,38,0.38)]'
+        ? 'icon-tile icon-tile-rose'
         : accent === 'amber'
-            ? 'bg-gradient-to-br from-warning to-amber-600 text-white shadow-[0_3px_8px_-3px_rgba(217,119,6,0.38)]'
-            : 'bg-gradient-to-br from-navy-800 to-brand-600 text-white shadow-[0_3px_8px_-3px_rgba(33,102,196,0.38)]';
+            ? 'icon-tile icon-tile-amber'
+            : 'icon-tile icon-tile-blue';
     const content = (
         <div className={cn('flex items-center gap-2 rounded-lg p-1 -m-1 transition-colors duration-200', href && 'cursor-pointer hover:bg-steel-50')}>
-            <div className={cn('flex h-7 w-7 shrink-0 items-center justify-center rounded-lg', chip)}>
-                <Icon className="h-3.5 w-3.5" />
+            <div className={cn('h-10 w-10', chip)}>
+                <Icon className="h-[18px] w-[18px]" />
             </div>
             <div className="min-w-0 space-y-0.5">
-                <p className={cn('text-sm font-semibold leading-tight', color)}>{value}</p>
-                <p className="truncate text-[11px] text-graphite-400">{label}</p>
+                <p className={cn('type-metric text-[26px] leading-none', color)}>{value}</p>
+                <p className="truncate text-xs font-medium text-slate-500">{label}</p>
             </div>
         </div>
     );
@@ -958,9 +958,9 @@ function SummaryStat({ icon: Icon, value, label, accent, href }) {
 
 function LeaderboardCard({ icon: Icon, label, value, sub }) {
     return (
-        <Card className="bg-gradient-to-b from-steel-100/70 via-steel-50/40 to-white dark:from-slate-900 dark:to-slate-900">
+        <Card className="bg-gradient-to-br from-sky-50/90 via-white/85 to-white/80">
             <CardContent className="p-4">
-                <div className="mb-2 flex h-8 w-8 items-center justify-center rounded-lg bg-gradient-to-br from-navy-800 to-brand-600 text-white shadow-[0_3px_8px_-3px_rgba(33,102,196,0.38)] dark:from-brand-950 dark:to-brand-900 dark:text-brand-300">
+                <div className="icon-tile icon-tile-blue mb-3 h-10 w-10">
                     <Icon className="h-4 w-4" />
                 </div>
                 <p className="text-[11px] font-medium uppercase tracking-wide text-graphite-400">{label}</p>

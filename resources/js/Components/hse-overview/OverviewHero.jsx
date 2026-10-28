@@ -42,7 +42,7 @@ import { Building2, ArrowUpRight } from 'lucide-react';
  */
 export default function OverviewHero({ companies = [], selectedCompany = 'all', onCompanyChange, fullCalendarHref }) {
     return (
-        <section className="relative mb-4 overflow-hidden rounded-2xl bg-navy-900 shadow-[0_1px_2px_rgba(16,24,40,0.06)] dark:bg-slate-950">
+        <section className="surface-feature mb-5">
             {/* The photograph, then the gradient that guarantees contrast
                 over it. `aria-hidden` and empty alt: it carries no
                 information a screen reader needs. */}
@@ -52,9 +52,9 @@ export default function OverviewHero({ companies = [], selectedCompany = 'all', 
                 aria-hidden="true"
                 loading="lazy"
                 decoding="async"
-                className="absolute inset-0 h-full w-full object-cover object-center opacity-40"
+                className="absolute inset-0 h-full w-full object-cover object-center opacity-30 mix-blend-luminosity"
             />
-            <div className="absolute inset-0 bg-gradient-to-r from-navy-950 via-navy-900/90 to-navy-900/60 dark:from-slate-950 dark:via-slate-950/90 dark:to-slate-900/70" />
+            <div className="absolute inset-0 bg-gradient-to-r from-[#1A4AA8]/95 via-[#1E5BC6]/85 to-sky-500/45" />
 
             <div className="relative flex flex-col gap-4 p-5 sm:p-6 lg:flex-row lg:items-end lg:justify-between">
                 <div className="min-w-0">
@@ -62,11 +62,11 @@ export default function OverviewHero({ companies = [], selectedCompany = 'all', 
                         HSE
                     </span>
 
-                    <h1 className="mt-2 text-2xl font-bold leading-tight tracking-tight text-white sm:text-3xl">
+                    <h1 className="type-page-title mt-2 text-[28px] leading-tight text-white sm:text-[32px]">
                         HSE Overview
                     </h1>
 
-                    <p className="mt-1.5 max-w-xl text-[12.5px] leading-snug text-blue-100/80">
+                    <p className="mt-1.5 max-w-xl text-[14px] leading-snug text-sky-100">
                         Pantau kinerja keselamatan, pekerjaan yang terlambat, dan agenda HSE seluruh operasi dalam satu halaman.
                     </p>
                 </div>

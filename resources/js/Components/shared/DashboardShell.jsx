@@ -60,17 +60,17 @@ export default function DashboardShell({ title, subtitle, actions, children }) {
 
     return (
         <>
-            <div className="mb-4 flex flex-col items-start gap-3 rounded-xl border border-steel-200/70 bg-gradient-to-br from-steel-100 via-steel-50 to-white px-4 py-3.5 shadow-panel sm:flex-row sm:items-center sm:justify-between dark:border-slate-800 dark:from-slate-900 dark:via-slate-900 dark:to-slate-900">
+            <div className="mb-5 flex flex-col items-start gap-3 pt-1 sm:flex-row sm:items-end sm:justify-between">
                 <div className="min-w-0">
-                    <h1 className="text-[19px] font-semibold leading-tight tracking-tight text-navy-900 dark:text-slate-50">{title}</h1>
-                    {subtitle && <p className="mt-0.5 text-[13px] leading-snug text-graphite-600 dark:text-slate-400">{subtitle}</p>}
+                    <h1 className="type-page-title text-[26px] leading-tight text-navy-900 lg:text-[30px]">{title}</h1>
+                    {subtitle && <p className="mt-1 text-[14px] leading-snug text-slate-500">{subtitle}</p>}
                 </div>
                 {actions && <div className="flex w-full flex-wrap items-center gap-2 sm:w-auto">{actions}</div>}
             </div>
             {notOperational && (
-                <div className="mb-4 flex items-start gap-2 rounded-lg border border-brand-200 bg-brand-50/60 px-3 py-2 dark:border-brand-900 dark:bg-brand-950/20">
+                <div className="mb-4 flex items-start gap-2 surface flex-row rounded-xl px-3.5 py-2.5">
                     <Info className="mt-0.5 h-3.5 w-3.5 shrink-0 text-brand-500" />
-                    <p className="text-[11px] leading-snug text-graphite-700 dark:text-slate-300">
+                    <p className="text-xs leading-snug text-slate-600">
                         Belum ada data workforce, jadi angka di bawah{' '}
                         <span className="font-medium">belum mengukur apa pun</span> &mdash; nol di sini berarti{' '}
                         <span className="font-medium">belum ada data</span>, bukan kondisi aman.{' '}

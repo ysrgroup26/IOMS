@@ -65,7 +65,7 @@ export default function Combobox({ value, onChange, suggestions = [], placeholde
                 autoComplete="off"
             />
             {open && filtered.length > 0 && (
-                <div className="absolute z-[120] mt-1 max-h-56 w-full overflow-y-auto rounded-lg border border-graphite-200 bg-white py-1 shadow-card-hover">
+                <div className="absolute z-[120] mt-1 max-h-56 w-full overflow-y-auto rounded-xl border border-white/80 bg-white/95 py-1 shadow-float backdrop-blur-xl">
                     {filtered.map((s) => (
                         <button
                             key={s}

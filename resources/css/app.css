@@ -4,42 +4,38 @@
 
 @layer base {
     :root {
-        --background: 0 0% 100%;
-        --foreground: 222 47% 11%;
+        /* v2.136.0 -- ICY BLUE FROSTED. The ground is a pale icy blue, the
+           cards are frosted white over it, and ink is a deep blue-slate
+           rather than neutral black so text belongs to the same cool
+           family as the surfaces it sits on. */
+        --background: 208 60% 96%;
+        --foreground: 218 42% 14%;
 
         --card: 0 0% 100%;
-        --card-foreground: 222 47% 11%;
+        --card-foreground: 218 42% 14%;
 
-        /* v2.45.0: v2.44.0 re-cut the `brand` SCALE toward the navy/steel
-           axis but left this variable behind, so every primary control in
-           the app still resolved to the old bright web blue -- which is
-           exactly why buttons started reading louder than the surfaces
-           around them. Now matched to brand-600 (#2166C4). */
-        --primary: 212 71% 45%;          /* IOMS blue, navy/steel axis */
+        --primary: 215 73% 50%;          /* brand-600 #2470DD */
         --primary-foreground: 0 0% 100%;
 
-        --secondary: 210 40% 96%;
-        --secondary-foreground: 222 47% 11%;
+        --secondary: 208 55% 95%;
+        --secondary-foreground: 218 42% 14%;
 
-        --muted: 210 40% 96%;
-        --muted-foreground: 215 16% 47%;
+        --muted: 208 50% 95%;
+        --muted-foreground: 215 18% 44%;
 
-        --accent: 214 95% 93%;
-        --accent-foreground: 221 83% 53%;
+        --accent: 212 90% 94%;
+        --accent-foreground: 215 73% 45%;
 
-        --destructive: 0 72% 51%;
+        --destructive: 354 72% 52%;
         --destructive-foreground: 0 0% 100%;
 
-        --border: 214 32% 91%;
-        --input: 214 32% 91%;
-        --ring: 212 71% 45%;
+        --border: 210 38% 89%;
+        --input: 210 34% 86%;
+        --ring: 215 73% 50%;
 
-        /* v2.135.0 -- ONE RADIUS SCALE, concentric by construction:
-           sm 6px (chips, inner items) < md 8px (menu items, small
-           controls) < lg 10px (buttons, inputs, nav items) < xl 14px
-           (cards, panels, popovers) < 2xl 16px (dialogs). An item inside a
-           14px popover with 6px padding is 8px -- the curves stay parallel. */
-        --radius: 0.625rem;
+        /* THE BUBBLE SCALE (see tailwind.config.js): lg 12px controls,
+           xl 16px popovers, 2xl 20px cards, 3xl 24px dialogs and chrome. */
+        --radius: 0.75rem;
     }
 
     .dark {
@@ -89,8 +85,19 @@
 
     body {
         @apply bg-background text-foreground antialiased;
-        font-feature-settings: 'cv11', 'ss01';
         transition: background-color 0.2s ease, color 0.2s ease;
+    }
+
+    /* v2.136.0 -- NUMERALS. Manrope's figures are proportional by default,
+       which is right in a sentence and wrong in a column. Every place a
+       number is SCANNED -- table cells, inputs, badges, counters -- gets
+       tabular figures so digits stack and a changing count does not jitter. */
+    table, input, select, time, .tabular-nums, [data-numeric] {
+        font-variant-numeric: tabular-nums;
+    }
+
+    h1, h2, h3, h4 {
+        letter-spacing: -0.012em;
     }
 
     ::-webkit-scrollbar {
@@ -101,10 +108,10 @@
         background: transparent;
     }
     ::-webkit-scrollbar-thumb {
-        @apply bg-graphite-200 rounded-full;
+        @apply rounded-full bg-steel-200/80;
     }
     ::-webkit-scrollbar-thumb:hover {
-        @apply bg-graphite-300;
+        @apply bg-steel-300;
     }
 }
 
@@ -139,7 +146,7 @@
 
     /* A page's own title: the largest thing on screen that is not data. */
     .type-page-title {
-        @apply font-display font-extrabold tracking-[-0.02em];
+        @apply font-display font-bold tracking-[-0.025em];
     }
 
     /* A DOCUMENT's type -- "HOT WORK", "PERMIT TO WORK". Condensed, because
@@ -147,7 +154,7 @@
        the eye at the top of a sheet and survive a monochrome print. The
        width axis does the work that extra size would otherwise have to. */
     .type-document-title {
-        font-family: Archivo, Inter, ui-sans-serif, system-ui, sans-serif;
+        @apply font-document;
         font-stretch: 75%;
         font-weight: 800;
         letter-spacing: 0.01em;
@@ -156,7 +163,7 @@
     /* The eyebrow above it: the same family, wide and quiet, so the two
        read as one block rather than as two unrelated lines. */
     .type-document-eyebrow {
-        font-family: Archivo, Inter, ui-sans-serif, system-ui, sans-serif;
+        @apply font-document;
         font-weight: 600;
         letter-spacing: 0.18em;
         text-transform: uppercase;
@@ -164,9 +171,12 @@
 
     /* A number somebody scans rather than reads. Tabular figures so a
        column of them lines up, which is the whole point of a KPI tile. */
+    /* v2.136.0: a HEADLINE figure (one per tile) uses Manrope's
+       proportional lining figures -- "11" set tabular reads as "1 1" at
+       30px. Columns of figures (tables, badges, counters) stay tabular. */
     .type-metric {
-        @apply font-display font-extrabold tracking-[-0.01em];
-        font-variant-numeric: tabular-nums;
+        @apply font-display font-bold tracking-[-0.03em];
+        font-variant-numeric: lining-nums proportional-nums;
     }
 
     /* An identifier: a permit number, a code, a badge number. */
@@ -176,6 +186,87 @@
     }
 
     .card-base {
-        @apply bg-card border border-border rounded-xl shadow-card;
+        @apply surface;
+    }
+
+    /* =====================================================================
+       v2.136.0 -- THE FROSTED SURFACE SYSTEM (ADR 079).
+       =====================================================================
+
+       Three layers, no more:
+         canvas  -- the icy atmosphere behind everything (.ioms-canvas)
+         surface -- a frosted bubble card: white at 82% over the canvas,
+                    a white hairline on top (the "lit edge") and a cool
+                    halo below. Blur is modest; this is frost, not glass.
+         chrome  -- the floating rail and top bar: the same material, a
+                    touch more opaque so navigation never competes with
+                    the content it frames.
+       ===================================================================== */
+    .ioms-canvas {
+        background-color: hsl(208 60% 96%);
+        background-image:
+            radial-gradient(60rem 38rem at 8% -6%, rgba(147, 197, 253, 0.42), transparent 62%),
+            radial-gradient(48rem 34rem at 92% 4%, rgba(186, 230, 253, 0.55), transparent 60%),
+            radial-gradient(52rem 40rem at 70% 100%, rgba(165, 205, 250, 0.38), transparent 64%),
+            radial-gradient(40rem 30rem at 0% 90%, rgba(224, 242, 254, 0.9), transparent 60%),
+            linear-gradient(180deg, #F4F9FE 0%, #EAF3FC 55%, #E6F0FB 100%);
+        background-attachment: fixed;
+    }
+
+    .surface {
+        @apply rounded-2xl border border-white/80 bg-white/[0.82] shadow-card backdrop-blur-md;
+        box-shadow: inset 0 1px 0 0 rgba(255, 255, 255, 0.9), 0 1px 2px 0 rgba(30, 64, 120, 0.04), 0 10px 30px -14px rgba(30, 64, 120, 0.16);
+    }
+
+    .chrome {
+        @apply border border-white/80 bg-white/[0.72] shadow-float backdrop-blur-xl backdrop-saturate-150;
+    }
+
+    /* A round frosted control in the top bar (notifications, work center,
+       install, compact search). 40px: a comfortable target at every width. */
+    .chrome-icon {
+        @apply relative grid h-10 w-10 shrink-0 place-items-center rounded-full border border-white/80 bg-white/70 text-slate-600 shadow-float outline-none backdrop-blur-xl transition-[background-color,color,box-shadow] duration-fast ease-out-soft hover:bg-white hover:text-navy-900 focus-visible:ring-4 focus-visible:ring-brand-500/20;
+    }
+
+    /* A counter on a chrome control. Tabular so 9 -> 10 does not shift. */
+    .chrome-count {
+        @apply absolute -right-1 -top-1 flex h-[18px] min-w-[18px] items-center justify-center rounded-full px-1 text-[10px] font-bold tabular-nums text-white ring-2 ring-white;
+    }
+
+    /* An icon set on a small gradient tile -- KPI cards, quick actions,
+       section headers. The tone says what the feature MEANS. */
+    .icon-tile {
+        @apply inline-flex shrink-0 items-center justify-center rounded-xl text-white;
+        box-shadow: inset 0 1px 0 0 rgba(255, 255, 255, 0.35), 0 6px 14px -6px var(--tile-shadow, rgba(36, 112, 221, 0.55));
+    }
+    .icon-tile-blue   { @apply bg-gradient-to-br from-sky-400 to-brand-600;      --tile-shadow: rgba(36, 112, 221, 0.55); }
+    .icon-tile-green  { @apply bg-gradient-to-br from-emerald-400 to-teal-600;   --tile-shadow: rgba(13, 148, 136, 0.5); }
+    .icon-tile-amber  { @apply bg-gradient-to-br from-amber-300 to-orange-500;   --tile-shadow: rgba(234, 120, 20, 0.5); }
+    .icon-tile-rose   { @apply bg-gradient-to-br from-rose-400 to-red-600;       --tile-shadow: rgba(225, 29, 72, 0.5); }
+    .icon-tile-violet { @apply bg-gradient-to-br from-violet-400 to-indigo-600;  --tile-shadow: rgba(109, 40, 217, 0.45); }
+    .icon-tile-slate  { @apply bg-gradient-to-br from-slate-400 to-slate-600;    --tile-shadow: rgba(71, 85, 105, 0.45); }
+
+    /* The soft version: a tinted tile with coloured ink, for dense lists
+       where a row of saturated tiles would shout. */
+    .icon-soft {
+        @apply inline-flex shrink-0 items-center justify-center rounded-xl ring-1 ring-inset;
+    }
+    .icon-soft-blue   { @apply bg-gradient-to-br from-sky-50 to-brand-100 text-brand-600 ring-brand-200/60; }
+    .icon-soft-green  { @apply bg-gradient-to-br from-emerald-50 to-teal-100 text-teal-700 ring-teal-200/60; }
+    .icon-soft-amber  { @apply bg-gradient-to-br from-amber-50 to-orange-100 text-orange-600 ring-orange-200/60; }
+    .icon-soft-rose   { @apply bg-gradient-to-br from-rose-50 to-red-100 text-red-600 ring-red-200/60; }
+    .icon-soft-violet { @apply bg-gradient-to-br from-violet-50 to-indigo-100 text-indigo-600 ring-indigo-200/60; }
+    .icon-soft-slate  { @apply bg-gradient-to-br from-slate-50 to-slate-100 text-slate-600 ring-slate-200/70; }
+
+    /* The FEATURE panel -- what a full-colour navy hero card becomes. A
+       luminous azure gradient with a frosted sheen, white ink at AA. One
+       per screen at most; everything else stays on .surface. */
+    .surface-feature {
+        @apply relative overflow-hidden rounded-2xl text-white;
+        background-image:
+            radial-gradient(36rem 20rem at 100% 0%, rgba(125, 211, 252, 0.45), transparent 60%),
+            radial-gradient(28rem 18rem at 0% 100%, rgba(30, 64, 175, 0.55), transparent 65%),
+            linear-gradient(135deg, #2A6FDB 0%, #1E5BC6 48%, #1A47A0 100%);
+        box-shadow: inset 0 1px 0 0 rgba(255, 255, 255, 0.25), 0 18px 40px -20px rgba(29, 78, 216, 0.55);
     }
 }

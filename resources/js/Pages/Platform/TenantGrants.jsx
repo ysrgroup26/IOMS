@@ -52,7 +52,7 @@ export default function PlatformTenantGrants({ tenant, modules, workspaces }) {
                     </CardHeader>
                     <CardContent className="grid grid-cols-2 gap-2 sm:grid-cols-3">
                         {modules.map((m) => (
-                            <label key={m.id} className="flex items-center justify-between rounded-lg border border-graphite-100 px-3 py-2">
+                            <label key={m.id} className="flex items-center justify-between rounded-xl border border-steel-100 bg-white/60 px-3 py-2">
                                 <span className="text-sm text-graphite-700">{m.label}</span>
                                 <Checkbox checked={data.module_ids.includes(m.id)} onCheckedChange={() => toggle('module_ids', m.id)} />
                             </label>
@@ -67,7 +67,7 @@ export default function PlatformTenantGrants({ tenant, modules, workspaces }) {
                     </CardHeader>
                     <CardContent className="grid grid-cols-2 gap-2 sm:grid-cols-3">
                         {workspaces.map((w) => (
-                            <label key={w.id} className="flex items-center justify-between rounded-lg border border-graphite-100 px-3 py-2">
+                            <label key={w.id} className="flex items-center justify-between rounded-xl border border-steel-100 bg-white/60 px-3 py-2">
                                 <span className="text-sm text-graphite-700">{w.label}</span>
                                 <Checkbox checked={data.workspace_ids.includes(w.id)} onCheckedChange={() => toggle('workspace_ids', w.id)} />
                             </label>

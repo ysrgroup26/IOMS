@@ -62,16 +62,14 @@ export default function FormDocumentHeader({
                 // product's headers -- a cool wash and a lit top edge --
                 // so this reads as IOMS furniture rather than as a
                 // one-off panel invented for forms.
-                'relative overflow-hidden rounded-xl border border-steel-200/70 bg-gradient-to-br from-steel-100/80 via-white to-white shadow-panel',
-                'before:absolute before:inset-x-0 before:top-0 before:h-px before:bg-gradient-to-r before:from-transparent before:via-white/90 before:to-transparent',
-                'dark:border-slate-800 dark:from-slate-900 dark:via-slate-900 dark:to-slate-900',
+                'surface relative overflow-hidden bg-gradient-to-br from-sky-50/90 via-white/85 to-white/80',
                 className
             )}
         >
-            <div className="flex flex-col gap-3 px-4 py-3.5 sm:flex-row sm:items-start sm:justify-between">
+            <div className="flex flex-col gap-3 px-5 py-4 sm:flex-row sm:items-start sm:justify-between">
                 <div className="flex min-w-0 items-start gap-3">
                     {Icon && (
-                        <span className="flex h-9 w-9 shrink-0 items-center justify-center rounded-[10px] bg-gradient-to-br from-navy-800 to-brand-600 text-white shadow-[0_3px_8px_-3px_rgba(33,102,196,0.38)] dark:from-brand-950 dark:to-brand-900 dark:text-brand-300">
+                        <span className="icon-tile icon-tile-blue h-11 w-11 rounded-2xl">
                             <Icon className="h-[18px] w-[18px]" aria-hidden="true" />
                         </span>
                     )}
@@ -85,7 +83,7 @@ export default function FormDocumentHeader({
                             caption. On a controlled document the number
                             IS the identity -- it is what somebody quotes
                             on the radio. */}
-                        <h1 className="flex flex-wrap items-center gap-2 text-[19px] font-semibold leading-tight tracking-tight text-navy-900 dark:text-slate-50">
+                        <h1 className="type-page-title flex flex-wrap items-center gap-2 text-[22px] leading-tight text-navy-900">
                             {reference ? <span className="font-mono tabular-nums">{reference}</span> : documentType}
                             <span className="rounded-full border border-graphite-300 bg-graphite-100 px-2 py-0.5 text-[10px] font-semibold uppercase tracking-wide text-graphite-600 dark:border-slate-700 dark:bg-slate-800 dark:text-slate-300">
                                 {stateLabel}
@@ -112,7 +110,7 @@ export default function FormDocumentHeader({
                 own rule, because the answer changes how carefully the
                 form gets filled in. */}
             {workflow && (
-                <p className="border-t border-steel-200/70 bg-white/60 px-4 py-2 text-xs leading-relaxed text-graphite-600 dark:border-slate-800 dark:bg-slate-900/60 dark:text-slate-400">
+                <p className="border-t border-steel-100 bg-white/50 px-5 py-2.5 text-xs leading-relaxed text-slate-600">
                     {workflow}
                 </p>
             )}

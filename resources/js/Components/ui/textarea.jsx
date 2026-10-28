@@ -29,10 +29,10 @@ const Textarea = React.forwardRef(({ className, ...props }, ref) => (
     <textarea
         ref={ref}
         className={cn(
-            'flex w-full rounded-lg border border-input bg-white px-2.5 py-1.5 text-[13px] text-graphite-900 shadow-[0_1px_1px_0_rgba(15,39,71,0.04)] transition-[border-color,box-shadow] duration-fast ease-out-soft dark:border-slate-700 dark:bg-slate-900 dark:text-slate-100',
+            'flex w-full rounded-lg border border-input bg-white/90 px-3.5 py-2 text-[13px] text-navy-900 shadow-[inset_0_1px_2px_0_rgba(30,64,120,0.04)] transition-[border-color,box-shadow] duration-fast ease-out-soft dark:border-slate-700 dark:bg-slate-900 dark:text-slate-100',
             '[field-sizing:content] min-h-[4.5rem] max-h-[60vh] overflow-y-auto',
             'placeholder:text-graphite-400 dark:placeholder:text-slate-500',
-            'outline-none hover:border-graphite-300 focus-visible:border-ring focus-visible:ring-[3px] focus-visible:ring-ring/20 dark:hover:border-slate-600',
+            'outline-none hover:border-steel-300 focus-visible:border-brand-400 focus-visible:bg-white focus-visible:ring-4 focus-visible:ring-brand-500/15 dark:hover:border-slate-600',
             'disabled:cursor-not-allowed disabled:opacity-50',
             className
         )}

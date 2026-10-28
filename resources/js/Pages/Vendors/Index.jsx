@@ -74,8 +74,8 @@ export default function VendorsIndex({ vendors, filters, can }) {
                 <div className="mt-3 flex items-center justify-between text-xs text-graphite-500 dark:text-slate-400">
                     <span>Page {vendors.current_page} of {vendors.last_page}</span>
                     <div className="flex gap-2">
-                        <button disabled={!vendors.prev_page_url} onClick={() => router.get(vendors.prev_page_url, {}, { preserveState: true })} className="rounded-md border border-graphite-200 p-1.5 disabled:opacity-40 dark:border-slate-700"><ChevronLeft className="h-4 w-4" /></button>
-                        <button disabled={!vendors.next_page_url} onClick={() => router.get(vendors.next_page_url, {}, { preserveState: true })} className="rounded-md border border-graphite-200 p-1.5 disabled:opacity-40 dark:border-slate-700"><ChevronRight className="h-4 w-4" /></button>
+                        <button disabled={!vendors.prev_page_url} onClick={() => router.get(vendors.prev_page_url, {}, { preserveState: true })} className="rounded-full border border-white/90 bg-white/80 p-2 text-slate-600 shadow-[0_1px_2px_0_rgba(30,64,120,0.06)] transition-colors hover:bg-white hover:text-navy-900 disabled:opacity-40 dark:border-slate-700"><ChevronLeft className="h-4 w-4" /></button>
+                        <button disabled={!vendors.next_page_url} onClick={() => router.get(vendors.next_page_url, {}, { preserveState: true })} className="rounded-full border border-white/90 bg-white/80 p-2 text-slate-600 shadow-[0_1px_2px_0_rgba(30,64,120,0.06)] transition-colors hover:bg-white hover:text-navy-900 disabled:opacity-40 dark:border-slate-700"><ChevronRight className="h-4 w-4" /></button>
                     </div>
                 </div>
             )}

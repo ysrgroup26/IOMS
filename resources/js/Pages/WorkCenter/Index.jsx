@@ -200,7 +200,7 @@ export default function WorkCenterIndex({ approvals, tasks, alerts, actionAlerts
                             <p className="py-4 text-center text-xs text-graphite-400 dark:text-slate-500">No activity recorded yet.</p>
                         ) : (
                             recentActivity.map((log) => (
-                                <div key={`activity-${log.id}`} className="rounded-lg border border-graphite-100 px-3 py-2.5 dark:border-slate-800">
+                                <div key={`activity-${log.id}`} className="rounded-xl border border-steel-100 bg-white/60 px-3 py-2.5 dark:border-slate-800">
                                     <p className="truncate text-sm font-medium text-graphite-800 dark:text-slate-100">{log.description}</p>
                                     <p className="mt-0.5 text-xs text-graphite-400 dark:text-slate-500">
                                         {[log.module, log.created_at].filter(Boolean).join(' · ')}
@@ -245,7 +245,7 @@ function Section({ title, icon: Icon, count, emptyLabel, children }) {
 function WorkItem({ href, title, meta, badge }) {
     const content = (
         <div className={cn(
-            'flex items-start justify-between gap-3 rounded-lg border border-graphite-100 px-3 py-2.5 transition-colors dark:border-slate-800',
+            'flex items-start justify-between gap-3 rounded-xl border border-steel-100 bg-white/60 px-3 py-2.5 transition-colors dark:border-slate-800',
             href && 'hover:border-brand-200 hover:bg-brand-50/40 dark:hover:bg-slate-900'
         )}>
             <div className="min-w-0">

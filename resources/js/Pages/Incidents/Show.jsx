@@ -255,7 +255,7 @@ export default function IncidentShow({ incident: i, activities, canManage, users
                                 {(!i.witnesses || i.witnesses.length === 0) ? (
                                     <p className="text-sm text-graphite-400 dark:text-slate-500">Tidak ada saksi yang dicatat.</p>
                                 ) : (
-                                    <ul className="divide-y divide-graphite-100 rounded-lg border border-graphite-100 dark:divide-slate-800 dark:border-slate-800">
+                                    <ul className="divide-y divide-graphite-100 rounded-xl border border-steel-100 bg-white/60 dark:divide-slate-800 dark:border-slate-800">
                                         {i.witnesses.map((w, idx) => (
                                             <li key={idx} className="px-3 py-2 text-sm">
                                                 <span className="font-medium text-graphite-900 dark:text-slate-100">{w.name}</span>
@@ -300,7 +300,7 @@ export default function IncidentShow({ incident: i, activities, canManage, users
                         </CardHeader>
                         <CardContent className="space-y-3">
                             {findingOpen && (
-                                <form onSubmit={submitFinding} className="space-y-3 rounded-md border border-graphite-100 p-3 dark:border-slate-800">
+                                <form onSubmit={submitFinding} className="space-y-3 rounded-xl border border-steel-100 bg-white/60 p-3 dark:border-slate-800">
                                     <div className="space-y-1.5"><Label>Action</Label><Input value={findingForm.data.action} onChange={(e) => findingForm.setData('action', e.target.value)} /></div>
                                     <div className="grid grid-cols-1 gap-3 sm:grid-cols-3">
                                         <div className="space-y-1.5">
@@ -326,7 +326,7 @@ export default function IncidentShow({ incident: i, activities, canManage, users
                                 <p className="text-sm text-graphite-400 dark:text-slate-500">Belum ada tindakan perbaikan.</p>
                             ) : (
                                 actions.map((a) => (
-                                    <div key={a.id} className="rounded-md border border-graphite-100 p-3 text-sm dark:border-slate-800">
+                                    <div key={a.id} className="rounded-xl border border-steel-100 bg-white/60 p-3 text-sm dark:border-slate-800">
                                         <p>{humanizeToken(a.action)}</p>
                                         <p className="mt-1 text-xs text-graphite-500 dark:text-slate-400">
                                             {a.assignee?.name || 'Unassigned'}

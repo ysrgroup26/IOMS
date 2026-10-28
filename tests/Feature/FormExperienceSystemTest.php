@@ -108,7 +108,8 @@ class FormExperienceSystemTest extends TestCase
     {
         $actions = $this->source('resources/js/Components/shared/form/FormActions.jsx');
 
-        $this->assertStringContainsString('sticky bottom-0', $actions);
+        // v2.136.0: pinned ABOVE the floating bottom navigation, not under it.
+        $this->assertStringContainsString('sticky bottom-[calc(5.25rem+env(safe-area-inset-bottom))]', $actions);
         $this->assertStringContainsString('sm:static', $actions, 'A permanently floating bar wastes desktop space.');
         $this->assertStringContainsString('safe-area-inset-bottom', $actions, 'Must clear the home indicator.');
         $this->assertStringContainsString('destructive', $actions, 'Destructive actions must have a separated slot.');

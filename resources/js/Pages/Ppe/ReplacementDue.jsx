@@ -140,7 +140,7 @@ function CreateReplacementRequestDialog({ open, onOpenChange, items, onSuccess }
                 <DialogHeader><DialogTitle>Create Replacement Request ({items.length} item{items.length !== 1 ? 's' : ''})</DialogTitle></DialogHeader>
                 <form onSubmit={(e) => submit(e, 'submitted')} className="space-y-3">
                     {items.map((item, index) => (
-                        <div key={item.id} className="rounded-lg border border-graphite-100 p-3">
+                        <div key={item.id} className="rounded-xl border border-steel-100 bg-white/60 p-3">
                             <div className="grid grid-cols-1 gap-x-4 gap-y-1 text-xs text-graphite-500 sm:grid-cols-2">
                                 <span><strong className="text-graphite-800">{item.employee_name}</strong> ({item.employee_code}{item.nik ? ` / ${item.nik}` : ''})</span>
                                 <span>{item.department || '-'}</span>

@@ -70,7 +70,7 @@ export default function VendorShow({ vendor: v, activities, canManage, documentT
                         <CardHeader className="flex flex-row items-center gap-2"><FileText className="h-4 w-4 text-graphite-400" /><CardTitle>Documents</CardTitle></CardHeader>
                         <CardContent className="space-y-4">
                             {canManage && (
-                                <form onSubmit={submitDoc} className="flex flex-wrap items-end gap-2 rounded-md border border-graphite-100 p-3">
+                                <form onSubmit={submitDoc} className="flex flex-wrap items-end gap-2 rounded-xl border border-steel-100 bg-white/60 p-3">
                                     <div className="space-y-1">
                                         <Label className="text-xs">Type</Label>
                                         <Select value={docForm.data.document_type} onValueChange={(v2) => docForm.setData('document_type', v2)}>

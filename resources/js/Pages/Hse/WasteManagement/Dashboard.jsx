@@ -189,7 +189,7 @@ export default function WasteDashboard({
                         </div>
 
                         {/* 2. LIFECYCLE: select a stage to list its records. */}
-                        <section aria-labelledby="lifecycle-heading" className="rounded-xl border border-navy-800 bg-gradient-to-br from-navy-950 via-navy-900 to-navy-700 p-4 text-white shadow-panel">
+                        <section aria-labelledby="lifecycle-heading" className="surface-feature p-5 text-white">
                             <div className="mb-3 flex flex-wrap items-baseline justify-between gap-2">
                                 <h2 id="lifecycle-heading" className="text-[11px] font-bold uppercase tracking-wider text-steel-200">Waste Lifecycle</h2>
                                 {directPickupCount > 0 && (
@@ -576,7 +576,7 @@ function RecordCards({ rows, mode, can }) {
             {rows.map((r) => {
                 const action = rowAction(r, mode, can);
                 return (
-                    <li key={r.id} className="rounded-xl border border-steel-200 bg-white p-3 shadow-card dark:border-slate-800 dark:bg-slate-900">
+                    <li key={r.id} className="surface p-3 dark:border-slate-800 dark:bg-slate-900">
                         <Link href={route('waste-records.show', r.id)} className="block">
                             <div className="flex items-start justify-between gap-2">
                                 <div className="min-w-0">

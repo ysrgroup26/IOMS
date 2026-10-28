@@ -302,7 +302,7 @@ export default function InvestigationShow({
                         </CardHeader>
                         <CardContent className="space-y-3">
                             {interviewOpen && (
-                                <form onSubmit={submitInterview} className="space-y-3 rounded-lg border border-graphite-100 p-3 dark:border-slate-800">
+                                <form onSubmit={submitInterview} className="space-y-3 rounded-xl border border-steel-100 bg-white/60 p-3 dark:border-slate-800">
                                     <div className="grid grid-cols-1 gap-3 sm:grid-cols-2">
                                         <div className="space-y-1.5">
                                             <Label>From Workforce</Label>
@@ -350,7 +350,7 @@ export default function InvestigationShow({
                                 <p className="text-sm text-graphite-400 dark:text-slate-500">Belum ada wawancara yang dicatat.</p>
                             ) : (
                                 interviews.map((t) => (
-                                    <div key={t.id} className="rounded-lg border border-graphite-100 p-3 dark:border-slate-800">
+                                    <div key={t.id} className="rounded-xl border border-steel-100 bg-white/60 p-3 dark:border-slate-800">
                                         <div className="flex items-start justify-between gap-2">
                                             <div className="min-w-0">
                                                 <p className="text-[13px] font-semibold text-graphite-900 dark:text-slate-100">
@@ -404,7 +404,7 @@ export default function InvestigationShow({
                         </CardHeader>
                         <CardContent className="space-y-3">
                             {actionOpen && (
-                                <form onSubmit={submitAction} className="space-y-3 rounded-lg border border-graphite-100 p-3 dark:border-slate-800">
+                                <form onSubmit={submitAction} className="space-y-3 rounded-xl border border-steel-100 bg-white/60 p-3 dark:border-slate-800">
                                     <div className="space-y-1.5"><Label>Action</Label><Input value={actionForm.data.action} onChange={(e) => actionForm.setData('action', e.target.value)} /></div>
                                     <div className="grid grid-cols-1 gap-3 sm:grid-cols-3">
                                         <div className="space-y-1.5">
@@ -431,7 +431,7 @@ export default function InvestigationShow({
                                 <p className="text-sm text-graphite-400 dark:text-slate-500">Belum ada tindakan perbaikan diterbitkan.</p>
                             ) : (
                                 actions.map((a) => (
-                                    <div key={a.id} className="rounded-lg border border-graphite-100 p-3 text-sm dark:border-slate-800">
+                                    <div key={a.id} className="rounded-xl border border-steel-100 bg-white/60 p-3 text-sm dark:border-slate-800">
                                         <p>{humanizeToken(a.action)}</p>
                                         <p className="mt-1 text-xs text-graphite-500 dark:text-slate-400">
                                             {a.assignee?.name || 'Unassigned'}

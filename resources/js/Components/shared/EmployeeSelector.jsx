@@ -206,7 +206,7 @@ export default function EmployeeSelector({
                    result. Bounded by the viewport as well as by a fixed
                    ceiling, and `overscroll-contain` so scrolling to the end
                    of the list does not start scrolling the page behind it. */
-                <div className="absolute z-40 mt-1 max-h-[min(16rem,42vh)] w-full overflow-y-auto overscroll-contain rounded-lg border border-graphite-200 bg-white shadow-card-hover dark:border-slate-700 dark:bg-slate-900">
+                <div className="absolute z-40 mt-1 max-h-[min(16rem,42vh)] w-full overflow-y-auto overscroll-contain rounded-xl border border-white/80 bg-white/95 shadow-float backdrop-blur-xl dark:border-slate-700 dark:bg-slate-900">
                     {!loading && results.length === 0 && (
                         <p className={cn(
                             'px-3 py-4 text-center text-xs leading-relaxed',

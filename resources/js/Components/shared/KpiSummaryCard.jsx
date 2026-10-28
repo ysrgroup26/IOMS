@@ -27,19 +27,21 @@ export default function KpiSummaryCard({ label, value, isNegative, icon, color, 
     // tinted. Solid fill + white glyph, matching StatCard's restored chip.
     // `1f` / `12` are hex alpha suffixes for the surrounding surface wash,
     // so each KPI card is tinted by its own category colour.
-    const iconStyle = { backgroundColor: color, color: '#ffffff', boxShadow: `0 3px 8px -3px ${color}66` };
-    const surfaceStyle = { backgroundImage: `linear-gradient(to bottom right, ${color}1f, ${color}0a 45%, #ffffff)` };
+    // v2.136.0: the category's OWN admin-configured colour still drives the
+    // tile and the wash -- now as a soft gradient rather than a flat fill.
+    const iconStyle = { backgroundImage: `linear-gradient(135deg, ${color}cc, ${color})`, color: '#ffffff', boxShadow: `inset 0 1px 0 0 rgba(255,255,255,0.3), 0 6px 14px -6px ${color}99` };
+    const surfaceStyle = { backgroundImage: `linear-gradient(to bottom right, ${color}17, rgba(255,255,255,0.85) 55%, rgba(255,255,255,0.8))` };
     const valueColor = isNegative && value > 0 ? { color } : undefined;
 
     if (compact) {
         const content = (
-            <div style={surfaceStyle} className="flex items-center gap-2 rounded-xl border border-steel-100 px-2.5 py-2 transition-all duration-200 hover:border-steel-200 hover:shadow-card-hover motion-safe:hover:-translate-y-0.5 dark:border-slate-800">
-                <div className="flex h-6 w-6 shrink-0 items-center justify-center rounded-md" style={iconStyle}>
-                    <Icon className="h-3 w-3" />
+            <div style={surfaceStyle} className="surface flex items-center gap-2.5 rounded-xl px-3 py-2.5 transition-[box-shadow,transform] duration-base ease-out-soft hover:shadow-card-hover motion-safe:hover:-translate-y-0.5">
+                <div className="flex h-8 w-8 shrink-0 items-center justify-center rounded-[10px]" style={iconStyle}>
+                    <Icon className="h-4 w-4" />
                 </div>
                 <div className="min-w-0 flex-1">
-                    <p className="line-clamp-3 text-[10px] font-medium uppercase tracking-wide text-graphite-400">{label}</p>
-                    <p className="text-sm font-bold leading-tight text-navy-900" style={valueColor}>
+                    <p className="line-clamp-2 text-[11px] font-semibold leading-snug text-slate-500">{label}</p>
+                    <p className="type-metric text-lg leading-tight text-navy-900" style={valueColor}>
                         {formatNumber(value)}
                     </p>
                 </div>
@@ -47,8 +49,8 @@ export default function KpiSummaryCard({ label, value, isNegative, icon, color, 
                     category's own admin-configured colour so the line belongs
                     to the metric rather than to a generic chart palette. */}
                 {trend && (
-                    <div className="hidden w-10 shrink-0 self-end pb-0.5 sm:block" style={{ color }} aria-hidden="true">
-                        <Sparkline points={trend} className="h-5 w-full" />
+                    <div className="hidden w-12 shrink-0 self-end pb-0.5 sm:block" style={{ color }} aria-hidden="true">
+                        <Sparkline points={trend} className="h-6 w-full" />
                     </div>
                 )}
             </div>
@@ -57,14 +59,14 @@ export default function KpiSummaryCard({ label, value, isNegative, icon, color, 
     }
 
     const content = (
-        <Card tone="steel" className="h-full rounded-2xl transition-all duration-200 hover:-translate-y-0.5 hover:shadow-card-hover">
-            <CardContent className="flex items-center gap-3 p-4">
-                <div className="flex h-9 w-9 shrink-0 items-center justify-center rounded-lg" style={iconStyle}>
-                    <Icon className="h-4.5 w-4.5" />
+        <Card style={surfaceStyle} className="h-full transition-[box-shadow,transform] duration-base ease-out-soft hover:-translate-y-0.5 hover:shadow-card-hover">
+            <CardContent className="flex items-center gap-3 p-4 lg:p-4">
+                <div className="flex h-10 w-10 shrink-0 items-center justify-center rounded-xl" style={iconStyle}>
+                    <Icon className="h-[18px] w-[18px]" />
                 </div>
                 <div className="min-w-0">
-                    <p className="line-clamp-3 text-[11px] font-medium uppercase tracking-wide text-graphite-400">{label}</p>
-                    <p className="text-lg font-bold text-graphite-900" style={valueColor}>
+                    <p className="line-clamp-2 text-[13px] font-semibold text-slate-600">{label}</p>
+                    <p className="type-metric text-[26px] leading-tight text-navy-900" style={valueColor}>
                         {formatNumber(value)}
                     </p>
                 </div>

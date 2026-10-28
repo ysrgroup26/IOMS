@@ -84,7 +84,7 @@ export default function MobileBottomNav({ visibleNav, currentUrl, space, onOpenM
             // overlay (z-40, AuthenticatedLayout.jsx) -- when the drawer
             // is open, the overlay should visually dim/cover this bar
             // too, not sit under it.
-            className="fixed inset-x-0 bottom-0 z-30 flex items-stretch border-t border-graphite-200 bg-white/95 backdrop-blur-sm lg:hidden dark:border-slate-800 dark:bg-slate-950/95"
+            className="chrome fixed inset-x-3 bottom-3 z-30 flex items-stretch rounded-3xl pb-[env(safe-area-inset-bottom)] lg:hidden"
             style={{ paddingBottom: 'env(safe-area-inset-bottom)' }}
             aria-label="Primary"
         >
@@ -107,7 +107,7 @@ export default function MobileBottomNav({ visibleNav, currentUrl, space, onOpenM
                 // same relationship the header hamburger does.
                 aria-label="More navigation"
                 aria-controls="ioms-sidebar"
-                className="flex min-w-0 flex-1 flex-col items-center justify-center gap-0.5 px-1.5 py-2 text-graphite-500 dark:text-slate-400"
+                className="flex min-w-0 flex-1 flex-col items-center justify-center gap-0.5 px-1.5 py-2 text-slate-500"
             >
                 <Menu className="h-5 w-5 shrink-0" />
                 <span className="w-full truncate text-center text-[10px] font-medium">More</span>
@@ -162,14 +162,13 @@ function BottomNavLink({ href, label, icon: Icon, active }) {
                    was the space that makes a truncated label legible as
                    its own tab. */
                 'relative flex min-w-0 flex-1 flex-col items-center justify-center gap-0.5 px-1.5 py-2 transition-colors',
-                active ? 'text-brand-600 dark:text-brand-400' : 'text-graphite-500 dark:text-slate-400'
+                active ? 'text-brand-700' : 'text-slate-500'
             )}
         >
-            {active && <span className="absolute left-1/2 top-0 h-0.5 w-8 -translate-x-1/2 rounded-full bg-brand-600 transition-all duration-200" aria-hidden="true" />}
-            <span className={cn('flex h-6 w-9 items-center justify-center rounded-full transition-colors duration-200', active && 'bg-brand-50 dark:bg-brand-950/40')}>
+                        <span className={cn('flex h-7 w-11 items-center justify-center rounded-full transition-colors duration-base', active && 'bg-gradient-to-b from-brand-500 to-brand-600 text-white shadow-[0_6px_14px_-8px_rgba(36,112,221,0.9)]')}>
                 {Icon && <Icon className="h-[18px] w-[18px] shrink-0" />}
             </span>
-            <span className="w-full truncate text-center text-[10px] font-medium">{label}</span>
+            <span className={cn('w-full truncate text-center text-[10px]', active ? 'font-bold' : 'font-medium')}>{label}</span>
         </Link>
     );
 }

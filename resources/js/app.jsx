@@ -1,5 +1,6 @@
 import './bootstrap';
 import '../css/app.css';
+import '@fontsource-variable/manrope';
 
 import { createRoot } from 'react-dom/client';
 import { createInertiaApp, router } from '@inertiajs/react';

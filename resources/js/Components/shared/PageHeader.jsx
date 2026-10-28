@@ -125,18 +125,16 @@ export default function PageHeader({ title, subtitle, icon: Icon, kind, children
         // light, which is what separates this from a generic admin header at a
         // glance. Still overwhelmingly light -- this is tier three of the
         // hierarchy, not a second hero.
-        <div className="relative mb-4 flex flex-col items-start gap-3 overflow-hidden rounded-xl border border-steel-200/70 bg-gradient-to-br from-steel-100/80 via-white to-white px-4 py-3.5 shadow-panel before:absolute before:inset-x-0 before:top-0 before:h-px before:bg-gradient-to-r before:from-transparent before:via-white/90 before:to-transparent sm:flex-row sm:flex-wrap sm:items-center sm:justify-between dark:border-slate-800 dark:from-slate-900 dark:via-slate-900 dark:to-slate-900">
+        <div className="relative mb-5 flex flex-col items-start gap-3 pt-1 sm:flex-row sm:flex-wrap sm:items-end sm:justify-between">
             <div className="flex min-w-0 items-start gap-3">
                 {/* Vertical navy rule: the smallest possible mark that ties a
                     module page back to the same brand ink as the rail and the
                     Dashboard, without tinting the whole panel. */}
                 {Icon ? (
-                    <span className="flex h-9 w-9 shrink-0 items-center justify-center rounded-[10px] bg-gradient-to-br from-navy-800 to-brand-600 text-white shadow-[0_3px_8px_-3px_rgba(33,102,196,0.38)] dark:from-brand-950 dark:to-brand-900 dark:text-brand-300">
-                        <Icon className="h-[18px] w-[18px]" />
+                    <span className="icon-tile icon-tile-blue mt-0.5 h-11 w-11 rounded-2xl">
+                        <Icon className="h-5 w-5" strokeWidth={1.75} />
                     </span>
-                ) : (
-                    <span className="mt-1 h-7 w-[3px] shrink-0 rounded-full bg-gradient-to-b from-navy-800 to-brand-500" aria-hidden="true" />
-                )}
+                ) : null}
                 <div className="min-w-0">
                     {/* flex so a title that carries an inline StatusBadge lines
                         up with its text instead of the badge sitting on the
@@ -146,7 +144,7 @@ export default function PageHeader({ title, subtitle, icon: Icon, kind, children
                         type on the screen that is allowed to be loud, and
                         semibold Inter made every page look like a section
                         of some larger page. See resources/css/app.css. */}
-                    <h1 className="type-page-title flex flex-wrap items-center gap-2 text-[23px] leading-tight text-navy-900 dark:text-slate-50">
+                    <h1 className="type-page-title flex flex-wrap items-center gap-2 text-[26px] leading-tight text-navy-900 lg:text-[30px]">
                         {title}
                         {/* Beside the title, not above it: the kind qualifies
                             this page, and a chip on its own line reads as an
@@ -157,7 +155,7 @@ export default function PageHeader({ title, subtitle, icon: Icon, kind, children
                             </span>
                         )}
                     </h1>
-                    {subtitle && <p className="mt-0.5 text-[13px] leading-snug text-graphite-500 dark:text-slate-400">{subtitle}</p>}
+                    {subtitle && <p className="mt-1 text-[14px] leading-snug text-slate-500">{subtitle}</p>}
                 </div>
             </div>
             {children && <div className="flex w-full flex-wrap items-center gap-2 sm:w-auto">{children}</div>}

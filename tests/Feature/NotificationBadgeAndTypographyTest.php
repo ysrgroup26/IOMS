@@ -396,18 +396,38 @@ class NotificationBadgeAndTypographyTest extends TestCase
             'The browser must load the same axes the roles use.');
     }
 
-    /** A title set at 600 is neither regular nor bold. */
+    /**
+     * A title set at 600 is neither regular nor bold. ADR 079 (v2.136.0)
+     * moved the pair from 800 to 700: the owner asked for type that is
+     * "elegant rather than heavy", and Manrope at 800 is the weight that
+     * reads as shouting. 600 is still the weight nobody may use here.
+     */
     public function test_a_page_title_is_genuinely_bold(): void
     {
         $css = (string) file_get_contents(resource_path('css/app.css'));
 
-        $this->assertMatchesRegularExpression('/\.type-page-title \{[^}]*font-extrabold/s', $css);
-        $this->assertMatchesRegularExpression('/\.type-metric \{[^}]*font-extrabold/s', $css);
+        $this->assertMatchesRegularExpression('/\.type-page-title \{[^}]*font-bold/s', $css);
+        $this->assertMatchesRegularExpression('/\.type-metric \{[^}]*font-bold/s', $css);
+        $this->assertDoesNotMatchRegularExpression('/\.type-(page-title|metric) \{[^}]*font-semibold/s', $css);
 
         $header = (string) file_get_contents(resource_path('js/Components/shared/PageHeader.jsx'));
 
         $this->assertStringContainsString('type-page-title', $header);
         $this->assertStringNotContainsString('text-[22px] font-semibold', $header,
             'A page title at 600 is the weight this release exists to stop using.');
+    }
+
+    /**
+     * ADR 079: the interface face is BUNDLED, not fetched. A webfont CDN the
+     * office firewall blocks would silently render every screen in the
+     * fallback, which is how a redesign "does nothing" in production.
+     */
+    public function test_the_interface_face_is_bundled_with_the_application(): void
+    {
+        $entry = (string) file_get_contents(resource_path('js/app.jsx'));
+        $this->assertStringContainsString("import '@fontsource-variable/manrope';", $entry);
+
+        $tailwind = (string) file_get_contents(base_path('tailwind.config.js'));
+        $this->assertMatchesRegularExpression("/sans: \\['\"Manrope Variable\"'/", $tailwind);
     }
 }

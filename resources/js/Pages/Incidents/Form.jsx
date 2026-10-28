@@ -334,7 +334,7 @@ export default function IncidentForm({
                 <CollapsibleSection title="Witnesses" description="Catat namanya selagi orangnya masih di lokasi.">
                     <div className="space-y-3">
                         {data.witnesses.map((w, i) => (
-                            <div key={i} className="grid grid-cols-1 gap-3 rounded-lg border border-graphite-100 p-3 sm:grid-cols-[1fr_1fr_auto] dark:border-slate-800">
+                            <div key={i} className="grid grid-cols-1 gap-3 rounded-xl border border-steel-100 bg-white/60 p-3 sm:grid-cols-[1fr_1fr_auto] dark:border-slate-800">
                                 <div className="space-y-1.5">
                                     <Label className="text-xs">Name</Label>
                                     <Input value={w.name} onChange={(e) => updateWitness(i, 'name', e.target.value)} />

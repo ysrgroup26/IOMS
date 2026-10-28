@@ -2,6 +2,7 @@ import { Link, usePage } from '@inertiajs/react';
 import { Card, CardContent } from '@/Components/ui/card';
 import Sparkline from '@/Components/shared/Sparkline';
 import { cn } from '@/lib/utils';
+import { ChevronRight } from 'lucide-react';
 
 /**
  * Shared Statistic Card. Exact scale pinned in v1.11.14 (12px padding,
@@ -70,101 +71,54 @@ export default function StatCard({ icon: Icon, value, label, hint, href, accent,
     // weaker still, and the coloured glows are gone. Depth comes from the
     // shared shadow token and the tonal step against the ground -- not from
     // saturation. Colour is left doing one job: marking semantics.
+    // v2.136.0 (ADR 079) -- the bubble KPI card. An icon on a gradient tile
+    // whose colour says what the figure MEANS, the label beside it in
+    // sentence case, and the number set large in Manrope's tabular figures.
+    // The surface carries only a faint wash of the same hue; the old 3px
+    // coloured edge is gone because the tile already carries the semantic.
     const accentClasses = {
-        red: {
-            chip: 'bg-gradient-to-br from-danger to-red-600 text-white shadow-[0_3px_8px_-3px_rgba(220,38,38,0.38)] dark:from-red-900 dark:to-red-800',
-            bar: 'bg-danger',
-            wash: 'from-danger/[0.14] via-danger/[0.05] to-white dark:from-red-950/20 dark:via-slate-900 dark:to-slate-900',
-            edge: 'border-danger/15 dark:border-red-900/40',
-            spark: 'danger',
-        },
-        amber: {
-            chip: 'bg-gradient-to-br from-warning to-amber-600 text-white shadow-[0_3px_8px_-3px_rgba(217,119,6,0.38)] dark:from-amber-900 dark:to-amber-800',
-            bar: 'bg-warning',
-            wash: 'from-warning/[0.16] via-warning/[0.055] to-white dark:from-amber-950/20 dark:via-slate-900 dark:to-slate-900',
-            edge: 'border-warning/15 dark:border-amber-900/40',
-            spark: 'warning',
-        },
-        green: {
-            chip: 'bg-gradient-to-br from-success to-emerald-700 text-white shadow-[0_3px_8px_-3px_rgba(22,163,74,0.38)] dark:from-emerald-900 dark:to-emerald-800',
-            bar: 'bg-success',
-            wash: 'from-success/[0.14] via-success/[0.05] to-white dark:from-emerald-950/20 dark:via-slate-900 dark:to-slate-900',
-            edge: 'border-success/15 dark:border-emerald-900/40',
-            spark: 'success',
-        },
-        purple: {
-            chip: 'bg-gradient-to-br from-violet-500 to-violet-700 text-white shadow-[0_3px_8px_-3px_rgba(139,92,246,0.38)] dark:from-violet-900 dark:to-violet-800',
-            bar: 'bg-violet-400/70',
-            wash: 'from-violet-500/[0.13] via-violet-500/[0.045] to-white dark:from-violet-950/20 dark:via-slate-900 dark:to-slate-900',
-            edge: 'border-violet-300/30 dark:border-violet-900/40',
-            spark: 'brand',
-        },
-        neutral: {
-            chip: 'bg-gradient-to-br from-graphite-400 to-graphite-500 text-white shadow-[0_3px_8px_-3px_rgba(100,116,139,0.35)] dark:from-slate-700 dark:to-slate-800',
-            bar: 'bg-graphite-300',
-            wash: 'from-graphite-200 via-graphite-100/50 to-white dark:from-slate-800/30 dark:via-slate-900 dark:to-slate-900',
-            edge: 'border-graphite-200 dark:border-slate-700',
-            spark: 'neutral',
-        },
+        red: { tile: 'icon-tile-rose', wash: 'from-rose-50/90', spark: 'danger' },
+        amber: { tile: 'icon-tile-amber', wash: 'from-amber-50/90', spark: 'warning' },
+        green: { tile: 'icon-tile-green', wash: 'from-emerald-50/90', spark: 'success' },
+        purple: { tile: 'icon-tile-violet', wash: 'from-violet-50/90', spark: 'brand' },
+        neutral: { tile: 'icon-tile-slate', wash: 'from-slate-50/90', spark: 'neutral' },
     };
 
-    // No accent = the quiet IOMS default: a steel-tinted chip with a navy
-    // glyph. Recognisably the product, without asserting a semantic the
-    // caller never claimed.
-    const resolved = accentClasses[effectiveAccent] || {
-        chip: 'bg-gradient-to-br from-navy-800 to-brand-600 text-white shadow-[0_3px_8px_-3px_rgba(33,102,196,0.38)] dark:from-brand-950 dark:to-brand-900',
-        bar: 'bg-steel-300',
-        wash: 'from-steel-300/60 via-steel-100/60 to-white dark:from-slate-900 dark:via-slate-900 dark:to-slate-900',
-        edge: 'border-steel-100 dark:border-slate-800',
-        spark: 'brand',
-    };
+    const resolved = accentClasses[effectiveAccent] || { tile: 'icon-tile-blue', wash: 'from-sky-50/90', spark: 'brand' };
     const isSmall = size === 'sm';
 
     const content = (
         <Card
             className={cn(
-                'group relative h-full overflow-hidden rounded-[10px] bg-gradient-to-br transition-all duration-200 hover:shadow-card-hover motion-safe:hover:-translate-y-0.5',
+                'group relative h-full overflow-hidden bg-gradient-to-br via-white/85 to-white/80 transition-[box-shadow,transform] duration-base ease-out-soft',
                 resolved.wash,
-                resolved.edge,
-                href && 'cursor-pointer'
+                href && 'cursor-pointer hover:shadow-card-hover motion-safe:hover:-translate-y-0.5'
             )}
         >
-            {effectiveAccent && <span className={cn('absolute inset-y-0 left-0 w-[3px]', resolved.bar)} aria-hidden="true" />}
-            <CardContent className={cn('flex items-center', isSmall ? 'gap-2 p-2.5' : 'gap-2.5 p-3', effectiveAccent && 'pl-3.5')}>
-                <div
-                    className={cn(
-                        'flex shrink-0 items-center justify-center',
-                        isSmall ? 'h-7 w-7 rounded-[9px]' : 'h-8 w-8 rounded-[9px]',
-                        resolved.chip
-                    )}
-                >
-                    <Icon className={isSmall ? 'h-[15px] w-[15px]' : 'h-4 w-4'} />
-                </div>
-                <div className="min-w-0 flex-1">
-                    {/* v2.130.0 -- `type-metric`: Archivo at 800 with tabular
-                        figures. A KPI tile exists to be SCANNED, and a
-                        column of semibold Inter numerals with proportional
-                        figures is neither scannable nor aligned. */}
-                    <p className={cn('type-metric truncate leading-tight text-navy-900 dark:text-slate-50', isSmall ? 'text-[17px]' : 'text-[21px]')}>{value}</p>
-                    {/* v2.68.0: was `truncate`. A stat's VALUE may be
-                        clipped safely -- it is a number and the card links
-                        to the full record -- but the label is the only
-                        thing that says WHAT the number counts, so clipping
-                        it makes the tile unreadable rather than merely
-                        abbreviated. Measured at 1440px, "Pending
-                        Procurement" needed 129px in a 118px box and read as
-                        "Pending Procurem...". Wrapping to a second line
-                        costs ~12px of row height and never hides a word. */}
-                    <p className={cn('line-clamp-3 font-medium uppercase tracking-wide text-graphite-400 dark:text-slate-500', isSmall ? 'text-[10px]' : 'text-[11px]')}>{label}</p>
-                    {hint && <p className="mt-0.5 truncate text-[10px] font-medium text-graphite-500 dark:text-slate-400">{hint}</p>}
-                </div>
-                {/* Renders only when the caller genuinely has a series --
-                    Sparkline returns null below two real points. */}
-                {trend && !isSmall && (
-                    <div className="hidden w-16 shrink-0 self-end pb-0.5 sm:block" aria-hidden="true">
-                        <Sparkline points={trend} tone={resolved.spark} className="h-6 w-full" />
+            <CardContent className={cn('flex flex-col', isSmall ? 'gap-2 p-3.5 lg:p-3.5' : 'gap-3 p-4 lg:p-5')}>
+                <div className="flex items-start justify-between gap-2">
+                    <div className={cn('icon-tile', resolved.tile, isSmall ? 'h-8 w-8 rounded-[10px]' : 'h-10 w-10')}>
+                        <Icon className={isSmall ? 'h-4 w-4' : 'h-[18px] w-[18px]'} strokeWidth={2} />
                     </div>
-                )}
+                    {trend ? (
+                        <div className={cn('hidden shrink-0 sm:block', isSmall ? 'w-14' : 'w-20')} aria-hidden="true">
+                            {/* Renders only when the caller genuinely has a series --
+                                Sparkline returns null below two real points. */}
+                            <Sparkline points={trend} tone={resolved.spark} className={isSmall ? 'h-6 w-full' : 'h-8 w-full'} />
+                        </div>
+                    ) : href && !isSmall ? (
+                        <span className="grid h-7 w-7 shrink-0 place-items-center rounded-full bg-white/80 text-slate-400 ring-1 ring-steel-100 transition-colors duration-fast group-hover:text-brand-600" aria-hidden="true">
+                            <ChevronRight className="h-3.5 w-3.5" />
+                        </span>
+                    ) : null}
+                </div>
+                <div className="min-w-0">
+                    <p className={cn('type-metric truncate leading-none text-navy-900', isSmall ? 'text-[22px]' : 'text-[30px]')}>{value}</p>
+                    {/* v2.68.0: the label is never truncated -- it is the only
+                        thing that says WHAT the number counts. */}
+                    <p className={cn('mt-1.5 line-clamp-2 font-semibold leading-snug text-slate-600', isSmall ? 'text-xs' : 'text-[13px]')}>{label}</p>
+                </div>
+                {hint && <p className="-mt-1.5 truncate text-[11px] font-medium text-slate-500">{hint}</p>}
             </CardContent>
         </Card>
     );

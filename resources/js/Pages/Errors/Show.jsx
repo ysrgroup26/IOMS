@@ -42,7 +42,7 @@ export default function ErrorsShow({ status, message }) {
     return (
         <div className="flex min-h-screen items-center justify-center bg-graphite-50 px-4 dark:bg-slate-950">
             <Head title={`${status}: ${meta.title}`} />
-            <div className="w-full max-w-sm rounded-2xl border border-graphite-200 bg-white p-6 text-center shadow-card dark:border-slate-800 dark:bg-slate-900">
+            <div className="w-full max-w-sm surface p-6 text-center dark:border-slate-800 dark:bg-slate-900">
                 <div className="mx-auto flex h-12 w-12 items-center justify-center rounded-full bg-red-50 text-red-600 dark:bg-red-950/40 dark:text-red-400">
                     <Icon className="h-6 w-6" />
                 </div>

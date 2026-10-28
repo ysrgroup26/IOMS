@@ -311,7 +311,7 @@ export default function AdminOverview({ organization, access, security, structur
                                 <Link
                                     key={entry.label}
                                     href={entry.href}
-                                    className="flex items-center gap-2.5 rounded-lg border border-graphite-100 px-3 py-2 text-sm text-graphite-700 transition-colors hover:border-brand-200 hover:bg-steel-50/70 dark:border-slate-800 dark:text-slate-300 dark:hover:border-brand-900"
+                                    className="flex items-center gap-2.5 rounded-xl border border-steel-100 bg-white/60 px-3 py-2 text-sm text-graphite-700 transition-colors hover:border-brand-200 hover:bg-steel-50/70 dark:border-slate-800 dark:text-slate-300 dark:hover:border-brand-900"
                                 >
                                     <entry.icon className="h-4 w-4 shrink-0 text-graphite-400" />
                                     <span className="min-w-0 truncate font-medium">{entry.label}</span>

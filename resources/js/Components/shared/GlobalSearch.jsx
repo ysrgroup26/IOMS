@@ -147,7 +147,7 @@ export default function GlobalSearch() {
                 <div key={key} className="border-b border-graphite-100 py-1 last:border-0">
                     <p className="px-3 py-1 text-[10px] font-semibold uppercase tracking-wide text-graphite-400">{label}</p>
                     {items.map((r) => (
-                        <Link key={`${key}-${r.id}`} href={r.url} className="flex items-center gap-2 px-3 py-1.5 text-sm hover:bg-graphite-50" onClick={dismiss}>
+                        <Link key={`${key}-${r.id}`} href={r.url} className="flex items-center gap-2 rounded-lg px-3 py-2 text-sm hover:bg-brand-50/70" onClick={dismiss}>
                             <Icon className="h-3.5 w-3.5 shrink-0 text-graphite-400" />
                             <span className="min-w-0 flex-1 truncate text-graphite-700">{r.title}</span>
                             {r.subtitle && <span className="shrink-0 text-xs text-graphite-400">{r.subtitle}</span>}
@@ -165,7 +165,7 @@ export default function GlobalSearch() {
     function field(ref) {
         return (
             <div className="relative">
-                <Search className="pointer-events-none absolute left-2.5 top-1/2 h-3.5 w-3.5 -translate-y-1/2 text-steel-300" aria-hidden="true" />
+                <Search className="pointer-events-none absolute left-4 top-1/2 h-4 w-4 -translate-y-1/2 text-slate-400" aria-hidden="true" />
                 <input
                     ref={ref}
                     aria-label="Search IOMS"
@@ -179,9 +179,9 @@ export default function GlobalSearch() {
                     // it now appear only at xl, where the field is wide
                     // enough to spare 40px -- and where a keyboard is a safe
                     // assumption in the first place.
-                    className="h-[34px] w-full rounded-md border border-white/15 bg-white/[0.07] pl-8 pr-3 text-xs text-white outline-none transition-colors placeholder:text-navy-300 focus:border-brand-400/60 focus:bg-white/[0.12] xl:pr-10 dark:border-slate-700 dark:bg-slate-800/60 dark:text-slate-200 dark:focus:bg-slate-800"
+                    className="h-11 w-full rounded-full border border-white/80 bg-white/70 pl-11 pr-4 text-[13px] text-navy-900 shadow-float outline-none backdrop-blur-xl transition-[background-color,box-shadow] duration-fast placeholder:text-slate-400 focus:bg-white focus:ring-4 focus:ring-brand-500/15 xl:pr-16"
                 />
-                <kbd className="pointer-events-none absolute right-2 top-1/2 hidden -translate-y-1/2 rounded border border-white/15 bg-white/[0.08] px-1 text-[10px] text-navy-300 xl:block dark:border-slate-600 dark:bg-slate-900">
+                <kbd className="pointer-events-none absolute right-3 top-1/2 hidden -translate-y-1/2 rounded-md border border-steel-100 bg-white/80 px-1.5 py-0.5 font-sans text-[10px] font-semibold text-slate-500 xl:block">
                     Ctrl K
                 </kbd>
             </div>
@@ -204,16 +204,16 @@ export default function GlobalSearch() {
                     onClick={() => { const next = !expanded; setExpanded(next); if (next) requestAnimationFrame(() => compactRef.current?.focus()); }}
                     aria-label="Search IOMS"
                     aria-expanded={expanded}
-                    className="rounded-md p-2 text-navy-300 outline-none transition-colors hover:bg-white/[0.08] hover:text-white"
+                    className="chrome-icon"
                 >
                     <Search className="h-[18px] w-[18px]" />
                 </button>
 
                 {expanded && (
-                    <div className="absolute right-0 top-full z-[120] mt-1 w-[min(320px,calc(100vw-1.5rem))] rounded-lg border border-navy-700 bg-navy-900 p-2 shadow-card-hover dark:border-slate-700 dark:bg-slate-900">
+                    <div className="absolute right-0 top-full z-[120] mt-1 w-[min(320px,calc(100vw-1.5rem))] rounded-2xl border border-white/80 bg-white/95 p-2 shadow-float backdrop-blur-xl">
                         {field(compactRef)}
                         {showResults && (
-                            <div className="mt-2 max-h-[50vh] overflow-y-auto rounded-md border border-graphite-200 bg-white">
+                            <div className="mt-2 max-h-[50vh] overflow-y-auto rounded-xl border border-steel-100 bg-white">
                                 {resultsList}
                             </div>
                         )}
@@ -226,11 +226,11 @@ export default function GlobalSearch() {
                 header control is shrink-0, so this is the one item that
                 gives way when the viewport is narrow, which is what keeps
                 the header inside the page between lg and xl. */}
-            <div className="relative hidden w-[380px] min-w-0 lg:block">
+            <div className="relative hidden w-[220px] min-w-0 lg:block 2xl:w-[340px]">
                 {field(inlineRef)}
 
                 {showResults && (
-                    <div className="absolute left-0 top-full z-[120] mt-1 max-h-[60vh] w-72 overflow-y-auto rounded-lg border border-graphite-200 bg-white shadow-card-hover">
+                    <div className="absolute left-0 top-full z-[120] mt-2 max-h-[60vh] w-80 overflow-y-auto rounded-2xl border border-white/80 bg-white/95 p-1 shadow-float backdrop-blur-xl">
                         {resultsList}
                     </div>
                 )}

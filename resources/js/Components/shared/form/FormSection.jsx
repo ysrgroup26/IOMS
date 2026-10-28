@@ -48,8 +48,8 @@ export default function FormSection({
         <section
             className={cn(
                 isCard
-                    ? 'rounded-xl border border-graphite-200 bg-white p-5 shadow-card dark:border-slate-800 dark:bg-slate-900'
-                    : 'border-t border-graphite-100 pt-6 first:border-t-0 first:pt-0 dark:border-slate-800',
+                    ? 'surface p-5 lg:p-6'
+                    : 'border-t border-steel-100 pt-6 first:border-t-0 first:pt-0',
                 className
             )}
         >
@@ -59,18 +59,18 @@ export default function FormSection({
                         {step && (
                             <span
                                 aria-hidden="true"
-                                className="flex h-5 w-5 shrink-0 items-center justify-center rounded bg-graphite-100 text-[10px] font-bold tabular-nums text-graphite-500 dark:bg-slate-800 dark:text-slate-400"
+                                className="icon-soft icon-soft-blue h-6 w-6 rounded-lg text-[11px] font-bold tabular-nums"
                             >
                                 {step}
                             </span>
                         )}
-                        {Icon && <Icon className="h-4 w-4 shrink-0 text-graphite-400" aria-hidden="true" />}
-                        <h2 className="text-[15px] font-semibold tracking-tight text-navy-900 dark:text-slate-100">
+                        {Icon && <Icon className="h-4 w-4 shrink-0 text-brand-500" aria-hidden="true" />}
+                        <h2 className="text-[16px] font-bold tracking-[-0.01em] text-navy-900">
                             {title}
                         </h2>
                     </div>
                     {description && (
-                        <p className="mt-1 text-xs leading-relaxed text-graphite-500 dark:text-slate-400">
+                        <p className="mt-1 text-[13px] leading-relaxed text-slate-500">
                             {description}
                         </p>
                     )}

@@ -63,7 +63,7 @@ export default function ContractorShow({ contractor: c, canManage, documentTypes
                     <CardHeader className="flex flex-row items-center gap-2"><FileText className="h-4 w-4 text-graphite-400" /><CardTitle>Documents</CardTitle></CardHeader>
                     <CardContent className="space-y-4">
                         {canManage && (
-                            <form onSubmit={submitDoc} className="flex flex-wrap items-end gap-2 rounded-md border border-graphite-100 p-3">
+                            <form onSubmit={submitDoc} className="flex flex-wrap items-end gap-2 rounded-xl border border-steel-100 bg-white/60 p-3">
                                 <Select value={docForm.data.document_type} onValueChange={(v) => docForm.setData('document_type', v)}>
                                     <SelectTrigger className="w-44"><SelectValue /></SelectTrigger>
                                     <SelectContent>{documentTypes.map((t) => <SelectItem key={t} value={t} className="capitalize">{t.replace('_', ' ')}</SelectItem>)}</SelectContent>
@@ -98,7 +98,7 @@ export default function ContractorShow({ contractor: c, canManage, documentTypes
                     </CardHeader>
                     <CardContent>
                         {workerOpen && (
-                            <form onSubmit={submitWorker} className="mb-4 grid grid-cols-2 gap-2 rounded-md border border-graphite-100 p-3 sm:grid-cols-4">
+                            <form onSubmit={submitWorker} className="mb-4 grid grid-cols-2 gap-2 rounded-xl border border-steel-100 bg-white/60 p-3 sm:grid-cols-4">
                                 <Input placeholder="Name" value={workerForm.data.name} onChange={(e) => workerForm.setData('name', e.target.value)} />
                                 <Input placeholder="ID Number" value={workerForm.data.worker_id_number} onChange={(e) => workerForm.setData('worker_id_number', e.target.value)} />
                                 <Input placeholder="Position" value={workerForm.data.position} onChange={(e) => workerForm.setData('position', e.target.value)} />

@@ -95,7 +95,7 @@ export default function Checkout({ order, payment, billingUrl, invoiceUrl, billi
                 {/* Order summary. The amount in IDR is the point of this
                     page -- nobody should reach a payment window without
                     having seen what it is for. */}
-                <div className="rounded-xl border border-steel-200/70 bg-white p-5 shadow-panel sm:p-6">
+                <div className="surface p-5 sm:p-6">
                     <h2 className="text-[15px] font-semibold tracking-tight text-navy-900">Order summary</h2>
 
                     <dl className="mt-4 divide-y divide-steel-100 border-y border-steel-100">
@@ -125,7 +125,7 @@ export default function Checkout({ order, payment, billingUrl, invoiceUrl, billi
                 </div>
 
                 {/* Payment */}
-                <div className="rounded-xl border border-steel-200/70 bg-white p-5 shadow-panel sm:p-6">
+                <div className="surface p-5 sm:p-6">
                     <h2 className="text-[15px] font-semibold tracking-tight text-navy-900">Payment</h2>
                     <p className="mt-2 text-sm leading-relaxed text-graphite-600">
                         Pembayaran diproses oleh penyedia pembayaran berlisensi kami. Data kartu Anda tidak pernah

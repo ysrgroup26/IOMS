@@ -4,6 +4,8 @@ namespace App\Http\Controllers;
 
 use App\Models\Company;
 use App\Models\CorrectiveAction;
+use App\Models\SafetyEquipmentInspection;
+use Illuminate\Database\Eloquent\Relations\MorphTo;
 use Illuminate\Http\RedirectResponse;
 use Illuminate\Http\Request;
 use Illuminate\Validation\Rule;
@@ -45,7 +47,12 @@ class CorrectiveActionController extends Controller
 
         $actions = CorrectiveAction::query()
             ->whereIn('company_id', $tenantCompanyIds)
-            ->with('assignee:id,name', 'source')
+            // An equipment inspection's label names its UNIT, so that relation
+            // is loaded with the source; lazy loading is refused outside
+            // production and the register answered 500 once one existed.
+            ->with(['assignee:id,name', 'source' => fn (MorphTo $morph) => $morph->morphWith([
+                SafetyEquipmentInspection::class => ['safetyEquipment'],
+            ])])
             ->when($request->input('status'), fn ($q, $v) => $q->where('status', $v))
             ->when($request->input('priority'), fn ($q, $v) => $q->where('priority', $v))
             ->when($request->boolean('overdue'), $overdueClause)
@@ -60,7 +67,7 @@ class CorrectiveActionController extends Controller
                 'due_date' => $a->due_date,
                 'is_overdue' => $a->is_overdue,
                 'assignee' => $a->assignee,
-                'source_type' => class_basename($a->source_type),
+                'source_type' => $this->sourceTypeLabel($a),
                 'source_label' => $this->sourceLabel($a),
                 'source_route' => $this->sourceRoute($a),
             ]);
@@ -105,6 +112,21 @@ class CorrectiveActionController extends Controller
         $correctiveAction->update($update);
 
         return back()->with('success', 'Corrective action updated.');
+    }
+
+    /**
+     * The kind of record a follow-up came from, in words -- never a class
+     * name (ADR 064: "SafetyEquipmentInspection: APAR-01" reached the screen).
+     */
+    private function sourceTypeLabel(CorrectiveAction $a): string
+    {
+        return match (class_basename($a->source_type)) {
+            'SafetyObservation' => 'Safety Observation',
+            'HseInspection' => 'HSE Inspection',
+            'Incident' => 'Incident',
+            'SafetyEquipmentInspection' => 'Equipment Inspection',
+            default => str(class_basename($a->source_type))->headline()->toString(),
+        };
     }
 
     private function sourceLabel(CorrectiveAction $a): ?string

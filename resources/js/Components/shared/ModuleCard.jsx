@@ -41,27 +41,14 @@ import { cn } from '@/lib/utils';
  * original contract) or an already-resolved URL/path -- some callers,
  * including My Work, receive fully-built URLs from the server.
  */
+// v2.136.0 (ADR 079): a module card is a frosted bubble with a gradient
+// icon tile; the accent tints only the tile and a faint corner wash.
 const ACCENTS = {
-    brand: {
-        chip: 'bg-gradient-to-br from-navy-800 to-brand-600 text-white shadow-[0_3px_8px_-3px_rgba(33,102,196,0.38)] dark:from-brand-950 dark:to-brand-900 dark:text-brand-300',
-        surface: 'border-steel-100 bg-gradient-to-b from-steel-100/70 via-steel-50/40 to-white dark:border-slate-800 dark:from-slate-900 dark:to-slate-900',
-    },
-    green: {
-        chip: 'bg-gradient-to-br from-success to-emerald-700 text-white shadow-[0_3px_8px_-3px_rgba(22,163,74,0.38)] dark:from-emerald-900 dark:to-emerald-800',
-        surface: 'border-success/15 bg-gradient-to-b from-success/[0.12] via-success/[0.04] to-white dark:border-emerald-900/40 dark:from-emerald-950/20 dark:to-slate-900',
-    },
-    amber: {
-        chip: 'bg-gradient-to-br from-warning to-amber-600 text-white shadow-[0_3px_8px_-3px_rgba(217,119,6,0.38)] dark:from-amber-900 dark:to-amber-800',
-        surface: 'border-warning/15 bg-gradient-to-b from-warning/[0.14] via-warning/[0.05] to-white dark:border-amber-900/40 dark:from-amber-950/20 dark:to-slate-900',
-    },
-    red: {
-        chip: 'bg-gradient-to-br from-danger to-red-600 text-white shadow-[0_3px_8px_-3px_rgba(220,38,38,0.38)] dark:from-red-900 dark:to-red-800',
-        surface: 'border-danger/15 bg-gradient-to-b from-danger/[0.12] via-danger/[0.04] to-white dark:border-red-900/40 dark:from-red-950/20 dark:to-slate-900',
-    },
-    purple: {
-        chip: 'bg-gradient-to-br from-violet-500 to-violet-700 text-white shadow-[0_3px_8px_-3px_rgba(139,92,246,0.38)] dark:from-violet-900 dark:to-violet-800',
-        surface: 'border-violet-300/30 bg-gradient-to-b from-violet-500/[0.11] via-violet-500/[0.035] to-white dark:border-violet-900/40 dark:from-violet-950/20 dark:to-slate-900',
-    },
+    brand: { chip: 'icon-tile icon-tile-blue', surface: 'from-sky-50/90' },
+    green: { chip: 'icon-tile icon-tile-green', surface: 'from-emerald-50/90' },
+    amber: { chip: 'icon-tile icon-tile-amber', surface: 'from-amber-50/90' },
+    red: { chip: 'icon-tile icon-tile-rose', surface: 'from-rose-50/90' },
+    purple: { chip: 'icon-tile icon-tile-violet', surface: 'from-violet-50/90' },
 };
 
 export default function ModuleCard({ icon: Icon, title, description, href, status = 'active', queryParams, size = 'default', accent }) {
@@ -77,11 +64,11 @@ export default function ModuleCard({ icon: Icon, title, description, href, statu
         <span
             className={cn(
                 'flex shrink-0 items-center justify-center',
-                isLarge ? 'h-12 w-12 rounded-xl' : 'h-8 w-8 rounded-[9px]',
+                isLarge ? 'h-12 w-12 rounded-2xl' : 'h-10 w-10',
                 tone.chip
             )}
         >
-            {Icon && <Icon className={isLarge ? 'h-6 w-6' : 'h-4 w-4'} />}
+            {Icon && <Icon className={isLarge ? 'h-6 w-6' : 'h-[18px] w-[18px]'} strokeWidth={1.75} />}
         </span>
     );
 
@@ -89,8 +76,8 @@ export default function ModuleCard({ icon: Icon, title, description, href, statu
         <div className="flex items-center gap-3">
             {chip}
             <div className="min-w-0 flex-1">
-                <p className="text-base font-semibold text-navy-900 dark:text-slate-50">{title}</p>
-                {description && <p className="truncate text-xs text-graphite-500 dark:text-slate-400">{description}</p>}
+                <p className="text-base font-bold text-navy-900">{title}</p>
+                {description && <p className="truncate text-[13px] text-slate-500">{description}</p>}
             </div>
             {isActive && <ArrowRight className="h-4 w-4 shrink-0 text-graphite-300 dark:text-slate-600" />}
         </div>
@@ -102,8 +89,8 @@ export default function ModuleCard({ icon: Icon, title, description, href, statu
                 {status === 'locked' && <Badge variant="destructive" className="shrink-0">Not in plan</Badge>}
                 {isActive && <ArrowRight className="h-3.5 w-3.5 shrink-0 text-graphite-300 dark:text-slate-600" />}
             </div>
-            <p className="mt-2 text-[13px] font-semibold leading-snug text-navy-800 dark:text-slate-100">{title}</p>
-            {description && <p className="mt-0.5 line-clamp-1 text-[11px] text-graphite-400 dark:text-slate-500">{description}</p>}
+            <p className="mt-3 text-[14px] font-bold leading-snug text-navy-900">{title}</p>
+            {description && <p className="mt-0.5 line-clamp-2 text-xs leading-relaxed text-slate-500">{description}</p>}
         </>
     );
 
@@ -111,8 +98,8 @@ export default function ModuleCard({ icon: Icon, title, description, href, statu
     // get a real surface and hover lift -- they should feel like doors, not
     // list rows.
     const className = cn(
-        'group block h-full rounded-[10px] border shadow-card transition-all duration-200',
-        isLarge ? 'p-4' : 'p-3',
+        'surface group block h-full bg-gradient-to-br via-white/85 to-white/80 transition-[box-shadow,transform] duration-base ease-out-soft',
+        isLarge ? 'p-5' : 'p-4',
         tone.surface,
         isActive ? 'cursor-pointer hover:-translate-y-0.5 hover:shadow-card-hover' : 'cursor-not-allowed opacity-70'
     );

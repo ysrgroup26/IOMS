@@ -65,7 +65,7 @@ export default function InstallAppAction() {
     if (state.installed) return null;
     if (!state.canPrompt && !state.needsManualInstructions) return null;
 
-    const triggerClass = 'shrink-0 rounded-md p-2 text-navy-300 transition-colors hover:bg-white/[0.08] hover:text-white';
+    const triggerClass = 'chrome-icon';
 
     if (state.canPrompt) {
         return (
@@ -98,7 +98,7 @@ export default function InstallAppAction() {
                 <div
                     role="dialog"
                     aria-label="Install IOMS on iOS"
-                    className="absolute right-0 z-[120] mt-2 w-64 rounded-xl border border-steel-200 bg-white p-3 text-left shadow-card-hover dark:border-slate-700 dark:bg-slate-900"
+                    className="absolute right-0 z-[120] mt-2 w-64 rounded-xl border border-white/80 bg-white/95 p-3 text-left shadow-float backdrop-blur-xl dark:border-slate-700 dark:bg-slate-900"
                 >
                     <div className="flex items-start justify-between gap-2">
                         <p className="text-[13px] font-semibold text-navy-900 dark:text-slate-100">Install IOMS</p>

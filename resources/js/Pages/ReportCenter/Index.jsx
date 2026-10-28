@@ -182,7 +182,7 @@ export default function ReportCenterIndex({ available, schedules }) {
                     ) : (
                         <div className="space-y-1.5">
                             {schedules.map((s) => (
-                                <div key={s.id} className="flex items-center justify-between gap-3 rounded-lg border border-graphite-100 px-3 py-2 dark:border-slate-800">
+                                <div key={s.id} className="flex items-center justify-between gap-3 rounded-xl border border-steel-100 bg-white/60 px-3 py-2 dark:border-slate-800">
                                     <div className="min-w-0">
                                         <p className="truncate text-sm font-medium text-graphite-800 dark:text-slate-100">
                                             {available.find((a) => a.key === s.dataset_key)?.label ?? s.dataset_key}

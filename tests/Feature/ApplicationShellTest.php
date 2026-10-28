@@ -52,8 +52,10 @@ class ApplicationShellTest extends TestCase
             'The search input is back to a hard width, which is what made every authenticated page scroll sideways.'
         );
 
-        $this->assertStringContainsString('w-[380px] min-w-0', $search, '380px must be a basis it may shrink FROM, not a floor.');
-        $this->assertStringContainsString('h-[34px] w-full', $search, 'The input must fill whatever width its wrapper settles on.');
+        // v2.136.0 (ADR 079): the basis is 220px, 340px from 2xl, and the
+        // field is a 44px frosted pill; the rule is unchanged.
+        $this->assertStringContainsString('w-[220px] min-w-0', $search, 'The width must be a basis it may shrink FROM, not a floor.');
+        $this->assertStringContainsString('h-11 w-full', $search, 'The input must fill whatever width its wrapper settles on.');
     }
 
     /**
@@ -89,26 +91,26 @@ class ApplicationShellTest extends TestCase
             $this->assertStringContainsString($marker, $header, "The header no longer contains {$marker}.");
         }
 
-        // Controls written inline in the header element.
+        // v2.136.0 (ADR 079): the round utility controls (hamburger, Work
+        // Center, Notifications, install, compact search) share ONE class,
+        // `.chrome-icon`, and the navigation pills share `pillClass()`. The
+        // rule is asserted where it now lives: in each of those, once.
+        $css = $this->source('resources/css/app.css');
+        $this->assertMatchesRegularExpression('/\.chrome-icon \{[^}]*shrink-0/s', $css, 'The round header controls may shrink again.');
+        $this->assertMatchesRegularExpression("/function pillClass\\([^)]*\\) \\{.*?'h-9 shrink-0/s", $layout, 'The navigation pills may shrink again.');
+
         foreach ([
-            'shrink-0 rounded-md p-1 text-navy-300' => 'hamburger',
-            'hidden h-8 shrink-0 items-center' => 'Dashboard link',
-            'flex h-8 shrink-0 items-center' => 'Calendar link',
-            'hidden shrink-0 text-xs text-navy-300' => 'clock',
-            'max-w-[180px] shrink-0' => 'profile menu',
+            'className="chrome-icon lg:hidden"' => 'hamburger',
+            "className={cn('hidden lg:flex', pillClass(" => 'Dashboard link',
+            'hidden shrink-0 text-xs font-medium tabular-nums' => 'clock',
+            'max-w-[220px] shrink-0' => 'profile menu',
         ] as $needle => $control) {
             $this->assertStringContainsString($needle, $header, "The {$control} may shrink again.");
         }
 
-        // Work Center and Notifications are rendered into the header but
-        // declared as their own components further down the file, so they
-        // are checked against the whole module rather than the slice.
-        foreach ([
-            'relative shrink-0 rounded-md p-2 text-graphite-400' => 'Work Center',
-            'relative shrink-0 rounded-md p-2 text-navy-300' => 'Notifications',
-        ] as $needle => $control) {
-            $this->assertStringContainsString($needle, $layout, "The {$control} trigger may shrink again.");
-        }
+        // Work Center and Notifications are declared as their own components
+        // further down the file; both triggers are the shared round control.
+        $this->assertGreaterThanOrEqual(3, substr_count($layout, 'className="chrome-icon"'), 'Work Center, Notifications and the theme toggle must keep the fixed round control.');
     }
 
     /**
@@ -128,8 +130,10 @@ class ApplicationShellTest extends TestCase
         // v2.84.1: the trigger's surface is now conditional (lit when a
         // workspace is the active context, quiet inside Admin Space), so the
         // stable part of the class list is what this asserts.
-        $this->assertStringContainsString("'flex h-8 min-w-0 items-center gap-1.5 rounded-md px-3 text-xs font-medium outline-none transition-colors'", $layout);
-        $this->assertStringContainsString("{space === 'admin' ? 'Workspaces' : (activeWorkspace?.label ?? 'All Workspaces')}", $layout);
+        // v2.136.0: the trigger is a pill; `min-w-0 shrink` overrides the
+        // pill's shrink-0 so THIS is the one that may give way and ellipse.
+        $this->assertStringContainsString("'flex min-w-0 shrink'", $layout);
+        $this->assertStringContainsString('<span className="truncate">{space === \'admin\' ? \'Workspaces\' : (activeWorkspace ? pillLabel(activeWorkspace) : \'All Workspaces\')}</span>', $layout);
     }
 
     /**
@@ -140,7 +144,7 @@ class ApplicationShellTest extends TestCase
      */
     public function test_the_dashboard_link_hides_wherever_the_bottom_nav_duplicates_it(): void
     {
-        $this->assertStringContainsString('hover:text-white lg:flex', $this->layout());
+        $this->assertStringContainsString("className={cn('hidden lg:flex', pillClass(route().current('dashboard')))}", $this->layout());
 
         $this->assertStringContainsString(
             'lg:hidden',
@@ -155,7 +159,7 @@ class ApplicationShellTest extends TestCase
         $search = $this->source('resources/js/Components/shared/GlobalSearch.jsx');
 
         $this->assertStringContainsString('relative hidden shrink-0 sm:block lg:hidden', $search, 'No compact (icon) presentation.');
-        $this->assertStringContainsString('relative hidden w-[380px] min-w-0 lg:block', $search, 'No inline presentation.');
+        $this->assertStringContainsString('relative hidden w-[220px] min-w-0 lg:block', $search, 'No inline presentation.');
         $this->assertStringContainsString('aria-expanded={expanded}', $search);
 
         // Ctrl+K has to reach whichever of the two is actually rendered.
@@ -314,7 +318,7 @@ class ApplicationShellTest extends TestCase
     public function test_the_scrim_is_hidden_from_assistive_technology(): void
     {
         $this->assertStringContainsString(
-            "className=\"fixed inset-0 z-40 bg-graphite-900/30 lg:hidden\"\n                    onClick={() => setSidebarOpen(false)}\n                    aria-hidden=\"true\"",
+            "className=\"fixed inset-0 z-40 bg-navy-900/20 backdrop-blur-sm lg:hidden\"\n                    onClick={() => setSidebarOpen(false)}\n                    aria-hidden=\"true\"",
             $this->layout()
         );
     }

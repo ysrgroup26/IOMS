@@ -261,7 +261,7 @@ export default function MaterialRequestShow({ materialRequest: mr, approval, act
                         )}
 
                         {mr.status === 'cancelled' && mr.cancellation_reason && (
-                            <div className="rounded-lg border border-graphite-200 bg-graphite-50 p-3 dark:border-slate-800 dark:bg-slate-800/50">
+                            <div className="rounded-xl border border-steel-100 bg-steel-50/50 p-3 dark:border-slate-800 dark:bg-slate-800/50">
                                 <p className="font-medium text-graphite-800 dark:text-slate-100">Alasan pembatalan</p>
                                 <p className="mt-1 text-graphite-600 dark:text-slate-300">{mr.cancellation_reason}</p>
                             </div>
@@ -280,7 +280,7 @@ export default function MaterialRequestShow({ materialRequest: mr, approval, act
                                 </p>
                                 <ul className="space-y-1.5">
                                     {mr.purchase_requisitions.map((pr) => (
-                                        <li key={pr.id} className="rounded-md border border-graphite-100 px-2.5 py-2 dark:border-slate-800">
+                                        <li key={pr.id} className="rounded-xl border border-steel-100 bg-white/60 px-2.5 py-2 dark:border-slate-800">
                                             <div className="flex flex-wrap items-center gap-2">
                                                 <span className="font-medium text-graphite-800 dark:text-slate-100">{pr.pr_number}</span>
                                                 <StatusBadge value={pr.status} />

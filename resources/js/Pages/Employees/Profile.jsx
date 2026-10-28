@@ -499,7 +499,7 @@ export default function EmployeeProfile({ employee, yearSummary, monthlyBreakdow
                                     <Link
                                         key={p.id}
                                         href={route('projects.show', p.id)}
-                                        className="flex items-center justify-between rounded-lg border border-graphite-100 px-3 py-2 text-sm hover:bg-graphite-50"
+                                        className="flex items-center justify-between rounded-xl border border-steel-100 bg-white/60 px-3 py-2 text-sm hover:bg-graphite-50"
                                     >
                                         <span className="font-medium text-graphite-800">{p.name}</span>
                                         <Badge variant="outline" className="capitalize">{p.status}</Badge>

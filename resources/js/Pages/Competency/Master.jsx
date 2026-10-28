@@ -200,7 +200,7 @@ export default function CompetencyMaster({ competencyTypes, companies, positions
 
                         <div className="space-y-1.5">
                             <Label>Required for Positions (optional)</Label>
-                            <div className="grid grid-cols-2 gap-2 rounded-lg border border-graphite-100 p-3 sm:grid-cols-3">
+                            <div className="grid grid-cols-2 gap-2 rounded-xl border border-steel-100 bg-white/60 p-3 sm:grid-cols-3">
                                 {filteredPositions.length === 0 && <p className="col-span-full text-xs text-graphite-400">No positions in this company yet.</p>}
                                 {filteredPositions.map((p) => (
                                     <label key={p.id} className="flex items-center gap-2 text-sm">

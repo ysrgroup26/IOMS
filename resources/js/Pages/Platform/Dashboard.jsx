@@ -316,7 +316,7 @@ export default function PlatformDashboard({ stats, recent_tenants: recentTenants
                     <CardContent>
                         <div className="grid grid-cols-1 gap-3 sm:grid-cols-3">
                             {Object.entries(BILLING_MODE_LABELS).map(([mode, label]) => (
-                                <div key={mode} className="rounded-md border border-graphite-100 px-3 py-2.5">
+                                <div key={mode} className="rounded-xl border border-steel-100 bg-white/60 px-3 py-2.5">
                                     <p className="text-xl font-bold text-graphite-900">{billingModes[mode] ?? 0}</p>
                                     <p className="text-xs text-graphite-500">{label}</p>
                                 </div>

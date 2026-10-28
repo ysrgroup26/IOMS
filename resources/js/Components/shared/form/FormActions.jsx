@@ -48,9 +48,11 @@ export default function FormActions({
         <div
             className={cn(
                 // Mobile: pinned. Desktop: inline at the end of the form.
-                'sticky bottom-0 z-20 -mx-4 mt-6 border-t border-graphite-200 bg-white/95 px-4 py-3 backdrop-blur',
-                'pb-[max(0.75rem,env(safe-area-inset-bottom))]',
-                'sm:static sm:mx-0 sm:rounded-lg sm:border sm:px-4 sm:pb-3 sm:backdrop-blur-none',
+                // Mobile: pinned ABOVE the floating bottom navigation (which
+                // sits 12px off the edge and is ~64px tall), on the same
+                // frosted chrome. Desktop: inline at the end of the form.
+                'sticky bottom-[calc(5.25rem+env(safe-area-inset-bottom))] z-20 mt-6 rounded-2xl border border-white/80 bg-white/85 px-4 py-3 shadow-float backdrop-blur-xl',
+                'sm:static sm:px-5 sm:shadow-card',
                 'dark:border-slate-800 dark:bg-slate-900/95',
                 className
             )}
@@ -83,7 +85,7 @@ export default function FormActions({
             {/* "What happens after I save?" -- answered before it is
                 asked, on the forms where the answer is not obvious. */}
             {note && (
-                <p className="mt-2 text-[11px] leading-relaxed text-graphite-500 dark:text-slate-400">{note}</p>
+                <p className="mt-2 line-clamp-2 text-xs leading-relaxed text-slate-500 sm:line-clamp-none">{note}</p>
             )}
         </div>
     );

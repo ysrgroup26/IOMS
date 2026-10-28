@@ -168,7 +168,7 @@ export default function FieldHome({
                             >
                                 <div className="flex flex-wrap items-center justify-between gap-2">
                                     <span className="flex items-center gap-2">
-                                        <span className="flex h-7 w-7 shrink-0 items-center justify-center rounded-[8px] bg-gradient-to-br from-navy-800 to-brand-600 text-white shadow-[0_3px_8px_-3px_rgba(33,102,196,0.38)]">
+                                        <span className="icon-tile icon-tile-blue h-8 w-8 rounded-[10px]">
                                             <Flame className="h-3.5 w-3.5" />
                                         </span>
                                         <span className="text-[13px] font-semibold text-navy-900 dark:text-slate-50">{permit.ptw_number}</span>
@@ -195,7 +195,7 @@ export default function FieldHome({
                             Lihat semua
                         </Link>
                     </div>
-                    <div className="divide-y divide-steel-100 overflow-hidden rounded-xl border border-steel-200/70 bg-white shadow-card dark:divide-slate-800 dark:border-slate-800 dark:bg-slate-900">
+                    <div className="divide-y divide-steel-100 overflow-hidden surface dark:divide-slate-800 dark:border-slate-800 dark:bg-slate-900">
                         {myTasks.map((task) => (
                             <Link key={task.id} href={task.href} className="flex items-center gap-3 p-3 transition-colors hover:bg-steel-50/70 dark:hover:bg-slate-800/50">
                                 <CheckSquare className="h-4 w-4 shrink-0 text-graphite-300" />

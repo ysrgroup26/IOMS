@@ -194,7 +194,7 @@ export default function SearchableSelect({
             </button>
 
             {open && (
-                <div className="absolute z-[120] mt-1 w-full overflow-hidden rounded-lg border border-graphite-200 bg-white shadow-card-hover dark:border-slate-700 dark:bg-slate-900">
+                <div className="absolute z-[120] mt-1 w-full overflow-hidden rounded-xl border border-white/80 bg-white/95 shadow-float backdrop-blur-xl dark:border-slate-700 dark:bg-slate-900">
                     {showSearch && (
                         <div className="border-b border-graphite-100 p-2 dark:border-slate-800">
                             <div className="relative">

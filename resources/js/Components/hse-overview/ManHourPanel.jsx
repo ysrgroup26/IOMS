@@ -57,7 +57,7 @@ function Metric({ icon: Icon, label, value, unit, note, accent = 'blue' }) {
 
 export default function ManHourPanel({ manHours, safetyKpi }) {
     return (
-        <section className="rounded-2xl border border-graphite-200/80 bg-white p-4 shadow-[0_1px_2px_rgba(16,24,40,0.04)] dark:border-slate-800 dark:bg-slate-900">
+        <section className="surface p-4 dark:border-slate-800 dark:bg-slate-900">
             <header>
                 <h2 className="flex items-center gap-1.5 text-[13px] font-bold text-graphite-900 dark:text-slate-50">
                     <Activity className="h-4 w-4 text-emerald-500" /> Man-Hour &amp; Exposure

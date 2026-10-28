@@ -98,7 +98,7 @@ export default function WorkOrderShow({ workOrder: wo, activities, canManage, wa
                         </CardHeader>
                         <CardContent>
                             {spareOpen && (
-                                <form onSubmit={submitSpare} className="mb-4 grid grid-cols-3 gap-2 rounded-md border border-graphite-100 p-3">
+                                <form onSubmit={submitSpare} className="mb-4 grid grid-cols-3 gap-2 rounded-xl border border-steel-100 bg-white/60 p-3">
                                     <Select value={spareForm.data.warehouse_id} onValueChange={(v) => spareForm.setData('warehouse_id', v)}>
                                         <SelectTrigger><SelectValue placeholder="Warehouse" /></SelectTrigger>
                                         <SelectContent>{warehouses.map((w) => <SelectItem key={w.id} value={String(w.id)}>{w.name}</SelectItem>)}</SelectContent>

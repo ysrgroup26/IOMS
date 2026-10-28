@@ -189,6 +189,15 @@ class EquipmentInspectionChecklistTest extends TestCase
         $this->assertSame('high', $action->priority);
         $this->assertSame(CorrectiveAction::STATUS_OPEN, $action->status);
 
+        // The CAPA register names the unit the follow-up came from (and must
+        // load it eagerly: lazy loading is refused outside production, and
+        // Laravel only enforces it once a page holds more than one row).
+        $second = $inspection->replicate();
+        $second->save();
+        $action->replicate()->fill(['source_id' => $second->id])->save();
+        $this->actingAs($t['hse'])->get(route('corrective-actions.index'))->assertOk()
+            ->assertSee($t['unit']->equipment_code.' inspection 2026-10-28', false);
+
         $unit = SafetyEquipment::withoutGlobalScopes()->with('latestInspection')->find($t['unit']->id);
         $this->assertSame('action_required', $unit->complianceState(now()->startOfDay()));
 

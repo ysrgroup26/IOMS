@@ -138,7 +138,8 @@ class AdminContextAndBillingFlowTest extends TestCase
         $layout = $this->layout();
 
         // The workspace selector goes quiet inside Admin Space...
-        $this->assertStringContainsString("space === 'admin'\n                                ? 'border border-transparent", $layout);
+        // v2.136.0: through the shared pill -- lit only for a real workspace.
+        $this->assertStringContainsString("pillClass(space !== 'admin' && !!activeWorkspace)", $layout);
         $this->assertStringContainsString("aria-current={space !== 'admin' ? 'true' : undefined}", $layout);
 
         // ...and the Admin Space entry lights up, without disappearing.

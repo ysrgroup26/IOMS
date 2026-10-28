@@ -99,7 +99,7 @@ export default function EquipmentIndex({ equipment, filters, stats, byType, atte
                     <>
                         {/* 1. POSITION. Deep navy so the one summary on the page
                             reads as the page's anchor, not as one more card. */}
-                        <section aria-labelledby="position-heading" className="overflow-hidden rounded-xl border border-navy-800 bg-gradient-to-br from-navy-950 via-navy-900 to-navy-700 p-4 text-white shadow-panel sm:p-5">
+                        <section aria-labelledby="position-heading" className="surface-feature p-5 text-white sm:p-6">
                             <div className="flex flex-col gap-4 lg:flex-row lg:items-end lg:justify-between">
                                 <div>
                                     <p id="position-heading" className="text-[11px] font-bold uppercase tracking-wider text-steel-200">Compliance Position</p>
@@ -385,7 +385,7 @@ function RegisterCards({ units }) {
         <ul className="space-y-2 md:hidden">
             {units.map((u) => (
                 <li key={u.id}>
-                    <Link href={route('safety-equipment.show', u.id)} className="block rounded-xl border border-steel-200 bg-white p-3 shadow-card dark:border-slate-800 dark:bg-slate-900">
+                    <Link href={route('safety-equipment.show', u.id)} className="block surface p-3 dark:border-slate-800 dark:bg-slate-900">
                         <div className="flex items-start justify-between gap-2">
                             <div className="min-w-0">
                                 <p className="font-mono text-[11px] font-semibold text-steel-700 dark:text-steel-300">{u.equipment_code || 'No ID yet'}</p>

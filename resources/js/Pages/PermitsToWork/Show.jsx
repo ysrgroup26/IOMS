@@ -42,7 +42,7 @@ function PpePanel({ ppe, hazards, status }) {
     const isAuthorised = ['approved', 'active', 'closed'].includes(status);
 
     return (
-        <div className="space-y-3 rounded-lg border border-graphite-100 p-3 dark:border-slate-800">
+        <div className="space-y-3 rounded-xl border border-steel-100 bg-white/60 p-3 dark:border-slate-800">
             {hazardList.length > 0 && (
                 <div>
                     <span className="text-xs uppercase text-graphite-400">Work Hazards</span>
@@ -167,7 +167,7 @@ export default function PermitToWorkShow({ permit: p, activities, canManage, rej
                 explicit hierarchy -- the Project FK stays owned by the
                 Management domain and the location narrows the permit to an
                 area within it. */}
-            <div className="mb-4 overflow-hidden rounded-xl border border-navy-700 bg-gradient-to-br from-navy-900 to-navy-800">
+            <div className="surface-feature mb-5">
                 <div className="flex flex-wrap items-start justify-between gap-3 px-4 py-3.5">
                     <div className="min-w-0">
                             <div className="flex flex-wrap items-center gap-2">
@@ -399,7 +399,7 @@ export default function PermitToWorkShow({ permit: p, activities, canManage, rej
                         </CardHeader>
                         <CardContent>
                             {gasTestOpen && (
-                                <form onSubmit={submitGasTest} className="mb-4 grid grid-cols-1 gap-3 rounded-md border border-graphite-100 p-3 sm:grid-cols-2 lg:grid-cols-3">
+                                <form onSubmit={submitGasTest} className="mb-4 grid grid-cols-1 gap-3 rounded-xl border border-steel-100 bg-white/60 p-3 sm:grid-cols-2 lg:grid-cols-3">
                                     <div className="space-y-1"><Label className="text-xs">Location / Object</Label><Input placeholder="e.g. Tank TK-001" value={gasTestForm.data.location} onChange={(e) => gasTestForm.setData('location', e.target.value)} /></div>
                                     <div className="space-y-1">
                                         <Label className="text-xs">Test Stage</Label>

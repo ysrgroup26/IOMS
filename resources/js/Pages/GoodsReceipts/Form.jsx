@@ -139,7 +139,7 @@ export default function GoodsReceiptForm({ materialRequests, purchaseOrders, pro
                     </CardHeader>
                     <CardContent className="space-y-3">
                         {data.items.map((item, index) => (
-                            <div key={index} className="space-y-2 rounded-lg border border-graphite-100 p-2.5 dark:border-slate-800">
+                            <div key={index} className="space-y-2 rounded-xl border border-steel-100 bg-white/60 p-2.5 dark:border-slate-800">
                                 <div className="grid grid-cols-12 items-start gap-2">
                                     <div className="col-span-7 space-y-1">
                                         <Label className="text-[11px]">Description</Label>

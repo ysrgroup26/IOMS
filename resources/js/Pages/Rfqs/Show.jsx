@@ -126,7 +126,7 @@ export default function RfqShow({ rfq, activities, canManage }) {
                                 </Table>
                             )}
                             {rfq.evaluation_notes && (
-                                <div className="mt-3 rounded-md border border-graphite-100 p-3 text-sm">
+                                <div className="mt-3 rounded-xl border border-steel-100 bg-white/60 p-3 text-sm">
                                     <span className="text-xs uppercase text-graphite-400">Evaluation Notes</span>
                                     <p className="whitespace-pre-wrap">{rfq.evaluation_notes}</p>
                                 </div>

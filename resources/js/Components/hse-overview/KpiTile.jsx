@@ -51,7 +51,7 @@ export default function KpiTile({ icon: Icon, value, label, reading, accent = 'b
     );
 
     const shell = cn(
-        'group relative flex h-full flex-col rounded-2xl border border-graphite-200/80 bg-white p-4',
+        'group relative flex h-full flex-col surface p-4',
         'shadow-[0_1px_2px_rgba(16,24,40,0.04)] transition-all duration-200',
         'dark:border-slate-800 dark:bg-slate-900',
         href && 'hover:-translate-y-0.5 hover:border-graphite-300 hover:shadow-[0_8px_24px_rgba(16,24,40,0.08)] dark:hover:border-slate-700'

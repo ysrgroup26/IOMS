@@ -25,7 +25,7 @@ the date in the frontmatter, not remembered.
 |---|---|
 | Product | **IOMS — Industrial Operations Platform** |
 | Public company identity | **IOMS** only (v2.131.0, ADR 071). Operator entity published only when `IOMS_LEGAL_ENTITY` is set; legal merchant **PT Tahada Vistara Bersama** issues invoices (`ioms.merchant.legal_name`) |
-| Version | **2.137.0** (branch `claude/eloquent-newton-pbxxdg`; production runs 2.134.1), stage **Beta**, edition **Enterprise Edition** |
+| Version | **2.137.0** (production since 2026-10-28, commit `f27a44d`, deployed through CI + ioms-ops with a pre-deploy backup), stage **Beta**, edition **Enterprise Edition** |
 | Build | `2026.10.25.02`, release date `2026-10-25` |
 | Stack | Laravel 12 · Inertia.js · React 18 · Tailwind · MySQL · Sanctum |
 

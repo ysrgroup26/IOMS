@@ -54,7 +54,7 @@ export default function OverviewHero({ companies = [], selectedCompany = 'all', 
                 decoding="async"
                 className="absolute inset-0 h-full w-full object-cover object-center opacity-30 mix-blend-luminosity"
             />
-            <div className="absolute inset-0 bg-gradient-to-r from-[#1A4AA8]/95 via-[#1E5BC6]/85 to-sky-500/45" />
+            <div className="absolute inset-0 bg-gradient-to-r from-[#1A4AA8]/95 via-[#1E5BC6]/85 to-sky-500/45 dark:from-[#152C55]/95 dark:via-[#1A3768]/90 dark:to-[#23497F]/70" />
 
             <div className="relative flex flex-col gap-4 p-5 sm:p-6 lg:flex-row lg:items-end lg:justify-between">
                 <div className="min-w-0">

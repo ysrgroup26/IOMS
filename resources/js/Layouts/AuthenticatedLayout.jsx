@@ -2,7 +2,7 @@ import { Link, usePage, router } from '@inertiajs/react';
 import { useEffect, useRef, useState } from 'react';
 import {
     LogOut, Menu, X,
-    Bell, User as UserIcon, ChevronDown, Sun, Moon, ChevronRight,
+    Bell, User as UserIcon, ChevronDown, ChevronRight,
     ClipboardCheck, CheckSquare, HardHat, Inbox, Lock, LayoutDashboard,
     FlaskConical, AlertTriangle,
     // v2.83.0 -- the Admin Space entry in the header.
@@ -15,7 +15,7 @@ import {
 } from 'lucide-react';
 import { cn } from '@/lib/utils';
 import { useClock } from '@/lib/useClock';
-import { useTheme, DARK_MODE_ENABLED } from '@/lib/useTheme';
+import ThemeSwitch from '@/Components/shared/ThemeSwitch';
 import { useFocusTrap } from '@/lib/useFocusTrap';
 import { useMediaQuery } from '@/lib/useMediaQuery';
 import {
@@ -600,7 +600,7 @@ function AuthenticatedShell({ children }) {
                         title="About IOMS"
                     >
                         <div className="min-w-0 flex-1 overflow-visible">
-                            <BrandWordmark className="h-8 w-auto max-w-full object-contain" tone="light" />
+                            <BrandWordmark className="h-8 w-auto max-w-full object-contain" tone="adaptive" />
                             <p className="mt-1 truncate text-[9.5px] font-semibold uppercase leading-snug tracking-[0.05em] text-slate-500">{company?.subtitle || 'Industrial Operations Platform'}</p>
                         </div>
                     </button>
@@ -883,7 +883,6 @@ function initials(name = '') {
 function TopBar({ onOpenSidebar, sidebarOpen, isDepartmentUser, departments, activeWorkspace, space, canSwitchWorkspaces, onSwitchWorkspace, myWorkOnly = false }) {
     const { auth, organization } = usePage().props;
     const now = useClock();
-    const { theme, toggleTheme } = useTheme();
 
     // v2.53.0 -- ONE APPLICATION SHELL.
     //
@@ -922,7 +921,7 @@ function TopBar({ onOpenSidebar, sidebarOpen, isDepartmentUser, departments, act
                 // navigation group, search, the round utility controls and the
                 // profile, each on the frosted chrome material, over a soft
                 // fade of the canvas so scrolled content never fights them.
-                'sticky top-0 z-30 flex h-16 items-center gap-2 bg-gradient-to-b from-[#EEF5FC] via-[#EEF5FC]/85 to-transparent px-3 sm:gap-2.5 sm:px-5 lg:px-6',
+                'sticky top-0 z-30 flex h-16 items-center gap-2 bg-gradient-to-b from-[#EEF5FC] via-[#EEF5FC]/85 to-transparent dark:from-[#101925] dark:via-[#101925]/80 px-3 sm:gap-2.5 sm:px-5 lg:px-6',
                 // v2.133.0 -- ADMIN SPACE LOOKS LIKE A DIFFERENT PLACE. The
                 // bar was identical in both contexts and only one small
                 // button changed, so somebody configuring the account could
@@ -933,7 +932,7 @@ function TopBar({ onOpenSidebar, sidebarOpen, isDepartmentUser, departments, act
                 // the colour.
                 // Admin Space still LOOKS like a different place: its pill is
                 // lit (below) and the bar carries a steel hairline.
-                space === 'admin' && 'after:pointer-events-none after:absolute after:inset-x-6 after:bottom-1 after:h-px after:bg-gradient-to-r after:from-transparent after:via-steel-300 after:to-transparent',
+                space === 'admin' && 'after:pointer-events-none after:absolute after:inset-x-6 after:bottom-1 after:h-px after:bg-gradient-to-r after:from-transparent after:via-steel-300 after:to-transparent dark:after:via-[#34465A]',
             )}
         >
             <button
@@ -1169,16 +1168,9 @@ function TopBar({ onOpenSidebar, sidebarOpen, isDepartmentUser, departments, act
                 cross-module register to search. */}
             {!myWorkOnly && <GlobalSearch />}
 
-            {DARK_MODE_ENABLED && (
-                <button
-                    onClick={toggleTheme}
-                    className="chrome-icon"
-                    title={theme === 'dark' ? 'Switch to light mode' : 'Switch to dark mode'}
-                    aria-label={theme === 'dark' ? 'Switch to light mode' : 'Switch to dark mode'}
-                >
-                    {theme === 'dark' ? <Sun className="h-[18px] w-[18px]" /> : <Moon className="h-[18px] w-[18px]" />}
-                </button>
-            )}
+            {/* v2.139.0 (ADR 082): the light/dark switch, offered only
+                where the server says the dark theme is (the Starter pilot). */}
+            <ThemeSwitch />
 
             {/* v2.73.0: offers the BROWSER'S own install flow, and only
                 when one is actually available. Renders nothing once IOMS is

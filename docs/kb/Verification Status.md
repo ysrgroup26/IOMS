@@ -1,7 +1,7 @@
 ---
 title: Verification Status
 type: register
-updated: 2026-10-19
+updated: 2026-11-01
 tags: [kb/verification]
 ---
 
@@ -13,6 +13,20 @@ is a first-class concept in IOMS, not documentation pedantry.
 **Authoritative procedure: `LOCAL-VERIFICATION.md`.**
 
 ---
+
+## v2.139.0 — the dark theme pilot (2026-11-01, local MySQL + Chromium)
+
+- **Ran:**
+  - an automated dark audit of every Starter screen each role can reach: 65 Company Admin and 53 HSE, with records. Zero light boxes and zero dark or dim text on all 118. The same check in light mode does fire.
+  - a pixel comparison against a `main` checkout. An Enterprise account with the device set to dark is identical on six screens. Starter roles change only in the top-bar strip where the switch was inserted.
+  - a 21-step behaviour script: device default, switch without reload, persistence, navigation, keyboard, logout and login, non-pilot isolation.
+  - `DarkThemePilotTest` and the full suite.
+- **Viewed:** 1440 / 1280 / 1024 / 390 px, including a validation error, a select, menus, notifications and a dialog.
+- **Not verified:**
+  - a real phone or GPU;
+  - Safari or Firefox;
+  - a screen reader;
+  - staging itself. This container cannot reach iomsuite.com, so the owner runs `staging.sh pilot`.
 
 ## v2.118.0 — the level this register was missing
 

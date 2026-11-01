@@ -110,7 +110,12 @@ class ApplicationShellTest extends TestCase
 
         // Work Center and Notifications are declared as their own components
         // further down the file; both triggers are the shared round control.
-        $this->assertGreaterThanOrEqual(3, substr_count($layout, 'className="chrome-icon"'), 'Work Center, Notifications and the theme toggle must keep the fixed round control.');
+        $this->assertGreaterThanOrEqual(2, substr_count($layout, 'className="chrome-icon"'), 'Work Center and Notifications must keep the fixed round control.');
+
+        // v2.139.0 (ADR 082): the theme control is no longer a round icon
+        // but a two-segment pill -- still a fixed-size header control.
+        $this->assertStringContainsString('<ThemeSwitch />', $header, 'The theme switch left the top bar.');
+        $this->assertStringContainsString("'chrome flex h-9 shrink-0", $this->source('resources/js/Components/shared/ThemeSwitch.jsx'), 'The theme switch may shrink again.');
     }
 
     /**

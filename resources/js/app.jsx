@@ -10,6 +10,7 @@ import { resolvePageComponent } from 'laravel-vite-plugin/inertia-helpers';
 // Chromium fires `beforeinstallprompt` once and early: a component that
 // mounts later has already missed it. See lib/pwa.js.
 import { initPwa } from './lib/pwa';
+import { syncThemeAvailability } from './lib/useTheme';
 
 // The browser tab title suffix must reflect the LIVE Branding Setting
 // (Settings > Branding > Application Name), not a build-time env var --
@@ -26,6 +27,9 @@ let liveCompanyName = 'IOMS';
 router.on('navigate', (event) => {
     const name = event.detail?.page?.props?.company?.name;
     if (name) liveCompanyName = name;
+    // v2.139.0 (ADR 082): signing in or out is a visit, not a reload, so
+    // whether the dark theme is offered is re-read from every page's props.
+    syncThemeAvailability(event.detail?.page?.props?.darkTheme);
 });
 
 initPwa();
@@ -62,6 +66,7 @@ createInertiaApp({
         const initialName = props?.initialPage?.props?.company?.name;
         if (initialName) liveCompanyName = initialName;
         initialSeoTitle = props?.initialPage?.props?.seoTitle ?? null;
+        syncThemeAvailability(props?.initialPage?.props?.darkTheme);
 
         const root = createRoot(el);
         root.render(<App {...props} />);

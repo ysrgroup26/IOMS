@@ -14,6 +14,7 @@ use App\Services\SearchIdentity;
 use App\Services\TenantReadinessService;
 use App\Services\WorkCenterService;
 use App\Support\CurrentTenant;
+use App\Support\DarkTheme;
 use Illuminate\Http\Request;
 use Inertia\Middleware;
 
@@ -300,6 +301,10 @@ class HandleInertiaRequests extends Middleware
              * credentials are configured, never the credentials.
              */
             'googleEnabled' => GoogleAuthController::configured(),
+            // v2.139.0 -- whether this person is offered the dark theme
+            // (a Starter-only pilot, ADR 082). The same answer app.blade.php
+            // used before first paint, so the switch and the paint agree.
+            'darkTheme' => DarkTheme::availableTo($user),
             'branding' => [
                 // v2.38.0: whether the tenant uploaded its OWN wordmark.
                 //

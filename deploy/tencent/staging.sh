@@ -3,6 +3,8 @@
 #
 #   sudo bash staging.sh setup  [branch]   first time: user, DB, .env, FPM pool, nginx, Caddy, seed
 #   sudo bash staging.sh deploy [branch]   later: pull the branch, build deps, migrate STAGING only
+#   sudo bash staging.sh pilot  [branch]   deploy, then (re)create the Starter pilot tenant and its two
+#                                          test accounts (ADR 082), with the staging app password
 #
 # Isolation from production (/srv/ioms, DB `ioms`, user `ioms`, port 8081):
 #   own Linux user `iomsstg`, own dir /srv/ioms-staging, own DB `ioms_staging` with a MySQL user
@@ -166,8 +168,30 @@ C
     echo "  credentials: cat $CRED   (shown once here, not logged)"
 }
 
+# v2.139.0 (ADR 082) -- the dark theme is a Starter pilot and every account
+# `setup` seeds is on Enterprise, so a reviewer had nothing to look through.
+# StarterPilotSeeder makes one Starter organisation with a Company Admin and
+# an HSE user and some records. It invents no password: it reuses the staging
+# app password `setup` generated, read from $CRED here and handed over in the
+# environment of one command, never on a command line or in a log.
+pilot() {
+    deploy
+    log "Starter pilot tenant (staging only)"
+    [[ -r $CRED ]] || die "$CRED not found; run setup first."
+    local apppass; apppass="$(sed -n 's/^App login[^:]*:  *//p' "$CRED" | head -1)"
+    [[ -n $apppass ]] || die "No app password in $CRED."
+    printf '%s' "$apppass" > "$ROOT/.pilot-pass"; chown "$U:$U" "$ROOT/.pilot-pass"; chmod 600 "$ROOT/.pilot-pass"
+    as "IOMS_PILOT_PASSWORD=\"\$(cat $ROOT/.pilot-pass)\" php artisan db:seed --class=StarterPilotSeeder --force"
+    rm -f "$ROOT/.pilot-pass"
+    grep -q '^Starter pilot' "$CRED" || cat >> "$CRED" <<C
+Starter pilot (dark theme review):  starter.admin@ioms.local (Company Admin), starter.hse@ioms.local (HSE user) -- same app password
+C
+    echo "  pilot accounts: starter.admin@ioms.local, starter.hse@ioms.local (password: see $CRED)"
+}
+
 case "$CMD" in
     setup) setup ;;
     deploy) deploy ;;
-    *) die "usage: staging.sh setup|deploy [branch]" ;;
+    pilot) pilot ;;
+    *) die "usage: staging.sh setup|deploy|pilot [branch]" ;;
 esac

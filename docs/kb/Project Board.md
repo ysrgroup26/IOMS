@@ -1,7 +1,7 @@
 ---
 title: Project Board
 type: board
-updated: 2026-10-13
+updated: 2026-11-01
 tags: [kb/board]
 ---
 
@@ -39,6 +39,7 @@ Full definitions and the update loop: [[Working with This Knowledge Base]].
 
 | Work | Where it stands | Next |
 |---|---|---|
+| Midnight Frosted Glass — dark theme, Starter pilot ([[082-midnight-frosted-glass-is-a-starter-pilot\|ADR 082]]) | v2.139.0 on branch `claude/eloquent-newton-pbxxdg`: switch in the top bar, Starter-only gate, Midnight tokens and glass, one generated light-class map. Dark audit 0 findings on 118 Starter screens; Light Mode pixel-identical to 2.138.0 outside the switch | **Owner review on staging** (`staging.sh pilot`), as `starter.admin@ioms.local` and `starter.hse@ioms.local`. Then corrections, then the owner's decision on rollout |
 | [[Support Inbox]] | v2.80.0 shipped the whole ticket domain, the queue, the five states, assignment, ageing, sender identification and outgoing replies from `support@`. **Inbound mail ingestion is BLOCKED** (see below) and the queue page says so on screen | Build the ingestion adapter once the transport is chosen. Everything else is done |
 
 ## BLOCKED
@@ -53,6 +54,7 @@ Full definitions and the update loop: [[Working with This Knowledge Base]].
 | Work | Why it matters |
 |---|---|
 | [[iPaymu Payment Provider]] — the adapter | A second provider behind the existing abstraction, so payments do not depend on one gateway. The **seam** it drops into is finished and pinned (v2.80.0); only the provider-specific class waits on the dependencies above |
+| Midnight Frosted Glass — global rollout | After the owner approves the Starter pilot: add plan slugs to `ioms.dark_theme.plans`, run the dark audit across every workspace (Management, HRD, Logistics/Warehouse, Admin, Master Admin), and decide whether the preference should follow the account across devices (a column) rather than the browser |
 | Master Admin information architecture | With Tenant, Pembayaran and Dukungan now separate destinations, the remaining question is whether Organizations / Subscriptions deserve their own screens rather than living inside Tenant detail. Not urgent, and not worth guessing before the console has been used for a while |
 
 ## COMPLETED (recent, and the evidence)

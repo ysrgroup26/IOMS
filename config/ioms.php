@@ -17,7 +17,7 @@ return [
     |
     */
 
-    'version' => '2.138.0',
+    'version' => '2.139.0',
 
     // Tester / Beta / Stable -- tracks the release stage explicitly.
     // Previously only implied in conversation, never actually stored.
@@ -49,9 +49,21 @@ return [
 
     'edition' => 'Enterprise Edition',
 
-    'build' => '2026.11.01.01',
+    'build' => '2026.11.01.02',
 
-    'release_date' => '2026-10-28',
+    /*
+    | v2.139.0 -- MIDNIGHT FROSTED GLASS, THE DARK THEME (ADR 082).
+    |
+    | A pilot: the light/dark switch is offered only to organisations on
+    | these plans (`packages.slug`). Everyone else stays on Icy Blue Frosted
+    | Glass whatever their browser prefers. Widening the rollout is adding a
+    | slug here, after the owner approves the pilot -- not a code change.
+    */
+    'dark_theme' => [
+        'plans' => ['starter'],
+    ],
+
+    'release_date' => '2026-11-01',
 
     /*
     |--------------------------------------------------------------------------
@@ -289,9 +301,9 @@ return [
     'documentation_url' => env('IOMS_DOCUMENTATION_URL'),
 
     'whats_new' => [
-        'Nomor dokumen, kode peralatan, dan nomor catatan kini memakai huruf Manrope yang sama dengan seluruh aplikasi',
-        'Warna status kini seragam di semua modul: biru sedang berjalan, hijau selesai, kuning perlu perhatian, merah kritis, abu-abu netral',
-        'Kartu KPI hanya berwarna bila angkanya bermakna; angka nol tampil netral',
+        'Tema gelap Midnight Frosted Glass tersedia sebagai uji coba untuk paket Starter: pilih matahari atau bulan di bilah atas',
+        'Tema mengikuti pengaturan perangkat sampai Anda memilih sendiri, dan pilihan itu diingat di perangkat yang sama',
+        'Arti warna status tetap sama di tema gelap: biru berjalan, hijau selesai, kuning perlu perhatian, merah kritis, abu-abu netral',
     ],
     /*
     |--------------------------------------------------------------------------
@@ -305,6 +317,7 @@ return [
     */
 
     'version_history' => [
+        ['version' => '2.139.0', 'date' => '2026-11-01', 'summary' => 'MIDNIGHT FROSTED GLASS, THE DARK THEME, AS A STARTER PILOT. A light/dark switch (sun and moon, a two-segment radio group) sits in the top bar before notifications and the profile, for organisations on the Starter plan only while the owner reviews it; every other account stays on Icy Blue Frosted Glass whatever its device prefers. Who is offered it is one server answer (App\\Support\\DarkTheme, config ioms.dark_theme.plans), printed into the page before first paint and shared as a prop, so a non-pilot account is never painted dark and signing in or out never shows the wrong theme. The theme follows the device until somebody chooses, switches in place with a 220ms cross-fade (none under reduced motion) and is remembered in the browser. The dark theme is the same six layers at night: the owner\'s backdrop under a midnight film (#101925, never black), dark frosted glass cards and chrome, quieter nested boxes, the most opaque glass for dialogs and menus, frosted icon capsules tinted by meaning, and a quieter feature panel. Light colour classes are mapped to their Midnight values in one generated block instead of on 186 pages; semantic hues keep their ADR 081 meanings. Light Mode is pixel-identical to 2.138.0 apart from the switch for Starter accounts. A staging-only seeder builds a Starter organisation with a Company Admin and an HSE user. No route, permission, entitlement or data changed. See ADR 082.'],
         ['version' => '2.138.0', 'date' => '2026-11-01', 'summary' => 'ONE MEANING, ONE COLOUR; ONE TYPEFACE FOR WHAT PEOPLE READ. A computed-style audit of all 125 signed-in screens found every element in Manrope except 65 identifiers in IBM Plex Mono and 8 at weight 800; identifiers people read are now Manrope with tabular figures, monospace stays only for machine output (release signatures, database names, config keys, the My Work access code, the printed permit), and 800 is gone. One status-to-tone map (lib/semantics.js) now serves StatusBadge and every page that had its own copy: in progress is informational blue (was green), expiring soon is amber everywhere (was blue or grey), high priority is amber everywhere (was red on Tasks), a submitted PPE replacement request is amber (was green), a pending approval is amber (was grey). KPI cards keep their warning or critical colour only while the number is not zero, HSE Inspections Due is amber (was green) and violet is kept only for real categories. No stored value, route or behaviour changed. See ADR 081.'],
         ['version' => '2.137.0', 'date' => '2026-10-28', 'summary' => 'THE IOMS BACKDROP AND MILKY GLASS. The owner-supplied abstract geometric artwork is the backdrop of every signed-in screen: diffused once at build time, fixed behind the viewport, cover-sized and anchored so a crop keeps the hexagonal layers, under a milky veil heavier where titles and the rail sit, and a dark blue-grey film that makes the backdrop about 17% darker and calmer without touching cards or text. Cards are now genuine milky frosted glass that diffuses the artwork (backdrop blur 20px, 86-75% white, lit edge, ambient shadow) with a 94% white fallback; the rail, top-bar pills and bottom bar are a clearer chrome glass. Muted grey ink is deepened on glass after measuring 3.6:1 on the darkest part of the artwork. Semantic colour is reserved: ordinary cards are plain glass, a muted tint appears only where the information warrants it, and the feature panel is deep steel-blue glass instead of a bright slab. Icons sit in round frosted capsules with the glyph in its semantic colour (blue, teal, green, amber, rose, violet, slate). The scale was reduced per component for 100% browser zoom: titles 22-24px, KPI figures 24px, capsules and controls 36px, rail 248px, top bar 64px. HSE Overview no longer shows the HSE Modules shortcut grid; every module stays in the HSE sidebar with the same routes and permissions. See ADR 080.'],
         ['version' => '2.136.0', 'date' => '2026-10-28', 'summary' => 'ICY BLUE FROSTED: ONE VISUAL SYSTEM FOR THE WHOLE SIGNED-IN APPLICATION. TYPE: Manrope (variable, OFL) is the one interface face for text and numerals, BUNDLED by Vite so no CDN can block it; Satoshi was evaluated first but its only distribution (Fontshare) could not be reached or verified, so the brief\'s alternative was used. Titles and headline figures are 700 (never 600 or 800); table, input, badge and counter figures are tabular; a single headline figure is proportional so 11 does not read as 1 1. Archivo stays only for a controlled document\'s type band, because the PDF embeds it. MATERIAL: a fixed icy-blue canvas, frosted bubble cards (.surface, 20px), floating chrome for the rail, top-bar pills and the phone bottom bar, and one luminous azure feature panel replacing every navy hero. Icons sit on gradient tiles whose colour says what the feature means. SHELL: the navy rail is replaced, at the owner\'s direction, by a light floating rail whose active row is a raised white pill; the top bar is a row of pills with the workspaces as pills from 1280px (same list, same switch as the dropdown, which serves narrower widths). Only one rail row can be lit now: every Management item had matched every Management page. Buttons are pills, inputs 40px, dialogs 24px. Emoji are gone from the dashboard alerts. FIXED ON THE WAY: the CAPA register answered 500 outside production once two equipment inspections had follow-ups (lazy loading), and it showed class names such as SafetyEquipmentInspection as the source. No route, permission, data or label changed. Reviewed in a real browser on 127 signed-in screens at 1280px plus phone and tablet widths. See ADR 079.'],

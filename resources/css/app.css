@@ -38,31 +38,36 @@
         --radius: 0.75rem;
     }
 
+    /* v2.139.0 -- MIDNIGHT FROSTED GLASS (ADR 082). The dark counterpart
+       of Icy Blue Frosted: the same cool family at night. Ground midnight
+       navy #101925 (never black), surfaces dark frosted glass #192636 and
+       slate blue #223246, edges soft steel #34465A, muted blue #5795E8 as
+       the one accent, soft-white #E8EEF6 and cool-grey #A5B3C5 ink. */
     .dark {
-        --background: 222 47% 7%;
-        --foreground: 210 40% 96%;
+        --background: 214 40% 10%;
+        --foreground: 214 45% 94%;
 
-        --card: 222 40% 9.5%;
-        --card-foreground: 210 40% 96%;
+        --card: 213 37% 15%;
+        --card-foreground: 214 45% 94%;
 
-        --primary: 211 66% 58%;
-        --primary-foreground: 222 47% 7%;
+        --primary: 214 76% 62%;
+        --primary-foreground: 214 40% 10%;
 
-        --secondary: 217 33% 15%;
-        --secondary-foreground: 210 40% 96%;
+        --secondary: 213 35% 20%;
+        --secondary-foreground: 214 45% 94%;
 
-        --muted: 217 33% 15%;
-        --muted-foreground: 215 20% 65%;
+        --muted: 213 35% 20%;
+        --muted-foreground: 214 20% 71%;
 
-        --accent: 217 60% 18%;
-        --accent-foreground: 213 94% 78%;
+        --accent: 214 45% 22%;
+        --accent-foreground: 214 80% 82%;
 
-        --destructive: 0 63% 55%;
-        --destructive-foreground: 210 40% 98%;
+        --destructive: 353 82% 68%;
+        --destructive-foreground: 214 40% 10%;
 
-        --border: 217 33% 18%;
-        --input: 217 33% 18%;
-        --ring: 211 66% 58%;
+        --border: 211 27% 28%;
+        --input: 211 27% 30%;
+        --ring: 214 76% 62%;
     }
 
     * {
@@ -112,6 +117,20 @@
     }
     ::-webkit-scrollbar-thumb:hover {
         @apply bg-steel-300;
+    }
+    .dark ::-webkit-scrollbar-thumb { background-color: rgba(120, 142, 168, 0.32); }
+    .dark ::-webkit-scrollbar-thumb:hover { background-color: rgba(140, 162, 188, 0.48); }
+
+    /* v2.139.0 -- the light/dark switch cross-fades. A class held for one
+       transition by lib/useTheme.js, never a permanent transition on every
+       element; reduced motion collapses it with everything else. */
+    .theme-switching,
+    .theme-switching *,
+    .theme-switching *::before,
+    .theme-switching *::after {
+        transition-property: background-color, border-color, color, fill, stroke, box-shadow !important;
+        transition-duration: 220ms !important;
+        transition-timing-function: cubic-bezier(0.22, 1, 0.36, 1) !important;
     }
 }
 
@@ -370,3 +389,708 @@
         box-shadow: inset 0 1px 0 0 rgba(255, 255, 255, 0.22), 0 18px 40px -22px rgba(15, 45, 110, 0.6);
     }
 }
+
+/* =========================================================================
+   v2.139.0 -- MIDNIGHT FROSTED GLASS (ADR 082)
+   =========================================================================
+
+   The dark theme is the SAME six layers as Icy Blue Frosted (ADR 080), at
+   night: the owner's backdrop under a midnight film, dark frosted glass
+   cards, a clearer chrome, quieter nested boxes, and the most opaque glass
+   for overlays. Everything here is scoped to `.dark` on <html>, so Light
+   Mode is byte-for-byte what it was. Who is offered it: App\Support\
+   DarkTheme (the Starter pilot).
+
+   Three parts, in this order:
+     1 MATERIALS -- canvas, surfaces, chrome, capsules, tints, feature panel
+     2 THE LIGHT-CLASS MAP -- every hard-coded light colour class the pages
+       use (text-graphite-800, bg-white/80, border-steel-100 ...) given its
+       midnight value in ONE place, rather than a `dark:` on each of 186
+       pages. It sits in `components`, so an explicit `dark:` utility a page
+       already carries still wins. Generated from the classes in use by
+       resources/css/tools/midnight-map.py; re-run it after adding a light
+       colour class the map does not know.
+     3 LEGACY RETUNE -- the older dark vocabulary (dark:bg-slate-900 and its
+       gradients) was opaque near-black; it is turned back into glass.
+   ========================================================================= */
+@layer components {
+    .dark .ioms-canvas {
+        background-color: #101925;
+    }
+    /* The same artwork, at night: a midnight film over it lets about a
+       fifth of the geometry through as muted steel-blue light, heavier on
+       the left where the rail and titles sit. */
+    .dark .ioms-canvas::before {
+        background-color: #101925;
+        background-image:
+            linear-gradient(100deg, rgba(12, 20, 31, 0.55) 0%, rgba(12, 20, 31, 0.30) 40%, rgba(12, 20, 31, 0.10) 100%),
+            linear-gradient(rgba(14, 23, 36, 0.80), rgba(14, 23, 36, 0.80)),
+            url('/images/app/ioms-backdrop.webp');
+    }
+    @media (max-width: 767px) {
+        .dark .ioms-canvas::before {
+            background-image:
+                linear-gradient(180deg, rgba(12, 20, 31, 0.45) 0%, rgba(12, 20, 31, 0.20) 100%),
+                linear-gradient(rgba(14, 23, 36, 0.80), rgba(14, 23, 36, 0.80)),
+                url('/images/app/ioms-backdrop-sm.webp');
+        }
+    }
+
+    /* Dark frosted glass. `html.dark` so an older `dark:bg-slate-900` on a
+       card cannot turn the glass back into an opaque slab. */
+    html.dark .surface {
+        border-color: rgba(150, 180, 220, 0.13);
+        background-color: transparent;
+        background-image: linear-gradient(160deg, rgba(31, 46, 66, 0.74) 0%, rgba(22, 34, 50, 0.66) 100%);
+        -webkit-backdrop-filter: blur(20px) saturate(130%);
+        backdrop-filter: blur(20px) saturate(130%);
+        box-shadow:
+            inset 0 1px 0 0 rgba(255, 255, 255, 0.06),
+            0 1px 2px 0 rgba(0, 0, 0, 0.22),
+            0 16px 36px -20px rgba(0, 0, 0, 0.62);
+    }
+    html.dark .chrome {
+        border-color: rgba(150, 180, 220, 0.14);
+        background-color: transparent;
+        background-image: linear-gradient(160deg, rgba(30, 45, 65, 0.78) 0%, rgba(21, 33, 48, 0.70) 100%);
+        -webkit-backdrop-filter: blur(24px) saturate(130%);
+        backdrop-filter: blur(24px) saturate(130%);
+        box-shadow: inset 0 1px 0 0 rgba(255, 255, 255, 0.06), 0 1px 2px 0 rgba(0, 0, 0, 0.22), 0 12px 32px -18px rgba(0, 0, 0, 0.6);
+    }
+    @supports not ((backdrop-filter: blur(1px)) or (-webkit-backdrop-filter: blur(1px))) {
+        html.dark .surface, html.dark .chrome, html.dark .chrome-icon { background-image: none; background-color: rgba(24, 37, 53, 0.97); }
+    }
+    .dark .chrome-icon { color: #BCC8D7; }
+    .dark .chrome-icon:hover { color: #E8EEF6; }
+    .dark .chrome-count { --tw-ring-color: #172434; }
+
+    /* Muted ink on glass: in light mode the quiet greys move one step
+       DARKER on glass; at night they stay the cool grey of the palette. */
+    .dark .surface .text-slate-500, .dark .surface .text-graphite-500,
+    .dark .chrome .text-slate-500, .dark .chrome .text-graphite-500,
+    .dark .surface-nested .text-slate-500, .dark .surface-nested .text-graphite-500 { color: #A5B3C5; }
+    .dark .surface .text-slate-400, .dark .surface .text-graphite-400,
+    .dark .chrome .text-slate-400, .dark .chrome .text-graphite-400,
+    .dark .surface-nested .text-slate-400, .dark .surface-nested .text-graphite-400 { color: #8E9CB0; }
+
+    html.dark .surface-nested {
+        border-color: rgba(52, 70, 90, 0.62);
+        background-color: rgba(14, 23, 36, 0.34);
+    }
+
+    /* Frosted icon capsules at night: a dark translucent pebble tinted by
+       meaning, the glyph in a lightened semantic ink. */
+    .dark .icon-tile, .dark .icon-soft {
+        background-image: linear-gradient(150deg, rgba(255, 255, 255, 0.07) 0%, var(--cap-tint) 100%);
+        box-shadow: inset 0 1px 0 0 rgba(255, 255, 255, 0.08), 0 4px 10px -6px rgba(0, 0, 0, 0.6);
+    }
+    .dark .icon-tile-blue,   .dark .icon-soft-blue   { --cap-ink: #8AB6F2; --cap-tint: rgba(87, 149, 232, 0.20); --cap-ring: rgba(87, 149, 232, 0.34); }
+    .dark .icon-tile-green,  .dark .icon-soft-green  { --cap-ink: #6FD8B2; --cap-tint: rgba(79, 209, 165, 0.17); --cap-ring: rgba(79, 209, 165, 0.30); }
+    .dark .icon-tile-amber,  .dark .icon-soft-amber  { --cap-ink: #F2BE5C; --cap-tint: rgba(242, 184, 75, 0.17); --cap-ring: rgba(242, 184, 75, 0.32); }
+    .dark .icon-tile-rose,   .dark .icon-soft-rose   { --cap-ink: #F49AA6; --cap-tint: rgba(242, 107, 125, 0.18); --cap-ring: rgba(242, 107, 125, 0.32); }
+    .dark .icon-tile-violet, .dark .icon-soft-violet { --cap-ink: #BBA9F6; --cap-tint: rgba(167, 139, 250, 0.18); --cap-ring: rgba(167, 139, 250, 0.32); }
+    .dark .icon-tile-slate,  .dark .icon-soft-slate  { --cap-ink: #B4C1D1; --cap-tint: rgba(120, 142, 168, 0.18); --cap-ring: rgba(120, 142, 168, 0.32); }
+    .dark .icon-tile-teal                            { --cap-ink: #6CD0E0; --cap-tint: rgba(45, 190, 210, 0.17); --cap-ring: rgba(45, 190, 210, 0.30); }
+
+    /* Semantic glass: the same muted tint at the top-left, over dark glass. */
+    .dark .tint-blue   { background-image: linear-gradient(150deg, rgba(87, 149, 232, 0.20) 0%, rgba(24, 37, 53, 0.70) 60%); }
+    .dark .tint-green  { background-image: linear-gradient(150deg, rgba(79, 209, 165, 0.16) 0%, rgba(24, 37, 53, 0.70) 60%); }
+    .dark .tint-amber  { background-image: linear-gradient(150deg, rgba(242, 184, 75, 0.17) 0%, rgba(24, 37, 53, 0.70) 60%); }
+    .dark .tint-rose   { background-image: linear-gradient(150deg, rgba(242, 107, 125, 0.18) 0%, rgba(24, 37, 53, 0.70) 60%); }
+    .dark .tint-violet { background-image: linear-gradient(150deg, rgba(167, 139, 250, 0.17) 0%, rgba(24, 37, 53, 0.70) 60%); }
+    .dark .tint-slate  { background-image: linear-gradient(150deg, rgba(120, 142, 168, 0.16) 0%, rgba(24, 37, 53, 0.70) 60%); }
+
+    /* The feature panel stays the one deep-blue moment on a screen, a
+       little quieter than by day so it does not glow. */
+    html.dark .surface-feature {
+        border-color: rgba(150, 190, 240, 0.18);
+        background-image:
+            radial-gradient(30rem 16rem at 100% 0%, rgba(120, 170, 235, 0.12), transparent 62%),
+            linear-gradient(135deg, rgba(21, 40, 72, 0.93) 0%, rgba(26, 52, 94, 0.88) 55%, rgba(31, 62, 110, 0.85) 100%);
+        box-shadow: inset 0 1px 0 0 rgba(255, 255, 255, 0.10), 0 18px 40px -22px rgba(0, 0, 0, 0.7);
+    }
+
+    /* Overlays -- dialogs, menus, listboxes, popovers: the most opaque
+       glass, a step lighter than the cards so they read as in front. */
+    html.dark [role="dialog"]:not(.surface-feature),
+    html.dark [role="alertdialog"],
+    html.dark [role="menu"],
+    html.dark [role="listbox"],
+    html.dark [data-radix-popper-content-wrapper] > * {
+        border-color: rgba(150, 180, 220, 0.15);
+        background-color: rgba(26, 40, 57, 0.95);
+    }
+
+    /* Placeholders: dimmer than a typed value, so an example is never
+       mistaken for an answer -- still about 4:1 on the field well. */
+    .dark input::placeholder,
+    .dark textarea::placeholder { color: #75849A; }
+
+    /* The light/dark switch's selected segment. */
+    .theme-switch-selected {
+        color: #0F2747;
+        background-color: #ffffff;
+        box-shadow: 0 1px 2px 0 rgba(20, 50, 100, 0.14), inset 0 0 0 1px rgba(214, 228, 245, 0.9);
+    }
+    .dark .theme-switch-selected {
+        color: #E8EEF6;
+        background-color: rgba(87, 149, 232, 0.24);
+        box-shadow: inset 0 0 0 1px rgba(87, 149, 232, 0.42);
+    }
+
+    /* Charts (Recharts): grid, axes and tooltips are drawn with light-mode
+       hex values inside the SVG; at night they become steel lines and cool
+       grey labels. Series colours are untouched -- they carry meaning. */
+    .dark .recharts-cartesian-grid line,
+    .dark .recharts-polar-grid line,
+    .dark .recharts-polar-grid polygon { stroke: rgba(52, 70, 90, 0.7); }
+    .dark .recharts-cartesian-axis-line,
+    .dark .recharts-cartesian-axis-tick-line { stroke: rgba(52, 70, 90, 0.9); }
+    .dark .recharts-text,
+    .dark .recharts-cartesian-axis-tick-value,
+    .dark .recharts-legend-item-text { fill: #A5B3C5; color: #A5B3C5 !important; }
+    .dark .recharts-default-tooltip {
+        background-color: rgba(26, 40, 57, 0.96) !important;
+        border-color: rgba(150, 180, 220, 0.16) !important;
+        color: #E8EEF6;
+    }
+    .dark .recharts-tooltip-cursor { fill: rgba(87, 149, 232, 0.08); }
+
+    /* ---- 2. THE LIGHT-CLASS MAP (generated; see the header above) ---- */
+    /* midnight-map:start */
+    .dark .bg-graphite-200,
+    .dark .bg-steel-200 {
+        background-color: rgb(46, 65, 87);
+    }
+    .dark .bg-graphite-300,
+    .dark .bg-slate-300 {
+        background-color: rgb(61, 81, 104);
+    }
+    .dark .bg-graphite-400,
+    .dark .bg-steel-400 {
+        background-color: rgb(86, 103, 125);
+    }
+    .dark .bg-violet-50 {
+        background-color: rgba(167, 139, 250, 0.12);
+    }
+    .dark .bg-red-50\/50 {
+        background-color: rgba(242, 107, 125, 0.06);
+    }
+    .dark .bg-red-50\/60 {
+        background-color: rgba(242, 107, 125, 0.07);
+    }
+    .dark .bg-danger-light,
+    .dark .bg-red-50,
+    .dark .bg-rose-50 {
+        background-color: rgba(242, 107, 125, 0.12);
+    }
+    .dark .bg-red-100 {
+        background-color: rgba(242, 107, 125, 0.18);
+    }
+    .dark .bg-amber-50\/50 {
+        background-color: rgba(242, 184, 75, 0.06);
+    }
+    .dark .bg-amber-50\/60 {
+        background-color: rgba(242, 184, 75, 0.07);
+    }
+    .dark .bg-amber-50\/70 {
+        background-color: rgba(242, 184, 75, 0.08);
+    }
+    .dark .bg-amber-50,
+    .dark .bg-warning-light {
+        background-color: rgba(242, 184, 75, 0.12);
+    }
+    .dark .bg-amber-100 {
+        background-color: rgba(242, 184, 75, 0.18);
+    }
+    .dark .bg-white\/45 {
+        background-color: rgba(25, 38, 54, 0.36);
+    }
+    .dark .bg-white\/50 {
+        background-color: rgba(25, 38, 54, 0.40);
+    }
+    .dark .bg-white\/60 {
+        background-color: rgba(25, 38, 54, 0.48);
+    }
+    .dark .bg-white\/70 {
+        background-color: rgba(25, 38, 54, 0.55);
+    }
+    .dark .bg-white,
+    .dark .bg-white\/80 {
+        background-color: rgba(25, 38, 54, 0.62);
+    }
+    .dark .bg-white\/85 {
+        background-color: rgba(25, 38, 54, 0.68);
+    }
+    .dark .bg-white\/90 {
+        background-color: rgba(25, 38, 54, 0.72);
+    }
+    .dark .bg-white\/95 {
+        background-color: rgba(25, 38, 54, 0.92);
+    }
+    .dark .bg-graphite-50\/40,
+    .dark .bg-steel-50\/40 {
+        background-color: rgba(34, 50, 70, 0.17);
+    }
+    .dark .bg-graphite-50\/50,
+    .dark .bg-steel-50\/50 {
+        background-color: rgba(34, 50, 70, 0.21);
+    }
+    .dark .bg-graphite-50\/60,
+    .dark .bg-steel-50\/60 {
+        background-color: rgba(34, 50, 70, 0.25);
+    }
+    .dark .bg-graphite-50\/70,
+    .dark .bg-steel-50\/70 {
+        background-color: rgba(34, 50, 70, 0.29);
+    }
+    .dark .bg-steel-100\/60 {
+        background-color: rgba(34, 50, 70, 0.37);
+    }
+    .dark .bg-graphite-50,
+    .dark .bg-steel-50 {
+        background-color: rgba(34, 50, 70, 0.42);
+    }
+    .dark .bg-slate-100\/80 {
+        background-color: rgba(34, 50, 70, 0.50);
+    }
+    .dark .bg-graphite-100,
+    .dark .bg-slate-100,
+    .dark .bg-steel-100 {
+        background-color: rgba(34, 50, 70, 0.62);
+    }
+    .dark .bg-steel-200\/70 {
+        background-color: rgba(46, 65, 87, 0.70);
+    }
+    .dark .bg-green-50\/50 {
+        background-color: rgba(79, 209, 165, 0.06);
+    }
+    .dark .bg-emerald-50 {
+        background-color: rgba(79, 209, 165, 0.12);
+    }
+    .dark .bg-emerald-100 {
+        background-color: rgba(79, 209, 165, 0.18);
+    }
+    .dark .bg-blue-50\/40,
+    .dark .bg-brand-50\/40 {
+        background-color: rgba(87, 149, 232, 0.05);
+    }
+    .dark .bg-brand-50\/50 {
+        background-color: rgba(87, 149, 232, 0.06);
+    }
+    .dark .bg-brand-50\/60 {
+        background-color: rgba(87, 149, 232, 0.07);
+    }
+    .dark .bg-brand-50\/70 {
+        background-color: rgba(87, 149, 232, 0.08);
+    }
+    .dark .bg-blue-50,
+    .dark .bg-brand-50 {
+        background-color: rgba(87, 149, 232, 0.12);
+    }
+    .dark .bg-brand-100 {
+        background-color: rgba(87, 149, 232, 0.18);
+    }
+    .dark .bg-brand-200 {
+        background-color: rgba(87, 149, 232, 0.26);
+    }
+    .dark .hover\:bg-graphite-200:hover {
+        background-color: rgb(46, 65, 87);
+    }
+    .dark .focus\:bg-red-50:focus,
+    .dark .hover\:bg-red-50:hover {
+        background-color: rgba(242, 107, 125, 0.12);
+    }
+    .dark .hover\:bg-amber-50:hover {
+        background-color: rgba(242, 184, 75, 0.12);
+    }
+    .dark .hover\:bg-amber-100:hover {
+        background-color: rgba(242, 184, 75, 0.18);
+    }
+    .dark .hover\:bg-white\/60:hover {
+        background-color: rgba(25, 38, 54, 0.48);
+    }
+    .dark .hover\:bg-white\/70:hover {
+        background-color: rgba(25, 38, 54, 0.55);
+    }
+    .dark .focus-visible\:bg-white:focus-visible,
+    .dark .focus\:bg-white:focus,
+    .dark .hover\:bg-white:hover,
+    .dark .hover\:bg-white\/80:hover {
+        background-color: rgba(25, 38, 54, 0.62);
+    }
+    .dark .hover\:bg-steel-50\/40:hover {
+        background-color: rgba(34, 50, 70, 0.17);
+    }
+    .dark .hover\:bg-steel-50\/60:hover {
+        background-color: rgba(34, 50, 70, 0.25);
+    }
+    .dark .hover\:bg-graphite-50\/70:hover,
+    .dark .hover\:bg-steel-50\/70:hover {
+        background-color: rgba(34, 50, 70, 0.29);
+    }
+    .dark .hover\:bg-graphite-25:hover {
+        background-color: rgba(34, 50, 70, 0.32);
+    }
+    .dark .active\:bg-graphite-50:active,
+    .dark .group:hover .group-hover\:bg-graphite-50,
+    .dark .hover\:bg-graphite-50:hover,
+    .dark .hover\:bg-steel-50:hover {
+        background-color: rgba(34, 50, 70, 0.42);
+    }
+    .dark .active\:bg-steel-100\/70:active {
+        background-color: rgba(34, 50, 70, 0.43);
+    }
+    .dark .hover\:bg-steel-100\/80:hover {
+        background-color: rgba(34, 50, 70, 0.50);
+    }
+    .dark .hover\:bg-graphite-100:hover {
+        background-color: rgba(34, 50, 70, 0.62);
+    }
+    .dark .hover\:bg-graphite-200\/60:hover {
+        background-color: rgba(46, 65, 87, 0.60);
+    }
+    .dark .hover\:bg-brand-50\/40:hover {
+        background-color: rgba(87, 149, 232, 0.05);
+    }
+    .dark .hover\:bg-brand-50\/50:hover {
+        background-color: rgba(87, 149, 232, 0.06);
+    }
+    .dark .hover\:bg-brand-50\/70:hover {
+        background-color: rgba(87, 149, 232, 0.08);
+    }
+    .dark .focus\:bg-brand-50\/80:focus {
+        background-color: rgba(87, 149, 232, 0.10);
+    }
+    .dark .focus\:bg-brand-50:focus,
+    .dark .hover\:bg-brand-50:hover {
+        background-color: rgba(87, 149, 232, 0.12);
+    }
+    .dark .hover\:bg-brand-100:hover {
+        background-color: rgba(87, 149, 232, 0.18);
+    }
+    .dark .from-violet-50\/70 {
+        --tw-gradient-from: rgba(167, 139, 250, 0.08) var(--tw-gradient-from-position); --tw-gradient-to: rgba(25, 38, 54, 0) var(--tw-gradient-to-position); --tw-gradient-stops: var(--tw-gradient-from), var(--tw-gradient-to);
+    }
+    .dark .from-red-50\/70 {
+        --tw-gradient-from: rgba(242, 107, 125, 0.08) var(--tw-gradient-from-position); --tw-gradient-to: rgba(25, 38, 54, 0) var(--tw-gradient-to-position); --tw-gradient-stops: var(--tw-gradient-from), var(--tw-gradient-to);
+    }
+    .dark .from-amber-50\/70 {
+        --tw-gradient-from: rgba(242, 184, 75, 0.08) var(--tw-gradient-from-position); --tw-gradient-to: rgba(25, 38, 54, 0) var(--tw-gradient-to-position); --tw-gradient-stops: var(--tw-gradient-from), var(--tw-gradient-to);
+    }
+    .dark .from-white {
+        --tw-gradient-from: rgba(25, 38, 54, 0.55) var(--tw-gradient-from-position); --tw-gradient-to: rgba(25, 38, 54, 0) var(--tw-gradient-to-position); --tw-gradient-stops: var(--tw-gradient-from), var(--tw-gradient-to);
+    }
+    .dark .from-steel-100\/60 {
+        --tw-gradient-from: rgba(34, 50, 70, 0.27) var(--tw-gradient-from-position); --tw-gradient-to: rgba(25, 38, 54, 0) var(--tw-gradient-to-position); --tw-gradient-stops: var(--tw-gradient-from), var(--tw-gradient-to);
+    }
+    .dark .from-steel-100\/70 {
+        --tw-gradient-from: rgba(34, 50, 70, 0.32) var(--tw-gradient-from-position); --tw-gradient-to: rgba(25, 38, 54, 0) var(--tw-gradient-to-position); --tw-gradient-stops: var(--tw-gradient-from), var(--tw-gradient-to);
+    }
+    .dark .from-steel-100\/80,
+    .dark .from-steel-50\/80 {
+        --tw-gradient-from: rgba(34, 50, 70, 0.36) var(--tw-gradient-from-position); --tw-gradient-to: rgba(25, 38, 54, 0) var(--tw-gradient-to-position); --tw-gradient-stops: var(--tw-gradient-from), var(--tw-gradient-to);
+    }
+    .dark .from-graphite-50,
+    .dark .from-steel-50 {
+        --tw-gradient-from: rgba(34, 50, 70, 0.45) var(--tw-gradient-from-position); --tw-gradient-to: rgba(25, 38, 54, 0) var(--tw-gradient-to-position); --tw-gradient-stops: var(--tw-gradient-from), var(--tw-gradient-to);
+    }
+    .dark .from-emerald-50\/70 {
+        --tw-gradient-from: rgba(79, 209, 165, 0.08) var(--tw-gradient-from-position); --tw-gradient-to: rgba(25, 38, 54, 0) var(--tw-gradient-to-position); --tw-gradient-stops: var(--tw-gradient-from), var(--tw-gradient-to);
+    }
+    .dark .from-brand-50\/50 {
+        --tw-gradient-from: rgba(87, 149, 232, 0.06) var(--tw-gradient-from-position); --tw-gradient-to: rgba(25, 38, 54, 0) var(--tw-gradient-to-position); --tw-gradient-stops: var(--tw-gradient-from), var(--tw-gradient-to);
+    }
+    .dark .from-brand-50\/60 {
+        --tw-gradient-from: rgba(87, 149, 232, 0.07) var(--tw-gradient-from-position); --tw-gradient-to: rgba(25, 38, 54, 0) var(--tw-gradient-to-position); --tw-gradient-stops: var(--tw-gradient-from), var(--tw-gradient-to);
+    }
+    .dark .from-blue-50\/70,
+    .dark .from-brand-50\/70 {
+        --tw-gradient-from: rgba(87, 149, 232, 0.08) var(--tw-gradient-from-position); --tw-gradient-to: rgba(25, 38, 54, 0) var(--tw-gradient-to-position); --tw-gradient-stops: var(--tw-gradient-from), var(--tw-gradient-to);
+    }
+    .dark .via-white {
+        --tw-gradient-to: rgba(25, 38, 54, 0) var(--tw-gradient-to-position); --tw-gradient-stops: var(--tw-gradient-from), rgba(25, 38, 54, 0.55) var(--tw-gradient-via-position), var(--tw-gradient-to);
+    }
+    .dark .via-brand-50\/20 {
+        --tw-gradient-to: rgba(25, 38, 54, 0) var(--tw-gradient-to-position); --tw-gradient-stops: var(--tw-gradient-from), rgba(87, 149, 232, 0.02) var(--tw-gradient-via-position), var(--tw-gradient-to);
+    }
+    .dark .to-white {
+        --tw-gradient-to: rgba(25, 38, 54, 0.55) var(--tw-gradient-to-position);
+    }
+    .dark .to-steel-50\/40 {
+        --tw-gradient-to: rgba(34, 50, 70, 0.18) var(--tw-gradient-to-position);
+    }
+    .dark .to-brand-50\/20 {
+        --tw-gradient-to: rgba(87, 149, 232, 0.02) var(--tw-gradient-to-position);
+    }
+    .dark .to-brand-50\/40 {
+        --tw-gradient-to: rgba(87, 149, 232, 0.05) var(--tw-gradient-to-position);
+    }
+    .dark .border-white,
+    .dark .border-white\/60,
+    .dark .border-white\/80,
+    .dark .border-white\/90 {
+        border-color: rgba(150, 180, 220, 0.14);
+    }
+    .dark .border-red-200 {
+        border-color: rgba(242, 107, 125, 0.34);
+    }
+    .dark .border-red-300 {
+        border-color: rgba(242, 107, 125, 0.42);
+    }
+    .dark .border-amber-200 {
+        border-color: rgba(242, 184, 75, 0.34);
+    }
+    .dark .border-amber-300 {
+        border-color: rgba(242, 184, 75, 0.42);
+    }
+    .dark .border-steel-100\/80 {
+        border-color: rgba(52, 70, 90, 0.44);
+    }
+    .dark .border-graphite-200\/60,
+    .dark .border-graphite-50 {
+        border-color: rgba(52, 70, 90, 0.45);
+    }
+    .dark .border-graphite-200\/70,
+    .dark .border-steel-200\/70 {
+        border-color: rgba(52, 70, 90, 0.52);
+    }
+    .dark .border-graphite-100,
+    .dark .border-steel-100 {
+        border-color: rgba(52, 70, 90, 0.55);
+    }
+    .dark .border-graphite-200\/80 {
+        border-color: rgba(52, 70, 90, 0.60);
+    }
+    .dark .border-steel-200\/90 {
+        border-color: rgba(52, 70, 90, 0.68);
+    }
+    .dark .border-graphite-200,
+    .dark .border-steel-200 {
+        border-color: rgba(52, 70, 90, 0.75);
+    }
+    .dark .border-graphite-300,
+    .dark .border-steel-300 {
+        border-color: rgba(52, 70, 90, 0.95);
+    }
+    .dark .border-emerald-200 {
+        border-color: rgba(79, 209, 165, 0.34);
+    }
+    .dark .border-brand-100 {
+        border-color: rgba(87, 149, 232, 0.26);
+    }
+    .dark .border-blue-200,
+    .dark .border-brand-200 {
+        border-color: rgba(87, 149, 232, 0.34);
+    }
+    .dark .border-brand-300 {
+        border-color: rgba(87, 149, 232, 0.42);
+    }
+    .dark .hover\:border-steel-200:hover {
+        border-color: rgba(52, 70, 90, 0.75);
+    }
+    .dark .hover\:border-graphite-300:hover,
+    .dark .hover\:border-steel-300:hover {
+        border-color: rgba(52, 70, 90, 0.95);
+    }
+    .dark .hover\:border-brand-200:hover {
+        border-color: rgba(87, 149, 232, 0.34);
+    }
+    .dark .hover\:border-brand-300:hover {
+        border-color: rgba(87, 149, 232, 0.42);
+    }
+    .dark .divide-graphite-50 > :not([hidden]) ~ :not([hidden]) {
+        border-color: rgba(52, 70, 90, 0.45);
+    }
+    .dark .divide-graphite-100 > :not([hidden]) ~ :not([hidden]),
+    .dark .divide-steel-100 > :not([hidden]) ~ :not([hidden]) {
+        border-color: rgba(52, 70, 90, 0.55);
+    }
+    .dark .ring-violet-200\/70 {
+        --tw-ring-color: rgba(167, 139, 250, 0.24);
+    }
+    .dark .ring-red-200\/70,
+    .dark .ring-rose-200\/70 {
+        --tw-ring-color: rgba(242, 107, 125, 0.24);
+    }
+    .dark .ring-red-100 {
+        --tw-ring-color: rgba(242, 107, 125, 0.26);
+    }
+    .dark .ring-amber-200\/70 {
+        --tw-ring-color: rgba(242, 184, 75, 0.24);
+    }
+    .dark .ring-amber-100 {
+        --tw-ring-color: rgba(242, 184, 75, 0.26);
+    }
+    .dark .ring-slate-200\/70,
+    .dark .ring-steel-200\/70 {
+        --tw-ring-color: rgba(52, 70, 90, 0.52);
+    }
+    .dark .ring-steel-100 {
+        --tw-ring-color: rgba(52, 70, 90, 0.55);
+    }
+    .dark .ring-graphite-200 {
+        --tw-ring-color: rgba(52, 70, 90, 0.75);
+    }
+    .dark .ring-emerald-200\/70 {
+        --tw-ring-color: rgba(79, 209, 165, 0.24);
+    }
+    .dark .ring-emerald-100 {
+        --tw-ring-color: rgba(79, 209, 165, 0.26);
+    }
+    .dark .ring-brand-50\/60 {
+        --tw-ring-color: rgba(87, 149, 232, 0.12);
+    }
+    .dark .ring-blue-200\/70,
+    .dark .ring-brand-200\/70 {
+        --tw-ring-color: rgba(87, 149, 232, 0.24);
+    }
+    .dark .ring-blue-100,
+    .dark .ring-brand-100 {
+        --tw-ring-color: rgba(87, 149, 232, 0.26);
+    }
+    .dark .focus-visible\:ring-white:focus-visible,
+    .dark .focus-visible\:ring-white\/70:focus-visible {
+        --tw-ring-color: rgba(150, 180, 220, 0.14);
+    }
+    .dark .text-emerald-500,
+    .dark .text-emerald-600,
+    .dark .text-success {
+        color: #4FD1A5;
+    }
+    .dark .text-graphite-300,
+    .dark .text-slate-300 {
+        color: #6F7E92;
+    }
+    .dark .text-blue-500,
+    .dark .text-blue-600,
+    .dark .text-brand-500,
+    .dark .text-brand-600,
+    .dark .text-brand-600\/80 {
+        color: #7AAEF0;
+    }
+    .dark .text-emerald-700,
+    .dark .text-emerald-800,
+    .dark .text-emerald-900 {
+        color: #7ADDB9;
+    }
+    .dark .text-graphite-400,
+    .dark .text-navy-400,
+    .dark .text-slate-400,
+    .dark .text-steel-400 {
+        color: #8E9CB0;
+    }
+    .dark .text-blue-700,
+    .dark .text-blue-800,
+    .dark .text-blue-950,
+    .dark .text-brand-700,
+    .dark .text-brand-800 {
+        color: #9CC2F4;
+    }
+    .dark .text-graphite-500,
+    .dark .text-slate-500,
+    .dark .text-steel-500 {
+        color: #A5B3C5;
+    }
+    .dark .text-graphite-600,
+    .dark .text-slate-600,
+    .dark .text-steel-600,
+    .dark .text-steel-600\/80 {
+        color: #BCC8D7;
+    }
+    .dark .text-violet-700 {
+        color: #C9BAF8;
+    }
+    .dark .text-graphite-700,
+    .dark .text-navy-700,
+    .dark .text-slate-700,
+    .dark .text-steel-700 {
+        color: #D3DCE8;
+    }
+    .dark .text-graphite-800,
+    .dark .text-graphite-900,
+    .dark .text-navy-800,
+    .dark .text-navy-900,
+    .dark .text-steel-800 {
+        color: #E8EEF6;
+    }
+    .dark .text-danger,
+    .dark .text-red-500,
+    .dark .text-red-600 {
+        color: #F28B97;
+    }
+    .dark .text-amber-500,
+    .dark .text-amber-600,
+    .dark .text-warning {
+        color: #F2B84B;
+    }
+    .dark .text-red-700,
+    .dark .text-red-800,
+    .dark .text-red-900,
+    .dark .text-rose-700 {
+        color: #F5A5AF;
+    }
+    .dark .text-amber-700,
+    .dark .text-amber-800,
+    .dark .text-amber-900 {
+        color: #F5C870;
+    }
+    .dark .group:hover .group-hover\:text-brand-600,
+    .dark .hover\:text-brand-600:hover {
+        color: #7AAEF0;
+    }
+    .dark .focus\:text-brand-700:focus,
+    .dark .group:hover .group-hover\:text-brand-700,
+    .dark .hover\:text-brand-700:hover,
+    .dark .hover\:text-brand-800:hover {
+        color: #9CC2F4;
+    }
+    .dark .group:hover .group-hover\:text-graphite-500 {
+        color: #A5B3C5;
+    }
+    .dark .hover\:text-graphite-600:hover {
+        color: #BCC8D7;
+    }
+    .dark .hover\:text-graphite-700:hover {
+        color: #D3DCE8;
+    }
+    .dark .focus\:text-navy-900:focus,
+    .dark .group:hover .group-hover\:text-navy-900,
+    .dark .hover\:text-graphite-800:hover,
+    .dark .hover\:text-graphite-900:hover,
+    .dark .hover\:text-navy-800:hover,
+    .dark .hover\:text-navy-900:hover {
+        color: #E8EEF6;
+    }
+    .dark .hover\:text-danger:hover,
+    .dark .hover\:text-red-600:hover {
+        color: #F28B97;
+    }
+    .dark .focus\:text-red-700:focus {
+        color: #F5A5AF;
+    }
+    .dark .placeholder\:text-graphite-400::placeholder,
+    .dark .placeholder\:text-slate-500::placeholder {
+        color: #75849A;
+    }
+    /* midnight-map:end */
+}
+
+/* ---- 3. LEGACY RETUNE. Outside every layer, after the utilities, so it
+   re-tunes the older `dark:` vocabulary at equal specificity. ---- */
+.dark .dark\:bg-slate-950 { background-color: #101925; }
+.dark .dark\:placeholder\:text-slate-500::placeholder { color: #75849A; }
+.dark .dark\:bg-slate-900 { background-color: rgba(14, 23, 36, 0.46); }
+.dark .dark\:bg-slate-900\/95 { background-color: rgba(26, 40, 57, 0.95); }
+.dark .dark\:bg-slate-900\/50,
+.dark .dark\:bg-slate-900\/40,
+.dark .dark\:bg-slate-900\/30,
+.dark .dark\:bg-slate-950\/40 { background-color: rgba(14, 23, 36, 0.30); }
+.dark .dark\:hover\:bg-slate-900:hover,
+.dark .dark\:hover\:bg-slate-900\/40:hover { background-color: rgba(14, 23, 36, 0.40); }
+.dark .dark\:from-slate-900 { --tw-gradient-from: rgba(25, 38, 54, 0.6) var(--tw-gradient-from-position); --tw-gradient-to: rgba(25, 38, 54, 0) var(--tw-gradient-to-position); --tw-gradient-stops: var(--tw-gradient-from), var(--tw-gradient-to); }
+.dark .dark\:via-slate-900 { --tw-gradient-to: rgba(25, 38, 54, 0) var(--tw-gradient-to-position); --tw-gradient-stops: var(--tw-gradient-from), rgba(25, 38, 54, 0.6) var(--tw-gradient-via-position), var(--tw-gradient-to); }
+.dark .dark\:to-slate-900 { --tw-gradient-to: rgba(25, 38, 54, 0.6) var(--tw-gradient-to-position); }
+html.dark [role="dialog"].dark\:bg-slate-900,
+html.dark [role="menu"].dark\:bg-slate-900,
+html.dark [role="listbox"].dark\:bg-slate-900 { background-color: rgba(26, 40, 57, 0.95); }

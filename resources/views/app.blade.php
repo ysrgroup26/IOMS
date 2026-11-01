@@ -150,17 +150,13 @@
     <meta name="apple-mobile-web-app-title" content="{{ config('ioms.name', 'IOMS') }}">
     <meta name="mobile-web-app-capable" content="yes">
 
-    {{-- Applies the saved theme (or OS preference) before first paint, so
-         there's no flash of the wrong theme while React hydrates. Kept as
-         a tiny inline script (not bundled JS) specifically so it runs
-         synchronously, before the page renders anything.
-
-         Final Bug Fix Before Beta: Dark Mode temporarily disabled
-         app-wide (matches DARK_MODE_ENABLED in resources/js/lib/useTheme.js
-         -- this plain script can't import that constant, so the same
-         `false` is duplicated here; flip both together when re-enabling).
-         The detection logic below is left intact, just short-circuited,
-         so restoring it later is uncommenting one line, not rewriting. --}}
+    {{-- Applies the theme before first paint, so there is no flash of the
+         wrong one while React loads. v2.139.0 (ADR 082): the dark theme is a
+         pilot, and WHO may see it is the server's answer
+         (App\Support\DarkTheme, the same one shared as the `darkTheme`
+         prop) -- printed here, so an account outside the pilot is never
+         painted dark whatever its browser prefers. resources/js/lib/
+         useTheme.js keeps it right after every Inertia visit. --}}
     <script>
         (function () {
             /*
@@ -176,12 +172,17 @@
              */
             document.documentElement.classList.add('ioms-js');
 
-            var DARK_MODE_ENABLED = false;
-            var stored = localStorage.getItem('ioms-theme');
-            var theme = (DARK_MODE_ENABLED && (stored === 'light' || stored === 'dark'))
-                ? stored
-                : (DARK_MODE_ENABLED && window.matchMedia('(prefers-color-scheme: dark)').matches ? 'dark' : 'light');
-            if (theme === 'dark') document.documentElement.classList.add('dark');
+            var DARK_THEME_AVAILABLE = @json(\App\Support\DarkTheme::availableTo(auth()->user()));
+            var stored = null;
+            try { stored = localStorage.getItem('ioms-theme'); } catch (e) {}
+            var dark = DARK_THEME_AVAILABLE && (stored === 'dark'
+                || (stored !== 'light' && !!(window.matchMedia && window.matchMedia('(prefers-color-scheme: dark)').matches)));
+            if (dark) {
+                document.documentElement.classList.add('dark');
+                document.documentElement.style.colorScheme = 'dark';
+                var meta = document.querySelector('meta[name="theme-color"]');
+                if (meta) meta.setAttribute('content', '#101925');
+            }
         })();
     </script>
 
@@ -491,6 +492,13 @@
                 letter-spacing: 0.02em;
                 color: #94a3b8;
             }
+
+            /* v2.139.0 (ADR 082): an account on the dark theme pilot is
+               painted midnight from the first frame, not white then dark. */
+            html.dark, html.dark body { background-color: #101925; }
+            html.dark.ioms-js #ioms-boot { background-color: #101925; }
+            html.dark.ioms-js #ioms-boot .ioms-boot-bar { background-color: #223246; }
+            html.dark.ioms-js #ioms-boot .ioms-boot-bar span { background-color: #5795E8; }
         </style>
     @endif
 

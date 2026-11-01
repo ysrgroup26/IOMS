@@ -62,7 +62,9 @@ class FormExperienceSystemTest extends TestCase
      */
     private const CONVERTED_DIALOGS = [
         'resources/js/Pages/Ppe/Master.jsx',
-        'resources/js/Pages/Settings/Index.jsx',
+        // v2.141.0: Settings' tabs live in Components/settings/ since the
+        // Settings split; the converted dialog editors are the Departments tab's.
+        'resources/js/Components/settings/DepartmentsTab.jsx',
     ];
 
     private function source(string $path): string

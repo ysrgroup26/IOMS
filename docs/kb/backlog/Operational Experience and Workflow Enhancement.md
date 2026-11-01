@@ -1,7 +1,7 @@
 ---
 title: Operational Experience and Workflow Enhancement
 type: backlog
-status: IN PROGRESS — v3 (owner corrections 2026-11-01): M0 under way; decisions A1–A7, A8b, A10–A14, W1–W3, A15 awaiting the owner
+status: IN PROGRESS — v4 (owner decisions 2026-11-01): A6, A13, expiry/extension, Work Order pricing and SIMOPS scope decided; storage deferred; M0 finishing (Settings split), then the notification event layer and My Work
 updated: 2026-11-01
 tags: [kb/backlog, status/in-progress]
 ---
@@ -201,6 +201,58 @@ Every module keeps calling one service. The 5-second poll becomes cheap now (F5)
 WebSockets if A3 is approved. WhatsApp stays a later channel adapter behind the same service.
 
 ---
+
+## 3a. Owner decisions v4 (2026-11-01) — binding
+
+| # | Decision | Effect on the plan |
+|---|---|---|
+| **A6** | **Approved: Form.io (`@formio/js`, MIT)** is the base of the Global Form Builder | It must look and behave like IOMS, never like an external product, in Light and Midnight. Security limits are binding: no arbitrary custom JavaScript, JSON Logic only, server-side validation, tenant isolation. Evaluated and tested on staging before production |
+| **A13** | **Approved: an append-only audit trail** | Changes are recorded with before and after values, the actor, the timestamp and the context. Nothing in the application can update or delete an audit row (no update or delete route; the model refuses updates and deletes; a test pins it). Tenant-aware |
+| **PTW expiry and extension** | At the end time a permit becomes **Expired**. The **requester** and the **responsible HSE** are notified. The requester opens the permit and answers "Is the work finished?": **Yes → Close-Out**; **No → Request Extension**. An extension creates a **new draft PTW** copied from the old one, with a new number and linked to the old permit. The old permit stays Expired forever. The new one follows the company's Approval Flow and Final Verification, and activates only after approval **and** its start time. **The requester decides; HSE monitors and is never the go-between**; no extra workflow | Section 3b: the copy and re-entry rules |
+| **Work Order pricing** | **Approved:** Work Order documents use **the PTW document pricing of each plan**, with a **separate** quota. No new price structure | Metering, consumption, top-up and entitlement follow PTW's principles exactly (A9). The included monthly amount is open: W1 below |
+| **Storage (A4)** | **Deferred.** Cloudflare R2 or Tencent COS may be evaluated later; nothing is implemented, and no paid service is activated | Kept as a roadmap item. **The single-machine backup risk stays open** and is recorded in Known Issues |
+| **SIMOPS (A12)** | **Approved as visibility**: show simultaneous work, its location or area, and its SIMOPS status, so workforce, supervisors and HSE know other work is under way in the same area. **No hold or mitigation mechanism now**; do not complicate operations | High-risk combinations found later are proposed before any automatic mechanism (section 3b) |
+| **Plans** | Three plans only — Starter, Professional, Business. No new plan | Unchanged |
+
+### 3b. Engineering recommendations from the v4 decisions
+
+**Request Extension — what is copied and what must be re-entered** (safety-driven).
+
+| Copied automatically (editable) | Never copied — must be entered or confirmed by the requester |
+|---|---|
+| Permit type, linked Work Order, work reference or project, operating unit | **Start and end time**: a new validity window, which must start in the future or now |
+| Work description, location or area | **Reason for extension and work remaining**: one short required field |
+| PIC (Penanggung Jawab Pekerjaan) | **Personnel**: pre-filled, but the requester must confirm the crew is unchanged or edit it |
+| Required PPE, controls and precautions, hazards, required qualification | **A review tick** on PPE and controls ("conditions reviewed for the new period"); site conditions can change |
+| | **Gas test readings**: never carried over; a new test is recorded for the new permit, as for any permit |
+| | **Approvals, verification, signatures, stamps**: never carried over; the new permit runs the full flow |
+
+- **The link:** `previous_permit_id` on the new permit (additive, nullable). Both documents show the
+  chain: "Extended from PTW-…" and "Extended by PTW-…".
+- **Who is notified at expiry:**
+  - the requester;
+  - the company's HSE role holders for the permit's operating unit;
+  - the Final Verifier of that permit, if not already covered.
+
+  These are notifications only, never a task assigned to HSE.
+
+**Points that affect safety or cost — the owner's call:**
+
+| # | Question | Recommendation |
+|---|---|---|
+| **E1** | Between Expired and the new permit becoming Active there is **no valid permit**. Should the expired screen and the expiry notification say plainly **"Work must stop until the new permit is active"**? | **Yes**: say it in both places. Otherwise a crew may continue on the assumption that the extension covers them |
+| **E2** | Does an extension (a new PTW document with a new number) **consume one PTW document** from the quota? | **Yes**: it is a new document, and that matches how every PTW is counted. The alternative (free extensions) needs an exemption rule in metering |
+| **E3** | Is there a **limit on chained extensions** (old → new → newer)? | **No hard limit**; the chain is visible on every permit, so a long chain is obvious. Add a limit later if the owner wants one |
+| **W1** | **Included Work Order documents per month** per plan (pricing is decided; the included amount is not) | **Mirror PTW: Professional 200, Business 500**. Same plan scheme, and the separate quota keeps them from competing. Please confirm or set other numbers |
+
+**SIMOPS, high-risk combinations** (for later; no automatic mechanism now). When two of these share an
+area and a time window, the SIMOPS badge will name the pair:
+- hot work × confined space;
+- hot work × work involving flammable materials;
+- work at height × work directly below;
+- energy isolation (LOTO) × electrical work.
+
+Any blocking or acknowledgement rule waits for the owner.
 
 ## 4. Decision pack — waiting for the owner
 
@@ -551,14 +603,14 @@ reviewed on **staging** before production, and each production deploy needs the 
 
 | Milestone | Content | Needs | Status |
 |---|---|---|---|
-| **M0 — Fast foundations** (routine) | F1 history prop ✔; PTW `verified` count ✔; F4 request memo for settings and entitlements ✔ (`/tasks` 70 → 27 queries, `/dashboard` 191 → 73, live poll 60 → 19); F2 per-page chunks with idle prefetch ✔ (entry 2.3 MB → 329 KB; throttled phone-class load: usable 3.45 s → 1.96 s, in-app click 977 → 549 ms); F3 Google Fonts only on signed-out pages, Archivo from `resources/fonts` ✔; Settings split; dev seeders off Enterprise (A15 step 1) | — | `#status/in-progress` (5 of 7 done on branch) |
+| **M0 — Fast foundations** (routine) | F1 history prop ✔; PTW `verified` count ✔; F4 request memo for settings and entitlements ✔ (`/tasks` 70 → 27 queries, `/dashboard` 191 → 73, live poll 60 → 19); F2 per-page chunks with idle prefetch ✔ (entry 2.3 MB → 329 KB; throttled phone-class load: usable 3.45 s → 1.96 s, in-app click 977 → 549 ms); F3 Google Fonts only on signed-out pages, Archivo from `resources/fonts` ✔; **Settings split ✔** (`Settings/Index.jsx` 3,055 → 165 lines; 16 tabs and shared helpers in `Components/settings/`; every original line accounted for exactly once; 16/16 tabs pixel-identical to `main` apart from `<code>` now in the system monospace, the F3 change); dev seeders off Enterprise ✔ (A15 step 1) | — | `#status/implemented` (7 of 7 on branch, awaiting staging) |
 | **M1 — Platform foundations** | Redis (A1); Reverb (A3); COS with storage registry and off-site backups (A4); production perf report (A5); `record_changes` audit (A13); **notification event layer** (section 3: catalogue, preferences, delivery log, retries, reminders) | A1, A3, A4, A5, A13 | `#status/planned` |
 | **M2 — My Work and role dashboards** | My Work as the personal workspace (waiting on me, assigned to me, my permits and WOs, deadlines, by urgency; mobile-first); role layers on every overview for Workforce, Supervisor, Manager and Company Admin | D1, A14 | `#status/planned` |
 | **M3 — Work Order** | The owner's six-section bilingual Work Order, urgency, configurable sign-off and close-out (or QC link), PTW Requirement Yes/No and types, approval to Authorized, PTW creation from an Authorized Work Order, the Execution reminder, the document/PDF. **Professional and Business only**, with a document quota on the generalised PTW metering | A10, W1–W3 (A9 decided) | `#status/planned` |
 | **M4 — Visual Approval Flow** | React Flow editor; engine v2 extended (positions, conditions, versions); the PTW flow **as decided in A8** (stages 1..N, company-chosen Final Verifier, scheduled automatic activation); Work Order sign-off on the same engine | A7, A8b | `#status/planned` |
 | **M5 — PTW enhancement and Live PTW Dashboard** | Bilingual, grouped, mobile-first PTW form with clear mandatory rules; lifecycle (scheduled activation, expiry, extension, close-out); the live board (by state, awaiting my stage, starting soon, ending soon, expired awaiting close-out, gas test due; filters by unit, area, type and status; real-time) | A8, M4 | `#status/planned` |
-| **M6 — SIMOPS** | Work Area master; area on PTW/WO; conflict detection and matrix; SIMOPS board; acknowledgements | A12 | `#status/planned` |
-| **M7 — Form Builder** | Form.io `@formio/js` (MIT) with JS logic disabled, JSON Logic conditions, IOMS theme, versioned definitions, server validation; first consumers are Work Order close-out/inspection and PTW per-type checklists, then HSE, HRD and Logistics forms | A6 | `#status/planned` |
+| **M6 — SIMOPS (visibility)** | Work Area master; area on PTW/WO; detection of simultaneous work in the same area and time window; a SIMOPS status on permits and Work Orders, plus a SIMOPS board. **No hold or acknowledgement mechanism** (owner, v4) | decided (v4) | `#status/planned` |
+| **M7 — Form Builder** (approved, v4) | Form.io `@formio/js` (MIT), IOMS-styled (never looks external) in Light and Midnight, with JS logic disabled, JSON Logic conditions, IOMS theme, versioned definitions, server validation; first consumers are Work Order close-out/inspection and PTW per-type checklists, then HSE, HRD and Logistics forms | A6 | `#status/planned` |
 | **M8 — UX sweep and release QA** | Remaining long forms and confusing modals moved to the Form Experience System (the deferred "workflow form pass"); feedback on save, submit, approve and error; full crawl of every role and plan in Light and Midnight; staging review; production release | M0–M7 | `#status/planned` |
 | **M9 — Landing page** | Screenshots and copy from the released product only | M8 | `#status/deferred` (by the owner) |
 
@@ -600,6 +652,7 @@ reviewed on **staging** before production, and each production deploy needs the 
 | F1: release history off every page | `#status/implemented` | `account.version-history`; navigation 430 KB → 5.7 KB; `OperationalFoundationsTest` |
 | My PTW counts `verified` as awaiting approval | `#status/implemented` | `DashboardController::myWork`; `OperationalFoundationsTest` |
 | F4 request memo (settings map per tier, entitlement grants) | `#status/implemented` | `App\Support\RequestMemo` + `RequestMemoScope`; inactive outside a request (queue worker safe); `OperationalFoundationsTest` |
+| Settings split (prerequisite for the flow and form editors) | `#status/implemented` | `Components/settings/*`; line-multiset check: 0 missing, 0 added; pixel comparison 16 tabs; `FormExperienceSystemTest` now points at the tab that holds the dialogs |
 | F2 per-page chunks, F3 fonts | `#status/implemented` | `app.jsx` lazy glob + idle prefetch; release check still 186/186 pages; `@guest` font stylesheet; measured throttled load −43% |
 | Decision pack A1–A14 + D1 | `#status/planned` | Section 4. v3: **A8 and A9 decided by the owner**; A6 re-evaluated (open source); A8b, W1–W3 and A15 added |
 | M0 remainder, M1–M9 | `#status/planned` | Section 5 |

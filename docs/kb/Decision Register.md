@@ -1,7 +1,7 @@
 ---
 title: Decision Register
 type: index
-updated: 2026-10-18
+updated: 2026-11-01
 tags: [kb/decisions]
 ---
 
@@ -85,7 +85,7 @@ implementation and verification notes: [[IOMS Website Redesign/04 - Implementati
 | [[079-icy-frosted-shell-and-one-interface-face\|079 — Icy frosted shell and one interface face]] | Manrope bundled (Satoshi unreachable); frosted canvas/surface/chrome; azure feature panel replaces navy heroes; light floating rail (supersedes 078 §4); pill top bar; one lit rail row. | Accepted (branch) |
 | [[080-the-iomsbackdrop-and-milky-glass\|080 — The IOMS backdrop and milky glass]] | Owner-supplied artwork diffused at build time behind a milky veil; glass that diffuses it; contrast-measured muted ink on glass; reserved semantic tints; frosted icon capsules; per-component scale for 100% zoom; HSE Modules grid removed from HSE Overview only. | Accepted (branch) |
 | [[081-one-meaning-one-colour-and-one-typeface-for-identifiers\|081 — One meaning, one colour]] | Identifiers in Manrope (monospace only for machine output); one STATUS_TONE map; KPI accents only for non-zero values; violet only for real categories. | Accepted (in production, 2.138.0) |
-| [[082-midnight-frosted-glass-is-a-starter-pilot\|082 — Midnight Frosted Glass is a Starter pilot]] | Dark theme offered by ONE server answer (Starter only), printed before first paint; light colour classes mapped in one generated block; every Midnight rule scoped under `.dark`; preference in the browser, following the device until chosen. | Accepted (pilot, awaiting owner approval) |
+| [[082-midnight-frosted-glass-is-a-starter-pilot\|082 — Midnight Frosted Glass is a Starter pilot]] | Dark theme offered by ONE server answer (Starter only), printed before first paint; light colour classes mapped in one generated block; every Midnight rule scoped under `.dark`; preference in the browser, following the device until chosen. | Accepted — pilot approved; rolled out to every signed-in account in 2.140.0 |
 | [[077-a-waste-figure-is-a-count-and-duration-is-not-capacity\|077 — A waste figure is a count of real rows, and storage duration is not storage capacity]] | Every summary figure and lifecycle step is a count that filters the list; duration only from the company's per-type limit; capacity compared only when units match; missing data is a finding, never a pass; the one new write (assign TPS) reuses the transition guard | `#status/implemented` (v2.134.0) |
 | [[075-a-release-loop-is-bounded-and-the-server-never-edits-code\|075 — A release loop is bounded, and the server never edits code]] | Deploy exactly the CI-green SHA through ioms-ops; retry transient failures at most twice with backoff, block deterministic ones at once; failures become redacted GitHub issues a scheduled Claude session works with a 3-attempt budget; `needs-human` escalates | `#status/implemented` (v2.133.0; CI verified, watcher rehearsed with stubs, not installed) |
 | [[076-github-deploys-through-one-forced-command\|076 — GitHub deploys through one forced command, and only additive migrations skip a person]] | TerasAkademi's push model with the safety kept in ioms-ops on the server; `iomsci` key bound to `ioms-ci-deploy`; exact-SHA deploys recorded as GitHub Deployments; additive-only migration policy that fails closed; deployers never call `deploy.sh` | `#status/implemented` (rehearsed on a replica; Tencent setup pending the owner) |

@@ -1,7 +1,7 @@
 ---
 title: Release History
 type: index
-updated: 2026-10-18
+updated: 2026-11-01
 tags: [kb/releases]
 ---
 
@@ -53,7 +53,8 @@ Roughly, the history falls into eras:
 
 | Version | Date | Headline |
 |---|---|---|
-| `2.139.0` | 2026-11-01 | MIDNIGHT FROSTED GLASS — THE DARK THEME AS A STARTER PILOT (branch + staging, not deployed) |
+| `2.140.0` | 2026-11-01 | MIDNIGHT FROSTED GLASS FOR THE WHOLE APPLICATION — every plan, workspace, Admin Space, My Work and Master Admin |
+| `2.139.0` | 2026-11-01 | MIDNIGHT FROSTED GLASS — THE DARK THEME AS A STARTER PILOT (staging; approved by the owner, shipped inside 2.140.0) |
 | `2.138.0` | 2026-11-01 | ONE MEANING, ONE COLOUR; IDENTIFIERS IN MANROPE (deployed `1384fbf`) |
 | `2.137.0` | 2026-10-28 | THE IOMS BACKDROP AND MILKY GLASS; 100%-ZOOM SCALE; HSE MODULES GRID REMOVED FROM HSE OVERVIEW; BACKDROP FILM (deployed `f27a44d`) |
 | `2.136.0` | 2026-10-28 | ICY BLUE FROSTED: ONE VISUAL SYSTEM FOR THE WHOLE SIGNED-IN APPLICATION (branch, not deployed) |

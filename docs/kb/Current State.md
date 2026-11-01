@@ -25,7 +25,7 @@ the date in the frontmatter, not remembered.
 |---|---|
 | Product | **IOMS — Industrial Operations Platform** |
 | Public company identity | **IOMS** only (v2.131.0, ADR 071). Operator entity published only when `IOMS_LEGAL_ENTITY` is set; legal merchant **PT Tahada Vistara Bersama** issues invoices (`ioms.merchant.legal_name`) |
-| Version | **2.139.0** on branch `claude/eloquent-newton-pbxxdg` — the Midnight Frosted Glass dark theme as a **Starter pilot** for staging review, NOT in production and NOT merged ([[082-midnight-frosted-glass-is-a-starter-pilot\|ADR 082]]). Production runs **2.138.0** since 2026-11-01 (commit `1384fbf`, deployed through CI + ioms-ops: test gate 1685 passed, pre-deploy backup, health check all passed, signature `8ebfb2a9ee06`), stage **Beta**, edition **Enterprise Edition** |
+| Version | **2.140.0** — Midnight Frosted Glass dark mode for the whole signed-in application ([[082-midnight-frosted-glass-is-a-starter-pilot\|ADR 082]]; Starter pilot 2.139.0 approved by the owner). Being merged to `main` and deployed through CI + ioms-ops on 2026-11-01. The previous production release is **2.138.0** (`1384fbf`). Stage **Beta**, edition **Enterprise Edition** |
 | Build | `2026.10.25.02`, release date `2026-10-25` |
 | Stack | Laravel 12 · Inertia.js · React 18 · Tailwind · MySQL · Sanctum |
 

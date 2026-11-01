@@ -14,6 +14,24 @@ is a first-class concept in IOMS, not documentation pedantry.
 
 ---
 
+## v2.140.0 — the dark theme everywhere (2026-11-01, local MySQL + Chromium)
+
+- **Ran: a route-driven dark audit.** Every GET route was given a real record from the signed-in tenant; 19 detail pages without local data got throwaway local rows. Each URL was rendered dark, as eight roles: Sandbox and Enterprise Company Admin, HSE, HRD, Manager, Warehouse, Master Admin and My Work. On each page the audit flagged any box painted light and any dark or dim text, and it opened the page's menus and listboxes and checked those too.
+  - **Result:** 870 renders, 197 distinct URLs, **0 findings, 0 page errors, 0 server errors**.
+  - **What it found along the way, now fixed:** a KPI capsule painted by an inline style; Chart.js text and grid, which no stylesheet reaches; and the Master Admin header, where the switch overlapped the nav at 1280 px.
+- **Ran: light-mode regression against a `main` checkout (2.138.0).**
+  - Ten Manager screens: only the top-bar strip with the switch differs.
+  - The KPI capsules' computed styles are identical.
+  - The Chart.js canvas is pixel-identical both fresh and after a dark → light round trip.
+- **Ran:**
+  - the behaviour script for the Enterprise admin, Master Admin and My Work;
+  - `DarkThemePilotTest` (11 tests);
+  - the full suite.
+- **Not verified:**
+  - a real phone or GPU;
+  - Safari or Firefox;
+  - a screen reader.
+
 ## v2.139.0 — the dark theme pilot (2026-11-01, local MySQL + Chromium)
 
 - **Ran:**

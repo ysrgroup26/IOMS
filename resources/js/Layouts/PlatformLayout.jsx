@@ -54,7 +54,7 @@ export default function PlatformLayout({ children }) {
     return (
         <div className="min-h-screen bg-graphite-50">
             <header className="border-b border-graphite-200 bg-white">
-                <div className="mx-auto flex max-w-6xl items-center justify-between px-4 py-3">
+                <div className="mx-auto flex max-w-6xl flex-wrap items-center justify-between gap-x-6 gap-y-2 px-4 py-3">
                     <div className="flex items-center gap-6">
                         <BrandWordmark className="h-6 w-auto" tone="adaptive" />
                         {/* Milestone 3 (UAT #1/#3/#7 -- identity clarity):
@@ -79,9 +79,13 @@ export default function PlatformLayout({ children }) {
                             ))}
                         </nav>
                     </div>
-                    <div className="flex items-center gap-3">
+                    {/* v2.140.0: the theme switch made this row too wide for
+                        the eight-item nav at 1280px, and the two overlapped;
+                        the row now wraps instead, and this cluster keeps its
+                        size. */}
+                    <div className="ml-auto flex shrink-0 items-center gap-3">
                         <ThemeSwitch />
-                        <span className="text-sm text-graphite-500">{auth?.user?.name} <span className="text-xs text-graphite-400">(Master)</span></span>
+                        <span className="whitespace-nowrap text-sm text-graphite-500">{auth?.user?.name} <span className="text-xs text-graphite-400">(Master)</span></span>
                         <button
                             onClick={logout}
                             className="flex items-center gap-1.5 rounded-md px-2.5 py-1.5 text-sm text-graphite-500 hover:bg-graphite-100"

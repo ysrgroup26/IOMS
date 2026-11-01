@@ -39,7 +39,6 @@ Full definitions and the update loop: [[Working with This Knowledge Base]].
 
 | Work | Where it stands | Next |
 |---|---|---|
-| Midnight Frosted Glass — dark theme, Starter pilot ([[082-midnight-frosted-glass-is-a-starter-pilot\|ADR 082]]) | v2.139.0 on branch `claude/eloquent-newton-pbxxdg`: switch in the top bar, Starter-only gate, Midnight tokens and glass, one generated light-class map. Dark audit 0 findings on 118 Starter screens; Light Mode pixel-identical to 2.138.0 outside the switch | **Owner review on staging** (`staging.sh pilot`), as `starter.admin@ioms.local` and `starter.hse@ioms.local`. Then corrections, then the owner's decision on rollout |
 | [[Support Inbox]] | v2.80.0 shipped the whole ticket domain, the queue, the five states, assignment, ageing, sender identification and outgoing replies from `support@`. **Inbound mail ingestion is BLOCKED** (see below) and the queue page says so on screen | Build the ingestion adapter once the transport is chosen. Everything else is done |
 
 ## BLOCKED
@@ -54,13 +53,14 @@ Full definitions and the update loop: [[Working with This Knowledge Base]].
 | Work | Why it matters |
 |---|---|
 | [[iPaymu Payment Provider]] — the adapter | A second provider behind the existing abstraction, so payments do not depend on one gateway. The **seam** it drops into is finished and pinned (v2.80.0); only the provider-specific class waits on the dependencies above |
-| Midnight Frosted Glass — global rollout | After the owner approves the Starter pilot: add plan slugs to `ioms.dark_theme.plans`, run the dark audit across every workspace (Management, HRD, Logistics/Warehouse, Admin, Master Admin), and decide whether the preference should follow the account across devices (a column) rather than the browser |
+| Theme preference across devices | The choice lives in the browser (localStorage); a person who wants it on every device would need a `users` column. Owner's call |
 | Master Admin information architecture | With Tenant, Pembayaran and Dukungan now separate destinations, the remaining question is whether Organizations / Subscriptions deserve their own screens rather than living inside Tenant detail. Not urgent, and not worth guessing before the console has been used for a while |
 
 ## COMPLETED (recent, and the evidence)
 
 | Work | Shipped | Verified by |
 |---|---|---|
+| Midnight Frosted Glass dark mode, whole application ([[082-midnight-frosted-glass-is-a-starter-pilot\|ADR 082]]) | 2.139.0 Starter pilot (approved by the owner on staging) → 2.140.0 every signed-in account | Route-driven dark audit: 870 screen renders, 197 distinct URLs, 8 roles, 0 findings. Light-mode pixel comparison against 2.138.0. Behaviour script. `DarkThemePilotTest` plus the full suite |
 | Corrective My Work navigation, class creation and PPE master behavior | v2.117.0 | Full SQLite suite 1,030 / 5,415; production build succeeded; lint 0 errors and 4 existing warnings. Browser verified six-month Safety Shoes save, PPE addition, Add User class selector, class/quota display, admin My Work navigation on department and company dashboards, and PTW examples. Backend tests cover class persistence/entitlements, company-scoped deactivation, safe-delete/history refusal. Browser deactivation confirmation timed out; production commit SHA remains unknown |
 | My Work account visibility, company-specific PPE templates, and industry-neutral PTW examples | v2.108.0 | Full SQLite suite 1,027 / 5,375; production build succeeded; lint has 0 errors and 4 existing warnings. Browser verified account class/quota display, billing meter, PPE interval editing, and PTW examples. Account creation UI submit remains pending required action-time confirmation; no isolated MySQL database is configured |
 | [[Full System Audit]] second pass - dead controls, deletions that orphan, empty states, and the package x role navigation matrix | v2.107.0 | Navigation could not express a capability, so two pages were offered and refused; deleting a user either threw or nulled the actor on 59 relationships; 7 list pages had no empty state. PackageRoleNavigationMatrixTest walks 15 package/role combinations and was confirmed to fail without the new gate. Full suite 1022 / 5326 |

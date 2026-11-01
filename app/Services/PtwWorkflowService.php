@@ -2,10 +2,14 @@
 
 namespace App\Services;
 
+use App\Models\ApprovalFlow;
+use App\Models\ApprovalFlowVersion;
 use App\Models\Company;
 use App\Models\PermitToWork;
+use App\Models\Position;
 use App\Models\PtwWorkflowSetting;
 use App\Models\User;
+use App\Services\Approvals\ApprovalFlowValidator;
 use Illuminate\Support\Collection;
 
 /**
@@ -304,5 +308,147 @@ class PtwWorkflowService
         $tenantId = Company::withoutGlobalScopes()->whereKey($companyId)->value('tenant_id');
 
         return $tenantId === null ? null : (int) $tenantId;
+    }
+
+    // ------------------------------------------------------------------
+    // v2.141.0 -- THE PERMIT ON THE COMPANY'S OWN APPROVAL FLOW (A8, A8b)
+    //
+    // Created -> Approval 1..N -> Final Verification -> (ready) -> Active.
+    // Chosen per operating unit (`ptw_workflow_settings.approval_mode`),
+    // 'legacy' by default: the gates above keep running every permit until
+    // a company switches, and a permit already submitted keeps the route it
+    // was submitted on either way.
+    // ------------------------------------------------------------------
+
+    public const MODE_LEGACY = 'legacy';
+
+    public const MODE_FLOW = 'flow';
+
+    public function modeFor(?int $companyId): string
+    {
+        if ($companyId === null) {
+            return self::MODE_LEGACY;
+        }
+
+        $mode = PtwWorkflowSetting::where('company_id', $companyId)->value('approval_mode');
+
+        return $mode === self::MODE_FLOW ? self::MODE_FLOW : self::MODE_LEGACY;
+    }
+
+    /**
+     * Whether THIS permit runs on a flow: a permit already in a flow stays
+     * on it even if the company switched back, and one submitted under the
+     * gates stays on the gates.
+     */
+    public function usesApprovalFlow(PermitToWork $permit): bool
+    {
+        if ($permit->exists && $permit->approvals()->exists()) {
+            return true;
+        }
+
+        if (in_array($permit->status, [PermitToWork::STATUS_DRAFT, PermitToWork::STATUS_REJECTED], true) || ! $permit->exists) {
+            return $this->modeFor($permit->company_id) === self::MODE_FLOW;
+        }
+
+        return false;
+    }
+
+    public function flowFor(PermitToWork $permit): ?ApprovalFlow
+    {
+        return app(ApprovalFlowResolver::class)->resolve(ApprovalFlowValidator::PTW_MODULE, $permit);
+    }
+
+    /**
+     * Why this person may not submit this permit on the flow now, or null.
+     * Asked BEFORE the permit is created or re-submitted, so a permit that
+     * nobody could verify is never charged for or sent on its way.
+     */
+    public function submissionProblem(PermitToWork $permit, User $requester): ?string
+    {
+        $flow = $this->flowFor($permit);
+        if (! $flow) {
+            return 'Belum ada Approval Flow PTW yang aktif untuk unit operasi ini. Hubungi administrator IOMS perusahaan Anda.';
+        }
+
+        $version = ApprovalFlowVersion::currentFor($flow);
+        $errors = app(ApprovalFlowValidator::class)->errors(ApprovalFlowValidator::PTW_MODULE, $version->steps ?? [], $flow->tenant_id);
+        if ($errors !== []) {
+            return 'Approval Flow PTW perusahaan belum valid: '.$errors[0];
+        }
+
+        if (app(ApprovalEngine::class)->eligibleFinalVerifiers($permit, $version, $requester->id)->isEmpty()) {
+            return 'Tidak ada Final Verifier yang memenuhi syarat untuk PTW yang Anda ajukan: Final Verifier tidak boleh pemohon sendiri atau orang yang menyetujui tahap sebelumnya. Hubungi administrator IOMS perusahaan Anda.';
+        }
+
+        return null;
+    }
+
+    public function startFlow(PermitToWork $permit, User $requester): void
+    {
+        app(ApprovalEngine::class)->start($permit, $requester);
+    }
+
+    /**
+     * The flow as the permit page shows it: every stage of the version the
+     * permit runs on, who it names, what was decided, and what -- if
+     * anything -- THIS person can decide now.
+     */
+    public function flowProgress(PermitToWork $permit, User $viewer): ?array
+    {
+        $approvals = $permit->approvals()->orderBy('id')->get();
+        $approvals->each->setRelation('approvable', $permit);
+        if ($approvals->isEmpty()) {
+            return null;
+        }
+
+        // The latest submission is the run that matters.
+        $runStart = $approvals->where('step_number', 1)->max('id');
+        $run = $approvals->filter(fn ($a) => $a->id >= $runStart)->values();
+        $versionId = $run->first()->approval_flow_version_id;
+        $version = $versionId ? ApprovalFlowVersion::withoutGlobalScopes()->find($versionId) : null;
+        if (! $version) {
+            return null;
+        }
+
+        $engine = app(ApprovalEngine::class);
+        $actionable = $run->first(fn ($a) => $a->status === 'pending' && $engine->authorize($a, $viewer));
+        $positions = Position::query()->pluck('name', 'id');
+        $users = User::query()->whereIn('id', $version->stepModels()->pluck('approver_user_id')->filter())->pluck('name', 'id');
+        $roles = $this->assignableRoles();
+
+        $stages = $version->stepModels()->groupBy('step_number')->sortKeys()->map(function ($rows, $number) use ($run, $positions, $users, $roles) {
+            $decisions = $run->where('step_number', (int) $number);
+            $state = match (true) {
+                $decisions->contains('status', 'rejected') => 'rejected',
+                $decisions->isNotEmpty() && $decisions->every(fn ($a) => $a->status === 'approved') => 'done',
+                $decisions->contains('status', 'pending') => 'current',
+                $decisions->contains('status', 'approved') => 'done',
+                default => 'waiting',
+            };
+
+            return [
+                'step_number' => (int) $number,
+                'kind' => $rows->first()->kind ?: 'approval',
+                'mode' => $rows->first()->mode,
+                'state' => $state,
+                'approvers' => $rows->map(fn ($row) => match (true) {
+                    (bool) $row->approver_user_id => $users[$row->approver_user_id] ?? 'Pengguna',
+                    (bool) $row->approver_position_id => 'Posisi: '.($positions[$row->approver_position_id] ?? '-'),
+                    default => 'Role: '.($roles[$row->approver_role] ?? $row->approver_role),
+                })->values()->all(),
+                'decisions' => $decisions->where('status', '!=', 'pending')->map(fn ($a) => [
+                    'by' => $a->approver_name,
+                    'status' => $a->status,
+                    'at' => $a->decided_at?->toIso8601String(),
+                    'comments' => $a->comments,
+                ])->values()->all(),
+            ];
+        })->values()->all();
+
+        return [
+            'version' => $version->version,
+            'stages' => $stages,
+            'actionable' => $actionable ? ['id' => $actionable->id, 'status' => 'pending', 'step_number' => $actionable->step_number] : null,
+        ];
     }
 }

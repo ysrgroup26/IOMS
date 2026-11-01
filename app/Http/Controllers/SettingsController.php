@@ -8,6 +8,7 @@ use App\Http\Requests\UpdateKpiCategoryRequest;
 use App\Models\ActivityLog;
 use App\Models\Approval;
 use App\Models\ApprovalFlow;
+use App\Models\ApprovalFlowStep;
 use App\Models\ApprovalFlowVersion;
 use App\Models\Company;
 use App\Models\CompanySetting;
@@ -17,11 +18,13 @@ use App\Models\Invoice;
 use App\Models\KpiCategory;
 use App\Models\Module;
 use App\Models\NumberingFormat;
+use App\Models\PermitToWork;
 use App\Models\Position;
 use App\Models\PtwWorkflowSetting;
 use App\Models\User;
 use App\Models\Workspace;
 use App\Rules\InCurrentTenant;
+use App\Services\Approvals\ApprovalFlowValidator;
 use App\Services\EntitlementService;
 use App\Services\FieldMappingService;
 use App\Services\NotificationService;
@@ -305,6 +308,14 @@ class SettingsController extends Controller
                 ->orderBy('name')->get(['id', 'name', 'company_id'])
                 ->map(fn (Position $position) => ['id' => $position->id, 'name' => $position->name, 'company' => $position->company?->name])
                 ->values(),
+            // v2.141.0 -- people a stage may name, and each flow's published
+            // version with how many requests are still running on its versions.
+            'approvalUsers' => User::where('tenant_id', $request->user()->tenant_id)
+                ->where('is_active', true)
+                ->where('user_type', '!=', User::TYPE_MY_WORK)
+                ->orderBy('name')
+                ->get(['id', 'name', 'role']),
+            'approvalFlowVersions' => $this->approvalFlowVersionSummary($request->user()->tenant_id),
             'numberingModuleKeys' => array_keys(NumberGeneratorService::DEFAULTS),
             /*
              * v2.127.0 -- the PTW workflow routing, per operating unit.
@@ -316,7 +327,7 @@ class SettingsController extends Controller
              */
             'ptwWorkflow' => [
                 'settings' => PtwWorkflowSetting::whereIn('company_id', Company::query()->pluck('id'))
-                    ->get(['company_id', 'verify_roles', 'verify_user_ids', 'verify_title', 'approve_roles', 'approve_user_ids', 'approve_title'])
+                    ->get(['company_id', 'approval_mode', 'verify_roles', 'verify_user_ids', 'verify_title', 'approve_roles', 'approve_user_ids', 'approve_title'])
                     ->keyBy('company_id'),
                 'defaults' => app(PtwWorkflowService::class)->defaults(),
                 'roles' => app(PtwWorkflowService::class)->assignableRoles(),
@@ -665,6 +676,69 @@ class SettingsController extends Controller
     }
 
     /**
+     * v2.141.0 -- per flow: its latest published version, and how many
+     * pending approvals are pinned to any of its versions (shown beside
+     * "Save & Publish" so an editor knows who keeps the old route).
+     *
+     * @return array<int, array{latest: int, in_flight: int}>
+     */
+    private function approvalFlowVersionSummary(?int $tenantId): array
+    {
+        $versions = ApprovalFlowVersion::withoutGlobalScopes()->where('tenant_id', $tenantId)
+            ->get(['id', 'approval_flow_id', 'version']);
+
+        $pending = Approval::query()->where('status', Approval::STATUS_PENDING)
+            ->whereIn('approval_flow_version_id', $versions->pluck('id'))
+            ->selectRaw('approval_flow_version_id, count(*) as total')
+            ->groupBy('approval_flow_version_id')
+            ->pluck('total', 'approval_flow_version_id');
+
+        return $versions->groupBy('approval_flow_id')->map(fn ($rows) => [
+            'latest' => (int) $rows->max('version'),
+            'in_flight' => (int) $rows->sum(fn ($row) => $pending[$row->id] ?? 0),
+        ])->all();
+    }
+
+    /**
+     * v2.141.0 -- WHICH ROUTE AN OPERATING UNIT'S NEW PERMITS TAKE.
+     *
+     * 'legacy': the verify-then-approve gates above (ADR 067), unchanged.
+     * 'flow':   the company's own PTW Approval Flow (Approval 1..N, then the
+     *           mandatory Final Verification, A8b).
+     *
+     * Switching to 'flow' is refused unless a PTW flow applies to this unit
+     * and passes the same validation a save does -- a unit is never left
+     * submitting permits nobody can verify. Permits already submitted keep
+     * the route they were submitted on, in both directions.
+     */
+    public function updatePtwApprovalMode(Request $request, PtwWorkflowService $workflow, ApprovalFlowValidator $flowValidator): RedirectResponse
+    {
+        abort_unless($request->user()->canManageSystemSettings(), 403);
+
+        $validated = $request->validate([
+            'company_id' => ['required', Rule::in(Company::query()->pluck('id'))],
+            'approval_mode' => ['required', Rule::in([PtwWorkflowService::MODE_LEGACY, PtwWorkflowService::MODE_FLOW])],
+        ]);
+        $companyId = (int) $validated['company_id'];
+
+        if ($validated['approval_mode'] === PtwWorkflowService::MODE_FLOW) {
+            $flow = $workflow->flowFor(new PermitToWork(['company_id' => $companyId]));
+            if (! $flow) {
+                throw ValidationException::withMessages(['approval_mode' => 'Buat dan aktifkan Approval Flow untuk modul Permit To Work terlebih dahulu.']);
+            }
+            $flowValidator->assertValid(ApprovalFlowValidator::PTW_MODULE, ApprovalFlowVersion::stepsOf($flow), $request->user()->tenant_id);
+        }
+
+        PtwWorkflowSetting::updateOrCreate(['company_id' => $companyId], ['approval_mode' => $validated['approval_mode']]);
+
+        ActivityLog::record('updated', 'PTW approval route for operating unit '.$companyId.' set to '.$validated['approval_mode'].'.');
+
+        return back()->with('success', $validated['approval_mode'] === PtwWorkflowService::MODE_FLOW
+            ? 'PTW baru di unit ini akan mengikuti Approval Flow perusahaan.'
+            : 'PTW baru di unit ini akan mengikuti verifikasi dan persetujuan standar.');
+    }
+
+    /**
      * The users a workflow stage may name: this tenant's own active, full
      * accounts.
      *
@@ -731,25 +805,43 @@ class SettingsController extends Controller
      * fine-grained add/edit/remove endpoints for what is, from the UI's
      * perspective, one form submit per flow.
      */
-    public function updateApprovalFlowSteps(Request $request, ApprovalFlow $approvalFlow): RedirectResponse
+    public function updateApprovalFlowSteps(Request $request, ApprovalFlow $approvalFlow, ApprovalFlowValidator $flowValidator): RedirectResponse
     {
         abort_unless($approvalFlow->tenant_id === $request->user()->tenant_id, 404);
 
         $validated = $request->validate([
             'steps' => ['array'],
-            'steps.*.step_number' => ['required', 'integer', 'min:1'],
+            'steps.*.step_number' => ['required', 'integer', 'min:1', 'max:20'],
+            // v2.141.0 -- 'final_verification' is the mandatory last stage of a PTW flow (A8b).
+            'steps.*.kind' => ['nullable', Rule::in([ApprovalFlowStep::KIND_APPROVAL, ApprovalFlowStep::KIND_FINAL_VERIFICATION])],
             'steps.*.mode' => ['required', Rule::in(['single', 'parallel_any', 'parallel_all'])],
-            // v2.141.0: a step names a role OR a position (the company's own
-            // structure); a position must be one this tenant can see.
-            'steps.*.approver_role' => ['nullable', 'required_without:steps.*.approver_position_id', 'string', Rule::in(['super_admin', 'hse', 'hrd', 'manager', 'warehouse'])],
+            // A step names a role, a position (the company's own structure) or a person.
+            'steps.*.approver_role' => ['nullable', 'string', Rule::in(['super_admin', 'hse', 'hrd', 'manager', 'warehouse'])],
             'steps.*.approver_position_id' => ['nullable', 'integer', function ($attribute, $value, $fail) {
                 if ($value && ! Position::query()->whereKey($value)->exists()) {
                     $fail('That position does not exist in your company structure.');
                 }
             }],
+            'steps.*.approver_user_id' => ['nullable', 'integer', Rule::in($this->assignableWorkflowUserIds($request))],
             'steps.*.escalate_after_hours' => ['nullable', 'integer', 'min:1', 'max:720'],
             'steps.*.escalate_to_role' => ['nullable', 'string', Rule::in(['super_admin', 'hse', 'hrd', 'manager', 'warehouse'])],
         ]);
+
+        $steps = collect($validated['steps'] ?? [])->map(fn (array $step) => [
+            'step_number' => (int) $step['step_number'],
+            'kind' => $step['kind'] ?? ApprovalFlowStep::KIND_APPROVAL,
+            'mode' => $step['mode'],
+            'approver_role' => $step['approver_role'] ?? null,
+            'approver_position_id' => $step['approver_position_id'] ?? null,
+            'approver_user_id' => $step['approver_user_id'] ?? null,
+            // An escalation would hand a Final Verification to a role the
+            // separation-of-duties check never saw; the stage has none.
+            'escalate_after_hours' => ($step['kind'] ?? null) === ApprovalFlowStep::KIND_FINAL_VERIFICATION ? null : ($step['escalate_after_hours'] ?? null),
+            'escalate_to_role' => ($step['kind'] ?? null) === ApprovalFlowStep::KIND_FINAL_VERIFICATION ? null : ($step['escalate_to_role'] ?? null),
+        ])->sortBy('step_number')->values()->all();
+
+        // Structure, PTW shape and separation of duties -- refused with the reason.
+        $flowValidator->assertValid($approvalFlow->module_key, $steps, $request->user()->tenant_id);
 
         /*
          * v2.141.0 -- one model at a time, so the audit trail (A13) records
@@ -757,10 +849,10 @@ class SettingsController extends Controller
          * version. Requests already under way stay on the version they
          * started on (ApprovalFlowVersion); only new requests take this one.
          */
-        DB::transaction(function () use ($approvalFlow, $validated, $request) {
+        DB::transaction(function () use ($approvalFlow, $steps, $request) {
             $approvalFlow->steps()->get()->each->delete();
 
-            foreach ($validated['steps'] ?? [] as $step) {
+            foreach ($steps as $step) {
                 $approvalFlow->steps()->create($step);
             }
 

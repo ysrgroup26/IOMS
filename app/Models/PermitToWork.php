@@ -2,12 +2,14 @@
 
 namespace App\Models;
 
+use App\Concerns\HasApprovals;
 use App\Concerns\HasWorkflow;
 use App\Models\Concerns\BelongsToCompany;
 use App\Services\NumberGeneratorService;
 use Illuminate\Database\Eloquent\Model;
 use Illuminate\Database\Eloquent\SoftDeletes;
 use Illuminate\Support\Collection;
+use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Str;
 
 /**
@@ -17,7 +19,9 @@ use Illuminate\Support\Str;
  */
 class PermitToWork extends Model
 {
-    use BelongsToCompany, HasWorkflow, SoftDeletes;
+    // v2.141.0: HasApprovals -- a permit on its company's approval flow
+    // (PtwWorkflowService::MODE_FLOW) carries its decisions as Approval rows.
+    use BelongsToCompany, HasApprovals, HasWorkflow, SoftDeletes;
 
     /** v2.141.0 -- A13: what the permit said at each state it entered. */
     protected bool $recordSnapshotOnTransition = true;
@@ -483,5 +487,48 @@ class PermitToWork extends Model
         }
 
         return $copy;
+    }
+
+    /**
+     * v2.141.0 -- A PERMIT ON ITS COMPANY'S APPROVAL FLOW FINISHES HERE.
+     *
+     * Called by ApprovalEngine when the last stage -- the Final
+     * Verification (A8b) -- has been decided. The permit is not "approved"
+     * by a status flip: the Final Verifier is recorded as the permit's
+     * verifier, the last approval stage's decider as its approver, the
+     * required PPE is confirmed as the verification states, and the permit
+     * passes Verified -> Approved through its own state machine (so it is
+     * still never possible to reach Approved without a verification). It
+     * is then ready to be made Active, exactly as before.
+     *
+     * Under a row lock, so two decisions cannot both finalise it.
+     */
+    public function finalizeApprovalFlow(string $decision, User $user, ?string $comments): void
+    {
+        DB::transaction(function () use ($decision, $user, $comments) {
+            $fresh = static::withoutGlobalScopes()->whereKey($this->getKey())->lockForUpdate()->firstOrFail();
+            $this->setRawAttributes($fresh->getAttributes(), true);
+
+            if ($decision !== Approval::STATUS_APPROVED) {
+                $this->transitionTo(self::STATUS_REJECTED, $user, null, array_filter(['comments' => $comments]));
+
+                return;
+            }
+
+            $lastApproval = $this->approvals()
+                ->where('status', Approval::STATUS_APPROVED)
+                ->where('approved_by', '!=', $user->id)
+                ->orderByDesc('decided_at')->orderByDesc('id')
+                ->first();
+
+            $this->hse_verifier_id = $user->id;
+            $this->verified_at = now();
+            $this->confirmed_ppe_ids = $this->confirmed_ppe_ids ?: ($this->required_ppe_ids ?? []);
+            $this->hse_approver_id = $lastApproval?->approved_by;
+            $this->approved_at = $lastApproval?->decided_at ?? now();
+
+            $this->transitionTo(self::STATUS_VERIFIED, $user, $this->documentLabel().' '.$this->ptw_number.' passed Final Verification.');
+            $this->transitionTo(self::STATUS_APPROVED, $user, $this->documentLabel().' '.$this->ptw_number.' is approved and ready to be made active.');
+        });
     }
 }

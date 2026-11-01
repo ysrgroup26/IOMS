@@ -615,6 +615,25 @@ number the form promised was never the one the record got. If you add a create p
 number, use the model's `previewX()` -- `DocumentNumberPreviewTest` fails if a consuming generator
 reappears in an Inertia prop.
 
+## Tasks across departments (v2.141.0, D1)
+
+Tasks belong to no department. A **Department User** or a **My Work account** reaches `tasks.index`,
+`tasks.show`, `tasks.edit` and `tasks.update` from any department (`RestrictDepartmentAccess::PERSONAL_ROUTES`),
+and the controller confines them to tasks they are assigned to or created (`Task::scopeVisibleTo` /
+`isVisibleTo`); anything else is "not found". Their role never widens this (an HSE-role Department User is
+not an admin over other people's tasks). Creating and deleting tasks stay closed to them. Full users keep
+the tenant-wide register. Pinned by `CrossDepartmentTasksTest`.
+
+## PTW on the company's Approval Flow (v2.141.0, ADR 083)
+
+Per operating unit (Settings → PTW Workflow → Approval Route): **Standard** (verify then approve, ADR 067,
+the default) or **Company Approval Flow** (Approval 1..N then Final Verification, built in Settings →
+Approval Flow). Switching to the flow is refused unless a valid PTW flow applies to that unit. A permit keeps
+the route it was submitted on. On the flow, the permit page shows an **Approval Flow** card (stages, who,
+decisions, and Approve/Reject only for whoever may decide now); the old Verify/Approve/Return buttons are
+not offered and the endpoint refuses them. After Final Verification the permit is Approved and is activated
+as before.
+
 ## My Work page: Waiting on Me, Assigned to Me, My Permits (v2.141.0)
 
 `/my-work` (`DashboardController::myWork`, `Pages/Field/Home.jsx`) answers three questions from

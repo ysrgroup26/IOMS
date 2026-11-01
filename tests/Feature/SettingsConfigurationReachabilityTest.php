@@ -225,7 +225,7 @@ class SettingsConfigurationReachabilityTest extends TestCase
             ->put(route('settings.approval-flows.steps', $flow->id), [
                 'steps' => [['step_number' => 1, 'mode' => 'single']],
             ])
-            ->assertSessionHasErrors('steps.0.approver_role');
+            ->assertSessionHasErrors('steps');
     }
 
     /**

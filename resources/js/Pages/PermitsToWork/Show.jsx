@@ -10,6 +10,7 @@ import { Select, SelectTrigger, SelectValue, SelectContent, SelectItem } from '@
 import { Table, TableHeader, TableBody, TableRow, TableHead, TableCell } from '@/Components/ui/table';
 import ActivityTimeline from '@/Components/shared/ActivityTimeline';
 import RecordHistory from '@/Components/shared/RecordHistory';
+import ApprovalFlowProgress from '@/Components/shared/ApprovalFlowProgress';
 import StatusBadge from '@/Components/shared/StatusBadge';
 import ApprovalStamp from '@/Components/shared/ApprovalStamp';
 import EmptyState from '@/Components/shared/EmptyState';
@@ -93,7 +94,7 @@ function PpePanel({ ppe, hazards, status }) {
     );
 }
 
-export default function PermitToWorkShow({ permit: p, activities, changeHistory = [], canManage, rejectionReason, authorization, verification, stamps = {}, workflow, ppe }) {
+export default function PermitToWorkShow({ permit: p, activities, changeHistory = [], canManage, rejectionReason, authorization, verification, stamps = {}, workflow, approvalFlow = null, ppe }) {
     /*
      * v2.129.0 -- THIS PAGE UPDATES ITSELF WHEN THE PERMIT MOVES.
      *
@@ -114,7 +115,7 @@ export default function PermitToWorkShow({ permit: p, activities, changeHistory 
      * wrong about what may be done to it.
      */
     useWatchedRecord('PermitToWork', p.id, [
-        'permit', 'activities', 'changeHistory', 'authorization', 'verification', 'stamps', 'workflow', 'rejectionReason', 'ppe',
+        'permit', 'activities', 'changeHistory', 'authorization', 'verification', 'stamps', 'workflow', 'approvalFlow', 'rejectionReason', 'ppe',
     ]);
 
     const [gasTestOpen, setGasTestOpen] = useState(false);
@@ -269,13 +270,13 @@ export default function PermitToWorkShow({ permit: p, activities, changeHistory 
                         approval to a manager otherwise ended up with a permit
                         that was approved and that nobody on the screen could
                         activate. Seen in a browser. */}
-                    {(canManage || workflow?.can_verify || workflow?.can_approve) && p.status === 'approved' && (
+                    {(canManage || workflow?.can_verify || workflow?.can_approve || workflow?.can_activate) && p.status === 'approved' && (
                         <Button onClick={() => transition('active', 'Aktifkan izin kerja ini? Pekerjaan boleh dimulai setelah izin aktif.')}>
                             <PlayCircle className="h-4 w-4" /> Activate
                         </Button>
                     )}
                     {canManage && (<>
-                        {p.status === 'draft' && (<Button variant="outline" onClick={() => transition('submitted', 'Ajukan izin kerja ini untuk verifikasi HSE?')}><Send className="h-4 w-4" /> Submit</Button>)}
+                        {p.status === 'draft' && (<Button variant="outline" onClick={() => transition('submitted', workflow?.on_flow ? 'Ajukan izin kerja ini sesuai Approval Flow perusahaan?' : 'Ajukan izin kerja ini untuk verifikasi HSE?')}><Send className="h-4 w-4" /> Submit</Button>)}
                         {/* v2.8.0 (PTW Mobile / Task-First pass, Phase 3B,
                             Part 7): PermitToWork's own $transitions array
                             has always allowed rejected -> draft (a real
@@ -314,6 +315,7 @@ export default function PermitToWorkShow({ permit: p, activities, changeHistory 
                 </div>
             )}
 
+            {approvalFlow && <div className="mb-4"><ApprovalFlowProgress flow={approvalFlow} /></div>}
             <div className="grid grid-cols-1 gap-4 lg:grid-cols-3">
                 <div className="space-y-4 lg:col-span-2">
                     <Card>

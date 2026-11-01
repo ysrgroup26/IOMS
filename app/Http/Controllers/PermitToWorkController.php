@@ -300,6 +300,19 @@ class PermitToWorkController extends Controller
          * moment both pass create(), and only one may pass here --
          * PtwQuotaService::consume() locks the grant rows to make sure of it.
          */
+        /*
+         * v2.141.0 -- A8b, BEFORE THE DOCUMENT IS SPENT. On a company that
+         * runs permits on its own approval flow, a permit nobody could
+         * verify (no Final Verifier other than the requester or an earlier
+         * approver) is refused here, with the reason, and never charged for.
+         */
+        $workflowService = app(PtwWorkflowService::class);
+        $probe = new PermitToWork(['company_id' => $validated['company_id'] ?? null, 'requested_by' => $request->user()->id]);
+        $onFlow = $workflowService->usesApprovalFlow($probe);
+        if ($onFlow && ($problem = $workflowService->submissionProblem($probe, $request->user()))) {
+            return back()->withInput()->with('flash', ['error' => $problem]);
+        }
+
         $quota = app(PtwQuotaService::class);
         $tenant = $request->user()->tenant;
 
@@ -334,6 +347,14 @@ class PermitToWorkController extends Controller
 
         ActivityLog::record('created', "Requested Permit To Work {$permit->ptw_number}.", $permit);
         $permit->transitionTo(PermitToWork::STATUS_SUBMITTED, $request->user());
+
+        if ($onFlow) {
+            // The company's flow takes it from here: stage 1 is told.
+            $workflowService->startFlow($permit, $request->user());
+
+            return redirect()->route('permits-to-work.show', $permit)
+                ->with('flash', ['success' => 'Izin kerja berhasil dibuat dan sedang menunggu persetujuan sesuai Approval Flow perusahaan.']);
+        }
 
         /*
          * v2.127.0 -- STAGE ONE: HSE IS TOLD, AND NOBODY ELSE IS.
@@ -411,11 +432,26 @@ class PermitToWorkController extends Controller
              * neither. ADR 061: an offer is bound to what the server
              * allows. A button that answers 403 reads as a broken account.
              */
-            'workflow' => [
-                'can_verify' => app(PtwWorkflowService::class)->canVerify($request->user(), $permitToWork),
-                'can_approve' => app(PtwWorkflowService::class)->canApprove($request->user(), $permitToWork),
-                'pending_stage' => app(PtwWorkflowService::class)->pendingStage($permitToWork),
-            ],
+            /*
+             * v2.141.0: a permit on the company's approval flow offers no
+             * gate buttons -- its stages are decided in the Approval Flow
+             * card (`approvalFlow`), where separation of duties applies.
+             */
+            'workflow' => ($onFlow = app(PtwWorkflowService::class)->usesApprovalFlow($permitToWork))
+                ? [
+                    'on_flow' => true,
+                    'can_verify' => false,
+                    'can_approve' => false,
+                    'pending_stage' => null,
+                    'can_activate' => $permitToWork->approvals()->where('approved_by', $request->user()->id)->where('status', 'approved')->exists(),
+                ]
+                : [
+                    'on_flow' => false,
+                    'can_verify' => app(PtwWorkflowService::class)->canVerify($request->user(), $permitToWork),
+                    'can_approve' => app(PtwWorkflowService::class)->canApprove($request->user(), $permitToWork),
+                    'pending_stage' => app(PtwWorkflowService::class)->pendingStage($permitToWork),
+                ],
+            'approvalFlow' => $onFlow ? app(PtwWorkflowService::class)->flowProgress($permitToWork, $request->user()) : null,
             // v2.8.0 (PTW Mobile / Task-First pass, Phase 3B, Part 6/7):
             // the Show page previously had NO way to surface WHY a
             // permit was rejected -- confirmed via this pass's own
@@ -479,6 +515,20 @@ class PermitToWorkController extends Controller
         $user = $request->user();
 
         /*
+         * v2.141.0 -- A PERMIT ON THE COMPANY'S APPROVAL FLOW IS DECIDED ON
+         * THE FLOW. Its stages are Approval rows (approvals.approve /
+         * approvals.reject, where separation of duties is enforced); the
+         * verify/approve/return gates below would bypass both.
+         */
+        $onFlow = $workflow->usesApprovalFlow($permitToWork);
+        if ($onFlow && in_array($target, [PermitToWork::STATUS_VERIFIED, PermitToWork::STATUS_APPROVED, PermitToWork::STATUS_REJECTED], true)) {
+            return back()->with('flash', ['error' => 'PTW ini mengikuti Approval Flow perusahaan. Keputusan diberikan melalui tahap persetujuan pada halaman PTW.']);
+        }
+        if ($onFlow && $target === PermitToWork::STATUS_SUBMITTED && ($problem = $workflow->submissionProblem($permitToWork, $user))) {
+            return back()->with('flash', ['error' => $problem]);
+        }
+
+        /*
          * WHO MAY DO THIS, decided per target and on the SERVER.
          *
          * Hiding a button is not authorization -- the owner's requirement
@@ -516,8 +566,10 @@ class PermitToWorkController extends Controller
              * approved.
              */
             PermitToWork::STATUS_ACTIVE => $user->canManageHse()
-                || $workflow->canVerify($user, $permitToWork)
-                || $workflow->canApprove($user, $permitToWork),
+                || ($onFlow
+                    // On a flow: whoever decided a stage of THIS permit.
+                    ? $permitToWork->approvals()->where('approved_by', $user->id)->where('status', 'approved')->exists()
+                    : ($workflow->canVerify($user, $permitToWork) || $workflow->canApprove($user, $permitToWork))),
             // Closure and cancellation stay where they were: operational
             // acts on an already authorised permit, which this release
             // deliberately does not re-litigate.
@@ -646,7 +698,14 @@ class PermitToWorkController extends Controller
          * logged. The decision is the record; the notification is a
          * courtesy on top of it, and a courtesy may fail.
          */
-        $this->notifyNextStage($permitToWork, $workflow, $user);
+        if ($onFlow) {
+            // Re-submitted after a return: a new run of the company's flow.
+            if ($target === PermitToWork::STATUS_SUBMITTED) {
+                $workflow->startFlow($permitToWork->fresh(), $user);
+            }
+        } else {
+            $this->notifyNextStage($permitToWork, $workflow, $user);
+        }
 
         return back()->with('flash', ['success' => $this->transitionFlash($target)]);
     }

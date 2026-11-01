@@ -195,6 +195,7 @@ const SUMMARY_TONE = {
 const KIND_ICON = {
     approval: Stamp,
     ptw_verify: ShieldCheck,
+    final_verification: ShieldCheck,
     ptw_approve: Stamp,
     task: CheckSquare,
     capa: Wrench,
@@ -204,6 +205,7 @@ const KIND_ICON = {
 const KIND_LABEL = {
     approval: 'Approval',
     ptw_verify: 'PTW Verification',
+    final_verification: 'Final Verification',
     ptw_approve: 'PTW Approval',
     task: 'Task',
     capa: 'CAPA',

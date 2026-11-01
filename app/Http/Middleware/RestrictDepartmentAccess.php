@@ -142,6 +142,18 @@ class RestrictDepartmentAccess
         'material-requests',
     ];
 
+    /**
+     * v2.141.0 -- D1 (approved by the owner): WORK HANDED TO A PERSON CROSSES
+     * DEPARTMENTS; THE MODULE DOES NOT.
+     *
+     * Tasks belong to no department, so a Department User was refused the
+     * task somebody assigned to them. These routes are let through for
+     * every department, and the CONTROLLER confines them to tasks the
+     * person is assigned to or created (Task::scopeVisibleTo) -- the
+     * register as a whole, and creating or deleting tasks, stay closed.
+     */
+    private const PERSONAL_ROUTES = ['tasks.index', 'tasks.show', 'tasks.edit', 'tasks.update'];
+
     public function handle(Request $request, Closure $next): Response
     {
         $routeName = $request->route()?->getName();
@@ -167,6 +179,10 @@ class RestrictDepartmentAccess
         $prefix = $routeName ? explode('.', $routeName)[0] : null;
 
         if (! $prefix || in_array($prefix, self::UNIVERSAL_PREFIXES, true)) {
+            return true;
+        }
+
+        if (in_array($routeName, self::PERSONAL_ROUTES, true)) {
             return true;
         }
 

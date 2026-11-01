@@ -226,18 +226,30 @@ class NotificationEventLayerTest extends TestCase
 
     public function test_a_notification_is_offered_as_openable_only_where_the_person_can_go(): void
     {
-        $departmentUser = $this->person($this->tenant, $this->yard, User::ROLE_HSE);
-        $departmentUser->forceFill(['department_key' => 'hse'])->save();
+        $departmentUser = $this->person($this->tenant, $this->yard, User::ROLE_HRD);
+        $departmentUser->forceFill(['department_key' => 'hr'])->save();
 
         $this->actingAs($this->lead);
         $this->task(['assigned_user_id' => $departmentUser->id]);
         $this->task(['assigned_user_id' => $this->worker->id]);
+        CorrectiveAction::create([
+            'company_id' => $this->yard->id, 'source_type' => 'safety_observation', 'source_id' => 1,
+            'action' => 'Pasang pagar', 'assigned_to' => $departmentUser->id, 'priority' => 'high',
+            'status' => CorrectiveAction::STATUS_OPEN, 'created_by' => $this->lead->id,
+        ]);
 
-        // Tasks are not mapped to any department (D1 pending), so a
-        // Department User would get 403 -- the menu must not offer the link.
-        $items = $this->actingAs($departmentUser)->get(route('my-work'))->viewData('page')['props']['notifications']['items'];
-        $this->assertFalse(collect($items)->first(fn ($i) => str_starts_with($i['title'], 'Task assigned'))['openable']);
-        $this->actingAs($departmentUser)->get(route('tasks.index'))->assertForbidden();
+        $items = collect($this->actingAs($departmentUser)->get(route('my-work'))->viewData('page')['props']['notifications']['items']);
+
+        // D1 (approved): a task handed to a Department User is theirs to open.
+        $this->assertTrue($items->first(fn ($i) => str_starts_with($i['title'], 'Task assigned'))['openable']);
+        $this->actingAs($departmentUser)->get(route('tasks.index'))->assertOk();
+
+        // Corrective actions are HSE's register; an HR Department User would
+        // get 403 there, so the menu must not offer the link.
+        $capa = $items->first(fn ($i) => ($i['category'] ?? null) === 'assignment' && ! str_starts_with($i['title'], 'Task assigned'));
+        $this->assertNotNull($capa);
+        $this->assertFalse($capa['openable']);
+        $this->actingAs($departmentUser)->get(route('corrective-actions.index'))->assertForbidden();
 
         $items = $this->actingAs($this->worker)->get(route('my-work'))->viewData('page')['props']['notifications']['items'];
         $this->assertTrue(collect($items)->first(fn ($i) => str_starts_with($i['title'], 'Task assigned'))['openable']);

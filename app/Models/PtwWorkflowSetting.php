@@ -30,6 +30,8 @@ class PtwWorkflowSetting extends Model
 
     protected $fillable = [
         'company_id',
+        // v2.141.0 -- 'legacy' (ADR 067 gates) or 'flow' (the company's approval flow).
+        'approval_mode',
         'verify_roles',
         'verify_user_ids',
         'verify_title',

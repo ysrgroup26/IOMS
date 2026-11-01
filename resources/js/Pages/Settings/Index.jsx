@@ -36,7 +36,7 @@ function TabDivider() {
 }
 
 
-export default function SettingsIndex({ company, companies, departments, positions, kpiCategories, users, can, filters, roles, permissionCatalog, numberingFormats, approvalFlows, approvalPositions = [], numberingModuleKeys, notificationPreferences, documentTemplates, documentModuleKeys, fieldMappings, subscription, invoices, ptwAccess, userSeats, organization, ptwWorkflow, assignableDepartments = [] }) {
+export default function SettingsIndex({ company, companies, departments, positions, kpiCategories, users, can, filters, roles, permissionCatalog, numberingFormats, approvalFlows, approvalPositions = [], approvalUsers = [], approvalFlowVersions = {}, numberingModuleKeys, notificationPreferences, documentTemplates, documentModuleKeys, fieldMappings, subscription, invoices, ptwAccess, userSeats, organization, ptwWorkflow, assignableDepartments = [] }) {
     // System-level tabs (Companies, Users, Backup) are Super-Admin-only.
     // HSE sees only the operational tabs (Departments, Positions).
     const canSystem = can?.manage_system;
@@ -153,7 +153,7 @@ export default function SettingsIndex({ company, companies, departments, positio
                 {(canSystem || canPtwAccess) && <Tabs.Content value="users"><UsersTab users={users} roles={roles} ptwAccess={ptwAccess} userSeats={userSeats} canManageUsers={canSystem} canPtwAccess={canPtwAccess} canFieldAccess={canFieldAccess} companies={organization?.units ?? companies} assignableDepartments={assignableDepartments} /></Tabs.Content>}
                 {canSystem && <Tabs.Content value="roles"><RolesTab roles={roles} permissionCatalog={permissionCatalog} /></Tabs.Content>}
                 {canSystem && <Tabs.Content value="numbering"><NumberingTab numberingFormats={numberingFormats} /></Tabs.Content>}
-                {canSystem && <Tabs.Content value="approval-flows"><ApprovalFlowsTab approvalFlows={approvalFlows} positions={approvalPositions} moduleKeys={numberingModuleKeys} /></Tabs.Content>}
+                {canSystem && <Tabs.Content value="approval-flows"><ApprovalFlowsTab approvalFlows={approvalFlows} positions={approvalPositions} users={approvalUsers} versions={approvalFlowVersions} moduleKeys={numberingModuleKeys} /></Tabs.Content>}
                 {canSystem && <Tabs.Content value="ptw-workflow"><PtwWorkflowTab ptwWorkflow={ptwWorkflow} companies={companies} /></Tabs.Content>}
                 {canSystem && <Tabs.Content value="notifications"><NotificationPreferencesTab preferences={notificationPreferences} /></Tabs.Content>}
                 {canSystem && <Tabs.Content value="documents"><DocumentTemplatesTab documentTemplates={documentTemplates} moduleKeys={documentModuleKeys} /></Tabs.Content>}

@@ -84,7 +84,15 @@ class MyWorkService
             ->limit(200)
             ->get();
 
+        $seen = [];
         foreach ($pending as $approval) {
+            // One item per record and stage: a stage with several approver
+            // rows (a position OR a role) is still one decision to take.
+            $stageKey = $approval->approvable_type.'#'.$approval->approvable_id.'#'.$approval->step_number;
+            if (isset($seen[$stageKey])) {
+                continue;
+            }
+
             $subject = $approval->approvable;
             if (! $subject || (! empty($subject->company_id) && ! in_array($subject->company_id, $companyIds, true))) {
                 continue;
@@ -93,11 +101,13 @@ class MyWorkService
                 continue;
             }
 
+            $seen[$stageKey] = true;
+            $final = $this->approvals->isFinalVerification($approval);
             $described = $this->approvals->describe($subject);
             $items[] = $this->item(
-                kind: 'approval',
+                kind: $final ? 'final_verification' : 'approval',
                 title: $described['label'],
-                subtitle: 'Menunggu persetujuan Anda',
+                subtitle: $final ? 'Menunggu Final Verification Anda' : 'Menunggu persetujuan Anda',
                 number: $described['number'] ?: null,
                 status: 'pending',
                 due: null,
@@ -120,6 +130,12 @@ class MyWorkService
             ->get();
 
         foreach ($permits as $permit) {
+            // A permit on its company's approval flow waits through its
+            // Approval rows (above), where separation of duties applies.
+            if ($this->ptw->usesApprovalFlow($permit)) {
+                continue;
+            }
+
             $stage = $this->ptw->pendingStage($permit);
             if (! $stage || ! $this->ptw->canAct($user, $permit, $stage)) {
                 continue;

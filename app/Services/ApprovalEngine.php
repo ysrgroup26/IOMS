@@ -10,9 +10,12 @@ use App\Models\ApprovalFlowVersion;
 use App\Models\Notification;
 use App\Models\Tenant;
 use App\Models\User;
+use App\Services\Approvals\ApprovalCandidates;
+use App\Services\Approvals\SeparationOfDuties;
 use App\Support\CurrentTenant;
 use Illuminate\Database\Eloquent\Collection;
 use Illuminate\Database\Eloquent\Model;
+use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Str;
 use Illuminate\Validation\ValidationException;
 
@@ -37,6 +40,8 @@ class ApprovalEngine
     public function __construct(
         private readonly ApprovalFlowResolver $resolver,
         private readonly NotificationService $notifier,
+        private readonly SeparationOfDuties $duties,
+        private readonly ApprovalCandidates $candidates,
     ) {}
 
     /**
@@ -87,6 +92,17 @@ class ApprovalEngine
      */
     public function decide(Approval $approval, User $user, string $decision, ?string $comments = null): void
     {
+        // v2.141.0 -- one decision per row: two approvers pressing at the
+        // same moment must not both pass the pending check.
+        DB::transaction(function () use ($approval, $user, $decision, $comments) {
+            $locked = Approval::query()->whereKey($approval->getKey())->lockForUpdate()->firstOrFail();
+            $approval->setRawAttributes($locked->getAttributes(), true);
+            $this->decideLocked($approval, $user, $decision, $comments);
+        });
+    }
+
+    private function decideLocked(Approval $approval, User $user, string $decision, ?string $comments): void
+    {
         if ($approval->status !== Approval::STATUS_PENDING) {
             throw ValidationException::withMessages(['approval' => 'This approval has already been decided.']);
         }
@@ -112,7 +128,41 @@ class ApprovalEngine
             return;
         }
 
+        $this->closeDecidedStage($approval->fresh());
         $this->advance($approval->fresh(), $user, $comments);
+    }
+
+    /**
+     * v2.141.0 (P4) -- once a stage is DECIDED, nobody else's row at it is
+     * still waiting. A rejection decides the stage; so does the first
+     * approval on an "any one approver" stage. On an "all approvers" stage
+     * the other rows stay pending until each one decides.
+     */
+    private function closeDecidedStage(Approval $decided): void
+    {
+        $mode = $this->stepsFor($decided, (int) $decided->step_number)->first()?->mode ?? ApprovalFlowStep::MODE_SINGLE;
+        $decidesStage = $decided->status === Approval::STATUS_REJECTED || $mode !== ApprovalFlowStep::MODE_PARALLEL_ALL;
+        if (! $decidesStage) {
+            return;
+        }
+
+        Approval::query()
+            ->where('approvable_type', $decided->approvable_type)
+            ->where('approvable_id', $decided->approvable_id)
+            ->where('step_number', $decided->step_number)
+            ->where('status', Approval::STATUS_PENDING)
+            ->whereKeyNot($decided->getKey())
+            ->when(
+                $decided->approval_flow_version_id,
+                fn ($query) => $query->where('approval_flow_version_id', $decided->approval_flow_version_id),
+                fn ($query) => $query->where('approval_flow_id', $decided->approval_flow_id),
+            )
+            ->get()
+            ->each(fn (Approval $sibling) => $sibling->update([
+                'status' => Approval::STATUS_SKIPPED,
+                'decided_at' => now(),
+                'comments' => 'Not required: this stage was already decided.',
+            ]));
     }
 
     /**
@@ -148,13 +198,46 @@ class ApprovalEngine
             return $user->isSuperAdmin() || in_array($user->role, $approvers, true);
         }
 
+        $steps = $this->stepsFor($approval, (int) $approval->step_number);
+
+        /*
+         * v2.141.0 -- A8b, ON THE SERVER. A Final Verification stage is never
+         * decided by the requester or by anybody who approved an earlier
+         * stage of the same record -- whatever their role, whatever an
+         * escalation says, and with no Super Admin override.
+         */
+        if (SeparationOfDuties::isFinalStage($steps) && $this->duties->conflicts($approval, $user)) {
+            return false;
+        }
+
         // An escalation widens who may decide THIS request, and nothing else.
         if ($approval->is_escalated && $approval->escalated_to_role && $user->role === $approval->escalated_to_role) {
             return true;
         }
 
-        return $this->stepsFor($approval, (int) $approval->step_number)
-            ->contains(fn (ApprovalFlowStep $step) => $step->matchesApprover($user));
+        return $steps->contains(fn (ApprovalFlowStep $step) => $step->matchesApprover($user));
+    }
+
+    /** v2.141.0 -- whether this row belongs to a Final Verification stage. */
+    public function isFinalVerification(Approval $approval): bool
+    {
+        return SeparationOfDuties::isFinalStage($this->stepsFor($approval, (int) $approval->step_number));
+    }
+
+    /**
+     * The people who could verify this record at its Final Verification
+     * stage, given who requested it and who has approved it so far.
+     *
+     * @return \Illuminate\Support\Collection<int, User>
+     */
+    public function eligibleFinalVerifiers(Model $approvable, ApprovalFlowVersion $version, ?int $requesterId = null): \Illuminate\Support\Collection
+    {
+        $final = $version->stepModels()->filter(fn (ApprovalFlowStep $step) => $step->isFinalVerification());
+
+        return $this->duties->eligible(
+            $this->candidates->forRows($final, $version->tenant_id),
+            $this->duties->excludedFor($approvable, $requesterId),
+        );
     }
 
     /**
@@ -255,6 +338,17 @@ class ApprovalEngine
             'approval_flow_version_id' => $version?->id,
             'step_number' => $stepNumber,
         ]));
+
+        if (SeparationOfDuties::isFinalStage($stepDefinitions)) {
+            // A8b: only the people who may verify are told.
+            $eligible = $this->duties->eligible(
+                $this->candidates->forRows($stepDefinitions, $version?->tenant_id ?? app(CurrentTenant::class)->id()),
+                $this->duties->excludedFor($approvable, $requester->id),
+            );
+            $eligible->each(fn (User $verifier) => $this->notifyApprover($verifier, $approvable));
+
+            return $approvals;
+        }
 
         foreach ($stepDefinitions as $step) {
             if ($step->approver_user_id) {
@@ -386,6 +480,15 @@ class ApprovalEngine
 
     private function finalize(Model $approvable, string $decision, User $user, ?string $comments): void
     {
+        // v2.141.0 -- a model whose lifecycle is more than one status move
+        // (PTW: the Final Verification records the verifier and makes the
+        // permit ready for activation) finalises itself.
+        if (method_exists($approvable, 'finalizeApprovalFlow')) {
+            $approvable->finalizeApprovalFlow($decision, $user, $comments);
+
+            return;
+        }
+
         $targetStatus = $decision === Approval::STATUS_APPROVED
             ? $approvable::STATUS_APPROVED
             : $approvable::STATUS_REJECTED;

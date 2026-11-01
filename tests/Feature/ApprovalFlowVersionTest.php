@@ -221,4 +221,98 @@ class ApprovalFlowVersionTest extends TestCase
         $this->assertFalse($this->engine->authorize($this->pending($request), $sameRoleOther), 'Holding the same ROLE is not holding the position.');
         $this->assertSame(1, DB::table('notifications')->where('user_id', $holder->id)->count(), 'The position holder is told.');
     }
+
+    /**
+     * P1 + P2 + P3 and the scheduler escalation fix, TOGETHER, on one
+     * request -- the way they will meet in production.
+     */
+    public function test_escalation_edit_and_removal_together_keep_one_requests_route(): void
+    {
+        $flow = $this->twoStepFlow();      // manager (escalates to hrd after 1h), then hse
+        $request = $this->request();
+        $this->engine->start($request, $this->requester);
+        DB::table('approvals')->where('id', $this->pending($request)->id)->update(['created_at' => now()->subHours(3)]);
+
+        // The scheduler runs with no tenant (the production context).
+        app(CurrentTenant::class)->set(null);
+        $this->artisan('approvals:escalate')->assertSuccessful();
+        app(CurrentTenant::class)->set($this->tenant);
+
+        $pending = $this->pending($request);
+        $this->assertTrue((bool) $pending->is_escalated, 'Escalation runs from the scheduler.');
+        $this->assertSame('hrd', $pending->escalated_to_role);
+        $this->assertSame(2, ApprovalFlowStep::where('approval_flow_id', $flow->id)->count(), 'P3: the flow is not modified.');
+
+        // P1: the administrator re-routes the flow.
+        $this->replaceSteps($flow, [['step_number' => 1, 'mode' => 'single', 'approver_role' => 'warehouse']]);
+        $this->assertFalse($this->engine->authorize($this->pending($request), $this->requester), 'P1: the edit does not hand the request to the new role.');
+
+        // P2: ...and removes the flow.
+        $flow->delete();
+
+        // The escalation still lets HRD decide stage 1 of THIS request.
+        $this->engine->decide($this->pending($request), $this->hrd, Approval::STATUS_APPROVED);
+        $this->assertSame('submitted', $request->fresh()->status, 'P2: stage 2 is still required.');
+        $this->assertFalse($this->engine->authorize($this->pending($request), $this->manager));
+        $this->assertFalse($this->engine->authorize($this->pending($request), $this->hrd), 'P3: the escalation does not carry to the next stage.');
+        $this->engine->decide($this->pending($request), $this->hse, Approval::STATUS_APPROVED);
+        $this->assertSame('approved', $request->fresh()->status);
+
+        // A request on a new flow is not decidable by the earlier escalation role.
+        $next = $this->twoStepFlow();
+        $later = $this->request();
+        $this->engine->start($later, $this->requester);
+        $this->assertFalse($this->engine->authorize($this->pending($later), $this->hrd));
+        $this->assertNotSame($next->id, $flow->id);
+    }
+
+    /** P4: on an "any one approver" stage the other rows close once one decides. */
+    public function test_the_other_approvers_rows_close_when_an_any_one_stage_is_decided(): void
+    {
+        $flow = ApprovalFlow::create(['tenant_id' => $this->tenant->id, 'company_id' => null, 'module_key' => 'material_request', 'name' => 'Any', 'is_active' => true, 'priority' => 0]);
+        $flow->steps()->create(['step_number' => 1, 'mode' => 'parallel_any', 'approver_role' => 'manager']);
+        $flow->steps()->create(['step_number' => 1, 'mode' => 'parallel_any', 'approver_role' => 'hse']);
+        $flow->steps()->create(['step_number' => 2, 'mode' => 'single', 'approver_role' => 'hrd']);
+
+        $request = $this->request();
+        $this->engine->start($request, $this->requester);
+        [$forManager, $forHse] = $request->approvals()->orderBy('id')->get()->all();
+
+        $this->engine->decide($forManager, $this->manager, Approval::STATUS_APPROVED);
+
+        $this->assertSame(Approval::STATUS_SKIPPED, $forHse->fresh()->status, 'Nobody else is still "waiting" on a decided stage.');
+        $this->assertSame(1, $request->approvals()->where('status', Approval::STATUS_PENDING)->count(), 'Only stage 2 waits.');
+        $this->assertSame(2, $this->pending($request)->step_number);
+
+        // The skipped row cannot be decided through the endpoint.
+        $this->actingAs($this->hse)->post(route('approvals.approve', $forHse->id))->assertStatus(422);
+        $this->assertSame(1, $request->approvals()->where('step_number', 2)->count(), 'Stage 2 was not opened twice.');
+    }
+
+    public function test_a_rejection_closes_the_rest_of_its_stage(): void
+    {
+        $flow = ApprovalFlow::create(['tenant_id' => $this->tenant->id, 'company_id' => null, 'module_key' => 'material_request', 'name' => 'All', 'is_active' => true, 'priority' => 0]);
+        $flow->steps()->create(['step_number' => 1, 'mode' => 'parallel_all', 'approver_role' => 'manager']);
+        $flow->steps()->create(['step_number' => 1, 'mode' => 'parallel_all', 'approver_role' => 'hse']);
+
+        $request = $this->request();
+        $this->engine->start($request, $this->requester);
+        [$forManager, $forHse] = $request->approvals()->orderBy('id')->get()->all();
+
+        $this->engine->decide($forManager, $this->manager, Approval::STATUS_REJECTED, 'Tidak perlu');
+
+        $this->assertSame(Approval::STATUS_SKIPPED, $forHse->fresh()->status);
+        $this->assertSame('rejected', $request->fresh()->status);
+    }
+
+    /** A MySQL JSON column re-orders keys; the same steps must not publish a new version. */
+    public function test_an_unchanged_flow_reuses_its_version_whatever_the_stored_key_order(): void
+    {
+        $flow = $this->twoStepFlow();
+        $version = ApprovalFlowVersion::currentFor($flow);
+        $reordered = array_map(fn ($row) => array_reverse($row, true), $version->steps);
+        DB::table('approval_flow_versions')->where('id', $version->id)->update(['steps' => json_encode($reordered)]);
+
+        $this->assertSame($version->id, ApprovalFlowVersion::currentFor($flow->fresh())->id);
+    }
 }

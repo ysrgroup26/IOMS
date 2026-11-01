@@ -153,6 +153,30 @@ class Task extends Model
         return $this->belongsTo(User::class, 'created_by');
     }
 
+    /**
+     * v2.141.0 -- D1: what a person may see of the task register. A person
+     * whose access is personal (User::seesOnlyOwnTasks) sees the tasks they
+     * are assigned to or created, and nothing else; everybody else keeps
+     * the tenant-wide register they had.
+     */
+    public function scopeVisibleTo($query, User $user)
+    {
+        if (! $user->seesOnlyOwnTasks()) {
+            return $query;
+        }
+
+        return $query->where(fn ($inner) => $inner
+            ->where('tasks.assigned_user_id', $user->id)
+            ->orWhere('tasks.created_by', $user->id));
+    }
+
+    public function isVisibleTo(User $user): bool
+    {
+        return ! $user->seesOnlyOwnTasks()
+            || (int) $this->assigned_user_id === (int) $user->id
+            || (int) $this->created_by === (int) $user->id;
+    }
+
     public function scopeAssignedTo($query, int $userId)
     {
         return $query->where('assigned_user_id', $userId);

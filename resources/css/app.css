@@ -46,6 +46,17 @@
         --radius: 0.75rem;
     }
 
+    /* v2.141.0 -- the Approval Flow Builder canvas (React Flow, A7) in IOMS's own
+       clothes: no third-party chrome, the IOMS edge and dot colours, invisible
+       handles (nothing is connected by hand -- stages are inserted with +). */
+    .approval-flow-canvas .react-flow__pane { cursor: grab; }
+    .approval-flow-canvas .react-flow__node { font-family: inherit; }
+    .approval-flow-canvas .react-flow__node:focus-visible { outline: none; }
+    .approval-flow-canvas .react-flow__node:focus-visible > div { box-shadow: 0 0 0 2px #2563EB; }
+    .approval-flow-handle { opacity: 0; width: 1px !important; height: 1px !important; min-width: 0 !important; min-height: 0 !important; border: 0 !important; }
+    .approval-flow-edge { stroke: #9FB3CC !important; stroke-width: 2px !important; }
+    .approval-flow-dots { --xy-background-pattern-color: rgba(100, 125, 160, 0.28); }
+
     /* v2.139.0 -- MIDNIGHT FROSTED GLASS (ADR 082). The dark counterpart
        of Icy Blue Frosted: the same cool family at night. Ground midnight
        navy #101925 (never black), surfaces dark frosted glass #192636 and
@@ -744,6 +755,7 @@
         background-color: rgba(34, 50, 70, 0.32);
     }
     .dark .active\:bg-graphite-50:active,
+    .dark .focus-visible\:bg-steel-50:focus-visible,
     .dark .group:hover .group-hover\:bg-graphite-50,
     .dark .hover\:bg-graphite-50:hover,
     .dark .hover\:bg-steel-50:hover {
@@ -973,6 +985,9 @@
     .dark .focus-visible\:ring-white\/70:focus-visible {
         --tw-ring-color: rgba(150, 180, 220, 0.14);
     }
+    .dark .hover\:ring-brand-300:hover {
+        --tw-ring-color: rgba(87, 149, 232, 0.42);
+    }
     .dark .text-emerald-500,
     .dark .text-emerald-600,
     .dark .text-success {
@@ -1117,3 +1132,7 @@
 html.dark [role="dialog"].dark\:bg-slate-900,
 html.dark [role="menu"].dark\:bg-slate-900,
 html.dark [role="listbox"].dark\:bg-slate-900 { background-color: rgba(26, 40, 57, 0.95); }
+
+/* v2.141.0 -- the Approval Flow Builder canvas in Midnight. */
+.dark .approval-flow-edge { stroke: #4A6280 !important; }
+.dark .approval-flow-dots { --xy-background-pattern-color: rgba(148, 176, 210, 0.16); }

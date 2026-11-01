@@ -54,8 +54,23 @@ configurable multi-step flows (`approval_flows` + `approval_flow_steps`, per ten
   role step). Position holders are notified when their step opens.
 - **Escalation widens one request**: `approvals.escalated_to_role`. It used to insert a permanent step
   row into the flow.
-- Pinned by `ApprovalFlowVersionTest`. The visual editor (A7) is a separate decision; PTW keeps
-  `PtwWorkflowService` (ADR 067) and is not routed through this engine yet.
+- **Stage kind, separation of duties, validation (A8b, ADR 083).** A stage is `approval` or
+  `final_verification`. `App\Services\Approvals\SeparationOfDuties` is asked by `authorize()` on a
+  Final Verification stage: never the requester, never anybody who approved any stage of the same record,
+  no Super Admin override. `ApprovalCandidates` resolves who a stage names (active full accounts of the
+  tenant), and `ApprovalFlowValidator` refuses a flow before it is published (numbering 1..N, one
+  mode/kind per stage, one approver per row, the PTW shape, every stage naming somebody, and A8b at
+  configuration time).
+- **Closing a decided stage (P4).** On an "any one" stage, and on any rejection, the other rows at that
+  stage become `skipped`; on an "all" stage they wait for their own decisions. `decide()` runs under a
+  row lock.
+- **PTW on the company's flow.** `ptw_workflow_settings.approval_mode` (`legacy` default | `flow`) per
+  operating unit; `PtwWorkflowService::usesApprovalFlow()/submissionProblem()/startFlow()/flowProgress()`;
+  the engine hands the last decision to `PermitToWork::finalizeApprovalFlow()` (any approvable may define
+  `finalizeApprovalFlow($decision, $user, $comments)`).
+- **The editor** (A7): `Components/settings/approval-flow/` — `model.js` (rows ↔ stages, client checks),
+  `ApprovalFlowEditor.jsx` (React Flow canvas on desktop, list + dialog on phones). Pinned by
+  `ApprovalFlowVersionTest` and `PtwApprovalFlowTest`.
 
 ### Workflow Engine
 

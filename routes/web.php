@@ -1188,6 +1188,7 @@ Route::middleware(['auth', 'restrict.platform-admin'])->group(function () {
         // v2.127.0 -- who verifies and who approves a Permit to Work, per
         // operating unit. See PtwWorkflowService.
         Route::post('/settings/ptw-workflow', [SettingsController::class, 'updatePtwWorkflow'])->name('settings.ptw-workflow');
+        Route::post('/settings/ptw-workflow/mode', [SettingsController::class, 'updatePtwApprovalMode'])->name('settings.ptw-workflow.mode');
 
         // Dynamic Document Engine (Milestone 3, Task #66).
         Route::post('/settings/documents', [SettingsController::class, 'storeDocumentTemplate'])->name('settings.documents.store');

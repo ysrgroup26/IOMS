@@ -55,6 +55,17 @@ class ApprovalFlowVersion extends Model
         );
     }
 
+    /** Rows with sorted keys and normalised scalars, for comparison. */
+    public static function canonical(array $steps): array
+    {
+        return array_map(function ($row) {
+            $row = (array) $row;
+            ksort($row);
+
+            return array_map(fn ($value) => is_numeric($value) ? (int) $value : $value, $row);
+        }, $steps);
+    }
+
     /**
      * The steps of a flow as a version stores them.
      *
@@ -65,6 +76,7 @@ class ApprovalFlowVersion extends Model
         return $flow->steps()->withoutGlobalScopes()->orderBy('step_number')->orderBy('id')->get()
             ->map(fn (ApprovalFlowStep $step) => [
                 'step_number' => (int) $step->step_number,
+                'kind' => $step->kind ?: ApprovalFlowStep::KIND_APPROVAL,
                 'mode' => $step->mode,
                 'approver_role' => $step->approver_role,
                 'approver_user_id' => $step->approver_user_id ? (int) $step->approver_user_id : null,
@@ -84,7 +96,10 @@ class ApprovalFlowVersion extends Model
         $steps = static::stepsOf($flow);
         $latest = static::withoutGlobalScopes()->where('approval_flow_id', $flow->id)->orderByDesc('version')->first();
 
-        if ($latest && $latest->steps === $steps) {
+        // Compared CANONICALLY: a MySQL JSON column re-orders object keys,
+        // so a byte-for-byte comparison published a new version on every
+        // request (found on MySQL; SQLite keeps the order).
+        if ($latest && static::canonical($latest->steps ?? []) === static::canonical($steps)) {
             return $latest;
         }
 

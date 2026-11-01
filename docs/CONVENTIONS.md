@@ -3,6 +3,28 @@
 House style, and a deliberately honest list of mistakes that have actually happened in this
 codebase's history — kept here so they don't get repeated in a slightly different shape.
 
+## Known Pitfall (v2.141.0): a MySQL JSON column does not keep your key order
+
+`ApprovalFlowVersion::currentFor()` compared the stored steps with `===` and published a NEW version for
+every request on MySQL, while every SQLite test passed: MySQL's JSON type normalises (sorts) object keys,
+SQLite stores the text as written. Compare JSON-cast arrays canonically (`ApprovalFlowVersion::canonical()`:
+sorted keys, normalised scalars), and check anything that compares stored JSON on MySQL, not only in the
+suite. Found by running the staging review seeder against the local MySQL.
+
+## Known Pitfall (v2.141.0): ask "which route?" before the transition, not after
+
+Whether a permit runs on its company's approval flow is decided by its operating unit's mode **while it is
+a draft**; once submitted, only its own Approval rows say so. The review seeder asked after
+`transitionTo(SUBMITTED)` and silently put permits on the legacy gates. The controller asks before
+(`$onFlow` is computed first) -- keep it that way, in any new submission path.
+
+## Known Pitfall (v2.141.0): a decided stage must close its other rows
+
+A parallel "any one approver" stage left the other approvers' rows `pending` for ever (P4): they kept
+appearing in Waiting on Me, and a second decision could advance the record again. A row that is no longer
+needed is `skipped`. Any new multi-approver mechanism must say what happens to the rows a decision makes
+redundant.
+
 ## Known Pitfall (v2.141.0): configuration read live by a process already under way
 
 The approval engine read a flow's steps at every decision, so editing or removing a flow changed

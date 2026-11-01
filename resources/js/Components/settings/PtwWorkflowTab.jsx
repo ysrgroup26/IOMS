@@ -1,5 +1,5 @@
 /* v2.141.0 -- split out of Pages/Settings/Index.jsx (M0, Settings architecture). Behaviour unchanged. */
-import { useForm } from '@inertiajs/react';
+import { useForm, router, usePage } from '@inertiajs/react';
 import { useState, useEffect } from 'react';
 import { Card, CardContent, CardHeader, CardTitle, CardDescription } from '@/Components/ui/card';
 import { Button } from '@/Components/ui/button';
@@ -189,6 +189,8 @@ export default function PtwWorkflowTab({ ptwWorkflow, companies }) {
                         </p>
                     </div>
 
+                    <ApprovalModeChoice companyId={companyId} mode={current?.approval_mode ?? 'legacy'} />
+
                     <div className="grid grid-cols-1 gap-3 lg:grid-cols-2">
                         {stage('Stage 1 · HSE Verification', 'verify_roles', 'verify_user_ids', defaults.verify_roles, 'verify_title', 'e.g. HSE Officer')}
                         {stage('Stage 2 · Final Approval', 'approve_roles', 'approve_user_ids', defaults.approve_roles, 'approve_title', 'e.g. Manager Shipyard')}
@@ -201,5 +203,56 @@ export default function PtwWorkflowTab({ ptwWorkflow, companies }) {
                 </form>
             </CardContent>
         </Card>
+    );
+}
+
+/*
+ * v2.141.0 -- WHICH ROUTE A UNIT'S NEW PERMITS TAKE (A8, A8b).
+ *
+ * Standard keeps the two gates configured below. Company Approval Flow runs
+ * new permits on the PTW flow built in Settings -> Approval Flow: Approval
+ * 1..N, then the mandatory Final Verification. The server refuses the switch
+ * unless that flow is valid; permits already submitted keep their route.
+ */
+function ApprovalModeChoice({ companyId, mode }) {
+    const { errors } = usePage().props;
+    const options = [
+        { value: 'legacy', label: 'Standard', description: 'HSE Verification lalu Final Approval, seperti yang diatur di bawah.' },
+        { value: 'flow', label: 'Company Approval Flow', description: 'Approval 1..N lalu Final Verification, sesuai Approval Flow PTW perusahaan.' },
+    ];
+
+    const choose = (value) => {
+        if (value === mode || !companyId) return;
+        const message = value === 'flow'
+            ? 'PTW baru di unit ini akan mengikuti Approval Flow perusahaan. PTW yang sudah diajukan tetap memakai jalur lamanya. Lanjutkan?'
+            : 'PTW baru di unit ini akan kembali ke verifikasi dan persetujuan standar. PTW yang sudah berjalan pada Approval Flow tetap menyelesaikan alurnya. Lanjutkan?';
+        if (confirm(message)) {
+            router.post(route('settings.ptw-workflow.mode'), { company_id: companyId, approval_mode: value }, { preserveScroll: true });
+        }
+    };
+
+    return (
+        <fieldset className="space-y-2">
+            <legend className="text-xs font-semibold text-graphite-700">Approval Route</legend>
+            <div className="grid grid-cols-1 gap-2 sm:grid-cols-2">
+                {options.map((option) => (
+                    <button
+                        key={option.value}
+                        type="button"
+                        onClick={() => choose(option.value)}
+                        aria-pressed={mode === option.value}
+                        className={cn(
+                            'min-h-[44px] rounded-lg border px-3 py-2 text-left transition-colors focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-brand-500',
+                            mode === option.value ? 'border-brand-500 bg-brand-50' : 'border-steel-200 hover:bg-steel-50',
+                        )}
+                    >
+                        <span className="block text-sm font-bold text-navy-900">{option.label}</span>
+                        <span className="block text-[11px] text-graphite-500">{option.description}</span>
+                    </button>
+                ))}
+            </div>
+            {errors?.approval_mode && <p className="text-xs text-danger">{errors.approval_mode}</p>}
+            {errors?.steps && <p className="text-xs text-danger">{Array.isArray(errors.steps) ? errors.steps[0] : errors.steps}</p>}
+        </fieldset>
     );
 }

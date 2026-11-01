@@ -12,6 +12,13 @@ class Approval extends Model
 
     public const STATUS_REJECTED = 'rejected';
 
+    /**
+     * v2.141.0 (P4) -- a row at a stage that was already decided by somebody
+     * else ("any one approver"), or a stage that was rejected. Never decided,
+     * never pending again.
+     */
+    public const STATUS_SKIPPED = 'skipped';
+
     protected $fillable = [
         'approvable_type',
         'approvable_id',

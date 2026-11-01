@@ -151,8 +151,9 @@ class MyWorkComponentsTest extends TestCase
         $this->assertSame(1, $props['counts']['overdue']);
     }
 
-    public function test_a_department_user_sees_their_task_without_a_link_they_cannot_open(): void
+    public function test_a_department_user_can_open_the_task_assigned_to_them(): void
     {
+        // D1 (approved): a task handed to a Department User crosses departments.
         $me = $this->user(User::ROLE_HSE);
         $me->forceFill(['department_key' => 'hse'])->save();
         $this->task($me, 'TSK-D', null);
@@ -160,8 +161,8 @@ class MyWorkComponentsTest extends TestCase
         $props = $this->props($me->fresh());
 
         $this->assertSame('TSK-D', $props['assignedToMe'][0]['number']);
-        $this->assertNull($props['assignedToMe'][0]['href'], 'Tasks is not in any department yet (D1): no link that answers 403.');
-        $this->assertNull($props['links']['tasks']);
+        $this->assertNotNull($props['assignedToMe'][0]['href']);
+        $this->assertNotNull($props['links']['tasks']);
     }
 
     public function test_my_permits_holds_what_i_requested_or_lead_and_not_closed_ones(): void

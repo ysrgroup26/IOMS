@@ -2,10 +2,16 @@
 
 namespace App\Models;
 
+use App\Mail\PasswordResetLink;
+use App\Mail\VerifyAccountEmail;
 use App\Models\Scopes\UserTenantScope;
 use Illuminate\Contracts\Auth\MustVerifyEmail;
 use Illuminate\Foundation\Auth\User as Authenticatable;
 use Illuminate\Notifications\Notifiable;
+use Illuminate\Support\Carbon;
+use Illuminate\Support\Facades\Log;
+use Illuminate\Support\Facades\Mail;
+use Illuminate\Support\Facades\URL;
 use Laravel\Sanctum\HasApiTokens;
 use Spatie\Permission\Traits\HasRoles;
 
@@ -313,9 +319,9 @@ class User extends Authenticatable implements MustVerifyEmail
     {
         $minutes = (int) config('auth.verification.expire', 60);
 
-        $url = \Illuminate\Support\Facades\URL::temporarySignedRoute(
+        $url = URL::temporarySignedRoute(
             'verification.verify',
-            \Illuminate\Support\Carbon::now()->addMinutes($minutes),
+            Carbon::now()->addMinutes($minutes),
             ['id' => $this->getKey(), 'hash' => sha1($this->getEmailForVerification())],
         );
 
@@ -331,10 +337,10 @@ class User extends Authenticatable implements MustVerifyEmail
          * reported to the caller, which says so honestly to the person.
          */
         try {
-            \Illuminate\Support\Facades\Mail::to($this->email)
-                ->send(new \App\Mail\VerifyAccountEmail($this, $url, $minutes));
+            Mail::to($this->email)
+                ->send(new VerifyAccountEmail($this, $url, $minutes));
         } catch (\Throwable $e) {
-            \Illuminate\Support\Facades\Log::error('Account verification email could not be sent.', [
+            Log::error('Account verification email could not be sent.', [
                 'user_id' => $this->getKey(),
                 'error' => $e::class.': '.$e->getMessage(),
             ]);
@@ -911,6 +917,16 @@ class User extends Authenticatable implements MustVerifyEmail
 
     public const TYPES = [self::TYPE_FULL, self::TYPE_MY_WORK];
 
+    /**
+     * v2.141.0 -- D1: a Department User or a My Work account reaches Tasks
+     * for the work handed to them, not the whole register. A Super Admin is
+     * never narrowed.
+     */
+    public function seesOnlyOwnTasks(): bool
+    {
+        return ! $this->isSuperAdmin() && ($this->isDepartmentUser() || $this->isMyWorkUser());
+    }
+
     public function isMyWorkUser(): bool
     {
         return $this->user_type === self::TYPE_MY_WORK;
@@ -946,7 +962,6 @@ class User extends Authenticatable implements MustVerifyEmail
         return $this->isMyWorkUser() && $this->employee_id !== null;
     }
 
-
     /**
      * The route this user should land on after signing in.
      *
@@ -973,8 +988,8 @@ class User extends Authenticatable implements MustVerifyEmail
      */
     public function sendPasswordResetNotification($token): void
     {
-        \Illuminate\Support\Facades\Mail::to($this->email)->send(
-            new \App\Mail\PasswordResetLink(
+        Mail::to($this->email)->send(
+            new PasswordResetLink(
                 url(route('password.reset', ['token' => $token, 'email' => $this->email], false)),
                 (int) config('auth.passwords.users.expire', 60),
             )

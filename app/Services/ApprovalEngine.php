@@ -2,11 +2,14 @@
 
 namespace App\Services;
 
+use App\Concerns\HasWorkflow;
 use App\Models\Approval;
 use App\Models\ApprovalFlow;
 use App\Models\ApprovalFlowStep;
 use App\Models\Notification;
+use App\Models\Tenant;
 use App\Models\User;
+use App\Support\CurrentTenant;
 use Illuminate\Database\Eloquent\Collection;
 use Illuminate\Database\Eloquent\Model;
 use Illuminate\Support\Str;
@@ -254,7 +257,7 @@ class ApprovalEngine
      * the fallback covers one that someday does not, without ever letting
      * a raw class name through.
      *
-     * @see \App\Concerns\HasWorkflow::documentLabel()
+     * @see HasWorkflow::documentLabel()
      */
     private function labelOf(Model $approvable): string
     {
@@ -351,52 +354,83 @@ class ApprovalEngine
             ->where('status', Approval::STATUS_PENDING)
             ->whereNotNull('approval_flow_id')
             ->where('is_escalated', false)
-            ->with('flow.steps')
             ->chunkById(100, function (Collection $pending) use (&$escalated) {
                 foreach ($pending as $approval) {
-                    $stepDefinition = $approval->flow?->steps
-                        ->where('step_number', $approval->step_number)
-                        ->first(fn (ApprovalFlowStep $s) => $s->escalate_after_hours !== null);
+                    /*
+                     * v2.141.0 -- EACH APPROVAL IN ITS OWN TENANT.
+                     *
+                     * This runs hourly from the scheduler, where no request
+                     * has resolved a tenant. The FLOW is tenant-scoped and
+                     * fails closed, so `$approval->flow` was always null here
+                     * and no step ever escalated in production. The flow is
+                     * read unscoped, and the approval is then processed --
+                     * step rows, the update and the role notification --
+                     * inside that flow's own tenant, never another's.
+                     */
+                    $flow = ApprovalFlow::withoutGlobalScopes()->with(['steps' => fn ($q) => $q->withoutGlobalScopes()])->find($approval->approval_flow_id);
+                    $tenant = $flow?->tenant_id ? Tenant::find($flow->tenant_id) : null;
 
-                    if (! $stepDefinition || ! $stepDefinition->escalate_to_role) {
+                    if (! $flow || ! $tenant) {
                         continue;
                     }
 
-                    $deadline = $approval->created_at->addHours($stepDefinition->escalate_after_hours);
-                    if (now()->lessThan($deadline)) {
-                        continue;
+                    $current = app(CurrentTenant::class);
+                    $previous = $current->get();
+                    $current->set($tenant);
+
+                    try {
+                        $escalated += $this->escalateIfDue($approval, $flow);
+                    } finally {
+                        $current->set($previous);
                     }
-
-                    // Escalation widens WHO can decide the existing pending
-                    // Approval row -- it does not create a second Approval
-                    // row (that would leave a dangling duplicate once
-                    // either approver decides). `authorize()` checks every
-                    // ApprovalFlowStep at this step_number, so adding one
-                    // more row here is immediately enough for the
-                    // escalate_to_role to act on the SAME pending approval.
-                    ApprovalFlowStep::create([
-                        'approval_flow_id' => $approval->approval_flow_id,
-                        'step_number' => $approval->step_number,
-                        'mode' => $stepDefinition->mode,
-                        'approver_role' => $stepDefinition->escalate_to_role,
-                    ]);
-
-                    $approval->update(['is_escalated' => true, 'escalated_at' => now()]);
-
-                    $this->notifier->notifyRole(
-                        $stepDefinition->escalate_to_role,
-                        Notification::CATEGORY_WARNING,
-                        $this->labelOf($approval->approvable).' '.$this->displayNumberOf($approval->approvable).' was escalated to you: no decision after '.$stepDefinition->escalate_after_hours.'h',
-                        null,
-                        $this->urlOf($approval->approvable),
-                        $approval->approvable,
-                        $this->metaOf($approval->approvable)
-                    );
-
-                    $escalated++;
                 }
             });
 
         return $escalated;
+    }
+
+    /** One pending approval, inside its flow's tenant. Returns 1 when it escalated. */
+    private function escalateIfDue(Approval $approval, ApprovalFlow $flow): int
+    {
+        $stepDefinition = $flow->steps
+            ->where('step_number', $approval->step_number)
+            ->first(fn (ApprovalFlowStep $s) => $s->escalate_after_hours !== null);
+
+        if (! $stepDefinition || ! $stepDefinition->escalate_to_role) {
+            return 0;
+        }
+
+        $deadline = $approval->created_at->addHours($stepDefinition->escalate_after_hours);
+        if (now()->lessThan($deadline)) {
+            return 0;
+        }
+
+        // Escalation widens WHO can decide the existing pending
+        // Approval row -- it does not create a second Approval
+        // row (that would leave a dangling duplicate once
+        // either approver decides). `authorize()` checks every
+        // ApprovalFlowStep at this step_number, so adding one
+        // more row here is immediately enough for the
+        // escalate_to_role to act on the SAME pending approval.
+        ApprovalFlowStep::create([
+            'approval_flow_id' => $approval->approval_flow_id,
+            'step_number' => $approval->step_number,
+            'mode' => $stepDefinition->mode,
+            'approver_role' => $stepDefinition->escalate_to_role,
+        ]);
+
+        $approval->update(['is_escalated' => true, 'escalated_at' => now()]);
+
+        $this->notifier->notifyRole(
+            $stepDefinition->escalate_to_role,
+            Notification::CATEGORY_WARNING,
+            $this->labelOf($approval->approvable).' '.$this->displayNumberOf($approval->approvable).' was escalated to you: no decision after '.$stepDefinition->escalate_after_hours.'h',
+            null,
+            $this->urlOf($approval->approvable),
+            $approval->approvable,
+            $this->metaOf($approval->approvable)
+        );
+
+        return 1;
     }
 }

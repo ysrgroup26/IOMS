@@ -667,6 +667,21 @@ reviewed on **staging** before production, and each production deploy needs the 
 
 ---
 
+## 6a. Production defects found while building the foundation (reported separately)
+
+Fixed on the branch, **not deployed** (production deploy needs the owner's approval).
+
+| # | Defect | Impact | Root cause | Risk | Solution |
+|---|---|---|---|---|---|
+| P1 | Editing a flow's steps re-routes requests already in it | A request in progress can be finalised early (a removed step), or handed to a different approver (a changed role), by an unrelated configuration edit. Affects Material Request, PPE replacement, leave and any module on a configured flow | `ApprovalEngine` read the flow's steps **live** at every decision; Settings replaced the step rows | Medium: needs an admin edit while requests are pending, but the outcome (a wrong approval) is silent | Requests pinned to an immutable published version (`ApprovalFlowVersion`) |
+| P2 | Removing a flow collapses its in-flight requests onto the single-step path | Every pending request on that flow becomes decidable by any configured approver (Super Admin / Manager) **in one step**, skipping the rest of the chain | `approvals.approval_flow_id` is `nullOnDelete`, and a null flow id means "legacy single-step" | Medium–High: bypasses multi-level approval | The pinned version keeps the route; a version-pinned row is never treated as legacy |
+| P3 | One escalation permanently adds an approver to the flow | After the first overdue request, the escalation role can approve **every later request** through that flow at that step, and every in-flight one | Escalation inserted an `approval_flow_steps` row instead of recording on the approval | Medium: widens approval authority silently; note escalation only started working with this branch's scheduler fix, so production has not been affected **yet**, but would be after that fix deploys alone | `approvals.escalated_to_role`; the flow is never modified |
+
+P3 is a reason to deploy the escalation fix and this change **together**. Cleaning up: production has
+no escalation-added step rows (escalation never ran there), so no data repair is needed; a read-only
+check before deploy is recommended (`approval_flow_steps` rows whose `approver_role` equals another
+row's `escalate_to_role` at the same step).
+
 ## 6. Progress
 
 | Item | Status | Evidence |
@@ -682,6 +697,7 @@ reviewed on **staging** before production, and each production deploy needs the 
 | **Notification event layer** (section 3 verdict) — first slice | `#status/implemented` | `NotificationCatalogue` (events with category, priority, mandatory); `NotificationService::send()` with dedupe and group keys; push as the queued `DeliverWebPush` job (3 tries, backoff) with `notification_deliveries` (sent / no device / failed); `user_notification_preferences` and the Account page card (in-app and push per category; Assignments and Approvals in-app locked, enforced on the server); **new events:** task and CAPA assignment (model hooks: every module), and `notifications:deadlines` hourly (due tomorrow once, overdue once a day, per tenant); "assignment" category and a High/Critical label in the menu; `NotificationEventLayerTest` (8) |
 | **M2 My Work components**: Waiting on Me, Assigned to Me, My Permits | `#status/implemented` | `App\Services\MyWorkService` (one item shape; `href` only where `RouteReach` allows); Waiting on Me = approvals `ApprovalEngine::authorize()` accepts + permits at the stage `PtwWorkflowService::canAct()` gives this person (stage from status); Assigned to Me = open tasks + CAPA, overdue first, then deadline, then priority; My Permits = requested or PIC (`users.employee_id`), open statuses; `Field/Home.jsx` mobile-first (summary counts, 56–64 px rows, compact two-column quick actions); browser-checked 390 and 1440 px, light and Midnight, HSE and My Work accounts, no horizontal scroll; `MyWorkComponentsTest` (7). **Not in this slice:** Work Order items (M5, never for Starter), role overview layers (needs A14), Tasks for Department Users (D1 — today they see the task with "Tidak dapat dibuka", never a dead link) |
 | **A13 append-only audit trail** (`record_changes`) — first slice | `#status/implemented` | Additive migration (one new table); `RecordsChanges` trait on every `HasWorkflow` model, `ApprovalFlow`, `ApprovalFlowStep`, `PtwWorkflowSetting`; before/after per field, status transition, PTW snapshot per transition, actor + title at the time, channel/route/IP; `RecordChange` refuses update and delete; fail-closed tenant scope; PTW Show "Change History" card (`RecordHistory`); browser-checked 390 px light and 1440 px Midnight; `RecordChangeAuditTrailTest` (9). **Next:** Work Order and Form definitions when built; a history card on the other workflow records |
+| **Approval Flow Builder foundation (engine)**: published versions, approver by position, per-request escalation | `#status/implemented` | `ApprovalFlowVersion` (immutable steps; requests pinned via `approvals.approval_flow_version_id`; Settings save publishes a version); `approver_position_id` (company structure) in the engine, the Settings step editor and notifications; `escalated_to_role` on the approval; additive migration (policy: additive), up/down/up rehearsed on MySQL; `ApprovalFlowVersionTest` (7, four fail without the fix) + Settings test. **Fixes three production defects** (section 6a). **Not yet:** the visual canvas (needs the A7 dependency decision), Final Verification as a stage type and PTW on this engine (needs A8b) |
 | F2 per-page chunks, F3 fonts | `#status/implemented` | `app.jsx` lazy glob + idle prefetch; release check still 186/186 pages; `@guest` font stylesheet; measured throttled load −43% |
 | Decision pack A1–A14 + D1 | `#status/planned` | Section 4. v3: **A8 and A9 decided by the owner**; A6 re-evaluated (open source); A8b, W1–W3 and A15 added |
 | M0 remainder, M1–M9 | `#status/planned` | Section 5 |

@@ -37,6 +37,26 @@ substantially bigger and hasn't been built. The `approvals` table's shape doesn'
 that later (e.g. an optional `step` column), but nothing today assumes it's coming in a particular
 form.
 
+**Flows, versions and approvers (v2.141.0).** The paragraph above predates Approval Engine v2:
+configurable multi-step flows (`approval_flows` + `approval_flow_steps`, per tenant, chosen by
+`ApprovalFlowResolver` through module key, company and `conditions`) do exist. Since v2.141.0:
+
+- **A request keeps the route it started on.** `ApprovalFlowVersion` is an immutable copy of a flow's
+  steps; `ApprovalEngine::start()` pins `approvals.approval_flow_version_id` to the flow's current
+  version (`currentFor()` reuses the latest when the steps are unchanged, otherwise publishes a new one),
+  and `authorize()`, `advance()` and escalation read the steps from that version. Saving steps in
+  Settings publishes a new version. Requests started before versions existed (null version) read the
+  live flow, as before. Versions are append-only and are not foreign-keyed to the flow, so removing a
+  flow leaves in-flight requests on their route (`approvals.approval_flow_id` is nulled by the FK; the
+  engine treats a version-pinned row as a flow row).
+- **Approver** = an IOMS role, a named person, or a **position** from the company's own structure
+  (`approver_position_id` → whoever's employee holds that position; Super Admin may also decide, as for a
+  role step). Position holders are notified when their step opens.
+- **Escalation widens one request**: `approvals.escalated_to_role`. It used to insert a permanent step
+  row into the flow.
+- Pinned by `ApprovalFlowVersionTest`. The visual editor (A7) is a separate decision; PTW keeps
+  `PtwWorkflowService` (ADR 067) and is not routed through this engine yet.
+
 ### Workflow Engine
 
 **What it is**: `app/Concerns/HasWorkflow.php`, a state-machine guard around a model's own

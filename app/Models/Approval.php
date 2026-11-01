@@ -28,6 +28,10 @@ class Approval extends Model
         'approver_name',
         'decided_at',
         'comments',
+        // v2.141.0 -- the published route this request is pinned to, and
+        // who an escalation added for THIS request only.
+        'approval_flow_version_id',
+        'escalated_to_role',
         // Milestone 3 (Approval Engine v2) -- null approval_flow_id means
         // this row is on the legacy single-step path (see ApprovalFlow's
         // own doc comment).

@@ -8,6 +8,7 @@ use App\Http\Requests\UpdateKpiCategoryRequest;
 use App\Models\ActivityLog;
 use App\Models\Approval;
 use App\Models\ApprovalFlow;
+use App\Models\ApprovalFlowVersion;
 use App\Models\Company;
 use App\Models\CompanySetting;
 use App\Models\Department;
@@ -299,6 +300,11 @@ class SettingsController extends Controller
                 ->with('steps')
                 ->orderBy('module_key')
                 ->get(),
+            // v2.141.0 -- positions a step may name, from the company's own structure.
+            'approvalPositions' => Position::query()->where('is_active', true)->with('company:id,name')
+                ->orderBy('name')->get(['id', 'name', 'company_id'])
+                ->map(fn (Position $position) => ['id' => $position->id, 'name' => $position->name, 'company' => $position->company?->name])
+                ->values(),
             'numberingModuleKeys' => array_keys(NumberGeneratorService::DEFAULTS),
             /*
              * v2.127.0 -- the PTW workflow routing, per operating unit.
@@ -733,16 +739,33 @@ class SettingsController extends Controller
             'steps' => ['array'],
             'steps.*.step_number' => ['required', 'integer', 'min:1'],
             'steps.*.mode' => ['required', Rule::in(['single', 'parallel_any', 'parallel_all'])],
-            'steps.*.approver_role' => ['required', 'string', Rule::in(['super_admin', 'hse', 'hrd', 'manager', 'warehouse'])],
+            // v2.141.0: a step names a role OR a position (the company's own
+            // structure); a position must be one this tenant can see.
+            'steps.*.approver_role' => ['nullable', 'required_without:steps.*.approver_position_id', 'string', Rule::in(['super_admin', 'hse', 'hrd', 'manager', 'warehouse'])],
+            'steps.*.approver_position_id' => ['nullable', 'integer', function ($attribute, $value, $fail) {
+                if ($value && ! Position::query()->whereKey($value)->exists()) {
+                    $fail('That position does not exist in your company structure.');
+                }
+            }],
             'steps.*.escalate_after_hours' => ['nullable', 'integer', 'min:1', 'max:720'],
             'steps.*.escalate_to_role' => ['nullable', 'string', Rule::in(['super_admin', 'hse', 'hrd', 'manager', 'warehouse'])],
         ]);
 
-        $approvalFlow->steps()->delete();
+        /*
+         * v2.141.0 -- one model at a time, so the audit trail (A13) records
+         * each removed and added step, and the result is PUBLISHED as a new
+         * version. Requests already under way stay on the version they
+         * started on (ApprovalFlowVersion); only new requests take this one.
+         */
+        DB::transaction(function () use ($approvalFlow, $validated, $request) {
+            $approvalFlow->steps()->get()->each->delete();
 
-        foreach ($validated['steps'] ?? [] as $step) {
-            $approvalFlow->steps()->create($step);
-        }
+            foreach ($validated['steps'] ?? [] as $step) {
+                $approvalFlow->steps()->create($step);
+            }
+
+            ApprovalFlowVersion::currentFor($approvalFlow->fresh(), $request->user());
+        });
 
         ActivityLog::record('updated', "Approval flow \"{$approvalFlow->name}\" steps were updated.", $approvalFlow);
 

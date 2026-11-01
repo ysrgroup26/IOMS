@@ -6,6 +6,7 @@ use App\Concerns\HasWorkflow;
 use App\Models\Approval;
 use App\Models\ApprovalFlow;
 use App\Models\ApprovalFlowStep;
+use App\Models\ApprovalFlowVersion;
 use App\Models\Notification;
 use App\Models\Tenant;
 use App\Models\User;
@@ -68,7 +69,14 @@ class ApprovalEngine
             return $approval;
         }
 
-        return $this->createStepApprovals($approvable, $flow, 1, $requester);
+        /*
+         * v2.141.0 -- THE REQUEST KEEPS THE ROUTE IT STARTED ON. Pinned to
+         * the flow's current published version, so a later edit or removal
+         * of the flow changes only requests that start afterwards.
+         */
+        $version = ApprovalFlowVersion::currentFor($flow, $requester);
+
+        return $this->createStepApprovals($approvable, $flow->id, $version, 1, $requester);
     }
 
     /**
@@ -98,7 +106,7 @@ class ApprovalEngine
             'comments' => $comments,
         ]);
 
-        if (! $approval->approval_flow_id) {
+        if (! $approval->approval_flow_id && ! $approval->approval_flow_version_id) {
             $this->finalize($approval->approvable, $decision, $user, $comments);
 
             return;
@@ -134,16 +142,45 @@ class ApprovalEngine
             return false;
         }
 
-        if (! $approval->approval_flow_id) {
+        if (! $approval->approval_flow_id && ! $approval->approval_flow_version_id) {
             $approvers = config('workflow.approvers', []);
 
             return $user->isSuperAdmin() || in_array($user->role, $approvers, true);
         }
 
-        return ApprovalFlowStep::where('approval_flow_id', $approval->approval_flow_id)
-            ->where('step_number', $approval->step_number)
-            ->get()
+        // An escalation widens who may decide THIS request, and nothing else.
+        if ($approval->is_escalated && $approval->escalated_to_role && $user->role === $approval->escalated_to_role) {
+            return true;
+        }
+
+        return $this->stepsFor($approval, (int) $approval->step_number)
             ->contains(fn (ApprovalFlowStep $step) => $step->matchesApprover($user));
+    }
+
+    /**
+     * v2.141.0 -- the step definitions a request is decided against: those
+     * of the version it was pinned to, or -- for a request started before
+     * versions existed -- the flow's live steps, as it always was.
+     *
+     * @return Collection<int, ApprovalFlowStep>
+     */
+    private function stepsFor(Approval $approval, int $stepNumber): Collection
+    {
+        if ($approval->approval_flow_version_id) {
+            $version = ApprovalFlowVersion::withoutGlobalScopes()->find($approval->approval_flow_version_id);
+
+            return $version ? $version->stepModels($stepNumber) : new Collection;
+        }
+
+        return ApprovalFlowStep::where('approval_flow_id', $approval->approval_flow_id)
+            ->where('step_number', $stepNumber)
+            ->get();
+    }
+
+    /** Whether the route a request runs on has a step with this number. */
+    private function hasStep(Approval $approval, int $stepNumber): bool
+    {
+        return $this->stepsFor($approval, $stepNumber)->isNotEmpty();
     }
 
     private function advance(Approval $decidedApproval, User $user, ?string $comments): void
@@ -158,15 +195,21 @@ class ApprovalEngine
             return;
         }
 
-        $flow = $decidedApproval->flow;
-        $stepNumber = $decidedApproval->step_number;
+        // v2.141.0: read from the pinned version, not the live flow -- the
+        // flow may have been edited, or removed, since this request began.
+        $flowId = (int) $decidedApproval->approval_flow_id;
+        $stepNumber = (int) $decidedApproval->step_number;
 
         $siblingApprovals = $approvable->approvals()
-            ->where('approval_flow_id', $flow->id)
+            ->when(
+                $decidedApproval->approval_flow_version_id,
+                fn ($query) => $query->where('approval_flow_version_id', $decidedApproval->approval_flow_version_id),
+                fn ($query) => $query->where('approval_flow_id', $flowId),
+            )
             ->where('step_number', $stepNumber)
             ->get();
 
-        $stepDefinitions = $flow->steps()->where('step_number', $stepNumber)->get();
+        $stepDefinitions = $this->stepsFor($decidedApproval, $stepNumber);
         $mode = $stepDefinitions->first()?->mode ?? ApprovalFlowStep::MODE_SINGLE;
 
         $stepSatisfied = match ($mode) {
@@ -179,7 +222,7 @@ class ApprovalEngine
         }
 
         $nextStepNumber = $stepNumber + 1;
-        $hasNextStep = $flow->steps()->where('step_number', $nextStepNumber)->exists();
+        $hasNextStep = $this->hasStep($decidedApproval, $nextStepNumber);
 
         if (! $hasNextStep) {
             $this->finalize($approvable, Approval::STATUS_APPROVED, $user, $comments);
@@ -187,21 +230,29 @@ class ApprovalEngine
             return;
         }
 
-        $this->createStepApprovals($approvable, $flow, $nextStepNumber, $decidedApproval->requester);
+        $version = $decidedApproval->approval_flow_version_id
+            ? ApprovalFlowVersion::withoutGlobalScopes()->find($decidedApproval->approval_flow_version_id)
+            : null;
+
+        $this->createStepApprovals($approvable, $flowId, $version, $nextStepNumber, $decidedApproval->requester);
     }
 
     /**
      * @return Collection<int, Approval>
      */
-    private function createStepApprovals(Model $approvable, ApprovalFlow $flow, int $stepNumber, User $requester): Collection
+    private function createStepApprovals(Model $approvable, int $flowId, ?ApprovalFlowVersion $version, int $stepNumber, User $requester): Collection
     {
-        $stepDefinitions = $flow->steps()->where('step_number', $stepNumber)->get();
+        $stepDefinitions = $version
+            ? $version->stepModels($stepNumber)
+            : ApprovalFlowStep::where('approval_flow_id', $flowId)->where('step_number', $stepNumber)->get();
 
         $approvals = $stepDefinitions->map(fn (ApprovalFlowStep $step) => $approvable->approvals()->create([
             'status' => Approval::STATUS_PENDING,
             'requested_by' => $requester->id,
             'requester_name' => $requester->displayName(),
-            'approval_flow_id' => $flow->id,
+            // Null once the flow itself was removed; the version still holds the route.
+            'approval_flow_id' => $flowId ?: null,
+            'approval_flow_version_id' => $version?->id,
             'step_number' => $stepNumber,
         ]));
 
@@ -213,6 +264,13 @@ class ApprovalEngine
                 }
             } elseif ($step->approver_role) {
                 $this->notifyApprovers($approvable, [$step->approver_role], $stepNumber);
+            } elseif ($step->approver_position_id) {
+                // Everybody in this tenant holding that position.
+                User::query()
+                    ->where('is_active', true)
+                    ->whereHas('employee', fn ($query) => $query->where('position_id', $step->approver_position_id))
+                    ->get()
+                    ->each(fn (User $holder) => $this->notifyApprover($holder, $approvable));
             }
         }
 
@@ -369,7 +427,7 @@ class ApprovalEngine
 
         Approval::query()
             ->where('status', Approval::STATUS_PENDING)
-            ->whereNotNull('approval_flow_id')
+            ->where(fn ($query) => $query->whereNotNull('approval_flow_id')->orWhereNotNull('approval_flow_version_id'))
             ->where('is_escalated', false)
             ->chunkById(100, function (Collection $pending) use (&$escalated) {
                 foreach ($pending as $approval) {
@@ -385,9 +443,14 @@ class ApprovalEngine
                      * inside that flow's own tenant, never another's.
                      */
                     $flow = ApprovalFlow::withoutGlobalScopes()->with(['steps' => fn ($q) => $q->withoutGlobalScopes()])->find($approval->approval_flow_id);
-                    $tenant = $flow?->tenant_id ? Tenant::find($flow->tenant_id) : null;
+                    // A pinned request still escalates after its flow was
+                    // removed: the tenant comes from the version it runs on.
+                    $tenantId = $flow?->tenant_id ?? ($approval->approval_flow_version_id
+                        ? ApprovalFlowVersion::withoutGlobalScopes()->whereKey($approval->approval_flow_version_id)->value('tenant_id')
+                        : null);
+                    $tenant = $tenantId ? Tenant::find($tenantId) : null;
 
-                    if (! $flow || ! $tenant) {
+                    if ((! $flow && ! $approval->approval_flow_version_id) || ! $tenant) {
                         continue;
                     }
 
@@ -407,11 +470,12 @@ class ApprovalEngine
     }
 
     /** One pending approval, inside its flow's tenant. Returns 1 when it escalated. */
-    private function escalateIfDue(Approval $approval, ApprovalFlow $flow): int
+    private function escalateIfDue(Approval $approval, ?ApprovalFlow $flow): int
     {
-        $stepDefinition = $flow->steps
-            ->where('step_number', $approval->step_number)
-            ->first(fn (ApprovalFlowStep $s) => $s->escalate_after_hours !== null);
+        $steps = $approval->approval_flow_version_id
+            ? $this->stepsFor($approval, (int) $approval->step_number)
+            : ($flow?->steps ?? new Collection)->where('step_number', $approval->step_number);
+        $stepDefinition = $steps->first(fn (ApprovalFlowStep $s) => $s->escalate_after_hours !== null);
 
         if (! $stepDefinition || ! $stepDefinition->escalate_to_role) {
             return 0;
@@ -429,14 +493,14 @@ class ApprovalEngine
         // ApprovalFlowStep at this step_number, so adding one
         // more row here is immediately enough for the
         // escalate_to_role to act on the SAME pending approval.
-        ApprovalFlowStep::create([
-            'approval_flow_id' => $approval->approval_flow_id,
-            'step_number' => $approval->step_number,
-            'mode' => $stepDefinition->mode,
-            'approver_role' => $stepDefinition->escalate_to_role,
+        // v2.141.0: recorded on THIS approval. It used to add a permanent
+        // step row to the flow, which made the escalation role an approver
+        // of every later request through that flow as well.
+        $approval->update([
+            'is_escalated' => true,
+            'escalated_at' => now(),
+            'escalated_to_role' => $stepDefinition->escalate_to_role,
         ]);
-
-        $approval->update(['is_escalated' => true, 'escalated_at' => now()]);
 
         $this->notifier->notifyRole(
             $stepDefinition->escalate_to_role,

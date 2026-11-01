@@ -11,7 +11,21 @@ import { Plus, Trash2, Loader2 } from 'lucide-react';
 import { moduleLabel } from '@/lib/moduleLabels';
 import { ROLE_LABELS, APPROVAL_ROLE_OPTIONS } from './shared';
 
-export default function ApprovalFlowsTab({ approvalFlows, moduleKeys }) {
+/*
+ * v2.141.0 -- a step's approver is ONE choice: an IOMS role, or a position
+ * from the company's own structure (Settings -> Positions). The select
+ * encodes it as `role:<key>` / `position:<id>`; the form still sends the two
+ * columns the server validates.
+ */
+const approverValue = (step) => (step.approver_position_id ? `position:${step.approver_position_id}` : `role:${step.approver_role ?? ''}`);
+const approverPatch = (value) => {
+    const [kind, id] = value.split(':');
+    return kind === 'position'
+        ? { approver_position_id: Number(id), approver_role: null }
+        : { approver_role: id, approver_position_id: null };
+};
+
+export default function ApprovalFlowsTab({ approvalFlows, positions = [], moduleKeys }) {
     const [activeFlowId, setActiveFlowId] = useState(approvalFlows?.[0]?.id ?? null);
     const activeFlow = (approvalFlows ?? []).find((f) => f.id === activeFlowId);
     const createForm = useForm({ module_key: moduleKeys?.[0] ?? '', name: '' });
@@ -107,8 +121,10 @@ export default function ApprovalFlowsTab({ approvalFlows, moduleKeys }) {
                     <CardHeader>
                         <CardTitle>Steps for "{activeFlow.name}"</CardTitle>
                         <CardDescription>
-                            Executed in order. Parallel steps: use the same step number on multiple rows --
-                            "any" needs one approver, "all" needs every one of them.
+                            Langkah dijalankan berurutan. Untuk langkah paralel, gunakan nomor langkah yang sama pada beberapa baris:
+                            "any" cukup satu penyetuju, "all" memerlukan semuanya. Penyetuju dapat berupa role atau posisi dari
+                            struktur perusahaan. Menyimpan menerbitkan versi baru; permintaan yang sedang berjalan tetap memakai
+                            versi saat permintaan itu dimulai.
                         </CardDescription>
                     </CardHeader>
                     <CardContent>
@@ -119,7 +135,7 @@ export default function ApprovalFlowsTab({ approvalFlows, moduleKeys }) {
                                         <TableRow>
                                             <TableHead className="w-16">Step</TableHead>
                                             <TableHead className="w-32">Mode</TableHead>
-                                            <TableHead className="w-32">Approver Role</TableHead>
+                                            <TableHead className="w-48">Approver</TableHead>
                                             <TableHead className="w-28">Escalate After (h)</TableHead>
                                             <TableHead className="w-32">Escalate To</TableHead>
                                             <TableHead />
@@ -142,10 +158,15 @@ export default function ApprovalFlowsTab({ approvalFlows, moduleKeys }) {
                                                     </Select>
                                                 </TableCell>
                                                 <TableCell>
-                                                    <Select value={step.approver_role} onValueChange={(v) => updateStep(i, { approver_role: v })}>
-                                                        <SelectTrigger><SelectValue /></SelectTrigger>
+                                                    <Select value={approverValue(step)} onValueChange={(v) => updateStep(i, approverPatch(v))}>
+                                                        <SelectTrigger aria-label={`Approver for step ${step.step_number}`}><SelectValue /></SelectTrigger>
                                                         <SelectContent>
-                                                            {APPROVAL_ROLE_OPTIONS.map((r) => <SelectItem key={r} value={r}>{ROLE_LABELS[r] ?? r}</SelectItem>)}
+                                                            {APPROVAL_ROLE_OPTIONS.map((r) => <SelectItem key={`role:${r}`} value={`role:${r}`}>Role: {ROLE_LABELS[r] ?? r}</SelectItem>)}
+                                                            {positions.map((p) => (
+                                                                <SelectItem key={`position:${p.id}`} value={`position:${p.id}`}>
+                                                                    Position: {p.name}{p.company ? ` (${p.company})` : ''}
+                                                                </SelectItem>
+                                                            ))}
                                                         </SelectContent>
                                                     </Select>
                                                 </TableCell>

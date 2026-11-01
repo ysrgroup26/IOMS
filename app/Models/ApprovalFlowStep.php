@@ -28,6 +28,8 @@ class ApprovalFlowStep extends Model
         'mode',
         'approver_role',
         'approver_user_id',
+        // v2.141.0 -- a position from the company's own structure.
+        'approver_position_id',
         'escalate_after_hours',
         'escalate_to_role',
     ];
@@ -58,6 +60,16 @@ class ApprovalFlowStep extends Model
 
         if ($this->approver_role) {
             return $user->isSuperAdmin() || $user->role === $this->approver_role;
+        }
+
+        /*
+         * v2.141.0 -- by POSITION: whoever holds that position in the
+         * company's own structure (users.employee_id -> employees.position_id),
+         * on the same terms as a role step (a Super Admin may also decide).
+         */
+        if ($this->approver_position_id) {
+            return $user->isSuperAdmin()
+                || ($user->employee_id && (int) $user->employee?->position_id === (int) $this->approver_position_id);
         }
 
         return false;

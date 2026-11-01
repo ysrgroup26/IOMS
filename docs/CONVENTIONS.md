@@ -3,6 +3,16 @@
 House style, and a deliberately honest list of mistakes that have actually happened in this
 codebase's history — kept here so they don't get repeated in a slightly different shape.
 
+## Known Pitfall (v2.141.0): configuration read live by a process already under way
+
+The approval engine read a flow's steps at every decision, so editing or removing a flow changed
+requests that had started under the old one (re-routed, collapsed to one step), and escalation wrote
+INTO the flow. Anything that runs over time against configuration -- an approval chain, a form
+definition, a checklist template -- must pin the version it started on (`ApprovalFlowVersion` is the
+pattern), and a per-instance exception (an escalation) belongs on the instance, never on the shared
+configuration. Watch for `nullOnDelete` foreign keys too: a nulled reference can silently select a
+different, weaker code path.
+
 ## Known Pitfall (v2.141.0): a raw `DB::table()` write leaves no audit trail
 
 `record_changes` (A13) is written by the `RecordsChanges` model trait, so it sees only changes made

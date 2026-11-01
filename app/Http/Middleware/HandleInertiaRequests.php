@@ -567,6 +567,8 @@ class HandleInertiaRequests extends Middleware
                         ->get(['id', 'category', 'priority', 'title', 'body', 'url', 'read_at', 'created_at', 'meta'])
                         ->map(fn (Notification $n) => [
                             ...$n->only(['id', 'category', 'priority', 'title', 'body', 'url', 'read_at', 'created_at']),
+                            // v2.141.0: decided by the server, against every gate (RouteReach).
+                            'openable' => (bool) $n->url && (! is_string($n->meta['route'] ?? null) || \App\Support\RouteReach::allows($user, $n->meta['route'])),
                             'route_prefix' => is_string($n->meta['route'] ?? null)
                                 ? explode('.', $n->meta['route'])[0]
                                 : null,

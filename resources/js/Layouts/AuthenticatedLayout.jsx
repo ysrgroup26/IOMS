@@ -1651,6 +1651,9 @@ function NotificationsMenu() {
      * cannot open says so and still marks read; a row that can, opens.
      */
     function canOpen(notification) {
+        // v2.141.0: the server decides against every gate (RouteReach),
+        // including the department rule the client cannot see.
+        if (typeof notification.openable === 'boolean') return notification.openable;
         if (!notification.url) return false;
         if (!notification.route_prefix) return true;
         return !isRouteBlockedForUser(notification.route_prefix, auth?.user);

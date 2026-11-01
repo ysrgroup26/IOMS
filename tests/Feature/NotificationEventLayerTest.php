@@ -223,4 +223,23 @@ class NotificationEventLayerTest extends TestCase
         $stored = json_decode(CompanySetting::getUncached('notification_preferences'), true);
         $this->assertTrue($stored['approval'], 'Saving Settings must not switch approvals off.');
     }
+
+    public function test_a_notification_is_offered_as_openable_only_where_the_person_can_go(): void
+    {
+        $departmentUser = $this->person($this->tenant, $this->yard, User::ROLE_HSE);
+        $departmentUser->forceFill(['department_key' => 'hse'])->save();
+
+        $this->actingAs($this->lead);
+        $this->task(['assigned_user_id' => $departmentUser->id]);
+        $this->task(['assigned_user_id' => $this->worker->id]);
+
+        // Tasks are not mapped to any department (D1 pending), so a
+        // Department User would get 403 -- the menu must not offer the link.
+        $items = $this->actingAs($departmentUser)->get(route('my-work'))->viewData('page')['props']['notifications']['items'];
+        $this->assertFalse(collect($items)->first(fn ($i) => str_starts_with($i['title'], 'Task assigned'))['openable']);
+        $this->actingAs($departmentUser)->get(route('tasks.index'))->assertForbidden();
+
+        $items = $this->actingAs($this->worker)->get(route('my-work'))->viewData('page')['props']['notifications']['items'];
+        $this->assertTrue(collect($items)->first(fn ($i) => str_starts_with($i['title'], 'Task assigned'))['openable']);
+    }
 }

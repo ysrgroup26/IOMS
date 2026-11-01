@@ -39,6 +39,7 @@ Full definitions and the update loop: [[Working with This Knowledge Base]].
 
 | Work | Where it stands | Next |
 |---|---|---|
+| [[Operational Experience and Workflow Enhancement]] — My Work, role dashboards, Work Order↔PTW, visual approval flow, PTW lifecycle and live board, SIMOPS, Form Builder, notifications, audit/versioning | **Audit complete** (2026-11-01, on `main` at `120141b`). Roadmap P0–P10 proposed; nothing implemented | **Owner decisions D1–D12**, then P0 → P1 (My Work) → P2 (role dashboards). Landing page update waits for the product (P10) |
 | [[Support Inbox]] | v2.80.0 shipped the whole ticket domain, the queue, the five states, assignment, ageing, sender identification and outgoing replies from `support@`. **Inbound mail ingestion is BLOCKED** (see below) and the queue page says so on screen | Build the ingestion adapter once the transport is chosen. Everything else is done |
 
 ## BLOCKED

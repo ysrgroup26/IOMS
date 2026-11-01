@@ -8,15 +8,14 @@ import { Badge } from '@/Components/ui/badge';
 import { Select, SelectTrigger, SelectValue, SelectContent, SelectItem } from '@/Components/ui/select';
 import { Table, TableHeader, TableBody, TableRow, TableHead, TableCell } from '@/Components/ui/table';
 import { Plus, Recycle, ArrowLeft } from 'lucide-react';
+import { STATUS_TONE } from '@/lib/semantics';
 
 const STATUS_LABELS = {
     generated: 'Generated', stored: 'Stored', scheduled_pickup: 'Scheduled Pickup',
     in_transit: 'In Transit', disposed: 'Disposed', closed: 'Closed',
 };
-const STATUS_VARIANTS = {
-    generated: 'outline', stored: 'secondary', scheduled_pickup: 'secondary',
-    in_transit: 'secondary', disposed: 'success', closed: 'success',
-};
+// v2.138.0: tones come from the one shared map (lib/semantics.js, ADR 081).
+const STATUS_VARIANTS = STATUS_TONE;
 
 /**
  * v1.11.4 (HSE Waste Management, Part 13). Waste Records list -- compact

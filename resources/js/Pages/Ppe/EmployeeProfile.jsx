@@ -14,11 +14,10 @@ import EmptyState from '@/Components/shared/EmptyState';
 import SectionHeader from '@/Components/shared/SectionHeader';
 import { ArrowLeft, Plus, Pencil, Trash2, RefreshCw, HardHat, AlertTriangle, History } from 'lucide-react';
 import PageHeader from '@/Components/shared/PageHeader';
+import { STATUS_TONE } from '@/lib/semantics';
 
-const STATUS_VARIANT = {
-    issued: 'outline', in_use: 'success', replacement_requested: 'secondary',
-    replacement_approved: 'secondary', replacement_completed: 'secondary', archived: 'secondary',
-};
+// v2.138.0: tones come from the one shared map (lib/semantics.js, ADR 081).
+const STATUS_VARIANT = STATUS_TONE;
 
 function humanize(value) {
     return value.replace(/_/g, ' ').replace(/\b\w/g, (c) => c.toUpperCase());
@@ -46,7 +45,7 @@ const COMPLIANCE_LABEL = {
 
 const COMPLIANCE_VARIANT = {
     compliant: 'success',
-    needs_replacement: 'outline',
+    needs_replacement: 'warning', // attention, not neutral (ADR 081)
     incomplete: 'destructive',
 };
 

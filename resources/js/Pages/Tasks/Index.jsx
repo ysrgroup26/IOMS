@@ -8,12 +8,12 @@ import { Table, TableHeader, TableBody, TableRow, TableHead, TableCell } from '@
 import { Select, SelectTrigger, SelectValue, SelectContent, SelectItem } from '@/Components/ui/select';
 import { Plus, Search, ChevronLeft, ChevronRight, ArrowUpDown, AlertTriangle } from 'lucide-react';
 import PageHeader from '@/Components/shared/PageHeader';
+import { STATUS_TONE } from '@/lib/semantics';
 
-const PRIORITY_VARIANT = { low: 'secondary', medium: 'outline', high: 'destructive', critical: 'destructive' };
-const STATUS_VARIANT = {
-    draft: 'secondary', open: 'outline', in_progress: 'success',
-    on_hold: 'secondary', waiting: 'secondary', completed: 'success', cancelled: 'secondary',
-};
+// v2.138.0: tones come from the one shared map (lib/semantics.js, ADR 081).
+const PRIORITY_VARIANT = STATUS_TONE;
+// v2.138.0: tones come from the one shared map (lib/semantics.js, ADR 081).
+const STATUS_VARIANT = STATUS_TONE;
 
 function humanize(value) {
     return value.replace(/_/g, ' ').replace(/\b\w/g, (c) => c.toUpperCase());

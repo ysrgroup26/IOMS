@@ -104,7 +104,7 @@ const Input = React.forwardRef(({ className, type = 'text', uppercase = false, o
                 // An identifier reads better set as one: slight tracking,
                 // and the monospaced face the product already uses for
                 // codes, so a 0 cannot be read as an O.
-                uppercase && 'font-mono tracking-[0.04em]',
+                uppercase && 'type-code tracking-[0.04em]',
                 className
             )}
             {...props}

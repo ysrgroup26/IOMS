@@ -69,7 +69,7 @@ export function Field({ label, value, hint, span = 1, emphasis = false, mono = f
             <dd
                 className={cn(
                     'mt-0.5 whitespace-pre-wrap break-words',
-                    mono && 'font-mono tabular-nums',
+                    mono && 'type-code',
                     emphasis
                         ? 'text-[15px] font-semibold leading-snug text-navy-900 dark:text-slate-50'
                         : 'text-[13px] leading-relaxed text-graphite-800 dark:text-slate-200',
@@ -98,7 +98,7 @@ export function DetailSection({ index, title, icon: Icon, description, action, c
             <div className="mb-3 flex items-start justify-between gap-3">
                 <div className="flex min-w-0 items-center gap-2">
                     {index && (
-                        <span className="shrink-0 rounded bg-navy-900/[0.06] px-1.5 py-0.5 font-mono text-[10px] font-semibold tabular-nums text-navy-700 dark:bg-slate-800 dark:text-slate-300">
+                        <span className="shrink-0 rounded bg-navy-900/[0.06] px-1.5 py-0.5 type-code text-[10px] font-semibold tabular-nums text-navy-700 dark:bg-slate-800 dark:text-slate-300">
                             {index}
                         </span>
                     )}

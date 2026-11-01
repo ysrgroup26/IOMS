@@ -68,7 +68,7 @@ export default function ContractorForm({ companies, contractorCode }) {
                 Register Contractor
             </h1>
             <p className="mb-6 text-sm text-graphite-500 dark:text-slate-400">
-                Will be registered as <span className="font-mono font-medium text-navy-800 dark:text-slate-200">{contractorCode}</span>.
+                Will be registered as <span className="type-code font-medium text-navy-800 dark:text-slate-200">{contractorCode}</span>.
                 Contractor workers and their documents are held against this record.
             </p>
 

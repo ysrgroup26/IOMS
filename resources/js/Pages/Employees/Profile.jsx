@@ -15,13 +15,10 @@ import { Table, TableHeader, TableBody, TableRow, TableHead, TableCell } from '@
 import KpiSummaryCard from '@/Components/shared/KpiSummaryCard';
 import { ArrowLeft, Pencil, Trash2, Phone, Calendar, Briefcase, FolderKanban, HardHat, GraduationCap, Plus, Clock, FileText, AlertTriangle } from 'lucide-react';
 import { MONTH_NAMES, disciplinaryActionLabel } from '@/lib/utils';
+import { STATUS_TONE } from '@/lib/semantics';
 
-const COMPETENCY_STATUS_VARIANT = {
-    valid: 'success',
-    expiring_soon: 'default',
-    expired: 'destructive',
-    no_expiry: 'secondary',
-};
+// v2.138.0: tones come from the one shared map (lib/semantics.js, ADR 081).
+const COMPETENCY_STATUS_VARIANT = STATUS_TONE;
 
 const COMPETENCY_STATUS_LABEL = {
     valid: 'Valid',

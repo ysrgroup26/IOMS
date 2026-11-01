@@ -83,7 +83,7 @@ export default function MilestonesIndex({ milestones, projects, filters, can }) 
                             <TableBody>
                                 {milestones.map((m) => (
                                     <TableRow key={m.id}>
-                                        <TableCell className="font-mono text-xs text-graphite-400">{m.milestone_number}</TableCell>
+                                        <TableCell className="type-code text-xs text-graphite-400">{m.milestone_number}</TableCell>
                                         <TableCell className="font-medium text-graphite-800 dark:text-slate-100">{m.title}</TableCell>
                                         <TableCell>{m.project?.name}</TableCell>
                                         <TableCell>

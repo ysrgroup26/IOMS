@@ -32,7 +32,9 @@ import { Bell, BellOff, ArrowUpRight } from 'lucide-react';
  * does not exist is worse than no link.
  */
 const CATEGORY_TONE = {
-    approval: { dot: 'bg-violet-500', chip: 'bg-violet-50 text-violet-700 ring-violet-200/70 dark:bg-violet-500/10 dark:text-violet-300 dark:ring-violet-500/30' },
+    // An approval waiting on somebody is the same 'awaiting a decision' amber
+    // as a pending status everywhere else (ADR 081); violet carried no meaning.
+    approval: { dot: 'bg-amber-500', chip: 'bg-amber-50 text-amber-700 ring-amber-200/70 dark:bg-amber-500/10 dark:text-amber-300 dark:ring-amber-500/30' },
     reminder: { dot: 'bg-blue-500', chip: 'bg-blue-50 text-blue-700 ring-blue-200/70 dark:bg-blue-500/10 dark:text-blue-300 dark:ring-blue-500/30' },
     warning: { dot: 'bg-amber-500', chip: 'bg-amber-50 text-amber-700 ring-amber-200/70 dark:bg-amber-500/10 dark:text-amber-300 dark:ring-amber-500/30' },
     success: { dot: 'bg-emerald-500', chip: 'bg-emerald-50 text-emerald-700 ring-emerald-200/70 dark:bg-emerald-500/10 dark:text-emerald-300 dark:ring-emerald-500/30' },

@@ -138,7 +138,7 @@ export default function PermitsToWorkIndex({ permits, filters, can }) {
                                         className="block px-4 py-3 transition-colors hover:bg-steel-50/70 active:bg-steel-100/70 dark:hover:bg-slate-800/40 dark:active:bg-slate-800/60"
                                     >
                                         <div className="flex items-start justify-between gap-2">
-                                            <span className="font-mono text-[12px] font-semibold tracking-tight text-navy-900 dark:text-slate-100">{p.ptw_number}</span>
+                                            <span className="type-code text-[12px] font-semibold tracking-tight text-navy-900 dark:text-slate-100">{p.ptw_number}</span>
                                             <StatusBadge value={p.status} />
                                         </div>
                                         <p className="mt-1 text-sm capitalize text-graphite-700 dark:text-slate-300">{p.permit_type.replace('_', ' ')}</p>
@@ -183,7 +183,7 @@ export default function PermitsToWorkIndex({ permits, filters, can }) {
                                     {permits.data.map((p) => (
                                         <TableRow key={p.id} className="cursor-pointer" onClick={() => router.visit(route('permits-to-work.show', p.id))}>
                                             <TableCell>
-                                                <p className="font-mono text-[12px] font-semibold tracking-tight text-navy-900 dark:text-slate-100">{p.ptw_number}</p>
+                                                <p className="type-code text-[12px] font-semibold tracking-tight text-navy-900 dark:text-slate-100">{p.ptw_number}</p>
                                                 <p className="mt-0.5 text-xs capitalize text-graphite-500 dark:text-slate-400">{p.permit_type.replace('_', ' ')}</p>
                                             </TableCell>
                                             <TableCell className="max-w-[180px]">

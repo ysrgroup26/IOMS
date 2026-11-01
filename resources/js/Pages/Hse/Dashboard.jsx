@@ -37,16 +37,18 @@ const OPERATIONAL_KPI_STYLE = {
     permits: { icon: Flame, accent: 'blue' },
     incidents: { icon: AlertTriangle, accent: 'red' },
     ppe: { icon: HardHat, accent: 'amber' },
-    inspections: { icon: CalendarCheck, accent: 'green' },
-    material: { icon: PackageSearch, accent: 'violet' },
+    // v2.138.0 (ADR 081): an inspection DUE is a warning, not a success, and
+    // a material request queue is information -- violet meant nothing here.
+    inspections: { icon: CalendarCheck, accent: 'amber' },
+    material: { icon: PackageSearch, accent: 'blue' },
 };
 
 const QUICK_ACCESS_STYLE = {
     incident: { icon: AlertTriangle, accent: 'red' },
     observation: { icon: Eye, accent: 'amber' },
-    capa: { icon: ClipboardCheck, accent: 'violet' },
+    capa: { icon: ClipboardCheck, accent: 'blue' },
     ptw: { icon: Flame, accent: 'blue' },
-    ppe: { icon: HardHat, accent: 'green' },
+    ppe: { icon: HardHat, accent: 'blue' },
     reports: { icon: FileBarChart, accent: 'blue' },
 };
 
@@ -352,7 +354,7 @@ export default function HseDashboard({
                     value={openCapaCount}
                     label="Open CAPA"
                     reading="Belum diverifikasi"
-                    accent={openCapaCount > 0 ? 'violet' : 'green'}
+                    accent={openCapaCount > 0 ? 'amber' : 'green'}
                     href={route('corrective-actions.index')}
                 />
             </div>

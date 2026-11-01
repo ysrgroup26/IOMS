@@ -120,7 +120,7 @@ export default function PtwQuota({ balance, packs = [], recent = [], canPurchase
                                         key={pack.key}
                                         className="flex flex-col surface p-5"
                                     >
-                                        <p className="font-mono text-[11px] uppercase tracking-[0.16em] text-graphite-400">
+                                        <p className="type-code text-[11px] uppercase tracking-[0.16em] text-graphite-400">
                                             Top up
                                         </p>
                                         <p className="mt-2 text-2xl font-semibold tracking-tight text-navy-900">
@@ -199,7 +199,7 @@ function Pool({ label, value, of, hint, tone = 'default' }) {
                 tone === 'spent' ? 'border-danger/30' : 'border-graphite-200'
             )}
         >
-            <p className="font-mono text-[11px] uppercase tracking-[0.16em] text-graphite-400">{label}</p>
+            <p className="type-code text-[11px] uppercase tracking-[0.16em] text-graphite-400">{label}</p>
             <p
                 className={cn(
                     'mt-2 text-3xl font-semibold tracking-tight',

@@ -78,7 +78,7 @@ export default function RegulationsIndex({
                 <StatCard icon={Scale} label="Total Entries" value={stats.total} accent="brand" />
                 <StatCard icon={Scale} label="Active" value={stats.active} accent="green" />
                 <StatCard icon={AlertTriangle} label="Due for Review" value={stats.due_for_review} accent="amber" />
-                <StatCard icon={Scale} label="Superseded" value={stats.superseded} accent="purple" />
+                <StatCard icon={Scale} label="Superseded" value={stats.superseded} accent="neutral" />
             </div>
 
             <FilterBar>

@@ -216,7 +216,7 @@ export default function OverviewCalendar({ events = [], window: dataWindow, toda
             <header className="flex items-center justify-between gap-2 border-b border-graphite-100 px-4 py-3 dark:border-slate-800">
                 <div className="min-w-0">
                     <h2 className="flex items-center gap-1.5 text-[13px] font-bold text-graphite-900 dark:text-slate-50">
-                        <CalendarDays className="h-4 w-4 text-violet-500" /> HSE Calendar
+                        <CalendarDays className="h-4 w-4 text-brand-600" /> HSE Calendar
                     </h2>
                     <p className="mt-0.5 truncate text-[11px] text-graphite-400 dark:text-slate-500">
                         Jadwal inspeksi, izin kerja, dan agenda HSE.
@@ -276,7 +276,7 @@ export default function OverviewCalendar({ events = [], window: dataWindow, toda
                                     'hover:bg-graphite-50 dark:hover:bg-slate-800',
                                     isToday && !isSelected && 'font-bold text-blue-600 dark:text-blue-300',
                                     !isToday && !isSelected && 'text-graphite-600 dark:text-slate-300',
-                                    isSelected && 'bg-violet-600 font-semibold text-white hover:bg-violet-600 dark:bg-violet-500'
+                                    isSelected && 'bg-brand-600 font-semibold text-white hover:bg-brand-600 dark:bg-brand-500'
                                 )}
                             >
                                 {day}

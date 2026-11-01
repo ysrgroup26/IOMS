@@ -99,7 +99,7 @@ export default function EquipmentFormDialog({ open, onClose, unit = null, equipm
                         </FormField>
                         <FormField label="Equipment ID" name="equipment_code" error={errors.equipment_code}
                             hint={editing && unit.equipment_code ? 'ID yang sudah ada tidak diberi nomor ulang.' : `Kosongkan agar dibuat otomatis saat disimpan, misalnya ${prefix}-01.`}>
-                            {(p) => <Input {...p} value={data.equipment_code} onChange={(e) => setData('equipment_code', e.target.value.toUpperCase())} placeholder={`${prefix}-01`} className="font-mono" autoComplete="off" />}
+                            {(p) => <Input {...p} value={data.equipment_code} onChange={(e) => setData('equipment_code', e.target.value.toUpperCase())} placeholder={`${prefix}-01`} className="type-code" autoComplete="off" />}
                         </FormField>
                         <FormField label="Name" name="name" required error={errors.name} className="sm:col-span-2">
                             {(p) => <Input {...p} value={data.name} onChange={(e) => setData('name', e.target.value)} placeholder="APAR CO2 5 kg, Workshop A" />}
@@ -111,7 +111,7 @@ export default function EquipmentFormDialog({ open, onClose, unit = null, equipm
                             {(p) => <Input {...p} value={data.model} onChange={(e) => setData('model', e.target.value)} />}
                         </FormField>
                         <FormField label="Serial Number" name="serial_number" error={errors.serial_number}>
-                            {(p) => <Input {...p} value={data.serial_number} onChange={(e) => setData('serial_number', e.target.value)} className="font-mono" />}
+                            {(p) => <Input {...p} value={data.serial_number} onChange={(e) => setData('serial_number', e.target.value)} className="type-code" />}
                         </FormField>
                         <FormField label="Location" name="location" error={errors.location} hint="Tempat unit dapat ditemukan saat inspeksi.">
                             {(p) => <Input {...p} value={data.location} onChange={(e) => setData('location', e.target.value)} placeholder="Gudang B, dinding timur" />}

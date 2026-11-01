@@ -51,8 +51,8 @@ export default function EquipmentShow({ equipment, inspections, activities, equi
                             <HardHat className="h-5 w-5" aria-hidden="true" />
                         </span>
                         <div className="min-w-0">
-                            <p className="font-mono text-xs font-semibold tracking-wide text-steel-200">{equipment.equipment_code || 'Equipment ID not assigned'}</p>
-                            <h1 className="font-display text-xl font-extrabold leading-tight tracking-tight sm:text-2xl">{equipment.name}</h1>
+                            <p className="type-code text-xs font-semibold tracking-wide text-steel-200">{equipment.equipment_code || 'Equipment ID not assigned'}</p>
+                            <h1 className="type-page-title text-xl leading-tight sm:text-2xl">{equipment.name}</h1>
                             <p className="mt-0.5 text-[13px] text-steel-100">
                                 {equipment.type_name || 'Unclassified'}{equipment.location && ` · ${equipment.location}`}
                             </p>

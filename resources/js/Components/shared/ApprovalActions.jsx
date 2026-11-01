@@ -7,7 +7,7 @@ import { Label } from '@/Components/ui/label';
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogFooter } from '@/Components/ui/dialog';
 import { CheckCircle2, XCircle } from 'lucide-react';
 
-const STATUS_VARIANT = { pending: 'secondary', approved: 'success', rejected: 'destructive' };
+const STATUS_VARIANT = { pending: 'warning', approved: 'success', rejected: 'destructive' };
 
 /**
  * Universal Approval Engine (v1.6.9) -- the reusable frontend half.

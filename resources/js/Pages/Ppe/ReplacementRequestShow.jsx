@@ -6,8 +6,10 @@ import { Badge } from '@/Components/ui/badge';
 import { Table, TableHeader, TableBody, TableRow, TableHead, TableCell } from '@/Components/ui/table';
 import { ArrowLeft, FileDown, Printer } from 'lucide-react';
 import PageHeader from '@/Components/shared/PageHeader';
+import { STATUS_TONE } from '@/lib/semantics';
 
-const STATUS_VARIANT = { draft: 'secondary', submitted: 'success' };
+// v2.138.0: tones come from the one shared map (lib/semantics.js, ADR 081).
+const STATUS_VARIANT = STATUS_TONE;
 
 export default function PpeReplacementRequestShow({ replacementRequest: rr }) {
     return (

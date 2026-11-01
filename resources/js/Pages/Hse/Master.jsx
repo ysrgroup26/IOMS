@@ -522,8 +522,8 @@ function EquipmentTypesSection({ equipmentTypes, equipmentCounts = {}, companies
                     <TableBody>
                         {equipmentTypes.map((t) => (
                             <TableRow key={t.id}>
-                                <TableCell className="font-medium">{t.name}<p className="font-mono text-[11px] text-graphite-400">{t.code}</p></TableCell>
-                                <TableCell className="font-mono text-xs">{t.code_prefix || <span className="font-sans text-graphite-400">EQ (default)</span>}</TableCell>
+                                <TableCell className="font-medium">{t.name}<p className="type-code text-[11px] text-graphite-400">{t.code}</p></TableCell>
+                                <TableCell className="type-code text-xs">{t.code_prefix || <span className="font-sans text-graphite-400">EQ (default)</span>}</TableCell>
                                 <TableCell className="text-xs">
                                     {LIFECYCLE_FLAGS.filter(([k]) => t[k]).map(([, label]) => label).join(', ') || <span className="text-graphite-400">Nothing</span>}
                                     {t.inspection_interval_months && <span className="block text-[11px] text-graphite-400">every {t.inspection_interval_months} months</span>}
@@ -566,7 +566,7 @@ function EquipmentTypesSection({ equipmentTypes, equipmentCounts = {}, companies
                         <div className="grid grid-cols-2 gap-4">
                             <div className="space-y-1.5">
                                 <Label>Unit ID Prefix</Label>
-                                <Input value={data.code_prefix} onChange={(e) => setData('code_prefix', e.target.value.toUpperCase())} placeholder="APAR" className="font-mono" maxLength={12} />
+                                <Input value={data.code_prefix} onChange={(e) => setData('code_prefix', e.target.value.toUpperCase())} placeholder="APAR" className="type-code" maxLength={12} />
                                 {errors.code_prefix ? <p className="text-xs text-red-600">{errors.code_prefix}</p> : <p className="text-xs text-graphite-400">Unit baru mendapat ID seperti {(data.code_prefix || 'EQ')}-01. ID yang sudah ada tidak berubah.</p>}
                             </div>
                             <div className="space-y-1.5">

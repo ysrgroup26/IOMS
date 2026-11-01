@@ -171,7 +171,7 @@ export default function PermitToWorkShow({ permit: p, activities, canManage, rej
                 <div className="flex flex-wrap items-start justify-between gap-3 px-4 py-3.5">
                     <div className="min-w-0">
                             <div className="flex flex-wrap items-center gap-2">
-                            <p className="font-mono text-xs font-medium tracking-wide text-steel-300">{p.ptw_number}</p>
+                            <p className="type-code text-xs font-medium tracking-wide text-steel-300">{p.ptw_number}</p>
                             {/* v2.125.0: the badge stays here on the dark
                                 identity band -- the stamp belongs on the
                                 document's own ground, not on navy, where

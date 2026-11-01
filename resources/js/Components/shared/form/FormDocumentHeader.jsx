@@ -84,7 +84,7 @@ export default function FormDocumentHeader({
                             IS the identity -- it is what somebody quotes
                             on the radio. */}
                         <h1 className="type-page-title flex flex-wrap items-center gap-2 text-[22px] leading-tight text-navy-900">
-                            {reference ? <span className="font-mono tabular-nums">{reference}</span> : documentType}
+                            {reference ? <span className="type-code">{reference}</span> : documentType}
                             <span className="rounded-full border border-graphite-300 bg-graphite-100 px-2 py-0.5 text-[10px] font-semibold uppercase tracking-wide text-graphite-600 dark:border-slate-700 dark:bg-slate-800 dark:text-slate-300">
                                 {stateLabel}
                             </span>

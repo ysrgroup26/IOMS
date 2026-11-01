@@ -1,5 +1,6 @@
 import { Badge } from '@/Components/ui/badge';
 import { humanizeToken } from '@/lib/humanizeToken';
+import { statusTone } from '@/lib/semantics';
 
 /**
  * Shared Status Badge (v1.6.5 foundation). Several pages (Tasks/Show,
@@ -15,89 +16,11 @@ import { humanizeToken } from '@/lib/humanizeToken';
  *   <StatusBadge value="in_progress" />
  *   <StatusBadge value="critical" />
  */
-const STATUS_MAP = {
-    // Task Engine / generic lifecycle
-    draft: 'secondary',
-    open: 'outline',
-    in_progress: 'success',
-    on_hold: 'secondary',
-    waiting: 'secondary',
-    completed: 'success',
-    cancelled: 'secondary',
-    // v2.4.0 (PTW UX + Field Operations pass, Part 6): PermitToWork's
-    // 'closed' status fell through to the generic 'outline' default
-    // (confirmed via audit -- 'active' was already mapped 'success' but
-    // 'closed' never had its own entry), making a finished PTW visually
-    // indistinguishable from an in-progress one on the list.
-    closed: 'secondary',
-    // v2.15.0 (Product UI/UX Finalization, Part 12): "Overdue" is
-    // distinct from "Rejected"/"Expired" -- it's a warning to act on,
-    // not a hard failure -- so it gets the new `warning` Badge variant
-    // rather than borrowing `destructive`.
-    overdue: 'warning',
-    // Priority
-    low: 'secondary',
-    medium: 'outline',
-    high: 'warning',
-    critical: 'destructive',
-    // PPE lifecycle
-    issued: 'outline',
-    in_use: 'success',
-    replacement_requested: 'secondary',
-    replacement_approved: 'secondary',
-    archived: 'secondary',
-    expired: 'destructive',
-    // Material Request workflow (v1.6.9.1) -- "pending_approval" isn't a
-    // separate stored status (see the Workflow ADR for why: it's how
-    // "submitted" is *labeled* while an Approval is pending, not a
-    // distinct database value), but included here so any future module
-    // that DOES store it literally still gets a sensible color for free.
-    // v2.47.0: `submitted` and `pending_approval` mean WAITING ON SOMEONE,
-    // which is a real operational state -- rendering them as a neutral
-    // outline made a permit awaiting HSE approval look the same as an
-    // informational chip. Amber matches the same state's treatment on the
-    // issued PTW document ("Awaiting Approval"), so screen and paper agree.
-    submitted: 'warning',
-    pending_approval: 'warning',
-    /*
-     * v2.127.0 -- `verified` is WAITING ON SOMEONE, like `submitted`.
-     *
-     * HSE has checked the permit and the approver has not signed it, so
-     * the work still may not begin. Amber for the same reason `submitted`
-     * is amber: a neutral outline would make a permit that is halfway
-     * through authorisation look like one that is finished, which is the
-     * single most expensive thing this badge could get wrong.
-     */
-    verified: 'warning',
-    approved: 'success',
-    rejected: 'destructive',
-    processing: 'outline',
-    // v2.69.0 -- demand deliberately retained so it can be bought with
-    // related requests. `outline` on purpose: this is a NORMAL, correct
-    // state, and colouring it as a warning would restate the exact
-    // confusion the state exists to remove -- a consolidated request is
-    // not a stalled one. Its age is what earns emphasis, not its status.
-    consolidating: 'outline',
-    // v2.69.0 -- Employee Case lifecycle.
-    under_review: 'warning',
-    action_issued: 'destructive',
-    dismissed: 'secondary',
-    // v2.70.0 -- subscription lifecycle, derived rather than stored.
-    // `grace` is a warning because there is still time to act; `lapsed` is
-    // destructive because recording has actually stopped. Neither means
-    // data was removed, and the copy beside the badge always says so.
-    trial: 'outline',
-    grace: 'warning',
-    lapsed: 'destructive',
-    suspended: 'destructive',
-    paid: 'success',
-    void: 'secondary',
-    // Generic
-    active: 'success',
-    inactive: 'secondary',
-};
+// v2.138.0: the map moved to lib/semantics.js so every page reads the same
+// one (ADR 081).
+
 
 export default function StatusBadge({ value, label }) {
     if (!value) return null;
-    return <Badge variant={STATUS_MAP[value] || 'outline'}>{label || humanizeToken(value)}</Badge>;
+    return <Badge variant={statusTone(value)}>{label || humanizeToken(value)}</Badge>;
 }

@@ -10,23 +10,20 @@ import { Select, SelectTrigger, SelectValue, SelectContent, SelectItem } from '@
 import { Search, Plus, ChevronLeft, ChevronRight, MapPin, Users , FolderKanban} from 'lucide-react';
 import { cn } from '@/lib/utils';
 import PageHeader from '@/Components/shared/PageHeader';
+import { STATUS_TONE } from '@/lib/semantics';
 
-const STATUS_VARIANT = {
-    planned: 'secondary',
-    ongoing: 'success',
-    completed: 'outline',
-    cancelled: 'destructive',
-};
+// v2.138.0: tones come from the one shared map (lib/semantics.js, ADR 081).
+const STATUS_VARIANT = STATUS_TONE;
 
 // v2.31.0 (Interior UI Transformation Phase 3, Part 6): extends the same
 // accent-bar convention StatCard already established -- a project's
 // status now carries real color weight on its own card, not just inside
 // a small Badge in the corner.
 const STATUS_ACCENT_BAR = {
-    planned: 'bg-graphite-300',
-    ongoing: 'bg-success',
-    completed: 'bg-brand-500',
-    cancelled: 'bg-danger',
+    planned: 'bg-slate-300',
+    ongoing: 'bg-brand-500',
+    completed: 'bg-emerald-500',
+    cancelled: 'bg-slate-300',
 };
 
 export default function ProjectsIndex({ projects, companies, filters, can }) {

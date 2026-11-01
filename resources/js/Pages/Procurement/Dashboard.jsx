@@ -74,7 +74,7 @@ export default function ProcurementDashboard({
                     this page reads as the same "informational card"
                     family as everything around it, not a one-off. */}
                 <div className="col-span-2">
-                    <StatCard icon={Wallet} value={idr(procurementValueYtd)} label="Procurement Value (YTD)" accent="purple" />
+                    <StatCard icon={Wallet} value={idr(procurementValueYtd)} label="Procurement Value (YTD)" />
                 </div>
             </div>
 

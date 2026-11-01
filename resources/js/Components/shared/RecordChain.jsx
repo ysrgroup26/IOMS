@@ -71,7 +71,7 @@ function ChainLink({ label, reference, status, meta, href, current, muted, actio
             </span>
 
             {reference ? (
-                <span className="mt-0.5 block truncate font-mono text-[13px] font-semibold tabular-nums text-navy-900 dark:text-slate-100">
+                <span className="mt-0.5 block truncate type-code text-[13px] font-semibold tabular-nums text-navy-900 dark:text-slate-100">
                     {reference}
                 </span>
             ) : (

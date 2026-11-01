@@ -98,7 +98,7 @@ export default function VendorForm({ vendor, companies, types, vendorCode }) {
                 {editing ? 'Edit Vendor' : 'Add Vendor'}
             </h1>
             <p className="mb-6 text-sm text-graphite-500 dark:text-slate-400">
-                <span className="font-mono font-medium text-navy-800 dark:text-slate-200">{editing ? vendor.vendor_code : vendorCode}</span>
+                <span className="type-code font-medium text-navy-800 dark:text-slate-200">{editing ? vendor.vendor_code : vendorCode}</span>
                 {': '}
                 purchase requisitions, RFQs and purchase orders are raised against this record.
             </p>

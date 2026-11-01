@@ -113,12 +113,12 @@ export default function InvestigationsIndex({ investigations, filters, statuses,
                                     {rows.map((v) => (
                                         <TableRow key={v.id} className="cursor-pointer" onClick={() => router.visit(route('investigations.show', v.id))}>
                                             <TableCell>
-                                                <span className="font-mono text-[13px] font-semibold tabular-nums text-navy-900 dark:text-slate-100">
+                                                <span className="type-code text-[13px] font-semibold tabular-nums text-navy-900 dark:text-slate-100">
                                                     {v.investigation_number}
                                                 </span>
                                             </TableCell>
                                             <TableCell>
-                                                <span className="block font-mono text-xs tabular-nums text-graphite-500 dark:text-slate-400">
+                                                <span className="block type-code text-xs tabular-nums text-graphite-500 dark:text-slate-400">
                                                     {v.incident?.incident_number}
                                                 </span>
                                                 <span className="block max-w-[22ch] truncate text-[13px] text-graphite-800 dark:text-slate-200">
@@ -141,7 +141,7 @@ export default function InvestigationsIndex({ investigations, filters, statuses,
                             {rows.map((v) => (
                                 <Link key={v.id} href={route('investigations.show', v.id)} className="block px-4 py-3">
                                     <div className="flex items-start justify-between gap-2">
-                                        <span className="font-mono text-[13px] font-semibold tabular-nums text-navy-900 dark:text-slate-100">
+                                        <span className="type-code text-[13px] font-semibold tabular-nums text-navy-900 dark:text-slate-100">
                                             {v.investigation_number}
                                         </span>
                                         <StatusBadge value={v.status} />

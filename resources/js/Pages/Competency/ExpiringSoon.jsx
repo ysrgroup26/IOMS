@@ -7,11 +7,10 @@ import { Select, SelectTrigger, SelectValue, SelectContent, SelectItem } from '@
 import EmptyState from '@/Components/shared/EmptyState';
 import { ShieldCheck } from 'lucide-react';
 import PageHeader from '@/Components/shared/PageHeader';
+import { STATUS_TONE } from '@/lib/semantics';
 
-const STATUS_VARIANT = {
-    expired: 'destructive',
-    expiring_soon: 'default',
-};
+// v2.138.0: tones come from the one shared map (lib/semantics.js, ADR 081).
+const STATUS_VARIANT = STATUS_TONE;
 
 /**
  * Milestone 4, Workstream A2 / J (Industrial Reporting -- HR: Competency

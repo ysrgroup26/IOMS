@@ -35,7 +35,11 @@ export default function OperationalKpiCard({ icon: Icon, label, value, detail = 
     const { readiness } = usePage().props;
     const notYetOperational = readiness ? readiness.is_operational === false : false;
 
-    const effective = notYetOperational ? 'slate' : accent;
+    // v2.138.0 (ADR 081): a card wears its semantic colour only while its
+    // number means something. Zero open incidents is not red, zero PPE alerts
+    // is not amber -- a row of five coloured zeroes was the rainbow.
+    const isZero = /^\s*0+(\.0+)?\s*$/.test(String(value ?? ''));
+    const effective = notYetOperational || isZero ? 'slate' : accent;
     const tone = accentFor(effective);
 
     const body = (

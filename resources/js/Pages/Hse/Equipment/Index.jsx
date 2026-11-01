@@ -103,7 +103,7 @@ export default function EquipmentIndex({ equipment, filters, stats, byType, atte
                             <div className="flex flex-col gap-4 lg:flex-row lg:items-end lg:justify-between">
                                 <div>
                                     <p id="position-heading" className="text-[11px] font-bold uppercase tracking-wider text-steel-200">Compliance Position</p>
-                                    <p className="mt-1 font-display text-3xl font-extrabold tabular-nums tracking-tight">
+                                    <p className="type-metric mt-1 text-[28px] leading-none">
                                         {upToDate}<span className="text-lg font-bold text-steel-200"> / {inService}</span>
                                     </p>
                                     <p className="mt-0.5 text-[13px] text-steel-100">
@@ -312,7 +312,7 @@ function UnitList({ units }) {
                     <Link href={route('safety-equipment.show', u.id)} className="group flex items-center gap-3 py-2 text-xs">
                         <div className="min-w-0 flex-1">
                             <p className="truncate font-semibold text-navy-900 group-hover:text-brand-700 dark:text-slate-100">
-                                {u.equipment_code && <span className="mr-1.5 font-mono text-[11px] text-steel-600 dark:text-steel-300">{u.equipment_code}</span>}
+                                {u.equipment_code && <span className="mr-1.5 type-code text-[11px] text-steel-600 dark:text-steel-300">{u.equipment_code}</span>}
                                 {u.name}
                             </p>
                             <p className="truncate text-graphite-500 dark:text-slate-400"><DueText due={u.next_due} /></p>
@@ -344,7 +344,7 @@ function RegisterTable({ units, can, onInspect, onEdit }) {
                     <TableBody>
                         {units.map((u) => (
                             <TableRow key={u.id}>
-                                <TableCell className="whitespace-nowrap font-mono text-xs font-semibold text-navy-800 dark:text-steel-200">
+                                <TableCell className="whitespace-nowrap type-code text-xs font-semibold text-navy-800 dark:text-steel-200">
                                     {u.equipment_code || <span className="font-sans font-normal text-graphite-400">Not assigned</span>}
                                 </TableCell>
                                 <TableCell>
@@ -388,7 +388,7 @@ function RegisterCards({ units }) {
                     <Link href={route('safety-equipment.show', u.id)} className="block surface p-3 dark:border-slate-800 dark:bg-slate-900">
                         <div className="flex items-start justify-between gap-2">
                             <div className="min-w-0">
-                                <p className="font-mono text-[11px] font-semibold text-steel-700 dark:text-steel-300">{u.equipment_code || 'No ID yet'}</p>
+                                <p className="type-code text-[11px] font-semibold text-steel-700 dark:text-steel-300">{u.equipment_code || 'No ID yet'}</p>
                                 <p className="truncate text-sm font-semibold text-navy-900 dark:text-slate-100">{u.name}</p>
                                 <p className="text-xs text-graphite-500 dark:text-slate-400">{u.type_name || 'Unclassified'}</p>
                             </div>

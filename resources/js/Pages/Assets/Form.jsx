@@ -84,7 +84,7 @@ export default function AssetForm({ companies, vendors, purchaseOrders, categori
                 Register Asset
             </h1>
             <p className="mb-6 text-sm text-graphite-500 dark:text-slate-400">
-                Will be registered as <span className="font-mono font-medium text-navy-800 dark:text-slate-200">{assetCode}</span>.
+                Will be registered as <span className="type-code font-medium text-navy-800 dark:text-slate-200">{assetCode}</span>.
                 Maintenance requests and work orders are raised against this record.
             </p>
 

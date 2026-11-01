@@ -213,7 +213,7 @@ export default function WasteDashboard({
                                             >
                                                 <span className="text-[10px] font-bold uppercase tracking-wider text-steel-200">Step {i + 1}</span>
                                                 <span className="mt-0.5 text-sm font-semibold leading-tight">{stage.label}</span>
-                                                <span className="mt-1 font-display text-2xl font-extrabold tabular-nums">{count}</span>
+                                                <span className="mt-1 type-metric text-2xl tabular-nums">{count}</span>
                                                 <span className="text-[11px] text-steel-100">{stage.hint}</span>
                                                 {i < STAGES.length - 1 && <ArrowRight className="absolute -right-2.5 top-1/2 hidden h-4 w-4 -translate-y-1/2 text-steel-300 lg:block" aria-hidden="true" />}
                                             </button>
@@ -279,7 +279,7 @@ export default function WasteDashboard({
                                             <li key={m.id}>
                                                 <Link href={route('waste-records.show', m.waste_record_id)} className="block py-2 text-xs hover:bg-steel-50/60 dark:hover:bg-slate-800/40">
                                                     <div className="flex items-center justify-between gap-2">
-                                                        <span className="font-mono font-semibold text-navy-900 dark:text-slate-100">{m.waste_record?.record_number}</span>
+                                                        <span className="type-code font-semibold text-navy-900 dark:text-slate-100">{m.waste_record?.record_number}</span>
                                                         <Chip tone={m.status === 'disposed' ? 'success' : m.status === 'picked_up' ? 'info' : 'warning'}>{PICKUP[m.status] ?? m.status}</Chip>
                                                     </div>
                                                     <p className="mt-0.5 truncate text-graphite-500 dark:text-slate-400">
@@ -421,7 +421,7 @@ function PriorityGroup({ title, tone, count, items, detail, onAll, hrefFor }) {
                             <Link href={hrefFor ? hrefFor(r) : route('waste-records.show', r.id)} className="flex items-start gap-2 py-1.5 text-xs hover:bg-steel-50/60 dark:hover:bg-slate-800/40">
                                 <CategoryChip category={r.category} />
                                 <span className="min-w-0 flex-1">
-                                    <span className="font-mono font-semibold text-navy-900 dark:text-slate-100">{r.record_number}</span>
+                                    <span className="type-code font-semibold text-navy-900 dark:text-slate-100">{r.record_number}</span>
                                     <span className="text-graphite-500"> · {r.waste_type ?? 'No type'}{r.storage_location ? ` · ${r.storage_location}` : ''}</span>
                                     <span className="block text-graphite-500 dark:text-slate-400">{detail(r)}</span>
                                 </span>
@@ -454,7 +454,7 @@ function StorageCard({ s, onOpen }) {
                     <div className="min-w-0">
                         <p className="flex items-center gap-1 truncate text-sm font-semibold text-navy-900 dark:text-slate-100">
                             <MapPin className="h-3.5 w-3.5 shrink-0 text-steel-500" aria-hidden="true" />
-                            {s.code && <span className="font-mono text-[11px] text-steel-600">{s.code}</span>} {s.name}
+                            {s.code && <span className="type-code text-[11px] text-steel-600">{s.code}</span>} {s.name}
                         </p>
                         <p className="text-[11px] text-graphite-500">{s.records} catatan di lokasi{s.b3_records > 0 ? `, ${s.b3_records} B3` : ''}{s.container_type ? ` · ${s.container_type}` : ''}</p>
                     </div>
@@ -473,7 +473,7 @@ function StorageCard({ s, onOpen }) {
                 {s.oldest && (
                     <p className="mt-2 text-[11px] text-graphite-500">
                         <span className="text-graphite-400">Paling lama: </span>
-                        <span className="font-mono">{s.oldest.record_number}</span> · {s.oldest.days_in_storage ?? 0} hari
+                        <span className="type-code">{s.oldest.record_number}</span> · {s.oldest.days_in_storage ?? 0} hari
                         {s.oldest.storage_limit_days ? ` dari batas ${s.oldest.storage_limit_days} hari` : ' (jenis ini tanpa batas lama simpan)'}
                         {s.oldest.storage_state === 'overdue' && <Chip tone="danger" className="ml-1">Limit exceeded</Chip>}
                         {s.oldest.storage_state === 'approaching' && <Chip tone="warning" className="ml-1">Near limit</Chip>}
@@ -533,7 +533,7 @@ function RecordsTable({ rows, mode, can }) {
                             return (
                                 <TableRow key={r.id} className="cursor-pointer" onClick={() => router.visit(route('waste-records.show', r.id))}>
                                     <TableCell className="whitespace-nowrap">
-                                        <Link href={route('waste-records.show', r.id)} onClick={(e) => e.stopPropagation()} className="font-mono text-xs font-semibold text-navy-900 hover:underline dark:text-slate-100">{r.record_number}</Link>
+                                        <Link href={route('waste-records.show', r.id)} onClick={(e) => e.stopPropagation()} className="type-code text-xs font-semibold text-navy-900 hover:underline dark:text-slate-100">{r.record_number}</Link>
                                         <p className="text-[11px] text-graphite-400">{fmtDate(r.generated_date)}</p>
                                     </TableCell>
                                     <TableCell>
@@ -580,7 +580,7 @@ function RecordCards({ rows, mode, can }) {
                         <Link href={route('waste-records.show', r.id)} className="block">
                             <div className="flex items-start justify-between gap-2">
                                 <div className="min-w-0">
-                                    <p className="font-mono text-[11px] font-semibold text-steel-700 dark:text-steel-300">{r.record_number}</p>
+                                    <p className="type-code text-[11px] font-semibold text-steel-700 dark:text-steel-300">{r.record_number}</p>
                                     <p className="flex items-center gap-1.5 truncate text-sm font-semibold text-navy-900 dark:text-slate-100"><CategoryChip category={r.category} /> {r.waste_type ?? 'No type'}</p>
                                 </div>
                                 <StatusChip status={r.status} />

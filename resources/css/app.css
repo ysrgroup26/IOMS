@@ -180,9 +180,17 @@
     }
 
     /* An identifier: a permit number, a code, a badge number. */
+    /* v2.138.0 -- an identifier a PERSON reads (permit, record, equipment
+       and document numbers): Manrope with tabular, lining figures and a
+       touch of tracking, so "APAR-00003" scans like data without switching
+       typeface mid-sentence. Monospace (`font-mono`) is kept only for
+       MACHINE output -- release signatures, database names, config keys
+       in <code>, the My Work access code where 0 and O must never be
+       confused -- and the printed permit, which matches its PDF. ADR 081. */
     .type-code {
-        @apply font-mono;
-        letter-spacing: 0.04em;
+        @apply font-sans;
+        font-variant-numeric: tabular-nums lining-nums;
+        letter-spacing: 0.015em;
     }
 
     .card-base {

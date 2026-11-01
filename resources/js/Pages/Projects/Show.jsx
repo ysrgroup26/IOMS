@@ -11,13 +11,10 @@ import {
     Dialog, DialogContent, DialogHeader, DialogTitle, DialogFooter,
 } from '@/Components/ui/dialog';
 import { ArrowLeft, Pencil, Trash2, MapPin, Calendar, UserPlus, X, Clock, Search, ListChecks } from 'lucide-react';
+import { STATUS_TONE } from '@/lib/semantics';
 
-const STATUS_VARIANT = {
-    planned: 'secondary',
-    ongoing: 'success',
-    completed: 'outline',
-    cancelled: 'destructive',
-};
+// v2.138.0: tones come from the one shared map (lib/semantics.js, ADR 081).
+const STATUS_VARIANT = STATUS_TONE;
 
 export default function ProjectShow({ project, manpowerGrouped, timeline, availableEmployees, can }) {
     const [manpowerDialogOpen, setManpowerDialogOpen] = useState(false);

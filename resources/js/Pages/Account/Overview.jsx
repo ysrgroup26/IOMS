@@ -204,7 +204,7 @@ function NoSubscriptionPanel({ plans, pendingOrder, canSubscribe }) {
                             <p className="text-[13px] font-semibold text-navy-900">Order in progress</p>
                             <p className="mt-0.5 text-xs text-graphite-600">
                                 {pendingOrder.plan} &middot; {pendingOrder.organization} &middot;{' '}
-                                <span className="font-mono">{pendingOrder.reference}</span>
+                                <span className="type-code">{pendingOrder.reference}</span>
                             </p>
                         </div>
                         <Button size="sm" asChild className="shrink-0">

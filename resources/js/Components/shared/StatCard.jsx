@@ -62,7 +62,12 @@ export default function StatCard({ icon: Icon, value, label, hint, href, accent,
     // one page.
     const { readiness } = usePage().props;
     const claimsUnsupported = readiness ? readiness.is_operational === false : false;
-    const effectiveAccent = claimsUnsupported && accent === 'green' ? 'neutral' : accent;
+    // v2.138.0 (ADR 081): warning, critical and category accents describe a
+    // number that is there. A zero overdue / expired / action-required card
+    // is neutral, so a group of KPI cards only lights what needs attention.
+    const isZero = /^\s*0+(\.0+)?\s*$/.test(String(value ?? ''));
+    const quietWhenZero = ['red', 'amber', 'purple'].includes(accent);
+    const effectiveAccent = (claimsUnsupported && accent === 'green') || (isZero && quietWhenZero) ? 'neutral' : accent;
 
     // v2.45.0 -- SOFTENED. v2.44.0 made every chip a saturated gradient with
     // its own coloured drop-glow; multiplied across a six-card row that reads

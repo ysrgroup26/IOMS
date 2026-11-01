@@ -72,7 +72,7 @@ export default function VisitorForm({ visitorNumber }) {
                 Register Visitor
             </h1>
             <p className="mb-6 text-sm text-graphite-500 dark:text-slate-400">
-                Will be registered as <span className="font-mono font-medium text-navy-800 dark:text-slate-200">{visitorNumber}</span>.
+                Will be registered as <span className="type-code font-medium text-navy-800 dark:text-slate-200">{visitorNumber}</span>.
             </p>
 
             <form onSubmit={submit} className="max-w-3xl space-y-6">

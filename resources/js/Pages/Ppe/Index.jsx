@@ -13,6 +13,7 @@ import GroupedDepartmentSelect from '@/Components/shared/GroupedDepartmentSelect
 import PpeTabNav from '@/Components/shared/PpeTabNav';
 import { ChevronLeft, ChevronRight, Search, X, RefreshCw } from 'lucide-react';
 import PageHeader from '@/Components/shared/PageHeader';
+import { STATUS_TONE } from '@/lib/semantics';
 
 // Effective status: expiring_soon/expired are fully computed from
 // expiry_date (see EmployeePpe::getEffectiveStatusAttribute()) and only
@@ -21,16 +22,8 @@ import PageHeader from '@/Components/shared/PageHeader';
 //   issued -> in_use -> replacement_requested -> replacement_approved
 //   -> replacement_completed -> archived
 // Replacement is always a manual process -- expiry never auto-replaces.
-const STATUS_VARIANT = {
-    issued: 'outline',
-    in_use: 'success',
-    expiring_soon: 'outline',
-    expired: 'destructive',
-    replacement_requested: 'secondary',
-    replacement_approved: 'secondary',
-    replacement_completed: 'secondary',
-    archived: 'secondary',
-};
+// v2.138.0: tones come from the one shared map (lib/semantics.js, ADR 081).
+const STATUS_VARIANT = STATUS_TONE;
 const STATUS_LABEL = {
     issued: 'Issued',
     in_use: 'In Use',

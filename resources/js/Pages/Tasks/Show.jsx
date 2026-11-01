@@ -4,12 +4,12 @@ import { Card, CardContent, CardHeader, CardTitle } from '@/Components/ui/card';
 import { Badge } from '@/Components/ui/badge';
 import { Button } from '@/Components/ui/button';
 import { ArrowLeft, Pencil, Trash2, AlertTriangle, Calendar, User as UserIcon, Building2 } from 'lucide-react';
+import { STATUS_TONE } from '@/lib/semantics';
 
-const PRIORITY_VARIANT = { low: 'secondary', medium: 'outline', high: 'destructive', critical: 'destructive' };
-const STATUS_VARIANT = {
-    draft: 'secondary', open: 'outline', in_progress: 'success',
-    on_hold: 'secondary', waiting: 'secondary', completed: 'success', cancelled: 'secondary',
-};
+// v2.138.0: tones come from the one shared map (lib/semantics.js, ADR 081).
+const PRIORITY_VARIANT = STATUS_TONE;
+// v2.138.0: tones come from the one shared map (lib/semantics.js, ADR 081).
+const STATUS_VARIANT = STATUS_TONE;
 
 function humanize(value) {
     return value.replace(/_/g, ' ').replace(/\b\w/g, (c) => c.toUpperCase());

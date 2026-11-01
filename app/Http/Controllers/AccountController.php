@@ -2,10 +2,14 @@
 
 namespace App\Http\Controllers;
 
+use App\Http\Controllers\Auth\GoogleAuthController;
 use App\Models\ActivityLog;
 use App\Models\TenantRegistration;
+use App\Models\User;
+use App\Models\UserNotificationPreference;
 use App\Models\Workspace;
 use App\Services\EntitlementService;
+use App\Services\Notifications\NotificationCatalogue;
 use App\Services\PricingService;
 use Illuminate\Http\RedirectResponse;
 use Illuminate\Http\Request;
@@ -98,6 +102,8 @@ class AccountController extends Controller
                 'google_linked_at' => $user->google_linked_at,
                 'created_at' => $user->created_at,
             ],
+            // v2.141.0 -- what this person is told about, per category.
+            'notificationPreferences' => $user->hasNoOrganization() ? [] : $this->notificationPreferences($user),
             // The whole point of the page: what commercial state is this
             // account in. `false` here is a normal state, not a failure.
             'hasOrganization' => ! $user->hasNoOrganization(),
@@ -117,7 +123,7 @@ class AccountController extends Controller
             // they can start making here rather than a leap into a pricing
             // page they have not seen.
             'plans' => $this->pricing->publicPlans(),
-            'googleEnabled' => \App\Http\Controllers\Auth\GoogleAuthController::configured(),
+            'googleEnabled' => GoogleAuthController::configured(),
 
             /*
              * v2.83.0 -- WORKSPACE FOCUS lives on the person's own account
@@ -149,7 +155,7 @@ class AccountController extends Controller
      * the `workspaces` catalogue so a tenant's own renamed department
      * reads the same here as it does in the switcher.
      */
-    private function focusOptions(?\App\Models\User $user): array
+    private function focusOptions(?User $user): array
     {
         /*
          * v2.123.0: a My Work account has no workspace to focus. The
@@ -300,5 +306,44 @@ class AccountController extends Controller
         ActivityLog::record('updated', "Google sign-in unlinked from {$user->email}.", $user);
 
         return back()->with('success', 'Google sign-in has been removed from your account.');
+    }
+
+    /**
+     * v2.141.0 -- a person's own switches, one row per category: in the app
+     * and as a push. Assignments and approvals ask the person to act, so the
+     * in-app record of those stays on whatever is chosen here (the catalogue's
+     * `mandatory` events); push follows the switch.
+     */
+    private function notificationPreferences(User $user): array
+    {
+        $stored = UserNotificationPreference::where('user_id', $user->id)->get()->keyBy('category');
+
+        return collect(NotificationCatalogue::CATEGORIES)->map(fn (array $meta, string $category) => [
+            'category' => $category,
+            'label' => $meta['label'],
+            'description' => $meta['description'],
+            'in_app' => (bool) ($stored[$category]->in_app ?? true),
+            'push' => (bool) ($stored[$category]->push ?? true),
+            'in_app_locked' => in_array($category, NotificationCatalogue::IN_APP_LOCKED, true),
+        ])->values()->all();
+    }
+
+    public function updateNotificationPreferences(Request $request): RedirectResponse
+    {
+        $data = $request->validate([
+            'preferences' => ['required', 'array'],
+            'preferences.*.category' => ['required', 'string', Rule::in(array_keys(NotificationCatalogue::CATEGORIES))],
+            'preferences.*.in_app' => ['required', 'boolean'],
+            'preferences.*.push' => ['required', 'boolean'],
+        ]);
+
+        foreach ($data['preferences'] as $row) {
+            UserNotificationPreference::updateOrCreate(
+                ['user_id' => $request->user()->id, 'category' => $row['category']],
+                ['in_app' => in_array($row['category'], NotificationCatalogue::IN_APP_LOCKED, true) ? true : $row['in_app'], 'push' => $row['push']],
+            );
+        }
+
+        return back()->with('success', 'Notification preferences saved.');
     }
 }

@@ -564,9 +564,9 @@ class HandleInertiaRequests extends Middleware
                  */
                 'items' => $user
                     ? Notification::where('user_id', $user->id)->latest()->limit(10)
-                        ->get(['id', 'category', 'title', 'body', 'url', 'read_at', 'created_at', 'meta'])
+                        ->get(['id', 'category', 'priority', 'title', 'body', 'url', 'read_at', 'created_at', 'meta'])
                         ->map(fn (Notification $n) => [
-                            ...$n->only(['id', 'category', 'title', 'body', 'url', 'read_at', 'created_at']),
+                            ...$n->only(['id', 'category', 'priority', 'title', 'body', 'url', 'read_at', 'created_at']),
                             'route_prefix' => is_string($n->meta['route'] ?? null)
                                 ? explode('.', $n->meta['route'])[0]
                                 : null,

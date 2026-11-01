@@ -5,6 +5,7 @@ namespace App\Http\Controllers;
 use App\Models\ActivityLog;
 use App\Models\Company;
 use App\Models\Notification;
+use App\Models\PermitToWork;
 use App\Models\PushSubscription;
 use App\Services\Notifications\WebPushService;
 use App\Services\WorkCenterService;
@@ -81,7 +82,7 @@ class NotificationStreamController extends Controller
      * plus one `useWatchedRecord()` call on its page (ADR 069).
      */
     private const WATCHABLE = [
-        'PermitToWork' => \App\Models\PermitToWork::class,
+        'PermitToWork' => PermitToWork::class,
     ];
 
     /** A tab shows a handful of records at most; more than this is probing. */
@@ -143,7 +144,7 @@ class NotificationStreamController extends Controller
                 ->where('id', '>', $cursor)
                 ->orderByDesc('id')
                 ->limit(self::MAX_ITEMS)
-                ->get(['id', 'category', 'title', 'body', 'url', 'read_at', 'created_at', 'meta']);
+                ->get(['id', 'category', 'priority', 'title', 'body', 'url', 'read_at', 'created_at', 'meta']);
 
         $newest = (int) $query->clone()->max('id');
 
@@ -202,7 +203,7 @@ class NotificationStreamController extends Controller
             // request rather than two.
             'ppe_alert_count' => $this->workCenter->ppeAlertCount(),
             'items' => $items->map(fn (Notification $n) => [
-                ...$n->only(['id', 'category', 'title', 'body', 'url', 'read_at', 'created_at']),
+                ...$n->only(['id', 'category', 'priority', 'title', 'body', 'url', 'read_at', 'created_at']),
                 /*
                  * The same `route_prefix` the shared Inertia prop carries,
                  * built the same way, so a row that arrives live is offered

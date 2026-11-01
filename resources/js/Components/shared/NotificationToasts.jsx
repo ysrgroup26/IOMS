@@ -1,6 +1,6 @@
 import { useEffect } from 'react';
 import { router } from '@inertiajs/react';
-import { Bell, CheckCircle2, AlertTriangle, Info, X } from 'lucide-react';
+import { Bell, CheckCircle2, ClipboardCheck, AlertTriangle, Info, X } from 'lucide-react';
 import { cn } from '@/lib/utils';
 import { useLiveNotifications } from '@/lib/useLiveNotifications';
 import { isRouteBlockedForUser } from '@/lib/workspaces';
@@ -30,6 +30,7 @@ import { isRouteBlockedForUser } from '@/lib/workspaces';
 
 const ICONS = {
     approval: Bell,
+    assignment: ClipboardCheck,
     success: CheckCircle2,
     warning: AlertTriangle,
     reminder: Bell,
@@ -38,6 +39,7 @@ const ICONS = {
 
 const ACCENTS = {
     approval: 'border-l-brand-500',
+    assignment: 'border-l-teal-500',
     success: 'border-l-success',
     warning: 'border-l-amber-500',
     reminder: 'border-l-brand-400',

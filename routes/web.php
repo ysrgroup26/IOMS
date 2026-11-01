@@ -366,6 +366,8 @@ Route::middleware('auth')->group(function () {
     // the dialog opens instead of riding on every page response (it was
     // 426 KB of the ~430 KB every navigation carried). `account.` so every
     // signed-in class -- department users and My Work included -- reaches it.
+    // v2.141.0: a person's own notification switches (in-app and push, per category).
+    Route::put('/account/notification-preferences', [AccountController::class, 'updateNotificationPreferences'])->name('account.notification-preferences.update');
     Route::get('/account/version-history', fn () => response()->json(config('ioms.version_history', [])))->name('account.version-history');
     Route::put('/account/profile', [AccountController::class, 'updateProfile'])->name('account.profile.update');
     Route::put('/account/password', [AccountController::class, 'updatePassword'])

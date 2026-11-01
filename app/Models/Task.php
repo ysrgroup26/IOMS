@@ -3,6 +3,7 @@
 namespace App\Models;
 
 use App\Models\Concerns\BelongsToCompany;
+use App\Services\Notifications\AssignmentNotifier;
 use App\Support\CurrentTenant;
 use Illuminate\Database\Eloquent\Builder;
 use Illuminate\Database\Eloquent\Model;
@@ -122,6 +123,18 @@ class Task extends Model
     {
         static::creating(function (Task $task) {
             $task->uuid ??= (string) Str::uuid();
+        });
+
+        // v2.141.0: the assignee is told, on creation and on reassignment.
+        static::created(function (Task $task) {
+            if ($task->assigned_user_id) {
+                app(AssignmentNotifier::class)->task($task);
+            }
+        });
+        static::updated(function (Task $task) {
+            if ($task->wasChanged('assigned_user_id') && $task->assigned_user_id) {
+                app(AssignmentNotifier::class)->task($task);
+            }
         });
     }
 

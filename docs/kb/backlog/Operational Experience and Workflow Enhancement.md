@@ -190,6 +190,13 @@ badge went to "1 unread". The transport works: cursor delta plus self-hosted VAP
 3. **No delivery record.** A push that fails is logged and forgotten. There is no per-channel
    status, retry or pruning of dead subscriptions.
 
+> [!note] Open point N1 — the company-wide category switch (owner's call)
+> Settings → Notifications lets a Company Admin switch a whole category off for everyone, including
+> **approval**. With that off, an approver for a PTW stage or a Material Request is never told. The
+> event layer does **not** change this existing behaviour. **Recommendation:** approval requests and
+> assignments ignore the company switch (as they already ignore a person's own in-app switch), and the
+> Settings tab says so. That is a behaviour change to an existing setting, so it waits for approval.
+
 **Verdict: keep the transport, rebuild the event layer.** This means:
 - a notification **catalogue**: typed events, each with a recipients resolver (who must act, not
   just who created), priority, group key, dedupe key and route-bound deep link (ADR 064 kept);
@@ -653,6 +660,8 @@ reviewed on **staging** before production, and each production deploy needs the 
 | My PTW counts `verified` as awaiting approval | `#status/implemented` | `DashboardController::myWork`; `OperationalFoundationsTest` |
 | F4 request memo (settings map per tier, entitlement grants) | `#status/implemented` | `App\Support\RequestMemo` + `RequestMemoScope`; inactive outside a request (queue worker safe); `OperationalFoundationsTest` |
 | Settings split (prerequisite for the flow and form editors) | `#status/implemented` | `Components/settings/*`; line-multiset check: 0 missing, 0 added; pixel comparison 16 tabs; `FormExperienceSystemTest` now points at the tab that holds the dialogs |
+| **Approval escalation never fired in production** (scheduler has no tenant; the flow is tenant-scoped) — fixed | `#status/implemented` | `ApprovalEngine::checkEscalations()` per flow tenant; `ApprovalEscalationTenantContextTest` fails without it; Known Pitfall in `CONVENTIONS.md` |
+| **Notification event layer** (section 3 verdict) — first slice | `#status/implemented` | `NotificationCatalogue` (events with category, priority, mandatory); `NotificationService::send()` with dedupe and group keys; push as the queued `DeliverWebPush` job (3 tries, backoff) with `notification_deliveries` (sent / no device / failed); `user_notification_preferences` and the Account page card (in-app and push per category; Assignments and Approvals in-app locked, enforced on the server); **new events:** task and CAPA assignment (model hooks: every module), and `notifications:deadlines` hourly (due tomorrow once, overdue once a day, per tenant); "assignment" category and a High/Critical label in the menu; `NotificationEventLayerTest` (8) |
 | F2 per-page chunks, F3 fonts | `#status/implemented` | `app.jsx` lazy glob + idle prefetch; release check still 186/186 pages; `@guest` font stylesheet; measured throttled load −43% |
 | Decision pack A1–A14 + D1 | `#status/planned` | Section 4. v3: **A8 and A9 decided by the owner**; A6 re-evaluated (open source); A8b, W1–W3 and A15 added |
 | M0 remainder, M1–M9 | `#status/planned` | Section 5 |

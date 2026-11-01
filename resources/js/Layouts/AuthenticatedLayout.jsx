@@ -1470,6 +1470,7 @@ function WorkCenterRow({ icon: Icon, label, count }) {
 
 const NOTIFICATION_CATEGORY_DOT = {
     approval: 'bg-brand-500',
+    assignment: 'bg-teal-500',
     reminder: 'bg-amber-500',
     warning: 'bg-red-500',
     success: 'bg-emerald-500',
@@ -1743,7 +1744,15 @@ function NotificationsMenu() {
                         >
                             <span className={cn('mt-1.5 h-1.5 w-1.5 shrink-0 rounded-full', unread ? (NOTIFICATION_CATEGORY_DOT[item.category] ?? 'bg-graphite-400') : 'bg-graphite-300')} />
                             <div className="min-w-0 flex-1">
-                                <p className={cn('text-sm leading-snug', unread ? 'font-semibold text-graphite-900 dark:text-slate-100' : 'text-graphite-500 dark:text-slate-400')}>{item.title}</p>
+                                <p className={cn('text-sm leading-snug', unread ? 'font-semibold text-graphite-900 dark:text-slate-100' : 'text-graphite-500 dark:text-slate-400')}>
+                                    {/* v2.141.0: high and critical are marked in words, not only by colour. */}
+                                    {(item.priority === 'high' || item.priority === 'critical') && (
+                                        <span className={cn('mr-1.5 inline-flex rounded-full px-1.5 py-px align-[1px] text-[10px] font-bold uppercase tracking-wide ring-1 ring-inset', item.priority === 'critical' ? 'bg-red-50 text-red-700 ring-red-200' : 'bg-amber-50 text-amber-700 ring-amber-200')}>
+                                            {item.priority === 'critical' ? 'Critical' : 'High'}
+                                        </span>
+                                    )}
+                                    {item.title}
+                                </p>
                                 {/* Two lines, not one truncated one: the
                                     body of a returned permit is the REASON
                                     it came back, and a reason cut off at

@@ -667,6 +667,9 @@
     .dark .bg-steel-100 {
         background-color: rgba(34, 50, 70, 0.62);
     }
+    .dark .bg-teal-50 {
+        background-color: rgba(45, 190, 210, 0.12);
+    }
     .dark .bg-steel-200\/70 {
         background-color: rgba(46, 65, 87, 0.70);
     }
@@ -924,11 +927,20 @@
     .dark .ring-red-100 {
         --tw-ring-color: rgba(242, 107, 125, 0.26);
     }
+    .dark .ring-red-200 {
+        --tw-ring-color: rgba(242, 107, 125, 0.34);
+    }
     .dark .ring-amber-200\/70 {
         --tw-ring-color: rgba(242, 184, 75, 0.24);
     }
     .dark .ring-amber-100 {
         --tw-ring-color: rgba(242, 184, 75, 0.26);
+    }
+    .dark .ring-amber-200 {
+        --tw-ring-color: rgba(242, 184, 75, 0.34);
+    }
+    .dark .ring-teal-200\/70 {
+        --tw-ring-color: rgba(45, 190, 210, 0.24);
     }
     .dark .ring-slate-200\/70,
     .dark .ring-steel-200\/70 {
@@ -981,6 +993,9 @@
     .dark .text-emerald-800,
     .dark .text-emerald-900 {
         color: #7ADDB9;
+    }
+    .dark .text-teal-700 {
+        color: #86DAE8;
     }
     .dark .text-graphite-400,
     .dark .text-navy-400,

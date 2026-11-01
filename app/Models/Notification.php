@@ -14,14 +14,27 @@ use Illuminate\Database\Eloquent\Model;
 class Notification extends Model
 {
     public const CATEGORY_APPROVAL = 'approval';
+
     public const CATEGORY_REMINDER = 'reminder';
+
     public const CATEGORY_WARNING = 'warning';
+
     public const CATEGORY_SUCCESS = 'success';
+
     public const CATEGORY_INFORMATION = 'information';
+
+    // v2.141.0 -- work handed to a person: a task, a corrective action.
+    public const CATEGORY_ASSIGNMENT = 'assignment';
+
+    public const PRIORITIES = ['low', 'normal', 'high', 'critical'];
 
     protected $fillable = [
         'user_id',
         'category',
+        'event_key',
+        'priority',
+        'group_key',
+        'dedupe_key',
         'title',
         'body',
         'url',
@@ -42,6 +55,11 @@ class Notification extends Model
     public function user()
     {
         return $this->belongsTo(User::class);
+    }
+
+    public function deliveries()
+    {
+        return $this->hasMany(NotificationDelivery::class);
     }
 
     public function notifiable()

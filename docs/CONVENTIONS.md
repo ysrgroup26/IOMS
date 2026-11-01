@@ -3,6 +3,22 @@
 House style, and a deliberately honest list of mistakes that have actually happened in this
 codebase's history — kept here so they don't get repeated in a slightly different shape.
 
+## Known Pitfall (v2.141.0): a scheduled command has NO tenant, so a tenant-scoped read returns nothing
+
+`approvals:escalate` ran hourly and **never escalated anything in production**. The scheduler
+resolves no tenant, and every tenant-scoped model fails closed (`TenantScope`, `CompanyOwnedScope`
+→ `-1`). `Approval` itself is unscoped, so the query looked fine, but the flow it loaded
+(`$approval->flow`, `BelongsToCompany`) was always `null`, and the step was skipped silently. Nothing
+errored, so nothing was noticed.
+
+**Rule:** a command or job that reads tenant data either:
+- loads what it needs unscoped and then works **inside that record's tenant** (set `CurrentTenant`,
+  restore it in `finally`), as `ApprovalEngine::checkEscalations()` now does; or
+- walks the tenants and sets each in turn, as `notifications:deadlines` does.
+
+Its test must run the command with `CurrentTenant` set to `null`, exactly as the scheduler does.
+`ApprovalEscalationTenantContextTest` fails without the fix.
+
 ## Known Pitfall (2026-10-25): `curl … | grep -q` under pipefail fails on success
 
 `grep -q` exits at its first match; `curl`, still writing a large page, gets SIGPIPE, and with

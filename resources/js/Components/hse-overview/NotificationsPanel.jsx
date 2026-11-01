@@ -35,6 +35,8 @@ const CATEGORY_TONE = {
     // An approval waiting on somebody is the same 'awaiting a decision' amber
     // as a pending status everywhere else (ADR 081); violet carried no meaning.
     approval: { dot: 'bg-amber-500', chip: 'bg-amber-50 text-amber-700 ring-amber-200/70 dark:bg-amber-500/10 dark:text-amber-300 dark:ring-amber-500/30' },
+    // v2.141.0: work handed to the person (a task, a corrective action).
+    assignment: { dot: 'bg-teal-500', chip: 'bg-teal-50 text-teal-700 ring-teal-200/70 dark:bg-teal-500/10 dark:text-teal-300 dark:ring-teal-500/30' },
     reminder: { dot: 'bg-blue-500', chip: 'bg-blue-50 text-blue-700 ring-blue-200/70 dark:bg-blue-500/10 dark:text-blue-300 dark:ring-blue-500/30' },
     warning: { dot: 'bg-amber-500', chip: 'bg-amber-50 text-amber-700 ring-amber-200/70 dark:bg-amber-500/10 dark:text-amber-300 dark:ring-amber-500/30' },
     success: { dot: 'bg-emerald-500', chip: 'bg-emerald-50 text-emerald-700 ring-emerald-200/70 dark:bg-emerald-500/10 dark:text-emerald-300 dark:ring-emerald-500/30' },

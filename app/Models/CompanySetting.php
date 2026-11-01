@@ -4,6 +4,7 @@ namespace App\Models;
 
 use App\Models\Scopes\CompanySettingScope;
 use App\Support\CurrentTenant;
+use App\Support\RequestMemo;
 use Illuminate\Database\Eloquent\Model;
 use Illuminate\Support\Facades\Cache;
 
@@ -55,10 +56,17 @@ class CompanySetting extends Model
         return 'company_setting:'.($tenantId ?? 'platform').':'.$key;
     }
 
-    /** Raw stored value for exactly one tier, or the UNSET sentinel. Cached per tier. */
+    /**
+     * Raw stored value for exactly one tier, or the UNSET sentinel. Cached per tier.
+     *
+     * v2.141.0 -- a tier's settings are read as ONE map (one cache entry, one
+     * query on a miss), held for the rest of the request by RequestMemo. Each
+     * page used to read 13 settings x 2 tiers as 26 separate cache lookups,
+     * and with the database cache store each lookup was a query.
+     */
     private static function storedFor(?int $tenantId, string $key, bool $useCache = true): mixed
     {
-        $read = function () use ($tenantId, $key) {
+        if (! $useCache) {
             $query = static::withoutGlobalScopes()->where('key', $key);
 
             $tenantId === null
@@ -66,11 +74,25 @@ class CompanySetting extends Model
                 : $query->where('tenant_id', $tenantId);
 
             return $query->value('value') ?? self::UNSET;
-        };
+        }
 
-        return $useCache
-            ? Cache::rememberForever(self::cacheKey($tenantId, $key), $read)
-            : $read();
+        $map = RequestMemo::remember('settings:'.self::tierKey($tenantId), fn () => Cache::rememberForever(self::tierKey($tenantId), function () use ($tenantId) {
+            $query = static::withoutGlobalScopes();
+
+            $tenantId === null
+                ? $query->whereNull('tenant_id')
+                : $query->where('tenant_id', $tenantId);
+
+            return $query->pluck('value', 'key')->all();
+        }));
+
+        return array_key_exists($key, $map) && $map[$key] !== null ? $map[$key] : self::UNSET;
+    }
+
+    /** The cache entry holding one tier's whole settings map. */
+    private static function tierKey(?int $tenantId): string
+    {
+        return 'company_settings_map:'.($tenantId ?? 'platform');
     }
 
     private static function resolve(string $key, mixed $default, bool $useCache): mixed
@@ -122,6 +144,8 @@ class CompanySetting extends Model
         );
 
         Cache::forget(self::cacheKey($tenantId, $key));
+        Cache::forget(self::tierKey($tenantId));
+        RequestMemo::forget('settings:'.self::tierKey($tenantId));
     }
 
     /**

@@ -152,6 +152,10 @@ Not everything settled has an ADR. These live elsewhere and are equally binding:
 
 | Decision | Where |
 |---|---|
+| **Three plans only** (Starter Rp189.000, Professional Rp555.000, Business Rp1.249.000); Enterprise is not used — owner, 2026-11-01 | [[Operational Experience and Workflow Enhancement]] § working agreement; the leftover row is A15 |
+| **PTW flow:** Created → Approval 1..N → Final Verification (performed by whoever the COMPANY configures, not necessarily HSE) → Active automatically at the scheduled start, never earlier, with no manual activation — owner, 2026-11-01. **Supersedes ADR 067's order and fixed HSE verifier**; its enforcement guarantees stay | [[Operational Experience and Workflow Enhancement]] § A8; open safety points A8b |
+| **Work Order:** not in Starter; Professional and Business; entitlement separate from a document quota at Rp600 per document, reusing PTW metering — owner, 2026-11-01 | [[Operational Experience and Workflow Enhancement]] § A9; open W1–W3 |
+| **Technology principle:** free and open source first; paid options proposed with the free alternative and costs; no paid service activated without approval — owner, 2026-11-01 | [[Operational Experience and Workflow Enhancement]] § working agreement |
 | The bilingual **language hierarchy** (English slots vs Indonesian slots) | `CONVENTIONS.md`, [[CLAUDE]] — **supersedes** v1.11.7's "translate everything" policy |
 | A stat card may clip its **value**, never its **label** | `CONVENTIONS.md` |
 | Colour in a chart must not borrow a meaning the app already assigns it | `CONVENTIONS.md` |

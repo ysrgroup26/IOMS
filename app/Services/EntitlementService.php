@@ -2,11 +2,13 @@
 
 namespace App\Services;
 
+use App\Models\Company;
 use App\Models\Module;
 use App\Models\Subscription;
 use App\Models\Tenant;
 use App\Models\User;
 use App\Models\Workspace;
+use App\Support\RequestMemo;
 
 /**
  * v1.11.0 (SaaS Finalization Pass). The single, central authority for
@@ -184,11 +186,15 @@ class EntitlementService
             return true;
         }
 
-        if (! $tenant->workspaces()->exists()) {
+        // v2.141.0: the tenant's grant list read once per request, then
+        // answered from it -- the same two questions as before.
+        $granted = $this->tenantWorkspaceKeys($tenant);
+
+        if ($granted === []) {
             return true;
         }
 
-        return $tenant->workspaces()->where('key', $workspaceKey)->exists();
+        return in_array($workspaceKey, $granted, true);
     }
 
     /**
@@ -241,6 +247,12 @@ class EntitlementService
      *
      * Both callers now ask here, so they cannot disagree again.
      */
+    /** v2.141.0: the workspace keys granted to a tenant, read once per request (RequestMemo). */
+    private function tenantWorkspaceKeys(Tenant $tenant): array
+    {
+        return RequestMemo::remember("tenant:{$tenant->id}:workspaces", fn () => $tenant->workspaces()->pluck('key')->all());
+    }
+
     public function grantedWorkspaceKeys(?Tenant $tenant): array
     {
         $global = Workspace::globalKeys();
@@ -249,7 +261,7 @@ class EntitlementService
             return $global;
         }
 
-        $granted = $tenant->workspaces()->pluck('key')->all();
+        $granted = $this->tenantWorkspaceKeys($tenant);
 
         // No grants recorded == not yet restricted, exactly as
         // tenantCanUseWorkspace() reads it.
@@ -502,7 +514,7 @@ class EntitlementService
             return [];
         }
 
-        $granted = $tenant->modules()->pluck('key')->all();
+        $granted = RequestMemo::remember("tenant:{$tenant->id}:modules", fn () => $tenant->modules()->pluck('key')->all());
 
         return $granted === [] ? Module::query()->pluck('key')->all() : $granted;
     }
@@ -676,7 +688,6 @@ class EntitlementService
         return $this->canCreateUser($tenant);
     }
 
-
     /** The plan allowance alone, before anything the tenant purchased. */
     public function includedUserAllowance(?Tenant $tenant): ?int
     {
@@ -791,7 +802,7 @@ class EntitlementService
             return 0;
         }
 
-        return \App\Models\Company::withoutGlobalScopes()->where('tenant_id', $tenant->id)->count();
+        return Company::withoutGlobalScopes()->where('tenant_id', $tenant->id)->count();
     }
 
     /** Server-side gate for adding an operating unit. Same null-means-unlimited convention as canCreateUser(). */

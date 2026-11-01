@@ -3,6 +3,7 @@
 namespace Tests\Feature;
 
 use App\Models\Company;
+use App\Models\CompanySetting;
 use App\Models\Package;
 use App\Models\PermitToWork;
 use App\Models\Subscription;
@@ -10,6 +11,7 @@ use App\Models\Tenant;
 use App\Models\User;
 use App\Models\Workspace;
 use App\Support\CurrentTenant;
+use App\Support\RequestMemo;
 use Database\Seeders\ModuleSeeder;
 use Database\Seeders\WorkspaceSeeder;
 use Illuminate\Foundation\Testing\RefreshDatabase;
@@ -105,5 +107,42 @@ class OperationalFoundationsTest extends TestCase
     public function test_a_guest_cannot_read_it(): void
     {
         $this->getJson(route('account.version-history'))->assertUnauthorized();
+    }
+
+    public function test_the_request_memo_is_inactive_outside_a_request(): void
+    {
+        $calls = 0;
+        RequestMemo::remember('k', function () use (&$calls) {
+            return ++$calls;
+        });
+        RequestMemo::remember('k', function () use (&$calls) {
+            return ++$calls;
+        });
+
+        $this->assertSame(2, $calls, 'Outside a request (queue worker, commands) nothing may be memoised.');
+    }
+
+    public function test_a_setting_changed_mid_request_is_read_back_changed(): void
+    {
+        RequestMemo::begin();
+
+        try {
+            CompanySetting::set('company_subtitle', 'Sebelum');
+            $this->assertSame('Sebelum', CompanySetting::get('company_subtitle'));
+
+            CompanySetting::set('company_subtitle', 'Sesudah');
+            $this->assertSame('Sesudah', CompanySetting::get('company_subtitle'));
+        } finally {
+            RequestMemo::end();
+        }
+    }
+
+    public function test_signed_in_pages_do_not_block_on_google_fonts_but_public_pages_keep_them(): void
+    {
+        $this->actingAs($this->hse)->get(route('my-work'))->assertOk()
+            ->assertDontSee('fonts.googleapis.com/css2', false);
+
+        $this->app['auth']->guard('web')->logout();
+        $this->get('/login')->assertOk()->assertSee('fonts.googleapis.com/css2', false);
     }
 }

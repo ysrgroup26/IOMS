@@ -13,10 +13,18 @@ use App\Models\Package;
 use App\Models\PaymentTransaction;
 use App\Models\Scopes\TenantScope;
 use App\Models\Subscription;
-use App\Services\PlatformOperationsService;
 use App\Models\Tenant;
+use App\Models\TenantRegistration;
 use App\Models\User;
 use App\Models\Workspace;
+use App\Services\EntitlementService;
+use App\Services\PlatformOperationsService;
+use App\Services\PricingService;
+use App\Services\ReleaseStatusService;
+use App\Services\SchemaStatusService;
+use App\Services\SubscriptionLifecycleService;
+use App\Services\TenantProvisioningService;
+use App\Support\RequestMemo;
 use Illuminate\Http\RedirectResponse;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\DB;
@@ -24,10 +32,6 @@ use Illuminate\Support\Facades\Hash;
 use Illuminate\Validation\Rule;
 use Inertia\Inertia;
 use Inertia\Response;
-use App\Models\TenantRegistration;
-use App\Services\PricingService;
-use App\Services\SubscriptionLifecycleService;
-use App\Services\TenantProvisioningService;
 
 /**
  * Milestone 2 (Platform Super Admin UI, Task #44). The `/platform/*`
@@ -52,7 +56,7 @@ class PlatformController extends Controller
      * this same milestone's own verification pass, see
      * docs/ADR/008-tenancy-foundation.md.
      */
-    public function dashboard(PlatformOperationsService $operations, \App\Services\SchemaStatusService $schema, \App\Services\ReleaseStatusService $release): Response
+    public function dashboard(PlatformOperationsService $operations, SchemaStatusService $schema, ReleaseStatusService $release): Response
     {
         return Inertia::render('Platform/Dashboard', [
             /*
@@ -334,6 +338,7 @@ class PlatformController extends Controller
 
         return back()->with('success', "Tenant \"{$tenant->name}\" is active on complimentary access.");
     }
+
     /**
      * v2.97.0 -- GRANT COMPLIMENTARY ACCESS TO A TENANT THAT ALREADY EXISTS.
      *
@@ -473,6 +478,7 @@ class PlatformController extends Controller
             // that page's own purpose.
             $package = Package::find($validated['package_id']);
             if ($package) {
+                RequestMemo::flush(); // grants change below (v2.141.0)
                 $tenant->workspaces()->sync(Workspace::whereIn('key', $package->defaultWorkspaceKeys())->pluck('id'));
                 $tenant->modules()->sync(Module::whereIn('key', $package->defaultModuleKeys())->pluck('id'));
             }
@@ -534,7 +540,7 @@ class PlatformController extends Controller
                 // in use. An operator answering "can they add somebody?"
                 // needs the allowance, the purchase and the usage, not one
                 // conflated number.
-                'active_users' => app(\App\Services\EntitlementService::class)->usersUsedCount($tenant),
+                'active_users' => app(EntitlementService::class)->usersUsedCount($tenant),
                 'license_key' => $tenant->subscription->license_key,
                 'billing_reference' => $tenant->subscription->billing_reference,
                 'starts_at' => $tenant->subscription->starts_at,
@@ -667,7 +673,7 @@ class PlatformController extends Controller
         // The billing mode is named in the audit line because turning a
         // paying customer complimentary (or back) is a commercial decision
         // somebody must be able to account for later.
-        ActivityLog::record('updated', "Tenant \"{$tenant->name}\" subscription/license updated ({$validated['type']}, {$validated['status']}, billing: " . ($validated['billing_mode'] ?? $subscription->billingMode()) . ").");
+        ActivityLog::record('updated', "Tenant \"{$tenant->name}\" subscription/license updated ({$validated['type']}, {$validated['status']}, billing: ".($validated['billing_mode'] ?? $subscription->billingMode()).').');
 
         return back()->with('success', 'Subscription updated.');
     }
@@ -968,6 +974,7 @@ class PlatformController extends Controller
             'workspace_ids.*' => ['integer', 'exists:workspaces,id'],
         ]);
 
+        RequestMemo::flush(); // grants change below (v2.141.0)
         $tenant->modules()->sync($validated['module_ids'] ?? []);
         $tenant->workspaces()->sync($validated['workspace_ids'] ?? []);
 

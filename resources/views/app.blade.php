@@ -361,6 +361,12 @@
         </script>
     @endif
 
+    {{-- v2.141.0 -- signed-out pages only. Signed in, the interface is Manrope
+         (bundled), the PTW document band is Archivo from resources/fonts
+         (@font-face in app.css, fetched only by the page that uses it), and
+         machine output uses the system monospace. This stylesheet was render-
+         blocking on every signed-in page for faces almost none of them used. --}}
+    @guest
     <link rel="preconnect" href="https://fonts.googleapis.com">
     <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
     {{-- v2.85.0 -- THREE FAMILIES, ONE REQUEST.
@@ -403,7 +409,8 @@
     {{-- v2.136.0: the interface face is Manrope, bundled by Vite (ADR 079), so
          Inter is no longer requested. Archivo stays for the document type
          band (screen = PDF) and Plex Mono for identifiers. --}}
-    <link href="https://fonts.googleapis.com/css2?family=Archivo:wdth,wght@75..100,400..900&family=IBM+Plex+Mono:wght@400;500;600&display=swap" rel="stylesheet">
+    <link id="ioms-public-fonts" href="https://fonts.googleapis.com/css2?family=Archivo:wdth,wght@75..100,400..900&family=IBM+Plex+Mono:wght@400;500;600&display=swap" rel="stylesheet">
+    @endguest
 
     @routes
     @viteReactRefresh

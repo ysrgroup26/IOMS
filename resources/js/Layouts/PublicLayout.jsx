@@ -1,5 +1,5 @@
 import { Link, usePage } from '@inertiajs/react';
-import { useState } from 'react';
+import { useEffect, useState } from 'react';
 import { Button } from '@/Components/ui/button';
 import BrandWordmark from '@/Components/shared/BrandWordmark';
 import { Mail, MapPin, Menu, Phone, X } from 'lucide-react';
@@ -37,6 +37,18 @@ const NAV_LINKS = [
 ];
 
 export default function PublicLayout({ children }) {
+    // v2.141.0: app.blade.php requests the public site's two web fonts only
+    // for a signed-out DOCUMENT. Signing out is an Inertia visit, not a reload,
+    // so a public page reached that way adds the stylesheet itself, once.
+    useEffect(() => {
+        if (document.getElementById('ioms-public-fonts')) return;
+        const link = document.createElement('link');
+        link.id = 'ioms-public-fonts';
+        link.rel = 'stylesheet';
+        link.href = 'https://fonts.googleapis.com/css2?family=Archivo:wdth,wght@75..100,400..900&family=IBM+Plex+Mono:wght@400;500;600&display=swap';
+        document.head.appendChild(link);
+    }, []);
+
     const { company, version } = usePage().props;
     const [menuOpen, setMenuOpen] = useState(false);
 

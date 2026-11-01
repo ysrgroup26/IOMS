@@ -1,7 +1,7 @@
 ---
 title: Operational Experience and Workflow Enhancement
 type: backlog
-status: IN PROGRESS — v2 roadmap; P0 quick wins on branch; architecture and product decisions A1–A14 awaiting the owner
+status: IN PROGRESS — v3 (owner corrections 2026-11-01): M0 under way; decisions A1–A7, A8b, A10–A14, W1–W3, A15 awaiting the owner
 updated: 2026-11-01
 tags: [kb/backlog, status/in-progress]
 ---
@@ -28,6 +28,26 @@ tags: [kb/backlog, status/in-progress]
 > UX) and **waits for approval**. Production deploys follow QA and approval. Historical production
 > data — PTW, Work Orders, operational activity, audit history — is **never** deleted for being
 > "unused".
+>
+> **Technology principle (owner, v3):**
+> - Free and open-source first, when its quality, security, maintenance and capability meet IOMS's
+>   needs.
+> - A paid option is proposed only with its reasons, the free alternative, a capability comparison,
+>   the licence, and the initial and recurring cost.
+> - **No paid service is integrated or activated without approval.**
+>
+> **Plans (owner, v3): IOMS has exactly THREE plans.**
+>
+> | Plan | Price | Positioning | Full Users | My Work Users | PTW documents | Operating Units |
+> |---|---|---|---|---|---|---|
+> | Starter | Rp189.000 / month | Digitalize HSE | 3 | 10 | 50 / month | 1 |
+> | Professional | Rp555.000 / month | HSE + Workforce | 10 | 30 | 200 / month | 2 |
+> | Business | Rp1.249.000 / month | Operations end to end | 25 | 50 | 500 / month | 4 |
+>
+> - Professional includes all of Starter plus People / HRD.
+> - Business includes all of Professional plus Warehouse Logistics and Management.
+> - Every entitlement, menu and permission derives from this. **Enterprise is not used.** The
+>   repository already matches these figures (`packages`); see A15 for the leftover row.
 
 The audit in section 2 of v1 (S1–S10) still stands and is not repeated. This version adds the
 performance audit, the owner's new specifications, the decision pack and the delivery plan.
@@ -256,8 +276,15 @@ being implemented until approved.**
   - keep the local disk and add backup copies only (fixes the risk, not the scaling or metering);
   - Cloudflare R2 (S3-compatible, no egress fee; but it moves data outside Tencent and adds
     another provider).
-- **Cost:** COS bills per GB stored plus requests (small at today's volume; a recurring cost the
-  owner pays). Credentials are created by the owner.
+- **Cost (paid service; not activated without approval):** COS bills per GB stored plus requests.
+  That is small at today's volume, but it is a **recurring** cost.
+- **The free alternative:**
+  - keep files on the server disk and copy backups to a second machine you already own;
+  - or MinIO (AGPL-3.0, self-hosted). It is free, but it needs a second server to be off-site, and
+    it carries AGPL obligations only if modified and offered over a network.
+
+  Recommendation unchanged: COS, because "off-site" has to mean a different failure domain.
+- Credentials are created by the owner.
 - **Migration:** existing files are copied and verified before switching, never moved blind. The
   44 upload call sites move to one storage service.
 
@@ -272,39 +299,42 @@ being implemented until approved.**
 - **Alternatives:** none worth having without numbers.
 - **Risk:** low. Read-only, and in the same redacted channel as `status`.
 
-### A6 — Form Builder: SurveyJS
-- **Recommend:** **SurveyJS**, used in two parts:
-  - the **Form Library** (MIT, free for commercial use) renders forms for users, on desktop and
-    phone;
-  - **Survey Creator**, the drag-and-drop builder for administrators, which requires a **paid
-    developer licence**. The official price is from about US$589 once per developer with 12 months
-    of updates; optional renewal is about 60% per year; **no limit on end users**.
+### A6 — Form Builder (v3: open-source visual builder first)
 
-  Definitions are stored as JSON in IOMS, **versioned**. Submissions are validated **again on the
-  server** by an IOMS validator for the field types enabled. Core business columns (PTW times,
-  status, personnel, quota) stay real columns; the builder **extends** them and never replaces
-  them.
-- **Why:**
-  - the most complete and polished builder available for React: conditional logic through its own
-    safe expression language (no `eval`), validation, panels and pages, matrices, signatures and
-    file questions;
-  - themeable to IOMS Light and Midnight;
-  - actively maintained.
-- **Alternatives:**
-  - **Form.io** (`formio.js`): has a builder, but its server-side licensing changed to the copyleft
-    OSL-3; its UI is Bootstrap-based and heavy; and its "custom JavaScript" logic evaluates code,
-    which is an injection risk in a multi-tenant product;
-  - **react-jsonschema-form / JSON Forms** (Apache / MIT): solid renderers with **no** builder, so
-    we would build the builder;
-  - **Formily / Designable** (MIT): tied to Ant Design, with uncertain maintenance;
-  - **build our own** builder on SurveyJS's free library (no licence fee, full control of the UX,
-    but months of work and less polish).
-- **Decision needed:**
-  - approve SurveyJS **with** the Creator licence (fastest, most professional), or
-  - fully open source (Form Library plus an IOMS-built editor).
+**The owner's requirement:** a **complete visual builder**, not just a renderer; open source
+preferred, as long as it is licensable for commercial SaaS.
 
-  The owner buys the licence and the key goes into the server environment, never into the
-  repository.
+| Candidate | Visual builder | Licence (verified 2026-11-01) | Verdict |
+|---|---|---|---|
+| **Form.io `@formio/js`** | **Yes: full drag-and-drop builder plus renderer in one MIT package.** Layout (panels, columns, tabs, wizards), data grids and edit grids, file, signature, select from a data source, validation, conditional logic | **MIT**: `LICENSE.txt` reads "The MIT License (MIT) — Copyright (c) 2018 Form.io"; `package.json` `"license": "MIT"` | **Recommended** |
+| SurveyJS | Survey Creator, the most polished | Form Library MIT; **Creator commercial** (≈US$589 once per developer, ~60%/year for updates) | Paid alternative |
+| FormEngine (Optimajet) | Designer | Core MIT; **designer commercial** | Rejected (paid) |
+| react-jsonschema-form, JSON Forms | **No builder** | Apache-2.0 / MIT | Renderer only; does not meet the requirement |
+| Formily / Designable | Yes | MIT | Tied to Ant Design; maintenance uncertain |
+| Formbricks, OpnForm, … | Survey products, not embeddable builders | AGPL | Rejected: AGPL obligations for a commercial SaaS |
+
+**Recommendation: Form.io `@formio/js` (MIT, free)**, used only as a client-side library. No Form.io
+server and no Form.io premium modules. The definitions and submissions live in IOMS's own
+database. These **conditions** are part of the recommendation:
+1. **No custom JavaScript.**
+   - Form.io can evaluate JS in "custom" logic, validation and calculated values. In a
+     multi-tenant product that is code injection.
+   - The builder is configured with those tabs removed, and conditions use **JSON Logic**
+     (declarative and safe).
+   - The server **rejects** any definition that contains a JS-bearing key.
+2. **Server-side validation:** an IOMS validator re-checks every submission against the stored,
+   versioned definition (required, type, length and pattern limits, allowed options). The browser
+   is never trusted.
+3. **IOMS's look:** a custom template and theme for Light and Midnight, so it does not look like
+   Bootstrap.
+4. **Performance:** the library is about 1 MB, loaded **only** on builder and form pages (it is
+   never in the main bundle).
+5. **Extension, not replacement:** core business columns stay real columns (rule 5).
+
+- **Trade-off against SurveyJS:** the SurveyJS Creator UX is more refined out of the box, and its
+  expression language is safe by design. Form.io needs the configuration above and theming work.
+  Both meet the requirement; Form.io costs nothing.
+- **Cost:** Rp0 licence; engineering time for theming, the validator and the JS lockdown.
 
 ### A7 — Visual Approval Flow Builder on React Flow, extending the existing engine
 - **Recommend:**
@@ -327,82 +357,79 @@ being implemented until approved.**
   - Rete.js (aimed at dataflow programming, not business flows).
 - **Cost:** one dependency, about 150 KB, loaded only on the editor page.
 
-### A8 — PTW approval and verification order (safety behaviour)
+### A8 — PTW flow (v3: corrected by the owner)
 
-**Today (ADR 067), enforced by the state machine:**
-
-```
-Draft → Submitted → Verified (HSE) → Approved (approver) → Active (activated by a person) → Closed
-                          ↘ Rejected ↙
-```
-
-HSE verifies that the permit is complete and safe. An approver then authorises the work, and
-someone switches it on. Two different authorities. The order cannot be skipped. Nothing expires.
-
-**As the owner described it earlier:** an "Approval Creator", then approval stages, then a **final
-Verified** stage that **activates the permit automatically**.
-
-**Differences and implications:**
-
-| | ADR 067 (today) | Described |
-|---|---|---|
-| Where HSE verification sits | **First** gate | **Last** gate |
-| Number of approval stages | One | Three, four or more, configurable |
-| Activation | A person's act | Automatic at Verified |
-| Implication | HSE screens the permit before approvers spend time on it | HSE has the final word on the exact permit the approvers signed. That is closer to "nothing goes live without HSE", but approvers may sign permits that HSE later sends back |
-
-**Proposed final flow, for approval:**
+**Decided by the owner, 2026-11-01:**
 
 ```
-Draft (Requester = the "creator" of the request)
-  → Submitted
-  → Approval stage 1..N   (configured per company in the visual flow builder; e.g. Supervisor,
-                           Area Owner; sequential or parallel; by user, position or role)
-  → Final Verification    (HSE; MANDATORY, always last, cannot be removed from any flow,
-                           cannot be done by someone who approved the same permit)
-  → Verified              (permit is authorised)
-  → Active                AUTOMATICALLY at the permit's start time (or at Verified if the start time
-                           has already passed). Never before the start time.
-  → Expired               AUTOMATICALLY at the end time; work must stop; the permit awaits close-out
-  → Closed                (close-out by the requester or area authority, with the closure check)
-  Extension: requested before expiry, re-verified by Final Verification, up to a company limit.
-  Rejected at any stage → back to Draft with the reason.
+PTW Created → Approval Stage 1..N → Final Verification → Permit Active
 ```
 
-**Preserved:**
-- server-enforced order;
-- row-locked decisions;
-- commit before notify (ADR 067);
-- verify authority separate from approve authority;
-- the Work Order link (section 2).
+- **Every stage is configured per company**, including **who performs Final Verification**: HSE,
+  a Project Manager, a Manager Project, by person, position or role. It is **not** fixed to HSE.
+- When Final Verification is approved, the permit becomes **Active automatically at its scheduled
+  start time**. There is **no second, manual activation**. If the start time has not arrived, the
+  permit waits as **Verified (scheduled)** and is activated by the scheduler exactly at the start
+  time, never earlier. If the start time has already passed, it activates immediately.
 
-**The owner must confirm:**
-1. **Final Verification is last** (supersedes ADR 067's order).
-2. **Automatic activation** at the start time once Verified.
-3. **What "Approval Creator" means:**
-   - (a) the requester who creates the permit, as drawn above;
-   - (b) a stage where someone formally "creates" the approval request on the requester's behalf;
-   - (c) the administrator who designs the flow.
-4. **What happens at expiry:**
-   - automatic Expired, awaiting close-out, as proposed; or
-   - automatic Closed.
-5. **Extension rules:** who may extend, and how many times.
-6. **Mandatory pre-activation checks**, such as a recorded gas test for confined space or hot work.
-   IOMS does not enforce these today, so they would be new safety rules. Say which.
+**Engineering consequences (no decision needed; how it will be built):**
+- **ADR 067 is superseded** for the *order* and *who verifies*. Its other guarantees stay:
+  - the server enforces the order (no stage can be skipped by a direct request or by holding two
+    authorities);
+  - decisions are row-locked;
+  - the decision commits before anyone is notified;
+  - the actor's job title is snapshotted on the record (ADR 068).
+- **Final Verification is structural:** every PTW flow must end with exactly one Final Verification
+  stage. The flow editor refuses to publish a PTW flow without one.
+- **Existing permits are untouched:** permits already in flight finish on the flow version they
+  started under (flow versioning, A7). Today's companies get a default flow equivalent to their
+  current settings, so nothing changes until they edit it.
+- **Activation is a scheduled job**, idempotent and audited, running every minute. Activation emits
+  a notification to the requester, the PIC and the verifier.
 
-### A9 — Work Order entitlement
-- **Recommend:**
-  - Work Order is a **cross-department capability in every plan**, served from a universal route
-    prefix and governed by roles, not by workspace grant;
-  - volume is governed by the storage quota and add-ons (A4/A11);
-  - the existing Maintenance fields (asset, maintenance request, spare parts) become **optional
-    sections** used only where the company has assets.
-- **Why:** this matches the owner's direction, and WO is the entry point to PTW, which every HSE
-  plan sells.
-- **Alternatives:**
-  - Work Order only on plans with Logistics;
-  - Work Order as a paid add-on.
-- **Consequence:** the old retired-department routes are re-homed without losing historical rows.
+### A8b — Safety decisions still open (the owner's call)
+
+| # | Question | Recommendation | Consequence if not decided |
+|---|---|---|---|
+| A8b-1 | **Separation of duties:** may the same person approve a stage *and* perform Final Verification on the same permit? | **No**: one person, one decision per permit (today's rule) | Without it, one person holding two roles could authorise a permit alone |
+| A8b-2 | **At the end time:** what happens? | **Expired, awaiting close-out**: work must stop, the permit is not "closed" until someone closes it out | Auto-*Closed* would hide permits whose site was never made safe |
+| A8b-3 | **Extension:** who extends, and how many times? | Requested before expiry; approved by the **Final Verifier role**; at most N per permit (company setting, default 1) | Without a rule, an extension is either impossible or unchecked |
+| A8b-4 | **Pre-activation checks:** must anything be recorded before a permit can go Active (e.g. a gas test for confined space or hot work)? | Make it a **per-permit-type company setting**, off by default, so IOMS does not impose a rule the company never adopted | Not enforced today; enforcing it is a new safety rule |
+| A8b-5 | **"Approval Creator":** (a) the requester who creates the permit, (b) a person who formally raises the request on the requester's behalf, or (c) the admin who designs the flow? | (a), unless you meant (b) | The first node of the flow is labelled and authorised accordingly |
+
+### A9 — Work Order entitlement (v3: decided by the owner)
+
+| Plan | Work Order |
+|---|---|
+| Starter | **No access** |
+| Professional | Access |
+| Business | Access |
+
+**Two separate checks, both always applied:**
+1. **Subscription entitlement:** may this tenant use Work Order at all?
+2. **Document quota:** may it create another Work Order document now? Document-based, like PTW,
+   with a reference cost of **Rp600 per document**.
+
+**Engineering approach (no new billing engine):**
+- PTW's metering (`PtwQuotaService`, `ptw_quota_grants`, `ptw_quota_consumptions`, top-up packs
+  sold through the existing invoice flow) already has everything needed:
+  - monthly included grants;
+  - purchased packs that carry forward;
+  - **one consumption per document, row-locked**, so a retry or a double submit cannot charge
+    twice;
+  - an idempotent credit per invoice.
+- It is **generalised** to a document *kind* (`ptw`, `work_order`) with **additive** columns.
+  PTW's behaviour, tables and figures are unchanged, and a test pins that.
+- The Work Order **entitlement** is the plan's workspace grant, the same question every gate
+  already asks (ADR 061). My Work, menus and links ask it too.
+
+### W1–W3 — Work Order quota decisions (the owner's call)
+
+| # | Question | Recommendation | Why |
+|---|---|---|---|
+| **W1** | Included Work Order documents per month | **Professional 100, Business 300** | Below PTW on purpose: a Work Order spans days or weeks and a PTW is per shift or task, so companies raise several permits per Work Order. **Please set the real numbers** |
+| **W2** | Is the quota **shared with PTW** or **separate**? | **Separate pools, same price ladder** (Rp1.000 / Rp800 / Rp600 per document in packs of 50 / 150 / 500) | A shared pool lets heavy Work Order use silently consume a crew's permits, which is a safety-side surprise |
+| **W3** | **When is a document counted?** | **At creation, as PTW does** (one rule for both; the number is issued then). A cancelled document is **not refunded**, same as PTW. A failed save is never counted (same transaction) | Alternative: count at submission, so abandoned drafts are free but the two document types behave differently |
 
 ### A10 — The field content of the six Work Order sections
 - **Need:** the owner's original Work Order document, or approval of a drafted field list.
@@ -481,6 +508,32 @@ Draft (Requester = the "creator" of the request)
     on them, but no team view);
   - a department head per department (coarser).
 
+### My Work and Work Order (owner, v3 — rules, not decisions)
+- Work Orders can be shown and actioned in My Work by people who hold the permission.
+- My Work **never**:
+  - opens Work Order to a Starter tenant;
+  - bypasses the subscription entitlement or the document quota;
+  - turns an approval right into a right to manage every Work Order. An approver sees and decides
+    the Work Orders **waiting on them**, and nothing more.
+- My Work is where **permitted** actions are done, not a shortcut into modules outside the plan.
+  Every item it lists links to a page that answers 200 for that person, and every action goes
+  through the same server gate as the module (ADR 061). Tests pin each refusal: Starter, no quota,
+  approver-only.
+
+### A15 — The leftover "Enterprise" plan row
+- **Fact:** `packages` still holds an `enterprise` row (Rp2.499.000, `is_public = 0`), kept so any
+  tenant subscribed to it keeps working. The **development seeders** also put the local test tenant
+  on Enterprise.
+- **Recommend:**
+  1. Move development and test seeding to **Business** now (routine; no production effect).
+  2. Check production for tenants still on Enterprise, through A5's read-only report or the Master
+     Admin tenant list.
+  3. Then move any such tenant to Business (a commercial decision, per tenant) and only after that
+     remove the row and the `enterprise` entries in `config/plans.php`.
+
+  Deleting it first would strand a paying tenant.
+- **Decision:** confirm steps 2–3.
+
 ### D1 (from v1) — Tasks for Department Users
 - **Recommend:** add `tasks` to the universal prefixes, while each task stays visible only to its
   assignee, its creator and those who manage tasks. That makes Tasks a cross-department capability,
@@ -498,14 +551,14 @@ reviewed on **staging** before production, and each production deploy needs the 
 
 | Milestone | Content | Needs | Status |
 |---|---|---|---|
-| **M0 — Fast foundations** (routine) | F1 history prop ✔; PTW `verified` count ✔; F4 per-request memo of settings and entitlements; F5 lean live endpoint; F2 lazy page chunks with prefetch; F3 self-hosted or scoped fonts; scheduled pruning of sessions, cache and failed jobs (no operational data); Settings split (the recorded prerequisite for the flow and form editors) | — | `#status/in-progress` (2 of 7 done on branch) |
+| **M0 — Fast foundations** (routine) | F1 history prop ✔; PTW `verified` count ✔; F4 request memo for settings and entitlements ✔ (`/tasks` 70 → 27 queries, `/dashboard` 191 → 73, live poll 60 → 19); F2 per-page chunks with idle prefetch ✔ (entry 2.3 MB → 329 KB; throttled phone-class load: usable 3.45 s → 1.96 s, in-app click 977 → 549 ms); F3 Google Fonts only on signed-out pages, Archivo from `resources/fonts` ✔; Settings split; dev seeders off Enterprise (A15 step 1) | — | `#status/in-progress` (5 of 7 done on branch) |
 | **M1 — Platform foundations** | Redis (A1); Reverb (A3); COS with storage registry and off-site backups (A4); production perf report (A5); `record_changes` audit (A13); **notification event layer** (section 3: catalogue, preferences, delivery log, retries, reminders) | A1, A3, A4, A5, A13 | `#status/planned` |
 | **M2 — My Work and role dashboards** | My Work as the personal workspace (waiting on me, assigned to me, my permits and WOs, deadlines, by urgency; mobile-first); role layers on every overview for Workforce, Supervisor, Manager and Company Admin | D1, A14 | `#status/planned` |
-| **M3 — Work Order** | The owner's six-section bilingual Work Order, urgency, configurable sign-off and close-out (or QC link), PTW Requirement Yes/No and types, approval to Authorized, PTW creation from an Authorized WO, the Execution reminder, the document/PDF | A9, A10 | `#status/planned` |
-| **M4 — Visual Approval Flow** | React Flow editor; engine v2 extended (positions, conditions, versions); the PTW flow per A8; Work Order sign-off on the same engine | A7, A8 | `#status/planned` |
+| **M3 — Work Order** | The owner's six-section bilingual Work Order, urgency, configurable sign-off and close-out (or QC link), PTW Requirement Yes/No and types, approval to Authorized, PTW creation from an Authorized Work Order, the Execution reminder, the document/PDF. **Professional and Business only**, with a document quota on the generalised PTW metering | A10, W1–W3 (A9 decided) | `#status/planned` |
+| **M4 — Visual Approval Flow** | React Flow editor; engine v2 extended (positions, conditions, versions); the PTW flow **as decided in A8** (stages 1..N, company-chosen Final Verifier, scheduled automatic activation); Work Order sign-off on the same engine | A7, A8b | `#status/planned` |
 | **M5 — PTW enhancement and Live PTW Dashboard** | Bilingual, grouped, mobile-first PTW form with clear mandatory rules; lifecycle (scheduled activation, expiry, extension, close-out); the live board (by state, awaiting my stage, starting soon, ending soon, expired awaiting close-out, gas test due; filters by unit, area, type and status; real-time) | A8, M4 | `#status/planned` |
 | **M6 — SIMOPS** | Work Area master; area on PTW/WO; conflict detection and matrix; SIMOPS board; acknowledgements | A12 | `#status/planned` |
-| **M7 — Form Builder** | SurveyJS integration (or the open-source alternative), versioned definitions, server validation; first consumers are Work Order close-out/inspection and PTW per-type checklists, then HSE, HRD and Logistics forms | A6 | `#status/planned` |
+| **M7 — Form Builder** | Form.io `@formio/js` (MIT) with JS logic disabled, JSON Logic conditions, IOMS theme, versioned definitions, server validation; first consumers are Work Order close-out/inspection and PTW per-type checklists, then HSE, HRD and Logistics forms | A6 | `#status/planned` |
 | **M8 — UX sweep and release QA** | Remaining long forms and confusing modals moved to the Form Experience System (the deferred "workflow form pass"); feedback on save, submit, approve and error; full crawl of every role and plan in Light and Midnight; staging review; production release | M0–M7 | `#status/planned` |
 | **M9 — Landing page** | Screenshots and copy from the released product only | M8 | `#status/deferred` (by the owner) |
 
@@ -546,5 +599,7 @@ reviewed on **staging** before production, and each production deploy needs the 
 | Notifications audit and verdict | `#status/verified` | Section 3; live delivery measured at 2.9 s |
 | F1: release history off every page | `#status/implemented` | `account.version-history`; navigation 430 KB → 5.7 KB; `OperationalFoundationsTest` |
 | My PTW counts `verified` as awaiting approval | `#status/implemented` | `DashboardController::myWork`; `OperationalFoundationsTest` |
-| Decision pack A1–A14 + D1 | `#status/planned` | Section 4, awaiting the owner |
+| F4 request memo (settings map per tier, entitlement grants) | `#status/implemented` | `App\Support\RequestMemo` + `RequestMemoScope`; inactive outside a request (queue worker safe); `OperationalFoundationsTest` |
+| F2 per-page chunks, F3 fonts | `#status/implemented` | `app.jsx` lazy glob + idle prefetch; release check still 186/186 pages; `@guest` font stylesheet; measured throttled load −43% |
+| Decision pack A1–A14 + D1 | `#status/planned` | Section 4. v3: **A8 and A9 decided by the owner**; A6 re-evaluated (open source); A8b, W1–W3 and A15 added |
 | M0 remainder, M1–M9 | `#status/planned` | Section 5 |

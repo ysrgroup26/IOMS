@@ -1,4 +1,12 @@
 @tailwind base;
+
+/* v2.141.0 -- Archivo for a controlled document's type band, from the same
+   static files the PDF embeds (resources/fonts), instead of a render-blocking
+   Google Fonts request on every signed-in page. A face is downloaded only by a
+   page that uses it -- in practice the PTW document. */
+@font-face { font-family: 'Archivo'; font-style: normal; font-weight: 700; font-stretch: 100%; font-display: swap; src: url('../fonts/Archivo-Bold.ttf') format('truetype'); }
+@font-face { font-family: 'Archivo'; font-style: normal; font-weight: 800; font-stretch: 100%; font-display: swap; src: url('../fonts/Archivo-ExtraBold.ttf') format('truetype'); }
+@font-face { font-family: 'Archivo'; font-style: normal; font-weight: 800; font-stretch: 75%; font-display: swap; src: url('../fonts/ArchivoCondensed-ExtraBold.ttf') format('truetype'); }
 @tailwind components;
 @tailwind utilities;
 

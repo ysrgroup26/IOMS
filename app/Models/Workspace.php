@@ -2,6 +2,7 @@
 
 namespace App\Models;
 
+use App\Support\RequestMemo;
 use Illuminate\Database\Eloquent\Model;
 
 /**
@@ -40,7 +41,7 @@ class Workspace extends Model
     /** The workspace keys no plan may withhold. Sold capacity is departments. */
     public static function globalKeys(): array
     {
-        return static::query()->where('tier', self::TIER_GLOBAL)->pluck('key')->all();
+        return RequestMemo::remember('workspaces:global', fn () => static::query()->where('tier', self::TIER_GLOBAL)->pluck('key')->all());
     }
 
     public static function isGlobalKey(string $key): bool

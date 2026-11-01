@@ -259,6 +259,23 @@ class ApprovalEngine
      *
      * @see HasWorkflow::documentLabel()
      */
+    /**
+     * v2.141.0 -- how an approvable record is NAMED and REACHED, for any
+     * surface that lists it (My Work), on the same terms its notifications
+     * use (ADR 064): its document label, its number, its URL and route.
+     *
+     * @return array{label: string, number: string, url: ?string, route: ?string}
+     */
+    public function describe(Model $approvable): array
+    {
+        return [
+            'label' => $this->labelOf($approvable),
+            'number' => $this->displayNumberOf($approvable),
+            'url' => $this->urlOf($approvable),
+            'route' => method_exists($approvable, 'notificationRouteName') ? $approvable->notificationRouteName() : null,
+        ];
+    }
+
     private function labelOf(Model $approvable): string
     {
         return method_exists($approvable, 'documentLabel')

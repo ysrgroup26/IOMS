@@ -15,8 +15,10 @@ use App\Models\Task;
 use App\Services\CalendarService;
 use App\Services\DashboardStatsService;
 use App\Services\EntitlementService;
+use App\Services\MyWorkService;
 use App\Services\TenantReadinessService;
 use App\Services\WorkCenterService;
+use App\Support\RouteReach;
 use Illuminate\Http\RedirectResponse;
 use Illuminate\Http\Request;
 use Illuminate\Support\Carbon;
@@ -484,51 +486,22 @@ class DashboardController extends Controller
         // (resolved by DashboardStatsService, which respects TenantScope)
         // and additionally narrowed to THIS user -- their tasks, their
         // permits. Nothing here widens what the user may see.
-        $myTasks = $this->workCenter->myTasksFor($user)->take(6)->map(fn ($task) => [
-            'id' => $task->id,
-            'title' => $task->title,
-            'priority' => $task->priority,
-            'status' => $task->status,
-            'due_date' => $task->due_date,
-            'is_overdue' => $task->due_date !== null && $task->due_date->isPast(),
-            'href' => route('tasks.show', $task->id),
-        ])->values();
-
-        // Permits this user raised that are still live. PROJECT IDENTITY
-        // AND WORK LOCATION ARE SHOWN SEPARATELY and deliberately: "what
-        // job" and "where" are different questions, and a permit that says
-        // only one of them is missing information a field user needs.
-        $myPermits = PermitToWork::whereIn('company_id', $tenantCompanyIds)
-            ->where('requested_by', $user->id)
-            ->whereIn('status', [
-                PermitToWork::STATUS_SUBMITTED,
-                PermitToWork::STATUS_APPROVED,
-                PermitToWork::STATUS_ACTIVE,
-            ])
-            ->with('project:id,name')
-            ->orderByDesc('start_datetime')
-            ->limit(5)
-            ->get()
-            ->map(fn (PermitToWork $permit) => [
-                'id' => $permit->id,
-                'ptw_number' => $permit->ptw_number,
-                'permit_type' => $permit->permit_type,
-                'status' => $permit->status,
-                // Falls back to the free-text work name when no formal
-                // Project Master exists, so this never reads "No Project"
-                // for work that plainly has an identity.
-                'work_identity' => $permit->workIdentity(),
-                'location' => $permit->location,
-                'start_datetime' => $permit->start_datetime,
-                'href' => route('permits-to-work.show', $permit->id),
-            ]);
+        // v2.141.0 -- Waiting on Me / Assigned to Me / My Permits, each
+        // item linked only where this person may open it (MyWorkService).
+        $work = app(MyWorkService::class)->for($user);
 
         return Inertia::render('Field/Home', [
             'tiles' => $tiles,
-            'pendingApprovalsCount' => $this->workCenter->pendingApprovalsFor($user)->count(),
-            'myTasksCount' => $this->workCenter->myTasksFor($user)->count(),
-            'myTasks' => $myTasks,
-            'myPermits' => $myPermits,
+            'waitingOnMe' => $work['waitingOnMe'],
+            'assignedToMe' => $work['assignedToMe'],
+            'myPermits' => $work['myPermits'],
+            'counts' => $work['counts'],
+            // "See all" destinations, offered on the same terms as the items.
+            'links' => [
+                'workCenter' => RouteReach::allows($user, 'work-center.index') ? route('work-center.index') : null,
+                'tasks' => RouteReach::allows($user, 'tasks.index') ? route('tasks.index') : null,
+                'permits' => RouteReach::allows($user, 'permits-to-work.mine') ? route('permits-to-work.mine') : null,
+            ],
             // Drives whether My Work offers a Create PTW action at all.
             // The tile list already respects this; sending it explicitly
             // lets the page explain the absence instead of silently

@@ -615,6 +615,24 @@ number the form promised was never the one the record got. If you add a create p
 number, use the model's `previewX()` -- `DocumentNumberPreviewTest` fails if a consuming generator
 reappears in an Inertia prop.
 
+## My Work page: Waiting on Me, Assigned to Me, My Permits (v2.141.0)
+
+`/my-work` (`DashboardController::myWork`, `Pages/Field/Home.jsx`) answers three questions from
+`App\Services\MyWorkService`, which owns no data and reads the registers:
+
+- **Waiting on Me** — pending approvals that `ApprovalEngine::authorize()` would let this person decide
+  (not merely "holds an approver role"), plus permits whose CURRENT stage (verify for `submitted`,
+  approve for `verified`) `PtwWorkflowService::canAct()` gives them. Oldest first.
+- **Assigned to Me** — open tasks (`assigned_user_id`) and open/in-progress corrective actions
+  (`assigned_to`): overdue first (due date before today), then by deadline, then priority.
+- **My Permits** — open permits (draft → active) the person requested, or leads as PIC through
+  `users.employee_id`.
+
+Every item has one shape and carries an `href` **only** when `RouteReach::allows()` says the person can
+open the route (My Work allow-list, Sandbox, department access, plan entitlement). An item they cannot
+open is still listed, with "Tidak dapat dibuka dari akun Anda", because the work is theirs even when
+the module is not. The "View all" links are gated the same way. Pinned by `MyWorkComponentsTest`.
+
 ## The My Work account class (v2.86.0, completed v2.122.0)
 
 **Decision:** ADR 061. **Key files:** `app/Http/Middleware/RestrictMyWorkUser.php`,

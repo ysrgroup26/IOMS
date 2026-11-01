@@ -1,5 +1,6 @@
 import { Link, usePage, router } from '@inertiajs/react';
 import { LayoutDashboard, Building2, LogOut, Tag, UserPlus, CreditCard, LifeBuoy, Database } from 'lucide-react';
+import ThemeSwitch from '@/Components/shared/ThemeSwitch';
 import BrandWordmark from '@/Components/shared/BrandWordmark';
 
 const NAV_CLASS = 'flex items-center gap-2 rounded-md px-3 py-2 text-sm font-medium transition-colors';
@@ -55,7 +56,7 @@ export default function PlatformLayout({ children }) {
             <header className="border-b border-graphite-200 bg-white">
                 <div className="mx-auto flex max-w-6xl items-center justify-between px-4 py-3">
                     <div className="flex items-center gap-6">
-                        <BrandWordmark className="h-6 w-auto" />
+                        <BrandWordmark className="h-6 w-auto" tone="adaptive" />
                         {/* Milestone 3 (UAT #1/#3/#7 -- identity clarity):
                             "Master" -- matches User::roleLabel()'s
                             platform_admin mapping exactly, so this reads
@@ -79,6 +80,7 @@ export default function PlatformLayout({ children }) {
                         </nav>
                     </div>
                     <div className="flex items-center gap-3">
+                        <ThemeSwitch />
                         <span className="text-sm text-graphite-500">{auth?.user?.name} <span className="text-xs text-graphite-400">(Master)</span></span>
                         <button
                             onClick={logout}

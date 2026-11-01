@@ -54,13 +54,14 @@ return [
     /*
     | v2.139.0 -- MIDNIGHT FROSTED GLASS, THE DARK THEME (ADR 082).
     |
-    | A pilot: the light/dark switch is offered only to organisations on
-    | these plans (`packages.slug`). Everyone else stays on Icy Blue Frosted
-    | Glass whatever their browser prefers. Widening the rollout is adding a
-    | slug here, after the owner approves the pilot -- not a code change.
+    | v2.139.0 piloted it on Starter; v2.140.0 rolls it out to every
+    | signed-in account ('*': any plan, My Work, platform operators) after
+    | the owner approved the pilot. A list of `packages.slug` values narrows
+    | it again; an empty list turns it off for everyone (the kill switch).
+    | Signed-out pages stay on Icy Blue Frosted Glass.
     */
     'dark_theme' => [
-        'plans' => ['starter'],
+        'plans' => ['*'],
     ],
 
     'release_date' => '2026-11-01',

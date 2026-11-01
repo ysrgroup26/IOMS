@@ -42,7 +42,15 @@ class NotificationService
     {
         $stored = json_decode(CompanySetting::getUncached('notification_preferences') ?? '', true);
 
-        return array_merge(self::DEFAULT_PREFERENCES, is_array($stored) ? $stored : []);
+        // v2.141.0 (N1, owner-approved): assignments and approvals ask a
+        // person to ACT, so a company switch can never turn them off -- an
+        // approver for a PTW stage must always be told.
+        $merged = array_merge(self::DEFAULT_PREFERENCES, is_array($stored) ? $stored : []);
+        foreach (NotificationCatalogue::IN_APP_LOCKED as $category) {
+            $merged[$category] = true;
+        }
+
+        return $merged;
     }
 
     public function notify(

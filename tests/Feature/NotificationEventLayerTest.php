@@ -4,6 +4,7 @@ namespace Tests\Feature;
 
 use App\Jobs\DeliverWebPush;
 use App\Models\Company;
+use App\Models\CompanySetting;
 use App\Models\CorrectiveAction;
 use App\Models\Notification;
 use App\Models\NotificationDelivery;
@@ -16,6 +17,7 @@ use App\Models\User;
 use App\Models\UserNotificationPreference;
 use App\Models\Workspace;
 use App\Services\Notifications\WebPushService;
+use App\Services\NotificationService;
 use App\Support\CurrentTenant;
 use Database\Seeders\ModuleSeeder;
 use Database\Seeders\WorkspaceSeeder;
@@ -203,5 +205,22 @@ class NotificationEventLayerTest extends TestCase
         $delivery = $second->deliveries()->sole();
         $this->assertSame(NotificationDelivery::STATUS_SENT, $delivery->status);
         $this->assertSame(1, $delivery->devices);
+    }
+
+    public function test_a_company_cannot_switch_off_approvals_or_assignments_n1(): void
+    {
+        CompanySetting::set('notification_preferences', json_encode(['approval' => false, 'assignment' => false, 'information' => false]));
+
+        $sent = app(NotificationService::class)->notify($this->worker, Notification::CATEGORY_APPROVAL, 'PTW waiting for your approval');
+        $this->assertNotNull($sent, 'An approval request must reach the approver whatever the company switch says.');
+        $this->assertNull(app(NotificationService::class)->notify($this->worker, Notification::CATEGORY_INFORMATION, 'FYI'));
+
+        $this->actingAs($this->lead);
+        $this->task(['assigned_user_id' => $this->worker->id]);
+        $this->assertSame(1, Notification::where('user_id', $this->worker->id)->where('event_key', 'task.assigned')->count());
+
+        $this->actingAs($this->lead)->post(route('settings.notifications'), ['preferences' => ['approval' => false, 'reminder' => true, 'warning' => true, 'success' => true, 'information' => true]]);
+        $stored = json_decode(CompanySetting::getUncached('notification_preferences'), true);
+        $this->assertTrue($stored['approval'], 'Saving Settings must not switch approvals off.');
     }
 }

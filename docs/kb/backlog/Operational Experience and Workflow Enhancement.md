@@ -261,6 +261,24 @@ area and a time window, the SIMOPS badge will name the pair:
 
 Any blocking or acknowledgement rule waits for the owner.
 
+## 3c. Owner decisions v5 (2026-11-01) — binding
+
+| # | Decision |
+|---|---|
+| **N1** | **Approved.** Assignment and Approval notifications are **mandatory**: neither a Company Admin nor a person can switch them off, enforced in the UI and on the server, with an explanation in Settings |
+| **E1** | **Approved.** An Expired PTW shows that **work must stop until the new PTW has passed approval and Final Verification and is Active**, and offers Close-Out or Request Extension. The requester decides; HSE is notified for monitoring; the old PTW is never reactivated |
+| **E2** | **Approved.** Every Request Extension is a new PTW document and **consumes one PTW document** from the quota |
+| **E3** | **Approved.** No limit on chained extensions; the chain is traceable through the document history |
+| **W1** | **Approved.** Work Order quota: Starter **not available**, Professional **200 documents/month**, Business **500 documents/month**. It is separate from PTW, with each plan's PTW document pricing |
+
+**Still pending, and not assumed:**
+- A8b (separation of duties, the expiry state and extension authority already decided by E1–E3, pre-activation checks, "Approval Creator");
+- A10 (Work Order field content within the six agreed sections);
+- D1 (Tasks for Department Users);
+- A14 (reporting line).
+
+Where one of them blocks the next piece of work, it is raised as a question with context, options and consequences.
+
 ## 4. Decision pack — waiting for the owner
 
 Each item states the recommendation, why, the alternatives, the trade-offs and the impact. **None is

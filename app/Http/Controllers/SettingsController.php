@@ -6,32 +6,39 @@ use App\Http\Requests\StoreKpiCategoryRequest;
 use App\Http\Requests\UpdateAuthenticationRequest;
 use App\Http\Requests\UpdateKpiCategoryRequest;
 use App\Models\ActivityLog;
+use App\Models\Approval;
+use App\Models\ApprovalFlow;
 use App\Models\Company;
 use App\Models\CompanySetting;
-use App\Rules\InCurrentTenant;
 use App\Models\Department;
+use App\Models\DocumentTemplate;
+use App\Models\Invoice;
 use App\Models\KpiCategory;
 use App\Models\Module;
 use App\Models\NumberingFormat;
 use App\Models\Position;
 use App\Models\PtwWorkflowSetting;
 use App\Models\User;
-use App\Services\PtwWorkflowService;
 use App\Models\Workspace;
+use App\Rules\InCurrentTenant;
 use App\Services\EntitlementService;
+use App\Services\FieldMappingService;
+use App\Services\NotificationService;
+use App\Services\NumberGeneratorService;
+use App\Services\PtwWorkflowService;
+use App\Support\IdentifierCase;
 use App\Support\NameFormatter;
 use Illuminate\Http\RedirectResponse;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Facades\Hash;
 use Illuminate\Support\Facades\Storage;
+use Illuminate\Support\Str;
 use Illuminate\Validation\Rule;
 use Illuminate\Validation\ValidationException;
 use Inertia\Inertia;
 use Inertia\Response;
 use Spatie\Permission\Models\Role;
-use App\Models\Invoice;
-use App\Support\IdentifierCase;
 
 /**
  * Settings module. Two permission tiers, enforced both by route middleware
@@ -269,7 +276,7 @@ class SettingsController extends Controller
             // NumberGeneratorService's own hardcoded default (not
             // persisted just from viewing this page -- only saving
             // actually creates a tenant-scoped row).
-            'numberingFormats' => collect(\App\Services\NumberGeneratorService::DEFAULTS)->map(function ($default, $moduleKey) use ($request) {
+            'numberingFormats' => collect(NumberGeneratorService::DEFAULTS)->map(function ($default, $moduleKey) use ($request) {
                 $existing = NumberingFormat::whereNull('company_id')
                     ->where('tenant_id', $request->user()->tenant_id)
                     ->where('module_key', $moduleKey)
@@ -288,11 +295,11 @@ class SettingsController extends Controller
             // docs/ADR/018-approval-flow-numbering-tenant-scoping.md for
             // why `tenant_id` had to be added to this table in this same
             // pass.
-            'approvalFlows' => \App\Models\ApprovalFlow::where('tenant_id', $request->user()->tenant_id)
+            'approvalFlows' => ApprovalFlow::where('tenant_id', $request->user()->tenant_id)
                 ->with('steps')
                 ->orderBy('module_key')
                 ->get(),
-            'numberingModuleKeys' => array_keys(\App\Services\NumberGeneratorService::DEFAULTS),
+            'numberingModuleKeys' => array_keys(NumberGeneratorService::DEFAULTS),
             /*
              * v2.127.0 -- the PTW workflow routing, per operating unit.
              *
@@ -313,17 +320,17 @@ class SettingsController extends Controller
                     ->orderBy('name')
                     ->get(['id', 'name', 'role']),
             ],
-            'notificationPreferences' => \App\Services\NotificationService::preferences(),
+            'notificationPreferences' => NotificationService::preferences(),
             // Milestone 3 (Dynamic Document Engine, Task #66). Tenant-wide
             // templates only (company_id null) -- same "no per-company
             // override UI yet" scope decision Approval Flow made in
             // ADR-018; the schema/engine already support company_id, a
             // Company Admin needing one reaches for tinker today.
-            'documentTemplates' => \App\Models\DocumentTemplate::where('tenant_id', $request->user()->tenant_id)
+            'documentTemplates' => DocumentTemplate::where('tenant_id', $request->user()->tenant_id)
                 ->whereNull('company_id')
                 ->orderBy('module_key')
                 ->get(),
-            'documentModuleKeys' => array_keys(\App\Services\NumberGeneratorService::DEFAULTS),
+            'documentModuleKeys' => array_keys(NumberGeneratorService::DEFAULTS),
             // Milestone 3 (Import/Export Mapping, Task #67). Employees is
             // the only real importer/exporter today (EmployeesImport/
             // EmployeeExport) -- config/mapping_fields.php's catalog IS
@@ -331,8 +338,8 @@ class SettingsController extends Controller
             // itself there, not here.
             'fieldMappings' => collect(array_keys(config('mapping_fields', [])))->mapWithKeys(fn ($moduleKey) => [
                 $moduleKey => [
-                    'import' => app(\App\Services\FieldMappingService::class)->resolve($moduleKey, 'import'),
-                    'export' => app(\App\Services\FieldMappingService::class)->resolve($moduleKey, 'export'),
+                    'import' => app(FieldMappingService::class)->resolve($moduleKey, 'import'),
+                    'export' => app(FieldMappingService::class)->resolve($moduleKey, 'export'),
                 ],
             ]),
             // v1.11.0 (SaaS Finalization Pass, Part 19). Tenant Admin's
@@ -539,7 +546,7 @@ class SettingsController extends Controller
      */
     public function updateNumberingFormats(Request $request): RedirectResponse
     {
-        $validKeys = array_keys(\App\Services\NumberGeneratorService::DEFAULTS);
+        $validKeys = array_keys(NumberGeneratorService::DEFAULTS);
 
         $validated = $request->validate([
             'formats' => ['array'],
@@ -579,7 +586,11 @@ class SettingsController extends Controller
             'preferences.information' => ['boolean'],
         ]);
 
-        CompanySetting::set('notification_preferences', json_encode($validated['preferences']));
+        // v2.141.0 (N1): Approval cannot be switched off company-wide.
+        $preferences = $validated['preferences'];
+        $preferences['approval'] = true;
+
+        CompanySetting::set('notification_preferences', json_encode($preferences));
 
         ActivityLog::record('updated', 'Notification preferences were updated.');
 
@@ -679,11 +690,11 @@ class SettingsController extends Controller
     public function storeApprovalFlow(Request $request): RedirectResponse
     {
         $validated = $request->validate([
-            'module_key' => ['required', 'string', Rule::in(array_keys(\App\Services\NumberGeneratorService::DEFAULTS))],
+            'module_key' => ['required', 'string', Rule::in(array_keys(NumberGeneratorService::DEFAULTS))],
             'name' => ['required', 'string', 'max:255'],
         ]);
 
-        $flow = \App\Models\ApprovalFlow::create([
+        $flow = ApprovalFlow::create([
             'tenant_id' => $request->user()->tenant_id,
             'company_id' => null,
             'module_key' => $validated['module_key'],
@@ -697,7 +708,7 @@ class SettingsController extends Controller
         return back()->with('success', 'Approval flow created.');
     }
 
-    public function destroyApprovalFlow(Request $request, \App\Models\ApprovalFlow $approvalFlow): RedirectResponse
+    public function destroyApprovalFlow(Request $request, ApprovalFlow $approvalFlow): RedirectResponse
     {
         abort_unless($approvalFlow->tenant_id === $request->user()->tenant_id, 404);
 
@@ -714,7 +725,7 @@ class SettingsController extends Controller
      * fine-grained add/edit/remove endpoints for what is, from the UI's
      * perspective, one form submit per flow.
      */
-    public function updateApprovalFlowSteps(Request $request, \App\Models\ApprovalFlow $approvalFlow): RedirectResponse
+    public function updateApprovalFlowSteps(Request $request, ApprovalFlow $approvalFlow): RedirectResponse
     {
         abort_unless($approvalFlow->tenant_id === $request->user()->tenant_id, 404);
 
@@ -792,7 +803,7 @@ class SettingsController extends Controller
         ]);
 
         $tenantId = $request->user()->tenant_id;
-        $key = \Illuminate\Support\Str::slug($validated['name'], '_');
+        $key = Str::slug($validated['name'], '_');
 
         abort_if(in_array($key, [
             User::ROLE_SUPER_ADMIN, User::ROLE_HSE, User::ROLE_HRD, User::ROLE_MANAGER, User::ROLE_WAREHOUSE,
@@ -1407,7 +1418,7 @@ class SettingsController extends Controller
             // comment), but with no field for the second one here, every
             // user ever created through this UI silently stayed
             // department_key=null -- i.e. a full Administrator for
-          // navigation-restriction purposes, REGARDLESS of what role was
+            // navigation-restriction purposes, REGARDLESS of what role was
             // picked. A tenant admin choosing role "HSE" reasonably
             // expected that alone to restrict the account to HSE, and it
             // never did. null (the default, unselected) still means
@@ -1531,7 +1542,6 @@ class SettingsController extends Controller
                         ),
                 ]);
             }
-
 
             return User::create($data);
         });
@@ -1664,6 +1674,7 @@ class SettingsController extends Controller
 
         return back()->with('success', 'Field workspace updated.');
     }
+
     /**
      * v2.107.0 -- AN ACCOUNT WITH A HISTORY IS DEACTIVATED, NOT DELETED.
      *
@@ -1727,7 +1738,7 @@ class SettingsController extends Controller
             return true;
         }
 
-        return \App\Models\Approval::where('requested_by', $user->id)
+        return Approval::where('requested_by', $user->id)
             ->orWhere('approved_by', $user->id)
             ->exists();
     }
@@ -1777,7 +1788,7 @@ class SettingsController extends Controller
 
     // --- Import/Export Mapping (Milestone 3, Task #67) ---
 
-    public function updateFieldMapping(Request $request, \App\Services\FieldMappingService $mapping): RedirectResponse
+    public function updateFieldMapping(Request $request, FieldMappingService $mapping): RedirectResponse
     {
         $validated = $request->validate([
             'module_key' => ['required', 'string', Rule::in(array_keys(config('mapping_fields', [])))],
@@ -1807,7 +1818,7 @@ class SettingsController extends Controller
     public function storeDocumentTemplate(Request $request): RedirectResponse
     {
         $validated = $request->validate([
-            'module_key' => ['required', 'string', Rule::in(array_keys(\App\Services\NumberGeneratorService::DEFAULTS))],
+            'module_key' => ['required', 'string', Rule::in(array_keys(NumberGeneratorService::DEFAULTS))],
             'name' => ['required', 'string', 'max:255'],
             'header_text' => ['nullable', 'string', 'max:2000'],
             'footer_text' => ['nullable', 'string', 'max:2000'],
@@ -1820,14 +1831,14 @@ class SettingsController extends Controller
 
         $tenantId = $request->user()->tenant_id;
 
-        $template = \App\Models\DocumentTemplate::create([
+        $template = DocumentTemplate::create([
             ...$validated,
             'tenant_id' => $tenantId,
             'company_id' => null,
             'is_default' => true,
         ]);
 
-        \App\Models\DocumentTemplate::where('tenant_id', $tenantId)
+        DocumentTemplate::where('tenant_id', $tenantId)
             ->whereNull('company_id')
             ->where('module_key', $validated['module_key'])
             ->whereKeyNot($template->id)
@@ -1838,7 +1849,7 @@ class SettingsController extends Controller
         return back()->with('success', 'Document template created.');
     }
 
-    public function updateDocumentTemplate(Request $request, \App\Models\DocumentTemplate $documentTemplate): RedirectResponse
+    public function updateDocumentTemplate(Request $request, DocumentTemplate $documentTemplate): RedirectResponse
     {
         abort_unless($documentTemplate->tenant_id === $request->user()->tenant_id, 404);
 
@@ -1860,7 +1871,7 @@ class SettingsController extends Controller
         return back()->with('success', 'Document template updated.');
     }
 
-    public function destroyDocumentTemplate(Request $request, \App\Models\DocumentTemplate $documentTemplate): RedirectResponse
+    public function destroyDocumentTemplate(Request $request, DocumentTemplate $documentTemplate): RedirectResponse
     {
         abort_unless($documentTemplate->tenant_id === $request->user()->tenant_id, 404);
 

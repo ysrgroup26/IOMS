@@ -162,6 +162,9 @@ Not everything settled has an ADR. These live elsewhere and are equally binding:
 | **Work Order documents use each plan's PTW document pricing, with a separate quota** — owner, 2026-11-01 | [[Operational Experience and Workflow Enhancement]] § 3a |
 | **Object storage (R2 or COS) deferred**; no paid service activated — owner, 2026-11-01 | [[Operational Experience and Workflow Enhancement]] § 3a |
 | **SIMOPS is visibility only for now** (simultaneous work, area, status); no hold or mitigation mechanism — owner, 2026-11-01 | [[Operational Experience and Workflow Enhancement]] § 3a |
+| **Mandatory notifications (N1):** Assignment and Approval cannot be switched off by a Company Admin or a person, enforced in the UI and on the server — owner, 2026-11-01 | [[Operational Experience and Workflow Enhancement]] § 3c |
+| **PTW Expired (E1–E3):** a stop-work warning until the new PTW is Active; the requester chooses Close-Out or Request Extension; an extension is a new PTW that consumes one PTW document; chains are unlimited and traceable — owner, 2026-11-01 | [[Operational Experience and Workflow Enhancement]] § 3c |
+| **Work Order quota (W1):** Starter none, Professional 200 per month, Business 500 per month, separate from PTW, at PTW document pricing — owner, 2026-11-01 | [[Operational Experience and Workflow Enhancement]] § 3c |
 | The bilingual **language hierarchy** (English slots vs Indonesian slots) | `CONVENTIONS.md`, [[CLAUDE]] — **supersedes** v1.11.7's "translate everything" policy |
 | A stat card may clip its **value**, never its **label** | `CONVENTIONS.md` |
 | Colour in a chart must not borrow a meaning the app already assigns it | `CONVENTIONS.md` |

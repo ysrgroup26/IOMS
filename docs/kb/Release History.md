@@ -53,7 +53,7 @@ Roughly, the history falls into eras:
 
 | Version | Date | Headline |
 |---|---|---|
-| `2.140.0` | 2026-11-01 | MIDNIGHT FROSTED GLASS FOR THE WHOLE APPLICATION — every plan, workspace, Admin Space, My Work and Master Admin |
+| `2.140.0` | 2026-11-01 | MIDNIGHT FROSTED GLASS FOR THE WHOLE APPLICATION — every plan, workspace, Admin Space, My Work and Master Admin (deployed `d73680c`) |
 | `2.139.0` | 2026-11-01 | MIDNIGHT FROSTED GLASS — THE DARK THEME AS A STARTER PILOT (staging; approved by the owner, shipped inside 2.140.0) |
 | `2.138.0` | 2026-11-01 | ONE MEANING, ONE COLOUR; IDENTIFIERS IN MANROPE (deployed `1384fbf`) |
 | `2.137.0` | 2026-10-28 | THE IOMS BACKDROP AND MILKY GLASS; 100%-ZOOM SCALE; HSE MODULES GRID REMOVED FROM HSE OVERVIEW; BACKDROP FILM (deployed `f27a44d`) |

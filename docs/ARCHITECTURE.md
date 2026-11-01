@@ -100,6 +100,28 @@ commit (`DB::afterCommit` — a push must not announce a decision that can still
 never at the caller's expense (`app()->terminating` — the push happens after the response, so a
 dead endpoint costs the person who pressed Approve nothing). No queue worker is required.
 
+### Record history: the append-only audit trail (v2.141.0, A13)
+
+`App\Models\Concerns\RecordsChanges` writes one `record_changes` row per create / update / delete /
+restore of a model that uses it: the changed fields with their values **before and after** (timestamps
+ignored, secret-looking fields stored as `[redacted]`), `from_status`/`to_status` when `status` moved,
+the actor's id, name and job title **at the time**, and the context (channel, route, IP). A model with
+`protected bool $recordSnapshotOnTransition = true` (PTW) also stores the full redacted record at every
+transition. Used today by every `HasWorkflow` model (through that trait), `ApprovalFlow`,
+`ApprovalFlowStep` (tenant taken from its flow) and `PtwWorkflowSetting`; Work Order and Form
+definitions add it when built.
+
+- **Append-only:** `RecordChange` throws on `updating` and `deleting`; no route reaches it (a test walks
+  the route table). Rows are kept, never pruned.
+- **Tenant-scoped, fail-closed:** every row stores `tenant_id`; the read scope is `tenant_id = current`
+  (no tenant, no rows).
+- **Never breaks the action:** written in the same transaction as the change, but a write failure is
+  `report()`ed rather than rolling back an approval (the ADR 067 rule).
+- **Read:** `RecordChange::historyFor($model)` → `Components/shared/RecordHistory.jsx` (PTW Show's
+  "Change History" card). `ActivityLog` stays the human-readable feed beside it.
+- Pinned by `RecordChangeAuditTrailTest`. Limitation: changes made without model events bypass it
+  (Known Pitfall in `CONVENTIONS.md`).
+
 ### Activity Timeline
 
 **What it is**: `ActivityLog`, a polymorphic model (`subject_type`/`subject_id`) with a

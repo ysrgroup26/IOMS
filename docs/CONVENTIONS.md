@@ -3,6 +3,16 @@
 House style, and a deliberately honest list of mistakes that have actually happened in this
 codebase's history — kept here so they don't get repeated in a slightly different shape.
 
+## Known Pitfall (v2.141.0): a raw `DB::table()` write leaves no audit trail
+
+`record_changes` (A13) is written by the `RecordsChanges` model trait, so it sees only changes made
+through **Eloquent model events**. `DB::table('permits_to_work')->update(...)`, a query-builder
+`Model::where(...)->update(...)` (a mass update fires no model events) and `saveQuietly()` all change a
+record WITHOUT a history row. On a model that records changes (every `HasWorkflow` model, approval
+flows and steps, PTW workflow settings), load the model and call `update()`/`transitionTo()` on it.
+Equally: never write to `record_changes` with the query builder -- `RecordChange` refuses update and
+delete only on the Eloquent path.
+
 ## Known Pitfall (v2.141.0): a scheduled command has NO tenant, so a tenant-scoped read returns nothing
 
 `approvals:escalate` ran hourly and **never escalated anything in production**. The scheduler

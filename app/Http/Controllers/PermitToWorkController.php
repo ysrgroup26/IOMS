@@ -7,11 +7,12 @@ use App\Models\ActivityLog;
 use App\Models\Company;
 use App\Models\Employee;
 use App\Models\JobSafetyAnalysis;
+use App\Models\Notification;
 use App\Models\PermitToWork;
 use App\Models\PpeType;
 use App\Models\Project;
+use App\Models\RecordChange;
 use App\Models\RiskAssessment;
-use App\Models\Notification;
 use App\Models\User;
 use App\Services\DocumentEngine;
 use App\Services\Documents\StampRenderer;
@@ -206,7 +207,6 @@ class PermitToWorkController extends Controller
 
         $tenantCompanyIds = Company::query()->pluck('id');
 
-
         return Inertia::render('PermitsToWork/Form', [
             'companies' => Company::active()->orderBy('name')->get(['id', 'name']),
             'projects' => Project::whereIn('company_id', $tenantCompanyIds)->orderBy('name')->get(['id', 'name']),
@@ -242,10 +242,9 @@ class PermitToWorkController extends Controller
                 : '',
             'types' => PermitToWork::TYPES,
             // v2.73.0 -- the EXISTING PPE master, not a new one.
-            'ppeTypes' => $tenantCompanyIds->flatMap(fn ($companyId) =>
-                PpeType::effectiveForCompany((int) $companyId)->active()->get(['id', 'name'])->map(fn (PpeType $type) => [
-                    'id' => $type->id, 'name' => $type->name, 'company_id' => (int) $companyId,
-                ])
+            'ppeTypes' => $tenantCompanyIds->flatMap(fn ($companyId) => PpeType::effectiveForCompany((int) $companyId)->active()->get(['id', 'name'])->map(fn (PpeType $type) => [
+                'id' => $type->id, 'name' => $type->name, 'company_id' => (int) $companyId,
+            ])
             )->values(),
             // v2.38.0: the `employees` prop is GONE. It used to ship this
             // tenant's entire active employee directory into the page
@@ -311,15 +310,15 @@ class PermitToWorkController extends Controller
 
         $permit = DB::transaction(function () use ($validated, $request, $quota, $tenant) {
             $permit = PermitToWork::create([
-            ...$validated,
-            'ptw_number' => PermitToWork::generateNumber(),
-            'status' => PermitToWork::STATUS_DRAFT,
+                ...$validated,
+                'ptw_number' => PermitToWork::generateNumber(),
+                'status' => PermitToWork::STATUS_DRAFT,
 
-            // Requester is ALWAYS the authenticated user -- never a
-            // client-supplied value (there is no `requested_by` key in
-            // StorePermitToWorkRequest::rules() at all, so nothing in
-            // $validated could override this even if the frontend tried).
-            'requested_by' => $request->user()->id,
+                // Requester is ALWAYS the authenticated user -- never a
+                // client-supplied value (there is no `requested_by` key in
+                // StorePermitToWorkRequest::rules() at all, so nothing in
+                // $validated could override this even if the frontend tried).
+                'requested_by' => $request->user()->id,
             ]);
 
             // Spent inside the transaction, so a permit can never exist
@@ -399,6 +398,8 @@ class PermitToWorkController extends Controller
         return Inertia::render('PermitsToWork/Show', [
             'permit' => $permitToWork,
             'activities' => $activities,
+            // v2.141.0 -- A13: field-level history (before/after), append-only.
+            'changeHistory' => RecordChange::historyFor($permitToWork),
             'canManage' => $request->user()->canManageHse(),
             /*
              * v2.127.0 -- THE PAGE ASKS THE GATE, NOT ITS OWN GUESS.

@@ -7,6 +7,8 @@ use App\Models\Concerns\BelongsToCompany;
 use App\Services\NumberGeneratorService;
 use Illuminate\Database\Eloquent\Model;
 use Illuminate\Database\Eloquent\SoftDeletes;
+use Illuminate\Support\Collection;
+use Illuminate\Support\Str;
 
 /**
  * Milestone 4, Workstream B6 (Permit To Work). See the owning migration's
@@ -16,6 +18,9 @@ use Illuminate\Database\Eloquent\SoftDeletes;
 class PermitToWork extends Model
 {
     use BelongsToCompany, HasWorkflow, SoftDeletes;
+
+    /** v2.141.0 -- A13: what the permit said at each state it entered. */
+    protected bool $recordSnapshotOnTransition = true;
 
     // Production bug fix: Eloquent's default table-name inference
     // pluralizes "PermitToWork" as `permit_to_works` (naive last-word
@@ -131,7 +136,7 @@ class PermitToWork extends Model
      * simply absent from the list -- which is honest. It is never rendered
      * as a fabricated placeholder.
      */
-    public function resolvePpe(array $ids, \Illuminate\Support\Collection $types): array
+    public function resolvePpe(array $ids, Collection $types): array
     {
         return collect($ids)
             ->map(fn ($id) => $types->firstWhere('id', (int) $id))
@@ -370,7 +375,7 @@ class PermitToWork extends Model
      * open the permit, not a list, or the field worker cannot see the
      * reason it came back.
      *
-     * @see \App\Concerns\HasWorkflow::notificationUrl()
+     * @see HasWorkflow::notificationUrl()
      */
     public function notificationRouteName(): ?string
     {
@@ -419,7 +424,7 @@ class PermitToWork extends Model
     {
         $number = $this->ptw_number;
         $where = trim(implode(' · ', array_filter([
-            $this->permit_type ? \Illuminate\Support\Str::headline($this->permit_type) : null,
+            $this->permit_type ? Str::headline($this->permit_type) : null,
             $this->location,
         ])));
 

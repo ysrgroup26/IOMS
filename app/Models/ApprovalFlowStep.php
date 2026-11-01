@@ -2,6 +2,8 @@
 
 namespace App\Models;
 
+use App\Models\Concerns\RecordsChanges;
+use App\Support\CurrentTenant;
 use Illuminate\Database\Eloquent\Model;
 
 /**
@@ -11,8 +13,13 @@ use Illuminate\Database\Eloquent\Model;
  */
 class ApprovalFlowStep extends Model
 {
+    // v2.141.0 -- A13: a step's approver is part of the approval route.
+    use RecordsChanges;
+
     public const MODE_SINGLE = 'single';
+
     public const MODE_PARALLEL_ANY = 'parallel_any';
+
     public const MODE_PARALLEL_ALL = 'parallel_all';
 
     protected $fillable = [
@@ -24,6 +31,14 @@ class ApprovalFlowStep extends Model
         'escalate_after_hours',
         'escalate_to_role',
     ];
+
+    /** A step has no company of its own: it belongs to its flow's tenant. */
+    public function recordChangeTenantId(): ?int
+    {
+        $tenantId = ApprovalFlow::withoutGlobalScopes()->whereKey($this->approval_flow_id)->value('tenant_id');
+
+        return $tenantId ? (int) $tenantId : app(CurrentTenant::class)->id();
+    }
 
     public function flow()
     {

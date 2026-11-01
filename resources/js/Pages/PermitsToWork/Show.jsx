@@ -2,13 +2,14 @@ import { Head, Link, router, useForm } from '@inertiajs/react';
 import { useState } from 'react';
 import AuthenticatedLayout from '@/Layouts/AuthenticatedLayout';
 import { useWatchedRecord } from '@/lib/useLiveNotifications';
-import { Card, CardContent, CardHeader, CardTitle } from '@/Components/ui/card';
+import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/Components/ui/card';
 import { Button } from '@/Components/ui/button';
 import { Label } from '@/Components/ui/label';
 import { Input } from '@/Components/ui/input';
 import { Select, SelectTrigger, SelectValue, SelectContent, SelectItem } from '@/Components/ui/select';
 import { Table, TableHeader, TableBody, TableRow, TableHead, TableCell } from '@/Components/ui/table';
 import ActivityTimeline from '@/Components/shared/ActivityTimeline';
+import RecordHistory from '@/Components/shared/RecordHistory';
 import StatusBadge from '@/Components/shared/StatusBadge';
 import ApprovalStamp from '@/Components/shared/ApprovalStamp';
 import EmptyState from '@/Components/shared/EmptyState';
@@ -92,7 +93,7 @@ function PpePanel({ ppe, hazards, status }) {
     );
 }
 
-export default function PermitToWorkShow({ permit: p, activities, canManage, rejectionReason, authorization, verification, stamps = {}, workflow, ppe }) {
+export default function PermitToWorkShow({ permit: p, activities, changeHistory = [], canManage, rejectionReason, authorization, verification, stamps = {}, workflow, ppe }) {
     /*
      * v2.129.0 -- THIS PAGE UPDATES ITSELF WHEN THE PERMIT MOVES.
      *
@@ -113,7 +114,7 @@ export default function PermitToWorkShow({ permit: p, activities, canManage, rej
      * wrong about what may be done to it.
      */
     useWatchedRecord('PermitToWork', p.id, [
-        'permit', 'activities', 'authorization', 'verification', 'stamps', 'workflow', 'rejectionReason', 'ppe',
+        'permit', 'activities', 'changeHistory', 'authorization', 'verification', 'stamps', 'workflow', 'rejectionReason', 'ppe',
     ]);
 
     const [gasTestOpen, setGasTestOpen] = useState(false);
@@ -467,6 +468,13 @@ export default function PermitToWorkShow({ permit: p, activities, canManage, rej
                 <Card>
                     <CardHeader><CardTitle>Activity</CardTitle></CardHeader>
                     <CardContent><ActivityTimeline activities={activities} /></CardContent>
+                </Card>
+                <Card className="lg:col-span-3">
+                    <CardHeader>
+                        <CardTitle>Change History</CardTitle>
+                        <CardDescription>Setiap perubahan isi dan status, dengan nilai sebelum dan sesudahnya. Catatan ini tidak dapat diubah atau dihapus.</CardDescription>
+                    </CardHeader>
+                    <CardContent><RecordHistory entries={changeHistory} /></CardContent>
                 </Card>
             </div>
         </AuthenticatedLayout>

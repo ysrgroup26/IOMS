@@ -3,9 +3,11 @@
 namespace App\Concerns;
 
 use App\Models\ActivityLog;
+use App\Models\Concerns\RecordsChanges;
 use App\Models\Notification;
 use App\Models\User;
 use App\Services\NotificationService;
+use Illuminate\Support\Facades\Route;
 use Illuminate\Support\Str;
 use Illuminate\Validation\ValidationException;
 
@@ -39,6 +41,10 @@ use Illuminate\Validation\ValidationException;
  */
 trait HasWorkflow
 {
+    // v2.141.0 -- A13: every workflow model records its field changes and
+    // transitions, append-only (RecordsChanges).
+    use RecordsChanges;
+
     /**
      * Throws a validation exception naming the actual problem (current
      * status, attempted status, and what's actually allowed) rather than
@@ -171,17 +177,17 @@ trait HasWorkflow
 
         try {
             app(NotificationService::class)->notify(
-            $recipient,
-            $category,
-            $copy['title'],
-            $copy['body'],
-            $this->notificationUrl(),
-            $this,
-            // The route NAME travels with the row, so a surface rendering
-            // this notification can ask the same allow-list question the
-            // server would ask about its destination. See the shared
-            // `notifications.items` prop in HandleInertiaRequests.
-            array_filter(['route' => $this->notificationRouteName()])
+                $recipient,
+                $category,
+                $copy['title'],
+                $copy['body'],
+                $this->notificationUrl(),
+                $this,
+                // The route NAME travels with the row, so a surface rendering
+                // this notification can ask the same allow-list question the
+                // server would ask about its destination. See the shared
+                // `notifications.items` prop in HandleInertiaRequests.
+                array_filter(['route' => $this->notificationRouteName()])
             );
         } catch (\Throwable $e) {
             report($e);
@@ -248,7 +254,7 @@ trait HasWorkflow
     {
         $route = $this->notificationRouteName();
 
-        if ($route === null || ! \Illuminate\Support\Facades\Route::has($route)) {
+        if ($route === null || ! Route::has($route)) {
             return null;
         }
 

@@ -8,6 +8,7 @@ use App\Models\Subscription;
 use App\Models\Tenant;
 use App\Models\User;
 use App\Models\Workspace;
+use App\Support\DarkTheme;
 use App\Support\CurrentTenant;
 use Database\Seeders\ModuleSeeder;
 use Database\Seeders\StarterPilotSeeder;
@@ -94,26 +95,54 @@ class DarkThemePilotTest extends TestCase
         $response->assertInertia(fn (Assert $page) => $page->where('darkTheme', true));
     }
 
-    public function test_an_account_on_another_plan_is_never_painted_dark(): void
+    /** @return array<string, array{0: string}> */
+    public static function plans(): array
     {
-        $response = $this->actingAs($this->userOnPlan('business'))->get('/hse/dashboard');
+        return ['professional' => ['professional'], 'business' => ['business'], 'enterprise' => ['enterprise']];
+    }
+
+    /**
+     * v2.140.0 -- the rollout: `['*']` offers it to an account on ANY plan.
+     *
+     * @dataProvider plans
+     */
+    public function test_every_plan_is_offered_the_dark_theme_after_the_rollout(string $plan): void
+    {
+        $response = $this->actingAs($this->userOnPlan($plan))->get('/hse/dashboard');
 
         $response->assertOk();
-        $response->assertSee('var DARK_THEME_AVAILABLE = false;', false);
-        $response->assertInertia(fn (Assert $page) => $page->where('darkTheme', false));
+        $response->assertSee('var DARK_THEME_AVAILABLE = true;', false);
+        $response->assertInertia(fn (Assert $page) => $page->where('darkTheme', true));
+    }
+
+    public function test_a_platform_operator_and_a_my_work_login_are_offered_it_too(): void
+    {
+        $operator = User::create([
+            'name' => 'Operator', 'email' => 'op-'.uniqid().'@ioms.test', 'password' => bcrypt('secret-pass-1'),
+            'role' => User::ROLE_PLATFORM_ADMIN, 'tenant_id' => null, 'is_active' => true, 'email_verified_at' => now(),
+        ]);
+        $this->assertTrue(DarkTheme::availableTo($operator));
+
+        $myWork = $this->userOnPlan('starter');
+        $myWork->forceFill(['user_type' => User::TYPE_MY_WORK])->save();
+        $this->assertTrue(DarkTheme::availableTo($myWork->fresh()));
     }
 
     public function test_a_guest_page_is_never_painted_dark(): void
     {
         $this->get('/login')->assertOk()->assertSee('var DARK_THEME_AVAILABLE = false;', false);
+        $this->assertFalse(DarkTheme::availableTo(null));
     }
 
-    public function test_widening_the_rollout_is_configuration_and_emptying_it_turns_it_off(): void
+    public function test_a_plan_list_still_narrows_it_and_an_empty_list_turns_it_off(): void
     {
         $business = $this->userOnPlan('business');
 
-        config(['ioms.dark_theme.plans' => ['starter', 'business']]);
+        config(['ioms.dark_theme.plans' => ['starter']]);
         $this->actingAs($business)->get('/hse/dashboard')
+            ->assertSee('var DARK_THEME_AVAILABLE = false;', false)
+            ->assertInertia(fn (Assert $page) => $page->where('darkTheme', false));
+        $this->actingAs($this->pilot('starter.admin@ioms.local'))->get('/hse/dashboard')
             ->assertInertia(fn (Assert $page) => $page->where('darkTheme', true));
 
         config(['ioms.dark_theme.plans' => []]);

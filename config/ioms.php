@@ -17,7 +17,7 @@ return [
     |
     */
 
-    'version' => '2.139.0',
+    'version' => '2.140.0',
 
     // Tester / Beta / Stable -- tracks the release stage explicitly.
     // Previously only implied in conversation, never actually stored.
@@ -49,7 +49,7 @@ return [
 
     'edition' => 'Enterprise Edition',
 
-    'build' => '2026.11.01.02',
+    'build' => '2026.11.01.03',
 
     /*
     | v2.139.0 -- MIDNIGHT FROSTED GLASS, THE DARK THEME (ADR 082).
@@ -302,9 +302,9 @@ return [
     'documentation_url' => env('IOMS_DOCUMENTATION_URL'),
 
     'whats_new' => [
-        'Tema gelap Midnight Frosted Glass tersedia sebagai uji coba untuk paket Starter: pilih matahari atau bulan di bilah atas',
-        'Tema mengikuti pengaturan perangkat sampai Anda memilih sendiri, dan pilihan itu diingat di perangkat yang sama',
-        'Arti warna status tetap sama di tema gelap: biru berjalan, hijau selesai, kuning perlu perhatian, merah kritis, abu-abu netral',
+        'Tema gelap Midnight Frosted Glass kini tersedia untuk semua akun dan semua paket: pilih matahari atau bulan di bilah atas',
+        'Berlaku di seluruh aplikasi: HSE, HRD, Warehouse & Logistics, Management, Admin Space, My Work, dan Master Admin',
+        'Tema mengikuti pengaturan perangkat sampai Anda memilih sendiri; arti warna status tetap sama di kedua tema',
     ],
     /*
     |--------------------------------------------------------------------------
@@ -318,6 +318,7 @@ return [
     */
 
     'version_history' => [
+        ['version' => '2.140.0', 'date' => '2026-11-01', 'summary' => 'MIDNIGHT FROSTED GLASS FOR THE WHOLE APPLICATION. The owner approved the Starter pilot, and the dark theme is now offered to every signed-in account: every plan, every workspace (HSE, HRD, Warehouse & Logistics, Management), Admin Space, My Work and Master Admin, which gets the same sun/moon switch. Signed-out pages (the public site and sign-in forms) stay light. The rule is still one server answer (ioms.dark_theme.plans = *), so a plan list narrows it again and an empty list is the kill switch. Charts are Chart.js on a canvas, which no stylesheet reaches: their labels, grid and tooltip now follow the theme from chartSetup.js, and series colours are untouched. A KPI category capsule moved its frosted material from an inline style into CSS variables so the dark theme can reach it; Light Mode is pixel-identical. Verified by a route-driven audit of every signed-in screen as eight roles (detail and edit pages included) and pixel comparisons against 2.139.0 in Light Mode. The Starter pilot seeder now skips its sample records instead of failing where another organisation already uses the department codes HSE/PRD/MNT/PRJ (departments.code is unique across all tenants, recorded as a known issue). No route, permission, entitlement, schema or business rule changed. See ADR 082.'],
         ['version' => '2.139.0', 'date' => '2026-11-01', 'summary' => 'MIDNIGHT FROSTED GLASS, THE DARK THEME, AS A STARTER PILOT. A light/dark switch (sun and moon, a two-segment radio group) sits in the top bar before notifications and the profile, for organisations on the Starter plan only while the owner reviews it; every other account stays on Icy Blue Frosted Glass whatever its device prefers. Who is offered it is one server answer (App\\Support\\DarkTheme, config ioms.dark_theme.plans), printed into the page before first paint and shared as a prop, so a non-pilot account is never painted dark and signing in or out never shows the wrong theme. The theme follows the device until somebody chooses, switches in place with a 220ms cross-fade (none under reduced motion) and is remembered in the browser. The dark theme is the same six layers at night: the owner\'s backdrop under a midnight film (#101925, never black), dark frosted glass cards and chrome, quieter nested boxes, the most opaque glass for dialogs and menus, frosted icon capsules tinted by meaning, and a quieter feature panel. Light colour classes are mapped to their Midnight values in one generated block instead of on 186 pages; semantic hues keep their ADR 081 meanings. Light Mode is pixel-identical to 2.138.0 apart from the switch for Starter accounts. A staging-only seeder builds a Starter organisation with a Company Admin and an HSE user. No route, permission, entitlement or data changed. See ADR 082.'],
         ['version' => '2.138.0', 'date' => '2026-11-01', 'summary' => 'ONE MEANING, ONE COLOUR; ONE TYPEFACE FOR WHAT PEOPLE READ. A computed-style audit of all 125 signed-in screens found every element in Manrope except 65 identifiers in IBM Plex Mono and 8 at weight 800; identifiers people read are now Manrope with tabular figures, monospace stays only for machine output (release signatures, database names, config keys, the My Work access code, the printed permit), and 800 is gone. One status-to-tone map (lib/semantics.js) now serves StatusBadge and every page that had its own copy: in progress is informational blue (was green), expiring soon is amber everywhere (was blue or grey), high priority is amber everywhere (was red on Tasks), a submitted PPE replacement request is amber (was green), a pending approval is amber (was grey). KPI cards keep their warning or critical colour only while the number is not zero, HSE Inspections Due is amber (was green) and violet is kept only for real categories. No stored value, route or behaviour changed. See ADR 081.'],
         ['version' => '2.137.0', 'date' => '2026-10-28', 'summary' => 'THE IOMS BACKDROP AND MILKY GLASS. The owner-supplied abstract geometric artwork is the backdrop of every signed-in screen: diffused once at build time, fixed behind the viewport, cover-sized and anchored so a crop keeps the hexagonal layers, under a milky veil heavier where titles and the rail sit, and a dark blue-grey film that makes the backdrop about 17% darker and calmer without touching cards or text. Cards are now genuine milky frosted glass that diffuses the artwork (backdrop blur 20px, 86-75% white, lit edge, ambient shadow) with a 94% white fallback; the rail, top-bar pills and bottom bar are a clearer chrome glass. Muted grey ink is deepened on glass after measuring 3.6:1 on the darkest part of the artwork. Semantic colour is reserved: ordinary cards are plain glass, a muted tint appears only where the information warrants it, and the feature panel is deep steel-blue glass instead of a bright slab. Icons sit in round frosted capsules with the glyph in its semantic colour (blue, teal, green, amber, rose, violet, slate). The scale was reduced per component for 100% browser zoom: titles 22-24px, KPI figures 24px, capsules and controls 36px, rail 248px, top bar 64px. HSE Overview no longer shows the HSE Modules shortcut grid; every module stays in the HSE sidebar with the same routes and permissions. See ADR 080.'],

@@ -1,7 +1,7 @@
 ---
 title: Known Issues and Limitations
 type: register
-updated: 2026-10-19
+updated: 2026-11-01
 tags: [kb/issues]
 ---
 
@@ -39,6 +39,7 @@ or waiting on something external.
 
 | Limitation | Detail |
 |---|---|
+| **`departments.code` is unique across all tenants** | Found during the v2.140.0 dark-theme audit. The 2024 `create_departments_table` migration made `code` globally unique, so a second organisation cannot code a department `HSE` that another already uses. In the product, that surfaces as a "code already taken" refusal for something that belongs to another customer. `StarterPilotSeeder` now skips its sample records rather than fail on it. Fixing it means a migration to `(company_id, code)` plus a check of every reader; that is a product decision, not a theme change. ADR [[082-midnight-frosted-glass-is-a-starter-pilot\|082]] addendum §6 |
 | **Finance workspace is a placeholder** | Registered in navigation, routes to a Coming Soon page. No capability behind it |
 | **HR placeholder items** | Recruitment, Performance, HR KPI, Documents and Reports are `disabled: true` navigation entries |
 | **Live payments need external configuration** | The integration is built and the activation boundary is pinned by tests, but going live requires provider credentials and configuration outside this repository. IOMS bills invoice-per-cycle; there is no automatic card charging, and Midtrans Subscription/Recurring would be a separate integration rather than a flag |

@@ -3,6 +3,7 @@
 namespace Database\Seeders;
 
 use App\Models\Company;
+use App\Models\Department;
 use App\Models\Module;
 use App\Models\Package;
 use App\Models\Subscription;
@@ -99,13 +100,26 @@ class StarterPilotSeeder extends Seeder
             // DemoTenantSeeder's builders are private and idempotent on a
             // natural key; Closure::call runs them against this company
             // without copying them or widening their visibility.
-            (function () use ($company, $hse) {
-                [$departments, $positions] = $this->structure($company);
-                $employees = $this->employees($company, $departments, $positions);
-                $projects = $this->projects($company, $hse);
-                $this->equipment($company);
-                $this->permits($company, $hse, $employees, $projects);
-            })->call(new DemoTenantSeeder);
+            //
+            // `departments.code` is unique across the WHOLE table (a known
+            // schema limitation, see Known Issues), so on a database where
+            // another organisation already uses HSE / PRD / MNT / PRJ the
+            // sample records cannot be built. The accounts above are what
+            // the review needs; the sample data is skipped, not forced.
+            $codes = ['HSE', 'PRD', 'MNT', 'PRJ'];
+            $taken = Department::withoutGlobalScopes()->whereIn('code', $codes)->where('company_id', '!=', $company->id)->exists();
+
+            if ($taken) {
+                $this->command?->warn('Sample records skipped: department codes '.implode('/', $codes).' already belong to another organisation.');
+            } else {
+                (function () use ($company, $hse) {
+                    [$departments, $positions] = $this->structure($company);
+                    $employees = $this->employees($company, $departments, $positions);
+                    $projects = $this->projects($company, $hse);
+                    $this->equipment($company);
+                    $this->permits($company, $hse, $employees, $projects);
+                })->call(new DemoTenantSeeder);
+            }
         } finally {
             app(CurrentTenant::class)->set($previous);
         }

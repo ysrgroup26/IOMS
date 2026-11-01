@@ -1,6 +1,6 @@
 ---
 title: "ADR 082 — Midnight Frosted Glass is a Starter pilot, offered by the server and mapped in one place"
-status: Accepted (pilot on staging, awaiting owner approval)
+status: Accepted — pilot approved by the owner; rolled out to the whole signed-in application in v2.140.0
 date: 2026-11-01
 version: 2.139.0
 tags: [adr, design-system, theme]
@@ -8,8 +8,8 @@ tags: [adr, design-system, theme]
 
 # ADR 082 — Midnight Frosted Glass is a Starter pilot, offered by the server and mapped in one place
 
-**Status:** Accepted for the pilot. Global rollout is **not** decided: it waits for the owner's
-review of the Starter pilot on staging.
+**Status:** Accepted. The owner reviewed and approved the Starter pilot (`6a572a0`, v2.139.0), and
+v2.140.0 rolled it out to every signed-in account — see **Addendum: the global rollout** at the end.
 **Builds on:** ADR 079 (Icy Blue Frosted shell), ADR 080 (backdrop and milky glass), ADR 081 (one
 meaning, one colour).
 
@@ -178,3 +178,39 @@ environment of one command.
 
   In headless Chromium without a GPU, the full-page restyle takes 140–260 ms to the first frame
   with or without the fade. The dark theme adds no blur layer that light does not already have.
+
+
+## Addendum: the global rollout (v2.140.0)
+
+The owner approved the pilot as built and asked for the same design across the **whole**
+application, with nothing excluded: every workspace, Admin Space, **My Work**, every page, component
+and interactive state.
+
+1. **One value, not a second system.** `ioms.dark_theme.plans` became `['*']`.
+   `DarkTheme::availableTo()` reads `'*'` as *every signed-in account*: any plan, a My Work login,
+   and a platform operator with no tenant. A list of slugs still narrows it, and an empty list is
+   still the kill switch. Signed-out pages (the public site, sign-in and registration) are not the
+   application and stay light. That surface was explicitly deferred.
+2. **Master Admin** (`PlatformLayout`) gets the same `ThemeSwitch` and the adaptive wordmark. Its
+   plain light classes were already covered by the generated map.
+3. **Charts were never reachable by CSS.** IOMS draws charts with Chart.js on a `<canvas>`.
+   The pilot's Recharts selectors matched nothing; the HSE trend chart only looked right because it
+   is a hand-drawn SVG. `lib/chartSetup.js` now captures Chart.js's own light defaults, swaps in
+   Midnight labels (`#A5B3C5`), grid (`rgba(52,70,90,.7)`) and tooltip while `<html>` has `dark`,
+   and redraws open charts on a switch. Series colours are untouched, and Light Mode gets the
+   captured defaults back exactly.
+4. **Inline styles are invisible to a stylesheet.** `KpiSummaryCard` drew its capsule with an
+   inline white gradient built from the category's admin-configured colour. The colour now travels
+   as CSS variables (`--kpi-tint/ring/glow`) and `.kpi-capsule` draws the material, so `.dark` can
+   reach it. Light Mode is pixel-identical.
+5. **The static guarantee for pages with no data.** Tailwind generates only classes written out
+   whole in the source, and `midnight-map.py` maps every light colour class found anywhere in
+   `resources/js`. So no page, visited or not, can carry an unmapped light colour class. The
+   residual risks are inline styles and canvases (points 3–4), which a scan found nowhere else
+   apart from Google's own logo colours and the paper-white permit document. That document stays
+   white on purpose: it is the printed sheet, the same as its PDF.
+6. **A schema limitation found on the way, not fixed here.** `departments.code` is unique across
+   **all** tenants, so two organisations cannot both code a department `HSE`. `StarterPilotSeeder`
+   now skips its sample records, with a warning, where another organisation holds those codes,
+   instead of failing. The constraint itself is recorded in Known Issues: changing it is a
+   migration and a product decision, outside a theme release.

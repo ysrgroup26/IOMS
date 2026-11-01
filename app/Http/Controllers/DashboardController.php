@@ -20,6 +20,7 @@ use App\Services\WorkCenterService;
 use Illuminate\Http\RedirectResponse;
 use Illuminate\Http\Request;
 use Illuminate\Support\Carbon;
+use Illuminate\Support\Facades\Route;
 use Inertia\Inertia;
 use Inertia\Response;
 
@@ -138,7 +139,7 @@ class DashboardController extends Controller
         $key = $this->entitlements->landingWorkspaceKey($request->user());
         $route = $key ? (config('workspaces.overviews')[$key] ?? null) : null;
 
-        return redirect()->route($route && \Illuminate\Support\Facades\Route::has($route) ? $route : 'work-center.index');
+        return redirect()->route($route && Route::has($route) ? $route : 'work-center.index');
     }
 
     private function renderGlobalDashboard(Request $request): Response
@@ -395,7 +396,10 @@ class DashboardController extends Controller
         $tenantCompanyIds = $this->stats->resolveCompanyIds(null);
         $myPtwPendingCount = PermitToWork::whereIn('company_id', $tenantCompanyIds)
             ->where('requested_by', $user->id)
-            ->where('status', PermitToWork::STATUS_SUBMITTED)
+            // v2.141.0: a VERIFIED permit is still waiting for its approval
+            // (ADR 067: verified by HSE, then approved), so it counts here
+            // too -- this tile used to drop it the moment HSE verified it.
+            ->whereIn('status', [PermitToWork::STATUS_SUBMITTED, PermitToWork::STATUS_VERIFIED])
             ->count();
         $myPtwActiveCount = PermitToWork::whereIn('company_id', $tenantCompanyIds)
             ->where('requested_by', $user->id)

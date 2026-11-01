@@ -642,7 +642,13 @@ class HandleInertiaRequests extends Middleware
                  * nothing when the key is absent, so a guest loses no
                  * feature. Scoped to a signed-in user rather than removed.
                  */
-                'history' => $user ? config('ioms.version_history') : null,
+                /*
+                 * v2.141.0 -- AND NOT ON EVERY RESPONSE EITHER. Signed in,
+                 * this was still 426 KB of the ~430 KB every Inertia visit
+                 * transferred: the whole changelog, re-sent on each click,
+                 * for a dialog most people never open. AboutDialog now asks
+                 * `account.version-history` when it opens.
+                 */
             ],
             // v2.54.0 -- ORGANIZATIONAL CONTEXT, read-only.
             //

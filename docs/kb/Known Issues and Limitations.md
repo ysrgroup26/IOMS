@@ -39,6 +39,7 @@ or waiting on something external.
 
 | Limitation | Detail |
 |---|---|
+| **Backups exist only on the production server** | `deploy/tencent/backup.sh` still has "copy to COS or another host once a bucket is chosen" as a comment. A disk or instance loss takes the backups with the data. Proposed fix: A4 in [[Operational Experience and Workflow Enhancement]] |
 | **`departments.code` is unique across all tenants** | Found during the v2.140.0 dark-theme audit. The 2024 `create_departments_table` migration made `code` globally unique, so a second organisation cannot code a department `HSE` that another already uses. In the product, that surfaces as a "code already taken" refusal for something that belongs to another customer. `StarterPilotSeeder` now skips its sample records rather than fail on it. Fixing it means a migration to `(company_id, code)` plus a check of every reader; that is a product decision, not a theme change. ADR [[082-midnight-frosted-glass-is-a-starter-pilot\|082]] addendum §6 |
 | **Finance workspace is a placeholder** | Registered in navigation, routes to a Coming Soon page. No capability behind it |
 | **HR placeholder items** | Recruitment, Performance, HR KPI, Documents and Reports are `disabled: true` navigation entries |

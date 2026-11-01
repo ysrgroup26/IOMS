@@ -362,6 +362,11 @@ Route::middleware('auth')->group(function () {
 
     // The account's own area: identity, security, commercial state.
     Route::get('/account', [AccountController::class, 'overview'])->name('account.overview');
+    // v2.141.0 -- the release history the About dialog shows, fetched when
+    // the dialog opens instead of riding on every page response (it was
+    // 426 KB of the ~430 KB every navigation carried). `account.` so every
+    // signed-in class -- department users and My Work included -- reaches it.
+    Route::get('/account/version-history', fn () => response()->json(config('ioms.version_history', [])))->name('account.version-history');
     Route::put('/account/profile', [AccountController::class, 'updateProfile'])->name('account.profile.update');
     Route::put('/account/password', [AccountController::class, 'updatePassword'])
         ->middleware('throttle:6,1')->name('account.password.update');

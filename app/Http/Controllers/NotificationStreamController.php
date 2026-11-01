@@ -9,6 +9,7 @@ use App\Models\PermitToWork;
 use App\Models\PushSubscription;
 use App\Services\Notifications\WebPushService;
 use App\Services\WorkCenterService;
+use App\Support\RouteReach;
 use Illuminate\Http\JsonResponse;
 use Illuminate\Http\Request;
 
@@ -212,7 +213,7 @@ class NotificationStreamController extends Controller
                  * the server answers 403 for.
                  */
                 // v2.141.0: decided by the server, against every gate (RouteReach).
-                'openable' => (bool) $n->url && (! is_string($n->meta['route'] ?? null) || \App\Support\RouteReach::allows($user, $n->meta['route'])),
+                'openable' => (bool) $n->url && (! is_string($n->meta['route'] ?? null) || RouteReach::allows($user, $n->meta['route'])),
                 'route_prefix' => is_string($n->meta['route'] ?? null)
                     ? explode('.', $n->meta['route'])[0]
                     : null,

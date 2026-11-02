@@ -6,12 +6,15 @@ use App\Http\Middleware\EnforceTenantEntitlement;
 use App\Http\Middleware\EnsureAccountIsActive;
 use App\Http\Middleware\HandleInertiaRequests;
 use App\Http\Middleware\IdentifyTenant;
+use App\Http\Middleware\RedirectToCanonicalHost;
+use App\Http\Middleware\RequestMemoScope;
 use App\Http\Middleware\RequireOrganization;
 use App\Http\Middleware\ResolveTenant;
 use App\Http\Middleware\RestrictDemoTenant;
 use App\Http\Middleware\RestrictDepartmentAccess;
 use App\Http\Middleware\RestrictMyWorkUser;
 use App\Http\Middleware\RestrictPlatformAdminFromTenantRoutes;
+use App\Http\Middleware\SetRobotsHeader;
 use App\Support\ErrorMessagePresenter;
 use Illuminate\Foundation\Application;
 use Illuminate\Foundation\Configuration\Exceptions;
@@ -62,12 +65,14 @@ return Application::configure(basePath: dirname(__DIR__))
         // Unsafe methods pass straight through: a 301 on a POST may be
         // converted to a GET with the body dropped, which would silently
         // discard a payment webhook. See the middleware.
-        $middleware->prepend(\App\Http\Middleware\RedirectToCanonicalHost::class);
+        $middleware->prepend(RedirectToCanonicalHost::class);
+        // v2.141.0: one answer per question per request (App\Support\RequestMemo).
+        $middleware->prepend(RequestMemoScope::class);
 
         // v2.75.0 -- noindex BY DEFAULT. Global, so it covers every
         // response including downloads and errors; it only adds a header.
         // See App\Http\Middleware\SetRobotsHeader and config/seo.php.
-        $middleware->append(\App\Http\Middleware\SetRobotsHeader::class);
+        $middleware->append(SetRobotsHeader::class);
 
         // v2.62.0 -- RESOLVETENANT MUST PRECEDE ROUTE MODEL BINDING.
         //

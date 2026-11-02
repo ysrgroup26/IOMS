@@ -3,6 +3,7 @@
 #
 #   sudo bash staging.sh setup  [branch]   first time: user, DB, .env, FPM pool, nginx, Caddy, seed
 #   sudo bash staging.sh deploy [branch]   later: pull the branch, build deps, migrate STAGING only
+#   sudo bash staging.sh flows  [branch]   deploy, then create the Approval Flow review tenant (v2.141.0)
 #   sudo bash staging.sh pilot  [branch]   deploy, then (re)create the Starter pilot tenant and its two
 #                                          test accounts (ADR 082), with the staging app password
 #
@@ -189,9 +190,30 @@ C
     echo "  pilot accounts: starter.admin@ioms.local, starter.hse@ioms.local (password: see $CRED)"
 }
 
+# v2.141.0 -- the Approval Flow Builder review: a Business organisation with
+# two operating units (one on the company's Approval Flow, one on the
+# standard gates), positions, eight accounts and permits at every stage.
+# Same password handling as `pilot`: the staging app password, handed over
+# in the environment of one command, never on a command line or in a log.
+flows() {
+    deploy
+    log "Approval Flow review tenant (staging only)"
+    [[ -r $CRED ]] || die "$CRED not found; run setup first."
+    local apppass; apppass="$(sed -n 's/^App login[^:]*:  *//p' "$CRED" | head -1)"
+    [[ -n $apppass ]] || die "No app password in $CRED."
+    printf '%s' "$apppass" > "$ROOT/.pilot-pass"; chown "$U:$U" "$ROOT/.pilot-pass"; chmod 600 "$ROOT/.pilot-pass"
+    as "IOMS_PILOT_PASSWORD=\"\$(cat $ROOT/.pilot-pass)\" php artisan db:seed --class=ApprovalFlowReviewSeeder --force"
+    rm -f "$ROOT/.pilot-pass"
+    grep -q '^Approval Flow review' "$CRED" || cat >> "$CRED" <<C
+Approval Flow review:  flow.admin / flow.foreman / flow.super / flow.hse1 / flow.hse2 / flow.pm1 / flow.pm2 / flow.dept @ioms.local -- same app password
+C
+    echo "  review accounts: flow.admin@ioms.local and seven more (password: see $CRED)"
+}
+
 case "$CMD" in
     setup) setup ;;
     deploy) deploy ;;
     pilot) pilot ;;
-    *) die "usage: staging.sh setup|deploy|pilot [branch]" ;;
+    flows) flows ;;
+    *) die "usage: staging.sh setup|deploy|pilot|flows [branch]" ;;
 esac

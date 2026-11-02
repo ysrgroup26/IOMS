@@ -3,6 +3,7 @@
 namespace App\Models;
 
 use App\Models\Concerns\BelongsToCompany;
+use App\Services\Notifications\AssignmentNotifier;
 use App\Support\CurrentTenant;
 use Illuminate\Database\Eloquent\Builder;
 use Illuminate\Database\Eloquent\Model;
@@ -123,6 +124,18 @@ class Task extends Model
         static::creating(function (Task $task) {
             $task->uuid ??= (string) Str::uuid();
         });
+
+        // v2.141.0: the assignee is told, on creation and on reassignment.
+        static::created(function (Task $task) {
+            if ($task->assigned_user_id) {
+                app(AssignmentNotifier::class)->task($task);
+            }
+        });
+        static::updated(function (Task $task) {
+            if ($task->wasChanged('assigned_user_id') && $task->assigned_user_id) {
+                app(AssignmentNotifier::class)->task($task);
+            }
+        });
     }
 
     public function company()
@@ -138,6 +151,30 @@ class Task extends Model
     public function creator()
     {
         return $this->belongsTo(User::class, 'created_by');
+    }
+
+    /**
+     * v2.141.0 -- D1: what a person may see of the task register. A person
+     * whose access is personal (User::seesOnlyOwnTasks) sees the tasks they
+     * are assigned to or created, and nothing else; everybody else keeps
+     * the tenant-wide register they had.
+     */
+    public function scopeVisibleTo($query, User $user)
+    {
+        if (! $user->seesOnlyOwnTasks()) {
+            return $query;
+        }
+
+        return $query->where(fn ($inner) => $inner
+            ->where('tasks.assigned_user_id', $user->id)
+            ->orWhere('tasks.created_by', $user->id));
+    }
+
+    public function isVisibleTo(User $user): bool
+    {
+        return ! $user->seesOnlyOwnTasks()
+            || (int) $this->assigned_user_id === (int) $user->id
+            || (int) $this->created_by === (int) $user->id;
     }
 
     public function scopeAssignedTo($query, int $userId)

@@ -3,6 +3,7 @@
 namespace App\Models;
 
 use App\Models\Concerns\BelongsToCompany;
+use App\Models\Concerns\RecordsChanges;
 use Illuminate\Database\Eloquent\Model;
 
 /**
@@ -24,8 +25,13 @@ class PtwWorkflowSetting extends Model
 {
     use BelongsToCompany;
 
+    // v2.141.0 -- A13: who changed the approval route, and from what.
+    use RecordsChanges;
+
     protected $fillable = [
         'company_id',
+        // v2.141.0 -- 'legacy' (ADR 067 gates) or 'flow' (the company's approval flow).
+        'approval_mode',
         'verify_roles',
         'verify_user_ids',
         'verify_title',

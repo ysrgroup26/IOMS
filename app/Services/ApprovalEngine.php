@@ -2,13 +2,20 @@
 
 namespace App\Services;
 
+use App\Concerns\HasWorkflow;
 use App\Models\Approval;
 use App\Models\ApprovalFlow;
 use App\Models\ApprovalFlowStep;
+use App\Models\ApprovalFlowVersion;
 use App\Models\Notification;
+use App\Models\Tenant;
 use App\Models\User;
+use App\Services\Approvals\ApprovalCandidates;
+use App\Services\Approvals\SeparationOfDuties;
+use App\Support\CurrentTenant;
 use Illuminate\Database\Eloquent\Collection;
 use Illuminate\Database\Eloquent\Model;
+use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Str;
 use Illuminate\Validation\ValidationException;
 
@@ -33,6 +40,8 @@ class ApprovalEngine
     public function __construct(
         private readonly ApprovalFlowResolver $resolver,
         private readonly NotificationService $notifier,
+        private readonly SeparationOfDuties $duties,
+        private readonly ApprovalCandidates $candidates,
     ) {}
 
     /**
@@ -65,7 +74,14 @@ class ApprovalEngine
             return $approval;
         }
 
-        return $this->createStepApprovals($approvable, $flow, 1, $requester);
+        /*
+         * v2.141.0 -- THE REQUEST KEEPS THE ROUTE IT STARTED ON. Pinned to
+         * the flow's current published version, so a later edit or removal
+         * of the flow changes only requests that start afterwards.
+         */
+        $version = ApprovalFlowVersion::currentFor($flow, $requester);
+
+        return $this->createStepApprovals($approvable, $flow->id, $version, 1, $requester);
     }
 
     /**
@@ -76,6 +92,21 @@ class ApprovalEngine
      */
     public function decide(Approval $approval, User $user, string $decision, ?string $comments = null): void
     {
+        // v2.141.0 -- one decision per row: two approvers pressing at the
+        // same moment must not both pass the pending check.
+        DB::transaction(function () use ($approval, $user, $decision, $comments) {
+            $locked = Approval::query()->whereKey($approval->getKey())->lockForUpdate()->firstOrFail();
+            $approval->setRawAttributes($locked->getAttributes(), true);
+            $this->decideLocked($approval, $user, $decision, $comments);
+        });
+    }
+
+    private function decideLocked(Approval $approval, User $user, string $decision, ?string $comments): void
+    {
+        if ($approval->status === Approval::STATUS_PENDING && $this->isStageAlreadyDecided($approval)) {
+            throw ValidationException::withMessages(['approval' => 'This stage has already been decided.']);
+        }
+
         if ($approval->status !== Approval::STATUS_PENDING) {
             throw ValidationException::withMessages(['approval' => 'This approval has already been decided.']);
         }
@@ -95,13 +126,47 @@ class ApprovalEngine
             'comments' => $comments,
         ]);
 
-        if (! $approval->approval_flow_id) {
+        if (! $approval->approval_flow_id && ! $approval->approval_flow_version_id) {
             $this->finalize($approval->approvable, $decision, $user, $comments);
 
             return;
         }
 
+        $this->closeDecidedStage($approval->fresh());
         $this->advance($approval->fresh(), $user, $comments);
+    }
+
+    /**
+     * v2.141.0 (P4) -- once a stage is DECIDED, nobody else's row at it is
+     * still waiting. A rejection decides the stage; so does the first
+     * approval on an "any one approver" stage. On an "all approvers" stage
+     * the other rows stay pending until each one decides.
+     */
+    private function closeDecidedStage(Approval $decided): void
+    {
+        $mode = $this->stepsFor($decided, (int) $decided->step_number)->first()?->mode ?? ApprovalFlowStep::MODE_SINGLE;
+        $decidesStage = $decided->status === Approval::STATUS_REJECTED || $mode !== ApprovalFlowStep::MODE_PARALLEL_ALL;
+        if (! $decidesStage) {
+            return;
+        }
+
+        Approval::query()
+            ->where('approvable_type', $decided->approvable_type)
+            ->where('approvable_id', $decided->approvable_id)
+            ->where('step_number', $decided->step_number)
+            ->where('status', Approval::STATUS_PENDING)
+            ->whereKeyNot($decided->getKey())
+            ->when(
+                $decided->approval_flow_version_id,
+                fn ($query) => $query->where('approval_flow_version_id', $decided->approval_flow_version_id),
+                fn ($query) => $query->where('approval_flow_id', $decided->approval_flow_id),
+            )
+            ->get()
+            ->each(fn (Approval $sibling) => $sibling->update([
+                'status' => Approval::STATUS_SKIPPED,
+                'decided_at' => now(),
+                'comments' => 'Not required: this stage was already decided.',
+            ]));
     }
 
     /**
@@ -131,16 +196,130 @@ class ApprovalEngine
             return false;
         }
 
-        if (! $approval->approval_flow_id) {
+        if (! $approval->approval_flow_id && ! $approval->approval_flow_version_id) {
             $approvers = config('workflow.approvers', []);
 
             return $user->isSuperAdmin() || in_array($user->role, $approvers, true);
         }
 
-        return ApprovalFlowStep::where('approval_flow_id', $approval->approval_flow_id)
+        // P4: a row left pending on a stage that was already decided (rows
+        // from before v2.141.0 stay as they are -- history is not rewritten)
+        // is not decided by anybody.
+        if ($this->isStageAlreadyDecided($approval)) {
+            return false;
+        }
+
+        $steps = $this->stepsFor($approval, (int) $approval->step_number);
+
+        /*
+         * v2.141.0 -- A8b, ON THE SERVER. A Final Verification stage is never
+         * decided by the requester or by anybody who approved an earlier
+         * stage of the same record -- whatever their role, whatever an
+         * escalation says, and with no Super Admin override.
+         */
+        if (SeparationOfDuties::isFinalStage($steps) && $this->duties->conflicts($approval, $user)) {
+            return false;
+        }
+
+        // An escalation widens who may decide THIS request, and nothing else.
+        if ($approval->is_escalated && $approval->escalated_to_role && $user->role === $approval->escalated_to_role) {
+            return true;
+        }
+
+        return $steps->contains(fn (ApprovalFlowStep $step) => $step->matchesApprover($user));
+    }
+
+    /**
+     * v2.141.0 (P4) -- has the stage this pending row belongs to already
+     * been decided by another row? True when a sibling at the same stage of
+     * the same run was rejected, or approved on a stage that one approver
+     * decides. Read-only: the stale row itself is never rewritten.
+     *
+     * "The same run": a sibling counts only if it was DECIDED AFTER this
+     * row was created. Rows of one stage are created together and decided
+     * afterwards; a previous submission's decisions all happened before a
+     * re-submission's rows existed, so they are never mistaken for siblings
+     * (an earlier time-window rule did exactly that on a quick resubmit).
+     */
+    public function isStageAlreadyDecided(Approval $approval): bool
+    {
+        // Only rows from BEFORE v2.141.0 can be stale: they are flow rows with
+        // no pinned version. A version-pinned row's siblings are closed as
+        // `skipped` the moment its stage is decided (closeDecidedStage), so it
+        // never needs this guard -- and a re-submission is never confused
+        // with an earlier run.
+        if ($approval->status !== Approval::STATUS_PENDING || ! $approval->approval_flow_id || $approval->approval_flow_version_id) {
+            return false;
+        }
+
+        $created = $approval->created_at ?? now();
+        $siblings = Approval::query()
+            ->where('approvable_type', $approval->approvable_type)
+            ->where('approvable_id', $approval->approvable_id)
             ->where('step_number', $approval->step_number)
-            ->get()
-            ->contains(fn (ApprovalFlowStep $step) => $step->matchesApprover($user));
+            ->whereKeyNot($approval->getKey())
+            ->whereIn('status', [Approval::STATUS_APPROVED, Approval::STATUS_REJECTED])
+            ->whereNotNull('decided_at')
+            ->where('decided_at', '>=', $created)
+            ->where('approval_flow_id', $approval->approval_flow_id)
+            ->whereNull('approval_flow_version_id')
+            ->pluck('status');
+
+        if ($siblings->contains(Approval::STATUS_REJECTED)) {
+            return true;
+        }
+
+        $mode = $this->stepsFor($approval, (int) $approval->step_number)->first()?->mode ?? ApprovalFlowStep::MODE_SINGLE;
+
+        return $mode !== ApprovalFlowStep::MODE_PARALLEL_ALL && $siblings->contains(Approval::STATUS_APPROVED);
+    }
+
+    /** v2.141.0 -- whether this row belongs to a Final Verification stage. */
+    public function isFinalVerification(Approval $approval): bool
+    {
+        return SeparationOfDuties::isFinalStage($this->stepsFor($approval, (int) $approval->step_number));
+    }
+
+    /**
+     * The people who could verify this record at its Final Verification
+     * stage, given who requested it and who has approved it so far.
+     *
+     * @return \Illuminate\Support\Collection<int, User>
+     */
+    public function eligibleFinalVerifiers(Model $approvable, ApprovalFlowVersion $version, ?int $requesterId = null): \Illuminate\Support\Collection
+    {
+        $final = $version->stepModels()->filter(fn (ApprovalFlowStep $step) => $step->isFinalVerification());
+
+        return $this->duties->eligible(
+            $this->candidates->forRows($final, $version->tenant_id),
+            $this->duties->excludedFor($approvable, $requesterId),
+        );
+    }
+
+    /**
+     * v2.141.0 -- the step definitions a request is decided against: those
+     * of the version it was pinned to, or -- for a request started before
+     * versions existed -- the flow's live steps, as it always was.
+     *
+     * @return Collection<int, ApprovalFlowStep>
+     */
+    private function stepsFor(Approval $approval, int $stepNumber): Collection
+    {
+        if ($approval->approval_flow_version_id) {
+            $version = ApprovalFlowVersion::withoutGlobalScopes()->find($approval->approval_flow_version_id);
+
+            return $version ? $version->stepModels($stepNumber) : new Collection;
+        }
+
+        return ApprovalFlowStep::where('approval_flow_id', $approval->approval_flow_id)
+            ->where('step_number', $stepNumber)
+            ->get();
+    }
+
+    /** Whether the route a request runs on has a step with this number. */
+    private function hasStep(Approval $approval, int $stepNumber): bool
+    {
+        return $this->stepsFor($approval, $stepNumber)->isNotEmpty();
     }
 
     private function advance(Approval $decidedApproval, User $user, ?string $comments): void
@@ -155,15 +334,21 @@ class ApprovalEngine
             return;
         }
 
-        $flow = $decidedApproval->flow;
-        $stepNumber = $decidedApproval->step_number;
+        // v2.141.0: read from the pinned version, not the live flow -- the
+        // flow may have been edited, or removed, since this request began.
+        $flowId = (int) $decidedApproval->approval_flow_id;
+        $stepNumber = (int) $decidedApproval->step_number;
 
         $siblingApprovals = $approvable->approvals()
-            ->where('approval_flow_id', $flow->id)
+            ->when(
+                $decidedApproval->approval_flow_version_id,
+                fn ($query) => $query->where('approval_flow_version_id', $decidedApproval->approval_flow_version_id),
+                fn ($query) => $query->where('approval_flow_id', $flowId),
+            )
             ->where('step_number', $stepNumber)
             ->get();
 
-        $stepDefinitions = $flow->steps()->where('step_number', $stepNumber)->get();
+        $stepDefinitions = $this->stepsFor($decidedApproval, $stepNumber);
         $mode = $stepDefinitions->first()?->mode ?? ApprovalFlowStep::MODE_SINGLE;
 
         $stepSatisfied = match ($mode) {
@@ -176,7 +361,7 @@ class ApprovalEngine
         }
 
         $nextStepNumber = $stepNumber + 1;
-        $hasNextStep = $flow->steps()->where('step_number', $nextStepNumber)->exists();
+        $hasNextStep = $this->hasStep($decidedApproval, $nextStepNumber);
 
         if (! $hasNextStep) {
             $this->finalize($approvable, Approval::STATUS_APPROVED, $user, $comments);
@@ -184,23 +369,42 @@ class ApprovalEngine
             return;
         }
 
-        $this->createStepApprovals($approvable, $flow, $nextStepNumber, $decidedApproval->requester);
+        $version = $decidedApproval->approval_flow_version_id
+            ? ApprovalFlowVersion::withoutGlobalScopes()->find($decidedApproval->approval_flow_version_id)
+            : null;
+
+        $this->createStepApprovals($approvable, $flowId, $version, $nextStepNumber, $decidedApproval->requester);
     }
 
     /**
      * @return Collection<int, Approval>
      */
-    private function createStepApprovals(Model $approvable, ApprovalFlow $flow, int $stepNumber, User $requester): Collection
+    private function createStepApprovals(Model $approvable, int $flowId, ?ApprovalFlowVersion $version, int $stepNumber, User $requester): Collection
     {
-        $stepDefinitions = $flow->steps()->where('step_number', $stepNumber)->get();
+        $stepDefinitions = $version
+            ? $version->stepModels($stepNumber)
+            : ApprovalFlowStep::where('approval_flow_id', $flowId)->where('step_number', $stepNumber)->get();
 
         $approvals = $stepDefinitions->map(fn (ApprovalFlowStep $step) => $approvable->approvals()->create([
             'status' => Approval::STATUS_PENDING,
             'requested_by' => $requester->id,
             'requester_name' => $requester->displayName(),
-            'approval_flow_id' => $flow->id,
+            // Null once the flow itself was removed; the version still holds the route.
+            'approval_flow_id' => $flowId ?: null,
+            'approval_flow_version_id' => $version?->id,
             'step_number' => $stepNumber,
         ]));
+
+        if (SeparationOfDuties::isFinalStage($stepDefinitions)) {
+            // A8b: only the people who may verify are told.
+            $eligible = $this->duties->eligible(
+                $this->candidates->forRows($stepDefinitions, $version?->tenant_id ?? app(CurrentTenant::class)->id()),
+                $this->duties->excludedFor($approvable, $requester->id),
+            );
+            $eligible->each(fn (User $verifier) => $this->notifyApprover($verifier, $approvable));
+
+            return $approvals;
+        }
 
         foreach ($stepDefinitions as $step) {
             if ($step->approver_user_id) {
@@ -210,6 +414,13 @@ class ApprovalEngine
                 }
             } elseif ($step->approver_role) {
                 $this->notifyApprovers($approvable, [$step->approver_role], $stepNumber);
+            } elseif ($step->approver_position_id) {
+                // Everybody in this tenant holding that position.
+                User::query()
+                    ->where('is_active', true)
+                    ->whereHas('employee', fn ($query) => $query->where('position_id', $step->approver_position_id))
+                    ->get()
+                    ->each(fn (User $holder) => $this->notifyApprover($holder, $approvable));
             }
         }
 
@@ -254,8 +465,25 @@ class ApprovalEngine
      * the fallback covers one that someday does not, without ever letting
      * a raw class name through.
      *
-     * @see \App\Concerns\HasWorkflow::documentLabel()
+     * @see HasWorkflow::documentLabel()
      */
+    /**
+     * v2.141.0 -- how an approvable record is NAMED and REACHED, for any
+     * surface that lists it (My Work), on the same terms its notifications
+     * use (ADR 064): its document label, its number, its URL and route.
+     *
+     * @return array{label: string, number: string, url: ?string, route: ?string}
+     */
+    public function describe(Model $approvable): array
+    {
+        return [
+            'label' => $this->labelOf($approvable),
+            'number' => $this->displayNumberOf($approvable),
+            'url' => $this->urlOf($approvable),
+            'route' => method_exists($approvable, 'notificationRouteName') ? $approvable->notificationRouteName() : null,
+        ];
+    }
+
     private function labelOf(Model $approvable): string
     {
         return method_exists($approvable, 'documentLabel')
@@ -308,6 +536,15 @@ class ApprovalEngine
 
     private function finalize(Model $approvable, string $decision, User $user, ?string $comments): void
     {
+        // v2.141.0 -- a model whose lifecycle is more than one status move
+        // (PTW: the Final Verification records the verifier and makes the
+        // permit ready for activation) finalises itself.
+        if (method_exists($approvable, 'finalizeApprovalFlow')) {
+            $approvable->finalizeApprovalFlow($decision, $user, $comments);
+
+            return;
+        }
+
         $targetStatus = $decision === Approval::STATUS_APPROVED
             ? $approvable::STATUS_APPROVED
             : $approvable::STATUS_REJECTED;
@@ -349,54 +586,91 @@ class ApprovalEngine
 
         Approval::query()
             ->where('status', Approval::STATUS_PENDING)
-            ->whereNotNull('approval_flow_id')
+            ->where(fn ($query) => $query->whereNotNull('approval_flow_id')->orWhereNotNull('approval_flow_version_id'))
             ->where('is_escalated', false)
-            ->with('flow.steps')
             ->chunkById(100, function (Collection $pending) use (&$escalated) {
                 foreach ($pending as $approval) {
-                    $stepDefinition = $approval->flow?->steps
-                        ->where('step_number', $approval->step_number)
-                        ->first(fn (ApprovalFlowStep $s) => $s->escalate_after_hours !== null);
+                    /*
+                     * v2.141.0 -- EACH APPROVAL IN ITS OWN TENANT.
+                     *
+                     * This runs hourly from the scheduler, where no request
+                     * has resolved a tenant. The FLOW is tenant-scoped and
+                     * fails closed, so `$approval->flow` was always null here
+                     * and no step ever escalated in production. The flow is
+                     * read unscoped, and the approval is then processed --
+                     * step rows, the update and the role notification --
+                     * inside that flow's own tenant, never another's.
+                     */
+                    $flow = ApprovalFlow::withoutGlobalScopes()->with(['steps' => fn ($q) => $q->withoutGlobalScopes()])->find($approval->approval_flow_id);
+                    // A pinned request still escalates after its flow was
+                    // removed: the tenant comes from the version it runs on.
+                    $tenantId = $flow?->tenant_id ?? ($approval->approval_flow_version_id
+                        ? ApprovalFlowVersion::withoutGlobalScopes()->whereKey($approval->approval_flow_version_id)->value('tenant_id')
+                        : null);
+                    $tenant = $tenantId ? Tenant::find($tenantId) : null;
 
-                    if (! $stepDefinition || ! $stepDefinition->escalate_to_role) {
+                    if ((! $flow && ! $approval->approval_flow_version_id) || ! $tenant) {
                         continue;
                     }
 
-                    $deadline = $approval->created_at->addHours($stepDefinition->escalate_after_hours);
-                    if (now()->lessThan($deadline)) {
-                        continue;
+                    $current = app(CurrentTenant::class);
+                    $previous = $current->get();
+                    $current->set($tenant);
+
+                    try {
+                        $escalated += $this->escalateIfDue($approval, $flow);
+                    } finally {
+                        $current->set($previous);
                     }
-
-                    // Escalation widens WHO can decide the existing pending
-                    // Approval row -- it does not create a second Approval
-                    // row (that would leave a dangling duplicate once
-                    // either approver decides). `authorize()` checks every
-                    // ApprovalFlowStep at this step_number, so adding one
-                    // more row here is immediately enough for the
-                    // escalate_to_role to act on the SAME pending approval.
-                    ApprovalFlowStep::create([
-                        'approval_flow_id' => $approval->approval_flow_id,
-                        'step_number' => $approval->step_number,
-                        'mode' => $stepDefinition->mode,
-                        'approver_role' => $stepDefinition->escalate_to_role,
-                    ]);
-
-                    $approval->update(['is_escalated' => true, 'escalated_at' => now()]);
-
-                    $this->notifier->notifyRole(
-                        $stepDefinition->escalate_to_role,
-                        Notification::CATEGORY_WARNING,
-                        $this->labelOf($approval->approvable).' '.$this->displayNumberOf($approval->approvable).' was escalated to you: no decision after '.$stepDefinition->escalate_after_hours.'h',
-                        null,
-                        $this->urlOf($approval->approvable),
-                        $approval->approvable,
-                        $this->metaOf($approval->approvable)
-                    );
-
-                    $escalated++;
                 }
             });
 
         return $escalated;
+    }
+
+    /** One pending approval, inside its flow's tenant. Returns 1 when it escalated. */
+    private function escalateIfDue(Approval $approval, ?ApprovalFlow $flow): int
+    {
+        $steps = $approval->approval_flow_version_id
+            ? $this->stepsFor($approval, (int) $approval->step_number)
+            : ($flow?->steps ?? new Collection)->where('step_number', $approval->step_number);
+        $stepDefinition = $steps->first(fn (ApprovalFlowStep $s) => $s->escalate_after_hours !== null);
+
+        if (! $stepDefinition || ! $stepDefinition->escalate_to_role) {
+            return 0;
+        }
+
+        $deadline = $approval->created_at->addHours($stepDefinition->escalate_after_hours);
+        if (now()->lessThan($deadline)) {
+            return 0;
+        }
+
+        // Escalation widens WHO can decide the existing pending
+        // Approval row -- it does not create a second Approval
+        // row (that would leave a dangling duplicate once
+        // either approver decides). `authorize()` checks every
+        // ApprovalFlowStep at this step_number, so adding one
+        // more row here is immediately enough for the
+        // escalate_to_role to act on the SAME pending approval.
+        // v2.141.0: recorded on THIS approval. It used to add a permanent
+        // step row to the flow, which made the escalation role an approver
+        // of every later request through that flow as well.
+        $approval->update([
+            'is_escalated' => true,
+            'escalated_at' => now(),
+            'escalated_to_role' => $stepDefinition->escalate_to_role,
+        ]);
+
+        $this->notifier->notifyRole(
+            $stepDefinition->escalate_to_role,
+            Notification::CATEGORY_WARNING,
+            $this->labelOf($approval->approvable).' '.$this->displayNumberOf($approval->approvable).' was escalated to you: no decision after '.$stepDefinition->escalate_after_hours.'h',
+            null,
+            $this->urlOf($approval->approvable),
+            $approval->approvable,
+            $this->metaOf($approval->approvable)
+        );
+
+        return 1;
     }
 }

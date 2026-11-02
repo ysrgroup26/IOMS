@@ -6,32 +6,43 @@ use App\Http\Requests\StoreKpiCategoryRequest;
 use App\Http\Requests\UpdateAuthenticationRequest;
 use App\Http\Requests\UpdateKpiCategoryRequest;
 use App\Models\ActivityLog;
+use App\Models\Approval;
+use App\Models\ApprovalFlow;
+use App\Models\ApprovalFlowStep;
+use App\Models\ApprovalFlowVersion;
 use App\Models\Company;
 use App\Models\CompanySetting;
-use App\Rules\InCurrentTenant;
 use App\Models\Department;
+use App\Models\DocumentTemplate;
+use App\Models\Invoice;
 use App\Models\KpiCategory;
 use App\Models\Module;
 use App\Models\NumberingFormat;
+use App\Models\PermitToWork;
 use App\Models\Position;
 use App\Models\PtwWorkflowSetting;
 use App\Models\User;
-use App\Services\PtwWorkflowService;
 use App\Models\Workspace;
+use App\Rules\InCurrentTenant;
+use App\Services\Approvals\ApprovalFlowValidator;
 use App\Services\EntitlementService;
+use App\Services\FieldMappingService;
+use App\Services\NotificationService;
+use App\Services\NumberGeneratorService;
+use App\Services\PtwWorkflowService;
+use App\Support\IdentifierCase;
 use App\Support\NameFormatter;
 use Illuminate\Http\RedirectResponse;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Facades\Hash;
 use Illuminate\Support\Facades\Storage;
+use Illuminate\Support\Str;
 use Illuminate\Validation\Rule;
 use Illuminate\Validation\ValidationException;
 use Inertia\Inertia;
 use Inertia\Response;
 use Spatie\Permission\Models\Role;
-use App\Models\Invoice;
-use App\Support\IdentifierCase;
 
 /**
  * Settings module. Two permission tiers, enforced both by route middleware
@@ -269,7 +280,7 @@ class SettingsController extends Controller
             // NumberGeneratorService's own hardcoded default (not
             // persisted just from viewing this page -- only saving
             // actually creates a tenant-scoped row).
-            'numberingFormats' => collect(\App\Services\NumberGeneratorService::DEFAULTS)->map(function ($default, $moduleKey) use ($request) {
+            'numberingFormats' => collect(NumberGeneratorService::DEFAULTS)->map(function ($default, $moduleKey) use ($request) {
                 $existing = NumberingFormat::whereNull('company_id')
                     ->where('tenant_id', $request->user()->tenant_id)
                     ->where('module_key', $moduleKey)
@@ -288,11 +299,24 @@ class SettingsController extends Controller
             // docs/ADR/018-approval-flow-numbering-tenant-scoping.md for
             // why `tenant_id` had to be added to this table in this same
             // pass.
-            'approvalFlows' => \App\Models\ApprovalFlow::where('tenant_id', $request->user()->tenant_id)
+            'approvalFlows' => ApprovalFlow::where('tenant_id', $request->user()->tenant_id)
                 ->with('steps')
                 ->orderBy('module_key')
                 ->get(),
-            'numberingModuleKeys' => array_keys(\App\Services\NumberGeneratorService::DEFAULTS),
+            // v2.141.0 -- positions a step may name, from the company's own structure.
+            'approvalPositions' => Position::query()->where('is_active', true)->with('company:id,name')
+                ->orderBy('name')->get(['id', 'name', 'company_id'])
+                ->map(fn (Position $position) => ['id' => $position->id, 'name' => $position->name, 'company' => $position->company?->name])
+                ->values(),
+            // v2.141.0 -- people a stage may name, and each flow's published
+            // version with how many requests are still running on its versions.
+            'approvalUsers' => User::where('tenant_id', $request->user()->tenant_id)
+                ->where('is_active', true)
+                ->where('user_type', '!=', User::TYPE_MY_WORK)
+                ->orderBy('name')
+                ->get(['id', 'name', 'role']),
+            'approvalFlowVersions' => $this->approvalFlowVersionSummary($request->user()->tenant_id),
+            'numberingModuleKeys' => array_keys(NumberGeneratorService::DEFAULTS),
             /*
              * v2.127.0 -- the PTW workflow routing, per operating unit.
              *
@@ -303,7 +327,7 @@ class SettingsController extends Controller
              */
             'ptwWorkflow' => [
                 'settings' => PtwWorkflowSetting::whereIn('company_id', Company::query()->pluck('id'))
-                    ->get(['company_id', 'verify_roles', 'verify_user_ids', 'verify_title', 'approve_roles', 'approve_user_ids', 'approve_title'])
+                    ->get(['company_id', 'approval_mode', 'verify_roles', 'verify_user_ids', 'verify_title', 'approve_roles', 'approve_user_ids', 'approve_title'])
                     ->keyBy('company_id'),
                 'defaults' => app(PtwWorkflowService::class)->defaults(),
                 'roles' => app(PtwWorkflowService::class)->assignableRoles(),
@@ -313,17 +337,17 @@ class SettingsController extends Controller
                     ->orderBy('name')
                     ->get(['id', 'name', 'role']),
             ],
-            'notificationPreferences' => \App\Services\NotificationService::preferences(),
+            'notificationPreferences' => NotificationService::preferences(),
             // Milestone 3 (Dynamic Document Engine, Task #66). Tenant-wide
             // templates only (company_id null) -- same "no per-company
             // override UI yet" scope decision Approval Flow made in
             // ADR-018; the schema/engine already support company_id, a
             // Company Admin needing one reaches for tinker today.
-            'documentTemplates' => \App\Models\DocumentTemplate::where('tenant_id', $request->user()->tenant_id)
+            'documentTemplates' => DocumentTemplate::where('tenant_id', $request->user()->tenant_id)
                 ->whereNull('company_id')
                 ->orderBy('module_key')
                 ->get(),
-            'documentModuleKeys' => array_keys(\App\Services\NumberGeneratorService::DEFAULTS),
+            'documentModuleKeys' => array_keys(NumberGeneratorService::DEFAULTS),
             // Milestone 3 (Import/Export Mapping, Task #67). Employees is
             // the only real importer/exporter today (EmployeesImport/
             // EmployeeExport) -- config/mapping_fields.php's catalog IS
@@ -331,8 +355,8 @@ class SettingsController extends Controller
             // itself there, not here.
             'fieldMappings' => collect(array_keys(config('mapping_fields', [])))->mapWithKeys(fn ($moduleKey) => [
                 $moduleKey => [
-                    'import' => app(\App\Services\FieldMappingService::class)->resolve($moduleKey, 'import'),
-                    'export' => app(\App\Services\FieldMappingService::class)->resolve($moduleKey, 'export'),
+                    'import' => app(FieldMappingService::class)->resolve($moduleKey, 'import'),
+                    'export' => app(FieldMappingService::class)->resolve($moduleKey, 'export'),
                 ],
             ]),
             // v1.11.0 (SaaS Finalization Pass, Part 19). Tenant Admin's
@@ -539,7 +563,7 @@ class SettingsController extends Controller
      */
     public function updateNumberingFormats(Request $request): RedirectResponse
     {
-        $validKeys = array_keys(\App\Services\NumberGeneratorService::DEFAULTS);
+        $validKeys = array_keys(NumberGeneratorService::DEFAULTS);
 
         $validated = $request->validate([
             'formats' => ['array'],
@@ -579,7 +603,11 @@ class SettingsController extends Controller
             'preferences.information' => ['boolean'],
         ]);
 
-        CompanySetting::set('notification_preferences', json_encode($validated['preferences']));
+        // v2.141.0 (N1): Approval cannot be switched off company-wide.
+        $preferences = $validated['preferences'];
+        $preferences['approval'] = true;
+
+        CompanySetting::set('notification_preferences', json_encode($preferences));
 
         ActivityLog::record('updated', 'Notification preferences were updated.');
 
@@ -648,6 +676,69 @@ class SettingsController extends Controller
     }
 
     /**
+     * v2.141.0 -- per flow: its latest published version, and how many
+     * pending approvals are pinned to any of its versions (shown beside
+     * "Save & Publish" so an editor knows who keeps the old route).
+     *
+     * @return array<int, array{latest: int, in_flight: int}>
+     */
+    private function approvalFlowVersionSummary(?int $tenantId): array
+    {
+        $versions = ApprovalFlowVersion::withoutGlobalScopes()->where('tenant_id', $tenantId)
+            ->get(['id', 'approval_flow_id', 'version']);
+
+        $pending = Approval::query()->where('status', Approval::STATUS_PENDING)
+            ->whereIn('approval_flow_version_id', $versions->pluck('id'))
+            ->selectRaw('approval_flow_version_id, count(*) as total')
+            ->groupBy('approval_flow_version_id')
+            ->pluck('total', 'approval_flow_version_id');
+
+        return $versions->groupBy('approval_flow_id')->map(fn ($rows) => [
+            'latest' => (int) $rows->max('version'),
+            'in_flight' => (int) $rows->sum(fn ($row) => $pending[$row->id] ?? 0),
+        ])->all();
+    }
+
+    /**
+     * v2.141.0 -- WHICH ROUTE AN OPERATING UNIT'S NEW PERMITS TAKE.
+     *
+     * 'legacy': the verify-then-approve gates above (ADR 067), unchanged.
+     * 'flow':   the company's own PTW Approval Flow (Approval 1..N, then the
+     *           mandatory Final Verification, A8b).
+     *
+     * Switching to 'flow' is refused unless a PTW flow applies to this unit
+     * and passes the same validation a save does -- a unit is never left
+     * submitting permits nobody can verify. Permits already submitted keep
+     * the route they were submitted on, in both directions.
+     */
+    public function updatePtwApprovalMode(Request $request, PtwWorkflowService $workflow, ApprovalFlowValidator $flowValidator): RedirectResponse
+    {
+        abort_unless($request->user()->canManageSystemSettings(), 403);
+
+        $validated = $request->validate([
+            'company_id' => ['required', Rule::in(Company::query()->pluck('id'))],
+            'approval_mode' => ['required', Rule::in([PtwWorkflowService::MODE_LEGACY, PtwWorkflowService::MODE_FLOW])],
+        ]);
+        $companyId = (int) $validated['company_id'];
+
+        if ($validated['approval_mode'] === PtwWorkflowService::MODE_FLOW) {
+            $flow = $workflow->flowFor(new PermitToWork(['company_id' => $companyId]));
+            if (! $flow) {
+                throw ValidationException::withMessages(['approval_mode' => 'Buat dan aktifkan Approval Flow untuk modul Permit To Work terlebih dahulu.']);
+            }
+            $flowValidator->assertValid(ApprovalFlowValidator::PTW_MODULE, ApprovalFlowVersion::stepsOf($flow), $request->user()->tenant_id);
+        }
+
+        PtwWorkflowSetting::updateOrCreate(['company_id' => $companyId], ['approval_mode' => $validated['approval_mode']]);
+
+        ActivityLog::record('updated', 'PTW approval route for operating unit '.$companyId.' set to '.$validated['approval_mode'].'.');
+
+        return back()->with('success', $validated['approval_mode'] === PtwWorkflowService::MODE_FLOW
+            ? 'PTW baru di unit ini akan mengikuti Approval Flow perusahaan.'
+            : 'PTW baru di unit ini akan mengikuti verifikasi dan persetujuan standar.');
+    }
+
+    /**
      * The users a workflow stage may name: this tenant's own active, full
      * accounts.
      *
@@ -679,11 +770,11 @@ class SettingsController extends Controller
     public function storeApprovalFlow(Request $request): RedirectResponse
     {
         $validated = $request->validate([
-            'module_key' => ['required', 'string', Rule::in(array_keys(\App\Services\NumberGeneratorService::DEFAULTS))],
+            'module_key' => ['required', 'string', Rule::in(array_keys(NumberGeneratorService::DEFAULTS))],
             'name' => ['required', 'string', 'max:255'],
         ]);
 
-        $flow = \App\Models\ApprovalFlow::create([
+        $flow = ApprovalFlow::create([
             'tenant_id' => $request->user()->tenant_id,
             'company_id' => null,
             'module_key' => $validated['module_key'],
@@ -697,7 +788,7 @@ class SettingsController extends Controller
         return back()->with('success', 'Approval flow created.');
     }
 
-    public function destroyApprovalFlow(Request $request, \App\Models\ApprovalFlow $approvalFlow): RedirectResponse
+    public function destroyApprovalFlow(Request $request, ApprovalFlow $approvalFlow): RedirectResponse
     {
         abort_unless($approvalFlow->tenant_id === $request->user()->tenant_id, 404);
 
@@ -714,24 +805,59 @@ class SettingsController extends Controller
      * fine-grained add/edit/remove endpoints for what is, from the UI's
      * perspective, one form submit per flow.
      */
-    public function updateApprovalFlowSteps(Request $request, \App\Models\ApprovalFlow $approvalFlow): RedirectResponse
+    public function updateApprovalFlowSteps(Request $request, ApprovalFlow $approvalFlow, ApprovalFlowValidator $flowValidator): RedirectResponse
     {
         abort_unless($approvalFlow->tenant_id === $request->user()->tenant_id, 404);
 
         $validated = $request->validate([
             'steps' => ['array'],
-            'steps.*.step_number' => ['required', 'integer', 'min:1'],
+            'steps.*.step_number' => ['required', 'integer', 'min:1', 'max:20'],
+            // v2.141.0 -- 'final_verification' is the mandatory last stage of a PTW flow (A8b).
+            'steps.*.kind' => ['nullable', Rule::in([ApprovalFlowStep::KIND_APPROVAL, ApprovalFlowStep::KIND_FINAL_VERIFICATION])],
             'steps.*.mode' => ['required', Rule::in(['single', 'parallel_any', 'parallel_all'])],
-            'steps.*.approver_role' => ['required', 'string', Rule::in(['super_admin', 'hse', 'hrd', 'manager', 'warehouse'])],
+            // A step names a role, a position (the company's own structure) or a person.
+            'steps.*.approver_role' => ['nullable', 'string', Rule::in(['super_admin', 'hse', 'hrd', 'manager', 'warehouse'])],
+            'steps.*.approver_position_id' => ['nullable', 'integer', function ($attribute, $value, $fail) {
+                if ($value && ! Position::query()->whereKey($value)->exists()) {
+                    $fail('That position does not exist in your company structure.');
+                }
+            }],
+            'steps.*.approver_user_id' => ['nullable', 'integer', Rule::in($this->assignableWorkflowUserIds($request))],
             'steps.*.escalate_after_hours' => ['nullable', 'integer', 'min:1', 'max:720'],
             'steps.*.escalate_to_role' => ['nullable', 'string', Rule::in(['super_admin', 'hse', 'hrd', 'manager', 'warehouse'])],
         ]);
 
-        $approvalFlow->steps()->delete();
+        $steps = collect($validated['steps'] ?? [])->map(fn (array $step) => [
+            'step_number' => (int) $step['step_number'],
+            'kind' => $step['kind'] ?? ApprovalFlowStep::KIND_APPROVAL,
+            'mode' => $step['mode'],
+            'approver_role' => $step['approver_role'] ?? null,
+            'approver_position_id' => $step['approver_position_id'] ?? null,
+            'approver_user_id' => $step['approver_user_id'] ?? null,
+            // An escalation would hand a Final Verification to a role the
+            // separation-of-duties check never saw; the stage has none.
+            'escalate_after_hours' => ($step['kind'] ?? null) === ApprovalFlowStep::KIND_FINAL_VERIFICATION ? null : ($step['escalate_after_hours'] ?? null),
+            'escalate_to_role' => ($step['kind'] ?? null) === ApprovalFlowStep::KIND_FINAL_VERIFICATION ? null : ($step['escalate_to_role'] ?? null),
+        ])->sortBy('step_number')->values()->all();
 
-        foreach ($validated['steps'] ?? [] as $step) {
-            $approvalFlow->steps()->create($step);
-        }
+        // Structure, PTW shape and separation of duties -- refused with the reason.
+        $flowValidator->assertValid($approvalFlow->module_key, $steps, $request->user()->tenant_id);
+
+        /*
+         * v2.141.0 -- one model at a time, so the audit trail (A13) records
+         * each removed and added step, and the result is PUBLISHED as a new
+         * version. Requests already under way stay on the version they
+         * started on (ApprovalFlowVersion); only new requests take this one.
+         */
+        DB::transaction(function () use ($approvalFlow, $steps, $request) {
+            $approvalFlow->steps()->get()->each->delete();
+
+            foreach ($steps as $step) {
+                $approvalFlow->steps()->create($step);
+            }
+
+            ApprovalFlowVersion::currentFor($approvalFlow->fresh(), $request->user());
+        });
 
         ActivityLog::record('updated', "Approval flow \"{$approvalFlow->name}\" steps were updated.", $approvalFlow);
 
@@ -792,7 +918,7 @@ class SettingsController extends Controller
         ]);
 
         $tenantId = $request->user()->tenant_id;
-        $key = \Illuminate\Support\Str::slug($validated['name'], '_');
+        $key = Str::slug($validated['name'], '_');
 
         abort_if(in_array($key, [
             User::ROLE_SUPER_ADMIN, User::ROLE_HSE, User::ROLE_HRD, User::ROLE_MANAGER, User::ROLE_WAREHOUSE,
@@ -1407,7 +1533,7 @@ class SettingsController extends Controller
             // comment), but with no field for the second one here, every
             // user ever created through this UI silently stayed
             // department_key=null -- i.e. a full Administrator for
-          // navigation-restriction purposes, REGARDLESS of what role was
+            // navigation-restriction purposes, REGARDLESS of what role was
             // picked. A tenant admin choosing role "HSE" reasonably
             // expected that alone to restrict the account to HSE, and it
             // never did. null (the default, unselected) still means
@@ -1531,7 +1657,6 @@ class SettingsController extends Controller
                         ),
                 ]);
             }
-
 
             return User::create($data);
         });
@@ -1664,6 +1789,7 @@ class SettingsController extends Controller
 
         return back()->with('success', 'Field workspace updated.');
     }
+
     /**
      * v2.107.0 -- AN ACCOUNT WITH A HISTORY IS DEACTIVATED, NOT DELETED.
      *
@@ -1727,7 +1853,7 @@ class SettingsController extends Controller
             return true;
         }
 
-        return \App\Models\Approval::where('requested_by', $user->id)
+        return Approval::where('requested_by', $user->id)
             ->orWhere('approved_by', $user->id)
             ->exists();
     }
@@ -1777,7 +1903,7 @@ class SettingsController extends Controller
 
     // --- Import/Export Mapping (Milestone 3, Task #67) ---
 
-    public function updateFieldMapping(Request $request, \App\Services\FieldMappingService $mapping): RedirectResponse
+    public function updateFieldMapping(Request $request, FieldMappingService $mapping): RedirectResponse
     {
         $validated = $request->validate([
             'module_key' => ['required', 'string', Rule::in(array_keys(config('mapping_fields', [])))],
@@ -1807,7 +1933,7 @@ class SettingsController extends Controller
     public function storeDocumentTemplate(Request $request): RedirectResponse
     {
         $validated = $request->validate([
-            'module_key' => ['required', 'string', Rule::in(array_keys(\App\Services\NumberGeneratorService::DEFAULTS))],
+            'module_key' => ['required', 'string', Rule::in(array_keys(NumberGeneratorService::DEFAULTS))],
             'name' => ['required', 'string', 'max:255'],
             'header_text' => ['nullable', 'string', 'max:2000'],
             'footer_text' => ['nullable', 'string', 'max:2000'],
@@ -1820,14 +1946,14 @@ class SettingsController extends Controller
 
         $tenantId = $request->user()->tenant_id;
 
-        $template = \App\Models\DocumentTemplate::create([
+        $template = DocumentTemplate::create([
             ...$validated,
             'tenant_id' => $tenantId,
             'company_id' => null,
             'is_default' => true,
         ]);
 
-        \App\Models\DocumentTemplate::where('tenant_id', $tenantId)
+        DocumentTemplate::where('tenant_id', $tenantId)
             ->whereNull('company_id')
             ->where('module_key', $validated['module_key'])
             ->whereKeyNot($template->id)
@@ -1838,7 +1964,7 @@ class SettingsController extends Controller
         return back()->with('success', 'Document template created.');
     }
 
-    public function updateDocumentTemplate(Request $request, \App\Models\DocumentTemplate $documentTemplate): RedirectResponse
+    public function updateDocumentTemplate(Request $request, DocumentTemplate $documentTemplate): RedirectResponse
     {
         abort_unless($documentTemplate->tenant_id === $request->user()->tenant_id, 404);
 
@@ -1860,7 +1986,7 @@ class SettingsController extends Controller
         return back()->with('success', 'Document template updated.');
     }
 
-    public function destroyDocumentTemplate(Request $request, \App\Models\DocumentTemplate $documentTemplate): RedirectResponse
+    public function destroyDocumentTemplate(Request $request, DocumentTemplate $documentTemplate): RedirectResponse
     {
         abort_unless($documentTemplate->tenant_id === $request->user()->tenant_id, 404);
 

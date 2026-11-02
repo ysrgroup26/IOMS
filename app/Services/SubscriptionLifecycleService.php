@@ -2,16 +2,23 @@
 
 namespace App\Services;
 
+use App\Mail\SubscriptionLifecycleNotice;
 use App\Models\ActivityLog;
 use App\Models\Invoice;
+use App\Models\InvoiceItem;
 use App\Models\Module;
+use App\Models\Notification;
 use App\Models\Package;
+use App\Models\Scopes\UserTenantScope;
 use App\Models\Subscription;
 use App\Models\Tenant;
 use App\Models\User;
 use App\Models\Workspace;
+use App\Support\RequestMemo;
 use Illuminate\Support\Carbon;
 use Illuminate\Support\Facades\DB;
+use Illuminate\Support\Facades\Log;
+use Illuminate\Support\Facades\Mail;
 use RuntimeException;
 
 /**
@@ -121,7 +128,6 @@ class SubscriptionLifecycleService
              */
             $this->writeRenewalItems($invoice, $subscription, $package, $cycle);
 
-
             ActivityLog::record(
                 'created',
                 "Renewal invoice {$invoice->invoice_number} issued for the period "
@@ -230,18 +236,18 @@ class SubscriptionLifecycleService
          * anniversary.
          */
         if ($invoice->purpose === Invoice::PURPOSE_ADD_ON) {
-            app(\App\Services\AddOnPurchaseService::class)->applyPaidInvoice($invoice);
+            app(AddOnPurchaseService::class)->applyPaidInvoice($invoice);
 
             return;
         }
 
         if ($invoice->purpose === Invoice::PURPOSE_TOPUP) {
             $documents = (int) $invoice->items
-                ->where('kind', \App\Models\InvoiceItem::KIND_PTW_TOPUP)
+                ->where('kind', InvoiceItem::KIND_PTW_TOPUP)
                 ->sum('quantity');
 
             if ($documents > 0 && $subscription->tenant) {
-                app(\App\Services\PtwQuotaService::class)->creditPurchased(
+                app(PtwQuotaService::class)->creditPurchased(
                     $subscription->tenant,
                     $documents,
                     $invoice,
@@ -254,7 +260,6 @@ class SubscriptionLifecycleService
 
         $package = $invoice->targetPackage ?? $subscription->package;
         $cycle = $invoice->target_billing_cycle ?: $subscription->billing_cycle;
-
 
         if ($invoice->purpose === Invoice::PURPOSE_PLAN_CHANGE) {
             // applyPlanChange() clears anything scheduled. A cycle switch
@@ -315,15 +320,15 @@ class SubscriptionLifecycleService
         }
 
         try {
-            app(\App\Services\NotificationService::class)->notifyPlatformAdmins(
-                \App\Models\Notification::CATEGORY_INFORMATION,
+            app(NotificationService::class)->notifyPlatformAdmins(
+                Notification::CATEGORY_INFORMATION,
                 $title,
                 $body,
                 route('platform.tenants.show', $subscription->tenant_id),
                 $subscription,
             );
         } catch (\Throwable $e) {
-            \Illuminate\Support\Facades\Log::error('Platform notification failed.', ['error' => $e->getMessage()]);
+            Log::error('Platform notification failed.', ['error' => $e->getMessage()]);
         }
     }
 
@@ -353,25 +358,25 @@ class SubscriptionLifecycleService
             return;
         }
 
-        \Illuminate\Support\Facades\DB::afterCommit(function () use ($subscription, $writesRestored) {
-            $administrators = \App\Models\User::withoutGlobalScope(\App\Models\Scopes\UserTenantScope::class)
+        DB::afterCommit(function () use ($subscription, $writesRestored) {
+            $administrators = User::withoutGlobalScope(UserTenantScope::class)
                 ->where('tenant_id', $subscription->tenant_id)
                 ->where('is_active', true)
-                ->where('role', \App\Models\User::ROLE_SUPER_ADMIN)
+                ->where('role', User::ROLE_SUPER_ADMIN)
                 ->get();
 
             foreach ($administrators as $user) {
                 try {
-                    \Illuminate\Support\Facades\Mail::to($user->email)->send(new \App\Mail\SubscriptionLifecycleNotice(
+                    Mail::to($user->email)->send(new SubscriptionLifecycleNotice(
                         $subscription,
-                        \App\Mail\SubscriptionLifecycleNotice::EVENT_RENEWED,
+                        SubscriptionLifecycleNotice::EVENT_RENEWED,
                         route('subscription.billing'),
                         $writesRestored,
                     ));
                 } catch (\Throwable $e) {
                     // A mail failure must never unwind a payment that was
                     // verified and applied. Logged, not thrown.
-                    \Illuminate\Support\Facades\Log::error('Renewal confirmation email failed.', [
+                    Log::error('Renewal confirmation email failed.', [
                         'to' => $user->email, 'error' => $e->getMessage(),
                     ]);
                 }
@@ -787,6 +792,7 @@ class SubscriptionLifecycleService
 
     public function syncGrantsToPackage(Tenant $tenant, Package $package): void
     {
+        RequestMemo::flush(); // grants change below (v2.141.0)
         $tenant->workspaces()->sync(
             Workspace::whereIn('key', $package->defaultWorkspaceKeys())->pluck('id')
         );
@@ -841,9 +847,9 @@ class SubscriptionLifecycleService
 
         $periodLabel = $cycle === Subscription::CYCLE_MONTHLY ? 'bulan' : 'tahun';
 
-        \App\Models\InvoiceItem::create([
+        InvoiceItem::create([
             'invoice_id' => $invoice->id,
-            'kind' => \App\Models\InvoiceItem::KIND_SUBSCRIPTION,
+            'kind' => InvoiceItem::KIND_SUBSCRIPTION,
             'description' => 'Langganan '.($package?->name ?? 'IOMS').', per '.$periodLabel,
             'quantity' => 1,
             'unit_amount' => $plan,
@@ -854,9 +860,9 @@ class SubscriptionLifecycleService
         if ($users > 0) {
             $count = $subscription->additionalUsers();
 
-            \App\Models\InvoiceItem::create([
+            InvoiceItem::create([
                 'invoice_id' => $invoice->id,
-                'kind' => \App\Models\InvoiceItem::KIND_ADDITIONAL_USERS,
+                'kind' => InvoiceItem::KIND_ADDITIONAL_USERS,
                 'description' => "Tambahan {$count} Full User",
                 'quantity' => $count,
                 'unit_amount' => $count > 0 ? round($users / $count, 2) : 0,
@@ -869,9 +875,9 @@ class SubscriptionLifecycleService
             $packCount = $subscription->additionalMyWorkPacks();
             $size = (int) config('saas.my_work_pack_size', 10);
 
-            \App\Models\InvoiceItem::create([
+            InvoiceItem::create([
                 'invoice_id' => $invoice->id,
-                'kind' => \App\Models\InvoiceItem::KIND_MY_WORK_PACKS,
+                'kind' => InvoiceItem::KIND_MY_WORK_PACKS,
                 'description' => "Tambahan {$packCount} paket My Work User, {$size} pengguna per paket",
                 'quantity' => $packCount,
                 'unit_amount' => $packCount > 0 ? round($packs / $packCount, 2) : 0,

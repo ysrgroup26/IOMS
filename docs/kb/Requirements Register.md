@@ -1,7 +1,7 @@
 ---
 title: Requirements Register
 type: register
-updated: 2026-10-18
+updated: 2026-11-01
 tags: [kb/requirements]
 ---
 
@@ -44,6 +44,7 @@ These are **not** forgotten. Each has a reason, and a condition that would chang
 
 | Item | Why it matters | Status |
 |---|---|---|
+| **Operational Experience and Workflow Enhancement** — ten areas from the 2026-11-01 directive (S1–S10) | One master note: [[Operational Experience and Workflow Enhancement]] (v2: performance audit, owner's Work Order specification, decision pack A1–A14, milestones M0–M9). Fixed on branch: My PTW counts `verified`; the release history no longer rides on every response. Still waiting on a decision: Department Users get 403 on `/tasks` (D1) | `#status/in-progress` |
 | **Midtrans production verification** — one real transaction end to end against live credentials | Everything in the payment path is verified against a signed payload this codebase constructs itself. What has **never** been exercised is a genuine Midtrans notification: their real signature, their real `transaction_status` vocabulary, and their retry behaviour. The code is written to their documented contract, not to an observed one. Needs credentials, a registered Payment Notification URL, and a sandbox transaction — all outside this repository. See ADR [[033-subscription-lifecycle\|033]] and [[Verification Status]] | `#status/planned` |
 | **Automatic recurring charging** — card charged at each period end without a customer action | IOMS bills invoice-per-cycle. Midtrans Subscription/Recurring needs supported channels plus separate merchant-side activation, and would be a real integration with its own webhook handling — not the boolean flag v2.70.0 removed for promising exactly this and delivering nothing | `#status/planned` |
 | **Field-level Audit Log** — structured before/after values per field | Explicitly distinct from `ActivityLog`'s free-text description. `ActivityLog.meta` could store it but does not today. Needs its own design pass, not a quick reuse of the existing table. **Verified absent:** no `old_value`/`new_value` columns exist | `#status/planned` |

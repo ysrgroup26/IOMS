@@ -2,6 +2,7 @@
 
 namespace App\Http\Middleware;
 
+use App\Models\User;
 use Closure;
 use Illuminate\Http\Request;
 use Symfony\Component\HttpFoundation\Response;
@@ -141,51 +142,53 @@ class RestrictDepartmentAccess
         'material-requests',
     ];
 
+    /**
+     * v2.141.0 -- D1 (approved by the owner): WORK HANDED TO A PERSON CROSSES
+     * DEPARTMENTS; THE MODULE DOES NOT.
+     *
+     * Tasks belong to no department, so a Department User was refused the
+     * task somebody assigned to them. These routes are let through for
+     * every department, and the CONTROLLER confines them to tasks the
+     * person is assigned to or created (Task::scopeVisibleTo) -- the
+     * register as a whole, and creating or deleting tasks, stay closed.
+     */
+    private const PERSONAL_ROUTES = ['tasks.index', 'tasks.show', 'tasks.edit', 'tasks.update'];
+
     public function handle(Request $request, Closure $next): Response
     {
-        $user = $request->user();
+        $routeName = $request->route()?->getName();
 
+        abort_unless(self::allows($request->user(), $routeName), 403, 'This page belongs to a different department.');
+
+        return $next($request);
+    }
+
+    /**
+     * v2.141.0 -- the department rule as a question anything can ask, so a
+     * link is only OFFERED where this middleware would let it through
+     * (ADR 061; App\Support\RouteReach). Unchanged rule: no department, or
+     * a universal prefix, passes; otherwise the prefix must be owned by the
+     * person's department.
+     */
+    public static function allows(?User $user, ?string $routeName): bool
+    {
         if (! $user || ! $user->department_key) {
-            return $next($request);
+            return true;
         }
 
-        $routeName = $request->route()?->getName();
         $prefix = $routeName ? explode('.', $routeName)[0] : null;
 
         if (! $prefix || in_array($prefix, self::UNIVERSAL_PREFIXES, true)) {
-            return $next($request);
+            return true;
         }
 
-        $map = config('departments', []);
+        if (in_array($routeName, self::PERSONAL_ROUTES, true)) {
+            return true;
+        }
 
-        // v2.46.0: a prefix may now be listed under MORE THAN ONE department.
-        // This used to take the FIRST match only, which silently made the map
-        // single-owner and produced the reported PTW Access 403: Settings >
-        // Users is where PTW Access is granted, its route is explicitly gated
-        // `role:super_admin,hse`, yet the `settings` prefix was owned by
-        // `administration` alone -- so a department-scoped HSE user was denied
-        // here, BEFORE the route's own role gate could allow them. The routing
-        // layer was contradicting the authorization layer.
-        //
-        // Still fail-closed, and this widens nothing on its own: a prefix is
-        // only reachable by a department that is explicitly listed for it, and
-        // every route keeps whatever `role:` gate it already had. Settings'
-        // mutating sub-routes remain `role:super_admin`.
-        $owningDepartments = collect($map)
+        return collect(config('departments', []))
             ->filter(fn (array $prefixes) => in_array($prefix, $prefixes, true))
-            ->keys();
-
-        // v1.10.5: fail CLOSED. A prefix that isn't in the map at all --
-        // whether because it genuinely belongs to no department (in which
-        // case it should be added to UNIVERSAL_PREFIXES above) or because
-        // the map simply hasn't been updated yet for a newly added route --
-        // is denied rather than silently allowed. Getting this wrong now
-        // shows up immediately as a legitimate user being blocked (loud,
-        // reported, fixed by adding one line to config/departments.php),
-        // instead of the previous failure mode (a route silently reachable
-        // by every department, discovered only by audit).
-        abort_unless($owningDepartments->contains($user->department_key), 403, 'This page belongs to a different department.');
-
-        return $next($request);
+            ->keys()
+            ->contains($user->department_key);
     }
 }

@@ -1,3 +1,4 @@
+import { useEffect, useState } from 'react';
 import { usePage } from '@inertiajs/react';
 import { CheckCircle2, Calendar, ShieldCheck, Globe, LifeBuoy, BookOpen } from 'lucide-react';
 import {
@@ -27,6 +28,18 @@ import BrandWordmark from '@/Components/shared/BrandWordmark';
  */
 export default function AboutDialog({ open, onOpenChange }) {
     const { version } = usePage().props;
+    // v2.141.0: the release history is fetched when the dialog first opens,
+    // not shipped with every page (it was ~99% of each Inertia response).
+    const [history, setHistory] = useState(null);
+    useEffect(() => {
+        if (!open || history !== null) return;
+        let cancelled = false;
+        fetch(route('account.version-history'), { headers: { Accept: 'application/json' }, credentials: 'same-origin' })
+            .then((r) => (r.ok ? r.json() : []))
+            .then((rows) => { if (!cancelled) setHistory(Array.isArray(rows) ? rows : []); })
+            .catch(() => { if (!cancelled) setHistory([]); });
+        return () => { cancelled = true; };
+    }, [open, history]);
 
     return (
         <Dialog open={open} onOpenChange={onOpenChange}>
@@ -120,11 +133,11 @@ export default function AboutDialog({ open, onOpenChange }) {
                         </div>
                     )}
 
-                    {version?.history?.length > 0 && (
+                    {history?.length > 0 && (
                         <div>
                             <p className="mb-2 text-xs font-semibold uppercase tracking-wide text-graphite-400 dark:text-slate-500">Version History</p>
                             <ul className="divide-y divide-graphite-100 rounded-xl border border-graphite-100 dark:divide-slate-800 dark:border-slate-700">
-                                {version.history.map((entry) => (
+                                {history.map((entry) => (
                                     <li key={entry.version} className="px-3 py-2.5 text-sm">
                                         <div className="flex items-center justify-between">
                                             <span className="font-semibold text-graphite-800 dark:text-slate-100">v{entry.version}</span>

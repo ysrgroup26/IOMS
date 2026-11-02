@@ -3,8 +3,10 @@
 namespace App\Models;
 
 use App\Support\CurrentTenant;
+use App\Support\SystemActor;
 use Illuminate\Database\Eloquent\Builder;
 use Illuminate\Database\Eloquent\Model;
+use Illuminate\Support\Str;
 
 class ActivityLog extends Model
 {
@@ -43,6 +45,7 @@ class ActivityLog extends Model
             });
         });
     }
+
     protected $fillable = [
         'user_id',
         // v2.100.0 -- the actor's display identity AS IT WAS. See record().
@@ -92,8 +95,16 @@ class ActivityLog extends Model
      */
     public static function record(string $action, string $description, ?Model $subject = null, array $meta = []): self
     {
+        /*
+         * v2.141.0 -- a SYSTEM action (PTW automatic activation, ADR 083) has
+         * no actor, even when it runs inside somebody's request: the Final
+         * Verifier who triggered an immediate activation did not activate
+         * the permit -- the start time did. Read as "System".
+         */
+        $actor = (($meta['automatic'] ?? false) || SystemActor::active()) ? null : auth()->user();
+
         return static::create([
-            'user_id' => auth()->id(),
+            'user_id' => $actor?->id,
             /*
              * v2.100.0 -- WHO DID IT IS A FACT ABOUT THE PAST.
              *
@@ -108,7 +119,7 @@ class ActivityLog extends Model
              * action with no authenticated actor, which is what the read
              * paths already render as "System".
              */
-            'actor_name' => auth()->user()?->displayName(),
+            'actor_name' => $actor?->displayName(),
             /*
              * v2.125.0 -- THE TITLE THEY HELD, FROM THE COMPANY'S OWN
              * CONFIGURATION.
@@ -129,13 +140,13 @@ class ActivityLog extends Model
              * substitutes the system role in this column, because that
              * would store a different KIND of fact under one name.
              */
-            'actor_title' => auth()->user()?->employee?->position?->name,
+            'actor_title' => $actor?->employee?->position?->name,
             'action' => $action,
             'subject_type' => $subject ? get_class($subject) : null,
             'subject_id' => $subject?->getKey(),
             'company_id' => $subject?->company_id ?? null,
             'department_id' => $subject?->department_id ?? null,
-            'module' => $subject ? \Illuminate\Support\Str::snake(class_basename($subject)) : null,
+            'module' => $subject ? Str::snake(class_basename($subject)) : null,
             'description' => $description,
             'meta' => $meta,
             'ip_address' => request()?->ip(),

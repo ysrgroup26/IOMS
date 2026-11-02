@@ -615,6 +615,45 @@ number the form promised was never the one the record got. If you add a create p
 number, use the model's `previewX()` -- `DocumentNumberPreviewTest` fails if a consuming generator
 reappears in an Inertia prop.
 
+## Tasks across departments (v2.141.0, D1)
+
+Tasks belong to no department. A **Department User** or a **My Work account** reaches `tasks.index`,
+`tasks.show`, `tasks.edit` and `tasks.update` from any department (`RestrictDepartmentAccess::PERSONAL_ROUTES`),
+and the controller confines them to tasks they are assigned to or created (`Task::scopeVisibleTo` /
+`isVisibleTo`); anything else is "not found". Their role never widens this (an HSE-role Department User is
+not an admin over other people's tasks). Creating and deleting tasks stay closed to them. Full users keep
+the tenant-wide register. Pinned by `CrossDepartmentTasksTest`.
+
+## PTW on the company's Approval Flow (v2.141.0, ADR 083)
+
+Per operating unit (Settings → PTW Workflow → Approval Route): **Standard** (verify then approve, ADR 067,
+the default) or **Company Approval Flow** (Approval 1..N then Final Verification, built in Settings →
+Approval Flow). Switching to the flow is refused unless a valid PTW flow applies to that unit. A permit keeps
+the route it was submitted on. On the flow, the permit page shows an **Approval Flow** card (stages, who,
+decisions, and Approve/Reject only for whoever may decide now); the old Verify/Approve/Return buttons are
+not offered and the endpoint refuses them. After Final Verification the permit is **Approved, waiting for
+its start time**, and becomes **Active by itself** when it is reached (`ptw:activate-due`, every minute; at
+once if the start has already passed). Manual activation is refused for these permits; if the end time
+passes first, it is not activated and the requester is told. Standard-route permits keep manual activation.
+
+## My Work page: Waiting on Me, Assigned to Me, My Permits (v2.141.0)
+
+`/my-work` (`DashboardController::myWork`, `Pages/Field/Home.jsx`) answers three questions from
+`App\Services\MyWorkService`, which owns no data and reads the registers:
+
+- **Waiting on Me** — pending approvals that `ApprovalEngine::authorize()` would let this person decide
+  (not merely "holds an approver role"), plus permits whose CURRENT stage (verify for `submitted`,
+  approve for `verified`) `PtwWorkflowService::canAct()` gives them. Oldest first.
+- **Assigned to Me** — open tasks (`assigned_user_id`) and open/in-progress corrective actions
+  (`assigned_to`): overdue first (due date before today), then by deadline, then priority.
+- **My Permits** — open permits (draft → active) the person requested, or leads as PIC through
+  `users.employee_id`.
+
+Every item has one shape and carries an `href` **only** when `RouteReach::allows()` says the person can
+open the route (My Work allow-list, Sandbox, department access, plan entitlement). An item they cannot
+open is still listed, with "Tidak dapat dibuka dari akun Anda", because the work is theirs even when
+the module is not. The "View all" links are gated the same way. Pinned by `MyWorkComponentsTest`.
+
 ## The My Work account class (v2.86.0, completed v2.122.0)
 
 **Decision:** ADR 061. **Key files:** `app/Http/Middleware/RestrictMyWorkUser.php`,

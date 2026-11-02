@@ -8,6 +8,7 @@ use App\Models\Company;
 use App\Models\CompanySetting;
 use App\Models\Invoice;
 use App\Models\Module;
+use App\Models\Notification;
 use App\Models\Package;
 use App\Models\Subscription;
 use App\Models\Tenant;
@@ -15,6 +16,7 @@ use App\Models\TenantRegistration;
 use App\Models\User;
 use App\Models\Workspace;
 use App\Support\CurrentTenant;
+use App\Support\RequestMemo;
 use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Facades\Log;
 use Illuminate\Support\Facades\Mail;
@@ -308,6 +310,7 @@ class TenantProvisioningService
         // The same Package -> Workspace/Module grant mapping
         // PlatformController::storeTenant() uses, so a self-service tenant
         // and an admin-provisioned tenant receive identical entitlements.
+        RequestMemo::flush(); // grants change below (v2.141.0)
         $tenant->workspaces()->sync(Workspace::whereIn('key', $package->defaultWorkspaceKeys())->pluck('id'));
         $tenant->modules()->sync(Module::whereIn('key', $package->defaultModuleKeys())->pluck('id'));
 
@@ -414,8 +417,8 @@ class TenantProvisioningService
 
         // v2.79.0: the platform operator learns that a customer bought
         // something, on the operator's own notification surface.
-        app(\App\Services\NotificationService::class)->notifyPlatformAdmins(
-            \App\Models\Notification::CATEGORY_INFORMATION,
+        app(NotificationService::class)->notifyPlatformAdmins(
+            Notification::CATEGORY_INFORMATION,
             'Langganan baru: '.$tenant->name,
             'Organisasi baru aktif dari pendaftaran mandiri '.$registration->reference.'.',
             route('platform.tenants.show', $tenant),

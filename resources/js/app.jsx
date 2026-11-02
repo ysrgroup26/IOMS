@@ -40,25 +40,36 @@ initPwa();
 // it renders the next page -- a value cached from the 'navigate' event would
 // arrive one page late. router.page does not exist until the first render
 // has happened, so the initial page's value is seeded in setup().
+const pages = import.meta.glob('./Pages/**/*.jsx');
+
+/** Fetches every page chunk a few at a time once the browser is idle. */
+function prefetchPages() {
+    const loaders = Object.values(pages);
+    const idle = window.requestIdleCallback || ((fn) => window.setTimeout(fn, 200));
+    const next = () => {
+        const batch = loaders.splice(0, 6);
+        if (batch.length === 0) return;
+        Promise.allSettled(batch.map((load) => load())).then(() => idle(next));
+    };
+    idle(next);
+}
+
 let initialSeoTitle = null;
 const currentSeoTitle = () => (router.page ? router.page.props?.seoTitle : initialSeoTitle);
 
 createInertiaApp({
     title: (title) => currentSeoTitle() || (title ? `${title} - ${liveCompanyName}` : liveCompanyName),
-    resolve: (name) =>
-        // Root cause of the white-flash-on-first-navigation bug (v1.6.5 QA):
-        // `import.meta.glob` defaults to LAZY mode, meaning every page is
-        // its own dynamically-imported chunk, fetched over the network the
-        // first time it's visited in a session. Inertia's progress bar
-        // only tracks the server round-trip, not this separate chunk
-        // fetch/parse step -- so the bar can finish while the page's own
-        // JS is still loading, which paints as a blank flash right after
-        // the bar disappears. `{ eager: true }` bundles every page upfront
-        // at build time instead, removing that gap entirely. Trades a
-        // slightly larger initial bundle for eliminating this whole class
-        // of flash on every "first visit to a not-yet-loaded route," not
-        // just PPE specifically -- PPE was just where it was noticed.
-        resolvePageComponent(`./Pages/${name}.jsx`, import.meta.glob('./Pages/**/*.jsx', { eager: true })),
+    // v2.141.0 -- ONE CHUNK PER PAGE, PREFETCHED AFTER THE FIRST PAINT.
+    //
+    // v1.6.5 bundled every page eagerly to stop a blank flash on the first
+    // visit to a page whose chunk had not arrived. The cost, measured on
+    // 2026-11-01: one 2.3 MB script (577 KB gzipped) holding all 186 pages,
+    // downloaded and parsed before the FIRST page could paint. Now each page
+    // is its own chunk, so the first paint waits only for the page it shows;
+    // Inertia keeps the current page on screen until the next one's chunk
+    // has resolved; and `prefetchPages()` warms the rest during idle time,
+    // so a later click finds its chunk already in the cache.
+    resolve: (name) => resolvePageComponent(`./Pages/${name}.jsx`, pages),
     setup({ el, App, props }) {
         // Seed the title suffix from the very first page's props too,
         // since 'navigate' only fires on subsequent client-side visits
@@ -84,6 +95,7 @@ createInertiaApp({
          * for a bundle that never arrives.
          */
         requestAnimationFrame(() => {
+            window.setTimeout(prefetchPages, 1500);
             document.getElementById('ioms-boot')?.remove();
         });
     },

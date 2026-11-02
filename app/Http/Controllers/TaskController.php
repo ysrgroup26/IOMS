@@ -31,7 +31,8 @@ class TaskController extends Controller
 
     public function index(Request $request): Response
     {
-        $query = Task::query()->with('assignedUser:id,name', 'creator:id,name', 'company:id,name');
+        // v2.141.0 -- D1: a personal-access account sees its own tasks only.
+        $query = Task::query()->visibleTo($request->user())->with('assignedUser:id,name', 'creator:id,name', 'company:id,name');
 
         if ($search = $request->input('search')) {
             $query->where(function ($q) use ($search) {
@@ -83,6 +84,7 @@ class TaskController extends Controller
     public function show(Task $task): Response
     {
         $this->assertTaskInCurrentTenant($task);
+        $this->assertTaskVisible($task);
 
         $task->load('assignedUser:id,name,email', 'creator:id,name', 'company:id,name');
 
@@ -95,6 +97,7 @@ class TaskController extends Controller
     public function edit(Task $task): Response
     {
         $this->assertTaskInCurrentTenant($task);
+        $this->assertTaskVisible($task);
         abort_unless($this->canManage($task), 403);
 
         return Inertia::render('Tasks/Form', [
@@ -109,6 +112,7 @@ class TaskController extends Controller
     public function update(UpdateTaskRequest $request, Task $task): RedirectResponse
     {
         $this->assertTaskInCurrentTenant($task);
+        $this->assertTaskVisible($task);
         abort_unless($this->canManage($task), 403);
 
         $this->tasks->updateTask($task, $request->validated());
@@ -119,6 +123,7 @@ class TaskController extends Controller
     public function destroy(Task $task): RedirectResponse
     {
         $this->assertTaskInCurrentTenant($task);
+        $this->assertTaskVisible($task);
         abort_unless($this->canManage($task), 403);
 
         $this->tasks->deleteTask($task);
@@ -150,9 +155,20 @@ class TaskController extends Controller
         abort_unless(Company::query()->pluck('id')->contains($task->company_id), 404);
     }
 
+    /** D1: outside a personal-access account's own tasks, the task does not exist for it. */
+    private function assertTaskVisible(Task $task): void
+    {
+        abort_unless($task->isVisibleTo(request()->user()), 404);
+    }
+
     private function canManage(Task $task): bool
     {
         $user = request()->user();
+
+        // A personal-access account manages its own tasks, never by role.
+        if ($user->seesOnlyOwnTasks()) {
+            return (int) $task->created_by === (int) $user->id || (int) $task->assigned_user_id === (int) $user->id;
+        }
 
         return $user->isAdmin()
             || $task->created_by === $user->id

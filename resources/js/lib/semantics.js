@@ -27,6 +27,8 @@ export const STATUS_TONE = {
     waiting: 'secondary',
     cancelled: 'secondary',
     closed: 'secondary',
+    // v2.141.0 (P4): an approval no longer needed -- neutral, never "waiting".
+    skipped: 'secondary',
     archived: 'secondary',
     inactive: 'secondary',
     dismissed: 'secondary',

@@ -15,6 +15,7 @@ use App\Services\TenantReadinessService;
 use App\Services\WorkCenterService;
 use App\Support\CurrentTenant;
 use App\Support\DarkTheme;
+use App\Support\RouteReach;
 use Illuminate\Http\Request;
 use Inertia\Middleware;
 
@@ -564,9 +565,11 @@ class HandleInertiaRequests extends Middleware
                  */
                 'items' => $user
                     ? Notification::where('user_id', $user->id)->latest()->limit(10)
-                        ->get(['id', 'category', 'title', 'body', 'url', 'read_at', 'created_at', 'meta'])
+                        ->get(['id', 'category', 'priority', 'title', 'body', 'url', 'read_at', 'created_at', 'meta'])
                         ->map(fn (Notification $n) => [
-                            ...$n->only(['id', 'category', 'title', 'body', 'url', 'read_at', 'created_at']),
+                            ...$n->only(['id', 'category', 'priority', 'title', 'body', 'url', 'read_at', 'created_at']),
+                            // v2.141.0: decided by the server, against every gate (RouteReach).
+                            'openable' => (bool) $n->url && (! is_string($n->meta['route'] ?? null) || RouteReach::allows($user, $n->meta['route'])),
                             'route_prefix' => is_string($n->meta['route'] ?? null)
                                 ? explode('.', $n->meta['route'])[0]
                                 : null,
@@ -642,7 +645,13 @@ class HandleInertiaRequests extends Middleware
                  * nothing when the key is absent, so a guest loses no
                  * feature. Scoped to a signed-in user rather than removed.
                  */
-                'history' => $user ? config('ioms.version_history') : null,
+                /*
+                 * v2.141.0 -- AND NOT ON EVERY RESPONSE EITHER. Signed in,
+                 * this was still 426 KB of the ~430 KB every Inertia visit
+                 * transferred: the whole changelog, re-sent on each click,
+                 * for a dialog most people never open. AboutDialog now asks
+                 * `account.version-history` when it opens.
+                 */
             ],
             // v2.54.0 -- ORGANIZATIONAL CONTEXT, read-only.
             //

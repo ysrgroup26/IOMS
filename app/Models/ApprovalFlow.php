@@ -4,6 +4,7 @@ namespace App\Models;
 
 use App\Models\Concerns\BelongsToCompany;
 use App\Models\Concerns\IsTenantWideConfiguration;
+use App\Models\Concerns\RecordsChanges;
 use Illuminate\Database\Eloquent\Model;
 
 /**
@@ -23,6 +24,9 @@ class ApprovalFlow extends Model
      * feature creates is invisible the moment it is saved.
      */
     use IsTenantWideConfiguration;
+
+    // v2.141.0 -- A13: who changed the approval route, and from what.
+    use RecordsChanges;
 
     protected $fillable = [
         'tenant_id',

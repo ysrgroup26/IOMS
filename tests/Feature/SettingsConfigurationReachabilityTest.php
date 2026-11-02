@@ -3,11 +3,12 @@
 namespace Tests\Feature;
 
 use App\Models\ApprovalFlow;
+use App\Models\ApprovalFlowVersion;
 use App\Models\Company;
-use App\Models\DocumentTemplate;
 use App\Models\FieldMapping;
 use App\Models\MaterialRequest;
 use App\Models\Package;
+use App\Models\Position;
 use App\Models\Subscription;
 use App\Models\Tenant;
 use App\Models\User;
@@ -15,6 +16,8 @@ use App\Models\Workspace;
 use App\Services\ApprovalFlowResolver;
 use App\Services\FieldMappingService;
 use App\Support\CurrentTenant;
+use Database\Seeders\ModuleSeeder;
+use Database\Seeders\WorkspaceSeeder;
 use Illuminate\Foundation\Testing\RefreshDatabase;
 use Illuminate\Support\Facades\Mail;
 use Tests\TestCase;
@@ -60,8 +63,8 @@ class SettingsConfigurationReachabilityTest extends TestCase
         parent::setUp();
 
         Mail::fake();
-        $this->seed(\Database\Seeders\WorkspaceSeeder::class);
-        $this->seed(\Database\Seeders\ModuleSeeder::class);
+        $this->seed(WorkspaceSeeder::class);
+        $this->seed(ModuleSeeder::class);
     }
 
     private function tenantOn(string $slug = 'business', string $suffix = 'a'): Tenant
@@ -185,6 +188,44 @@ class SettingsConfigurationReachabilityTest extends TestCase
             ->assertSessionHasNoErrors();
 
         $this->assertDatabaseMissing('approval_flows', ['id' => $flow->id]);
+    }
+
+    /**
+     * v2.141.0 -- saving steps publishes a version, a step may name a
+     * position from the company's structure, and a position the tenant
+     * cannot see is refused.
+     */
+    public function test_saving_steps_publishes_a_version_and_accepts_only_visible_positions(): void
+    {
+        $this->tenantOn();
+        $admin = $this->admin();
+
+        $flow = ApprovalFlow::create([
+            'tenant_id' => $this->tenant->id, 'company_id' => null, 'module_key' => 'material_request',
+            'name' => 'By position', 'is_active' => true, 'priority' => 0,
+        ]);
+        $position = Position::create(['name' => 'SPV Gudang', 'company_id' => $admin->company_id, 'is_active' => true]);
+
+        $this->actingAs($admin)
+            ->put(route('settings.approval-flows.steps', $flow->id), [
+                'steps' => [['step_number' => 1, 'mode' => 'single', 'approver_role' => null, 'approver_position_id' => $position->id]],
+            ])
+            ->assertSessionHasNoErrors();
+
+        $version = ApprovalFlowVersion::withoutGlobalScopes()->where('approval_flow_id', $flow->id)->sole();
+        $this->assertSame($position->id, $version->steps[0]['approver_position_id']);
+
+        $this->actingAs($admin)
+            ->put(route('settings.approval-flows.steps', $flow->id), [
+                'steps' => [['step_number' => 1, 'mode' => 'single', 'approver_role' => null, 'approver_position_id' => 999999]],
+            ])
+            ->assertSessionHasErrors('steps.0.approver_position_id');
+
+        $this->actingAs($admin)
+            ->put(route('settings.approval-flows.steps', $flow->id), [
+                'steps' => [['step_number' => 1, 'mode' => 'single']],
+            ])
+            ->assertSessionHasErrors('steps');
     }
 
     /**

@@ -16,9 +16,11 @@ use App\Models\Project;
 use App\Models\Tenant;
 use App\Models\User;
 use App\Services\ApprovalEngine;
+use App\Services\EmployeeEraser;
 use App\Support\CurrentTenant;
 use Illuminate\Database\Eloquent\SoftDeletingScope;
 use Illuminate\Foundation\Testing\RefreshDatabase;
+use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Facades\Schema;
 use Tests\TestCase;
 
@@ -230,10 +232,10 @@ class TransitiveTenantIsolationTest extends TestCase
     {
         $record = $this->kpiRecordFor($this->employeeA, $this->adminA);
 
-        app(\App\Services\EmployeeEraser::class)->erase($this->employeeA);
+        app(EmployeeEraser::class)->erase($this->employeeA);
 
         $this->assertDatabaseMissing('kpi_records', ['id' => $record->id]);
-        $this->assertSame(0, \Illuminate\Support\Facades\DB::table('kpi_records')->count());
+        $this->assertSame(0, DB::table('kpi_records')->count());
 
         $this->asTenantOf($this->adminA);
         $this->assertCount(0, KpiRecord::all());
@@ -468,6 +470,18 @@ class TransitiveTenantIsolationTest extends TestCase
             'Approval', 'ApprovalFlowStep',
             // Owned by a user, and guarded by user_id at both call sites.
             'Notification',
+            /*
+             * v2.141.0 -- the notification event layer. Both rows belong to
+             * ONE PERSON and are reached only through them, exactly like
+             * PushSubscription above: a delivery through its notification
+             * (`user_id`), a preference through the signed-in account
+             * (`where('user_id', $request->user()->id)`). `User` carries the
+             * tenant scope, so the boundary sits one step earlier, and the
+             * push job reaches deliveries from the queue worker, where no
+             * tenant is resolved. NotificationEventLayerTest pins that
+             * reminders reach only their own tenant.
+             */
+            'NotificationDelivery', 'UserNotificationPreference',
             // The tenant itself, and its settings, which have their own
             // two-tier scope (CompanySettingScope).
             'Tenant', 'CompanySetting',

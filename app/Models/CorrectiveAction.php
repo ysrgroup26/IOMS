@@ -3,6 +3,7 @@
 namespace App\Models;
 
 use App\Models\Concerns\BelongsToCompany;
+use App\Services\Notifications\AssignmentNotifier;
 use Illuminate\Database\Eloquent\Model;
 
 /**
@@ -50,6 +51,21 @@ class CorrectiveAction extends Model
             'verified_at' => 'datetime',
             'closed_at' => 'datetime',
         ];
+    }
+
+    protected static function booted(): void
+    {
+        // v2.141.0: the assignee is told, whichever module raised the action.
+        static::created(function (CorrectiveAction $action) {
+            if ($action->assigned_to) {
+                app(AssignmentNotifier::class)->correctiveAction($action);
+            }
+        });
+        static::updated(function (CorrectiveAction $action) {
+            if ($action->wasChanged('assigned_to') && $action->assigned_to) {
+                app(AssignmentNotifier::class)->correctiveAction($action);
+            }
+        });
     }
 
     public function company()

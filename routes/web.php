@@ -362,6 +362,13 @@ Route::middleware('auth')->group(function () {
 
     // The account's own area: identity, security, commercial state.
     Route::get('/account', [AccountController::class, 'overview'])->name('account.overview');
+    // v2.141.0 -- the release history the About dialog shows, fetched when
+    // the dialog opens instead of riding on every page response (it was
+    // 426 KB of the ~430 KB every navigation carried). `account.` so every
+    // signed-in class -- department users and My Work included -- reaches it.
+    // v2.141.0: a person's own notification switches (in-app and push, per category).
+    Route::put('/account/notification-preferences', [AccountController::class, 'updateNotificationPreferences'])->name('account.notification-preferences.update');
+    Route::get('/account/version-history', fn () => response()->json(config('ioms.version_history', [])))->name('account.version-history');
     Route::put('/account/profile', [AccountController::class, 'updateProfile'])->name('account.profile.update');
     Route::put('/account/password', [AccountController::class, 'updatePassword'])
         ->middleware('throttle:6,1')->name('account.password.update');
@@ -1181,6 +1188,7 @@ Route::middleware(['auth', 'restrict.platform-admin'])->group(function () {
         // v2.127.0 -- who verifies and who approves a Permit to Work, per
         // operating unit. See PtwWorkflowService.
         Route::post('/settings/ptw-workflow', [SettingsController::class, 'updatePtwWorkflow'])->name('settings.ptw-workflow');
+        Route::post('/settings/ptw-workflow/mode', [SettingsController::class, 'updatePtwApprovalMode'])->name('settings.ptw-workflow.mode');
 
         // Dynamic Document Engine (Milestone 3, Task #66).
         Route::post('/settings/documents', [SettingsController::class, 'storeDocumentTemplate'])->name('settings.documents.store');

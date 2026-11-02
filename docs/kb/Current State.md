@@ -26,6 +26,7 @@ the date in the frontmatter, not remembered.
 | Product | **IOMS — Industrial Operations Platform** |
 | Public company identity | **IOMS** only (v2.131.0, ADR 071). Operator entity published only when `IOMS_LEGAL_ENTITY` is set; legal merchant **PT Tahada Vistara Bersama** issues invoices (`ioms.merchant.legal_name`) |
 | Version | **2.140.0** — Midnight Frosted Glass dark mode for the whole signed-in application ([[082-midnight-frosted-glass-is-a-starter-pilot\|ADR 082]]; Starter pilot 2.139.0 approved by the owner). **Running in production since 2026-11-01** (commit `d73680c`, deployed through CI + ioms-ops: test gate 1696 passed, pre-deploy backup `/var/backups/ioms/2026-11-01-1443/`, health check ALL CHECKS PASSED, signature `3f8c5bd979f1`). The previous production release was **2.138.0** (`1384fbf`). Stage **Beta**, edition **Enterprise Edition** |
+| Current initiative | [[Operational Experience and Workflow Enhancement]]: on the development branch (not deployed) -- M0 performance, notification event layer, My Work, append-only audit trail, Approval Flow versioning and the visual Approval Flow Builder (A7), PTW on the company's flow with separation of duties (A8b, [[083-a-permit-runs-on-its-companys-flow-and-is-never-verified-by-its-requester\|ADR 083]]), Tasks across departments (D1). Awaiting staging review. A14 and A10 are proposals awaiting the owner |
 | Build | `2026.10.25.02`, release date `2026-10-25` |
 | Stack | Laravel 12 · Inertia.js · React 18 · Tailwind · MySQL · Sanctum |
 

@@ -37,6 +37,47 @@ substantially bigger and hasn't been built. The `approvals` table's shape doesn'
 that later (e.g. an optional `step` column), but nothing today assumes it's coming in a particular
 form.
 
+**Flows, versions and approvers (v2.141.0).** The paragraph above predates Approval Engine v2:
+configurable multi-step flows (`approval_flows` + `approval_flow_steps`, per tenant, chosen by
+`ApprovalFlowResolver` through module key, company and `conditions`) do exist. Since v2.141.0:
+
+- **A request keeps the route it started on.** `ApprovalFlowVersion` is an immutable copy of a flow's
+  steps; `ApprovalEngine::start()` pins `approvals.approval_flow_version_id` to the flow's current
+  version (`currentFor()` reuses the latest when the steps are unchanged, otherwise publishes a new one),
+  and `authorize()`, `advance()` and escalation read the steps from that version. Saving steps in
+  Settings publishes a new version. Requests started before versions existed (null version) read the
+  live flow, as before. Versions are append-only and are not foreign-keyed to the flow, so removing a
+  flow leaves in-flight requests on their route (`approvals.approval_flow_id` is nulled by the FK; the
+  engine treats a version-pinned row as a flow row).
+- **Approver** = an IOMS role, a named person, or a **position** from the company's own structure
+  (`approver_position_id` → whoever's employee holds that position; Super Admin may also decide, as for a
+  role step). Position holders are notified when their step opens.
+- **Escalation widens one request**: `approvals.escalated_to_role`. It used to insert a permanent step
+  row into the flow.
+- **Stage kind, separation of duties, validation (A8b, ADR 083).** A stage is `approval` or
+  `final_verification`. `App\Services\Approvals\SeparationOfDuties` is asked by `authorize()` on a
+  Final Verification stage: never the requester, never anybody who approved any stage of the same record,
+  no Super Admin override. `ApprovalCandidates` resolves who a stage names (active full accounts of the
+  tenant), and `ApprovalFlowValidator` refuses a flow before it is published (numbering 1..N, one
+  mode/kind per stage, one approver per row, the PTW shape, every stage naming somebody, and A8b at
+  configuration time).
+- **Closing a decided stage (P4).** On an "any one" stage, and on any rejection, the other rows at that
+  stage become `skipped`; on an "all" stage they wait for their own decisions. `decide()` runs under a
+  row lock.
+- **PTW on the company's flow.** `ptw_workflow_settings.approval_mode` (`legacy` default | `flow`) per
+  operating unit; `PtwWorkflowService::usesApprovalFlow()/submissionProblem()/startFlow()/flowProgress()`;
+  the engine hands the last decision to `PermitToWork::finalizeApprovalFlow()` (any approvable may define
+  `finalizeApprovalFlow($decision, $user, $comments)`).
+- **Automatic activation** (ADR 083 § 8): `PtwActivationService::activateIfDue()` (row lock, every
+  requirement re-checked, named outcomes) and `activateDue()` (each active/trial tenant in its own context),
+  run by `ptw:activate-due` every minute `withoutOverlapping`, and directly after a Final Verification whose
+  start time has passed. Flow permits only. A system action: `App\Support\SystemActor::run()`, read by
+  `ActivityLog::record()` and `RecordsChanges`, records no person (`HasWorkflow::transitionTo()` accepts a
+  null actor).
+- **The editor** (A7): `Components/settings/approval-flow/` — `model.js` (rows ↔ stages, client checks),
+  `ApprovalFlowEditor.jsx` (React Flow canvas on desktop, list + dialog on phones). Pinned by
+  `ApprovalFlowVersionTest` and `PtwApprovalFlowTest`.
+
 ### Workflow Engine
 
 **What it is**: `app/Concerns/HasWorkflow.php`, a state-machine guard around a model's own
@@ -99,6 +140,28 @@ entitlement check. There is deliberately no endpoint that reports record state.
 commit (`DB::afterCommit` — a push must not announce a decision that can still roll back), and
 never at the caller's expense (`app()->terminating` — the push happens after the response, so a
 dead endpoint costs the person who pressed Approve nothing). No queue worker is required.
+
+### Record history: the append-only audit trail (v2.141.0, A13)
+
+`App\Models\Concerns\RecordsChanges` writes one `record_changes` row per create / update / delete /
+restore of a model that uses it: the changed fields with their values **before and after** (timestamps
+ignored, secret-looking fields stored as `[redacted]`), `from_status`/`to_status` when `status` moved,
+the actor's id, name and job title **at the time**, and the context (channel, route, IP). A model with
+`protected bool $recordSnapshotOnTransition = true` (PTW) also stores the full redacted record at every
+transition. Used today by every `HasWorkflow` model (through that trait), `ApprovalFlow`,
+`ApprovalFlowStep` (tenant taken from its flow) and `PtwWorkflowSetting`; Work Order and Form
+definitions add it when built.
+
+- **Append-only:** `RecordChange` throws on `updating` and `deleting`; no route reaches it (a test walks
+  the route table). Rows are kept, never pruned.
+- **Tenant-scoped, fail-closed:** every row stores `tenant_id`; the read scope is `tenant_id = current`
+  (no tenant, no rows).
+- **Never breaks the action:** written in the same transaction as the change, but a write failure is
+  `report()`ed rather than rolling back an approval (the ADR 067 rule).
+- **Read:** `RecordChange::historyFor($model)` → `Components/shared/RecordHistory.jsx` (PTW Show's
+  "Change History" card). `ActivityLog` stays the human-readable feed beside it.
+- Pinned by `RecordChangeAuditTrailTest`. Limitation: changes made without model events bypass it
+  (Known Pitfall in `CONVENTIONS.md`).
 
 ### Activity Timeline
 

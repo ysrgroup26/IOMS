@@ -152,6 +152,29 @@ Not everything settled has an ADR. These live elsewhere and are equally binding:
 
 | Decision | Where |
 |---|---|
+| **Three plans only** (Starter Rp189.000, Professional Rp555.000, Business Rp1.249.000); Enterprise is not used — owner, 2026-11-01 | [[Operational Experience and Workflow Enhancement]] § working agreement; the leftover row is A15 |
+| **PTW flow:** Created → Approval 1..N → Final Verification (performed by whoever the COMPANY configures, not necessarily HSE) → Active automatically at the scheduled start, never earlier, with no manual activation — owner, 2026-11-01. **Supersedes ADR 067's order and fixed HSE verifier**; its enforcement guarantees stay | [[Operational Experience and Workflow Enhancement]] § A8; open safety points A8b |
+| **Work Order:** not in Starter; Professional and Business; entitlement separate from a document quota at Rp600 per document, reusing PTW metering — owner, 2026-11-01 | [[Operational Experience and Workflow Enhancement]] § A9; open W1–W3 |
+| **Technology principle:** free and open source first; paid options proposed with the free alternative and costs; no paid service activated without approval — owner, 2026-11-01 | [[Operational Experience and Workflow Enhancement]] § working agreement |
+| **Form Builder on Form.io `@formio/js` (MIT)**, styled as IOMS, with no custom JavaScript, JSON Logic, server validation and tenant isolation — owner, 2026-11-01 (A6) | [[Operational Experience and Workflow Enhancement]] § 3a |
+| **Append-only audit trail** with before and after values, actor, time and context; not editable or deletable through the application; tenant-aware — owner, 2026-11-01 (A13) | [[Operational Experience and Workflow Enhancement]] § 3a |
+| **PTW expiry → Expired → the requester chooses Close-Out or Request Extension** (a new linked draft PTW with a new number; the old permit never reactivates; the new one runs the full flow); HSE is notified, never the go-between — owner, 2026-11-01 | [[Operational Experience and Workflow Enhancement]] § 3a–3b |
+| **Work Order documents use each plan's PTW document pricing, with a separate quota** — owner, 2026-11-01 | [[Operational Experience and Workflow Enhancement]] § 3a |
+| **Object storage (R2 or COS) deferred**; no paid service activated — owner, 2026-11-01 | [[Operational Experience and Workflow Enhancement]] § 3a |
+| **SIMOPS is visibility only for now** (simultaneous work, area, status); no hold or mitigation mechanism — owner, 2026-11-01 | [[Operational Experience and Workflow Enhancement]] § 3a |
+| **Mandatory notifications (N1):** Assignment and Approval cannot be switched off by a Company Admin or a person, enforced in the UI and on the server — owner, 2026-11-01 | [[Operational Experience and Workflow Enhancement]] § 3c |
+| **PTW Expired (E1–E3):** a stop-work warning until the new PTW is Active; the requester chooses Close-Out or Request Extension; an extension is a new PTW that consumes one PTW document; chains are unlimited and traceable — owner, 2026-11-01 | [[Operational Experience and Workflow Enhancement]] § 3c |
+| **Work Order quota (W1):** Starter none, Professional 200 per month, Business 500 per month, separate from PTW, at PTW document pricing — owner, 2026-11-01 | [[Operational Experience and Workflow Enhancement]] § 3c |
+| **A7 approved:** the Visual Approval Flow Builder uses React Flow (`@xyflow/react`, MIT), styled as IOMS in Light and Midnight, configuring approval by role, position and person, validated on the server, never changing a flow already under way — owner, 2026-11-01 | [[083-a-permit-runs-on-its-companys-flow-and-is-never-verified-by-its-requester\|ADR 083]] |
+| **A8b, separation of duties:** the requester is never the Final Verifier of their own PTW; whoever approved any stage of the same PTW is never its Final Verifier; HSE and a Project Manager may each be an approver or the Final Verifier as the company configures; the Final Verifier comes from the company's Approval Flow, not globally from HSE; enforced on the server; a configuration that leaves no eligible Final Verifier is refused with the reason; every PTW still passes Final Verification before Active — owner, 2026-11-01 | [[083-a-permit-runs-on-its-companys-flow-and-is-never-verified-by-its-requester\|ADR 083]] |
+| **D1 approved:** Tasks across departments through My Work, following legitimate assignment only; a Department User reaches the work assigned to them, never another department's data automatically; the server decides — owner, 2026-11-01 | [[Operational Experience and Workflow Enhancement]] § 6 |
+| **A7, A8b and D1 confirmed** after review: no Super Admin Final Verification unless the flow names them; Department Users reach only tasks they created or were assigned — owner, 2026-11-02 | [[083-a-permit-runs-on-its-companys-flow-and-is-never-verified-by-its-requester\|ADR 083]] |
+| **PTW automatic activation (final rule):** after Final Verification a permit waits for its scheduled start and becomes Active by itself; never before its start, never before approvals and Final Verification, no second manual activation; tenant-aware, idempotent scheduler; notifications on the relevant changes; no running production PTW changes route on deploy — owner, 2026-11-02 | ADR 083 § 8 |
+| **P4 `skipped` status:** approved for testing and staging only; production needs its own approval after the impact, compatibility, rollback and reader audit are shown, and approval history must not be changed — owner, 2026-11-02 | `docs/runbooks/P4-SKIPPED-STATUS.md` |
+| **Operational authorisation (2026-11-02):** Claude may work on the repository, Tencent, staging and production (SSH/root where needed, production deploys within instructions); strategic, financial and materially risky changes, data deletion and audit-history changes stay with the owner | owner's policy message, 2026-11-02 |
+| **Staging operated from GitHub through one forced command** (approved for preparation; not installed): manual workflow, `claude/*` only, CI-green commits only, `iomsstgci` key bound to `ioms-staging-ci`, root-owned `ioms-staging-ops` that knows only staging — owner, 2026-11-02 | [[084-staging-is-operated-through-one-forced-command\|ADR 084]], `docs/runbooks/STAGING-CI.md` |
+| **A14 not yet approved:** a recommendation for the reporting line is requested first | [[A14 Reporting Line Recommendation]] |
+| **A10 still pending:** the six Work Order sections are the base; no field is final until the owner reviews the full draft | [[A10 Work Order Field Draft]] |
 | The bilingual **language hierarchy** (English slots vs Indonesian slots) | `CONVENTIONS.md`, [[CLAUDE]] — **supersedes** v1.11.7's "translate everything" policy |
 | A stat card may clip its **value**, never its **label** | `CONVENTIONS.md` |
 | Colour in a chart must not borrow a meaning the app already assigns it | `CONVENTIONS.md` |
@@ -167,7 +190,7 @@ Stated so nobody spends time looking for missing files:
 - **002, 003 and 005 do not exist.** No record explains why; the numbering simply skips them.
 - **029 is used twice** — `029-production-seeding-without-faker` and
   `029-public-html-split-directory-incident` are different decisions sharing a number.
-- The next ADR should be **061** — 060 is [[060-ppe-completeness-is-computed-from-declared-roles]].
+- The next ADR should be **085** — 084 is [[084-staging-is-operated-through-one-forced-command]].
 
 ---
 

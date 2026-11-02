@@ -39,6 +39,7 @@ Full definitions and the update loop: [[Working with This Knowledge Base]].
 
 | Work | Where it stands | Next |
 |---|---|---|
+| [[Operational Experience and Workflow Enhancement]] — My Work, role dashboards, Work Order↔PTW, visual approval flow, PTW lifecycle and live board, SIMOPS, Form Builder, notifications, audit/versioning | **v2 roadmap** (2026-11-01): performance audit (page responses carried a 426 KB changelog — fixed on branch, 430 KB → 5.7 KB per click), notifications verdict (keep transport, rebuild the event layer), decision pack A1–A14 + D1, milestones M0–M9. M0 in progress | **Owner approval of A1–A14 and D1**; meanwhile the routine M0 items |
 | [[Support Inbox]] | v2.80.0 shipped the whole ticket domain, the queue, the five states, assignment, ageing, sender identification and outgoing replies from `support@`. **Inbound mail ingestion is BLOCKED** (see below) and the queue page says so on screen | Build the ingestion adapter once the transport is chosen. Everything else is done |
 
 ## BLOCKED

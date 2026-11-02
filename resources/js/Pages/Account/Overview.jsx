@@ -3,6 +3,7 @@ import { useState } from 'react';
 import { Button } from '@/Components/ui/button';
 import { Input } from '@/Components/ui/input';
 import { Label } from '@/Components/ui/label';
+import { Checkbox } from '@/Components/ui/checkbox';
 import { Card, CardContent, CardHeader, CardTitle } from '@/Components/ui/card';
 import BrandWordmark from '@/Components/shared/BrandWordmark';
 import { FieldGrid, Field } from '@/Components/shared/DetailFields';
@@ -41,7 +42,7 @@ import {
  * around an empty product would be the "looks like an error" failure this
  * page exists to avoid.
  */
-export default function AccountOverview({ account, hasOrganization, organization, pendingOrder, plans, googleEnabled, workspaceFocus }) {
+export default function AccountOverview({ account, hasOrganization, organization, pendingOrder, plans, googleEnabled, workspaceFocus, notificationPreferences = [] }) {
     const { version, auth } = usePage().props;
     // Shared for a My Work account only; null for everybody else, which
     // means "no allow-list applies" -- see ADR 061.
@@ -84,6 +85,10 @@ export default function AccountOverview({ account, hasOrganization, organization
                             imply otherwise. */}
                         {(workspaceFocus?.options?.length ?? 0) > 1 && (
                             <WorkspaceFocusCard workspaceFocus={workspaceFocus} />
+                        )}
+
+                        {notificationPreferences.length > 0 && (
+                            <NotificationPreferencesCard preferences={notificationPreferences} />
                         )}
                     </div>
 
@@ -515,6 +520,80 @@ function SecurityCard({ account, googleEnabled }) {
                         )}
                     </div>
                 )}
+            </CardContent>
+        </Card>
+    );
+}
+
+/**
+ * v2.141.0 -- WHAT I AM TOLD ABOUT.
+ *
+ * One row per category, two switches: in the app, and as a push to this
+ * person's devices. Assignments and approvals ask the person to act, so their
+ * in-app record stays on (the server enforces the same rule); push follows
+ * the switch for every category.
+ */
+function NotificationPreferencesCard({ preferences }) {
+    const [rows, setRows] = useState(preferences);
+    const [saving, setSaving] = useState(false);
+    const dirty = JSON.stringify(rows) !== JSON.stringify(preferences);
+
+    const toggle = (category, channel) => setRows((current) => current.map((row) => (
+        row.category === category ? { ...row, [channel]: !row[channel] } : row
+    )));
+
+    const save = () => {
+        setSaving(true);
+        router.put(route('account.notification-preferences.update'), {
+            preferences: rows.map(({ category, in_app, push }) => ({ category, in_app, push })),
+        }, { preserveScroll: true, onFinish: () => setSaving(false) });
+    };
+
+    return (
+        <Card>
+            <CardHeader className="pb-2">
+                <CardTitle className="text-[15px]">Notifications</CardTitle>
+                <p className="text-[13px] text-slate-500">Pilih pemberitahuan yang Anda terima di aplikasi dan sebagai push ke perangkat Anda.</p>
+            </CardHeader>
+            <CardContent>
+                <div role="table" aria-label="Notification preferences" className="divide-y divide-steel-100">
+                    <div role="row" className="grid grid-cols-[1fr_auto_auto] items-center gap-4 pb-2 text-[11px] font-semibold uppercase tracking-wide text-slate-400">
+                        <span role="columnheader">Category</span>
+                        <span role="columnheader" className="w-14 text-center">In-app</span>
+                        <span role="columnheader" className="w-14 text-center">Push</span>
+                    </div>
+                    {rows.map((row) => (
+                        <div role="row" key={row.category} className="grid grid-cols-[1fr_auto_auto] items-center gap-4 py-2.5">
+                            <div role="cell" className="min-w-0">
+                                <p className="text-[13px] font-semibold text-navy-900">{row.label}</p>
+                                <p className="text-[12px] leading-snug text-slate-500">
+                                    {row.description}
+                                    {row.in_app_locked && ' Selalu tampil di aplikasi karena meminta tindakan Anda.'}
+                                </p>
+                            </div>
+                            <div role="cell" className="flex w-14 justify-center">
+                                <Checkbox
+                                    checked={row.in_app_locked ? true : row.in_app}
+                                    disabled={row.in_app_locked}
+                                    onCheckedChange={() => toggle(row.category, 'in_app')}
+                                    aria-label={`${row.label}: in-app`}
+                                />
+                            </div>
+                            <div role="cell" className="flex w-14 justify-center">
+                                <Checkbox
+                                    checked={row.push}
+                                    onCheckedChange={() => toggle(row.category, 'push')}
+                                    aria-label={`${row.label}: push`}
+                                />
+                            </div>
+                        </div>
+                    ))}
+                </div>
+                <div className="mt-3 flex justify-end">
+                    <Button type="button" size="sm" onClick={save} disabled={!dirty || saving}>
+                        {saving ? 'Saving…' : 'Save preferences'}
+                    </Button>
+                </div>
             </CardContent>
         </Card>
     );

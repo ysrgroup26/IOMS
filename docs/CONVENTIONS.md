@@ -3,6 +3,98 @@
 House style, and a deliberately honest list of mistakes that have actually happened in this
 codebase's history — kept here so they don't get repeated in a slightly different shape.
 
+## Known Pitfall (v2.141.0): restoring a mysqldump does not remove what came after it
+
+A dump rewrites only the tables it CONTAINS. Rolling back a failed release by loading the pre-deploy dump
+left the table the release's migration had created; the next deploy of that migration would then fail on
+"table already exists". Found by rehearsing `ioms-staging-ops` (ADR 084), whose restore now empties the
+staging database first (`_wipe`). Anything else that restores a dump to undo a deploy must do the same.
+
+## Known Pitfall (v2.141.0): `UsePAM no` locks out key-only service accounts
+
+`iomsci` and `iomsstgci` have their password locked (`passwd -l`) and log in by key only. With
+`UsePAM yes` (Ubuntu's default) that works; with `UsePAM no`, OpenSSH refuses a locked account outright
+("not allowed because account is locked"), valid key or not. Seen in the ADR 084 rehearsal. Do not change it
+on the instance without checking both accounts.
+
+## Known Pitfall (v2.141.0): `workflow_dispatch` needs the workflow on the default branch
+
+A manually triggered workflow appears and runs only once its file exists on `main`. A workflow built on a
+branch is complete but unusable until then; adding it to `main` with `[skip deploy]` avoids deploying
+production (ADR 076).
+
+## Known Pitfall (v2.141.0): an automatic action is credited to whoever's request it ran in
+
+`ActivityLog::record()` and the audit trail take their actor from `auth()`. A permit activated
+automatically inside the Final Verifier's request (start time already passed) would have been recorded as
+activated BY the verifier. Anything the system does on a person's behalf runs inside
+`SystemActor::run()`, which both read as "no person".
+
+## Known Pitfall (v2.141.0): "the same batch" is not a time window
+
+Telling a stale approval row from a re-submission by `created_at ± 5 s` failed on a quick resubmit (and
+always in tests, where everything happens within one second). Decide such questions from structure, not
+from clocks: here, only rows WITHOUT a pinned version can be stale, because the engine closes a pinned
+row's siblings the moment its stage is decided.
+
+## Known Pitfall (v2.141.0): a MySQL JSON column does not keep your key order
+
+`ApprovalFlowVersion::currentFor()` compared the stored steps with `===` and published a NEW version for
+every request on MySQL, while every SQLite test passed: MySQL's JSON type normalises (sorts) object keys,
+SQLite stores the text as written. Compare JSON-cast arrays canonically (`ApprovalFlowVersion::canonical()`:
+sorted keys, normalised scalars), and check anything that compares stored JSON on MySQL, not only in the
+suite. Found by running the staging review seeder against the local MySQL.
+
+## Known Pitfall (v2.141.0): ask "which route?" before the transition, not after
+
+Whether a permit runs on its company's approval flow is decided by its operating unit's mode **while it is
+a draft**; once submitted, only its own Approval rows say so. The review seeder asked after
+`transitionTo(SUBMITTED)` and silently put permits on the legacy gates. The controller asks before
+(`$onFlow` is computed first) -- keep it that way, in any new submission path.
+
+## Known Pitfall (v2.141.0): a decided stage must close its other rows
+
+A parallel "any one approver" stage left the other approvers' rows `pending` for ever (P4): they kept
+appearing in Waiting on Me, and a second decision could advance the record again. A row that is no longer
+needed is `skipped`. Any new multi-approver mechanism must say what happens to the rows a decision makes
+redundant.
+
+## Known Pitfall (v2.141.0): configuration read live by a process already under way
+
+The approval engine read a flow's steps at every decision, so editing or removing a flow changed
+requests that had started under the old one (re-routed, collapsed to one step), and escalation wrote
+INTO the flow. Anything that runs over time against configuration -- an approval chain, a form
+definition, a checklist template -- must pin the version it started on (`ApprovalFlowVersion` is the
+pattern), and a per-instance exception (an escalation) belongs on the instance, never on the shared
+configuration. Watch for `nullOnDelete` foreign keys too: a nulled reference can silently select a
+different, weaker code path.
+
+## Known Pitfall (v2.141.0): a raw `DB::table()` write leaves no audit trail
+
+`record_changes` (A13) is written by the `RecordsChanges` model trait, so it sees only changes made
+through **Eloquent model events**. `DB::table('permits_to_work')->update(...)`, a query-builder
+`Model::where(...)->update(...)` (a mass update fires no model events) and `saveQuietly()` all change a
+record WITHOUT a history row. On a model that records changes (every `HasWorkflow` model, approval
+flows and steps, PTW workflow settings), load the model and call `update()`/`transitionTo()` on it.
+Equally: never write to `record_changes` with the query builder -- `RecordChange` refuses update and
+delete only on the Eloquent path.
+
+## Known Pitfall (v2.141.0): a scheduled command has NO tenant, so a tenant-scoped read returns nothing
+
+`approvals:escalate` ran hourly and **never escalated anything in production**. The scheduler
+resolves no tenant, and every tenant-scoped model fails closed (`TenantScope`, `CompanyOwnedScope`
+→ `-1`). `Approval` itself is unscoped, so the query looked fine, but the flow it loaded
+(`$approval->flow`, `BelongsToCompany`) was always `null`, and the step was skipped silently. Nothing
+errored, so nothing was noticed.
+
+**Rule:** a command or job that reads tenant data either:
+- loads what it needs unscoped and then works **inside that record's tenant** (set `CurrentTenant`,
+  restore it in `finally`), as `ApprovalEngine::checkEscalations()` now does; or
+- walks the tenants and sets each in turn, as `notifications:deadlines` does.
+
+Its test must run the command with `CurrentTenant` set to `null`, exactly as the scheduler does.
+`ApprovalEscalationTenantContextTest` fails without the fix.
+
 ## Known Pitfall (2026-10-25): `curl … | grep -q` under pipefail fails on success
 
 `grep -q` exits at its first match; `curl`, still writing a large page, gets SIGPIPE, and with

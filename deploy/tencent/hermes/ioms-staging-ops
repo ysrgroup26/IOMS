@@ -1,0 +1,311 @@
+#!/usr/bin/env bash
+#
+# ioms-staging-ops -- the ONE tool that operates the IOMS staging preview (ADR 084).
+#
+# Installed root-owned at /usr/local/bin/ioms-staging-ops by enable-staging-ci.sh and reached
+# only through sudo, by the forced command /usr/local/sbin/ioms-staging-ci (the `iomsstgci`
+# account's single SSH key, used by .github/workflows/staging.yml). Mirrors ioms-ops (ADR 073/076)
+# for staging, and is deliberately narrower:
+#
+#   status                     what staging runs, its health, pending migrations, backups
+#   deploy <claude/branch> <sha>
+#                              backup -> pre-checks -> checkout EXACTLY <sha> -> composer ->
+#                              migrate (staging DB) -> caches -> health -> automatic rollback
+#                              (code AND database, from the pre-deploy backup) when unhealthy
+#   flows                      backup, then (re)seed the Approval Flow review tenant
+#                              (ApprovalFlowReviewSeeder) with the staging app password
+#   activate-due               run the PTW scheduler pass once (staging has no cron)
+#   review-check               read-only report of the review tenant (no writes; rolled back)
+#   logs app|ops [N]           redacted tail of the staging Laravel log or this tool's audit log
+#
+# STAGING ONLY, BY CONSTRUCTION. Every path, account, database and port is a constant below;
+# nothing is taken from the caller except a validated branch name, a 40-hex commit and a line
+# count. Before any change it proves it is pointed at staging (assert_staging): the app lives
+# under /srv/ioms-staging, its .env names the `ioms_staging` database and a non-production
+# APP_ENV. It never reads the production .env, never calls ioms-ops, never restarts a service
+# (php-fpm and nginx are shared with production) and never touches the production checkout,
+# database, credentials, queue or scheduler.
+#
+# Every invocation is appended to /var/log/ioms-staging-ops.log (JSON lines, root-only) and to
+# syslog (tag ioms-staging-ops). One run at a time (flock); deploys are rate-limited.
+set -uo pipefail
+umask 027
+
+ROOT=/srv/ioms-staging
+APP=$ROOT/app
+STG_USER=iomsstg
+DB_EXPECTED=ioms_staging
+PORT=8082
+HOST=staging.iomsuite.com
+STATE=/var/lib/ioms-staging-ops
+AUDIT=/var/log/ioms-staging-ops.log
+BACKUPS=/var/backups/ioms-staging
+CRED=/root/ioms-staging-credentials.txt
+LIB=/usr/local/lib/ioms-staging-ops
+KEEP_BACKUPS=10
+MAX_DEPLOYS_PER_HOUR=12
+MIN_FREE_MB=1024
+EXPECTED_REMOTE_RE='github\.com[:/]ysrgroup26/IOMS(\.git)?$'
+
+BRANCH_RE='^claude/[A-Za-z0-9._-]+(/[A-Za-z0-9._-]+)*$'
+SHA_RE='^[0-9a-f]{40}$'
+LINES_RE='^[0-9]{1,3}$'
+
+CALLER="${SUDO_USER:-$(id -un)}"
+ORIG_ARGS="$*"
+
+# ------------------------------------------------------------------ helpers
+
+audit() { # result exit [detail]
+    local line
+    line="$(jq -cn --arg t "$(date -Is)" --arg c "$CALLER" --arg cmd "$ORIG_ARGS" \
+        --arg r "$1" --argjson e "$2" --arg d "${3:-}" \
+        '{time:$t, caller:$c, command:$cmd, result:$r, exit:$e, detail:$d}')"
+    printf '%s\n' "$line" >> "$AUDIT"
+    logger -t ioms-staging-ops -- "$line" 2>/dev/null || true
+}
+refuse() { echo "REFUSED: $*" >&2; audit refused 1 "$*"; exit 1; }
+
+valid_branch() {
+    local b="$1"
+    [[ "$b" =~ $BRANCH_RE ]] && [[ "$b" != *..* && "$b" != *.lock && "$b" != */ && "$b" != *//* ]]
+}
+valid_sha() { [[ "$1" =~ $SHA_RE ]]; }
+valid_lines() { [[ "$1" =~ $LINES_RE ]] && (( 10#$1 >= 1 && 10#$1 <= 500 )); }
+
+# Same rules as ioms-ops: credentials, bearer tokens and URL tokens never leave the host.
+redact() {
+    sed -E \
+        -e 's/(Bearer )[A-Za-z0-9._~+\/=-]+/\1[REDACTED]/Ig' \
+        -e 's/((password|passwd|secret|token|api[_-]?key|signature)["'"'"' ]*[:=] *)"[^"]*"/\1"[REDACTED]"/Ig' \
+        -e "s/((password|passwd|secret|token|api[_-]?key|signature)[\"' ]*[:=] *)'[^']*'/\1'[REDACTED]'/Ig" \
+        -e 's/((password|passwd|secret|token|api[_-]?key|authorization|signature)["'"'"' ]*[:=][ "'"'"']*)(Bearer \[REDACTED\]|"\[REDACTED\]"|'"'"'\[REDACTED\]'"'"'|[^ ,"'"'"'&]+)/\1[REDACTED]/Ig' \
+        -e 's/(mysql:\/\/[^:]+:)[^@]+@/\1[REDACTED]@/g' \
+        -e 's/(APP_KEY=)[^ ]+/\1[REDACTED]/g' \
+        -e 's#(/get-started/(verify/)?)[A-Za-z0-9]{16,}#\1[TOKEN]#g' \
+        -e 's#(/(reset-password|email/verify|verify-email)/)[^ ?"]+#\1[TOKEN]#g' \
+        -e 's#([?&](signature|token|expires|hash)=)[^ &"]+#\1[REDACTED]#g'
+}
+
+# Run as the staging account, in the staging checkout. Arguments are only ever constants or
+# values that already passed valid_branch / valid_sha / valid_lines.
+as_stg() { sudo -u "$STG_USER" -H bash -c "cd '$APP' && $*"; }
+G() { sudo -u "$STG_USER" -H git -C "$APP" "$@"; }
+
+env_value() { # KEY [file] -> value from the staging .env (quotes stripped)
+    local f="${2:-$APP/.env}"
+    sed -nE "s/^$1=(.*)$/\1/p" "$f" 2>/dev/null | tail -1 | sed -E 's/^"(.*)"$/\1/; s/^'"'"'(.*)'"'"'$/\1/'
+}
+
+# The guard every changing command passes first: this is staging, and only staging.
+# Split so the tests can check each rule: path_problem (where), env_problem (what it connects to).
+path_problem() { # app-dir -> prints the problem, or nothing
+    local real; real="$(realpath -m "$1")"
+    [[ "$real" == /srv/ioms-staging/app ]] || echo "app path $real is not the staging checkout /srv/ioms-staging/app"
+}
+env_problem() { # env-file -> prints the problem, or nothing
+    local f="$1" env
+    [[ -f "$f" ]] || { echo "no staging .env at $f"; return; }
+    [[ "$(env_value DB_DATABASE "$f")" == "$DB_EXPECTED" ]] || { echo "the .env does not name the $DB_EXPECTED database"; return; }
+    env="$(env_value APP_ENV "$f")"
+    [[ -n "$env" && "$env" != production ]] || { echo "the .env has APP_ENV='${env}' (must be set and not production)"; return; }
+    [[ "$(env_value DB_USERNAME "$f")" == "$STG_USER" ]] || { echo "the .env must connect as $STG_USER"; return; }
+}
+assert_staging() {
+    local p
+    p="$(path_problem "$APP")"; [[ -z "$p" ]] || refuse "$p"
+    p="$(env_problem "$APP/.env")"; [[ -z "$p" ]] || refuse "$p"
+    if [[ -d "$APP/.git" ]]; then
+        [[ "$(G config --get remote.origin.url)" =~ $EXPECTED_REMOTE_RE ]] || refuse "staging origin is not ysrgroup26/IOMS"
+    fi
+    return 0
+}
+
+rate_ok() { # bucket limit -- sliding hour
+    local f="$STATE/rate-$1" now; now="$(date +%s)"
+    touch "$f"; awk -v n="$now" '$1 > n-3600' "$f" > "$f.tmp"; mv "$f.tmp" "$f"
+    [[ "$(wc -l < "$f")" -lt "$2" ]] || return 1
+    echo "$now" >> "$f"
+}
+
+head_sha() { G rev-parse HEAD 2>/dev/null; }
+outcome() { printf '{"time":"%s","outcome":"%s","target":"%s","previous":"%s"}\n' "$(date -Is)" "$1" "${2:-}" "${3:-}" > "$STATE/last-outcome.json"; }
+
+health() { # 0 when staging answers /up and /login on its loopback port
+    local up login
+    up="$(curl -s -o /dev/null -m 15 -w '%{http_code}' -H "Host: $HOST" "http://127.0.0.1:$PORT/up" || true)"
+    login="$(curl -s -o /dev/null -m 15 -w '%{http_code}' -H "Host: $HOST" "http://127.0.0.1:$PORT/login" || true)"
+    echo "  /up $up, /login $login"
+    [[ "$up" == 200 && "$login" == 200 ]] || return 1
+    as_stg "php artisan about --only=environment >/dev/null 2>&1" || { echo "  artisan does not boot"; return 1; }
+}
+
+# mysqldump with the STAGING .env credentials only, through a root-only defaults file.
+# No `database=` in [client] (mysqldump rejects it -- ADR 072).
+with_db_defaults() { # command...
+    local f; f="$(mktemp "$STATE/my.XXXXXX")"; chmod 600 "$f"
+    {
+        echo "[client]"
+        echo "user=$(env_value DB_USERNAME)"
+        echo "password=$(env_value DB_PASSWORD)"
+        local sock host; sock="$(env_value DB_SOCKET)"; host="$(env_value DB_HOST)"
+        if [[ -n "$sock" ]]; then echo "socket=$sock"; else echo "host=${host:-localhost}"; fi
+    } > "$f"
+    "$@" "$f"; local rc=$?
+    rm -f "$f"; return $rc
+}
+_dump() { mysqldump --defaults-extra-file="$1" --single-transaction --no-tablespaces --routines "$DB_EXPECTED"; }
+_restore() { mysql --defaults-extra-file="$1" "$DB_EXPECTED"; }
+
+backup() { # label -> prints the backup file
+    install -d -m 700 -o root -g root "$BACKUPS"
+    local file; file="$BACKUPS/$(date +%Y%m%d-%H%M%S)-$1.sql.gz"
+    with_db_defaults _dump_to "$file" || { rm -f "$file"; return 1; }
+    gzip -t "$file" 2>/dev/null && [[ -s "$file" ]] || { rm -f "$file"; return 1; }
+    chmod 600 "$file"
+    ls -1t "$BACKUPS"/*.sql.gz 2>/dev/null | tail -n +$((KEEP_BACKUPS + 1)) | xargs -r rm -f
+    echo "$file"
+}
+# pipefail is on: a failing mysqldump fails the pipeline even though gzip succeeded.
+_dump_to() { _dump "$2" | gzip > "$1"; }
+RESTORE_FILE=""
+_restore_from() { gunzip -c "$RESTORE_FILE" | _restore "$1"; }
+restore() { # file
+    [[ -f "$1" ]] || return 1
+    RESTORE_FILE="$1"
+    with_db_defaults _restore_from
+}
+
+refresh_caches() { as_stg "php artisan optimize:clear >/dev/null && php artisan config:cache >/dev/null"; }
+build_code() { as_stg "composer install -q --no-dev --no-interaction --optimize-autoloader"; }
+
+# ------------------------------------------------------------------ commands
+
+do_status() {
+    echo "staging: $APP"
+    echo "branch:  $(G rev-parse --abbrev-ref HEAD 2>/dev/null)"
+    echo "commit:  $(head_sha)"
+    echo "pending migrations:"; as_stg "php artisan migrate:status --pending 2>/dev/null" | tail -n +1 | sed 's/^/  /' | redact
+    echo "health:"; if health; then echo "  healthy"; else echo "  UNHEALTHY"; fi
+    echo "last outcome: $(cat "$STATE/last-outcome.json" 2>/dev/null || echo none)"
+    echo "backups:"; ls -1t "$BACKUPS"/*.sql.gz 2>/dev/null | head -5 | xargs -r -n1 basename | sed 's/^/  /'
+    echo "free disk: $(df -Pm "$ROOT" | awk 'NR==2{print $4}') MB"
+}
+
+do_deploy() { # branch sha
+    local branch="$1" sha="$2"
+    valid_branch "$branch" || refuse "branch must be claude/<name>"
+    valid_sha "$sha" || refuse "commit must be a 40-character id"
+    assert_staging
+    rate_ok deploy "$MAX_DEPLOYS_PER_HOUR" || refuse "more than $MAX_DEPLOYS_PER_HOUR staging deploys in the last hour"
+
+    local free; free="$(df -Pm "$ROOT" | awk 'NR==2{print $4}')"
+    (( free >= MIN_FREE_MB )) || refuse "only ${free} MB free under $ROOT (need $MIN_FREE_MB)"
+
+    local prev; prev="$(head_sha)"
+    echo "== pre-checks"
+    G fetch -q origin "$branch" || refuse "cannot fetch origin/$branch"
+    local fetched; fetched="$(G rev-parse FETCH_HEAD)"
+    [[ "$fetched" == "$sha" ]] || refuse "origin/$branch is at ${fetched:0:7}, not the CI-checked ${sha:0:7} -- run the workflow again"
+    echo "  staging at ${prev:0:7}; deploying $branch @ ${sha:0:7}"
+    echo "  health before:"; health || echo "  (staging was already unhealthy)"
+
+    echo "== backup"
+    local dump; dump="$(backup "pre-deploy-${prev:0:7}")" || { outcome backup_failed "$sha" "$prev"; refuse "backup of $DB_EXPECTED failed -- nothing deployed"; }
+    echo "  $(basename "$dump")"
+
+    echo "== deploy"
+    if G checkout -q -B "$branch" "$sha" && [[ "$(head_sha)" == "$sha" ]] && build_code \
+        && as_stg "php artisan migrate --force" 2>&1 | redact | tail -n 20 \
+        && refresh_caches; then
+        echo "== health"
+        if health; then
+            echo "$sha" > "$STATE/last-good"; outcome deployed "$sha" "$prev"
+            echo "DEPLOYED ${sha:0:7} to staging"
+            return 0
+        fi
+    fi
+
+    echo "== UNHEALTHY or failed -- rolling back to ${prev:0:7} (code and database)"
+    local rb=ok
+    restore "$dump" || rb=failed
+    G checkout -q --detach "$prev" || rb=failed
+    build_code || rb=failed
+    refresh_caches || rb=failed
+    if [[ $rb == ok ]] && health; then
+        outcome rolled_back "$sha" "$prev"; echo "ROLLED BACK: staging is at ${prev:0:7} with its pre-deploy database"
+    else
+        outcome rollback_failed "$sha" "$prev"; echo "ROLLBACK FAILED -- a person must look (backup: $(basename "$dump"))"
+    fi
+    return 1
+}
+
+do_flows() {
+    assert_staging
+    [[ -r "$CRED" ]] || refuse "$CRED not found (run staging.sh setup first)"
+    local pass; pass="$(sed -n 's/^App login[^:]*:  *//p' "$CRED" | head -1)"
+    [[ -n "$pass" ]] || refuse "no app password in $CRED"
+    echo "== backup"
+    local dump; dump="$(backup pre-flows)" || refuse "backup failed -- nothing seeded"
+    echo "  $(basename "$dump")"
+    echo "== seed ApprovalFlowReviewSeeder"
+    local pf="$ROOT/.flows-pass"
+    ( umask 077; printf '%s' "$pass" > "$pf" ); unset pass
+    chown "$STG_USER:$STG_USER" "$pf"; chmod 600 "$pf"
+    local rc=0
+    as_stg "IOMS_PILOT_PASSWORD=\"\$(cat '$pf')\" php artisan db:seed --class=ApprovalFlowReviewSeeder --force" 2>&1 | redact | tail -n 20 || rc=$?
+    rm -f "$pf"
+    [[ $rc -eq 0 ]] || { echo "SEED FAILED (backup: $(basename "$dump"))"; return 1; }
+    echo "SEEDED: flow.*@ioms.local use the staging app password"
+}
+
+do_activate_due() {
+    assert_staging
+    as_stg "php artisan ptw:activate-due" 2>&1 | redact
+    return "${PIPESTATUS[0]}"
+}
+
+do_review_check() {
+    assert_staging
+    # Read-only by construction: the script opens a transaction and rolls it back.
+    as_stg "php '$LIB/review-check.php' '$APP'" 2>&1 | redact
+    return "${PIPESTATUS[0]}"
+}
+
+do_logs() { # app|ops [N]
+    local which="${1:-app}" n="${2:-200}" file
+    valid_lines "$n" || refuse "N must be 1-500"
+    case "$which" in
+        app) file="$(ls -1t "$APP"/storage/logs/laravel*.log 2>/dev/null | head -1)" ;;
+        ops) file="$AUDIT" ;;
+        *) refuse "logs: app|ops" ;;
+    esac
+    [[ -n "$file" && -r "$file" ]] || { echo "(no $which log)"; return 0; }
+    tail -n "$n" "$file" | redact
+}
+
+main() {
+    [[ $EUID -eq 0 ]] || { echo "ioms-staging-ops must run through sudo." >&2; exit 1; }
+    install -d -m 750 -o root -g root "$STATE"
+    touch "$AUDIT"; chmod 640 "$AUDIT"
+    exec 9> "$STATE/lock"
+    flock -n 9 || refuse "another staging operation is running"
+
+    local rc=0
+    case "${1:-}" in
+        status) [[ $# -eq 1 ]] || refuse "status takes no arguments"; do_status; rc=$? ;;
+        deploy) [[ $# -eq 3 ]] || refuse "usage: deploy <claude/branch> <40-char sha>"; do_deploy "$2" "$3"; rc=$? ;;
+        flows) [[ $# -eq 1 ]] || refuse "flows takes no arguments"; do_flows; rc=$? ;;
+        activate-due) [[ $# -eq 1 ]] || refuse "activate-due takes no arguments"; do_activate_due; rc=$? ;;
+        review-check) [[ $# -eq 1 ]] || refuse "review-check takes no arguments"; do_review_check; rc=$? ;;
+        logs) [[ $# -le 3 ]] || refuse "usage: logs app|ops [N]"; do_logs "${2:-app}" "${3:-200}"; rc=$? ;;
+        *) refuse "usage: status | deploy <claude/branch> <sha> | flows | activate-due | review-check | logs app|ops [N]" ;;
+    esac
+    audit "$([[ $rc -eq 0 ]] && echo ok || echo failed)" "$rc"
+    exit "$rc"
+}
+
+# Sourced by the tests (.github/scripts/test-staging-ops.sh) for the validators; run otherwise.
+if [[ "${BASH_SOURCE[0]}" == "$0" ]]; then
+    main "$@"
+fi

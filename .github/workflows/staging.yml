@@ -1,0 +1,140 @@
+# Staging -- operate the staging preview (staging.iomsuite.com) from GitHub, and nothing else (ADR 084).
+#
+# Manual only (workflow_dispatch). It SSHes to the Tencent instance as `iomsstgci`, whose single
+# key is a forced command (/usr/local/sbin/ioms-staging-ci) that accepts six actions and hands
+# them to the root-owned ioms-staging-ops, which knows only the staging checkout, account and
+# database. There is no path from here to production: different account, different key,
+# different sudo rule, different tool, and the production secrets (IOMS_DEPLOY_*) are never read.
+#
+#   status        what staging runs, health, pending migrations, backups      (changes nothing)
+#   deploy        deploy a claude/* branch: the branch's head commit must have a GREEN CI run;
+#                 that exact commit is passed to the server, which refuses if the branch moved.
+#                 Backup -> checkout -> composer -> migrate (staging DB) -> health -> automatic
+#                 rollback of code and database when unhealthy.
+#   flows         backup, then (re)seed the Approval Flow review tenant
+#   activate-due  run the PTW scheduler pass once (staging has no cron)
+#   review-check  read-only report of the review tenant                         (changes nothing)
+#   logs          redacted tail of the staging Laravel log (or the ops audit log) (changes nothing)
+#
+# Secrets (repository secrets, created by deploy/tencent/hermes/enable-staging-ci.sh):
+#   IOMS_STAGING_SSH_KEY      private key of iomsstgci (forced command only)
+#   IOMS_STAGING_KNOWN_HOSTS  "<host> ssh-ed25519 AAAA..." -- the host key is PINNED, never learnt
+#   IOMS_STAGING_HOST         optional; defaults to the Tencent instance address
+# Until they exist this workflow reports "not configured" and changes nothing.
+name: Staging
+
+on:
+  workflow_dispatch:
+    inputs:
+      action:
+        description: 'status | deploy | flows | activate-due | review-check | logs'
+        type: choice
+        options: [status, deploy, flows, activate-due, review-check, logs]
+        default: status
+      branch:
+        description: 'For deploy: a claude/* branch (its head commit must have a green CI run)'
+        default: claude/eloquent-newton-pbxxdg
+      log:
+        description: 'For logs: app (staging Laravel log) or ops (staging ops audit log)'
+        type: choice
+        options: [app, ops]
+        default: app
+      lines:
+        description: 'For logs: number of lines (1-500)'
+        default: '200'
+
+concurrency:
+  group: ioms-staging
+  cancel-in-progress: false
+
+permissions:
+  contents: read
+  actions: read
+  checks: read
+
+env:
+  DEFAULT_HOST: 43.173.21.31
+
+defaults:
+  run:
+    shell: bash --noprofile --norc {0}
+
+jobs:
+  staging:
+    name: Staging (${{ inputs.action }})
+    runs-on: ubuntu-24.04
+    timeout-minutes: 45
+    steps:
+      - name: Validate the request
+        id: req
+        env:
+          ACTION: ${{ inputs.action }}
+          BRANCH: ${{ inputs.branch }}
+          LOG: ${{ inputs.log }}
+          LINES: ${{ inputs.lines }}
+          GH_TOKEN: ${{ github.token }}
+          REPO: ${{ github.repository }}
+        run: |
+          set -euo pipefail
+          case "$ACTION" in
+            status|flows|activate-due|review-check) remote="$ACTION" ;;
+            logs)
+              [[ "$LOG" == app || "$LOG" == ops ]] || { echo "::error::log must be app or ops"; exit 1; }
+              [[ "$LINES" =~ ^[0-9]{1,3}$ ]] && (( 10#$LINES >= 1 && 10#$LINES <= 500 )) || { echo "::error::lines must be 1-500"; exit 1; }
+              remote="logs $LOG $((10#$LINES))" ;;
+            deploy)
+              if [[ ! "$BRANCH" =~ ^claude/[A-Za-z0-9._-]+(/[A-Za-z0-9._-]+)*$ || "$BRANCH" == *..* || "$BRANCH" == *.lock ]]; then
+                echo "::error::staging deploys only claude/* branches (got '$BRANCH')"; exit 1
+              fi
+              sha="$(gh api "repos/$REPO/commits/$BRANCH" --jq '.sha')"
+              [[ "$sha" =~ ^[0-9a-f]{40}$ ]] || { echo "::error::could not resolve $BRANCH"; exit 1; }
+              green="$(gh api "repos/$REPO/actions/workflows/ci.yml/runs?head_sha=$sha&status=completed&per_page=20" \
+                --jq '[.workflow_runs[] | select(.conclusion == "success")] | length')"
+              if [[ "${green:-0}" -lt 1 ]]; then
+                echo "::error::$BRANCH @ ${sha:0:7} has no green CI run -- staging deploys only tested commits"; exit 1
+              fi
+              echo "CI is green for $BRANCH @ ${sha:0:7}"
+              remote="deploy $BRANCH $sha" ;;
+            *) echo "::error::unknown action"; exit 1 ;;
+          esac
+          echo "remote=$remote" >> "$GITHUB_OUTPUT"
+          echo "Request: $remote"
+
+      - name: Run on staging
+        id: run
+        env:
+          KEY: ${{ secrets.IOMS_STAGING_SSH_KEY }}
+          KNOWN: ${{ secrets.IOMS_STAGING_KNOWN_HOSTS }}
+          HOST_SECRET: ${{ secrets.IOMS_STAGING_HOST }}
+          REMOTE: ${{ steps.req.outputs.remote }}
+        run: |
+          set -uo pipefail   # deliberately NOT -e: a failing ssh must still be printed
+          if [[ -z "$KEY" || -z "$KNOWN" ]]; then
+            echo "::notice::Staging is not configured (IOMS_STAGING_SSH_KEY / IOMS_STAGING_KNOWN_HOSTS missing). Nothing was done."
+            echo "rc=0" >> "$GITHUB_OUTPUT"; exit 0
+          fi
+          host="${HOST_SECRET:-$DEFAULT_HOST}"
+          d="$(mktemp -d)"; trap 'rm -rf "$d"' EXIT
+          umask 077
+          printf '%s\n' "$KEY" > "$d/key"
+          printf '%s\n' "$KNOWN" > "$d/known_hosts"
+          rc=0
+          ssh -T -i "$d/key" -o UserKnownHostsFile="$d/known_hosts" -o StrictHostKeyChecking=yes \
+              -o BatchMode=yes -o IdentitiesOnly=yes -o ConnectTimeout=20 -o ServerAliveInterval=30 \
+              -o ForwardAgent=no -o ClearAllForwardings=yes \
+              "iomsstgci@$host" "$REMOTE" > "$d/out.txt" 2>&1 || rc=$?
+          echo "::group::Staging output (ssh exit $rc)"; cat "$d/out.txt"; echo "::endgroup::"
+          {
+            echo "### Staging: \`$REMOTE\`"
+            echo ""
+            echo "ssh exit: \`$rc\`"
+            echo ""
+            echo '```'
+            tail -n 120 "$d/out.txt"
+            echo '```'
+          } >> "$GITHUB_STEP_SUMMARY"
+          echo "rc=$rc" >> "$GITHUB_OUTPUT"
+          if [[ $rc -eq 255 ]]; then
+            echo "::error::could not reach iomsstgci@$host over SSH (exit 255): unreachable, port 22 closed to GitHub, or the key/host key was refused"
+          fi
+          exit "$rc"

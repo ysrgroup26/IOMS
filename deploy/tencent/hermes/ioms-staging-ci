@@ -1,0 +1,54 @@
+#!/usr/bin/env bash
+#
+# ioms-staging-ci -- the ONLY thing the staging CI account can run (ADR 084).
+#
+# Installed root-owned at /usr/local/sbin/ioms-staging-ci by enable-staging-ci.sh and bound to
+# the `iomsstgci` account's single SSH key as a forced command:
+#
+#     restrict,command="/usr/local/sbin/ioms-staging-ci" ssh-ed25519 AAAA... ioms-staging-ci
+#
+# `restrict` = no pty, no port/agent/X11 forwarding, no user rc. Whatever the workflow
+# (.github/workflows/staging.yml) asks for arrives in SSH_ORIGINAL_COMMAND and is checked
+# here against an allow-list before anything runs; the work itself is done by the root-owned
+# ioms-staging-ops through ONE narrow sudo rule. Accepted, exactly:
+#
+#     status
+#     deploy <claude/branch> <40-hex sha>
+#     flows
+#     activate-due
+#     review-check
+#     logs app|ops [1-500]
+#
+# Anything else -- a shell, a second command, a quote, a variable, a different branch
+# namespace -- is REFUSED before sudo is ever called. There is no path to production here:
+# ioms-staging-ops knows only the staging checkout, account and database.
+set -uo pipefail
+OPS=/usr/local/bin/ioms-staging-ops
+cmd="${SSH_ORIGINAL_COMMAND:-}"
+
+refuse() { echo "REFUSED: $*"; logger -t ioms-staging-ci -- "refused: $(printf '%q' "$cmd")" 2>/dev/null || true; exit 2; }
+
+# One line of plain words: letters, digits, . _ - / and single spaces. No metacharacters.
+[[ -n "$cmd" ]] || refuse "no command (this key runs only the staging allow-list)"
+[[ ${#cmd} -le 200 ]] || refuse "command too long"
+[[ "$cmd" =~ ^[A-Za-z0-9._/-]+(\ [A-Za-z0-9._/-]+){0,2}$ ]] || refuse "only plain words are accepted"
+
+read -r verb a1 a2 extra <<<"$cmd"
+[[ -z "${extra:-}" ]] || refuse "too many arguments"
+
+BRANCH_RE='^claude/[A-Za-z0-9._-]+(/[A-Za-z0-9._-]+)*$'
+case "$verb" in
+    status|flows|activate-due|review-check)
+        [[ -z "${a1:-}" ]] || refuse "$verb takes no arguments"
+        exec sudo -n "$OPS" "$verb" ;;
+    deploy)
+        [[ "${a1:-}" =~ $BRANCH_RE && "$a1" != *..* && "$a1" != *.lock ]] || refuse "usage: deploy <claude/branch> <40-character commit id>"
+        [[ "${a2:-}" =~ ^[0-9a-f]{40}$ ]] || refuse "usage: deploy <claude/branch> <40-character commit id>"
+        exec sudo -n "$OPS" deploy "$a1" "$a2" ;;
+    logs)
+        [[ "${a1:-app}" == app || "${a1:-app}" == ops ]] || refuse "usage: logs app|ops [1-500]"
+        [[ -z "${a2:-}" || "$a2" =~ ^[0-9]{1,3}$ ]] || refuse "usage: logs app|ops [1-500]"
+        exec sudo -n "$OPS" logs "${a1:-app}" "${a2:-200}" ;;
+    *)
+        refuse "this key may only run: status | deploy <claude/branch> <sha> | flows | activate-due | review-check | logs app|ops [N]" ;;
+esac

@@ -78,10 +78,12 @@ jobs:
         run: |
           set -euo pipefail
           for f in deploy.sh deploy/tencent/*.sh deploy/tencent/hermes/*.sh deploy/tencent/hermes/ioms-ops \
-                   deploy/tencent/hermes/ioms-ci-deploy deploy/tencent/hermes/ioms-release-watch; do
+                   deploy/tencent/hermes/ioms-ci-deploy deploy/tencent/hermes/ioms-release-watch \
+                   deploy/tencent/hermes/ioms-staging-ops deploy/tencent/hermes/ioms-staging-ci; do
             bash -n "$f" && echo "ok  $f"
           done
           php -l deploy/tencent/hermes/migration-policy.php
+          php -l deploy/tencent/hermes/staging-review-check.php
 
       - name: Workflows (actionlint)
         run: |
@@ -98,6 +100,10 @@ jobs:
           set -euo pipefail
           shellcheck -S warning .github/scripts/*.sh
           bash .github/scripts/test-workflows.sh
+          # ADR 084: the staging forced command's allow-list, the staging-only guards and the
+          # Staging workflow's shape (manual, read-only token, pinned host key, staging secrets).
+          shellcheck -S warning deploy/tencent/hermes/ioms-staging-ops deploy/tencent/hermes/ioms-staging-ci deploy/tencent/hermes/enable-staging-ci.sh
+          bash .github/scripts/test-staging-ops.sh
 
       # The served frontend IS the committed public/build (no server runs a JS build).
       # A frontend change without its build deploys new PHP against old screens.

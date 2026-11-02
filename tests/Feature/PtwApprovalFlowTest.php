@@ -154,8 +154,13 @@ class PtwApprovalFlowTest extends TestCase
         $this->assertSame($hse->id, $permit->hse_verifier_id);
         $this->assertSame($manager->id, $permit->hse_approver_id);
 
-        // Ready for activation; whoever decided a stage may activate.
-        $this->actingAs($manager)->post(route('permits-to-work.transition', $permit), ['status' => 'active'])->assertSessionHasNoErrors();
+        // Approved and waiting for its start time: nobody activates it by hand...
+        $this->actingAs($manager)->post(route('permits-to-work.transition', $permit), ['status' => 'active'])->assertSessionHas('flash.error');
+        $this->assertSame(PermitToWork::STATUS_APPROVED, $permit->fresh()->status);
+
+        // ...it becomes Active by itself once the start time is reached.
+        $this->travel(2)->hours();
+        $this->artisan('ptw:activate-due')->assertSuccessful();
         $this->assertSame(PermitToWork::STATUS_ACTIVE, $permit->fresh()->status);
     }
 

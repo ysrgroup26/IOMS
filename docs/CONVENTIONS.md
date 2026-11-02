@@ -3,6 +3,20 @@
 House style, and a deliberately honest list of mistakes that have actually happened in this
 codebase's history — kept here so they don't get repeated in a slightly different shape.
 
+## Known Pitfall (v2.141.0): an automatic action is credited to whoever's request it ran in
+
+`ActivityLog::record()` and the audit trail take their actor from `auth()`. A permit activated
+automatically inside the Final Verifier's request (start time already passed) would have been recorded as
+activated BY the verifier. Anything the system does on a person's behalf runs inside
+`SystemActor::run()`, which both read as "no person".
+
+## Known Pitfall (v2.141.0): "the same batch" is not a time window
+
+Telling a stale approval row from a re-submission by `created_at ± 5 s` failed on a quick resubmit (and
+always in tests, where everything happens within one second). Decide such questions from structure, not
+from clocks: here, only rows WITHOUT a pinned version can be stale, because the engine closes a pinned
+row's siblings the moment its stage is decided.
+
 ## Known Pitfall (v2.141.0): a MySQL JSON column does not keep your key order
 
 `ApprovalFlowVersion::currentFor()` compared the stored steps with `===` and published a NEW version for

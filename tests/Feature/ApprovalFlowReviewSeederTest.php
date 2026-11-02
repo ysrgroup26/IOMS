@@ -38,11 +38,13 @@ class ApprovalFlowReviewSeederTest extends TestCase
         app(CurrentTenant::class)->set($tenant);
 
         $permits = PermitToWork::orderBy('id')->get();
-        $this->assertSame(['submitted', 'submitted', 'approved', 'submitted', 'submitted'], $permits->pluck('status')->all());
-        $this->assertSame(0, $permits[3]->approvals()->count(), 'Yard Dua stays on the standard gates.');
+        // waiting stage 1, waiting Final Verification, approved waiting for its
+        // start, active automatically, legacy unit, started on version 2
+        $this->assertSame(['submitted', 'submitted', 'approved', 'active', 'submitted', 'submitted'], $permits->pluck('status')->all());
+        $this->assertSame(0, $permits[4]->approvals()->count(), 'Yard Dua stays on the standard gates.');
 
         $versionOf = fn (PermitToWork $permit) => ApprovalFlowVersion::withoutGlobalScopes()->find($permit->approvals()->value('approval_flow_version_id'))->version;
-        $this->assertSame([1, 1, 1, 2], [$versionOf($permits[0]), $versionOf($permits[1]), $versionOf($permits[2]), $versionOf($permits[4])]);
+        $this->assertSame([1, 1, 1, 1, 2], [$versionOf($permits[0]), $versionOf($permits[1]), $versionOf($permits[2]), $versionOf($permits[3]), $versionOf($permits[5])]);
 
         // Waiting for Final Verification: Hendra approved stage 2, Hana did not.
         $engine = app(ApprovalEngine::class);

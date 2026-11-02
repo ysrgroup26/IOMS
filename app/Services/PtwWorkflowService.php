@@ -436,7 +436,8 @@ class PtwWorkflowService
                     (bool) $row->approver_position_id => 'Posisi: '.($positions[$row->approver_position_id] ?? '-'),
                     default => 'Role: '.($roles[$row->approver_role] ?? $row->approver_role),
                 })->values()->all(),
-                'decisions' => $decisions->where('status', '!=', 'pending')->map(fn ($a) => [
+                // Only real decisions: a `skipped` row (P4) was never decided.
+                'decisions' => $decisions->whereIn('status', ['approved', 'rejected'])->map(fn ($a) => [
                     'by' => $a->approver_name,
                     'status' => $a->status,
                     'at' => $a->decided_at?->toIso8601String(),
@@ -445,8 +446,18 @@ class PtwWorkflowService
             ];
         })->values()->all();
 
+        // v2.141.0 -- what happens after the Final Verification (ADR 083).
+        $activation = match (true) {
+            $permit->status === PermitToWork::STATUS_APPROVED && $permit->start_datetime?->isFuture() => ['state' => 'scheduled', 'at' => $permit->start_datetime->toIso8601String()],
+            $permit->status === PermitToWork::STATUS_APPROVED && $permit->end_datetime?->isPast() => ['state' => 'window_passed', 'at' => $permit->end_datetime->toIso8601String()],
+            $permit->status === PermitToWork::STATUS_APPROVED => ['state' => 'due', 'at' => $permit->start_datetime?->toIso8601String()],
+            $permit->status === PermitToWork::STATUS_ACTIVE => ['state' => 'active', 'at' => null],
+            default => null,
+        };
+
         return [
             'version' => $version->version,
+            'activation' => $activation,
             'stages' => $stages,
             'actionable' => $actionable ? ['id' => $actionable->id, 'status' => 'pending', 'step_number' => $actionable->step_number] : null,
         ];

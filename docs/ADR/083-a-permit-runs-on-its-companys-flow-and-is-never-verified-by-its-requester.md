@@ -1,6 +1,7 @@
 # ADR 083 — A permit runs on its company's approval flow, and is never verified by its requester
 
-- **Status:** Accepted (owner decisions A7, A8b and D1, 2026-11-01). Implemented on the development
+- **Status:** Accepted (owner decisions A7, A8b and D1, 2026-11-01; confirmed, with automatic activation,
+  2026-11-02). Implemented on the development
   branch in v2.141.0; **not deployed**: staging review first.
 - **Supersedes:** nothing. ADR 067 (verify, then approve) stays the route of every operating unit that
   does not opt in.
@@ -66,8 +67,8 @@ keeps the route it was submitted on, in both directions. On a flow:
 - the last decision runs `PermitToWork::finalizeApprovalFlow()`. This records the Final Verifier as
   verifier and the last approver as approver, and moves the permit **Verified → Approved** through its own
   state machine, so Approved without verification remains impossible;
-- the permit is then activated exactly as before. Automatic activation at the start time is a later
-  milestone.
+- the permit then waits for its start time and **becomes Active by itself** (decision 8). Nobody
+  activates it a second time.
 
 **5. A request keeps its version** (ADR-level detail in `docs/ARCHITECTURE.md`, `ApprovalFlowVersion`).
 Editing or removing a flow never changes a request under way; an escalation widens one request only; and
@@ -85,6 +86,31 @@ on a stage that one approver is enough to decide, the other rows become `skipped
 or a My Work account sees and manages only tasks assigned to them or created by them (`Task::visibleTo`),
 whatever their role. Creating and deleting stay closed to them.
 
+**8. Automatic activation (owner's final rule, 2026-11-02).** After Final Verification a permit on a flow
+is **Approved = ready, waiting for its start**.
+
+- `PtwActivationService` makes it Active when the start time is reached:
+  - at once, inside the verifier's request, if the start has already passed;
+  - otherwise from `ptw:activate-due`, which runs every minute `withoutOverlapping`.
+- **Every requirement is re-checked** under a row lock before activating: still Approved, no pending
+  approval, a Final Verifier recorded, start reached, end not passed. Two runs therefore activate once.
+- If the end time has already passed, the permit is **not** activated and the requester is told, once.
+- Manual activation of a flow permit is refused (it would let it start early).
+- The scheduler visits each active or trial tenant with its own `CurrentTenant`.
+- **Standard-route permits are never touched**, so no permit already running in production changes route
+  on deploy.
+- The activation is a **system action** (`App\Support\SystemActor`). The activity log and the audit trail
+  record no person, even when the activation happens inside the verifier's request.
+- The requester, the Final Verifier and the PIC are notified (`ptw.activated`).
+
+**9. P4 safeguards.**
+
+- Rows from before this release are never rewritten. A pending row left on an already decided stage
+  (unversioned) cannot be decided and is not listed as waiting (`isStageAlreadyDecided`).
+- `latestApproval()` and the permit's Approval Flow card ignore `skipped`.
+- The migration's `down()` refuses while `skipped` rows exist, rather than rewriting history.
+- The migration is approved for staging only; see `docs/runbooks/P4-SKIPPED-STATUS.md`.
+
 ## Consequences
 
 - No running permit changes route when this is deployed. A company that never opts in sees only the
@@ -94,14 +120,17 @@ whatever their role. Creating and deleting stay closed to them.
   person's approval at deploy, and it should be.
 - My Work accounts used to see the whole task register. They now see their own tasks only, as D1 requires.
 - Not yet built:
-  - activation at the start time (M3);
+  - the PTW Expired / extension workflow (E1–E3);
   - Final Verification on modules other than PTW;
   - a draft state for flows (today every save publishes; the version history is the record).
 
 ## Tests
 
-- `PtwApprovalFlowTest` (17): organisation structures; each A8b rule; refused configurations; refused
+- `PtwApprovalFlowTest` (18): organisation structures; each A8b rule; refused configurations; refused
   submission; edits and removal under way; return and resubmission; legacy route untouched.
-- `ApprovalFlowVersionTest` (11): P1–P4 and the scheduler escalation together.
+- `PtwAutomaticActivationTest` (11): normal, immediate, not ready, late scheduler, window passed,
+  duplicate runs, cancelled, manual refusal, legacy untouched, tenant isolation, page state.
+- `ApprovalFlowVersionTest` (14): P1–P4 and the scheduler escalation together; stale pre-fix rows; latest
+  approval; rollback refusal.
 - `CrossDepartmentTasksTest` (6).
 - `ApprovalFlowReviewSeederTest`.

@@ -103,6 +103,10 @@ class ApprovalEngine
 
     private function decideLocked(Approval $approval, User $user, string $decision, ?string $comments): void
     {
+        if ($approval->status === Approval::STATUS_PENDING && $this->isStageAlreadyDecided($approval)) {
+            throw ValidationException::withMessages(['approval' => 'This stage has already been decided.']);
+        }
+
         if ($approval->status !== Approval::STATUS_PENDING) {
             throw ValidationException::withMessages(['approval' => 'This approval has already been decided.']);
         }
@@ -198,6 +202,13 @@ class ApprovalEngine
             return $user->isSuperAdmin() || in_array($user->role, $approvers, true);
         }
 
+        // P4: a row left pending on a stage that was already decided (rows
+        // from before v2.141.0 stay as they are -- history is not rewritten)
+        // is not decided by anybody.
+        if ($this->isStageAlreadyDecided($approval)) {
+            return false;
+        }
+
         $steps = $this->stepsFor($approval, (int) $approval->step_number);
 
         /*
@@ -216,6 +227,51 @@ class ApprovalEngine
         }
 
         return $steps->contains(fn (ApprovalFlowStep $step) => $step->matchesApprover($user));
+    }
+
+    /**
+     * v2.141.0 (P4) -- has the stage this pending row belongs to already
+     * been decided by another row? True when a sibling at the same stage of
+     * the same run was rejected, or approved on a stage that one approver
+     * decides. Read-only: the stale row itself is never rewritten.
+     *
+     * "The same run": a sibling counts only if it was DECIDED AFTER this
+     * row was created. Rows of one stage are created together and decided
+     * afterwards; a previous submission's decisions all happened before a
+     * re-submission's rows existed, so they are never mistaken for siblings
+     * (an earlier time-window rule did exactly that on a quick resubmit).
+     */
+    public function isStageAlreadyDecided(Approval $approval): bool
+    {
+        // Only rows from BEFORE v2.141.0 can be stale: they are flow rows with
+        // no pinned version. A version-pinned row's siblings are closed as
+        // `skipped` the moment its stage is decided (closeDecidedStage), so it
+        // never needs this guard -- and a re-submission is never confused
+        // with an earlier run.
+        if ($approval->status !== Approval::STATUS_PENDING || ! $approval->approval_flow_id || $approval->approval_flow_version_id) {
+            return false;
+        }
+
+        $created = $approval->created_at ?? now();
+        $siblings = Approval::query()
+            ->where('approvable_type', $approval->approvable_type)
+            ->where('approvable_id', $approval->approvable_id)
+            ->where('step_number', $approval->step_number)
+            ->whereKeyNot($approval->getKey())
+            ->whereIn('status', [Approval::STATUS_APPROVED, Approval::STATUS_REJECTED])
+            ->whereNotNull('decided_at')
+            ->where('decided_at', '>=', $created)
+            ->where('approval_flow_id', $approval->approval_flow_id)
+            ->whereNull('approval_flow_version_id')
+            ->pluck('status');
+
+        if ($siblings->contains(Approval::STATUS_REJECTED)) {
+            return true;
+        }
+
+        $mode = $this->stepsFor($approval, (int) $approval->step_number)->first()?->mode ?? ApprovalFlowStep::MODE_SINGLE;
+
+        return $mode !== ApprovalFlowStep::MODE_PARALLEL_ALL && $siblings->contains(Approval::STATUS_APPROVED);
     }
 
     /** v2.141.0 -- whether this row belongs to a Final Verification stage. */

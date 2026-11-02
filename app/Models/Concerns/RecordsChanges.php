@@ -5,6 +5,7 @@ namespace App\Models\Concerns;
 use App\Models\Company;
 use App\Models\RecordChange;
 use App\Support\CurrentTenant;
+use App\Support\SystemActor;
 use Illuminate\Database\Eloquent\Model;
 use Illuminate\Support\Str;
 use Throwable;
@@ -85,7 +86,8 @@ trait RecordsChanges
             }
 
             $statusMoved = $event === RecordChange::EVENT_UPDATED && array_key_exists('status', $diff);
-            $user = auth()->user();
+            // A system action (SystemActor) has no person behind it.
+            $user = SystemActor::active() ? null : auth()->user();
 
             RecordChange::create([
                 'tenant_id' => $this->recordChangeTenantId(),
@@ -169,6 +171,10 @@ trait RecordsChanges
 
     private function recordChangeContext(): array
     {
+        if (SystemActor::active()) {
+            return ['channel' => 'system'];
+        }
+
         if (app()->runningInConsole() && ! app()->runningUnitTests()) {
             return ['channel' => 'console'];
         }

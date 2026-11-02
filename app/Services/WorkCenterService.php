@@ -3,6 +3,7 @@
 namespace App\Services;
 
 use App\Models\Approval;
+use App\Models\CompanySetting;
 use App\Models\CorrectiveAction;
 use App\Models\EmployeePpe;
 use App\Models\PermitToWork;
@@ -26,7 +27,7 @@ use Illuminate\Support\Collection;
 class WorkCenterService
 {
     public function __construct(
-        private readonly DashboardStatsService $stats = new DashboardStatsService(),
+        private readonly DashboardStatsService $stats = new DashboardStatsService,
         private readonly ?EntitlementService $entitlementService = null,
     ) {}
 
@@ -84,6 +85,12 @@ class WorkCenterService
             ->filter(function (Approval $approval) use ($user, $companyIds) {
                 $approvable = $approval->approvable;
                 if (! $approvable) {
+                    return false;
+                }
+
+                // v2.141.0 (P4): a row left pending on an already decided
+                // stage waits on nobody.
+                if (app(ApprovalEngine::class)->isStageAlreadyDecided($approval)) {
                     return false;
                 }
 
@@ -249,7 +256,7 @@ class WorkCenterService
 
         $grantedKeys = $user->tenant ? $user->tenant->modules()->pluck('key')->all() : [];
         $stored = json_decode(
-            \App\Models\CompanySetting::getUncached('enabled_modules') ?? json_encode($grantedKeys),
+            CompanySetting::getUncached('enabled_modules') ?? json_encode($grantedKeys),
             true
         ) ?? $grantedKeys;
         $enabledModules = collect(array_intersect($stored, $grantedKeys));

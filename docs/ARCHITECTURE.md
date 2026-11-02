@@ -68,6 +68,12 @@ configurable multi-step flows (`approval_flows` + `approval_flow_steps`, per ten
   operating unit; `PtwWorkflowService::usesApprovalFlow()/submissionProblem()/startFlow()/flowProgress()`;
   the engine hands the last decision to `PermitToWork::finalizeApprovalFlow()` (any approvable may define
   `finalizeApprovalFlow($decision, $user, $comments)`).
+- **Automatic activation** (ADR 083 § 8): `PtwActivationService::activateIfDue()` (row lock, every
+  requirement re-checked, named outcomes) and `activateDue()` (each active/trial tenant in its own context),
+  run by `ptw:activate-due` every minute `withoutOverlapping`, and directly after a Final Verification whose
+  start time has passed. Flow permits only. A system action: `App\Support\SystemActor::run()`, read by
+  `ActivityLog::record()` and `RecordsChanges`, records no person (`HasWorkflow::transitionTo()` accepts a
+  null actor).
 - **The editor** (A7): `Components/settings/approval-flow/` — `model.js` (rows ↔ stages, client checks),
   `ApprovalFlowEditor.jsx` (React Flow canvas on desktop, list + dialog on phones). Pinned by
   `ApprovalFlowVersionTest` and `PtwApprovalFlowTest`.

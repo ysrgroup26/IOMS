@@ -23,6 +23,7 @@ use App\Services\Approvals\ApprovalFlowValidator;
 use App\Services\PtwWorkflowService;
 use App\Support\CurrentTenant;
 use Illuminate\Database\Seeder;
+use Illuminate\Support\Carbon;
 use Illuminate\Support\Facades\Hash;
 use RuntimeException;
 
@@ -46,7 +47,9 @@ use RuntimeException;
  * stage 2 cannot verify the same permit, the other one can.
  *
  * Permits are left at every interesting point: waiting at stage 1, waiting
- * at Final Verification, approved, and one on the legacy unit. Then the
+ * at Final Verification, approved and waiting for its start time (it becomes
+ * Active by itself), verified after its start and therefore already Active
+ * automatically, and one on the legacy unit. Then the
  * flow is edited (version 2) so a reviewer sees permits under way keep
  * version 1 while new ones take version 2. A Department User has a task
  * assigned across departments (D1).
@@ -147,11 +150,12 @@ class ApprovalFlowReviewSeeder extends Seeder
         $engine = app(ApprovalEngine::class);
         $ptw = app(PtwWorkflowService::class);
 
-        $submit = function (Company $company, string $work) use ($foreman, $ptw): PermitToWork {
+        $submit = function (Company $company, string $work, ?Carbon $start = null) use ($foreman, $ptw): PermitToWork {
+            $start ??= now()->addDay()->setTime(8, 0);
             $permit = PermitToWork::create([
                 'ptw_number' => PermitToWork::generateNumber(), 'company_id' => $company->id, 'permit_type' => 'hot_work',
                 'work_reference' => $work, 'location' => 'Dok 2', 'work_description' => 'Data uji untuk peninjauan Approval Flow.',
-                'start_datetime' => now()->addDay()->setTime(8, 0), 'end_datetime' => now()->addDay()->setTime(16, 0),
+                'start_datetime' => $start, 'end_datetime' => $start->copy()->addHours(8),
                 'requested_by' => $foreman->id, 'status' => PermitToWork::STATUS_DRAFT,
             ]);
             // Asked BEFORE submitting, as the controller does: a draft follows
@@ -177,11 +181,20 @@ class ApprovalFlowReviewSeeder extends Seeder
         $decide($atFinal, $super);
         $decide($atFinal, $hse1);
 
-        // 3. Fully through: verified by a Project Manager.
+        // 3. Fully through, verified by a Project Manager BEFORE its start
+        //    time: Approved, waiting -- it becomes Active by itself tomorrow
+        //    at 08:00 (ADR 083, ptw:activate-due).
         $done = $submit($main, 'Pengecatan tangki ballast');
         $decide($done, $super);
         $decide($done, $hse2);
         $decide($done, $pm1);
+
+        // 3b. Verified AFTER its start time: Active automatically at once,
+        //     with no second step.
+        $started = $submit($main, 'Inspeksi lambung (sudah mulai)', now()->subMinutes(30));
+        $decide($started, $super);
+        $decide($started, $hse2);
+        $decide($started, $pm1);
 
         // 4. The legacy unit: verify -> approve gates, no flow rows.
         $submit($second, 'Perbaikan crane dermaga');

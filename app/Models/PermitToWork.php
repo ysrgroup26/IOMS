@@ -6,8 +6,10 @@ use App\Concerns\HasApprovals;
 use App\Concerns\HasWorkflow;
 use App\Models\Concerns\BelongsToCompany;
 use App\Services\NumberGeneratorService;
+use App\Services\PtwActivationService;
 use Illuminate\Database\Eloquent\Model;
 use Illuminate\Database\Eloquent\SoftDeletes;
+use Illuminate\Support\Carbon;
 use Illuminate\Support\Collection;
 use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Str;
@@ -439,7 +441,9 @@ class PermitToWork extends Model
             ],
             self::STATUS_APPROVED => [
                 'title' => 'Permit approved',
-                'body' => $number.' telah disetujui dan siap diaktifkan.',
+                'body' => isset($meta['activates_at'])
+                    ? $number.' telah disetujui dan akan aktif otomatis pada '.Carbon::parse($meta['activates_at'])->format('d M Y H:i').'.'
+                    : $number.' telah disetujui dan siap diaktifkan.',
             ],
             self::STATUS_ACTIVE => [
                 'title' => 'Permit is now active',
@@ -528,7 +532,23 @@ class PermitToWork extends Model
             $this->approved_at = $lastApproval?->decided_at ?? now();
 
             $this->transitionTo(self::STATUS_VERIFIED, $user, $this->documentLabel().' '.$this->ptw_number.' passed Final Verification.');
-            $this->transitionTo(self::STATUS_APPROVED, $user, $this->documentLabel().' '.$this->ptw_number.' is approved and ready to be made active.');
+
+            // Approved = ready, waiting for the start time; it becomes Active
+            // by itself (PtwActivationService) -- nobody activates it twice.
+            $waits = $this->start_datetime !== null && $this->start_datetime->isFuture();
+            $this->transitionTo(
+                self::STATUS_APPROVED,
+                $user,
+                $this->documentLabel().' '.$this->ptw_number.($waits
+                    ? ' is approved and will become active automatically at '.$this->start_datetime->format('d M Y H:i').'.'
+                    : ' is approved; its start time has been reached.'),
+                $waits ? ['activates_at' => $this->start_datetime->toIso8601String()] : [],
+            );
         });
+
+        // Start time already reached: active now, under its own lock.
+        if ($decision === Approval::STATUS_APPROVED) {
+            app(PtwActivationService::class)->activateIfDue($this);
+        }
     }
 }

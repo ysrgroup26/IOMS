@@ -18,6 +18,7 @@ use App\Support\CurrentTenant;
 use Illuminate\Foundation\Testing\RefreshDatabase;
 use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Facades\Mail;
+use Illuminate\Validation\ValidationException;
 use LogicException;
 use Tests\TestCase;
 
@@ -314,5 +315,72 @@ class ApprovalFlowVersionTest extends TestCase
         DB::table('approval_flow_versions')->where('id', $version->id)->update(['steps' => json_encode($reordered)]);
 
         $this->assertSame($version->id, ApprovalFlowVersion::currentFor($flow->fresh())->id);
+    }
+
+    /**
+     * P4 for rows created BEFORE v2.141.0: a stage decided by one approver
+     * left the other row pending. The row is not rewritten (history is
+     * kept) -- it simply cannot be decided, and waits on nobody.
+     */
+    public function test_a_stale_pending_row_from_before_the_fix_is_never_decided_and_never_rewritten(): void
+    {
+        $flow = ApprovalFlow::create(['tenant_id' => $this->tenant->id, 'company_id' => null, 'module_key' => 'material_request', 'name' => 'Old', 'is_active' => true, 'priority' => 0]);
+        $flow->steps()->create(['step_number' => 1, 'mode' => 'parallel_any', 'approver_role' => 'manager']);
+        $flow->steps()->create(['step_number' => 1, 'mode' => 'parallel_any', 'approver_role' => 'hse']);
+        $request = $this->request();
+
+        // Exactly what the old engine left behind: no version, one decided, one pending.
+        $row = fn (array $extra) => DB::table('approvals')->insertGetId(array_merge([
+            'approvable_type' => $request->getMorphClass(), 'approvable_id' => $request->id,
+            'approval_flow_id' => $flow->id, 'step_number' => 1, 'requested_by' => $this->requester->id,
+            'is_escalated' => false, 'created_at' => now()->subDay(), 'updated_at' => now()->subDay(),
+        ], $extra));
+        $row(['status' => 'approved', 'approved_by' => $this->manager->id, 'decided_at' => now()->subHours(20)]);
+        $staleId = $row(['status' => 'pending']);
+        $stale = Approval::find($staleId);
+
+        $this->assertTrue($this->engine->isStageAlreadyDecided($stale));
+        $this->assertFalse($this->engine->authorize($stale, $this->hse));
+        $this->actingAs($this->hse)->post(route('approvals.approve', $staleId))->assertForbidden();
+        try {
+            $this->engine->decide($stale, $this->hse, Approval::STATUS_APPROVED);
+            $this->fail('A decided stage was decided again.');
+        } catch (ValidationException) {
+        }
+
+        $this->assertSame('pending', DB::table('approvals')->where('id', $staleId)->value('status'), 'History is not rewritten.');
+        $this->assertSame(2, DB::table('approvals')->where('approvable_id', $request->id)->count(), 'Nothing advanced.');
+    }
+
+    public function test_the_latest_approval_shown_on_a_record_is_never_a_skipped_row(): void
+    {
+        $flow = ApprovalFlow::create(['tenant_id' => $this->tenant->id, 'company_id' => null, 'module_key' => 'material_request', 'name' => 'Any', 'is_active' => true, 'priority' => 0]);
+        $flow->steps()->create(['step_number' => 1, 'mode' => 'parallel_any', 'approver_role' => 'manager']);
+        $flow->steps()->create(['step_number' => 1, 'mode' => 'parallel_any', 'approver_role' => 'hse']);
+
+        $request = $this->request();
+        $this->engine->start($request, $this->requester);
+        $this->engine->decide($request->approvals()->orderBy('id')->first(), $this->manager, Approval::STATUS_APPROVED);
+
+        $this->assertSame(Approval::STATUS_APPROVED, $request->fresh()->latestApproval()->status);
+    }
+
+    public function test_rolling_the_skipped_status_back_refuses_rather_than_rewriting_history(): void
+    {
+        $request = $this->request();
+        DB::table('approvals')->insert([
+            'approvable_type' => $request->getMorphClass(), 'approvable_id' => $request->id, 'status' => 'skipped',
+            'requested_by' => $this->requester->id, 'step_number' => 1, 'is_escalated' => false, 'created_at' => now(), 'updated_at' => now(),
+        ]);
+
+        $migration = require database_path('migrations/2027_01_10_100400_an_approval_not_needed_is_skipped.php');
+
+        try {
+            $migration->down();
+            $this->fail('The rollback rewrote skipped rows.');
+        } catch (\RuntimeException $e) {
+            $this->assertStringContainsString('rewrite approval history', $e->getMessage());
+        }
+        $this->assertSame(1, DB::table('approvals')->where('status', 'skipped')->count());
     }
 }

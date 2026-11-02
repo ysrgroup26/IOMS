@@ -7,7 +7,8 @@ import { Label } from '@/Components/ui/label';
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogFooter } from '@/Components/ui/dialog';
 import { CheckCircle2, XCircle } from 'lucide-react';
 
-const STATUS_VARIANT = { pending: 'warning', approved: 'success', rejected: 'destructive' };
+// v2.141.0 (P4): `skipped` -- a row a decided stage no longer needed.
+const STATUS_VARIANT = { pending: 'warning', approved: 'success', rejected: 'destructive', skipped: 'secondary' };
 
 /**
  * Universal Approval Engine (v1.6.9) -- the reusable frontend half.

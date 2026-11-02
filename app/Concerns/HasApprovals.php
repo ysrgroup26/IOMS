@@ -26,7 +26,14 @@ trait HasApprovals
 
     public function latestApproval(): ?Approval
     {
-        return $this->approvals()->latest()->first();
+        // v2.141.0 (P4): a `skipped` row was never decided and is never "the
+        // latest approval" -- on a parallel stage it shares its timestamp
+        // with the row that WAS decided, and could otherwise be picked.
+        return $this->approvals()
+            ->where('status', '!=', Approval::STATUS_SKIPPED)
+            ->latest()
+            ->orderByDesc('id')
+            ->first();
     }
 
     /**

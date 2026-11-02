@@ -16,6 +16,8 @@ Artisan::command('inspire', function () {
 Schedule::command('approvals:escalate')->hourly();
 // v2.141.0: deadline reminders and overdue warnings, idempotent per day.
 Schedule::command('notifications:deadlines')->hourly()->withoutOverlapping();
+// v2.141.0 -- PTW on a company flow becomes Active at its start time (ADR 083).
+Schedule::command('ptw:activate-due')->everyMinute()->withoutOverlapping();
 
 // Milestone 3 (Report Center, Task #65). Hourly is coarse enough not to
 // spam even for 'daily' schedules (next_run_at is a real timestamp

@@ -51,7 +51,12 @@ trait HasWorkflow
      * a generic 403 -- this is a business-rule violation the user should
      * understand, not a permission failure.
      */
-    public function transitionTo(string $newStatus, User $user, ?string $description = null, array $meta = []): void
+    /**
+     * v2.141.0: `$user` may be null for a SYSTEM transition (PTW automatic
+     * activation at its start time, run by the scheduler). The activity row
+     * then has no actor and reads "System", and the record's owner is told.
+     */
+    public function transitionTo(string $newStatus, ?User $user, ?string $description = null, array $meta = []): void
     {
         $current = $this->status;
         $allowed = static::$transitions[$current] ?? [];
@@ -138,11 +143,11 @@ trait HasWorkflow
      * exists) or the recipient IS the person who made the change
      * (no need to tell yourself what you just did).
      */
-    protected function notifyStatusChange(string $newStatus, User $actor, array $meta): void
+    protected function notifyStatusChange(string $newStatus, ?User $actor, array $meta): void
     {
         $recipient = $this->notificationRecipient();
 
-        if (! $recipient || $recipient->id === $actor->id) {
+        if (! $recipient || ($actor && $recipient->id === $actor->id)) {
             return;
         }
 

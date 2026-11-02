@@ -31,6 +31,9 @@ class NotificationCatalogue
         'capa.assigned' => ['category' => Notification::CATEGORY_ASSIGNMENT, 'priority' => 'high', 'mandatory' => true],
         'capa.due_soon' => ['category' => Notification::CATEGORY_REMINDER, 'priority' => 'normal', 'mandatory' => false],
         'capa.overdue' => ['category' => Notification::CATEGORY_WARNING, 'priority' => 'high', 'mandatory' => false],
+        // v2.141.0 -- PTW automatic activation (ADR 083).
+        'ptw.activated' => ['category' => Notification::CATEGORY_SUCCESS, 'priority' => 'high', 'mandatory' => false],
+        'ptw.window_passed' => ['category' => Notification::CATEGORY_WARNING, 'priority' => 'high', 'mandatory' => false],
     ];
 
     /**

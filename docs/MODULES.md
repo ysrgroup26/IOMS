@@ -631,8 +631,10 @@ the default) or **Company Approval Flow** (Approval 1..N then Final Verification
 Approval Flow). Switching to the flow is refused unless a valid PTW flow applies to that unit. A permit keeps
 the route it was submitted on. On the flow, the permit page shows an **Approval Flow** card (stages, who,
 decisions, and Approve/Reject only for whoever may decide now); the old Verify/Approve/Return buttons are
-not offered and the endpoint refuses them. After Final Verification the permit is Approved and is activated
-as before.
+not offered and the endpoint refuses them. After Final Verification the permit is **Approved, waiting for
+its start time**, and becomes **Active by itself** when it is reached (`ptw:activate-due`, every minute; at
+once if the start has already passed). Manual activation is refused for these permits; if the end time
+passes first, it is not activated and the requester is told. Standard-route permits keep manual activation.
 
 ## My Work page: Waiting on Me, Assigned to Me, My Permits (v2.141.0)
 

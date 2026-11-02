@@ -443,7 +443,8 @@ class PermitToWorkController extends Controller
                     'can_verify' => false,
                     'can_approve' => false,
                     'pending_stage' => null,
-                    'can_activate' => $permitToWork->approvals()->where('approved_by', $request->user()->id)->where('status', 'approved')->exists(),
+                    // Activated automatically at the start time (ADR 083).
+                    'can_activate' => false,
                 ]
                 : [
                     'on_flow' => false,
@@ -521,6 +522,12 @@ class PermitToWorkController extends Controller
          * verify/approve/return gates below would bypass both.
          */
         $onFlow = $workflow->usesApprovalFlow($permitToWork);
+        // v2.141.0: a permit on the flow becomes Active BY ITSELF at its start
+        // time (PtwActivationService); a manual activation would let it start
+        // early, which the owner's rule forbids.
+        if ($onFlow && $target === PermitToWork::STATUS_ACTIVE) {
+            return back()->with('flash', ['error' => 'PTW ini aktif otomatis pada waktu mulai yang dijadwalkan setelah Final Verification. Aktivasi manual tidak diperlukan.']);
+        }
         if ($onFlow && in_array($target, [PermitToWork::STATUS_VERIFIED, PermitToWork::STATUS_APPROVED, PermitToWork::STATUS_REJECTED], true)) {
             return back()->with('flash', ['error' => 'PTW ini mengikuti Approval Flow perusahaan. Keputusan diberikan melalui tahap persetujuan pada halaman PTW.']);
         }

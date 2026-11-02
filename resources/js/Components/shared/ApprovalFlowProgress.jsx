@@ -1,7 +1,7 @@
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/Components/ui/card';
 import ApprovalActions from '@/Components/shared/ApprovalActions';
 import StatusBadge from '@/Components/shared/StatusBadge';
-import { CheckCircle2, Circle, CircleDot, ShieldCheck, XCircle } from 'lucide-react';
+import { CheckCircle2, Circle, CircleDot, PlayCircle, ShieldCheck, XCircle } from 'lucide-react';
 import { cn } from '@/lib/utils';
 
 /**
@@ -71,6 +71,7 @@ export default function ApprovalFlowProgress({ flow }) {
                             </li>
                         );
                     })}
+                    <ActivationStep activation={flow.activation} />
                 </ol>
 
                 {flow.actionable && (
@@ -81,6 +82,35 @@ export default function ApprovalFlowProgress({ flow }) {
                 )}
             </CardContent>
         </Card>
+    );
+}
+
+/*
+ * The last step of the route (ADR 083): after the Final Verification the
+ * permit waits for its start time and becomes Active by itself -- nobody
+ * activates it a second time.
+ */
+function ActivationStep({ activation }) {
+    const state = activation?.state ?? 'waiting';
+    const icon = state === 'active' ? CheckCircle2 : state === 'window_passed' ? XCircle : PlayCircle;
+    const Icon = icon;
+    const tone = state === 'active' ? 'text-success' : state === 'window_passed' ? 'text-danger' : state === 'waiting' ? 'text-graphite-300' : 'text-brand-700';
+    const text = {
+        waiting: 'Aktif otomatis pada waktu mulai setelah Final Verification disetujui.',
+        scheduled: `Akan aktif otomatis pada ${fmt(activation?.at)}.`,
+        due: 'Waktu mulai sudah tercapai; izin sedang diaktifkan otomatis.',
+        active: 'Izin aktif. Pekerjaan boleh dimulai.',
+        window_passed: `Tidak diaktifkan: waktu selesai (${fmt(activation?.at)}) sudah lewat sebelum izin dapat aktif.`,
+    }[state];
+
+    return (
+        <li className="flex gap-3">
+            <Icon className={cn('mt-0.5 h-5 w-5 shrink-0', tone)} aria-hidden="true" />
+            <div className="min-w-0 flex-1">
+                <span className="text-sm font-bold text-navy-900">Active</span>
+                <p className="text-xs text-graphite-500">{text}</p>
+            </div>
+        </li>
     );
 }
 

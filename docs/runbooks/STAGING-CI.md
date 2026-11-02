@@ -1,6 +1,9 @@
 # Runbook — Staging operated from GitHub (ADR 084)
 
-**Status:** prepared and rehearsed; **not installed** on Tencent. Do not install until the owner approves.
+**Status (2026-11-02):** prepared and rehearsed. The workflow is **published on `main`** (`4366ff0`,
+`[skip deploy]`, production Deploy run 25 skipped); Staging run 1 reported "not configured" as designed.
+Installation on Tencent and the GitHub secrets are approved by the owner and wait for root on the server
+(Claude's environment cannot reach port 22).
 
 ## What it gives
 
@@ -18,11 +21,11 @@ From GitHub (Actions → **Staging** → Run workflow), six actions on staging, 
 Nothing here can reach production: separate account (`iomsstgci`), key, sudo rule and tool; the tool knows
 only `/srv/ioms-staging/app`, `iomsstg`, `ioms_staging` and port 8082.
 
-## Prerequisite: the workflow must be on `main`
+## Prerequisite: the workflow must be on `main` (done)
 
-GitHub runs `workflow_dispatch` only for workflows on the default branch. Until
-`.github/workflows/staging.yml` is on `main`, the Staging workflow does not appear. Adding it there is the
-owner's decision; a commit marked `[skip deploy]` adds it without deploying production (ADR 076).
+GitHub runs `workflow_dispatch` only for workflows on the default branch. `staging.yml` was published there
+in `4366ff0` with `[skip deploy]` (ADR 076), identical to the branch copy. If the branch copy changes, the
+copy on `main` must be updated the same way.
 
 ## Install (once, as root on Tencent)
 

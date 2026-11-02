@@ -3,6 +3,26 @@
 House style, and a deliberately honest list of mistakes that have actually happened in this
 codebase's history — kept here so they don't get repeated in a slightly different shape.
 
+## Known Pitfall (v2.141.0): restoring a mysqldump does not remove what came after it
+
+A dump rewrites only the tables it CONTAINS. Rolling back a failed release by loading the pre-deploy dump
+left the table the release's migration had created; the next deploy of that migration would then fail on
+"table already exists". Found by rehearsing `ioms-staging-ops` (ADR 084), whose restore now empties the
+staging database first (`_wipe`). Anything else that restores a dump to undo a deploy must do the same.
+
+## Known Pitfall (v2.141.0): `UsePAM no` locks out key-only service accounts
+
+`iomsci` and `iomsstgci` have their password locked (`passwd -l`) and log in by key only. With
+`UsePAM yes` (Ubuntu's default) that works; with `UsePAM no`, OpenSSH refuses a locked account outright
+("not allowed because account is locked"), valid key or not. Seen in the ADR 084 rehearsal. Do not change it
+on the instance without checking both accounts.
+
+## Known Pitfall (v2.141.0): `workflow_dispatch` needs the workflow on the default branch
+
+A manually triggered workflow appears and runs only once its file exists on `main`. A workflow built on a
+branch is complete but unusable until then; adding it to `main` with `[skip deploy]` avoids deploying
+production (ADR 076).
+
 ## Known Pitfall (v2.141.0): an automatic action is credited to whoever's request it ran in
 
 `ActivityLog::record()` and the audit trail take their actor from `auth()`. A permit activated

@@ -156,6 +156,14 @@ with_db_defaults() { # command...
 }
 _dump() { mysqldump --defaults-extra-file="$1" --single-transaction --no-tablespaces --routines "$DB_EXPECTED"; }
 _restore() { mysql --defaults-extra-file="$1" "$DB_EXPECTED"; }
+# A dump only rewrites the tables it CONTAINS: a table a failed release created would survive
+# the restore, and the next deploy of the same migration would fail on "already exists" (found
+# by the rehearsal). So the restore first empties the staging database of every table and view.
+_wipe() {
+    local drops
+    drops="$(mysql --defaults-extra-file="$1" -N -B -e "SELECT CONCAT('DROP ', IF(table_type = 'VIEW', 'VIEW', 'TABLE'), ' IF EXISTS \`', table_name, '\`;') FROM information_schema.tables WHERE table_schema = '$DB_EXPECTED'")" || return 1
+    { echo "SET FOREIGN_KEY_CHECKS=0;"; printf '%s\n' "$drops"; echo "SET FOREIGN_KEY_CHECKS=1;"; } | mysql --defaults-extra-file="$1" "$DB_EXPECTED"
+}
 
 backup() { # label -> prints the backup file
     install -d -m 700 -o root -g root "$BACKUPS"
@@ -169,7 +177,7 @@ backup() { # label -> prints the backup file
 # pipefail is on: a failing mysqldump fails the pipeline even though gzip succeeded.
 _dump_to() { _dump "$2" | gzip > "$1"; }
 RESTORE_FILE=""
-_restore_from() { gunzip -c "$RESTORE_FILE" | _restore "$1"; }
+_restore_from() { gzip -t "$RESTORE_FILE" && _wipe "$1" && gunzip -c "$RESTORE_FILE" | _restore "$1"; }
 restore() { # file
     [[ -f "$1" ]] || return 1
     RESTORE_FILE="$1"

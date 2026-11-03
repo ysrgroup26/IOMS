@@ -112,6 +112,50 @@ is signed as the **string Duitku sent**, because re-formatting a number changes 
 `200` for a refusal is deliberate: the event was understood and a decision was taken. Returning
 non-2xx asks Duitku to retry, which turns a permanent condition into a retry storm.
 
+### Callback source IPs (Duitku's whitelist, received 2026-11-03)
+
+Duitku's Integration & Infrastructure team sent the addresses its callbacks come from. The reference is
+<https://docs.duitku.com/api/id/#callback>, which cannot be fetched from Claude's environment.
+
+| Environment | IPs |
+|---|---|
+| Sandbox | 182.23.85.11, 182.23.85.12, 103.177.101.187, 103.177.101.188 |
+| Production | 182.23.85.8, 182.23.85.9, 182.23.85.10, 182.23.85.13, **182.23.85.14 (primary)**, 103.177.101.184, 103.177.101.185, 103.177.101.186, 103.177.101.189, **103.177.101.190 (primary)** |
+
+**The path a callback takes.** Duitku → Cloudflare (proxied DNS) → Caddy on Tencent :443 (Origin
+certificate) → nginx on loopback → PHP-FPM → `PaymentWebhookController::duitku()`. Each hop:
+
+| Hop | Staging (evaluated 2026-11-03) | Production (evaluated, not changed) |
+|---|---|---|
+| Tencent firewall / security group | Only Cloudflare reaches :443, so Duitku's IPs never connect directly. Nothing to add. | Same |
+| Cloudflare WAF / Bot Fight / challenge | **Not blocking.** An unsigned POST from a GitHub-hosted runner (a datacenter IP, as Duitku's are) reached the app with no challenge (probe run 41573348679, 403 `Invalid signature`). Duitku's own IPs cannot be tested from here. | Not probed for this; production has no staging password, so the path is open. The health check's "Unsigned Duitku callback 503" proves the app is reached. |
+| Caddy | The staging password covers everything except `POST /webhooks/payment/duitku` (`staging.sh callback open`). | No password. |
+| nginx | Real visitor IP restored from `CF-Connecting-IP`, trusted from loopback only. | Same |
+| Application | Trust comes from the **HMAC signature** made with the sandbox key, plus idempotency and the amount check. There is no IP rule, so no source IP is ever refused. | Same |
+
+**Decision.** The application does **not** enforce an IP allow-list, on staging or in production.
+- The signature already makes a forged callback worthless.
+- An IP rule behind Cloudflare depends on `CF-Connecting-IP` being trusted correctly at every hop. If that
+  is ever wrong, a paid customer's activation is dropped silently. That costs more than the rule protects.
+- Duitku's list is recorded here so the rule can be added later on purpose, not by accident.
+
+**Recommended in Cloudflare (owner's dashboard; not changed by Claude).** This protects against Cloudflare
+security features ever challenging Duitku. Add a WAF **custom rule** with:
+- action **Skip** for Super Bot Fight Mode, Managed Rules, Rate limiting and Browser Integrity Check;
+- expression:
+
+```
+(http.request.uri.path eq "/webhooks/payment/duitku" and http.request.method eq "POST"
+ and ip.src in {182.23.85.11 182.23.85.12 103.177.101.187 103.177.101.188})
+```
+
+- Staging zone: the sandbox IPs above.
+- Production: the same rule with the **production** IPs, added **before** production switches to live
+  Duitku. This is not done, by instruction.
+
+If a sandbox payment ever settles at Duitku but `review-check` shows "callbacks received 0", look first at
+Cloudflare → Security → Events, filtered on that path.
+
 ### Idempotency
 
 Three independent layers, so no single one has to be perfect:

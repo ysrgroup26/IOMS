@@ -338,6 +338,14 @@ Each scenario in the owner's list is also pinned by `tests/Feature/DuitkuCheckou
 
 ## 7. Production cutover
 
+> [!danger] Duitku Production activation is a MANDATORY TRIGGER
+> Before any work that sets production Duitku credentials or `DUITKU_IS_PRODUCTION=true`, open
+> [[DUITKU-PRODUCTION-ACTIVATION|IOMS | Duitku Production Activation & Sandbox Retirement]]
+> (`docs/runbooks/DUITKU-PRODUCTION-ACTIVATION.md`, status **Pending Activation**) and work through its §8
+> checklist. Activation is not complete until that checklist and its completion report are done.
+
+**Current production state (2026-11-03):** iomsuite.com runs Duitku **Sandbox** on purpose for Duitku's merchant review (merchant code `DS36132`, `DUITKU_IS_PRODUCTION=false`). The unsigned callback answers 403 (Deploy run 30).
+
 **Not done, and deliberately not prepared beyond this checklist.** Switching is configuration, not
 code.
 

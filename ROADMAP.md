@@ -365,6 +365,12 @@ cannot activate an unpaid registration.
 
 ### 💳 Duitku Sandbox for resubmission (v2.141.1, ADR 085) — current payment track
 
+> [!danger] Duitku Production activation is a MANDATORY TRIGGER
+> Before any work that sets production Duitku credentials or `DUITKU_IS_PRODUCTION=true`, open
+> [[DUITKU-PRODUCTION-ACTIVATION|IOMS | Duitku Production Activation & Sandbox Retirement]]
+> (`docs/runbooks/DUITKU-PRODUCTION-ACTIVATION.md`, status **Pending Activation**) and work through its §8
+> checklist. Activation is not complete until that checklist and its completion report are done.
+
 Duitku (project D25218) re-reviewed iomsuite.com and asked for two things: remove the legal merchant's
 name from the website, and enable checkout against the Duitku Sandbox. The Midtrans list below is kept
 for history; **Duitku is the configured provider track.**
@@ -378,7 +384,8 @@ for history; **Duitku is the configured provider track.**
 | Staging `review-check` reports the sandbox: method-list signature, signed status reads, orders, callbacks, activation | Needs the installer re-run on Tencent |
 | Sandbox credentials on staging and the callback URL in the Duitku sandbox project | Done (owner) |
 | Real sandbox run on staging: Starter, BCA VA, paid with Duitku's VA simulator | **Verified 2026-11-03** (review-check run 41633818223): callback received, signature accepted, attempt and invoice paid once, registration provisioned, subscription active, workspace (tenant #4) created |
-| Production running sandbox credentials so Duitku's reviewer can check out on iomsuite.com | Needs the owner's approval, merge and deploy |
+| Production running sandbox credentials so Duitku's reviewer can check out on iomsuite.com | **Done 2026-11-03** (`664e9bf`, Deploy runs 29–30; unsigned callback 403) |
+| **Duitku Production activation & Sandbox retirement** | **Pending Activation**, a mandatory trigger: `docs/runbooks/DUITKU-PRODUCTION-ACTIVATION.md` |
 
 Runbook: `docs/PAYMENTS-DUITKU.md` §6a.
 

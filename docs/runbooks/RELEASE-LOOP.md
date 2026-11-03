@@ -3,6 +3,12 @@
 Reasoning: `docs/ADR/075-a-release-loop-is-bounded-and-the-server-never-edits-code.md` and
 `docs/ADR/076-github-deploys-through-one-forced-command.md`.
 
+> [!danger] Duitku Production activation is a MANDATORY TRIGGER
+> Before any work that sets production Duitku credentials or `DUITKU_IS_PRODUCTION=true`, open
+> [[DUITKU-PRODUCTION-ACTIVATION|IOMS | Duitku Production Activation & Sandbox Retirement]]
+> (`docs/runbooks/DUITKU-PRODUCTION-ACTIVATION.md`, status **Pending Activation**) and work through its §8
+> checklist. Activation is not complete until that checklist and its completion report are done.
+
 ## Primary path (ADR 076): push to main, and it deploys itself
 
 ```

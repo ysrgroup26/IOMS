@@ -260,20 +260,15 @@ B=claude/eloquent-newton-pbxxdg; R=/srv/ioms-staging/app; sudo -u iomsstg git -C
   callback from the public internet. The expected answer is 503 before configuration and 403 after.
   A Cloudflare challenge in front of the callback counts as a failure.
 
-**Paying in the sandbox (owner, in a browser; no real money).**
-1. Register at `https://staging.iomsuite.com/get-started` (browser password: `preview`, from
-   `/root/ioms-staging-credentials.txt`). Staging sends no mail (`MAIL_MAILER=log`), so read the
-   confirmation link from the staging log as root:
-   `grep -o 'https://staging.iomsuite.com/get-started/verify/[A-Za-z0-9]*' /srv/ioms-staging/app/storage/logs/laravel.log | tail -1`
-   Then choose a plan and continue to payment. The invoice and activation emails (scenario 15) appear
-   in the same log.
-2. Choose a VA and press Pay. Duitku's sandbox page shows the VA number; complete it with Duitku's
-   sandbox payment simulator.
-3. Repeat for:
-   - cancel on the Duitku page;
-   - leave one unpaid past `PAYMENT_CHECKOUT_EXPIRY_HOURS`, or lower it on staging only;
-   - each of Starter, Professional and Business.
-4. After each step, Claude runs `review-check` and reads the result.
+**Paying in the sandbox (owner, in a browser only; no real money, no terminal).**
+1. `https://staging.iomsuite.com/register` (browser password: `preview`). Create an account. Staging
+   sends no mail, so the "account created" page shows **Staging preview → Confirm email**. That box is
+   rendered only when `APP_ENV` is not production AND `MAIL_MAILER=log`
+   (`App\Support\StagingPreview`), and is pinned by `StagingPreviewMailLinkTest`.
+2. Continue setup → company → plan → Continue to payment → choose a method → Pay. Duitku's sandbox page
+   opens. Complete the payment there with Duitku's sandbox test instrument.
+3. Claude runs `review-check` and reads the inquiry, the signed status read, the callback, the invoice,
+   the subscription and the workspace from the server.
 
 Each scenario in the owner's list is also pinned by `tests/Feature/DuitkuCheckoutScenariosTest.php`.
 

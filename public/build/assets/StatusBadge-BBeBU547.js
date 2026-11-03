@@ -1,0 +1,1 @@
+import{j as o}from"./app-DGqSdFPi.js";import{B as s}from"./badge-759Bw0zv.js";import{h as n}from"./humanizeToken-CW_qZzAV.js";import{s as a}from"./semantics-Db_LZU_F.js";function p({value:r,label:t}){return r?o.jsx(s,{variant:a(r),children:t||n(r)}):null}export{p as S};

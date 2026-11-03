@@ -315,15 +315,21 @@ class User extends Authenticatable implements MustVerifyEmail
      * Mailable so the Mailable stays a dumb renderer, the same shape as
      * every other IOMS mail class.
      */
+    /** The signed, expiring confirmation link the verification email carries. */
+    public function verificationUrl(): string
+    {
+        return URL::temporarySignedRoute(
+            'verification.verify',
+            Carbon::now()->addMinutes((int) config('auth.verification.expire', 60)),
+            ['id' => $this->getKey(), 'hash' => sha1($this->getEmailForVerification())],
+        );
+    }
+
     public function sendEmailVerificationNotification(): bool
     {
         $minutes = (int) config('auth.verification.expire', 60);
 
-        $url = URL::temporarySignedRoute(
-            'verification.verify',
-            Carbon::now()->addMinutes($minutes),
-            ['id' => $this->getKey(), 'hash' => sha1($this->getEmailForVerification())],
-        );
+        $url = $this->verificationUrl();
 
         /*
          * v2.131.0 -- A MAIL FAILURE IS NOT A REGISTRATION FAILURE.

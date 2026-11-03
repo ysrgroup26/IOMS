@@ -314,6 +314,16 @@ B=claude/eloquent-newton-pbxxdg; R=/srv/ioms-staging/app; sudo -u iomsstg git -C
 3. Claude runs `review-check` and reads the inquiry, the signed status read, the callback, the invoice,
    the subscription and the workspace from the server.
 
+**Duitku's official sandbox payment tools** (docs.duitku.com/api/id/, section *Uji Coba*, read 2026-11-03):
+
+| Method | How to pay in the sandbox |
+|---|---|
+| Virtual Account (BC, M2, ...) | *Demo transaction virtual account sandbox*: `https://sandbox.duitku.com/payment/demo/demosuccesstransaction.aspx`. Enter the VA number shown on Duitku's payment page. |
+| Credit card (VC), 3D Secure | VISA `4000 0000 0000 0044` or MASTERCARD `5500 0000 0000 0004`, expiry 03/33, CVV 123 (Duitku's published dummy cards) |
+| ShopeePay / QRIS / Nusapay / Paylater | Duitku's staging apps or test phone numbers; not used here |
+
+Automation limit: `sandbox.duitku.com` answers an automated browser with a Cloudflare challenge ("Just a moment...", 403). Claude does not work around bot checks, so a person pays the sandbox VA in their own browser. Everything around that step is automated.
+
 Each scenario in the owner's list is also pinned by `tests/Feature/DuitkuCheckoutScenariosTest.php`.
 
 ---

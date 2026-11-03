@@ -127,7 +127,7 @@ certificate) → nginx on loopback → PHP-FPM → `PaymentWebhookController::du
 
 | Hop | Staging (evaluated 2026-11-03) | Production (evaluated, not changed) |
 |---|---|---|
-| Tencent firewall / security group | Only Cloudflare reaches :443, so Duitku's IPs never connect directly. Nothing to add. | Same |
+| Tencent firewall / security group | Duitku connects to **Cloudflare**, never to the origin, so its IPs never need to be on the Tencent firewall. Whether :443 is already locked to Cloudflare's ranges (ADR 072, "lockdown after cutover") was **not verified** from here. Nothing to add either way. | Same |
 | Cloudflare WAF / Bot Fight / challenge | **Not blocking.** An unsigned POST from a GitHub-hosted runner (a datacenter IP, as Duitku's are) reached the app with no challenge (probe run 41573348679, 403 `Invalid signature`). Duitku's own IPs cannot be tested from here. | Not probed for this; production has no staging password, so the path is open. The health check's "Unsigned Duitku callback 503" proves the app is reached. |
 | Caddy | The staging password covers everything except `POST /webhooks/payment/duitku` (`staging.sh callback open`). | No password. |
 | nginx | Real visitor IP restored from `CF-Connecting-IP`, trusted from loopback only. | Same |

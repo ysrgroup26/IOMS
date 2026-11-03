@@ -181,38 +181,65 @@ which IOMS can come to believe it was paid.
 
 ### 6a. Staging sandbox run (v2.141.1, ADR 085)
 
-On Tencent, as root, staging only. Never edit `/srv/ioms/.env`.
+**Where the secrets live on staging.** Application secrets are in `/srv/ioms-staging/app/.env`,
+read by Laravel (`config/payment.php`) and owned by the staging account. GitHub never holds them:
+the `IOMS_STAGING_*` GitHub secrets only reach the forced command (ADR 084), and no workflow can
+read or write the application's `.env`. A deploy rebuilds the config cache from that file.
+Production uses its own `.env`, which is not touched here.
 
-1. Add the four variables to the staging environment file:
+**Getting sandbox credentials (owner).**
+1. Sign in to the Duitku merchant dashboard and switch to the **Sandbox** environment. A sandbox
+   project has its own merchant code and API key, separate from production.
+2. Open the sandbox **Project** (create one if none exists). Use:
+   - Website: `https://staging.iomsuite.com`
+   - Callback URL: `https://staging.iomsuite.com/webhooks/payment/duitku`
+   - Return URL: Duitku passes it per transaction, so the field can stay empty or point at
+     `https://staging.iomsuite.com`.
+3. Copy the project's **Merchant Code** and **API Key**. Enable at least one channel (a VA such as
+   BCA) for the sandbox project.
 
-   ```bash
-   sudoedit /srv/ioms-staging/app/.env
-   ```
+**Configuring staging (owner, as root on Tencent).**
 
-   ```
-   PAYMENT_GATEWAY=duitku
-   DUITKU_MERCHANT_CODE=<sandbox code>
-   DUITKU_API_KEY=<sandbox key>
-   DUITKU_IS_PRODUCTION=false
-   ```
+```bash
+sudoedit /srv/ioms-staging/app/.env     # add or replace the four lines below; never /srv/ioms/.env
+```
 
-2. Rebuild the config cache:
+```
+PAYMENT_GATEWAY=duitku
+DUITKU_MERCHANT_CODE=<sandbox merchant code>
+DUITKU_API_KEY=<sandbox API key>
+DUITKU_IS_PRODUCTION=false
+```
 
-   ```bash
-   sudo -u iomsstg php /srv/ioms-staging/app/artisan config:cache
-   ```
+```bash
+sudo -u iomsstg php /srv/ioms-staging/app/artisan config:cache
+# Install the sandbox section of review-check. Same one line as ADR 084; it keeps the
+# existing key and GitHub secrets:
+B=claude/eloquent-newton-pbxxdg; R=/srv/ioms-staging/app; sudo -u iomsstg git -C $R fetch -q origin $B && sudo -u iomsstg git -C $R show FETCH_HEAD:deploy/tencent/hermes/enable-staging-ci.sh | sudo bash -s -- --branch $B
+```
 
-3. Prove the sandbox accepts the signature (read-only; prints no secret):
+**What Claude then runs from GitHub (no SSH needed).**
+- **Staging `review-check`**, which now ends with a Duitku section:
+  - `ioms:duitku-check` proves the **method-list signature** against `sandbox.duitku.com`;
+  - `payment-check.php` proves the **status signature** with a signed read of every pending attempt;
+  - it lists the latest orders with attempt state, callback received, paid time, workspace and
+    subscription;
+  - it fails on any paid-without-subscription or double-paid invoice.
+  It writes nothing, and it refuses outright when `DUITKU_IS_PRODUCTION=true`.
+- **Staging callback probe** (`.github/workflows/staging-callback-probe.yml`). It sends one unsigned
+  callback from the public internet. The expected answer is 503 before configuration and 403 after.
+  A Cloudflare challenge in front of the callback counts as a failure.
 
-   ```bash
-   sudo -u iomsstg php /srv/ioms-staging/app/artisan ioms:duitku-check
-   ```
-
-4. In the Duitku **sandbox** project, set the callback URL to
-   `https://staging.iomsuite.com/webhooks/payment/duitku`. It must be reachable from the internet, with no
-   login wall or bot challenge in front of it.
-5. Register at `https://staging.iomsuite.com/get-started`, then work through the checklist above. Pay with
-   Duitku's sandbox simulator, and cancel one attempt on the Duitku page.
+**Paying in the sandbox (owner, in a browser; no real money).**
+1. Register at `https://staging.iomsuite.com/get-started` with an inbox you can read, confirm the
+   email, choose a plan and continue to payment.
+2. Choose a VA and press Pay. Duitku's sandbox page shows the VA number; complete it with Duitku's
+   sandbox payment simulator.
+3. Repeat for:
+   - cancel on the Duitku page;
+   - leave one unpaid past `PAYMENT_CHECKOUT_EXPIRY_HOURS`, or lower it on staging only;
+   - each of Starter, Professional and Business.
+4. After each step, Claude runs `review-check` and reads the result.
 
 Each scenario in the owner's list is also pinned by `tests/Feature/DuitkuCheckoutScenariosTest.php`.
 

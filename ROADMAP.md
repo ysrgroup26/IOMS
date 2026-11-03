@@ -363,6 +363,25 @@ renewal, live capacity against real entitlements, and invoice/payment history.
 most — a customer who has paid but has no workspace — with an idempotent re-provision action that
 cannot activate an unpaid registration.
 
+### 💳 Duitku Sandbox for resubmission (v2.141.1, ADR 085) — current payment track
+
+Duitku (project D25218) re-reviewed iomsuite.com and asked for two things: remove the legal merchant's
+name from the website, and enable checkout against the Duitku Sandbox. The Midtrans list below is kept
+for history; **Duitku is the configured provider track.**
+
+| Step | State |
+|---|---|
+| Invoice issuer shows the IOMS brand; merchant legal name is internal only | Done on branch, on staging |
+| Payer email/name/phone sent to Duitku; expired and cancelled attempts recorded; return verified with the provider | Done on branch, on staging |
+| Scenario suite against a simulated sandbox (`DuitkuCheckoutScenariosTest`) | Passing in CI |
+| Staging probe: callback reachable from the public internet (`staging-callback-probe.yml`) | Runs on every push of the probe |
+| Staging `review-check` reports the sandbox: method-list signature, signed status reads, orders, callbacks, activation | Needs the installer re-run on Tencent |
+| **Sandbox credentials on staging** (`/srv/ioms-staging/app/.env`) and the callback URL in the Duitku sandbox project | **Waiting on the owner** |
+| Real sandbox run (pay, cancel, expire, duplicate callback) on staging | After credentials |
+| Production running sandbox credentials so Duitku's reviewer can check out on iomsuite.com | Needs the owner's approval, merge and deploy |
+
+Runbook: `docs/PAYMENTS-DUITKU.md` §6a.
+
 ### ⚠️ STILL REQUIRES EXTERNAL CONFIGURATION — the only thing standing between this and live payments
 
 The code is complete. None of it can take a real payment until the following exist, and IOMS

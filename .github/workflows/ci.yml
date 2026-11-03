@@ -84,6 +84,7 @@ jobs:
           done
           php -l deploy/tencent/hermes/migration-policy.php
           php -l deploy/tencent/hermes/staging-review-check.php
+          php -l deploy/tencent/hermes/staging-payment-check.php
 
       - name: Workflows (actionlint)
         run: |

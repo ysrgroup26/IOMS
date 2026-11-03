@@ -299,6 +299,15 @@ class DuitkuGateway implements PaymentGatewayInterface
 
         $code = (string) ($response->json('statusCode') ?? '');
 
+        if (! in_array($code, ['00', '01', '02'], true)) {
+            // Duitku's own words (e.g. "Invalid Signature"), never a secret.
+            Log::warning('Duitku did not answer a transaction status read.', [
+                'reference' => $gatewayReference,
+                'http_status' => $response->status(),
+                'message' => $response->json('statusMessage') ?? $response->json('Message'),
+            ]);
+        }
+
         return match ($code) {
             '00' => 'paid',
             '01' => 'pending',

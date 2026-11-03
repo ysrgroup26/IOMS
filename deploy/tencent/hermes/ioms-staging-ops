@@ -15,7 +15,8 @@
 #   flows                      backup, then (re)seed the Approval Flow review tenant
 #                              (ApprovalFlowReviewSeeder) with the staging app password
 #   activate-due               run the PTW scheduler pass once (staging has no cron)
-#   review-check               read-only report of the review tenant (no writes; rolled back)
+#   review-check               read-only report of the review tenant and of the Duitku
+#                              SANDBOX integration (no writes; rolled back; signed reads only)
 #   logs app|ops [N]           redacted tail of the staging Laravel log or this tool's audit log
 #
 # STAGING ONLY, BY CONSTRUCTION. Every path, account, database and port is a constant below;
@@ -275,9 +276,20 @@ do_activate_due() {
 
 do_review_check() {
     assert_staging
-    # Read-only by construction: the script opens a transaction and rolls it back.
-    as_stg "php '$LIB/review-check.php' '$APP'" 2>&1 | redact
-    return "${PIPESTATUS[0]}"
+    # Read-only by construction: each script opens a transaction and rolls it back.
+    local rc=0 prc=0
+    as_stg "php '$LIB/review-check.php' '$APP'" 2>&1 | redact; rc=${PIPESTATUS[0]}
+    # v2.141.1 (ADR 085): the Duitku SANDBOX section -- the method-list signature through
+    # the application's own check, then signed status reads and the latest orders. Both
+    # refuse a production endpoint; neither creates a payment.
+    if [[ -f "$LIB/payment-check.php" ]]; then
+        echo
+        as_stg "php artisan ioms:duitku-check --allow-unconfigured" 2>&1 | redact; prc=${PIPESTATUS[0]}
+        local crc
+        as_stg "php '$LIB/payment-check.php' '$APP'" 2>&1 | redact; crc=${PIPESTATUS[0]}
+        (( prc == 0 )) && prc=$crc
+    fi
+    (( rc == 0 && prc == 0 ))
 }
 
 do_logs() { # app|ops [N]

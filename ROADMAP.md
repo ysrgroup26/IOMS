@@ -376,8 +376,8 @@ for history; **Duitku is the configured provider track.**
 | Scenario suite against a simulated sandbox (`DuitkuCheckoutScenariosTest`) | Passing in CI |
 | Staging probe: callback reachable from the public internet (`staging-callback-probe.yml`) | **Found blocked: 401 from the staging password**; fix `staging.sh callback open` rehearsed, waiting on the owner |
 | Staging `review-check` reports the sandbox: method-list signature, signed status reads, orders, callbacks, activation | Needs the installer re-run on Tencent |
-| **Sandbox credentials on staging** (`/srv/ioms-staging/app/.env`) and the callback URL in the Duitku sandbox project | **Waiting on the owner** |
-| Real sandbox run (pay, cancel, expire, duplicate callback) on staging | After credentials |
+| Sandbox credentials on staging and the callback URL in the Duitku sandbox project | Done (owner) |
+| Real sandbox run on staging: Starter, BCA VA, paid with Duitku's VA simulator | **Verified 2026-11-03** (review-check run 41633818223): callback received, signature accepted, attempt and invoice paid once, registration provisioned, subscription active, workspace (tenant #4) created |
 | Production running sandbox credentials so Duitku's reviewer can check out on iomsuite.com | Needs the owner's approval, merge and deploy |
 
 Runbook: `docs/PAYMENTS-DUITKU.md` §6a.

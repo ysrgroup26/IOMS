@@ -314,6 +314,14 @@ B=claude/eloquent-newton-pbxxdg; R=/srv/ioms-staging/app; sudo -u iomsstg git -C
 3. Claude runs `review-check` and reads the inquiry, the signed status read, the callback, the invoice,
    the subscription and the workspace from the server.
 
+**Verified on staging, 2026-11-03.** This was a real Duitku Sandbox run, not a simulation.
+- Order: Starter Monthly, Rp189.000, BCA VA.
+- Checks passed against `sandbox.duitku.com`: method-list, inquiry and transaction-status signatures (`provider-now=pending` before payment).
+- Payment: made with Duitku's VA demo page.
+- Callback: received 12:10:47 (`result=00`, processed). Its signature was accepted.
+- Result: attempt `INV1-20261103112543-PJRW` and invoice `INV-2026-NEW-00001` are `paid` exactly once. The registration is `provisioned`, and workspace tenant #4 has an active subscription 2026-11-03 to 2026-12-03.
+- Evidence: Staging `review-check` runs 41627656548 (pending) and 41633818223 (paid). Both exited 0.
+
 **Duitku's official sandbox payment tools** (docs.duitku.com/api/id/, section *Uji Coba*, read 2026-11-03):
 
 | Method | How to pay in the sandbox |

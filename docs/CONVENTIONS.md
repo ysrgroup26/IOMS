@@ -3,6 +3,14 @@
 House style, and a deliberately honest list of mistakes that have actually happened in this
 codebase's history — kept here so they don't get repeated in a slightly different shape.
 
+## Known Pitfall (v2.141.1): a password in front of staging also stops the payment provider
+
+Staging is a preview behind Caddy `basic_auth`. That protects the preview, and it also answered Duitku's
+server-to-server callback with 401 before the application saw it. A sandbox payment could therefore
+never settle on staging, whatever the code did. Simulated tests cannot show this, because they call the
+route directly. Ask a public client (`staging-callback-probe.yml`). The narrow exception is
+`staging.sh callback open` (ADR 085).
+
 ## Known Pitfall (v2.141.1): an onboarding invoice has no tenant, so "the payer" fell back to IOMS
 
 `DuitkuGateway` took the payer email and VA name from `$invoice->tenant`. A first purchase is invoiced

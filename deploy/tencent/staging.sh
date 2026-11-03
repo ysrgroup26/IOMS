@@ -6,6 +6,8 @@
 #   sudo bash staging.sh flows  [branch]   deploy, then create the Approval Flow review tenant (v2.141.0)
 #   sudo bash staging.sh pilot  [branch]   deploy, then (re)create the Starter pilot tenant and its two
 #                                          test accounts (ADR 082), with the staging app password
+#   sudo bash staging.sh callback open|close  let ONLY POST /webhooks/payment/duitku past the staging
+#                                          password (Duitku sandbox callbacks, ADR 085), or close it
 #
 # Isolation from production (/srv/ioms, DB `ioms`, user `ioms`, port 8081):
 #   own Linux user `iomsstg`, own dir /srv/ioms-staging, own DB `ioms_staging` with a MySQL user
@@ -210,10 +212,101 @@ C
     echo "  review accounts: flow.admin@ioms.local and seven more (password: see $CRED)"
 }
 
+# v2.141.1 (ADR 085) -- the ONE public path on staging: Duitku's payment callback.
+#
+# Staging sits behind a Caddy password (basic_auth), so Duitku's servers -- which cannot type
+# one -- were answered 401 by Caddy before the application ever saw them. `callback open`
+# lets exactly `POST /webhooks/payment/duitku` through without the password; every other
+# request still needs it. The application refuses that endpoint unless the body carries a
+# valid HMAC signature made with the staging sandbox key, before it reads anything.
+# `callback close` puts the password back in front of everything.
+#
+# Same safeguards as `setup`: the snippet is backed up, validated and reloaded; production
+# is snapshotted before and after and the change is undone if it answers differently; the
+# staging answers are checked (callback reaches the app, /login still asks for the password).
+callback() {
+    local mode="${1:-}"
+    [[ $mode == open || $mode == close ]] || die "usage: staging.sh callback open|close"
+    grep -q "^# staging: $HOST$" "$SNIPPET" || die "no staging site in $SNIPPET (run setup first)"
+    local bk; bk="/root/caddy-backup-staging-$(date +%Y%m%d%H%M%S)"; install -d -m 700 "$bk"
+    cp -a "$SNIPPET" "$bk/ioms.caddy"
+    local snap='for h in iomsuite.com www.iomsuite.com; do curl -sk -o /dev/null -w "$h %{http_code}\n" --resolve $h:443:127.0.0.1 https://$h/login; done'
+    bash -c "$snap" > "$bk/before.txt"
+
+    # Read what the current staging block already has; nothing new is generated.
+    local block tls_line hash
+    block="$(awk -v s="# staging: $HOST" '$0 == s { on = 1 } on { print } on && /^}/ { exit }' "$bk/ioms.caddy")"
+    tls_line="$(grep -m1 -E '^\s*tls ' <<<"$block" | sed 's/^\s*//')"
+    hash="$(grep -m1 -E '^\s*preview ' <<<"$block" | awk '{print $2}')"
+    [[ -n $hash ]] || die "could not read the staging password hash; nothing changed"
+
+    awk -v s="# staging: $HOST" '
+        $0 == s { skip = 1; next }
+        skip { if ($0 ~ /^}/) skip = 0; next }
+        { print }' "$bk/ioms.caddy" > "$SNIPPET.tmp"
+    {
+        echo "# staging: $HOST"
+        echo "$HOST {"
+        [[ -n $tls_line ]] && echo "    $tls_line"
+        echo '    header X-Robots-Tag "noindex, nofollow"'
+        if [[ $mode == open ]]; then
+            echo '    @duitku_callback {'
+            echo '        method POST'
+            echo '        path /webhooks/payment/duitku'
+            echo '    }'
+            echo '    handle @duitku_callback {'
+            echo "        reverse_proxy 127.0.0.1:$PORT"
+            echo '    }'
+        fi
+        echo '    handle {'
+        echo '        basic_auth {'
+        echo "            preview $hash"
+        echo '        }'
+        echo "        reverse_proxy 127.0.0.1:$PORT"
+        echo '    }'
+        echo '}'
+    } > "$bk/staging-block"
+    # The redirect site (http://$HOST) is a separate block and is left exactly as it was.
+    awk -v s="# staging: $HOST" -v f="$bk/staging-block" '
+        BEGIN { while ((getline l < f) > 0) blk = blk l "\n" }
+        { print }
+        END { printf "%s", blk }' "$SNIPPET.tmp" > "$SNIPPET"
+    rm -f "$SNIPPET.tmp"
+
+    if ! caddy validate --config "$CADDYFILE" --adapter caddyfile >/dev/null 2>&1 || ! systemctl reload caddy; then
+        cp -a "$bk/ioms.caddy" "$SNIPPET"; systemctl reload caddy || true
+        die "Caddy rejected the change; restored."
+    fi
+    sleep 2; bash -c "$snap" > "$bk/after.txt"
+    if ! diff -q "$bk/before.txt" "$bk/after.txt" >/dev/null; then
+        cp -a "$bk/ioms.caddy" "$SNIPPET"; systemctl reload caddy || true
+        die "Production answered differently after the reload; restored."
+    fi
+    echo "  ok    production answers exactly as before"
+
+    local login cb
+    login="$(curl -sk -o /dev/null -w '%{http_code}' --resolve "$HOST:443:127.0.0.1" "https://$HOST/login")"
+    cb="$(curl -sk -o /dev/null -w '%{http_code}' --resolve "$HOST:443:127.0.0.1" -X POST --data 'signature=x' "https://$HOST/webhooks/payment/duitku")"
+    if [[ $login != 401 ]]; then
+        cp -a "$bk/ioms.caddy" "$SNIPPET"; systemctl reload caddy || true
+        die "staging /login answered $login without the password (expected 401); restored."
+    fi
+    echo "  ok    staging /login still asks for the password (401)"
+    if [[ $mode == open ]]; then
+        [[ $cb == 403 || $cb == 503 ]] || { cp -a "$bk/ioms.caddy" "$SNIPPET"; systemctl reload caddy || true; die "the callback answered $cb (expected 403/503 from the app); restored."; }
+        echo "  ok    the unsigned callback reaches the application and is refused ($cb)"
+    else
+        [[ $cb == 401 ]] || { cp -a "$bk/ioms.caddy" "$SNIPPET"; systemctl reload caddy || true; die "the callback answered $cb (expected 401); restored."; }
+        echo "  ok    the callback is behind the password again (401)"
+    fi
+    echo "  backup: $bk"
+}
+
 case "$CMD" in
     setup) setup ;;
     deploy) deploy ;;
     pilot) pilot ;;
     flows) flows ;;
-    *) die "usage: staging.sh setup|deploy|pilot|flows [branch]" ;;
+    callback) callback "${2:-}" ;;
+    *) die "usage: staging.sh setup|deploy|pilot|flows [branch] | callback open|close" ;;
 esac

@@ -187,6 +187,35 @@ the `IOMS_STAGING_*` GitHub secrets only reach the forced command (ADR 084), and
 read or write the application's `.env`. A deploy rebuilds the config cache from that file.
 Production uses its own `.env`, which is not touched here.
 
+**Access restriction found (2026-11-03).** The staging callback probe, run from a GitHub-hosted
+runner (an ordinary internet client), was answered **401 by every staging path, including
+`POST /webhooks/payment/duitku`**: Cloudflare passes the request through, and Caddy's staging password
+(`basic_auth`, `staging.sh setup`) refuses it before the application sees it. Duitku cannot send a
+password, so **no sandbox callback could ever arrive**, and no payment could settle or activate a
+workspace on staging. There was no Cloudflare challenge.
+
+The fix lets exactly one request through without the password: `POST /webhooks/payment/duitku`. The
+application refuses it unless it carries a valid HMAC made with the staging sandbox key. Every other
+path, including `GET` on the same URL, keeps the password. **It changes staging's access protection,
+so the owner runs it**, as root:
+
+```bash
+sudo bash /srv/ioms-staging/app/deploy/tencent/staging.sh callback open    # or: callback close
+```
+
+The command:
+- backs up `/etc/caddy/ioms.caddy`, then validates and reloads Caddy;
+- checks that production answers exactly as before;
+- checks that `/login` still answers 401 and the unsigned callback reaches the app (503/403);
+- restores the backup if any of those checks fails.
+
+It was rehearsed against a real Caddy:
+- open: callback 503 from the app; `/login`, `GET` callback and other paths still 401;
+- close: callback back to 401;
+- running `open` twice leaves exactly one staging block.
+
+The server runs Caddy ≥ 2.8 (`basic_auth`). The rehearsal used 2.6, whose spelling is `basicauth`.
+
 **Getting sandbox credentials (owner).**
 1. Sign in to the Duitku merchant dashboard and switch to the **Sandbox** environment. A sandbox
    project has its own merchant code and API key, separate from production.
@@ -213,6 +242,7 @@ DUITKU_IS_PRODUCTION=false
 
 ```bash
 sudo -u iomsstg php /srv/ioms-staging/app/artisan config:cache
+sudo bash /srv/ioms-staging/app/deploy/tencent/staging.sh callback open
 # Install the sandbox section of review-check. Same one line as ADR 084; it keeps the
 # existing key and GitHub secrets:
 B=claude/eloquent-newton-pbxxdg; R=/srv/ioms-staging/app; sudo -u iomsstg git -C $R fetch -q origin $B && sudo -u iomsstg git -C $R show FETCH_HEAD:deploy/tencent/hermes/enable-staging-ci.sh | sudo bash -s -- --branch $B
@@ -231,8 +261,12 @@ B=claude/eloquent-newton-pbxxdg; R=/srv/ioms-staging/app; sudo -u iomsstg git -C
   A Cloudflare challenge in front of the callback counts as a failure.
 
 **Paying in the sandbox (owner, in a browser; no real money).**
-1. Register at `https://staging.iomsuite.com/get-started` with an inbox you can read, confirm the
-   email, choose a plan and continue to payment.
+1. Register at `https://staging.iomsuite.com/get-started` (browser password: `preview`, from
+   `/root/ioms-staging-credentials.txt`). Staging sends no mail (`MAIL_MAILER=log`), so read the
+   confirmation link from the staging log as root:
+   `grep -o 'https://staging.iomsuite.com/get-started/verify/[A-Za-z0-9]*' /srv/ioms-staging/app/storage/logs/laravel.log | tail -1`
+   Then choose a plan and continue to payment. The invoice and activation emails (scenario 15) appear
+   in the same log.
 2. Choose a VA and press Pay. Duitku's sandbox page shows the VA number; complete it with Duitku's
    sandbox payment simulator.
 3. Repeat for:

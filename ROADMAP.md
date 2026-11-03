@@ -374,7 +374,7 @@ for history; **Duitku is the configured provider track.**
 | Invoice issuer shows the IOMS brand; merchant legal name is internal only | Done on branch, on staging |
 | Payer email/name/phone sent to Duitku; expired and cancelled attempts recorded; return verified with the provider | Done on branch, on staging |
 | Scenario suite against a simulated sandbox (`DuitkuCheckoutScenariosTest`) | Passing in CI |
-| Staging probe: callback reachable from the public internet (`staging-callback-probe.yml`) | Runs on every push of the probe |
+| Staging probe: callback reachable from the public internet (`staging-callback-probe.yml`) | **Found blocked: 401 from the staging password**; fix `staging.sh callback open` rehearsed, waiting on the owner |
 | Staging `review-check` reports the sandbox: method-list signature, signed status reads, orders, callbacks, activation | Needs the installer re-run on Tencent |
 | **Sandbox credentials on staging** (`/srv/ioms-staging/app/.env`) and the callback URL in the Duitku sandbox project | **Waiting on the owner** |
 | Real sandbox run (pay, cancel, expire, duplicate callback) on staging | After credentials |

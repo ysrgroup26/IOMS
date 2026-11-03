@@ -173,8 +173,48 @@ which IOMS can come to believe it was paid.
 - [ ] Send a callback with a wrong signature; confirm `403` and no state change
 - [ ] Send a callback with a lowered amount; confirm not settled and `failure_reason` recorded
 - [ ] Send a callback with a RAISED amount; confirm it is also refused and escalated
-- [ ] Let a session lapse past `PAYMENT_CHECKOUT_EXPIRY_HOURS`; confirm a new session is minted
+- [ ] Let a session lapse past `PAYMENT_CHECKOUT_EXPIRY_HOURS`; confirm the old row is `expired` and a new session is minted
+- [ ] Cancel on the Duitku page; on return confirm the status page says "Payment not completed" (after IOMS's own status read) and offers another method
+- [ ] Return from a paid sandbox payment BEFORE the callback; confirm "Confirming your payment" and no activation until the callback
+- [ ] Confirm Duitku's payment email reaches the CUSTOMER's address, not billing@
 - [ ] Confirm complimentary tenants are untouched by all of the above
+
+### 6a. Staging sandbox run (v2.141.1, ADR 085)
+
+On Tencent, as root, staging only. Never edit `/srv/ioms/.env`.
+
+1. Add the four variables to the staging environment file:
+
+   ```bash
+   sudoedit /srv/ioms-staging/app/.env
+   ```
+
+   ```
+   PAYMENT_GATEWAY=duitku
+   DUITKU_MERCHANT_CODE=<sandbox code>
+   DUITKU_API_KEY=<sandbox key>
+   DUITKU_IS_PRODUCTION=false
+   ```
+
+2. Rebuild the config cache:
+
+   ```bash
+   sudo -u iomsstg php /srv/ioms-staging/app/artisan config:cache
+   ```
+
+3. Prove the sandbox accepts the signature (read-only; prints no secret):
+
+   ```bash
+   sudo -u iomsstg php /srv/ioms-staging/app/artisan ioms:duitku-check
+   ```
+
+4. In the Duitku **sandbox** project, set the callback URL to
+   `https://staging.iomsuite.com/webhooks/payment/duitku`. It must be reachable from the internet, with no
+   login wall or bot challenge in front of it.
+5. Register at `https://staging.iomsuite.com/get-started`, then work through the checklist above. Pay with
+   Duitku's sandbox simulator, and cancel one attempt on the Duitku page.
+
+Each scenario in the owner's list is also pinned by `tests/Feature/DuitkuCheckoutScenariosTest.php`.
 
 ---
 

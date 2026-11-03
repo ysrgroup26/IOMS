@@ -173,6 +173,7 @@ Not everything settled has an ADR. These live elsewhere and are equally binding:
 | **P4 `skipped` status:** approved for testing and staging only; production needs its own approval after the impact, compatibility, rollback and reader audit are shown, and approval history must not be changed — owner, 2026-11-02 | `docs/runbooks/P4-SKIPPED-STATUS.md` |
 | **Operational authorisation (2026-11-02):** Claude may work on the repository, Tencent, staging and production (SSH/root where needed, production deploys within instructions); strategic, financial and materially risky changes, data deletion and audit-history changes stay with the owner | owner's policy message, 2026-11-02 |
 | **Staging operated from GitHub through one forced command** (approved for preparation; not installed): manual workflow, `claude/*` only, CI-green commits only, `iomsstgci` key bound to `ioms-staging-ci`, root-owned `ioms-staging-ops` that knows only staging — owner, 2026-11-02 | [[084-staging-is-operated-through-one-forced-command\|ADR 084]], `docs/runbooks/STAGING-CI.md` |
+| **The invoice is issued under the IOMS brand; a payment return is never believed** (supersedes ADR 071's merchant-on-invoice rule): issuer = IOMS at the published address, merchant legal name internal only; the payer is the customer; a return triggers a signed status READ that can only close a failed/cancelled session; expired sessions are marked; settlement stays the verified callback (Duitku re-review, owner, 2026-11-03) | [[085-the-invoice-is-issued-under-the-brand-and-a-return-is-never-believed\|ADR 085]], `docs/PAYMENTS-DUITKU.md` §6a |
 | **A14 not yet approved:** a recommendation for the reporting line is requested first | [[A14 Reporting Line Recommendation]] |
 | **A10 still pending:** the six Work Order sections are the base; no field is final until the owner reviews the full draft | [[A10 Work Order Field Draft]] |
 | The bilingual **language hierarchy** (English slots vs Indonesian slots) | `CONVENTIONS.md`, [[CLAUDE]] — **supersedes** v1.11.7's "translate everything" policy |
@@ -190,7 +191,7 @@ Stated so nobody spends time looking for missing files:
 - **002, 003 and 005 do not exist.** No record explains why; the numbering simply skips them.
 - **029 is used twice** — `029-production-seeding-without-faker` and
   `029-public-html-split-directory-incident` are different decisions sharing a number.
-- The next ADR should be **085** — 084 is [[084-staging-is-operated-through-one-forced-command]].
+- The next ADR should be **086** — 085 is [[085-the-invoice-is-issued-under-the-brand-and-a-return-is-never-believed]].
 
 ---
 

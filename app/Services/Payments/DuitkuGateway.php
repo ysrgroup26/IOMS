@@ -232,8 +232,16 @@ class DuitkuGateway implements PaymentGatewayInterface
                 'paymentMethod' => $method,
                 'merchantOrderId' => $orderId,
                 'productDetails' => $this->productDetail($invoice),
-                'email' => $this->payerEmail($invoice),
-                'customerVaName' => $this->payerName($invoice),
+                // v2.141.1: the PAYER the caller names. An onboarding invoice
+                // has no tenant yet, so these used to fall back to IOMS's own
+                // billing mailbox and the name "IOMS": Duitku sent the
+                // customer's payment instructions to IOMS, and the VA showed
+                // the seller's name to the buyer.
+                'email' => $this->payerEmail($invoice, $options),
+                'customerVaName' => $this->payerName($invoice, $options),
+                ...(filled($options['customer_phone'] ?? null)
+                    ? ['phoneNumber' => mb_substr((string) $options['customer_phone'], 0, 50)]
+                    : []),
                 'callbackUrl' => route('webhooks.payment.duitku'),
                 // v2.131.0: where the CALLER says the customer belongs. This
                 // was always the tenant billing page, so a new customer
@@ -397,14 +405,22 @@ class DuitkuGateway implements PaymentGatewayInterface
      * of record; the billing mailbox is the fallback, so a missing contact
      * cannot block a payment the customer is trying to make.
      */
-    private function payerEmail(Invoice $invoice): string
+    private function payerEmail(Invoice $invoice, array $options = []): string
     {
+        $named = (string) ($options['customer_email'] ?? '');
+
+        if (filter_var($named, FILTER_VALIDATE_EMAIL)) {
+            return $named;
+        }
+
         return $invoice->tenant?->users()->withoutGlobalScopes()->value('email')
             ?? (string) config('ioms.emails.billing');
     }
 
-    private function payerName(Invoice $invoice): string
+    private function payerName(Invoice $invoice, array $options = []): string
     {
-        return mb_substr($invoice->tenant?->name ?? 'IOMS', 0, 50);
+        $named = trim((string) ($options['customer_name'] ?? ''));
+
+        return mb_substr($named !== '' ? $named : ($invoice->tenant?->name ?? 'IOMS'), 0, 50);
     }
 }

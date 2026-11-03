@@ -178,7 +178,9 @@
      *
      * Nothing is invented to fill it: see InvoiceDocumentService.
      */
-    $showIssuer = ! empty($identity['legal_name']) || ! empty($identity['address']);
+    // v2.141.1 (ADR 085): the issuer is the IOMS brand; the block appears
+    // when there is a published business address to put under it.
+    $showIssuer = ! empty($identity['address']);
 @endphp
 <table class="inv-party">
     <tr>
@@ -194,7 +196,7 @@
         @if ($showIssuer)
             <td>
                 <div class="inv-party-title">Diterbitkan Oleh</div>
-                <div class="inv-party-name">{{ $identity['legal_name'] ?: ($identity['name'] ?? 'IOMS') }}</div>
+                <div class="inv-party-name">{{ $identity['name'] ?? 'IOMS' }}</div>
                 <div class="inv-party-line">
                     @if (! empty($identity['address'])){{ $identity['address'] }}<br>@endif
                     @if (! empty($identity['website'])){{ $identity['website'] }}<br>@endif

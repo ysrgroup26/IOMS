@@ -3,6 +3,13 @@
 House style, and a deliberately honest list of mistakes that have actually happened in this
 codebase's history — kept here so they don't get repeated in a slightly different shape.
 
+## Known Pitfall (v2.141.1): an onboarding invoice has no tenant, so "the payer" fell back to IOMS
+
+`DuitkuGateway` took the payer email and VA name from `$invoice->tenant`. A first purchase is invoiced
+BEFORE the tenant exists, so every new customer's Duitku payment instructions went to billing@iomsuite.com,
+and the VA said "IOMS". The callers had passed `customer_email` and `customer_name` all along, and the adapter
+ignored them. An adapter must read the payer from what the caller says first (ADR 085).
+
 ## Known Pitfall (v2.141.0): restoring a mysqldump does not remove what came after it
 
 A dump rewrites only the tables it CONTAINS. Rolling back a failed release by loading the pre-deploy dump

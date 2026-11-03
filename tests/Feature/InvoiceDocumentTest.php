@@ -7,6 +7,7 @@ use App\Models\Package;
 use App\Models\Subscription;
 use App\Models\Tenant;
 use App\Services\InvoiceDocumentService;
+use Barryvdh\DomPDF\Facade\Pdf;
 use Illuminate\Foundation\Testing\RefreshDatabase;
 use Tests\TestCase;
 
@@ -187,31 +188,42 @@ class InvoiceDocumentTest extends TestCase
      * And still invents nothing
      * ================================================================== */
 
-    public function test_no_issuer_block_is_printed_when_no_registered_identity_exists(): void
+    public function test_no_issuer_block_is_printed_when_no_business_address_is_published(): void
     {
-        // With no legal entity configured the block would say "IOMS" and a
-        // website -- a third repetition of the name, in a box whose whole
-        // purpose is registered detail.
-        config(['ioms.legal.entity_name' => null, 'ioms.legal.address' => null, 'ioms.merchant.legal_name' => null]);
+        // With no published address the block would say "IOMS" and a
+        // website -- a third repetition of the name the header carries.
+        config(['ioms.legal.entity_name' => null, 'ioms.legal.address' => null]);
 
         $this->assertStringNotContainsString('Diterbitkan Oleh', $this->render());
     }
 
-    public function test_the_issuer_block_appears_once_a_registered_identity_is_configured(): void
+    public function test_the_invoice_is_issued_by_the_ioms_brand_at_its_published_address(): void
     {
-        // v2.131.0: the issuer is the LEGAL MERCHANT -- who is paid -- which
-        // the website's brand cleanup deliberately does not touch.
-        config([
-            'ioms.legal.entity_name' => null,
-            'ioms.merchant.legal_name' => 'PT Contoh Operasi Nusantara',
-            'ioms.legal.address' => 'Jakarta, Indonesia',
-        ]);
+        // v2.141.1 (ADR 085): Duitku asked for the legal merchant's name to be
+        // removed from the registered website. The issuer is the brand, at
+        // the business address IOMS already publishes.
+        config(['ioms.legal.address' => 'Garut, Jawa Barat']);
 
         $html = $this->render();
 
         $this->assertStringContainsString('Diterbitkan Oleh', $html);
-        $this->assertStringContainsString('PT Contoh Operasi Nusantara', $html);
-        $this->assertStringContainsString('Jakarta, Indonesia', $html);
+        $this->assertMatchesRegularExpression('/inv-party-name">\s*'.preg_quote(config('app.name'), '/').'\s*</', $html);
+        $this->assertStringContainsString('Garut, Jawa Barat', $html);
+    }
+
+    public function test_the_merchant_legal_name_never_reaches_the_invoice_even_when_configured(): void
+    {
+        // The merchant legal name stays as INTERNAL configuration. Nothing
+        // customer-facing may print it -- neither through the merchant key
+        // nor through the public operator key.
+        config([
+            'ioms.merchant.legal_name' => 'PT Contoh Merchant Internal',
+            'ioms.legal.entity_name' => 'PT Contoh Merchant Internal',
+            'ioms.legal.address' => 'Garut, Jawa Barat',
+        ]);
+
+        $this->assertStringNotContainsString('PT Contoh Merchant Internal', $this->render());
+        $this->assertNull(app(InvoiceDocumentService::class)->issuerIdentity()['legal_name']);
     }
 
     public function test_there_is_still_no_tax_line(): void
@@ -229,7 +241,7 @@ class InvoiceDocumentTest extends TestCase
     {
         // The template is only correct if dompdf can draw it -- a stylesheet
         // it cannot parse fails here rather than in a customer's download.
-        $pdf = \Barryvdh\DomPDF\Facade\Pdf::loadView(
+        $pdf = Pdf::loadView(
             'pdf.invoice',
             app(InvoiceDocumentService::class)->viewData($this->invoice)
         )->setPaper('a4', 'portrait');

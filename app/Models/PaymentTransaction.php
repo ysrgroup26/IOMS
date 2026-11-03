@@ -3,14 +3,19 @@
 namespace App\Models;
 
 use Illuminate\Database\Eloquent\Model;
+use Illuminate\Support\Carbon;
 
 /** v1.11.6 -- one row per gateway checkout/payment attempt. See the owning migration's own doc comment. */
 class PaymentTransaction extends Model
 {
     public const STATUS_PENDING = 'pending';
+
     public const STATUS_PAID = 'paid';
+
     public const STATUS_FAILED = 'failed';
+
     public const STATUS_EXPIRED = 'expired';
+
     public const STATUS_REFUNDED = 'refunded';
 
     protected $fillable = [
@@ -90,6 +95,38 @@ class PaymentTransaction extends Model
      * There is deliberately no tenant_id column here: a second copy of the
      * owner could disagree with the invoice about who paid.
      */
+    /**
+     * v2.141.1 -- A SESSION THAT RAN OUT SAYS SO.
+     *
+     * `liveFor()` already stopped offering a pending session past the
+     * checkout window, but the row stayed `pending` for ever, so the status
+     * page could not tell "still paying" from "ran out yesterday" and the
+     * payments register counted abandoned attempts as open ones. This marks
+     * them `expired`. It only ever moves `pending` -> `expired`: a paid,
+     * failed or already expired row is never touched, and nothing about the
+     * invoice or the subscription changes.
+     */
+    public static function expireStale(Invoice $invoice): int
+    {
+        $hours = max(1, (int) config('payment.checkout_expiry_hours', 24));
+
+        return static::where('invoice_id', $invoice->id)
+            ->where('status', self::STATUS_PENDING)
+            ->where('created_at', '<=', now()->subHours($hours))
+            ->update(['status' => self::STATUS_EXPIRED, 'expired_at' => now()]);
+    }
+
+    /** The newest attempt for an invoice, whatever its state. */
+    public static function latestFor(Invoice $invoice): ?self
+    {
+        return static::where('invoice_id', $invoice->id)->latest('id')->first();
+    }
+
+    public function expiresAt(): ?Carbon
+    {
+        return $this->created_at?->copy()->addHours(max(1, (int) config('payment.checkout_expiry_hours', 24)));
+    }
+
     public function subscription()
     {
         return $this->hasOneThrough(

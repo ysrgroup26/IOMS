@@ -75,6 +75,19 @@ export default function AccountCreated({ account }) {
                 )}
             </div>
 
+            {/* v2.141.1 (ADR 085): staging writes mail to the log, so the
+                confirmation link is offered here. The server sends it only
+                outside production and only when no mail leaves. */}
+            {account.staging_verify_url && (
+                <div role="note" className="mt-3 rounded-lg border border-amber-300 bg-amber-50 p-3.5 text-xs leading-relaxed text-amber-900">
+                    <p className="font-semibold">Staging preview</p>
+                    <p className="mt-1">Lingkungan staging tidak mengirim email. Gunakan tautan konfirmasi berikut untuk akun ini.</p>
+                    <a href={account.staging_verify_url} className="mt-2 inline-flex font-semibold text-brand-700 underline">
+                        Confirm email
+                    </a>
+                </div>
+            )}
+
             {/* The two answers. The primary is first and styled as the
                 expected path, but the alternative is a real button with a
                 real destination -- not a link buried in small print. */}

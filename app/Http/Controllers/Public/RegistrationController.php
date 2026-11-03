@@ -2,9 +2,11 @@
 
 namespace App\Http\Controllers\Public;
 
+use App\Contracts\PaymentGatewayInterface;
 use App\Http\Controllers\Controller;
 use App\Mail\InvoiceIssued;
 use App\Mail\VerifyRegistrationEmail;
+use App\Models\ActivityLog;
 use App\Models\Invoice;
 use App\Models\Package;
 use App\Models\PaymentTransaction;
@@ -12,9 +14,9 @@ use App\Models\TenantRegistration;
 use App\Services\InvoiceDocumentService;
 use App\Services\PdfGeneratorService;
 use App\Services\PricingService;
-use App\Contracts\PaymentGatewayInterface;
 use Illuminate\Http\RedirectResponse;
 use Illuminate\Http\Request;
+use Illuminate\Support\Facades\Cache;
 use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Facades\Log;
 use Illuminate\Support\Facades\Mail;
@@ -177,10 +179,20 @@ class RegistrationController extends Controller
      * payment provider redirects back to, which is precisely why it must
      * not be able to activate anything.
      */
-    public function status(string $token): Response
+    public function status(Request $request, string $token): Response
     {
         $registration = TenantRegistration::where('token', $token)->with('package', 'invoice')->firstOrFail();
         $this->repriceOpenOrder($registration);
+
+        $invoice = $registration->invoice;
+
+        if ($invoice) {
+            PaymentTransaction::expireStale($invoice);
+
+            if ($invoice->status !== Invoice::STATUS_PAID && $this->paymentConfigured()) {
+                $this->reconcileReturn($invoice, (string) $request->query('merchantOrderId', ''));
+            }
+        }
 
         $package = $registration->package;
         $cycle = $registration->billing_cycle;
@@ -202,9 +214,98 @@ class RegistrationController extends Controller
                 'invoice_status' => $registration->invoice?->status,
             ],
             'paymentConfigured' => $this->paymentConfigured(),
+            'payment' => $invoice ? $this->attemptSummary($invoice, $token) : null,
             // Billing, not sales -- this page is about an invoice.
             'contactEmail' => config('ioms.emails.billing'),
         ]);
+    }
+
+    /**
+     * v2.141.1 -- WHAT HAPPENED TO THE LAST PAYMENT ATTEMPT, from the server.
+     *
+     * The provider sends the customer back here with `resultCode` in the
+     * query string. That is the BROWSER's account and is never believed:
+     * when a customer returns with an order id that belongs to a pending
+     * session of THIS invoice, the server asks the provider directly
+     * (`getPaymentStatus`, a signed read). Only one outcome is acted on:
+     * the provider saying the attempt failed, expired or was cancelled,
+     * which closes the session so the customer can choose another method.
+     *
+     * "Paid" from that read is NOT settlement. Settlement stays with the
+     * signature-verified callback (PaymentWebhookController), so the page
+     * says the payment is being confirmed and waits for it. A redirect, a
+     * status read or a refresh can never mark an invoice paid or provision
+     * a workspace.
+     *
+     * At most one provider read per attempt every 20 seconds, so reloading
+     * the page cannot be turned into a request flood against the provider.
+     */
+    private function reconcileReturn(Invoice $invoice, string $merchantOrderId): void
+    {
+        if ($merchantOrderId === '' || strlen($merchantOrderId) > 100) {
+            return;
+        }
+
+        $transaction = PaymentTransaction::where('invoice_id', $invoice->id)
+            ->where('gateway_reference', $merchantOrderId)
+            ->where('status', PaymentTransaction::STATUS_PENDING)
+            ->first();
+
+        if (! $transaction || ! Cache::add('payment-status-read:'.$transaction->id, 1, 20)) {
+            return;
+        }
+
+        try {
+            $state = app(PaymentGatewayInterface::class)->getPaymentStatus($transaction->gateway_reference);
+        } catch (Throwable $e) {
+            Log::warning('Payment status read failed; the page shows the stored state.', [
+                'reference' => $transaction->gateway_reference,
+                'error' => $e->getMessage(),
+            ]);
+
+            return;
+        }
+
+        if ($state === 'failed') {
+            // Guarded on `pending` again: a callback may have landed between
+            // the read above and this write.
+            PaymentTransaction::whereKey($transaction->id)
+                ->where('status', PaymentTransaction::STATUS_PENDING)
+                ->update([
+                    'status' => PaymentTransaction::STATUS_FAILED,
+                    'failure_reason' => 'Provider status check: the payment failed, expired or was cancelled.',
+                ]);
+        } elseif ($state === 'paid') {
+            Cache::put('payment-status-paid:'.$transaction->id, 1, now()->addHour());
+        }
+    }
+
+    /** The attempt panel on the status page. Server facts only; no provider secret or raw payload. */
+    private function attemptSummary(Invoice $invoice, string $token): ?array
+    {
+        $attempt = PaymentTransaction::latestFor($invoice);
+
+        if (! $attempt) {
+            return null;
+        }
+
+        $state = match ($attempt->status) {
+            PaymentTransaction::STATUS_PAID => 'paid',
+            PaymentTransaction::STATUS_FAILED => 'failed',
+            PaymentTransaction::STATUS_EXPIRED => 'expired',
+            default => Cache::has('payment-status-paid:'.$attempt->id) ? 'confirming' : 'pending',
+        };
+
+        return [
+            'state' => $invoice->status === Invoice::STATUS_PAID ? 'paid' : $state,
+            'reference' => $attempt->gateway_reference,
+            'method' => $attempt->payment_method,
+            'started_at' => $attempt->created_at?->format('d M Y H:i'),
+            'expires_at' => $state === 'pending' ? $attempt->expiresAt()?->format('d M Y H:i') : null,
+            'paid_at' => $attempt->paid_at?->format('d M Y H:i'),
+            // Re-open the provider's page for a session that is still live.
+            'resume_url' => $state === 'pending' ? route('register.pay', $token) : null,
+        ];
     }
 
     /**
@@ -413,6 +514,7 @@ class RegistrationController extends Controller
         $gateway = app(PaymentGatewayInterface::class);
         $package = $registration->package;
 
+        PaymentTransaction::expireStale($invoice);
         $transaction = PaymentTransaction::liveFor($invoice);
 
         /*
@@ -501,6 +603,7 @@ class RegistrationController extends Controller
         }
 
         // Already paying. Never open a second session for one invoice.
+        PaymentTransaction::expireStale($invoice);
         if ($existing = PaymentTransaction::liveFor($invoice)) {
             return redirect()->away($existing->redirect_url);
         }
@@ -524,6 +627,7 @@ class RegistrationController extends Controller
                 'plan_slug' => $registration->package?->slug,
                 'customer_name' => $registration->contact_name,
                 'customer_email' => $registration->billingEmail(),
+                'customer_phone' => $registration->contact_phone,
                 'finish_url' => route('register.status', $token),
             ]);
 
@@ -692,7 +796,7 @@ class RegistrationController extends Controller
         });
 
         if ($was !== (float) $amount) {
-            \App\Models\ActivityLog::record(
+            ActivityLog::record(
                 'updated',
                 sprintf(
                     'Open order %s repriced to the current %s catalogue: %s -> %s.',

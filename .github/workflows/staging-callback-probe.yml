@@ -1,0 +1,70 @@
+# Staging callback probe -- can the PUBLIC internet reach staging's Duitku callback? (ADR 085)
+#
+# Duitku's servers POST payment results to https://staging.iomsuite.com/webhooks/payment/duitku.
+# This job asks the same question from outside: a GitHub-hosted runner is an ordinary internet
+# client, exactly like Duitku. It sends ONE unsigned callback, which the application refuses
+# before reading anything (503 while Duitku is not configured, 403 "Invalid signature" once it is),
+# and that every OTHER request still meets the staging password (401) -- `staging.sh callback open`
+# must open exactly one door.
+# A Cloudflare challenge, a login wall or a timeout in front of it is reported as a FAILURE,
+# because Duitku cannot solve a challenge and would never be heard.
+#
+# No secret is read, nothing is written, and production is not contacted.
+name: Staging callback probe
+
+on:
+  push:
+    branches: ['claude/**']
+    paths:
+      - .github/workflows/staging-callback-probe.yml
+      - app/Http/Controllers/PaymentWebhookController.php
+      - routes/web.php
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+jobs:
+  probe:
+    runs-on: ubuntu-24.04
+    timeout-minutes: 5
+    steps:
+      - name: Probe staging from the public internet
+        shell: bash --noprofile --norc {0}
+        env:
+          BASE: https://staging.iomsuite.com
+        run: |
+          set -uo pipefail
+          fail=0
+          probe() { # label method path expect-regex [form-data]
+            local label="$1" method="$2" path="$3" want="$4" data="${5:-}" h b code
+            h="$(mktemp)"; b="$(mktemp)"
+            if [[ -n "$data" ]]; then
+              code="$(curl -sS -m 20 -A 'ioms-callback-probe' -X "$method" -D "$h" -o "$b" -w '%{http_code}' --data "$data" "$BASE$path" || echo 000)"
+            else
+              code="$(curl -sS -m 20 -A 'ioms-callback-probe' -X "$method" -D "$h" -o "$b" -w '%{http_code}' "$BASE$path" || echo 000)"
+            fi
+            local challenge=""
+            if grep -qi '^cf-mitigated:' "$h" || grep -qiE 'Just a moment|cf-chl|challenge-platform' "$b"; then challenge=" CLOUDFLARE-CHALLENGE"; fi
+            local via; via="$(grep -i '^server:' "$h" | tr -d '\r' | cut -d' ' -f2- | head -1)"
+            local body; body="$(head -c 160 "$b" | tr -d '\n\r')"
+            if [[ "$code" =~ $want && -z "$challenge" ]]; then r=ok; else r=FAIL; fail=1; fi
+            printf '%-5s %-34s %s %s (server: %s)%s  %s\n' "$r" "$label" "$method" "$code" "${via:--}" "$challenge" "$body"
+            echo "| $r | $label | \`$method $path\` | $code${challenge} | ${via:--} |" >> "$GITHUB_STEP_SUMMARY"
+            rm -f "$h" "$b"
+          }
+          {
+            echo "### Staging, seen from the public internet"
+            echo
+            echo "| | Check | Request | Answer | Server |"
+            echo "|---|---|---|---|---|"
+          } >> "$GITHUB_STEP_SUMMARY"
+          # Staging is a password-protected preview (staging.sh): everything except the
+          # callback must still answer 401 from the public internet.
+          probe "health (password still required)" GET /up '^401$'
+          probe "sign-in page (password still required)" GET /login '^401$'
+          # 503 = Duitku not configured on staging yet; 403 = configured, unsigned call refused.
+          probe "Duitku callback (unsigned POST)" POST /webhooks/payment/duitku '^(403|503)$' 'merchantCode=PROBE&amount=0&merchantOrderId=PROBE&resultCode=01&signature=x'
+          probe "GET on the callback (password required)" GET /webhooks/payment/duitku '^401$'
+          probe "registration pages (password required)" GET /get-started/probe-not-a-token/status '^401$'
+          exit "$fail"

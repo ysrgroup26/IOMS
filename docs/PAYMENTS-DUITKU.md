@@ -112,6 +112,50 @@ is signed as the **string Duitku sent**, because re-formatting a number changes 
 `200` for a refusal is deliberate: the event was understood and a decision was taken. Returning
 non-2xx asks Duitku to retry, which turns a permanent condition into a retry storm.
 
+### Callback source IPs (Duitku's whitelist, received 2026-11-03)
+
+Duitku's Integration & Infrastructure team sent the addresses its callbacks come from. The reference is
+<https://docs.duitku.com/api/id/#callback>, which cannot be fetched from Claude's environment.
+
+| Environment | IPs |
+|---|---|
+| Sandbox | 182.23.85.11, 182.23.85.12, 103.177.101.187, 103.177.101.188 |
+| Production | 182.23.85.8, 182.23.85.9, 182.23.85.10, 182.23.85.13, **182.23.85.14 (primary)**, 103.177.101.184, 103.177.101.185, 103.177.101.186, 103.177.101.189, **103.177.101.190 (primary)** |
+
+**The path a callback takes.** Duitku → Cloudflare (proxied DNS) → Caddy on Tencent :443 (Origin
+certificate) → nginx on loopback → PHP-FPM → `PaymentWebhookController::duitku()`. Each hop:
+
+| Hop | Staging (evaluated 2026-11-03) | Production (evaluated, not changed) |
+|---|---|---|
+| Tencent firewall / security group | Duitku connects to **Cloudflare**, never to the origin, so its IPs never need to be on the Tencent firewall. Whether :443 is already locked to Cloudflare's ranges (ADR 072, "lockdown after cutover") was **not verified** from here. Nothing to add either way. | Same |
+| Cloudflare WAF / Bot Fight / challenge | **Not blocking.** An unsigned POST from a GitHub-hosted runner (a datacenter IP, as Duitku's are) reached the app with no challenge (probe run 41573348679, 403 `Invalid signature`). Duitku's own IPs cannot be tested from here. | Not probed for this; production has no staging password, so the path is open. The health check's "Unsigned Duitku callback 503" proves the app is reached. |
+| Caddy | The staging password covers everything except `POST /webhooks/payment/duitku` (`staging.sh callback open`). | No password. |
+| nginx | Real visitor IP restored from `CF-Connecting-IP`, trusted from loopback only. | Same |
+| Application | Trust comes from the **HMAC signature** made with the sandbox key, plus idempotency and the amount check. There is no IP rule, so no source IP is ever refused. | Same |
+
+**Decision.** The application does **not** enforce an IP allow-list, on staging or in production.
+- The signature already makes a forged callback worthless.
+- An IP rule behind Cloudflare depends on `CF-Connecting-IP` being trusted correctly at every hop. If that
+  is ever wrong, a paid customer's activation is dropped silently. That costs more than the rule protects.
+- Duitku's list is recorded here so the rule can be added later on purpose, not by accident.
+
+**Recommended in Cloudflare (owner's dashboard; not changed by Claude).** This protects against Cloudflare
+security features ever challenging Duitku. Add a WAF **custom rule** with:
+- action **Skip** for Super Bot Fight Mode, Managed Rules, Rate limiting and Browser Integrity Check;
+- expression:
+
+```
+(http.request.uri.path eq "/webhooks/payment/duitku" and http.request.method eq "POST"
+ and ip.src in {182.23.85.11 182.23.85.12 103.177.101.187 103.177.101.188})
+```
+
+- Staging zone: the sandbox IPs above.
+- Production: the same rule with the **production** IPs, added **before** production switches to live
+  Duitku. This is not done, by instruction.
+
+If a sandbox payment ever settles at Duitku but `review-check` shows "callbacks received 0", look first at
+Cloudflare → Security → Events, filtered on that path.
+
 ### Idempotency
 
 Three independent layers, so no single one has to be perfect:
@@ -173,8 +217,122 @@ which IOMS can come to believe it was paid.
 - [ ] Send a callback with a wrong signature; confirm `403` and no state change
 - [ ] Send a callback with a lowered amount; confirm not settled and `failure_reason` recorded
 - [ ] Send a callback with a RAISED amount; confirm it is also refused and escalated
-- [ ] Let a session lapse past `PAYMENT_CHECKOUT_EXPIRY_HOURS`; confirm a new session is minted
+- [ ] Let a session lapse past `PAYMENT_CHECKOUT_EXPIRY_HOURS`; confirm the old row is `expired` and a new session is minted
+- [ ] Cancel on the Duitku page; on return confirm the status page says "Payment not completed" (after IOMS's own status read) and offers another method
+- [ ] Return from a paid sandbox payment BEFORE the callback; confirm "Confirming your payment" and no activation until the callback
+- [ ] Confirm Duitku's payment email reaches the CUSTOMER's address, not billing@
 - [ ] Confirm complimentary tenants are untouched by all of the above
+
+### 6a. Staging sandbox run (v2.141.1, ADR 085)
+
+**Where the secrets live on staging.** Application secrets are in `/srv/ioms-staging/app/.env`,
+read by Laravel (`config/payment.php`) and owned by the staging account. GitHub never holds them:
+the `IOMS_STAGING_*` GitHub secrets only reach the forced command (ADR 084), and no workflow can
+read or write the application's `.env`. A deploy rebuilds the config cache from that file.
+Production uses its own `.env`, which is not touched here.
+
+**Access restriction found (2026-11-03).** The staging callback probe, run from a GitHub-hosted
+runner (an ordinary internet client), was answered **401 by every staging path, including
+`POST /webhooks/payment/duitku`**: Cloudflare passes the request through, and Caddy's staging password
+(`basic_auth`, `staging.sh setup`) refuses it before the application sees it. Duitku cannot send a
+password, so **no sandbox callback could ever arrive**, and no payment could settle or activate a
+workspace on staging. There was no Cloudflare challenge.
+
+The fix lets exactly one request through without the password: `POST /webhooks/payment/duitku`. The
+application refuses it unless it carries a valid HMAC made with the staging sandbox key. Every other
+path, including `GET` on the same URL, keeps the password. **It changes staging's access protection,
+so the owner runs it**, as root:
+
+```bash
+sudo bash /srv/ioms-staging/app/deploy/tencent/staging.sh callback open    # or: callback close
+```
+
+The command:
+- backs up `/etc/caddy/ioms.caddy`, then validates and reloads Caddy;
+- checks that production answers exactly as before;
+- checks that `/login` still answers 401 and the unsigned callback reaches the app (503/403);
+- restores the backup if any of those checks fails.
+
+It was rehearsed against a real Caddy:
+- open: callback 503 from the app; `/login`, `GET` callback and other paths still 401;
+- close: callback back to 401;
+- running `open` twice leaves exactly one staging block.
+
+The server runs Caddy ≥ 2.8 (`basic_auth`). The rehearsal used 2.6, whose spelling is `basicauth`.
+
+**Getting sandbox credentials (owner).**
+1. Sign in to the Duitku merchant dashboard and switch to the **Sandbox** environment. A sandbox
+   project has its own merchant code and API key, separate from production.
+2. Open the sandbox **Project** (create one if none exists). Use:
+   - Website: `https://staging.iomsuite.com`
+   - Callback URL: `https://staging.iomsuite.com/webhooks/payment/duitku`
+   - Return URL: Duitku passes it per transaction, so the field can stay empty or point at
+     `https://staging.iomsuite.com`.
+3. Copy the project's **Merchant Code** and **API Key**. Enable at least one channel (a VA such as
+   BCA) for the sandbox project.
+
+**Configuring staging (owner, as root on Tencent).**
+
+```bash
+sudoedit /srv/ioms-staging/app/.env     # add or replace the four lines below; never /srv/ioms/.env
+```
+
+```
+PAYMENT_GATEWAY=duitku
+DUITKU_MERCHANT_CODE=<sandbox merchant code>
+DUITKU_API_KEY=<sandbox API key>
+DUITKU_IS_PRODUCTION=false
+```
+
+```bash
+sudo -u iomsstg php /srv/ioms-staging/app/artisan config:cache
+sudo bash /srv/ioms-staging/app/deploy/tencent/staging.sh callback open
+# Install the sandbox section of review-check. Same one line as ADR 084; it keeps the
+# existing key and GitHub secrets:
+B=claude/eloquent-newton-pbxxdg; R=/srv/ioms-staging/app; sudo -u iomsstg git -C $R fetch -q origin $B && sudo -u iomsstg git -C $R show FETCH_HEAD:deploy/tencent/hermes/enable-staging-ci.sh | sudo bash -s -- --branch $B
+```
+
+**What Claude then runs from GitHub (no SSH needed).**
+- **Staging `review-check`**, which now ends with a Duitku section:
+  - `ioms:duitku-check` proves the **method-list signature** against `sandbox.duitku.com`;
+  - `payment-check.php` proves the **status signature** with a signed read of every pending attempt;
+  - it lists the latest orders with attempt state, callback received, paid time, workspace and
+    subscription;
+  - it fails on any paid-without-subscription or double-paid invoice.
+  It writes nothing, and it refuses outright when `DUITKU_IS_PRODUCTION=true`.
+- **Staging callback probe** (`.github/workflows/staging-callback-probe.yml`). It sends one unsigned
+  callback from the public internet. The expected answer is 503 before configuration and 403 after.
+  A Cloudflare challenge in front of the callback counts as a failure.
+
+**Paying in the sandbox (owner, in a browser only; no real money, no terminal).**
+1. `https://staging.iomsuite.com/register` (browser password: `preview`). Create an account. Staging
+   sends no mail, so the "account created" page shows **Staging preview → Confirm email**. That box is
+   rendered only when `APP_ENV` is not production AND `MAIL_MAILER=log`
+   (`App\Support\StagingPreview`), and is pinned by `StagingPreviewMailLinkTest`.
+2. Continue setup → company → plan → Continue to payment → choose a method → Pay. Duitku's sandbox page
+   opens. Complete the payment there with Duitku's sandbox test instrument.
+3. Claude runs `review-check` and reads the inquiry, the signed status read, the callback, the invoice,
+   the subscription and the workspace from the server.
+
+**Verified on staging, 2026-11-03.** This was a real Duitku Sandbox run, not a simulation.
+- Order: Starter Monthly, Rp189.000, BCA VA.
+- Checks passed against `sandbox.duitku.com`: method-list, inquiry and transaction-status signatures (`provider-now=pending` before payment).
+- Payment: made with Duitku's VA demo page.
+- Callback: received 12:10:47 (`result=00`, processed). Its signature was accepted.
+- Result: attempt `INV1-20261103112543-PJRW` and invoice `INV-2026-NEW-00001` are `paid` exactly once. The registration is `provisioned`, and workspace tenant #4 has an active subscription 2026-11-03 to 2026-12-03.
+- Evidence: Staging `review-check` runs 41627656548 (pending) and 41633818223 (paid). Both exited 0.
+
+**Duitku's official sandbox payment tools** (docs.duitku.com/api/id/, section *Uji Coba*, read 2026-11-03):
+
+| Method | How to pay in the sandbox |
+|---|---|
+| Virtual Account (BC, M2, ...) | *Demo transaction virtual account sandbox*: `https://sandbox.duitku.com/payment/demo/demosuccesstransaction.aspx`. Enter the VA number shown on Duitku's payment page. |
+| Credit card (VC), 3D Secure | VISA `4000 0000 0000 0044` or MASTERCARD `5500 0000 0000 0004`, expiry 03/33, CVV 123 (Duitku's published dummy cards) |
+| ShopeePay / QRIS / Nusapay / Paylater | Duitku's staging apps or test phone numbers; not used here |
+
+Automation limit: `sandbox.duitku.com` answers an automated browser with a Cloudflare challenge ("Just a moment...", 403). Claude does not work around bot checks, so a person pays the sandbox VA in their own browser. Everything around that step is automated.
+
+Each scenario in the owner's list is also pinned by `tests/Feature/DuitkuCheckoutScenariosTest.php`.
 
 ---
 

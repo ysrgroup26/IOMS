@@ -363,6 +363,25 @@ renewal, live capacity against real entitlements, and invoice/payment history.
 most — a customer who has paid but has no workspace — with an idempotent re-provision action that
 cannot activate an unpaid registration.
 
+### 💳 Duitku Sandbox for resubmission (v2.141.1, ADR 085) — current payment track
+
+Duitku (project D25218) re-reviewed iomsuite.com and asked for two things: remove the legal merchant's
+name from the website, and enable checkout against the Duitku Sandbox. The Midtrans list below is kept
+for history; **Duitku is the configured provider track.**
+
+| Step | State |
+|---|---|
+| Invoice issuer shows the IOMS brand; merchant legal name is internal only | Done on branch, on staging |
+| Payer email/name/phone sent to Duitku; expired and cancelled attempts recorded; return verified with the provider | Done on branch, on staging |
+| Scenario suite against a simulated sandbox (`DuitkuCheckoutScenariosTest`) | Passing in CI |
+| Staging probe: callback reachable from the public internet (`staging-callback-probe.yml`) | **Found blocked: 401 from the staging password**; fix `staging.sh callback open` rehearsed, waiting on the owner |
+| Staging `review-check` reports the sandbox: method-list signature, signed status reads, orders, callbacks, activation | Needs the installer re-run on Tencent |
+| Sandbox credentials on staging and the callback URL in the Duitku sandbox project | Done (owner) |
+| Real sandbox run on staging: Starter, BCA VA, paid with Duitku's VA simulator | **Verified 2026-11-03** (review-check run 41633818223): callback received, signature accepted, attempt and invoice paid once, registration provisioned, subscription active, workspace (tenant #4) created |
+| Production running sandbox credentials so Duitku's reviewer can check out on iomsuite.com | Needs the owner's approval, merge and deploy |
+
+Runbook: `docs/PAYMENTS-DUITKU.md` §6a.
+
 ### ⚠️ STILL REQUIRES EXTERNAL CONFIGURATION — the only thing standing between this and live payments
 
 The code is complete. None of it can take a real payment until the following exist, and IOMS

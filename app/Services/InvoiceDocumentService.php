@@ -36,10 +36,19 @@ class InvoiceDocumentService
 
         return [
             'name' => config('app.name', 'IOMS'),
-            // v2.131.0: the LEGAL MERCHANT, not the public operator line.
-            // An invoice is a contract document and names who is paid; the
-            // website's brand cleanup must never strip that from it.
-            'legal_name' => config('ioms.merchant.legal_name') ?: ($legal['entity_name'] ?: null),
+            /*
+             * v2.141.1 -- THE INVOICE IS ISSUED UNDER THE IOMS BRAND (ADR 085).
+             *
+             * v2.131.0 printed the legal merchant here, so "Diterbitkan Oleh"
+             * read "PT Tahada Vistara Bersama" on a page Duitku's reviewer
+             * reached as a stranger, and Duitku asked for the name to be
+             * removed from the registered website. The customer-facing issuer
+             * is now the brand alone. `ioms.merchant.legal_name` is KEPT as
+             * internal configuration (who the merchant account belongs to)
+             * and is deliberately read by nothing that renders a page, a PDF
+             * or an email; InvoiceDocumentTest pins that.
+             */
+            'legal_name' => null,
             /*
              * v2.72.0 -- the IOMS mark, on the one document IOMS ISSUES.
              *

@@ -5,6 +5,7 @@ namespace App\Http\Controllers\Auth;
 use App\Http\Controllers\Controller;
 use App\Models\ActivityLog;
 use App\Models\User;
+use App\Support\StagingPreview;
 use Illuminate\Auth\Events\Registered;
 use Illuminate\Http\RedirectResponse;
 use Illuminate\Http\Request;
@@ -161,6 +162,10 @@ class RegisteredUserController extends Controller
                 'email' => $user->email,
                 'email_verified' => $user->hasVerifiedEmail(),
                 'verification_mail_failed' => (bool) $request->session()->get('verification_mail_failed', false),
+                // v2.141.1: staging only (mail goes to the log); never production.
+                'staging_verify_url' => ! $user->hasVerifiedEmail() && StagingPreview::revealsMailLinks()
+                    ? $user->verificationUrl()
+                    : null,
             ],
         ]);
     }

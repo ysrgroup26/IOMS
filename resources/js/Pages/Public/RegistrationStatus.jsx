@@ -1,4 +1,5 @@
-import { Head, Link, useForm, usePage } from '@inertiajs/react';
+import { useEffect } from 'react';
+import { Head, Link, router, useForm, usePage } from '@inertiajs/react';
 import { CheckCircle2, Clock, CreditCard, Mail, ShieldCheck, XCircle, ArrowRight, FileDown } from 'lucide-react';
 import PublicLayout from '@/Layouts/PublicLayout';
 import PublicPageHero from '@/Components/shared/PublicPageHero';
@@ -25,7 +26,7 @@ const FLOW = [
     { key: 'provision', label: 'Workspace ready', icon: ShieldCheck },
 ];
 
-export default function RegistrationStatus({ registration, paymentConfigured, contactEmail }) {
+export default function RegistrationStatus({ registration, paymentConfigured, payment, contactEmail }) {
     const { flash = {}, errors = {} } = usePage().props;
     const { post, processing } = useForm({});
 
@@ -34,6 +35,25 @@ export default function RegistrationStatus({ registration, paymentConfigured, co
     const isVerified = registration.is_verified;
 
     const stage = isProvisioned ? 3 : isPaid ? 2 : isVerified ? 1 : 0;
+
+    // v2.141.1 -- while a payment is open or being confirmed, re-read the
+    // SERVER's state every few seconds so the page moves on by itself once
+    // the provider's signed callback lands. A reload only reads; it can
+    // never settle anything. Stops after about two minutes.
+    const waiting = !isProvisioned && (isPaid || payment?.state === 'confirming' || payment?.state === 'pending');
+    useEffect(() => {
+        if (!waiting) return undefined;
+        let ticks = 0;
+        const id = window.setInterval(() => {
+            ticks += 1;
+            if (ticks > 24) {
+                window.clearInterval(id);
+                return;
+            }
+            router.reload({ only: ['registration', 'payment'], preserveScroll: true });
+        }, 5000);
+        return () => window.clearInterval(id);
+    }, [waiting]);
 
     const pay = (e) => {
         e.preventDefault();
@@ -193,21 +213,30 @@ export default function RegistrationStatus({ registration, paymentConfigured, co
                     ) : (
                         <div className="rounded-xl border border-steel-200/70 bg-gradient-to-b from-steel-100/70 via-white to-white p-6 shadow-panel">
                             <h2 className="text-[15px] font-semibold tracking-tight text-navy-900">Complete your payment</h2>
+                            {paymentConfigured && payment && <AttemptState payment={payment} />}
+                            {!(paymentConfigured && payment && ['pending', 'confirming'].includes(payment.state)) && (
                             <p className="mt-2 text-sm leading-relaxed text-graphite-600">
                                 {paymentConfigured
                                     ? 'You will see your order summary next, then pay through our licensed payment provider. IOMS never receives or stores your card details, and your workspace activates only once the provider confirms the payment to our server.'
                                     : 'Online payment is not enabled on this deployment yet. Continuing issues your invoice and our team will contact you with payment instructions. Nothing is charged on this page.'}
                             </p>
+                            )}
 
-                            <form onSubmit={pay}>
-                                <Button type="submit" className="mt-5 w-full sm:w-auto" disabled={processing}>
-                                    {processing
-                                        ? 'Preparing…'
-                                        : paymentConfigured
-                                            ? <>Continue to payment · {registration.amount} <ArrowRight className="h-4 w-4" /></>
-                                            : <>Issue my invoice <ArrowRight className="h-4 w-4" /></>}
+                            {payment?.state === 'confirming' ? null : payment?.state === 'pending' && payment.resume_url ? (
+                                <Button className="mt-5 w-full sm:w-auto" asChild>
+                                    <Link href={payment.resume_url}>Continue this payment <ArrowRight className="h-4 w-4" /></Link>
                                 </Button>
-                            </form>
+                            ) : (
+                                <form onSubmit={pay}>
+                                    <Button type="submit" className="mt-5 w-full sm:w-auto" disabled={processing}>
+                                        {processing
+                                            ? 'Preparing…'
+                                            : paymentConfigured
+                                                ? <>{payment && ['failed', 'expired'].includes(payment.state) ? 'Choose a payment method again' : 'Continue to payment'} · {registration.amount} <ArrowRight className="h-4 w-4" /></>
+                                                : <>Issue my invoice <ArrowRight className="h-4 w-4" /></>}
+                                    </Button>
+                                </form>
+                            )}
                         </div>
                     )}
 
@@ -222,6 +251,49 @@ export default function RegistrationStatus({ registration, paymentConfigured, co
                 </div>
             </section>
         </PublicLayout>
+    );
+}
+
+/**
+ * v2.141.1 -- the last payment attempt, as the SERVER records it. Never the
+ * browser's own report from the provider's redirect.
+ */
+function AttemptState({ payment }) {
+    const copy = {
+        pending: {
+            tone: 'info',
+            title: 'Payment in progress',
+            body: payment.expires_at
+                ? `Selesaikan pembayaran pada halaman penyedia pembayaran sebelum ${payment.expires_at}. Halaman ini diperbarui otomatis setelah pembayaran dikonfirmasi.`
+                : 'Selesaikan pembayaran pada halaman penyedia pembayaran. Halaman ini diperbarui otomatis.',
+        },
+        confirming: {
+            tone: 'info',
+            title: 'Confirming your payment',
+            body: 'Penyedia pembayaran melaporkan transaksi ini berhasil. Ruang kerja diaktifkan segera setelah konfirmasi resmi diterima server IOMS, biasanya dalam hitungan detik.',
+        },
+        failed: {
+            tone: 'danger',
+            title: 'Payment not completed',
+            body: 'Pembayaran sebelumnya gagal atau dibatalkan. Tidak ada dana yang ditagihkan untuk percobaan tersebut. Pilih metode pembayaran untuk mencoba lagi.',
+        },
+        expired: {
+            tone: 'danger',
+            title: 'Payment session expired',
+            body: 'Batas waktu pembayaran sebelumnya telah lewat. Tagihan Anda tetap berlaku. Pilih metode pembayaran untuk membuat sesi baru.',
+        },
+    }[payment.state];
+
+    if (!copy) return null;
+
+    return (
+        <div className="mt-4">
+            <Notice tone={copy.tone}>
+                <span className="block font-semibold">{copy.title}</span>
+                <span className="block">{copy.body}</span>
+                {payment.reference && <span className="mt-1 block text-xs opacity-80">Ref. <span className="type-code">{payment.reference}</span></span>}
+            </Notice>
+        </div>
     );
 }
 

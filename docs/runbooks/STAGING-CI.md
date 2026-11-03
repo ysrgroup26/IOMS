@@ -15,7 +15,7 @@ From GitHub (Actions → **Staging** → Run workflow), six actions on staging, 
 | `deploy` | staging code + DB | `claude/*` branch whose head has a green CI run → backup → exact commit → composer → migrate → caches → health → automatic rollback of code **and** DB if unhealthy |
 | `flows` | staging DB | backup → (re)seed the Approval Flow review tenant with the staging app password |
 | `activate-due` | staging DB | one pass of `ptw:activate-due` (staging has no cron) |
-| `review-check` | nothing | read-only report of the review tenant (transaction rolled back) |
+| `review-check` | nothing | read-only report of the review tenant (transaction rolled back), then the Duitku **sandbox** section (ADR 085): method-list signature, signed status reads, latest orders; refuses a production endpoint |
 | `logs` | nothing | redacted tail of the staging Laravel log (`app`) or the ops audit log (`ops`), 1–500 lines |
 
 Nothing here can reach production: separate account (`iomsstgci`), key, sudo rule and tool; the tool knows
@@ -69,6 +69,7 @@ nothing.
 | `/usr/local/bin/ioms-staging-ops` | root 755 | the work; staging constants only |
 | `/usr/local/sbin/ioms-staging-ci` | root 755 | forced command: allow-list |
 | `/usr/local/lib/ioms-staging-ops/review-check.php` | root 644 | read-only report |
+| `/usr/local/lib/ioms-staging-ops/payment-check.php` | root 644 | read-only Duitku sandbox report (ADR 085) |
 | `/etc/sudoers.d/ioms-staging-ci` | root 440 | the six verbs, nothing else |
 | `/var/lib/iomsstgci/.ssh/authorized_keys` | root 644 (dir root 755) | `restrict,command=…` key |
 | `/var/log/ioms-staging-ops.log` | root 640 | audit (JSON lines); also in syslog, tag `ioms-staging-ops` |

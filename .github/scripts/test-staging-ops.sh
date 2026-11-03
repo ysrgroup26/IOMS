@@ -138,7 +138,7 @@ for args in "" "nope" "status extra" "deploy claude/x" "deploy main $SHA" "flows
 done
 
 # ------------------------------------------------------------ 3. production isolation
-for f in "$CI" "$OPS" "$INSTALL" "$H/staging-review-check.php" "$WF"; do
+for f in "$CI" "$OPS" "$INSTALL" "$H/staging-review-check.php" "$H/staging-payment-check.php" "$WF"; do
     code="$(grep -vE '^\s*(#|\*|//)' "$f")"
     for forbidden in '/srv/ioms/app' '/srv/ioms/' '/etc/ioms-ops' 'IOMS_DEPLOY_' 'iomsci@' 'supervisorctl' 'systemctl' \
                      'service php' 'service nginx' 'DB_DATABASE=ioms$' '/var/backups/ioms/'; do

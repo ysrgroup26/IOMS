@@ -68,11 +68,11 @@ id "$STG_USER" >/dev/null 2>&1 && [[ -f "$STG_APP/.env" ]] || { echo "staging is
 echo "==> tools"
 work="$(mktemp -d)"; trap 'rm -rf "$work"' EXIT
 if [[ -n "$SRC" ]]; then
-    cp "$SRC/ioms-staging-ops" "$SRC/ioms-staging-ci" "$SRC/staging-review-check.php" "$work/"
+    cp "$SRC/ioms-staging-ops" "$SRC/ioms-staging-ci" "$SRC/staging-review-check.php" "$SRC/staging-payment-check.php" "$work/"
 else
     # Read as blobs from the branch: the staging working tree (what staging RUNS) is not touched.
     sudo -u "$STG_USER" -H git -C "$STG_APP" fetch -q origin "$BRANCH"
-    for f in ioms-staging-ops ioms-staging-ci staging-review-check.php; do
+    for f in ioms-staging-ops ioms-staging-ci staging-review-check.php staging-payment-check.php; do
         # The redirect is ROOT's, on purpose: the staging account reads the blob, root writes
         # it into root's own temporary directory.
         # shellcheck disable=SC2024
@@ -80,12 +80,13 @@ else
     done
     echo "  from $BRANCH @ $(sudo -u "$STG_USER" -H git -C "$STG_APP" rev-parse --short FETCH_HEAD)"
 fi
-bash -n "$work/ioms-staging-ops" && bash -n "$work/ioms-staging-ci" && php -l "$work/staging-review-check.php" >/dev/null
+bash -n "$work/ioms-staging-ops" && bash -n "$work/ioms-staging-ci" && php -l "$work/staging-review-check.php" >/dev/null && php -l "$work/staging-payment-check.php" >/dev/null
 install -m 755 -o root -g root "$work/ioms-staging-ops" "$OPS"
 install -m 755 -o root -g root "$work/ioms-staging-ci" "$CI"
 install -d -m 755 -o root -g root "$LIB"
 install -m 644 -o root -g root "$work/staging-review-check.php" "$LIB/review-check.php"
-echo "  installed $OPS, $CI, $LIB/review-check.php"
+install -m 644 -o root -g root "$work/staging-payment-check.php" "$LIB/payment-check.php"
+echo "  installed $OPS, $CI, $LIB/review-check.php, $LIB/payment-check.php"
 
 echo "==> account $U"
 if ! id "$U" >/dev/null 2>&1; then

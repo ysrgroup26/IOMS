@@ -5,6 +5,9 @@
 Installation on Tencent and the GitHub secrets are approved by the owner and wait for root on the server
 (Claude's environment cannot reach port 22).
 
+Staging keeps Duitku **Sandbox** after production goes live; what is retained, and why, is in
+[[DUITKU-PRODUCTION-ACTIVATION]] §4 and §7.
+
 ## What it gives
 
 From GitHub (Actions → **Staging** → Run workflow), six actions on staging, and nothing else:

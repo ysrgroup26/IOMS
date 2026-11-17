@@ -47,18 +47,24 @@ class Tenant extends Model
      | and NOTHING read it, so suspending a customer did nothing at all.
      */
     public const STATUS_TRIAL = 'trial';
+
     public const STATUS_ACTIVE = 'active';
+
     public const STATUS_SUSPENDED = 'suspended';
 
     public const STATUSES = [self::STATUS_TRIAL, self::STATUS_ACTIVE, self::STATUS_SUSPENDED];
 
-    protected $fillable = ['name', 'slug', 'status', 'trial_ends_at', 'is_demo'];
+    protected $fillable = ['name', 'slug', 'status', 'trial_ends_at', 'is_demo', 'deletion_scheduled_for', 'deletion_requested_at', 'deletion_requested_by', 'deletion_reason', 'deletion_notices'];
 
     protected function casts(): array
     {
         return [
             'trial_ends_at' => 'datetime',
             'is_demo' => 'boolean',
+            // ADR 087 -- the 90-day deletion hold.
+            'deletion_scheduled_for' => 'datetime',
+            'deletion_requested_at' => 'datetime',
+            'deletion_notices' => 'array',
         ];
     }
 

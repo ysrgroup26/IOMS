@@ -1,6 +1,6 @@
 import { useState } from 'react';
 import { Head, Link, router, usePage } from '@inertiajs/react';
-import { UserPlus, AlertTriangle, ExternalLink, PlayCircle, Gift } from 'lucide-react';
+import { UserPlus, AlertTriangle, ExternalLink, PlayCircle, Gift, Trash2 } from 'lucide-react';
 import PlatformLayout from '@/Layouts/PlatformLayout';
 import PageHeader from '@/Components/shared/PageHeader';
 import { Card, CardContent } from '@/Components/ui/card';
@@ -141,6 +141,15 @@ export default function Registrations({ registrations = [], packages = [], compl
                                                 {r.can_grant_complimentary && (
                                                     <Button size="sm" variant="outline" onClick={() => setGranting(r)}>
                                                         <Gift className="h-4 w-4" /> Akses Gratis
+                                                    </Button>
+                                                )}
+                                                {/* ADR 087: only a registration that never paid and never
+                                                    became an organization; the server decides. */}
+                                                {r.can_delete && (
+                                                    <Button size="sm" variant="ghost" aria-label={`Hapus pendaftaran ${r.reference}`}
+                                                        onClick={() => window.confirm(`Hapus permanen pendaftaran ${r.reference} (${r.company})? Email ${r.contact_email} bisa didaftarkan lagi.`)
+                                                            && router.delete(route('platform.registrations.destroy', r.id), { preserveScroll: true })}>
+                                                        <Trash2 className="h-4 w-4" />
                                                     </Button>
                                                 )}
                                             </TableCell>

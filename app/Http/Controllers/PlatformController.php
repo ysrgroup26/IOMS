@@ -23,6 +23,7 @@ use App\Services\PricingService;
 use App\Services\ReleaseStatusService;
 use App\Services\SchemaStatusService;
 use App\Services\SubscriptionLifecycleService;
+use App\Services\TenantDeletionService;
 use App\Services\TenantProvisioningService;
 use App\Support\RequestMemo;
 use Illuminate\Http\RedirectResponse;
@@ -175,6 +176,8 @@ class PlatformController extends Controller
                     // service enforces with. The button cannot offer an
                     // action the server would refuse.
                     'can_grant_complimentary' => app(TenantProvisioningService::class)->isGrantable($r),
+                    // ADR 087: a registration that never paid and never became an organization.
+                    'can_delete' => app(TenantDeletionService::class)->registrationPurgeable($r),
                 ]),
             // v2.93.0: what a complimentary grant may choose from. Both
             // come from the server, so the dialog cannot offer a retired plan
@@ -526,6 +529,14 @@ class PlatformController extends Controller
 
         return Inertia::render('Platform/TenantDetail', [
             'tenant' => $tenant->only(['id', 'name', 'slug', 'status', 'trial_ends_at', 'created_at', 'updated_at', 'companies_count', 'users_count']),
+            // ADR 087: where deletion stands, and whether this one may be purged now.
+            'deletion' => [
+                'scheduled_for' => $tenant->deletion_scheduled_for,
+                'requested_at' => $tenant->deletion_requested_at,
+                'reason' => $tenant->deletion_reason,
+                'can_purge_now' => app(TenantDeletionService::class)->canPurgeNow($tenant),
+                'hold_days' => TenantDeletionService::HOLD_DAYS,
+            ],
             'subscription' => $tenant->subscription ? [
                 // v2.80.0: the SAME snapshot the customer's Billing page
                 // renders. An operator and a customer looking at one

@@ -68,6 +68,7 @@ use App\Http\Controllers\PlatformAgentAccessController;
 use App\Http\Controllers\PlatformController;
 use App\Http\Controllers\PlatformDatabaseController;
 use App\Http\Controllers\PlatformSupportController;
+use App\Http\Controllers\PlatformTenantDeletionController;
 use App\Http\Controllers\PpeController;
 use App\Http\Controllers\PpeTypeController;
 use App\Http\Controllers\ProcurementDashboardController;
@@ -1460,6 +1461,12 @@ Route::middleware(['auth', 'role:platform_admin'])->prefix('platform')->name('pl
     Route::put('/tenants/{tenant}', [PlatformController::class, 'updateTenant'])->name('tenants.update');
     Route::put('/tenants/{tenant}/status', [PlatformController::class, 'updateTenantStatus'])->name('tenants.update-status');
     Route::get('/tenants/{tenant}/grants', [PlatformController::class, 'tenantGrants'])->name('tenants.grants');
+    // ADR 087: deletion. A test organization that never paid may be purged now;
+    // anybody else is held 90 days with notices. See TenantDeletionService.
+    Route::post('/tenants/{tenant}/purge-test', [PlatformTenantDeletionController::class, 'purgeTest'])->name('tenants.purge-test');
+    Route::post('/tenants/{tenant}/deletion', [PlatformTenantDeletionController::class, 'schedule'])->name('tenants.deletion.schedule');
+    Route::delete('/tenants/{tenant}/deletion', [PlatformTenantDeletionController::class, 'cancel'])->name('tenants.deletion.cancel');
+    Route::delete('/registrations/{registration}', [PlatformTenantDeletionController::class, 'purgeRegistration'])->name('registrations.destroy');
     Route::put('/tenants/{tenant}/grants', [PlatformController::class, 'updateTenantGrants'])->name('tenants.grants.update');
 
     // v1.11.0 (SaaS Finalization Pass).

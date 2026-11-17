@@ -1,4 +1,4 @@
-import { Head, Link, useForm } from '@inertiajs/react';
+import { Head, Link, router, useForm } from '@inertiajs/react';
 import { useState } from 'react';
 import PlatformLayout from '@/Layouts/PlatformLayout';
 import { Card, CardContent, CardHeader, CardTitle, CardDescription } from '@/Components/ui/card';
@@ -12,7 +12,7 @@ import { Table, TableHeader, TableBody, TableRow, TableHead, TableCell } from '@
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogFooter } from '@/Components/ui/dialog';
 import ComplimentaryGrantDialog from '@/Components/platform/ComplimentaryGrantDialog';
 import EmptyState from '@/Components/shared/EmptyState';
-import { ArrowLeft, Pencil, Settings2, FileText, Plus, CheckCircle2, Gift } from 'lucide-react';
+import { ArrowLeft, Pencil, Settings2, FileText, Plus, CheckCircle2, Gift, Trash2 } from 'lucide-react';
 
 /*
  * MASTER ADMIN -- TENANT DETAIL, IN BAHASA INDONESIA (v2.80.0, ADR 040).
@@ -97,7 +97,7 @@ function formatDate(value, withTime = true) {
     return new Date(value).toLocaleString('id-ID', withTime ? { dateStyle: 'medium', timeStyle: 'short' } : { dateStyle: 'medium' });
 }
 
-export default function PlatformTenantDetail({ tenant, subscription, administrator, packages, subscriptionTypes, subscriptionStatuses, billingModes, invoices, complimentaryBounds = {} }) {
+export default function PlatformTenantDetail({ tenant, subscription, administrator, packages, subscriptionTypes, subscriptionStatuses, billingModes, invoices, complimentaryBounds = {}, deletion = null }) {
     const [subOpen, setSubOpen] = useState(false);
     const [invoiceOpen, setInvoiceOpen] = useState(false);
     /*
@@ -371,6 +371,7 @@ export default function PlatformTenantDetail({ tenant, subscription, administrat
                 />
             )}
             {invoiceOpen && <InvoiceDialog tenant={tenant} onClose={() => setInvoiceOpen(false)} />}
+            {deletion && <DeletionCard tenant={tenant} deletion={deletion} />}
         </PlatformLayout>
     );
 }
@@ -575,5 +576,49 @@ function InvoiceDialog({ tenant, onClose }) {
                 </form>
             </DialogContent>
         </Dialog>
+    );
+}
+
+/**
+ * ADR 087 -- deletion. A test organization that never paid can be purged now by
+ * typing its slug; anybody else is scheduled: held for the hold period, its
+ * administrators e-mailed now and reminded before the date, cancellable.
+ */
+function DeletionCard({ tenant, deletion }) {
+    const purge = useForm({ slug: '' });
+    const sched = useForm({ reason: '' });
+    const fmt = (v) => (v ? new Date(v).toLocaleDateString('id-ID', { dateStyle: 'long' }) : '-');
+
+    return (
+        <Card className="mt-6 border-red-200">
+            <CardHeader>
+                <CardTitle className="flex items-center gap-2 text-red-700"><Trash2 className="h-4 w-4" /> Hapus organisasi</CardTitle>
+                <CardDescription>Data pelanggan tidak dihapus seketika: penghapusan ditahan {deletion.hold_days} hari, administrator tenant diberi tahu lewat email dan diingatkan sebelum tanggalnya.</CardDescription>
+            </CardHeader>
+            <CardContent className="space-y-4">
+                {deletion.scheduled_for ? (
+                    <div className="space-y-2">
+                        <p className="text-sm">Dijadwalkan dihapus pada <strong>{fmt(deletion.scheduled_for)}</strong>. Alasan: {deletion.reason}</p>
+                        <Button variant="outline" size="sm" onClick={() => router.delete(route('platform.tenants.deletion.cancel', tenant.id), { preserveScroll: true })}>Batalkan penghapusan</Button>
+                    </div>
+                ) : (
+                    <form className="space-y-2" onSubmit={(e) => { e.preventDefault(); sched.post(route('platform.tenants.deletion.schedule', tenant.id), { preserveScroll: true }); }}>
+                        <Label htmlFor="del-reason">Jadwalkan penghapusan ({deletion.hold_days} hari)</Label>
+                        <Input id="del-reason" placeholder="Alasan (dicatat dan tidak dikirim ke pelanggan)" value={sched.data.reason} onChange={(e) => sched.setData('reason', e.target.value)} />
+                        {sched.errors.reason && <p className="text-xs text-red-700">{sched.errors.reason}</p>}
+                        <Button type="submit" variant="outline" size="sm" disabled={sched.processing}>Jadwalkan</Button>
+                    </form>
+                )}
+                {deletion.can_purge_now && (
+                    <form className="space-y-2 rounded-md border border-red-200 bg-red-50 p-3" onSubmit={(e) => { e.preventDefault(); purge.post(route('platform.tenants.purge-test', tenant.id)); }}>
+                        <p className="text-sm text-red-800">Organisasi ini tidak pernah membayar, jadi boleh dihapus sekarang sebagai <strong>akun uji</strong>. Permanen: semua pengguna, data, dan tagihannya hilang, dan email penggunanya bisa didaftarkan lagi.</p>
+                        <Label htmlFor="del-slug">Ketik <code className="type-code">{tenant.slug}</code> untuk mengonfirmasi</Label>
+                        <Input id="del-slug" value={purge.data.slug} onChange={(e) => purge.setData('slug', e.target.value)} autoComplete="off" />
+                        {purge.errors.slug && <p className="text-xs text-red-700">{purge.errors.slug}</p>}
+                        <Button type="submit" size="sm" className="bg-red-600 hover:bg-red-700" disabled={purge.processing || purge.data.slug !== tenant.slug}>Hapus permanen sekarang</Button>
+                    </form>
+                )}
+            </CardContent>
+        </Card>
     );
 }

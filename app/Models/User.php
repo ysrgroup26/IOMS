@@ -74,6 +74,14 @@ class User extends Authenticatable implements MustVerifyEmail
     public const ROLE_PLATFORM_ADMIN = 'platform_admin';
 
     /**
+     * ADR 086 -- the AI Workforce account: a platform admin that exists only to
+     * OWN Agent API tokens. Its address is under the reserved `.invalid` TLD, so
+     * no mail (and therefore no password reset) can ever reach it; its password
+     * is random and discarded at creation; and sign-in refuses it outright.
+     */
+    public const AGENT_WORKFORCE_EMAIL = 'ai-workforce@agents.iomsuite.invalid';
+
+    /**
      * v2.74.0 -- A REGISTERED IDENTITY THAT OWNS NOTHING YET.
      *
      * What a brand-new signup is given, before they have an organization.
@@ -263,6 +271,12 @@ class User extends Authenticatable implements MustVerifyEmail
      * them, and ResolveTenant/TenantScope still behave exactly as before.
      * What changed is only how the question is ASKED.
      */
+    /** ADR 086: the token-only AI Workforce account, which may never sign in. */
+    public function isAgentWorkforce(): bool
+    {
+        return strcasecmp((string) $this->email, self::AGENT_WORKFORCE_EMAIL) === 0;
+    }
+
     public function isPlatformAdmin(): bool
     {
         return $this->role === self::ROLE_PLATFORM_ADMIN;

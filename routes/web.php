@@ -1509,5 +1509,6 @@ Route::middleware(['auth', 'role:platform_admin'])->prefix('platform')->name('pl
      */
     Route::get('/agent-access', [PlatformAgentAccessController::class, 'index'])->name('agent-access');
     Route::post('/agent-access', [PlatformAgentAccessController::class, 'store'])->name('agent-access.store');
+    Route::post('/agent-access/workforce', [PlatformAgentAccessController::class, 'storeWorkforce'])->name('agent-access.workforce');
     Route::delete('/agent-access/{token}', [PlatformAgentAccessController::class, 'destroy'])->whereNumber('token')->name('agent-access.destroy');
 });

@@ -196,4 +196,55 @@ class AgentApiTest extends TestCase
 
         $this->actingAs($tenantAdmin)->get('/platform/agent-access')->assertStatus(403);
     }
+
+    public function test_the_ai_workforce_account_is_created_once_owns_tokens_and_can_never_sign_in(): void
+    {
+        $owner = User::create([
+            'name' => 'Founder', 'email' => 'founder@tahadagroup.test', 'password' => bcrypt('secret-pass-1'),
+            'role' => User::ROLE_PLATFORM_ADMIN, 'tenant_id' => null, 'is_active' => true,
+        ]);
+
+        $this->actingAs($owner)->post('/platform/agent-access/workforce')->assertRedirect('/platform/agent-access');
+        $this->actingAs($owner)->post('/platform/agent-access/workforce')->assertRedirect('/platform/agent-access');
+        $accounts = User::withoutGlobalScopes()->where('email', User::AGENT_WORKFORCE_EMAIL)->get();
+        $this->assertCount(1, $accounts);
+        $workforce = $accounts->first();
+        $this->assertTrue($workforce->isPlatformAdmin() && $workforce->isAgentWorkforce() && $workforce->is_active);
+
+        // The page now offers it as the default owner.
+        $this->actingAs($owner)->get('/platform/agent-access')
+            ->assertInertia(fn ($page) => $page->where('workforce.id', $workforce->id));
+
+        // A token it owns reads the API.
+        $this->app['auth']->forgetGuards();
+        $plain = $workforce->createToken('agent: uji', [AuthenticateAgentToken::READ, 'agent:ops'])->plainTextToken;
+        $this->withToken($plain)->getJson('/api/agent/v1/ringkasan')->assertOk();
+
+    }
+
+    public function test_the_ai_workforce_account_can_never_sign_in(): void
+    {
+        $workforce = User::withoutGlobalScopes()->create([
+            'name' => 'TICorp AI Workforce', 'email' => User::AGENT_WORKFORCE_EMAIL, 'password' => 'Diketahui-2026',
+            'role' => User::ROLE_PLATFORM_ADMIN, 'tenant_id' => null, 'is_active' => true,
+        ]);
+
+        // Even with a password somebody somehow knew, the form refuses it ...
+        $this->post('/login', ['email' => User::AGENT_WORKFORCE_EMAIL, 'password' => 'Diketahui-2026'])
+            ->assertSessionHasErrors('email');
+        $this->assertGuest('web');
+
+        // ... and a session obtained any other way is ended on the next request.
+        $this->actingAs($workforce, 'web')->get('/platform')->assertRedirect('/login');
+        $this->assertGuest('web');
+    }
+
+    public function test_api_errors_are_json_not_the_friendly_page(): void
+    {
+        $this->get('/api/agent/v1/ringkasan', ['Accept' => 'application/json'])
+            ->assertStatus(401)->assertHeader('Content-Type', 'application/json');
+        $this->get('/api/agent/v1/ringkasan')->assertStatus(401)->assertJsonStructure(['message']);
+        $plain = $this->token(['support']);
+        $this->withToken($plain)->getJson('/api/agent/v1/tiket/999999')->assertStatus(404)->assertJsonStructure(['message']);
+    }
 }

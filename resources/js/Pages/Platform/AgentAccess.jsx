@@ -21,11 +21,11 @@ import { Bot, Copy, KeyRound, Trash2 } from 'lucide-react';
  */
 const fmt = (v) => (v ? new Date(v).toLocaleString('id-ID', { dateStyle: 'medium', timeStyle: 'short' }) : '-');
 
-export default function PlatformAgentAccess({ tokens, owners, scopes, endpoint, new_token }) {
+export default function PlatformAgentAccess({ tokens, owners, scopes, endpoint, new_token, workforce }) {
     const [copied, setCopied] = useState(false);
     const { data, setData, post, processing, errors, reset } = useForm({
         name: 'TICorp',
-        owner_id: owners[0]?.id ?? '',
+        owner_id: workforce?.id ?? owners[0]?.id ?? '',
         scopes: Object.keys(scopes),
         expires_in_days: '',
     });
@@ -53,6 +53,18 @@ export default function PlatformAgentAccess({ tokens, owners, scopes, endpoint, 
         <PlatformLayout>
             <Head title="Akses Agent" />
             <PageHeader title="Akses Agent" subtitle="Token baca-saja untuk AI Workforce TICorp. Agent membaca data Master Admin lewat API; tidak ada yang bisa diubah dengan token ini." />
+
+            {!workforce && (
+                <Card className="mb-4">
+                    <CardHeader>
+                        <CardTitle className="flex items-center gap-2"><Bot className="h-4 w-4" /> Akun AI Workforce belum ada</CardTitle>
+                        <CardDescription>Buat sekali. Akun ini hanya menjadi pemilik token agent, sehingga bacaan agent tidak tercatat atas nama Anda. Akun ini tidak punya kata sandi yang bisa dipakai dan tidak bisa login ke dashboard.</CardDescription>
+                    </CardHeader>
+                    <CardContent>
+                        <Button size="sm" onClick={() => router.post(route('platform.agent-access.workforce'), {}, { preserveScroll: true })}>Buat akun AI Workforce</Button>
+                    </CardContent>
+                </Card>
+            )}
 
             {new_token && (
                 <Card className="mb-4 border-amber-300">

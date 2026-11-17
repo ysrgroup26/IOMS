@@ -225,7 +225,16 @@ return Application::configure(basePath: dirname(__DIR__))
         // EnforceTenantEntitlement/every other abort_unless() in this
         // codebase is completely untouched; this only changes how the
         // resulting 403/404/419/429 response is RENDERED.
+        // ADR 086 (CI-16): the Agent API is read by programs. Its errors stay
+        // Laravel's own JSON -- never the friendly Inertia page below, which
+        // `wantsJson()` would otherwise select.
+        $exceptions->shouldRenderJsonWhen(fn (Request $request) => $request->is('api/*') || $request->expectsJson());
+
         $exceptions->respond(function (Response $response, Throwable $exception, Request $request) {
+            if ($request->is('api/*')) {
+                return $response;
+            }
+
             /* v2.68.0 -- THE FRIENDLY PAGE WAS UNREACHABLE FOR THE CASE
                THAT NEEDS IT MOST.
 

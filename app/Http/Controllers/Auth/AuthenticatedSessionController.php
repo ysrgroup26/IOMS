@@ -31,6 +31,16 @@ class AuthenticatedSessionController extends Controller
             ]);
         }
 
+        // ADR 086: the AI Workforce account owns API tokens and never signs in.
+        // Refused with the same words as a wrong password, so the form says
+        // nothing about which accounts exist.
+        if (Auth::user()?->isAgentWorkforce()) {
+            Auth::logout();
+            throw ValidationException::withMessages([
+                'email' => 'These credentials do not match our records.',
+            ]);
+        }
+
         $request->session()->regenerate();
 
         /** @var User $user */

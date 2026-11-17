@@ -9,8 +9,8 @@
    `Subscription/Checkout.jsx` only knew Midtrans Snap: with no Snap script it fell back to a
    hosted-page link that does not exist before a channel is chosen, so the page rendered nothing.
 2. The owner wants the invoice to read as a company's bill: issued by **PT Tahada Vistara Bersama
-   (Tahada Group)** at **3 Ad Premier Office Park Lt. 5 Suite 6, Jl. TB Simatupang, Ragunan, Pasar
-   Minggu, Jakarta Selatan, DKI Jakarta 12550**, without the "Generated … IOMS" system stamp.
+   (Tahada Group)** at **Ad Premier Office Park Lt.5 Suite 6, Jl. TB Simatupang, Ps. Minggu, Kota
+   Jakarta Selatan, DKI Jakarta 12550** (corrected by the owner the same day), without the "Generated … IOMS" system stamp.
 3. Transactional email used a different accent per purpose (purple security, teal billing) next to
    a navy header and a lighter blue button; in Gmail's dark mode the result looked disjointed.
 

@@ -289,7 +289,7 @@ return [
         'name' => env('IOMS_INVOICE_ISSUER_NAME', 'PT Tahada Vistara Bersama'),
         'brand' => env('IOMS_INVOICE_ISSUER_BRAND', 'Tahada Group'),
         'address' => env('IOMS_INVOICE_ISSUER_ADDRESS',
-            '3 Ad Premier Office Park Lt. 5 Suite 6, Jl. TB Simatupang, Ragunan, Pasar Minggu, Jakarta Selatan, DKI Jakarta 12550'),
+            'Ad Premier Office Park Lt.5 Suite 6, Jl. TB Simatupang, Ps. Minggu, Kota Jakarta Selatan, DKI Jakarta 12550'),
     ],
 
     'emails' => [

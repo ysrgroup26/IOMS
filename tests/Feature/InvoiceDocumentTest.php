@@ -197,7 +197,8 @@ class InvoiceDocumentTest extends TestCase
         $this->assertStringContainsString('Diterbitkan Oleh', $html);
         $this->assertStringContainsString('PT TAHADA VISTARA BERSAMA', $html);
         $this->assertStringContainsString('TAHADA GROUP', $html);
-        $this->assertStringContainsString('3 Ad Premier Office Park', $html);
+        $this->assertStringContainsString('Ad Premier Office Park Lt.5 Suite 6, Jl. TB Simatupang, Ps. Minggu, Kota Jakarta Selatan', $html);
+        $this->assertStringNotContainsString('3 Ad Premier', $html);
         $this->assertStringContainsString('Jakarta Selatan', $html);
         $this->assertStringNotContainsString('Garut', $html);
     }

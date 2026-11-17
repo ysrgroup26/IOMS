@@ -114,6 +114,7 @@ export default function Billing({
     billingCentre,
     addOns = [],
     addOnPrices,
+    organizationDeletion = null,
 }) {
     const renew = useForm({});
 
@@ -503,6 +504,8 @@ export default function Billing({
                     )}
                 </CardContent>
             </Card>
+
+            {organizationDeletion && <OrganizationDeletion deletion={organizationDeletion} />}
         </AuthenticatedLayout>
     );
 }
@@ -831,5 +834,52 @@ function Meter({ icon: Icon, label, used, limit }) {
                 </div>
             )}
         </div>
+    );
+}
+
+/**
+ * ADR 088 -- the administrator deletes their own organization. Confirmed by the
+ * organization's exact name and their password; held for a short cooling-off
+ * period (every administrator is e-mailed and can cancel), then removed
+ * automatically. Reachable while read-only: leaving never requires paying.
+ */
+function OrganizationDeletion({ deletion }) {
+    const form = useForm({ organization_name: '', password: '' });
+    const fmt = (v) => (v ? new Date(v).toLocaleDateString('id-ID', { dateStyle: 'long' }) : '-');
+
+    return (
+        <Card className="mt-6 border-red-200">
+            <CardHeader>
+                <CardTitle className="text-red-700">Delete organization</CardTitle>
+                <CardDescription>
+                    Menghapus organisasi menghapus permanen semua data, pengguna, dan riwayatnya. Ekspor dulu data yang Anda perlukan.
+                    Penghapusan dijalankan otomatis {deletion.hold_days} hari setelah diminta; sampai tanggal itu Anda masih bisa membatalkannya.
+                </CardDescription>
+            </CardHeader>
+            <CardContent>
+                {deletion.scheduled_for ? (
+                    <div className="space-y-2">
+                        <p className="text-sm">Organisasi ini dijadwalkan dihapus pada <strong>{fmt(deletion.scheduled_for)}</strong>.</p>
+                        <Button variant="outline" size="sm" onClick={() => router.delete(route('subscription.organization-deletion.cancel'), { preserveScroll: true })}>Cancel deletion</Button>
+                    </div>
+                ) : (
+                    <form className="max-w-md space-y-3" onSubmit={(e) => { e.preventDefault(); form.post(route('subscription.organization-deletion.request'), { preserveScroll: true, onFinish: () => form.reset('password') }); }}>
+                        <div className="space-y-1.5">
+                            <Label htmlFor="org-del-name">Ketik <strong>{deletion.name}</strong> untuk mengonfirmasi</Label>
+                            <Input id="org-del-name" value={form.data.organization_name} onChange={(e) => form.setData('organization_name', e.target.value)} autoComplete="off" />
+                        </div>
+                        <div className="space-y-1.5">
+                            <Label htmlFor="org-del-pass">Kata sandi Anda</Label>
+                            <Input id="org-del-pass" type="password" value={form.data.password} onChange={(e) => form.setData('password', e.target.value)} autoComplete="current-password" />
+                        </div>
+                        {form.errors.organization_name && <p className="text-xs text-danger">{form.errors.organization_name}</p>}
+                        <Button type="submit" size="sm" className="bg-red-600 hover:bg-red-700"
+                            disabled={form.processing || form.data.organization_name !== deletion.name || !form.data.password}>
+                            Delete organization
+                        </Button>
+                    </form>
+                )}
+            </CardContent>
+        </Card>
     );
 }

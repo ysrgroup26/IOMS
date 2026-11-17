@@ -54,7 +54,7 @@ class Tenant extends Model
 
     public const STATUSES = [self::STATUS_TRIAL, self::STATUS_ACTIVE, self::STATUS_SUSPENDED];
 
-    protected $fillable = ['name', 'slug', 'status', 'trial_ends_at', 'is_demo', 'deletion_scheduled_for', 'deletion_requested_at', 'deletion_requested_by', 'deletion_reason', 'deletion_notices'];
+    protected $fillable = ['name', 'slug', 'status', 'trial_ends_at', 'is_demo', 'deletion_scheduled_for', 'deletion_requested_at', 'deletion_requested_by', 'deletion_reason', 'deletion_notices', 'archived_at'];
 
     protected function casts(): array
     {
@@ -65,6 +65,8 @@ class Tenant extends Model
             'deletion_scheduled_for' => 'datetime',
             'deletion_requested_at' => 'datetime',
             'deletion_notices' => 'array',
+            // ADR 088 -- archived for dormancy; intact and restorable.
+            'archived_at' => 'datetime',
         ];
     }
 

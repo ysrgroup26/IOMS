@@ -10,14 +10,16 @@ use App\Models\Invoice;
 use App\Models\Package;
 use App\Models\PaymentTransaction;
 use App\Models\Subscription;
-use App\Services\AddOnPurchaseService;
 use App\Models\SubscriptionAddOn;
+use App\Models\Tenant;
 use App\Models\User;
+use App\Services\AddOnPurchaseService;
 use App\Services\EntitlementService;
 use App\Services\InvoiceDocumentService;
 use App\Services\PdfGeneratorService;
 use App\Services\PricingService;
 use App\Services\SubscriptionLifecycleService;
+use App\Services\TenantDeletionService;
 use App\Support\CurrentTenant;
 use Illuminate\Http\RedirectResponse;
 use Illuminate\Http\Request;
@@ -164,11 +166,11 @@ class SubscriptionController extends Controller
          * has been cancelled still counts until the period already paid for
          * runs out, and the page says so rather than showing it as gone.
          */
-        $addOns = \App\Models\SubscriptionAddOn::query()
+        $addOns = SubscriptionAddOn::query()
             ->where('tenant_id', $tenantId)
             ->orderByDesc('id')
             ->get()
-            ->map(fn (\App\Models\SubscriptionAddOn $addOn) => [
+            ->map(fn (SubscriptionAddOn $addOn) => [
                 'id' => $addOn->id,
                 'type' => $addOn->type,
                 'label' => $addOn->label(),
@@ -186,7 +188,15 @@ class SubscriptionController extends Controller
 
         $outstanding = $subscription ? $this->lifecycle->outstandingRenewalInvoice($subscription) : null;
 
+        $tenantRow = Tenant::find($tenantId);
+
         return Inertia::render('Settings/Billing', [
+            // ADR 088: the organization's own deletion, and where it stands.
+            'organizationDeletion' => [
+                'name' => $tenantRow?->name,
+                'scheduled_for' => $tenantRow?->deletion_scheduled_for,
+                'hold_days' => TenantDeletionService::CUSTOMER_HOLD_DAYS,
+            ],
             'billingCentre' => $billingCentre,
             'addOns' => $addOns,
             'addOnPrices' => [

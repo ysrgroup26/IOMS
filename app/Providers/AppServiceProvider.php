@@ -2,8 +2,12 @@
 
 namespace App\Providers;
 
+use App\Models\User;
+use App\Services\TenantArchiveService;
 use App\Support\CurrentTenant;
+use Illuminate\Auth\Events\Login;
 use Illuminate\Database\Eloquent\Model;
+use Illuminate\Support\Facades\Event;
 use Illuminate\Support\Facades\Schema;
 use Illuminate\Support\Facades\URL;
 use Illuminate\Support\ServiceProvider;
@@ -25,6 +29,15 @@ class AppServiceProvider extends ServiceProvider
     {
         // Prevent accidental lazy-loading N+1 queries in local/dev.
         Model::preventLazyLoading(! app()->isProduction());
+
+        // ADR 088: an archived (dormant) organization is restored by the next
+        // sign-in of any of its members, through any sign-in path.
+        Event::listen(
+            Login::class,
+            fn (Login $e) => $e->user instanceof User
+                ? app(TenantArchiveService::class)->restoreOnSignIn($e->user)
+                : null,
+        );
 
         if (env('APP_URL') && str_starts_with(env('APP_URL'), 'https://')) {
             URL::forceScheme('https');

@@ -2,6 +2,7 @@
 
 namespace App\Http\Controllers;
 
+use App\Models\ActivityLog;
 use App\Models\Tenant;
 use App\Models\User;
 use Illuminate\Http\RedirectResponse;
@@ -46,9 +47,17 @@ class SandboxController extends Controller
     {
         abort_unless(config('ioms.sandbox.enabled'), 404);
 
+        $visitor = request()->user();
+
         return Inertia::render('Public/Sandbox', [
             'available' => $this->demoUser() !== null,
             'contactEmail' => config('ioms.emails.hello'),
+            // ADR 089: entering needs an IOMS account with a confirmed address.
+            'visitor' => $visitor ? [
+                'signed_in' => true,
+                'verified' => $visitor->hasVerifiedEmail(),
+                'email' => $visitor->email,
+            ] : ['signed_in' => false, 'verified' => false, 'email' => null],
         ]);
     }
 
@@ -73,6 +82,38 @@ class SandboxController extends Controller
                 'sandbox' => 'The IOMS Sandbox is not available on this deployment yet.',
             ]);
         }
+
+        /*
+         * ADR 089 (owner, 2026-11-17) -- NO ACCOUNT, NO SANDBOX.
+         *
+         * Anybody could walk into the demo and leave without a trace, which
+         * let the product be studied (and copied) anonymously and left the
+         * team nobody to follow up with. A visitor now enters FROM an IOMS
+         * account whose address is confirmed; the same account later
+         * subscribes. The visit is recorded on it for follow-up.
+         */
+        $visitor = $request->user();
+        if (! $visitor) {
+            $request->session()->put('url.intended', route('sandbox'));
+
+            return redirect()->route('register')
+                ->with('info', 'Create a free IOMS account to open the Sandbox. It takes a minute, and the same account is used if you subscribe later.');
+        }
+        if ($visitor->is($user)) {
+            return redirect()->route('dashboard');
+        }
+        if ($visitor->isPlatformAdmin()) {
+            return back()->withErrors(['sandbox' => 'Master Admin accounts do not enter the Sandbox.']);
+        }
+        if (! $visitor->hasVerifiedEmail()) {
+            return back()->withErrors(['sandbox' => 'Confirm your email address first: open the link we sent to '.$visitor->email.', then come back here.']);
+        }
+
+        $visitor->forceFill([
+            'sandbox_visits' => (int) $visitor->sandbox_visits + 1,
+            'sandbox_last_entered_at' => now(),
+        ])->save();
+        ActivityLog::record('updated', "{$visitor->email} membuka Sandbox", $visitor, ['kind' => 'sandbox_entered']);
 
         Auth::login($user);
         $request->session()->regenerate();

@@ -291,6 +291,31 @@ class AgentApiController extends Controller
         ]);
     }
 
+    /**
+     * ADR 089 -- prospects for follow-up: IOMS accounts that belong to no
+     * organization yet (signed up, maybe opened the Sandbox, not subscribed).
+     * Staff and the token-only AI Workforce account are excluded.
+     */
+    public function prospects(): JsonResponse
+    {
+        $accounts = User::withoutGlobalScopes()
+            ->whereNull('tenant_id')
+            ->where('role', '!=', User::ROLE_PLATFORM_ADMIN)
+            ->where('email', '!=', User::AGENT_WORKFORCE_EMAIL)
+            ->latest()
+            ->limit(500)
+            ->get(['id', 'name', 'email', 'email_verified_at', 'created_at', 'last_login_at', 'sandbox_visits', 'sandbox_last_entered_at']);
+        $regs = TenantRegistration::whereIn('user_id', $accounts->pluck('id'))->get(['user_id', 'status', 'package_id', 'created_at'])
+            ->groupBy('user_id');
+
+        return $this->answer([
+            'accounts' => $accounts->map(fn (User $u) => [
+                ...$u->only(['id', 'name', 'email', 'email_verified_at', 'created_at', 'last_login_at', 'sandbox_visits', 'sandbox_last_entered_at']),
+                'registration_status' => optional($regs->get($u->id)?->sortByDesc('created_at')->first())->status,
+            ]),
+        ]);
+    }
+
     private function answer(array $data): JsonResponse
     {
         return response()->json(['data' => $data, 'generated_at' => now()->toIso8601String()]);

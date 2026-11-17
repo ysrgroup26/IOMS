@@ -88,6 +88,11 @@ class PlatformController extends Controller
              * a backup behind it.
              */
             'schema' => $schema->snapshot(),
+            // ADR 089: whether the Sandbox exists on this deployment.
+            'sandbox' => [
+                'available' => Tenant::where('slug', config('ioms.sandbox.tenant_slug'))->where('is_demo', true)->exists(),
+                'visits' => User::withoutGlobalScopes()->where('sandbox_visits', '>', 0)->count(),
+            ],
             'stats' => [
                 'tenants_total' => Tenant::count(),
                 'tenants_active' => Tenant::where('status', Tenant::STATUS_ACTIVE)->count(),

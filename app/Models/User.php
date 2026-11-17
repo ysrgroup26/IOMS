@@ -192,6 +192,8 @@ class User extends Authenticatable implements MustVerifyEmail
             'email_verified_at' => 'datetime',
             'password' => 'hashed',
             'is_active' => 'boolean',
+            // ADR 089
+            'sandbox_last_entered_at' => 'datetime',
             'ptw_access' => 'boolean',
             'is_field_user' => 'boolean',
             'last_login_at' => 'datetime',

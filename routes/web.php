@@ -68,6 +68,7 @@ use App\Http\Controllers\PermitToWorkController;
 use App\Http\Controllers\PlatformAgentAccessController;
 use App\Http\Controllers\PlatformController;
 use App\Http\Controllers\PlatformDatabaseController;
+use App\Http\Controllers\PlatformSandboxController;
 use App\Http\Controllers\PlatformSupportController;
 use App\Http\Controllers\PlatformTenantDeletionController;
 use App\Http\Controllers\PpeController;
@@ -1450,6 +1451,8 @@ Route::middleware(['auth', 'restrict.platform-admin'])->group(function () {
 */
 Route::middleware(['auth', 'role:platform_admin'])->prefix('platform')->name('platform.')->group(function () {
     Route::get('/', [PlatformController::class, 'dashboard'])->name('dashboard');
+    // ADR 089: prepare (or refresh) the Sandbox tenant; production never seeds.
+    Route::post('/sandbox/activate', [PlatformSandboxController::class, 'activate'])->name('sandbox.activate');
     // v2.51.0: the self-service onboarding pipeline. A registration is a
     // prospect, not a tenant -- see TenantRegistration. Provisioning can
     // only be re-run for an ALREADY-PAID registration.

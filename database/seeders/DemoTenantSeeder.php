@@ -199,10 +199,15 @@ class DemoTenantSeeder extends Seeder
             'MNT' => 'Maintenance',
             'PRJ' => 'Project Management',
         ] as $code => $name) {
-            $departments[$code] = Department::firstOrCreate(
-                ['company_id' => $company->id, 'code' => $code],
-                ['name' => $name, 'is_active' => true]
-            );
+            // `departments.code` is unique across ALL tenants (a known schema
+            // limit), so on a production that already has a customer using
+            // "HSE" the demo takes a suffixed code instead of failing (ADR 089).
+            $own = Department::withoutGlobalScopes()->where('company_id', $company->id)
+                ->whereIn('code', [$code, "{$code}-DEMO"])->first();
+            $taken = Department::withoutGlobalScopes()->where('code', $code)->where('company_id', '!=', $company->id)->exists();
+            $departments[$code] = $own ?? Department::withoutGlobalScopes()->create([
+                'company_id' => $company->id, 'code' => $taken ? "{$code}-DEMO" : $code, 'name' => $name, 'is_active' => true,
+            ]);
         }
 
         $positions = [];

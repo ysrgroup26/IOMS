@@ -1,4 +1,4 @@
-import { Head, Link } from '@inertiajs/react';
+import { Head, Link, router } from '@inertiajs/react';
 import { Building2, CheckCircle2, Clock, PauseCircle, Package, AlertTriangle, Lock, Wallet, Receipt, Bell } from 'lucide-react';
 import PlatformLayout from '@/Layouts/PlatformLayout';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/Components/ui/card';
@@ -49,7 +49,7 @@ const STATE_LABEL = { grace: 'Masa tenggang', lapsed: 'Read-only', active: 'Akti
 const rupiah = (n) => 'Rp' + Math.round(Number(n || 0)).toLocaleString('id-ID');
 const tanggal = (d) => (d ? new Date(d).toLocaleDateString('id-ID', { day: 'numeric', month: 'short', year: 'numeric' }) : '-');
 
-export default function PlatformDashboard({ stats, recent_tenants: recentTenants, operations, platform_events: platformEvents = [], schema, release = null }) {
+export default function PlatformDashboard({ stats, recent_tenants: recentTenants, operations, platform_events: platformEvents = [], schema, release = null, sandbox = null }) {
     const lifecycle = operations?.subscriptions?.counts ?? {};
     const attention = operations?.subscriptions?.attention ?? [];
     const payments = operations?.payments ?? {};
@@ -57,6 +57,26 @@ export default function PlatformDashboard({ stats, recent_tenants: recentTenants
     return (
         <PlatformLayout>
             <Head title="Ringkasan Platform" />
+
+            {/* ADR 089: the Sandbox, opened only from an IOMS account. */}
+            {sandbox && (
+                <Card className="mb-4">
+                    <CardHeader>
+                        <CardTitle>Sandbox IOMS</CardTitle>
+                        <CardDescription>
+                            {sandbox.available
+                                ? `Aktif. Calon pelanggan membukanya dari akun IOMS terverifikasi; ${sandbox.visits} akun sudah mencobanya.`
+                                : 'Belum aktif di server ini. Calon pelanggan yang membuka /sandbox melihat pesan "belum tersedia".'}
+                        </CardDescription>
+                    </CardHeader>
+                    <CardContent>
+                        <button type="button" className="rounded-md border border-graphite-300 bg-white px-3 py-1.5 text-sm font-medium hover:bg-graphite-50"
+                            onClick={() => router.post(route('platform.sandbox.activate'), {}, { preserveScroll: true })}>
+                            {sandbox.available ? 'Segarkan data Sandbox' : 'Aktifkan Sandbox'}
+                        </button>
+                    </CardContent>
+                </Card>
+            )}
 
             <div className="mb-6">
                 <h1 className="text-[22px] font-semibold tracking-tight text-navy-900">Ringkasan Platform</h1>

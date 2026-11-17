@@ -40,7 +40,7 @@ const LOCKED = [
     'Subscription and billing',
 ];
 
-export default function Sandbox({ available, contactEmail }) {
+export default function Sandbox({ available, contactEmail, visitor = { signed_in: false, verified: false } }) {
     const { errors = {} } = usePage().props;
     const { post, processing } = useForm({});
 
@@ -56,13 +56,28 @@ export default function Sandbox({ available, contactEmail }) {
             <PublicPageHero
                 eyebrow="Sandbox"
                 title="See how IOMS works before you buy."
-                subtitle="Walk into a working IOMS workspace with real operational data already in it: employees, permits, PPE and stock. No sign-up, no card, no trial to cancel."
+                subtitle="Walk into a working IOMS workspace with real operational data already in it: employees, permits, PPE and stock. Create a free IOMS account first: no card, no trial to cancel, and the same account is used if you subscribe."
             >
-                <form onSubmit={enter}>
-                    <Button size="lg" type="submit" disabled={processing || !available}>
-                        {processing ? 'Opening the Sandbox…' : <>Open the Sandbox <ArrowRight className="h-4 w-4" /></>}
-                    </Button>
-                </form>
+                {/* ADR 089: the Sandbox is opened from an IOMS account with a confirmed address. */}
+                {visitor.signed_in ? (
+                    <form onSubmit={enter} className="space-y-2">
+                        <Button size="lg" type="submit" disabled={processing || !available || !visitor.verified}>
+                            {processing ? 'Opening the Sandbox…' : <>Open the Sandbox <ArrowRight className="h-4 w-4" /></>}
+                        </Button>
+                        {!visitor.verified && (
+                            <p className="text-sm text-white/80">Confirm your email address first, using the link we sent to {visitor.email}.</p>
+                        )}
+                    </form>
+                ) : (
+                    <div className="flex flex-wrap gap-3">
+                        <Button size="lg" asChild>
+                            <Link href={route('register')}>Create an account to try it <ArrowRight className="h-4 w-4" /></Link>
+                        </Button>
+                        <Button size="lg" variant="outline" asChild>
+                            <Link href={route('login')}>I have an account</Link>
+                        </Button>
+                    </div>
+                )}
             </PublicPageHero>
 
             <section className="bg-graphite-100 py-14 sm:py-20">

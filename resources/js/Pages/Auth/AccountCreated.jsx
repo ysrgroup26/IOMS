@@ -106,6 +106,20 @@ export default function AccountCreated({ account }) {
                     }
                 />
 
+                {/* ADR 089: the Sandbox opens from this account once the address is confirmed. */}
+                <ForkOption
+                    icon={Clock}
+                    title="Try the Sandbox"
+                    body={account.email_verified
+                        ? 'Buka ruang kerja contoh berisi data operasional nyata sebelum memutuskan.'
+                        : 'Konfirmasi email Anda lebih dulu lewat tautan yang kami kirim, lalu buka Sandbox.'}
+                    action={
+                        <Button variant="outline" asChild className="w-full">
+                            <Link href={route('sandbox')}>Try the Sandbox</Link>
+                        </Button>
+                    }
+                />
+
                 <ForkOption
                     icon={Clock}
                     title="Maybe later"

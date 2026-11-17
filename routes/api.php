@@ -30,4 +30,5 @@ Route::prefix('agent/v1')->name('agent.')->middleware(['auth:sanctum', 'throttle
     Route::get('/tiket/{ticket}', [AgentApiController::class, 'ticket'])->middleware($scope('support'))->name('ticket');
 
     Route::get('/pendaftaran', [AgentApiController::class, 'registrations'])->middleware($scope('growth'))->name('registrations');
+    Route::get('/akun-calon', [AgentApiController::class, 'prospects'])->middleware($scope('growth'))->name('prospects');
 });

@@ -38,3 +38,5 @@ Schedule::command('reports:dispatch-scheduled')->hourly();
 // Requires the server's cron to call `php artisan schedule:run` every
 // minute (standard Laravel setup).
 Schedule::command('subscriptions:lifecycle')->dailyAt('02:00')->withoutOverlapping();
+// ADR 087: deletion reminders and the purge after the 90-day hold.
+Schedule::command('tenants:process-deletions')->dailyAt('03:00')->withoutOverlapping();

@@ -166,6 +166,11 @@ export default function Checkout({ order, payment, billingUrl, invoiceUrl, billi
                                                 onChange={() => setChosen(m.code)}
                                                 className="h-4 w-4 accent-brand-600"
                                             />
+                                            {m.image ? (
+                                                <img src={m.image} alt="" loading="lazy" className="h-7 w-14 shrink-0 object-contain" />
+                                            ) : (
+                                                <span className="h-7 w-14 shrink-0" aria-hidden="true" />
+                                            )}
                                             <span className="min-w-0 flex-1">
                                                 <span className="block truncate font-medium">{m.name}</span>
                                                 {m.fee > 0 && (

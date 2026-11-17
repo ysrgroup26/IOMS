@@ -64,6 +64,7 @@ use App\Http\Controllers\NotificationStreamController;
 use App\Http\Controllers\P3kBoxController;
 use App\Http\Controllers\PaymentWebhookController;
 use App\Http\Controllers\PermitToWorkController;
+use App\Http\Controllers\PlatformAgentAccessController;
 use App\Http\Controllers\PlatformController;
 use App\Http\Controllers\PlatformDatabaseController;
 use App\Http\Controllers\PlatformSupportController;
@@ -1501,4 +1502,12 @@ Route::middleware(['auth', 'role:platform_admin'])->prefix('platform')->name('pl
     Route::get('/plans', [PlatformController::class, 'plans'])->name('plans');
     Route::post('/plans', [PlatformController::class, 'storePlan'])->name('plans.store');
     Route::put('/plans/{plan}', [PlatformController::class, 'updatePlan'])->name('plans.update');
+
+    /*
+     * ADR 086 -- Akses Agent: issue and revoke the tokens TICorp's AI Workforce
+     * reads /api/agent/v1 with. Only `agent:read` tokens are visible here.
+     */
+    Route::get('/agent-access', [PlatformAgentAccessController::class, 'index'])->name('agent-access');
+    Route::post('/agent-access', [PlatformAgentAccessController::class, 'store'])->name('agent-access.store');
+    Route::delete('/agent-access/{token}', [PlatformAgentAccessController::class, 'destroy'])->whereNumber('token')->name('agent-access.destroy');
 });

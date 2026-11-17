@@ -28,6 +28,10 @@ use Symfony\Component\HttpFoundation\Response;
 return Application::configure(basePath: dirname(__DIR__))
     ->withRouting(
         web: __DIR__.'/../routes/web.php',
+        // ADR 086: the read-only Agent API (/api/agent/v1). Its own file and
+        // the stateless `api` group, so none of the web group's session,
+        // tenant or department middleware applies to a program's request.
+        api: __DIR__.'/../routes/api.php',
         commands: __DIR__.'/../routes/console.php',
         health: '/up',
     )

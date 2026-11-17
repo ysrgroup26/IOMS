@@ -1,5 +1,5 @@
 import { Link, usePage, router } from '@inertiajs/react';
-import { LayoutDashboard, Building2, LogOut, Tag, UserPlus, CreditCard, LifeBuoy, Database } from 'lucide-react';
+import { LayoutDashboard, Building2, LogOut, Tag, UserPlus, CreditCard, LifeBuoy, Database, Bot } from 'lucide-react';
 import ThemeSwitch from '@/Components/shared/ThemeSwitch';
 import BrandWordmark from '@/Components/shared/BrandWordmark';
 
@@ -48,6 +48,8 @@ export default function PlatformLayout({ children }) {
          * daily run -- and it is HERE rather than in a customer's Settings
          * because a dump covers every tenant at once.
          */
+        // ADR 086: the tokens TICorp's AI Workforce reads the Agent API with.
+        { name: 'Akses Agent', href: route('platform.agent-access'), icon: Bot, active: currentUrl.startsWith('/platform/agent-access') },
         { name: 'Database', href: route('platform.database'), icon: Database, active: currentUrl.startsWith('/platform/database') },
     ];
 

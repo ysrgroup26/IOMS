@@ -126,8 +126,10 @@ class SubscriptionController extends Controller
                 'payment_date' => $invoice->payment_date,
                 'payment_method' => $invoice->payment_method,
                 'payment_reference' => $invoice->payment_reference,
-                'period_start' => $invoice->period_start,
-                'period_end' => $invoice->period_end,
+                // ADR 091: the period the payment actually bought.
+                'period_start' => $invoice->servicePeriod()['start'],
+                'period_end' => $invoice->servicePeriod()['end'],
+                'previous_period_end' => $invoice->servicePeriod()['previous_end'],
                 'created_at' => $invoice->created_at,
                 'amount_formatted' => $this->pricing->format((float) $invoice->amount, $invoice->currency),
                 'is_payable' => $invoice->isPayable(),

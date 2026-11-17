@@ -157,8 +157,12 @@ class InvoiceDocumentService
             'description' => $description,
             'plan' => $package?->name,
             'cycle' => $cycle,
-            'period_start' => $invoice->period_start,
-            'period_end' => $invoice->period_end,
+            // ADR 091: the period the payment actually bought, and -- when
+            // it was paid after a lapse -- the day the previous one ended.
+            'period_start' => $invoice->servicePeriod()['start'],
+            'period_end' => $invoice->servicePeriod()['end'],
+            'previous_end' => $invoice->servicePeriod()['previous_end'],
+            'shifted' => $invoice->servicePeriod()['shifted'],
             'amount' => (float) $invoice->amount,
         ];
     }

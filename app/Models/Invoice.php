@@ -3,6 +3,7 @@
 namespace App\Models;
 
 use Illuminate\Database\Eloquent\Model;
+use Illuminate\Support\Carbon;
 use Illuminate\Support\Facades\DB;
 
 /**
@@ -90,6 +91,8 @@ class Invoice extends Model
         // settlement knows what to activate or extend.
         'subscription_add_on_id',
         'period_start', 'period_end',
+        // ADR 091 -- the period a renewal actually bought, and what it followed.
+        'service_start', 'service_end', 'previous_period_end',
         'purpose', 'target_package_id', 'target_billing_cycle',
         'amount', 'currency', 'status', 'due_date', 'payment_date', 'payment_reference',
         'payment_method', 'notes', 'created_by',
@@ -100,6 +103,9 @@ class Invoice extends Model
         return [
             'period_start' => 'date',
             'period_end' => 'date',
+            'service_start' => 'date',
+            'service_end' => 'date',
+            'previous_period_end' => 'date',
             'due_date' => 'date',
             'payment_date' => 'date',
             'amount' => 'decimal:2',
@@ -228,7 +234,51 @@ class Invoice extends Model
         });
     }
 
-    public function markPaid(string $paymentReference = null, string $paymentMethod = null, ?string $notes = null): void
+    /**
+     * ADR 091 -- THE PERIOD THIS INVOICE ACTUALLY BOUGHT.
+     *
+     * A renewal is billed for the period after the current one. Paid late,
+     * after the subscription lapsed, the new period starts on the payment
+     * date instead (SubscriptionLifecycleService::extendPeriod), so the
+     * billed dates no longer describe what the customer received.
+     *
+     * Settlement records the granted period. An invoice settled before that
+     * existed is derived the same way: paid after its billed start, the
+     * period runs from the payment date for the same length, and the billed
+     * start is the day the previous period ended.
+     *
+     * @return array{start: ?Carbon, end: ?Carbon, previous_end: ?Carbon, shifted: bool}
+     */
+    public function servicePeriod(): array
+    {
+        if ($this->service_start && $this->service_end) {
+            return [
+                'start' => $this->service_start, 'end' => $this->service_end,
+                'previous_end' => $this->previous_period_end,
+                'shifted' => (bool) $this->previous_period_end,
+            ];
+        }
+
+        $start = $this->period_start;
+        $end = $this->period_end;
+        $paid = $this->status === self::STATUS_PAID ? $this->payment_date : null;
+
+        if ($this->purpose === self::PURPOSE_RENEWAL && $start && $end && $paid
+            && $paid->copy()->startOfDay()->gt($start->copy()->startOfDay())) {
+            $length = $start->diff($end);
+
+            return [
+                'start' => $paid->copy()->startOfDay(),
+                'end' => $paid->copy()->startOfDay()->add($length),
+                'previous_end' => $start,
+                'shifted' => true,
+            ];
+        }
+
+        return ['start' => $start, 'end' => $end, 'previous_end' => null, 'shifted' => false];
+    }
+
+    public function markPaid(?string $paymentReference = null, ?string $paymentMethod = null, ?string $notes = null): void
     {
         $this->update([
             'status' => self::STATUS_PAID,

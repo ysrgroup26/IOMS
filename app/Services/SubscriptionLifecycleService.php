@@ -291,8 +291,19 @@ class SubscriptionLifecycleService
         // was raised for -- a downgrade or cycle switch rides along on the
         // renewal it was scheduled against.
         $wasReadOnly = $subscription->lifecycleState() === Subscription::LIFECYCLE_LAPSED;
+        $previousEnd = $subscription->ends_at?->copy();
 
         $this->extendPeriod($subscription, $cycle);
+
+        // ADR 091 -- the invoice states the period this payment bought. Paid
+        // after the lapse, it starts today, not on the billed date.
+        $grantedEnd = $subscription->fresh()->ends_at;
+        $lapsedFirst = ! $previousEnd || ! $previousEnd->isFuture();
+        $invoice->forceFill([
+            'service_start' => $lapsedFirst ? now()->toDateString() : $previousEnd->toDateString(),
+            'service_end' => $grantedEnd?->toDateString(),
+            'previous_period_end' => $lapsedFirst ? $previousEnd?->toDateString() : null,
+        ])->save();
         $this->applyPlanChange($subscription, $package, $cycle, extendPeriod: false);
 
         $this->notifyPlatform(

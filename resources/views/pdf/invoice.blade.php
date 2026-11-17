@@ -208,6 +208,13 @@
         <tr>
             <td>
                 <div class="desc">{{ $item['description'] }}</div>
+                @if (! empty($item['shifted']) && ! empty($item['previous_end']))
+                    {{-- ADR 091: paid after the lapse, so the period starts on the payment date. --}}
+                    <div class="note">
+                        Masa aktif sebelumnya berakhir {{ \Illuminate\Support\Carbon::parse($item['previous_end'])->format('d M Y') }}.
+                        Pembayaran diterima {{ optional($invoice->payment_date)->format('d M Y') }}, sehingga masa aktif baru dihitung sejak tanggal pembayaran.
+                    </div>
+                @endif
                 @if ($invoice->notes)<div class="note">{{ $invoice->notes }}</div>@endif
             </td>
             <td>

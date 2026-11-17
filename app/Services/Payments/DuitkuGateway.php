@@ -190,10 +190,28 @@ class DuitkuGateway implements PaymentGatewayInterface
                 'code' => (string) ($m['paymentMethod'] ?? ''),
                 'name' => (string) ($m['paymentName'] ?? ''),
                 'fee' => (float) ($m['totalFee'] ?? 0),
+                // The channel's own logo, as Duitku serves it -- so a customer
+                // recognises their bank instead of reading a code. Only an
+                // HTTPS address on Duitku's own domain is passed on.
+                'image' => self::trustedImage($m['paymentImage'] ?? null),
             ])
             ->filter(fn (array $m) => $m['code'] !== '')
             ->values()
             ->all();
+    }
+
+    private static function trustedImage(mixed $url): ?string
+    {
+        if (! is_string($url) || $url === '') {
+            return null;
+        }
+        $parts = parse_url($url);
+        $host = strtolower($parts['host'] ?? '');
+
+        return ($parts['scheme'] ?? '') === 'https'
+            && ($host === 'duitku.com' || str_ends_with($host, '.duitku.com'))
+            ? $url
+            : null;
     }
 
     public function createCheckout(Invoice $invoice): PaymentCheckoutResult

@@ -344,7 +344,9 @@ Each scenario in the owner's list is also pinned by `tests/Feature/DuitkuCheckou
 > (`docs/runbooks/DUITKU-PRODUCTION-ACTIVATION.md`, status **Pending Activation**) and work through its §8
 > checklist. Activation is not complete until that checklist and its completion report are done.
 
-**Current production state (2026-11-03):** iomsuite.com runs Duitku **Sandbox** on purpose for Duitku's merchant review (merchant code `DS36132`, `DUITKU_IS_PRODUCTION=false`). The unsigned callback answers 403 (Deploy run 30).
+**Current production state (2026-11-17):** iomsuite.com runs Duitku **Production** (merchant `D25218`, `DUITKU_IS_PRODUCTION=true`), activated 2026-11-17; first real payment settled the same evening. Staging keeps Sandbox. Completion report: `docs/runbooks/DUITKU-PRODUCTION-ACTIVATION.md` §9.
+
+_Before 2026-11-17:_ iomsuite.com runs Duitku **Sandbox** on purpose for Duitku's merchant review (merchant code `DS36132`, `DUITKU_IS_PRODUCTION=false`). The unsigned callback answers 403 (Deploy run 30).
 
 **Not done, and deliberately not prepared beyond this checklist.** Switching is configuration, not
 code.

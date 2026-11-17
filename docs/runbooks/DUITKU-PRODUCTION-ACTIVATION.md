@@ -1,14 +1,14 @@
 ---
 title: IOMS | Duitku Production Activation & Sandbox Retirement
 type: runbook
-status: Pending Activation
+status: Completed
 priority: Critical
 trigger: Duitku Production Activation
 owner: IOMS Technical Authority
 mandatory: true
 created: 2026-11-03
-production-activation-date: null
-sandbox-retirement-date: null
+production-activation-date: 2026-11-17
+sandbox-retirement-date: 2026-11-17
 tags: [runbook, payments, duitku, mandatory-trigger]
 ---
 
@@ -192,14 +192,14 @@ Undo: the same line with `| sudo bash -s -- --rollback`. The manual equivalent:
 
 | Item | Value |
 |---|---|
-| Production activation date | |
-| Production Merchant Code identifier (never the API key) | |
-| Sandbox components disabled or removed | |
-| Sandbox components intentionally retained in staging | |
-| Cloudflare callback security status | |
-| Final production gateway configuration | |
-| Verification results (§5.1–5.9) | |
-| Remaining risks or exceptions | |
+| Production activation date | 2026-11-17, 20:22 WITA (owner, OrcaTerm as `iomsadmin`, `duitku-production.sh`) |
+| Production Merchant Code identifier (never the API key) | D25218 |
+| Sandbox components disabled or removed | Production `.env` no longer holds the Sandbox merchant (DS36132) or its key; `DUITKU_IS_PRODUCTION=true`; no simulator or "Staging preview" on iomsuite.com (checked `/`, `/pricing`, `/login`, `/register`, `/get-started`) |
+| Sandbox components intentionally retained in staging | Staging keeps Sandbox for `review-check` (§4) |
+| Cloudflare callback security status | Skip rule live: `POST /webhooks/payment/duitku` from the 10 production IPs only; WAF managed, rate limiting and the five legacy components skipped (the dashboard refuses "ruleset" and "phase" skips together); unsigned callback answers 403 |
+| Final production gateway configuration | `payment.gateway=duitku`, merchant D25218, production endpoint `passport.duitku.com`; credential proof returned 8 payment methods |
+| Verification results (§5.1–5.9) | 5.1–5.2 production endpoint (proof above). 5.4–5.6: first real payment 2026-11-17 21:24 WITA, QRIS Rp239.000, owner's own renewal INV-2026-4-00001, Duitku ref INV7-20261117132213-K2IE: callback received, one transaction `paid`, invoice paid once, subscription active to 2026-12-17. 5.5 unsigned 403. 5.7 no sandbox wording. 5.8 records intact (read via the Agent API). 5.9 staging not re-run (unchanged). |
+| Remaining risks or exceptions | (1) Three `.env.bak-duitku-2026111720*` backups on the server still contain the retired Sandbox key: delete after one stable week. (2) GitHub Secrets not reviewed from here for Sandbox values. (3) The QRIS merchant city shows GARUT (Duitku/Nusapay merchant data, not IOMS): owner may ask Duitku to change it. (4) The first attempts failed on a script defect (`d9e0f28`), rolled back automatically, no customer impact. (5) The renewal page offered no payment method under Duitku until ADR 090; the invoice period after a lapse was fixed in ADR 091. |
 
 **Final acceptance criterion:** IOMS production operates only through Duitku Production. No Sandbox
 credential, endpoint, simulator or temporary testing workflow is reachable through the production

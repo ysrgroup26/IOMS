@@ -57,3 +57,17 @@ route; a token without `agent:read`, an inactive owner and a tenant administrato
 POST/PUT/DELETE answer 405; tenant detail carries no license key; ticket detail carries its messages;
 Master Admin issues a token, shows it once, refuses to revoke a non-agent token, revokes an agent token;
 an owner must be an active platform admin and a tenant administrator cannot open the page.
+
+## Addendum (2026-11-17) — the AI Workforce account, and JSON errors
+
+- IOMS has no screen that creates a platform admin (only `PlatformAdminSeeder`), so Akses Agent gains
+  **Buat akun AI Workforce**: one platform admin, `User::AGENT_WORKFORCE_EMAIL`
+  (`ai-workforce@agents.iomsuite.invalid`), created once (idempotent), recorded in the Activity Log.
+  It exists only to own Agent API tokens, so what agents read is attributed to it rather than to the
+  owner. It **cannot sign in**: its password is 64 random characters nobody ever sees; the `.invalid`
+  TLD is reserved, so no reset mail can reach it; the login form refuses it with the same words as a
+  wrong password; and `EnsureAccountIsActive` ends any web session it somehow has. The token form
+  defaults to it as owner.
+- `api/*` errors render as Laravel's JSON (`shouldRenderJsonWhen`), never the friendly Inertia error
+  page, which `wantsJson()` used to select for a program's 401 (CI-16 in TICorp).
+- Tests: AgentApiTest 12; full suite 1809/1809.

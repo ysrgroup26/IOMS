@@ -41,7 +41,12 @@ class EnsureAccountIsActive
     {
         $user = $request->user();
 
-        if (! $user || $user->is_active) {
+        // ADR 086: a browser session as the token-only AI Workforce account is
+        // never legitimate, however it was obtained -- end it like a
+        // deactivated one.
+        $workforceSession = $user && $user->isAgentWorkforce() && Auth::guard('web')->check();
+
+        if (! $user || ($user->is_active && ! $workforceSession)) {
             return $next($request);
         }
 

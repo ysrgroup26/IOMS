@@ -7,6 +7,7 @@ use App\Models\ActivityLog;
 use App\Models\User;
 use Illuminate\Http\RedirectResponse;
 use Illuminate\Http\Request;
+use Illuminate\Support\Str;
 use Illuminate\Validation\Rule;
 use Inertia\Inertia;
 use Inertia\Response;
@@ -51,6 +52,7 @@ class PlatformAgentAccessController extends Controller
                 'created_at' => $t->created_at,
             ]),
             'owners' => $this->owners()->map(fn (User $u) => $u->only(['id', 'name', 'email'])),
+            'workforce' => $this->workforce()?->only(['id', 'name', 'email', 'created_at']),
             'scopes' => AuthenticateAgentToken::SCOPES,
             'endpoint' => url('/api/agent/v1'),
             'new_token' => $request->session()->get('agent_token'),
@@ -91,6 +93,45 @@ class PlatformAgentAccessController extends Controller
         ActivityLog::record('deleted', "Token agent '{$name}' dicabut", null, ['kind' => 'agent_token', 'token_id' => $token]);
 
         return redirect()->route('platform.agent-access')->with('success', 'Token agent dicabut; akses berhenti seketika.');
+    }
+
+    /**
+     * ADR 086 -- create the AI Workforce account, once.
+     *
+     * A platform admin that exists only to own Agent API tokens, so what agents
+     * read is attributed to it rather than to the owner. It cannot sign in: the
+     * password is 64 random characters nobody ever sees, the address is under the
+     * reserved `.invalid` TLD so no reset mail can reach it, and the login form
+     * and EnsureAccountIsActive refuse it explicitly. Pressing the button again
+     * changes nothing.
+     */
+    public function storeWorkforce(): RedirectResponse
+    {
+        $existing = $this->workforce(includeInactive: true);
+        if ($existing) {
+            return redirect()->route('platform.agent-access')->with('success', 'Akun AI Workforce sudah ada.');
+        }
+
+        $account = User::withoutGlobalScopes()->create([
+            'name' => 'TICorp AI Workforce',
+            'email' => User::AGENT_WORKFORCE_EMAIL,
+            'password' => Str::random(64),
+            'role' => User::ROLE_PLATFORM_ADMIN,
+            'tenant_id' => null,
+            'is_active' => true,
+        ]);
+        ActivityLog::record('created', 'Akun AI Workforce (khusus token agent, tidak bisa login) dibuat', $account, ['kind' => 'agent_workforce']);
+
+        return redirect()->route('platform.agent-access')->with('success', 'Akun AI Workforce dibuat. Terbitkan token atas namanya.');
+    }
+
+    private function workforce(bool $includeInactive = false): ?User
+    {
+        return User::withoutGlobalScopes()
+            ->where('email', User::AGENT_WORKFORCE_EMAIL)
+            ->where('role', User::ROLE_PLATFORM_ADMIN)
+            ->when(! $includeInactive, fn ($q) => $q->where('is_active', true))
+            ->first();
     }
 
     /** Active platform admins: the only accounts a token may belong to. */

@@ -3,6 +3,7 @@
 namespace App\Models;
 
 use Illuminate\Database\Eloquent\Model;
+use Illuminate\Support\Carbon;
 
 /**
  * Milestone 2 (Package + Subscription). A tenant's commercial
@@ -53,8 +54,11 @@ class Subscription extends Model
      | drift and needs nothing running.
      */
     public const STATUS_TRIAL = 'trial';
+
     public const STATUS_ACTIVE = 'active';
+
     public const STATUS_SUSPENDED = 'suspended';
+
     public const STATUS_CANCELLED = 'cancelled';
 
     public const STATUSES = [
@@ -117,10 +121,13 @@ class Subscription extends Model
     ];
 
     public const CYCLE_MONTHLY = 'monthly';
+
     public const CYCLE_YEARLY = 'yearly';
 
     public const TYPE_TRIAL = 'trial';
+
     public const TYPE_SUBSCRIPTION = 'subscription';
+
     public const TYPE_LIFETIME = 'lifetime';
 
     /**
@@ -226,7 +233,7 @@ class Subscription extends Model
      * means "never ends" -- a lifetime licence, or a record whose dates
      * were never configured.
      */
-    public function periodEndsAt(): ?\Illuminate\Support\Carbon
+    public function periodEndsAt(): ?Carbon
     {
         if ($this->isLifetime()) {
             return null;
@@ -236,7 +243,7 @@ class Subscription extends Model
     }
 
     /** When read-only begins. Null when the subscription has no end at all. */
-    public function graceEndsAt(): ?\Illuminate\Support\Carbon
+    public function graceEndsAt(): ?Carbon
     {
         $end = $this->periodEndsAt();
 
@@ -297,6 +304,30 @@ class Subscription extends Model
      * subscription has said something no date may override. Otherwise the
      * dates decide, and they decide correctly without anything running.
      */
+    /**
+     * CI-17 (TICorp) -- HOW MANY SUBSCRIPTIONS ARE IN EACH LIFECYCLE STATE, DERIVED.
+     *
+     * Counting `status = active` reported three subscriptions as active when
+     * all three had lapsed: the stored status is the operator's axis, the
+     * dates are the other, and only lifecycleState() combines them. Every
+     * dashboard number reads this instead.
+     *
+     * @return array<string, int>
+     */
+    public static function lifecycleCounts(): array
+    {
+        $counts = array_fill_keys([
+            self::LIFECYCLE_ACTIVE, self::LIFECYCLE_GRACE, self::LIFECYCLE_LAPSED,
+            self::LIFECYCLE_SUSPENDED, self::LIFECYCLE_CANCELLED,
+        ], 0);
+
+        foreach (static::query()->cursor() as $subscription) {
+            $counts[$subscription->lifecycleState()]++;
+        }
+
+        return $counts;
+    }
+
     public function lifecycleState(): string
     {
         if ($this->status === self::STATUS_SUSPENDED) {
@@ -621,7 +652,6 @@ class Subscription extends Model
 
         return $monthly * (float) ($this->package?->annualPaidMonths() ?? 12);
     }
-
 
     /**
      * v2.82.0 -- WHAT THE EXTRA USERS COST, PER BILLING PERIOD.

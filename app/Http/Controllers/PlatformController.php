@@ -99,7 +99,10 @@ class PlatformController extends Controller
                 'tenants_trial' => Tenant::where('status', Tenant::STATUS_TRIAL)->count(),
                 'tenants_suspended' => Tenant::where('status', Tenant::STATUS_SUSPENDED)->count(),
                 'packages_total' => Package::count(),
-                'subscriptions_active' => Subscription::where('status', Subscription::STATUS_ACTIVE)->count(),
+                // CI-17: derived from the dates as well as the stored status.
+                'subscriptions_active' => ($lifecycle = Subscription::lifecycleCounts())[Subscription::LIFECYCLE_ACTIVE],
+                'subscriptions_grace' => $lifecycle[Subscription::LIFECYCLE_GRACE],
+                'subscriptions_lapsed' => $lifecycle[Subscription::LIFECYCLE_LAPSED],
                 // v2.51.0: self-service onboarding in flight. A registration
                 // is a prospect, NOT a tenant -- it holds no application
                 // access until a verified payment provisions it -- so it is

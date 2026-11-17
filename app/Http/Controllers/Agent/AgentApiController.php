@@ -52,7 +52,10 @@ class AgentApiController extends Controller
                 'tenants_active' => Tenant::where('status', Tenant::STATUS_ACTIVE)->count(),
                 'tenants_trial' => Tenant::where('status', Tenant::STATUS_TRIAL)->count(),
                 'tenants_suspended' => Tenant::where('status', Tenant::STATUS_SUSPENDED)->count(),
-                'subscriptions_active' => Subscription::where('status', Subscription::STATUS_ACTIVE)->count(),
+                // CI-17: derived from the dates as well as the stored status.
+                'subscriptions_active' => ($lifecycle = Subscription::lifecycleCounts())[Subscription::LIFECYCLE_ACTIVE],
+                'subscriptions_grace' => $lifecycle[Subscription::LIFECYCLE_GRACE],
+                'subscriptions_lapsed' => $lifecycle[Subscription::LIFECYCLE_LAPSED],
                 'registrations_open' => TenantRegistration::whereIn('status', [
                     TenantRegistration::STATUS_PENDING_VERIFICATION,
                     TenantRegistration::STATUS_VERIFIED,

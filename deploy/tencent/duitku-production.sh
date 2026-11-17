@@ -81,7 +81,7 @@ cache
 
 echo "== Sesudah: $(state)"
 echo "== Menguji kredensial ke passport.duitku.com (tanpa membuat transaksi)..."
-check="$(as_app "php artisan tinker --execute='try { \$m = app(\App\Services\Payments\DuitkuGateway::class)->getPaymentMethods(10000); echo \"OK \".count(\$m); } catch (\Throwable \$e) { echo \"GAGAL \".class_basename(\$e).\": \".substr(\$e->getMessage(),0,160); }'" 2>&1 | tail -1)"
+check="$(as_app "php artisan tinker --execute='try { \$m = (new \App\Services\Payments\DuitkuGateway((string) config(\"payment.duitku.merchant_code\"), (string) config(\"payment.duitku.api_key\"), (bool) config(\"payment.duitku.is_production\")))->getPaymentMethods(10000); echo \"OK \".count(\$m); } catch (\Throwable \$e) { echo \"GAGAL \".class_basename(\$e).\": \".substr(\$e->getMessage(),0,160); }'" 2>&1 | tail -1)"
 echo "   $check"
 
 if [[ "$check" != OK* || "$check" == "OK 0" ]]; then

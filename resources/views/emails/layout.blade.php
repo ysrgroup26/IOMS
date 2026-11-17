@@ -45,13 +45,19 @@
 --}}
 @php
     $tone = $tone ?? 'brand';
+    /*
+     * v2.142.0 (ADR 090) -- ONE PALETTE. The band under the header is always
+     * the brand cyan (the invoice uses the same rule), and only the small
+     * eyebrow changes colour, and only for the two tones a reader must not
+     * miss: something succeeded, or something will be lost. The purple
+     * "security" and teal "billing" accents read as three different senders.
+     */
     $toneColor = match ($tone) {
-        'security' => '#7c3aed',
-        'billing' => '#0f766e',
         'success' => '#15803d',
         'danger' => '#b91c1c',
         default => '#2166c4',
     };
+    $bandColor = $tone === 'danger' ? '#b91c1c' : '#01c1ed';
     $emails = config('ioms.emails');
     $replyTo = $replyTo ?? ($emails['support'] ?? null);
     $eyebrow = $eyebrow ?? null;
@@ -64,8 +70,8 @@
     <meta charset="utf-8">
     <meta name="viewport" content="width=device-width, initial-scale=1">
     <meta name="x-apple-disable-message-reformatting">
-    <meta name="color-scheme" content="light">
-    <meta name="supported-color-schemes" content="light">
+    <meta name="color-scheme" content="light only">
+    <meta name="supported-color-schemes" content="light only">
     <title>{{ $subjectLine ?? $heading ?? config('ioms.name') }}</title>
     <style>
         /* The ONLY <style> block, and it holds only what inline styles
@@ -76,9 +82,15 @@
             .ioms-pad { padding-left: 20px !important; padding-right: 20px !important; }
             .ioms-h1 { font-size: 20px !important; }
         }
+        /* Gmail's app dark mode inverts colours it can read. It does not touch
+           background IMAGES, so the navy bands also carry a one-colour
+           gradient; and white type on them is protected with the blend-mode
+           pair Gmail leaves alone. Other clients ignore all of this. */
+        u + .body .gm-screen { background: #000000; mix-blend-mode: screen; }
+        u + .body .gm-diff { background: #000000; mix-blend-mode: difference; }
     </style>
 </head>
-<body style="margin:0; padding:0; width:100%; background-color:#f1f5f9; font-family:Segoe UI, Roboto, Helvetica, Arial, sans-serif; color:#0f2747; -webkit-font-smoothing:antialiased;">
+<body class="body" style="margin:0; padding:0; width:100%; background-color:#f1f5f9; font-family:Segoe UI, Roboto, Helvetica, Arial, sans-serif; color:#0f2747; -webkit-font-smoothing:antialiased;">
 
 @if ($preheader)
     {{-- Hidden preview text. The trailing entities stop the client from
@@ -97,14 +109,14 @@
 
                 {{-- Header --}}
                 <tr>
-                    <td class="ioms-pad" bgcolor="#0f2747" style="background-color:#0f2747; padding:22px 28px;">
+                    <td class="ioms-pad" bgcolor="#0f2747" style="background-color:#0f2747; background-image:linear-gradient(#0f2747,#0f2747); padding:22px 28px;">
                         @include('emails.partials.logo', ['onDark' => true])
                     </td>
                 </tr>
 
                 {{-- Tone band: the entire contextual treatment. --}}
                 <tr>
-                    <td bgcolor="{{ $toneColor }}" style="background-color:{{ $toneColor }}; height:3px; line-height:3px; font-size:0;">&nbsp;</td>
+                    <td bgcolor="{{ $bandColor }}" style="background-color:{{ $bandColor }}; background-image:linear-gradient({{ $bandColor }},{{ $bandColor }}); height:4px; line-height:4px; font-size:0;">&nbsp;</td>
                 </tr>
 
                 {{-- Body --}}
@@ -115,7 +127,7 @@
                         @endif
 
                         @if (! empty($heading))
-                            <h1 class="ioms-h1" style="margin:0 0 14px; font-size:19px; line-height:26px; font-weight:600; color:#0f2747;">{{ $heading }}</h1>
+                            <h1 class="ioms-h1" style="margin:0 0 14px; font-size:20px; line-height:28px; font-weight:700; color:#0f2747;">{{ $heading }}</h1>
                         @endif
 
                         @yield('content')

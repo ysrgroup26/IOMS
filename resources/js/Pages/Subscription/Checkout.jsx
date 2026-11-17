@@ -4,6 +4,7 @@ import AuthenticatedLayout from '@/Layouts/AuthenticatedLayout';
 import PageHeader from '@/Components/shared/PageHeader';
 import { Button } from '@/Components/ui/button';
 import { ShieldCheck, CreditCard, FileDown, Loader2, ExternalLink, Receipt } from 'lucide-react';
+import { cn } from '@/lib/utils';
 
 /**
  * v2.70.0 -- THE SIGNED-IN CHECKOUT PAGE.
@@ -22,6 +23,11 @@ import { ShieldCheck, CreditCard, FileDown, Loader2, ExternalLink, Receipt } fro
  * forges a callback here achieves a page navigation and nothing else.
  */
 export default function Checkout({ order, payment, billingUrl, invoiceUrl, billingEmail }) {
+    // Duitku names the channel before a session exists, so the renewal page
+    // offers the provider's live list (re-validated server-side) exactly as
+    // the onboarding checkout does. Midtrans Snap sends none.
+    const methods = payment?.methods ?? [];
+    const [chosen, setChosen] = useState(methods[0]?.code ?? '');
     const [snapReady, setSnapReady] = useState(false);
     const [scriptFailed, setScriptFailed] = useState(false);
     const [opening, setOpening] = useState(false);
@@ -132,7 +138,51 @@ export default function Checkout({ order, payment, billingUrl, invoiceUrl, billi
                         melewati atau tersimpan di sistem IOMS.
                     </p>
 
-                    {!scriptFailed ? (
+                    {methods.length > 0 ? (
+                        <form method="POST" action={payment.start_url} className="mt-4">
+                            <input type="hidden" name="_token" value={payment?.csrf ?? ''} />
+                            <fieldset>
+                                <legend className="text-[13px] font-medium text-navy-900">Payment method</legend>
+                                <p className="mt-1 text-xs text-graphite-500">
+                                    Pilih metode pembayaran. Anda akan diarahkan ke halaman pembayaran penyedia
+                                    setelah memilih.
+                                </p>
+                                <div className="mt-3 grid gap-2 sm:grid-cols-2">
+                                    {methods.map((m) => (
+                                        <label
+                                            key={m.code}
+                                            className={cn(
+                                                'flex cursor-pointer items-center gap-2.5 rounded-lg border p-3 text-sm transition',
+                                                chosen === m.code
+                                                    ? 'border-brand-500 bg-brand-50/60 text-navy-900'
+                                                    : 'border-steel-200 bg-white text-graphite-700 hover:border-steel-300'
+                                            )}
+                                        >
+                                            <input
+                                                type="radio"
+                                                name="payment_method"
+                                                value={m.code}
+                                                checked={chosen === m.code}
+                                                onChange={() => setChosen(m.code)}
+                                                className="h-4 w-4 accent-brand-600"
+                                            />
+                                            <span className="min-w-0 flex-1">
+                                                <span className="block truncate font-medium">{m.name}</span>
+                                                {m.fee > 0 && (
+                                                    <span className="block text-[11px] text-graphite-500">
+                                                        Biaya layanan Rp{Number(m.fee).toLocaleString('id-ID')}
+                                                    </span>
+                                                )}
+                                            </span>
+                                        </label>
+                                    ))}
+                                </div>
+                            </fieldset>
+                            <Button type="submit" className="mt-4 w-full sm:w-auto" disabled={!chosen}>
+                                <CreditCard className="h-4 w-4" /> Pay {order.amount}
+                            </Button>
+                        </form>
+                    ) : !scriptFailed ? (
                         <Button className="mt-4 w-full sm:w-auto" onClick={pay} disabled={!snapReady || opening}>
                             {!snapReady || opening
                                 ? <><Loader2 className="h-4 w-4 animate-spin" /> Preparing payment…</>

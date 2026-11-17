@@ -88,7 +88,7 @@ class InvoiceDocumentTest extends TestCase
         $this->assertStringContainsString('ioms-icon.svg', $html);
         $this->assertStringNotContainsString('ioms-logo.svg', $html);
 
-        $this->assertStringContainsString('>IOMS</div>', $html);
+        $this->assertStringContainsString('class="brand">IOMS</div>', $html);
         $this->assertStringContainsString('Industrial Operations Platform', $html);
     }
 
@@ -120,7 +120,7 @@ class InvoiceDocumentTest extends TestCase
         // dompdf will draw an image to whatever one dimension says and guess
         // the other. Both are declared so the 1:1 mark cannot come out oval.
         $this->assertMatchesRegularExpression(
-            '/<img[^>]+ioms-icon\.svg[^>]+width="34"[^>]+height="34"/',
+            '/<img[^>]+ioms-icon\.svg[^>]+width="38"[^>]+height="38"/',
             $this->render()
         );
     }
@@ -188,42 +188,45 @@ class InvoiceDocumentTest extends TestCase
      * And still invents nothing
      * ================================================================== */
 
-    public function test_no_issuer_block_is_printed_when_no_business_address_is_published(): void
+    public function test_the_invoice_names_the_issuing_company_and_its_office(): void
     {
-        // With no published address the block would say "IOMS" and a
-        // website -- a third repetition of the name the header carries.
-        config(['ioms.legal.entity_name' => null, 'ioms.legal.address' => null]);
-
-        $this->assertStringNotContainsString('Diterbitkan Oleh', $this->render());
-    }
-
-    public function test_the_invoice_is_issued_by_the_ioms_brand_at_its_published_address(): void
-    {
-        // v2.141.1 (ADR 085): Duitku asked for the legal merchant's name to be
-        // removed from the registered website. The issuer is the brand, at
-        // the business address IOMS already publishes.
-        config(['ioms.legal.address' => 'Garut, Jawa Barat']);
-
+        // v2.142.0 (ADR 090): the owner's decision -- the invoice is issued by
+        // PT Tahada Vistara Bersama (Tahada Group) at its Jakarta office.
         $html = $this->render();
 
         $this->assertStringContainsString('Diterbitkan Oleh', $html);
-        $this->assertMatchesRegularExpression('/inv-party-name">\s*'.preg_quote(config('app.name'), '/').'\s*</', $html);
-        $this->assertStringContainsString('Garut, Jawa Barat', $html);
+        $this->assertStringContainsString('PT TAHADA VISTARA BERSAMA', $html);
+        $this->assertStringContainsString('TAHADA GROUP', $html);
+        $this->assertStringContainsString('3 Ad Premier Office Park', $html);
+        $this->assertStringContainsString('Jakarta Selatan', $html);
+        $this->assertStringNotContainsString('Garut', $html);
     }
 
-    public function test_the_merchant_legal_name_never_reaches_the_invoice_even_when_configured(): void
+    public function test_the_issuer_is_configurable_and_falls_back_to_the_brand(): void
     {
-        // The merchant legal name stays as INTERNAL configuration. Nothing
-        // customer-facing may print it -- neither through the merchant key
-        // nor through the public operator key.
-        config([
-            'ioms.merchant.legal_name' => 'PT Contoh Merchant Internal',
-            'ioms.legal.entity_name' => 'PT Contoh Merchant Internal',
-            'ioms.legal.address' => 'Garut, Jawa Barat',
-        ]);
+        config(['ioms.invoice_issuer.name' => null, 'ioms.invoice_issuer.brand' => null]);
 
-        $this->assertStringNotContainsString('PT Contoh Merchant Internal', $this->render());
+        $html = $this->render();
+
+        $this->assertStringNotContainsString('TAHADA VISTARA', $html);
+        $this->assertMatchesRegularExpression('/co-name">\s*'.preg_quote(config('app.name'), '/').'\s*</', $html);
+    }
+
+    public function test_the_issuer_appears_on_the_invoice_only_not_on_public_pages(): void
+    {
+        // ADR 085 still governs the website: the payment provider's review
+        // asked for the merchant name to stay off public pages.
+        $this->get('/')->assertDontSee('Tahada Vistara');
         $this->assertNull(app(InvoiceDocumentService::class)->issuerIdentity()['legal_name']);
+    }
+
+    public function test_the_document_reads_as_a_bill_not_a_printout(): void
+    {
+        $html = $this->render();
+
+        $this->assertStringNotContainsString('Generated', $html);
+        $this->assertStringContainsString('Total Tagihan', $html);
+        $this->assertStringContainsString('Billing', $html);
     }
 
     public function test_there_is_still_no_tax_line(): void

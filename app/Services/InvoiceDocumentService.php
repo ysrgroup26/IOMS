@@ -85,7 +85,11 @@ class InvoiceDocumentService
              * Transparent cyan, so it reads on the navy header band.
              */
             'mark_url' => public_path(ltrim(config('branding.assets.icon'), '/')),
-            'address' => $legal['address'] ?: null,
+            // v2.142.0 (ADR 090): the invoice names its issuing company and
+            // office. Read here only; public pages stay brand-only (ADR 085).
+            'issuer_name' => config('ioms.invoice_issuer.name') ?: null,
+            'issuer_brand' => config('ioms.invoice_issuer.brand') ?: null,
+            'address' => config('ioms.invoice_issuer.address') ?: ($legal['address'] ?: null),
             'locality' => null,
             'country' => null,
             'phone' => $legal['phone'] ?? null,

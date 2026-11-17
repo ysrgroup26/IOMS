@@ -390,23 +390,40 @@ class PlatformController extends Controller
         return back()->with('success', "Complimentary access granted to \"{$tenant->name}\" for {$validated['days']} day(s).");
     }
 
-    public function tenants(): Response
+    public function tenants(Request $request): Response
     {
-        return Inertia::render('Platform/Tenants', [
-            'tenants' => Tenant::withCount(['companies' => fn ($q) => $q->withoutGlobalScope(TenantScope::class), 'users'])
-                ->with(['subscription.package:id,name'])
-                ->orderBy('name')
-                ->get(['id', 'name', 'slug', 'status', 'trial_ends_at', 'created_at'])
-                ->map(function (Tenant $tenant) {
-                    // v2.80.0: the LIST needed the derived lifecycle too. It
-                    // showed only the account status column, so a tenant whose
-                    // subscription had lapsed weeks ago still read "active"
-                    // here while the customer's own Billing page said
-                    // read-only. Same snapshot, same answer, every screen.
-                    $tenant->setAttribute('lifecycle', $tenant->subscription?->stateSnapshot());
+        // ADR 088: the default view is the organizations that are in use. Lapsed
+        // ones are "tidak aktif", dormant ones "arsip"; nothing is hidden for good.
+        $filter = in_array($request->string('filter')->toString(), ['aktif', 'tidak_aktif', 'arsip', 'semua'], true)
+            ? $request->string('filter')->toString() : 'aktif';
 
-                    return $tenant;
-                }),
+        $all = Tenant::withCount(['companies' => fn ($q) => $q->withoutGlobalScope(TenantScope::class), 'users'])
+            ->with(['subscription.package:id,name'])
+            ->orderBy('name')
+            ->get(['id', 'name', 'slug', 'status', 'trial_ends_at', 'created_at', 'archived_at'])
+            ->map(function (Tenant $tenant) {
+                // v2.80.0: the LIST needed the derived lifecycle too. It
+                // showed only the account status column, so a tenant whose
+                // subscription had lapsed weeks ago still read "active"
+                // here while the customer's own Billing page said
+                // read-only. Same snapshot, same answer, every screen.
+                $tenant->setAttribute('lifecycle', $tenant->subscription?->stateSnapshot());
+
+                return $tenant;
+            });
+
+        $bucket = fn (Tenant $t) => $t->archived_at ? 'arsip'
+            : (($t->lifecycle['lifecycle_state'] ?? null) === 'lapsed' ? 'tidak_aktif' : 'aktif');
+
+        return Inertia::render('Platform/Tenants', [
+            'tenants' => $filter === 'semua' ? $all->values() : $all->filter(fn ($t) => $bucket($t) === $filter)->values(),
+            'filter' => $filter,
+            'counts' => [
+                'aktif' => $all->filter(fn ($t) => $bucket($t) === 'aktif')->count(),
+                'tidak_aktif' => $all->filter(fn ($t) => $bucket($t) === 'tidak_aktif')->count(),
+                'arsip' => $all->filter(fn ($t) => $bucket($t) === 'arsip')->count(),
+                'semua' => $all->count(),
+            ],
             'packages' => Package::active()->orderBy('sort_order')->get(['id', 'name', 'slug']),
         ]);
     }

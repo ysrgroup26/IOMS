@@ -50,7 +50,7 @@ function slugify(value) {
         .replace(/^-+|-+$/g, '');
 }
 
-export default function PlatformTenants({ tenants, packages }) {
+export default function PlatformTenants({ tenants, packages, filter = 'aktif', counts = null }) {
     const [open, setOpen] = useState(false);
     const [editing, setEditing] = useState(null);
     const [slugTouched, setSlugTouched] = useState(false);
@@ -120,6 +120,20 @@ export default function PlatformTenants({ tenants, packages }) {
             <PageHeader title="Tenant" subtitle="Seluruh organisasi pelanggan di platform ini. Menangguhkan tenant adalah sakelar tingkat platform -- tidak ada data tenant yang dihapus karenanya.">
                 <Button onClick={openCreate}><Plus className="h-4 w-4" /> Tambah Tenant</Button>
             </PageHeader>
+
+            {/* ADR 088: the default view is organizations in use. Lapsed ones are
+                "Tidak aktif" (read-only, intact); dormant ones "Arsip". Nothing is
+                deleted for inactivity. */}
+            {counts && (
+                <div className="mb-3 flex flex-wrap gap-2" role="tablist" aria-label="Saring tenant">
+                    {[['aktif', 'Aktif'], ['tidak_aktif', 'Tidak aktif'], ['arsip', 'Arsip'], ['semua', 'Semua']].map(([key, label]) => (
+                        <Button key={key} size="sm" variant={filter === key ? 'default' : 'outline'} role="tab" aria-selected={filter === key}
+                            onClick={() => router.get(route('platform.tenants'), { filter: key }, { preserveScroll: true })}>
+                            {label} ({counts[key]})
+                        </Button>
+                    ))}
+                </div>
+            )}
 
             <Card>
                 <CardHeader>

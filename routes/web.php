@@ -61,6 +61,7 @@ use App\Http\Controllers\MyWorkAccountController;
 use App\Http\Controllers\NcrController;
 use App\Http\Controllers\NotificationController;
 use App\Http\Controllers\NotificationStreamController;
+use App\Http\Controllers\OrganizationDeletionController;
 use App\Http\Controllers\P3kBoxController;
 use App\Http\Controllers\PaymentWebhookController;
 use App\Http\Controllers\PermitToWorkController;
@@ -1114,6 +1115,11 @@ Route::middleware(['auth', 'restrict.platform-admin'])->group(function () {
     // Super-Admin-only inside the controller (commercial data), unlike
     // the plan catalog above which every tenant user may read.
     Route::get('/subscription/billing', [SubscriptionController::class, 'billing'])->name('subscription.billing');
+    // ADR 088: the organization's administrator deletes it (7-day cooling-off,
+    // cancellable). Under `subscription.` so a read-only organization can still leave.
+    Route::post('/subscription/organization-deletion', [OrganizationDeletionController::class, 'request'])
+        ->middleware('throttle:6,1')->name('subscription.organization-deletion.request');
+    Route::delete('/subscription/organization-deletion', [OrganizationDeletionController::class, 'cancel'])->name('subscription.organization-deletion.cancel');
 
     /*
      * v2.70.0 -- THE CUSTOMER CAN NOW ACT ON THEIR OWN SUBSCRIPTION.

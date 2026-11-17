@@ -40,3 +40,5 @@ Schedule::command('reports:dispatch-scheduled')->hourly();
 Schedule::command('subscriptions:lifecycle')->dailyAt('02:00')->withoutOverlapping();
 // ADR 087: deletion reminders and the purge after the 90-day hold.
 Schedule::command('tenants:process-deletions')->dailyAt('03:00')->withoutOverlapping();
+// ADR 088: archive (never delete) organizations dormant for a year.
+Schedule::command('tenants:archive-dormant')->dailyAt('03:30')->withoutOverlapping();

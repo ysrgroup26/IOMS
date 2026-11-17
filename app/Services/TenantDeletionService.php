@@ -10,6 +10,7 @@ use App\Models\Tenant;
 use App\Models\TenantRegistration;
 use App\Models\User;
 use Illuminate\Support\Carbon;
+use Illuminate\Support\Facades\Hash;
 use Illuminate\Support\Facades\Log;
 use Illuminate\Support\Facades\Mail;
 use InvalidArgumentException;
@@ -39,6 +40,13 @@ use Throwable;
 class TenantDeletionService
 {
     public const HOLD_DAYS = 90;
+
+    /**
+     * ADR 088 -- a deletion the CUSTOMER asks for themselves runs on its own,
+     * short, cooling-off hold: their decision, executed automatically, with a
+     * window to undo an accidental click or a hijacked administrator account.
+     */
+    public const CUSTOMER_HOLD_DAYS = 7;
 
     /** Days before the date on which administrators are reminded. */
     public const REMINDERS = [30, 7, 1];
@@ -110,7 +118,7 @@ class TenantDeletionService
             ->exists();
     }
 
-    public function schedule(Tenant $tenant, string $reason, ?User $actor, ?Carbon $now = null): void
+    public function schedule(Tenant $tenant, string $reason, ?User $actor, ?Carbon $now = null, int $days = self::HOLD_DAYS): void
     {
         if ($tenant->is_demo) {
             throw new InvalidArgumentException('Sandbox tidak bisa dijadwalkan untuk dihapus.');
@@ -120,7 +128,7 @@ class TenantDeletionService
         }
         $now ??= now();
         $tenant->forceFill([
-            'deletion_scheduled_for' => $now->copy()->addDays(self::HOLD_DAYS)->startOfDay(),
+            'deletion_scheduled_for' => $now->copy()->addDays($days)->startOfDay(),
             'deletion_requested_at' => $now,
             'deletion_requested_by' => $actor?->id,
             'deletion_reason' => mb_substr($reason, 0, 255),
@@ -128,9 +136,30 @@ class TenantDeletionService
         ])->save();
 
         $this->notify($tenant, 'scheduled');
-        ActivityLog::record('updated', "Penghapusan tenant \"{$tenant->name}\" dijadwalkan untuk {$tenant->deletion_scheduled_for->toDateString()} (ditahan ".self::HOLD_DAYS.' hari)', null, [
+        ActivityLog::record('updated', "Penghapusan tenant \"{$tenant->name}\" dijadwalkan untuk {$tenant->deletion_scheduled_for->toDateString()} (ditahan {$days} hari)", null, [
             'kind' => 'tenant_deletion_scheduled', 'tenant_id' => $tenant->id, 'reason' => $reason,
         ]);
+    }
+
+    /**
+     * ADR 088 -- the organization's own administrator deletes it. Confirmed by the
+     * organization's exact name AND the administrator's password; held
+     * CUSTOMER_HOLD_DAYS, every administrator e-mailed now and reminded, then
+     * purged automatically by `tenants:process-deletions`. Works while the
+     * subscription is read-only, because leaving must never require paying.
+     */
+    public function requestByCustomer(Tenant $tenant, User $admin, string $typedName, string $password, ?Carbon $now = null): void
+    {
+        if ($admin->tenant_id !== $tenant->id || $admin->role !== User::ROLE_SUPER_ADMIN) {
+            throw new InvalidArgumentException('Hanya Administrator organisasi ini yang dapat menghapusnya.');
+        }
+        if (trim($typedName) !== $tenant->name) {
+            throw new InvalidArgumentException('Ketik nama organisasi persis seperti tertulis.');
+        }
+        if (! Hash::check($password, (string) $admin->password)) {
+            throw new InvalidArgumentException('Kata sandi tidak cocok.');
+        }
+        $this->schedule($tenant, 'Permintaan pelanggan sendiri (oleh '.$admin->email.')', $admin, $now, self::CUSTOMER_HOLD_DAYS);
     }
 
     public function cancel(Tenant $tenant, ?User $actor): void

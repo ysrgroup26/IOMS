@@ -161,7 +161,16 @@ If a component cannot be deleted safely, disable or isolate it and document why.
 - [ ] Read-only production status (Deploy workflow, `action=status`) is healthy before the change.
 - [ ] Note the current registrations, invoices and payment counts. This is evidence for §5.8; nothing is deleted.
 
-**Switch** (owner, as root on Tencent; credentials never pass through chat or Git):
+**Switch** (owner, as root on Tencent; credentials never pass through chat or Git). From a phone: Tencent
+Cloud console → the instance → **Login** (browser terminal), then ONE line, which does the three items
+below, proves the credentials against `passport.duitku.com` and restores the previous `.env` by itself if
+that proof fails (`deploy/tencent/duitku-production.sh`, 2026-11-17):
+
+```bash
+cd /srv/ioms/app && sudo -u ioms git fetch -q origin main && git -c safe.directory=$PWD show origin/main:deploy/tencent/duitku-production.sh | sudo bash -s
+```
+
+Undo: the same line with `| sudo bash -s -- --rollback`. The manual equivalent:
 - [ ] `sudoedit /srv/ioms/app/.env`: production `DUITKU_MERCHANT_CODE` and `DUITKU_API_KEY`, `DUITKU_IS_PRODUCTION=true`. No sandbox value remains (§3A, §3D).
 - [ ] `sudo ioms-ops artisan config:cache`.
 - [ ] Rollback if anything below fails: restore the previous `.env` lines and `config:cache` (payment availability is preserved, §6).

@@ -277,6 +277,21 @@ return [
         'legal_name' => env('IOMS_MERCHANT_LEGAL_NAME', 'PT Tahada Vistara Bersama'),
     ],
 
+    /*
+    | v2.142.0 (ADR 090) -- WHO ISSUES THE INVOICE, ON THE INVOICE ONLY.
+    |
+    | The owner's decision: the subscription invoice names the company that
+    | bills the customer and its office address. ADR 085's brand-only rule
+    | still governs every PUBLIC page (the payment provider's review was about
+    | the website), so this is read by the invoice PDF and nothing else.
+    */
+    'invoice_issuer' => [
+        'name' => env('IOMS_INVOICE_ISSUER_NAME', 'PT Tahada Vistara Bersama'),
+        'brand' => env('IOMS_INVOICE_ISSUER_BRAND', 'Tahada Group'),
+        'address' => env('IOMS_INVOICE_ISSUER_ADDRESS',
+            '3 Ad Premier Office Park Lt. 5 Suite 6, Jl. TB Simatupang, Ragunan, Pasar Minggu, Jakarta Selatan, DKI Jakarta 12550'),
+    ],
+
     'emails' => [
         // Customer and technical support.
         'support' => env('IOMS_SUPPORT_EMAIL', 'support@iomsuite.com'),

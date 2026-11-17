@@ -67,8 +67,8 @@ class TenantRetentionTest extends TestCase
         $this->assertTrue($scheduled->isSameDay(now()->addDays(TenantDeletionService::CUSTOMER_HOLD_DAYS)));
         Mail::assertSent(TenantDeletionNotice::class, fn ($m) => $m->event === 'scheduled');
 
-        $this->assertSame(['reminded' => 1, 'purged' => 0], app(TenantDeletionService::class)->processDue(now()->addDays(6)->addHours(12)));
-        $this->assertSame(1, app(TenantDeletionService::class)->processDue(now()->addDays(8))['purged']);
+        $this->assertSame(['reminded' => 1, 'purged' => 0], app(TenantDeletionService::class)->processDue($scheduled->copy()->subHours(12)));
+        $this->assertSame(1, app(TenantDeletionService::class)->processDue($scheduled->copy()->addDay())['purged']);
         $this->assertNull(Tenant::find($tenant->id));
     }
 

@@ -79,5 +79,9 @@
      the blocked-image story above, not a swap, because email cannot tell
      us whether the image arrived. --}}
 <div style="margin-top:6px;">
-    <span style="font-size:11px; color:{{ $onDark ? '#94a3b8' : '#64748b' }}; letter-spacing:1.5px; text-transform:uppercase;">Industrial Operations Platform</span>
+    @if ($onDark)
+        <div class="gm-screen"><div class="gm-diff" style="font-size:11px; color:#9fb3cd; letter-spacing:1.5px; text-transform:uppercase;">Industrial Operations Platform</div></div>
+    @else
+        <span style="font-size:11px; color:#64748b; letter-spacing:1.5px; text-transform:uppercase;">Industrial Operations Platform</span>
+    @endif
 </div>

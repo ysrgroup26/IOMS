@@ -14,6 +14,7 @@ use App\Models\Workspace;
 use App\Services\EntitlementService;
 use App\Services\ManagementInsightsService;
 use App\Support\CurrentTenant;
+use Database\Seeders\WorkspaceSeeder;
 use Illuminate\Foundation\Testing\RefreshDatabase;
 use Illuminate\Support\Facades\Mail;
 use Tests\TestCase;
@@ -62,7 +63,7 @@ class ManagementAndAdminSpaceTest extends TestCase
         // "unprovisioned", which EntitlementService reads as unrestricted.
         // A test that granted nothing and asserted access would pass for
         // entirely the wrong reason.
-        $this->seed(\Database\Seeders\WorkspaceSeeder::class);
+        $this->seed(WorkspaceSeeder::class);
     }
 
     /* ==================================================================
@@ -502,11 +503,11 @@ class ManagementAndAdminSpaceTest extends TestCase
         $keys = $this->entitlements()->authorizedDepartmentKeys($admin);
 
         $this->assertContains('hse', $keys);
-        $this->assertContains('hr', $keys);
-        // Professional's scope, so neither the Business workspace nor the
+        $this->assertContains('logistics', $keys);   // v2.143.0 (ADR 092)
+        // Professional's scope, so neither the Business workspaces nor the
         // application's own chrome may appear in a DEPARTMENT list.
         $this->assertNotContains('management', $keys);
-        $this->assertNotContains('logistics', $keys);
+        $this->assertNotContains('hr', $keys);
         $this->assertNotContains('administration', $keys);
         $this->assertNotContains('reports', $keys);
     }
@@ -523,16 +524,16 @@ class ManagementAndAdminSpaceTest extends TestCase
         ];
 
         $this->actingAs($admin)
-            ->put(route('account.workspace-focus'), ['workspace_focus' => 'hr'])
+            ->put(route('account.workspace-focus'), ['workspace_focus' => 'logistics'])
             ->assertRedirect();
 
         $admin->refresh();
-        $this->assertSame('hr', $admin->workspace_focus);
+        $this->assertSame('logistics', $admin->workspace_focus);
 
         // A focused user still reaches every workspace they were entitled
         // to. This is the assertion that makes focus a preference.
         $this->actingAs($admin)->get(route('hse.dashboard'))->assertOk();
-        $this->actingAs($admin)->get(route('hr.dashboard'))->assertOk();
+        $this->actingAs($admin)->get(route('logistics.dashboard'))->assertOk();
         $this->actingAs($admin)->get(route('settings.index'))->assertOk();
 
         $this->assertSame($before['role'], $admin->role);

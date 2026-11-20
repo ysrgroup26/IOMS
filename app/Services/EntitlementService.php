@@ -34,6 +34,9 @@ use App\Support\RequestMemo;
  */
 class EntitlementService
 {
+    /** Route prefixes gated by a Module grant rather than a workspace (v2.143.0, ADR 092). */
+    public const MODULE_PREFIXES = ['material-requests' => 'material_requests'];
+
     /**
      * v1.11.1 (Final Production Readiness Pass, Part 15): whether the
      * tenant's commercial record BLOCKS access right now -- only TRUE for
@@ -217,6 +220,14 @@ class EntitlementService
     public function tenantCanUseRoutePrefix(?Tenant $tenant, string $routeName): bool
     {
         $prefix = explode('.', $routeName)[0];
+
+        // v2.143.0 (ADR 092) -- A MODULE GRANT IS A ROUTE GATE, NOT ONLY A SIDEBAR FILTER.
+        // Material Request is sold from Professional up; its routes are
+        // cross-department (RestrictDepartmentAccess::UNIVERSAL_PREFIXES),
+        // so no workspace owns them and only the Module grant can refuse.
+        if (isset(self::MODULE_PREFIXES[$prefix]) && ! $this->tenantCanUseModule($tenant, self::MODULE_PREFIXES[$prefix])) {
+            return false;
+        }
 
         $owningWorkspaces = collect(config('departments', []))
             ->filter(fn (array $prefixes) => in_array($prefix, $prefixes, true))

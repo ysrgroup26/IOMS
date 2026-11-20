@@ -13,10 +13,11 @@ use App\Models\TenantRegistration;
 use App\Models\User;
 use App\Services\EntitlementService;
 use App\Services\TenantProvisioningService;
+use Database\Seeders\ModuleSeeder;
+use Database\Seeders\WorkspaceSeeder;
 use Illuminate\Foundation\Testing\RefreshDatabase;
 use Illuminate\Support\Facades\Hash;
 use Illuminate\Support\Facades\Mail;
-use Illuminate\Support\Str;
 use Tests\TestCase;
 
 /**
@@ -64,8 +65,8 @@ class ComplimentaryAccessTest extends TestCase
         // RECORDED. EntitlementService fails open on a tenant with no
         // grant rows at all, so without these the entitlement assertions
         // below would pass for the wrong reason.
-        $this->seed(\Database\Seeders\WorkspaceSeeder::class);
-        $this->seed(\Database\Seeders\ModuleSeeder::class);
+        $this->seed(WorkspaceSeeder::class);
+        $this->seed(ModuleSeeder::class);
 
         config(['saas.enforce_entitlement' => true]);
     }
@@ -610,7 +611,8 @@ class ComplimentaryAccessTest extends TestCase
         // With Professional's entitlements, not Starter's.
         $granted = app(EntitlementService::class)->grantedWorkspaceKeys($tenant);
         $this->assertContains('hse', $granted);
-        $this->assertContains('hr', $granted);
+        $this->assertContains('logistics', $granted);   // v2.143.0 (ADR 092): Professional = HSE + Warehouse Logistics
+        $this->assertNotContains('hr', $granted);
     }
 
     /* ==================================================================

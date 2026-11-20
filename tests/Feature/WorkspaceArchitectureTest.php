@@ -10,9 +10,11 @@ use App\Models\User;
 use App\Models\Workspace;
 use App\Services\EntitlementService;
 use App\Support\CurrentTenant;
+use Database\Seeders\WorkspaceSeeder;
 use Illuminate\Foundation\Testing\RefreshDatabase;
 use Illuminate\Support\Facades\Mail;
 use Illuminate\Support\Facades\Route;
+use PHPUnit\Framework\Attributes\DataProvider;
 use Tests\TestCase;
 
 /**
@@ -54,7 +56,7 @@ class WorkspaceArchitectureTest extends TestCase
 
         Mail::fake();
         config(['saas.enforce_entitlement' => true, 'saas.enforce_workspace_entitlement' => true]);
-        $this->seed(\Database\Seeders\WorkspaceSeeder::class);
+        $this->seed(WorkspaceSeeder::class);
     }
 
     /* ==================================================================
@@ -179,7 +181,7 @@ class WorkspaceArchitectureTest extends TestCase
         return [
             // slug          reachable                                unreachable                              global dashboard
             'starter' => ['starter', ['hse'], ['hr', 'logistics', 'management'], false],
-            'professional' => ['professional', ['hse', 'hr'], ['logistics', 'management'], false],
+            'professional' => ['professional', ['hse', 'logistics'], ['hr', 'management'], false],   // v2.143.0 (ADR 092)
             'business' => ['business', ['hse', 'hr', 'logistics', 'management'], [], true],
         ];
     }
@@ -190,7 +192,7 @@ class WorkspaceArchitectureTest extends TestCase
         return config('workspaces.overviews')[$key];
     }
 
-    #[\PHPUnit\Framework\Attributes\DataProvider('planMatrix')]
+    #[DataProvider('planMatrix')]
     public function test_each_plan_reaches_exactly_its_own_workspaces(string $slug, array $reachable, array $unreachable): void
     {
         $this->tenantOn($slug);
@@ -222,7 +224,7 @@ class WorkspaceArchitectureTest extends TestCase
      * and the one pinned link in the header. They are taken to the workspace
      * they actually work in instead.
      */
-    #[\PHPUnit\Framework\Attributes\DataProvider('planMatrix')]
+    #[DataProvider('planMatrix')]
     public function test_only_business_receives_the_global_company_dashboard(string $slug, array $reachable, array $unreachable, bool $hasDashboard): void
     {
         $this->tenantOn($slug);
@@ -339,10 +341,10 @@ class WorkspaceArchitectureTest extends TestCase
 
         $keys = $this->entitlements()->authorizedDepartmentKeys($admin);
 
-        $this->assertSame(['hse', 'hr'], $keys);
+        $this->assertSame(['hse', 'logistics'], $keys);   // v2.143.0 (ADR 092)
 
         // Never the chrome, and never a workspace the plan does not grant.
-        foreach (['administration', 'reports', 'management', 'logistics', 'procurement'] as $absent) {
+        foreach (['administration', 'reports', 'management', 'hr', 'procurement'] as $absent) {
             $this->assertNotContains($absent, $keys);
         }
     }

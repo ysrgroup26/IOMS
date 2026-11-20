@@ -10,8 +10,11 @@ use App\Models\User;
 use App\Models\Workspace;
 use App\Services\EntitlementService;
 use App\Support\CurrentTenant;
+use Database\Seeders\ModuleSeeder;
+use Database\Seeders\WorkspaceSeeder;
 use Illuminate\Foundation\Testing\RefreshDatabase;
 use Illuminate\Support\Facades\Mail;
+use PHPUnit\Framework\Attributes\DataProvider;
 use Tests\Support\ApprovedCatalogue;
 use Tests\TestCase;
 
@@ -63,8 +66,8 @@ class AccessControlBoundaryTest extends TestCase
 
         Mail::fake();
         config(['saas.enforce_entitlement' => true, 'saas.enforce_workspace_entitlement' => true]);
-        $this->seed(\Database\Seeders\WorkspaceSeeder::class);
-        $this->seed(\Database\Seeders\ModuleSeeder::class);
+        $this->seed(WorkspaceSeeder::class);
+        $this->seed(ModuleSeeder::class);
     }
 
     /* ==================================================================
@@ -123,7 +126,7 @@ class AccessControlBoundaryTest extends TestCase
     {
         return [
             'starter' => ['starter', ['hse']],
-            'professional' => ['professional', ['hse', 'hr']],
+            'professional' => ['professional', ['hse', 'logistics']],
             'business' => ['business', ['hse', 'hr', 'logistics', 'management']],
         ];
     }
@@ -137,7 +140,7 @@ class AccessControlBoundaryTest extends TestCase
      * plan grants. Asserted against the approved commercial scope, not
      * against whatever the code computes.
      */
-    #[\PHPUnit\Framework\Attributes\DataProvider('planDepartments')]
+    #[DataProvider('planDepartments')]
     public function test_assignable_departments_are_exactly_what_the_plan_grants(string $slug, array $expected): void
     {
         $this->tenantOn($slug);
@@ -217,12 +220,13 @@ class AccessControlBoundaryTest extends TestCase
     }
 
     /** Professional sits between the two, and is not simply "not Starter". */
-    public function test_professional_cannot_assign_logistics_or_management(): void
+    /** v2.143.0 (ADR 092): People / HRD and Management are Business only. */
+    public function test_professional_cannot_assign_people_or_management(): void
     {
         $this->tenantOn('professional');
         $admin = $this->userWithRole(User::ROLE_SUPER_ADMIN);
 
-        foreach (['logistics', 'management'] as $forbidden) {
+        foreach (['hr', 'management'] as $forbidden) {
             $this->actingAs($admin)
                 ->post(route('settings.users.store'), [
                     'name' => 'Nova',
@@ -377,7 +381,7 @@ class AccessControlBoundaryTest extends TestCase
      * every sold workspace. This is the invariant that keeps the sidebar
      * and the server from drifting.
      */
-    #[\PHPUnit\Framework\Attributes\DataProvider('planDepartments')]
+    #[DataProvider('planDepartments')]
     public function test_the_navigation_payload_matches_the_route_gate(string $slug, array $expected): void
     {
         $this->tenantOn($slug);
@@ -468,6 +472,6 @@ class AccessControlBoundaryTest extends TestCase
         $second = app(EntitlementService::class)->tenantDepartmentKeys($this->tenant);
 
         $this->assertSame($first, $second);
-        $this->assertSame(['hse', 'hr'], $first);
+        $this->assertSame(['hse', 'logistics'], $first);
     }
 }

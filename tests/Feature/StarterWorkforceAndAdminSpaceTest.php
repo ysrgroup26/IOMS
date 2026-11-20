@@ -11,8 +11,11 @@ use App\Models\Tenant;
 use App\Models\User;
 use App\Models\Workspace;
 use App\Support\CurrentTenant;
+use Database\Seeders\ModuleSeeder;
+use Database\Seeders\WorkspaceSeeder;
 use Illuminate\Foundation\Testing\RefreshDatabase;
 use Illuminate\Support\Facades\Mail;
+use PHPUnit\Framework\Attributes\DataProvider;
 use Tests\TestCase;
 
 /**
@@ -55,8 +58,8 @@ class StarterWorkforceAndAdminSpaceTest extends TestCase
 
         Mail::fake();
         config(['saas.enforce_entitlement' => true, 'saas.enforce_workspace_entitlement' => true]);
-        $this->seed(\Database\Seeders\WorkspaceSeeder::class);
-        $this->seed(\Database\Seeders\ModuleSeeder::class);
+        $this->seed(WorkspaceSeeder::class);
+        $this->seed(ModuleSeeder::class);
     }
 
     private function tenantOn(string $slug): Tenant
@@ -111,7 +114,7 @@ class StarterWorkforceAndAdminSpaceTest extends TestCase
      * THE DEFECT. Every plan reaches its own employee register, including
      * the one that does not buy People / HRD.
      */
-    #[\PHPUnit\Framework\Attributes\DataProvider('everyPlan')]
+    #[DataProvider('everyPlan')]
     public function test_every_plan_can_reach_its_own_employee_register(string $slug): void
     {
         $this->tenantOn($slug);
@@ -184,17 +187,26 @@ class StarterWorkforceAndAdminSpaceTest extends TestCase
         }
     }
 
-    /** Professional and Business are unchanged by any of this. */
-    public function test_professional_and_business_keep_the_full_people_workspace(): void
+    /**
+     * v2.143.0 (ADR 092): People / HRD is Business only. Professional now
+     * stands exactly where Starter does for HRD -- the shared employee
+     * register stays reachable (HSE needs it), the HRD department does not.
+     */
+    public function test_only_business_keeps_the_full_people_workspace(): void
     {
-        foreach (['professional', 'business'] as $slug) {
-            $this->tenantOn($slug);
-            $admin = $this->user(User::ROLE_SUPER_ADMIN);
+        $this->tenantOn('business');
+        $admin = $this->user(User::ROLE_SUPER_ADMIN);
+        $this->actingAs($admin)->get(route('hr.dashboard'))->assertOk();
+        $this->actingAs($admin)->get(route('shifts.master'))->assertOk();
+        $this->actingAs($admin)->get(route('employees.index'))->assertOk();
 
-            $this->actingAs($admin)->get(route('hr.dashboard'))->assertOk();
-            $this->actingAs($admin)->get(route('shifts.master'))->assertOk();
-            $this->actingAs($admin)->get(route('employees.index'))->assertOk();
+        $this->tenantOn('professional');
+        $admin = $this->user(User::ROLE_SUPER_ADMIN);
+        $this->actingAs($admin)->get(route('hr.dashboard'))->assertForbidden();
+        foreach (['shifts.master', 'competency.master', 'leave-requests.index', 'employee-cases.index'] as $routeName) {
+            $this->actingAs($admin)->get(route($routeName))->assertForbidden();
         }
+        $this->actingAs($admin)->get(route('employees.index'))->assertOk();
     }
 
     /**

@@ -573,7 +573,8 @@ class PublicReadinessTest extends TestCase
         $this->assertSame(['Health, Safety & Environment'], $plans['starter']['scope']['added']);
 
         $this->assertSame('Starter', $plans['professional']['scope']['inherits_from']);
-        $this->assertSame(['People / HRD'], $plans['professional']['scope']['added']);
+        // v2.143.0 (ADR 092): Professional adds Warehouse Logistics; People / HRD moved up to Business.
+        $this->assertSame(['Warehouse Logistics'], $plans['professional']['scope']['added']);
 
         // v2.82.0: Business is Professional plus the movement of materials
         // -- Logistics / PPIC and the Warehouse it feeds. Project
@@ -587,7 +588,7 @@ class PublicReadinessTest extends TestCase
         // way it always worked -- the stock, goods-receipt and movement
         // capability never lived anywhere else.
         $this->assertSame(
-            ['Warehouse Logistics', 'Management'],
+            ['People / HRD', 'Management'],
             $plans['business']['scope']['added']
         );
 

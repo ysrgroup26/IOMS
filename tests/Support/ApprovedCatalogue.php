@@ -71,7 +71,7 @@ final class ApprovedCatalogue
      */
     public const SCOPE = [
         'starter' => ['hse'],
-        'professional' => ['hse', 'hr'],
+        'professional' => ['hse', 'logistics'],
         /*
          * v2.83.0 -- `management` joins Business, closing ADR 043's open
          * question. The approved scope has always read "... + Management";

@@ -224,7 +224,8 @@ class TenantNavigationTest extends TestCase
         $this->assertFalse((bool) $catalog['finance']['is_active'], 'Business must not receive Finance.');
     }
 
-    public function test_a_professional_tenant_receives_hr_but_not_warehouse(): void
+    /** v2.143.0 (ADR 092): Professional = HSE + Warehouse Logistics; People / HRD and Management are Business only. */
+    public function test_a_professional_tenant_receives_logistics_but_not_people_or_management(): void
     {
         $tenant = $this->tenantOnPlan('professional');
         $admin = $this->adminFor($tenant);
@@ -233,8 +234,10 @@ class TenantNavigationTest extends TestCase
             ->get(route('work-center.index'))
             ->viewData('page')['props']['workspace_catalog'];
 
-        $this->assertTrue((bool) $catalog['hr']['is_active']);
         $this->assertTrue((bool) $catalog['hse']['is_active']);
+        $this->assertTrue((bool) $catalog['logistics']['is_active']);
+        $this->assertFalse((bool) $catalog['hr']['is_active']);
+        $this->assertFalse((bool) $catalog['management']['is_active']);
         $this->assertFalse((bool) $catalog['warehouse']['is_active']);
     }
 

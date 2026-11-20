@@ -184,17 +184,26 @@ class StarterWorkforceAndAdminSpaceTest extends TestCase
         }
     }
 
-    /** Professional and Business are unchanged by any of this. */
-    public function test_professional_and_business_keep_the_full_people_workspace(): void
+    /**
+     * v2.143.0 (ADR 092): People / HRD is Business only. Professional now
+     * stands exactly where Starter does for HRD -- the shared employee
+     * register stays reachable (HSE needs it), the HRD department does not.
+     */
+    public function test_only_business_keeps_the_full_people_workspace(): void
     {
-        foreach (['professional', 'business'] as $slug) {
-            $this->tenantOn($slug);
-            $admin = $this->user(User::ROLE_SUPER_ADMIN);
+        $this->tenantOn('business');
+        $admin = $this->user(User::ROLE_SUPER_ADMIN);
+        $this->actingAs($admin)->get(route('hr.dashboard'))->assertOk();
+        $this->actingAs($admin)->get(route('shifts.master'))->assertOk();
+        $this->actingAs($admin)->get(route('employees.index'))->assertOk();
 
-            $this->actingAs($admin)->get(route('hr.dashboard'))->assertOk();
-            $this->actingAs($admin)->get(route('shifts.master'))->assertOk();
-            $this->actingAs($admin)->get(route('employees.index'))->assertOk();
+        $this->tenantOn('professional');
+        $admin = $this->user(User::ROLE_SUPER_ADMIN);
+        $this->actingAs($admin)->get(route('hr.dashboard'))->assertForbidden();
+        foreach (['shifts.master', 'competency.master', 'leave-requests.index', 'employee-cases.index'] as $routeName) {
+            $this->actingAs($admin)->get(route($routeName))->assertForbidden();
         }
+        $this->actingAs($admin)->get(route('employees.index'))->assertOk();
     }
 
     /**

@@ -123,7 +123,7 @@ class AccessControlBoundaryTest extends TestCase
     {
         return [
             'starter' => ['starter', ['hse']],
-            'professional' => ['professional', ['hse', 'hr']],
+            'professional' => ['professional', ['hse', 'logistics']],
             'business' => ['business', ['hse', 'hr', 'logistics', 'management']],
         ];
     }
@@ -217,12 +217,13 @@ class AccessControlBoundaryTest extends TestCase
     }
 
     /** Professional sits between the two, and is not simply "not Starter". */
-    public function test_professional_cannot_assign_logistics_or_management(): void
+    /** v2.143.0 (ADR 092): People / HRD and Management are Business only. */
+    public function test_professional_cannot_assign_people_or_management(): void
     {
         $this->tenantOn('professional');
         $admin = $this->userWithRole(User::ROLE_SUPER_ADMIN);
 
-        foreach (['logistics', 'management'] as $forbidden) {
+        foreach (['hr', 'management'] as $forbidden) {
             $this->actingAs($admin)
                 ->post(route('settings.users.store'), [
                     'name' => 'Nova',
@@ -468,6 +469,6 @@ class AccessControlBoundaryTest extends TestCase
         $second = app(EntitlementService::class)->tenantDepartmentKeys($this->tenant);
 
         $this->assertSame($first, $second);
-        $this->assertSame(['hse', 'hr'], $first);
+        $this->assertSame(['hse', 'logistics'], $first);
     }
 }

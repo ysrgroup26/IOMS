@@ -194,9 +194,10 @@ class Package extends Model
      *
      * Deliberately narrower than the workspace layer: most real HSE
      * functionality has no Module key at all and is gated by the workspace
-     * grant plus a role check (see config/modules.php). Professional adds
-     * nothing here over Starter because HR has no Module rows of its own;
-     * Business adds the modules its new departments actually use.
+     * grant plus a role check (see config/modules.php). Since v2.143.0
+     * Professional adds Material Request, the module its Warehouse
+     * Logistics department uses; Business adds nothing further here because
+     * People / HRD and Management have no Module rows of their own.
      */
     public function defaultModuleKeys(): array
     {

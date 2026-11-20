@@ -497,7 +497,7 @@ class PlatformController extends Controller
             // any Module/Workspace row at all, and a Platform Admin had
             // to remember to visit Tenant Grants separately afterward.
             // Package::defaultWorkspaceKeys()/defaultModuleKeys() is the
-            // canonical Starter=HSE/Professional=HSE+HRD/Enterprise=all
+            // canonical Starter=HSE/Professional=HSE+Warehouse Logistics/Business=all four (v2.143.0)
             // mapping this pass defines; applied here so a new tenant is
             // usable immediately, matching what its Subscription actually
             // says it bought. A Platform Admin can still hand-adjust

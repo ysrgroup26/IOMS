@@ -133,7 +133,7 @@ class PackageSeeder extends Seeder
             [
                 'name' => 'Professional',
                 'slug' => 'professional',
-                'description' => 'Health, Safety & Environment plus People and Workforce: employees, competency and certificate expiry, shifts, rosters and leave, for an organization running up to two operating units.',
+                'description' => 'Health, Safety & Environment plus Warehouse Logistics: items, stock, goods receipt, stock movement and Material Requests, for an organization running up to two operating units.',
                 // v2.60.0: 999.000 -> 799.000. Professional cost 3.3x
                 // Starter and added ONE department while Enterprise added
                 // eight for 2x -- the expensive step was the small one.
@@ -153,7 +153,7 @@ class PackageSeeder extends Seeder
             [
                 'name' => 'Business',
                 'slug' => 'business',
-                'description' => 'Health, Safety & Environment and People, plus Warehouse Logistics and Management reporting, with the company-wide Dashboard across up to four operating units.',
+                'description' => 'Health, Safety & Environment and Warehouse Logistics, plus People / HRD and Management reporting, with the company-wide Dashboard across up to four operating units.',
                 // The bridge tier, and the largest scope jump in the ladder:
                 // three departments at the middle price. That is what earns
                 // it "Most Popular" rather than a badge chosen for effect.

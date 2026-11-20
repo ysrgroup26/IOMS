@@ -21,8 +21,8 @@ use App\Models\Workspace;
  * THE PROGRESSION IS OPERATIONAL COMPLEXITY, NOT MODULE COUNT.
  *
  *   Starter       Digitalize HSE
- *   Professional  HSE + Workforce
- *   Business      Cross-functional operational visibility
+ *   Professional  HSE + Warehouse Logistics            (v2.143.0, ADR 092)
+ *   Business      HSE + Warehouse Logistics + People / HRD + Management
  *   Enterprise    Full IOMS
  *
  * TWO THINGS DELIBERATELY ABSENT FROM EVERY TIER LIST:
@@ -70,9 +70,17 @@ return [
     | empty-sidebar defect. The capability is now BUILT (ADR 044), so the
     | word finally names something. Enterprise picks it up through `*`.
     */
+    /*
+    | v2.143.0 (ADR 092) -- THE OWNER'S LADDER: Warehouse Logistics moves
+    | DOWN to Professional; People / HRD and Management are Business only.
+    | HSE stays in every tier. Prices, capacities and annual terms are
+    | unchanged -- only what Professional opens changes. Existing
+    | Professional tenants are re-granted by migration
+    | 2027_01_21_100000 (HR closed, data kept; Logistics opened).
+    */
     'workspaces' => [
         'starter' => ['hse'],
-        'professional' => ['hse', 'hr'],
+        'professional' => ['hse', 'logistics'],
         'business' => ['hse', 'hr', 'logistics', 'management'],
         // v2.84.0: Enterprise is no longer '*'. A retired plan must not
         // be the one place a department nobody sells can still be
@@ -94,7 +102,11 @@ return [
     */
     'modules' => [
         'starter' => ['employees', 'ppe', 'kpi_input', 'reports'],
-        'professional' => ['employees', 'ppe', 'kpi_input', 'reports'],
+        // v2.143.0: Material Request is the Logistics module, so it moves
+        // down with Logistics. `employees` stays in every tier because HSE
+        // itself issues PPE to and counts man-hours for people -- it is the
+        // shared master, not the People / HRD department.
+        'professional' => ['employees', 'ppe', 'kpi_input', 'reports', 'material_requests'],
         // Material Request spans Logistics and Warehouse, so it stays.
         'business' => ['employees', 'ppe', 'kpi_input', 'reports', 'material_requests'],
         // v2.84.0: narrowed with the workspace grant above, for the same
@@ -154,7 +166,7 @@ return [
     */
     'positioning' => [
         'starter' => 'Digitalize HSE',
-        'professional' => 'HSE + Workforce',
+        'professional' => 'HSE + Warehouse Logistics',
         'business' => 'Operations end to end',
         'enterprise' => 'Full IOMS',
     ],

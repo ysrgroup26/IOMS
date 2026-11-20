@@ -11,8 +11,11 @@ use App\Models\Tenant;
 use App\Models\User;
 use App\Models\Workspace;
 use App\Support\CurrentTenant;
+use Database\Seeders\ModuleSeeder;
+use Database\Seeders\WorkspaceSeeder;
 use Illuminate\Foundation\Testing\RefreshDatabase;
 use Illuminate\Support\Facades\Mail;
+use PHPUnit\Framework\Attributes\DataProvider;
 use Tests\TestCase;
 
 /**
@@ -55,8 +58,8 @@ class StarterWorkforceAndAdminSpaceTest extends TestCase
 
         Mail::fake();
         config(['saas.enforce_entitlement' => true, 'saas.enforce_workspace_entitlement' => true]);
-        $this->seed(\Database\Seeders\WorkspaceSeeder::class);
-        $this->seed(\Database\Seeders\ModuleSeeder::class);
+        $this->seed(WorkspaceSeeder::class);
+        $this->seed(ModuleSeeder::class);
     }
 
     private function tenantOn(string $slug): Tenant
@@ -111,7 +114,7 @@ class StarterWorkforceAndAdminSpaceTest extends TestCase
      * THE DEFECT. Every plan reaches its own employee register, including
      * the one that does not buy People / HRD.
      */
-    #[\PHPUnit\Framework\Attributes\DataProvider('everyPlan')]
+    #[DataProvider('everyPlan')]
     public function test_every_plan_can_reach_its_own_employee_register(string $slug): void
     {
         $this->tenantOn($slug);

@@ -7,9 +7,13 @@ use App\Models\Module;
 use App\Models\Package;
 use App\Models\Subscription;
 use App\Models\Tenant;
+use App\Models\User;
 use App\Models\Workspace;
+use App\Services\Documents\Library\DocumentLibrary;
 use App\Services\EntitlementService;
 use App\Services\PricingService;
+use Database\Seeders\ModuleSeeder;
+use Database\Seeders\WorkspaceSeeder;
 use Illuminate\Foundation\Testing\RefreshDatabase;
 use Illuminate\Support\Facades\DB;
 use Tests\TestCase;
@@ -37,8 +41,8 @@ class ProfessionalLogisticsLadderTest extends TestCase
         parent::setUp();
 
         config(['saas.enforce_entitlement' => true, 'saas.enforce_workspace_entitlement' => true]);
-        $this->seed(\Database\Seeders\WorkspaceSeeder::class);
-        $this->seed(\Database\Seeders\ModuleSeeder::class);
+        $this->seed(WorkspaceSeeder::class);
+        $this->seed(ModuleSeeder::class);
     }
 
     public function test_the_catalogue_grants_the_owners_ladder(): void
@@ -128,6 +132,38 @@ class ProfessionalLogisticsLadderTest extends TestCase
         $migration->down();
         $this->assertSame(['finance', 'hr', 'hse'], $keys($old));
         $this->assertSame(['hr', 'hse', 'logistics', 'management'], $keys($upgraded));
+    }
+
+    /** The Document Library asks the plan too: no export of a register whose screen the plan does not open. */
+    public function test_the_document_library_follows_the_plan(): void
+    {
+        $visible = function (string $slug): array {
+            $package = Package::where('slug', $slug)->sole();
+            $tenant = $this->tenant('Lib '.$slug, $package, $package->defaultWorkspaceKeys());
+            $tenant->modules()->sync(Module::whereIn('key', $package->defaultModuleKeys())->pluck('id'));
+            $company = Company::withoutGlobalScopes()->where('tenant_id', $tenant->id)->first();
+            $user = User::create(['name' => 'Admin '.$slug, 'email' => $slug.uniqid().'@yard.test', 'password' => 'secret-pass-1',
+                'role' => User::ROLE_SUPER_ADMIN, 'tenant_id' => $tenant->id, 'company_id' => $company->id, 'is_active' => true]);
+
+            return collect(app(DocumentLibrary::class)->visibleTo($user->fresh()))->map->key()->all();
+        };
+
+        $starter = $visible('starter');
+        foreach (['leave-register', 'stock-position', 'stock-movement-register', 'material-request-register', 'project-manpower'] as $key) {
+            $this->assertNotContains($key, $starter, "Starter must not export {$key}.");
+        }
+        $this->assertContains('permit-to-work-register', $starter);
+        $this->assertContains('employee-register', $starter);
+
+        $pro = $visible('professional');
+        $this->assertContains('stock-position', $pro);
+        $this->assertContains('material-request-register', $pro);
+        $this->assertNotContains('leave-register', $pro, 'People / HRD is Business only.');
+
+        $business = $visible('business');
+        foreach (['leave-register', 'stock-position', 'material-request-register'] as $key) {
+            $this->assertContains($key, $business);
+        }
     }
 
     private function tenant(string $name, Package $package, array $grants): Tenant

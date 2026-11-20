@@ -236,7 +236,6 @@ return [
     */
     'ptw_annual_allocations' => 12,
 
-
     /*
     |--------------------------------------------------------------------
     | The customer-facing operational workspaces -- ALL of them (v2.84.0)

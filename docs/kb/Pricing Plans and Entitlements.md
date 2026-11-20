@@ -22,8 +22,8 @@ down once in `Tests\Support\ApprovedCatalogue`, and a test asserts the two agree
 | Tier | Monthly | Annual | Included active users | Operating Units | Adds |
 |---|---:|---:|---|---|---|
 | **Starter** | 189,000 | 2,268,000 | 3 | 1 | HSE, complete |
-| **Professional** | 555,000 | 6,105,000 | 10 | 2 | + People / HRD |
-| **Business** | 1,249,000 | 14,988,000 | 25 | 4 | + Logistics / PPIC, Warehouse, **Management** |
+| **Professional** | 555,000 | 6,105,000 | 10 | 2 | + Warehouse Logistics (v2.143.0, ADR 092) |
+| **Business** | 1,249,000 | 14,988,000 | 25 | 4 | + People / HRD, **Management** (HRD & Management are Business only) |
 
 **Enterprise is retired from sale** (`is_public = false`), not deleted -- it keeps its row, its
 price, its grants and its subscribers, because deleting it would orphan live subscriptions and

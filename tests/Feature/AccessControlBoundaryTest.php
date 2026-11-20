@@ -10,8 +10,11 @@ use App\Models\User;
 use App\Models\Workspace;
 use App\Services\EntitlementService;
 use App\Support\CurrentTenant;
+use Database\Seeders\ModuleSeeder;
+use Database\Seeders\WorkspaceSeeder;
 use Illuminate\Foundation\Testing\RefreshDatabase;
 use Illuminate\Support\Facades\Mail;
+use PHPUnit\Framework\Attributes\DataProvider;
 use Tests\Support\ApprovedCatalogue;
 use Tests\TestCase;
 
@@ -63,8 +66,8 @@ class AccessControlBoundaryTest extends TestCase
 
         Mail::fake();
         config(['saas.enforce_entitlement' => true, 'saas.enforce_workspace_entitlement' => true]);
-        $this->seed(\Database\Seeders\WorkspaceSeeder::class);
-        $this->seed(\Database\Seeders\ModuleSeeder::class);
+        $this->seed(WorkspaceSeeder::class);
+        $this->seed(ModuleSeeder::class);
     }
 
     /* ==================================================================
@@ -137,7 +140,7 @@ class AccessControlBoundaryTest extends TestCase
      * plan grants. Asserted against the approved commercial scope, not
      * against whatever the code computes.
      */
-    #[\PHPUnit\Framework\Attributes\DataProvider('planDepartments')]
+    #[DataProvider('planDepartments')]
     public function test_assignable_departments_are_exactly_what_the_plan_grants(string $slug, array $expected): void
     {
         $this->tenantOn($slug);
@@ -378,7 +381,7 @@ class AccessControlBoundaryTest extends TestCase
      * every sold workspace. This is the invariant that keeps the sidebar
      * and the server from drifting.
      */
-    #[\PHPUnit\Framework\Attributes\DataProvider('planDepartments')]
+    #[DataProvider('planDepartments')]
     public function test_the_navigation_payload_matches_the_route_gate(string $slug, array $expected): void
     {
         $this->tenantOn($slug);

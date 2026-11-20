@@ -10,7 +10,10 @@ use App\Models\User;
 use App\Models\Workspace;
 use App\Services\EntitlementService;
 use App\Support\CurrentTenant;
+use Database\Seeders\WorkspaceSeeder;
 use Illuminate\Foundation\Testing\RefreshDatabase;
+use PHPUnit\Framework\Attributes\DataProvider;
+use Tests\Support\ApprovedCatalogue;
 use Tests\TestCase;
 
 /**
@@ -50,7 +53,7 @@ class TenantNavigationTest extends TestCase
     {
         parent::setUp();
 
-        $this->seed(\Database\Seeders\WorkspaceSeeder::class);
+        $this->seed(WorkspaceSeeder::class);
     }
 
     private function plan(string $slug): Package
@@ -113,7 +116,7 @@ class TenantNavigationTest extends TestCase
     {
         return array_map(
             fn (string $slug) => [$slug],
-            array_combine(\Tests\Support\ApprovedCatalogue::slugs(), \Tests\Support\ApprovedCatalogue::slugs())
+            array_combine(ApprovedCatalogue::slugs(), ApprovedCatalogue::slugs())
         );
     }
 
@@ -121,7 +124,7 @@ class TenantNavigationTest extends TestCase
      * 1. EVERY PLAN RECEIVES THE APPLICATION'S OWN CHROME
      * ================================================================ */
 
-    #[\PHPUnit\Framework\Attributes\DataProvider('customerPlans')]
+    #[DataProvider('customerPlans')]
     public function test_every_plan_grants_the_global_workspaces(string $slug): void
     {
         $keys = $this->plan($slug)->defaultWorkspaceKeys();
@@ -156,7 +159,7 @@ class TenantNavigationTest extends TestCase
      * Work Center is universal, carries the same shared props, and is what
      * this test actually needed: any authenticated page.
      */
-    #[\PHPUnit\Framework\Attributes\DataProvider('customerPlans')]
+    #[DataProvider('customerPlans')]
     public function test_the_dashboard_sidebar_is_not_empty_for_any_plan(string $slug): void
     {
         $tenant = $this->tenantOnPlan($slug);

@@ -37,8 +37,8 @@ import { cn } from '@/lib/utils';
  *
  * The six tabs are now Dashboard, HSE, Human Resources, Project
  * Management, Logistics / PPIC and Procurement -- which is also exactly
- * the ladder: HSE at Starter, People at Professional, the other three at
- * Business.
+ * the ladder (v2.143.0, ADR 092): HSE at Starter, Warehouse Logistics at
+ * Professional, People / HRD and Management at Business.
  *
  * EVERY STAT LABEL IS THE REAL ONE. These are not invented KPI names:
  * they are the labels the actual department dashboards render (see

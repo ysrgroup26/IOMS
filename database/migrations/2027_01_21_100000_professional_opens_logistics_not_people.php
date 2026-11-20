@@ -35,9 +35,15 @@ return new class extends Migration
      * SURGICAL, NOT A FULL SYNC. For each tenant whose subscription is on
      * the Professional package it removes exactly one grant (the `hr`
      * workspace) and adds exactly what Professional now includes
-     * (`logistics`, `material_requests`). Every other grant row is left as
+     * (`logistics`, `material_requests`). Every OTHER grant row is left as
      * it is, so a hand-adjustment a Platform Admin made on the Tenant Grants
-     * page survives. A full `sync()` would have silently erased those.
+     * page for any other workspace survives. A full `sync()` would have
+     * silently erased those.
+     *
+     * The `hr` grant itself is removed even where a Platform Admin added it
+     * by hand: the owner decided (2026-11-20) that no Professional customer
+     * keeps People / HRD outside the Business plan. A genuine exception is
+     * re-granted on the Tenant Grants page after this runs.
      *
      * NO DATA IS TOUCHED. Employees, leave, rosters, certificates and every
      * other People / HRD record stay in their tables. Closing the workspace
@@ -80,38 +86,17 @@ return new class extends Migration
         }
     }
 
-    /** Restores the previous Professional scope (People / HRD instead of Logistics). */
+    /**
+     * ONE-WAY BY DECISION (owner, 2026-11-20, after the Mr. Doc and Aegis
+     * pre-release review). A rollback that re-opens People / HRD and closes
+     * Logistics would hand a customer a module outside the plan they now
+     * pay for, and its row deletes could hit a tenant that upgraded in the
+     * meantime. Recovery, if ever needed, is a forward migration or the
+     * pre-deploy database backup -- never this method.
+     */
     public function down(): void
     {
-        if (! $this->ready()) {
-            return;
-        }
-
-        $ids = $this->ids();
-        if (! $ids) {
-            return;
-        }
-
-        DB::table('packages')->where('slug', 'professional')->update(['description' => self::PRO_OLD]);
-        DB::table('packages')->where('slug', 'business')->update(['description' => self::BUS_OLD]);
-
-        foreach ($this->professionalTenantIds($ids['package']) as $tenantId) {
-            DB::table('tenant_workspaces')
-                ->where('tenant_id', $tenantId)
-                ->where('workspace_id', $ids['logistics'])
-                ->delete();
-
-            if ($ids['material_requests']) {
-                DB::table('tenant_modules')
-                    ->where('tenant_id', $tenantId)
-                    ->where('module_id', $ids['material_requests'])
-                    ->delete();
-            }
-
-            DB::table('tenant_workspaces')->insertOrIgnore([
-                'tenant_id' => $tenantId, 'workspace_id' => $ids['hr'], 'created_at' => now(), 'updated_at' => now(),
-            ]);
-        }
+        // Intentionally empty: see the doc comment above.
     }
 
     private function ready(): bool

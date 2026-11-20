@@ -3,8 +3,12 @@
 namespace Tests\Feature;
 
 use App\Models\Company;
+use App\Models\Department;
+use App\Models\Employee;
+use App\Models\LeaveRequest;
 use App\Models\Module;
 use App\Models\Package;
+use App\Models\Position;
 use App\Models\Subscription;
 use App\Models\Tenant;
 use App\Models\User;
@@ -128,9 +132,9 @@ class ProfessionalLogisticsLadderTest extends TestCase
         $this->assertFalse(app(EntitlementService::class)->tenantCanUseWorkspace($fresh, 'hr'));
         $this->assertTrue(app(EntitlementService::class)->tenantCanUseWorkspace($fresh, 'logistics'));
 
-        // Reversible.
+        // One-way by the owner's decision: down() changes nothing.
         $migration->down();
-        $this->assertSame(['finance', 'hr', 'hse'], $keys($old));
+        $this->assertSame(['finance', 'hse', 'logistics'], $keys($old));
         $this->assertSame(['hr', 'hse', 'logistics', 'management'], $keys($upgraded));
     }
 
@@ -164,6 +168,41 @@ class ProfessionalLogisticsLadderTest extends TestCase
         foreach (['leave-register', 'stock-position', 'material-request-register'] as $key) {
             $this->assertContains($key, $business);
         }
+    }
+
+    /** A Module grant is a route gate: Starter cannot open Material Request by URL; Professional can. */
+    public function test_material_request_route_follows_the_plan(): void
+    {
+        foreach (['starter' => 403, 'professional' => 200] as $slug => $status) {
+            $user = $this->adminOn($slug);
+            $this->actingAs($user)->get(route('material-requests.index'))->assertStatus($status);
+        }
+    }
+
+    /** Global search never returns a category whose screen the plan does not open. */
+    public function test_global_search_follows_the_plan(): void
+    {
+        $user = $this->adminOn('professional');
+        $department = Department::firstOrCreate(['company_id' => $user->company_id, 'name' => 'Produksi']);
+        $position = Position::firstOrCreate(['company_id' => $user->company_id, 'name' => 'Welder']);
+        $employee = Employee::create(['employee_id' => 'EMP-ZZQ', 'full_name' => 'Zulkarnain Cari', 'company_id' => $user->company_id,
+            'department_id' => $department->id, 'position_id' => $position->id, 'status' => 'active', 'join_date' => '2026-01-15']);
+        LeaveRequest::withoutGlobalScopes()->create(['company_id' => $user->company_id, 'employee_id' => $employee->id, 'leave_number' => 'LV-ZZQ-001',
+            'leave_type' => 'annual', 'start_date' => now()->toDateString(), 'end_date' => now()->toDateString(), 'days' => 1, 'status' => 'pending', 'requested_by' => $user->id]);
+        $this->assertSame(1, LeaveRequest::withoutGlobalScopes()->where('leave_number', 'LV-ZZQ-001')->count());
+
+        $this->actingAs($user)->getJson(route('search', ['q' => 'ZZQ']))->assertOk()->assertJsonCount(0, 'leave_requests');
+    }
+
+    private function adminOn(string $slug): User
+    {
+        $package = Package::where('slug', $slug)->sole();
+        $tenant = $this->tenant('Gate '.$slug, $package, $package->defaultWorkspaceKeys());
+        $tenant->modules()->sync(Module::whereIn('key', $package->defaultModuleKeys())->pluck('id'));
+        $company = Company::withoutGlobalScopes()->where('tenant_id', $tenant->id)->first();
+
+        return User::create(['name' => 'Admin '.$slug, 'email' => $slug.uniqid().'@gate.test', 'password' => 'secret-pass-1',
+            'role' => User::ROLE_SUPER_ADMIN, 'tenant_id' => $tenant->id, 'company_id' => $company->id, 'is_active' => true])->fresh();
     }
 
     private function tenant(string $name, Package $package, array $grants): Tenant

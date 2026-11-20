@@ -655,8 +655,8 @@ function Industries() {
  */
 const PLAN_FRAMING = {
     starter: 'For a team putting Health, Safety & Environment on one system for the first time.',
-    professional: 'For an operation that also has to manage its people, competency and rosters.',
-    business: 'For an operation that also runs its warehouse and reports to management across several units.',
+    professional: 'For an operation that also runs its warehouse: items, stock, goods receipt and material requests.',
+    business: 'For an operation that also manages its people and reports to management across several units.',
     // v2.85.0: the `enterprise` entry is gone. Enterprise is retired from
     // sale (is_public = false), so PricingService::publicPlans() never
     // returns it and this landing section could not render it -- a blurb

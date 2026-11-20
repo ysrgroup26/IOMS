@@ -120,9 +120,9 @@ class RestrictDepartmentAccess
          *  1. A Department User in HSE was 403'd here before the request
          *     ever reached the controller's own permission check.
          *  2. Worse, `EnforceTenantEntitlement` resolves a route's owning
-         *     WORKSPACE through this same map. Starter sells `['hse']` and
-         *     Professional `['hse','logistics']` (config/plans.php, v2.143.0) -- neither
-         *     grants `logistics` -- so on the two plans that sell HSE, the
+         *     WORKSPACE through this same map. At the time (v2.71.0)
+         *     Starter sold `['hse']` and Professional `['hse','hr']` --
+         *     neither granted `logistics` -- so on the two plans that sell HSE, the
          *     HSE team could not open the module their own permission says
          *     they own. A capability the product sells was unreachable for
          *     the customers it was sold to.

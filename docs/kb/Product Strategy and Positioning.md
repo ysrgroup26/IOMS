@@ -48,6 +48,8 @@ through the code, and why the chrome around a department is never what is being 
 
 ### The tier ladder, and the reasoning behind it
 
+> **Superseded by v2.143.0 (ADR 092):** Starter = HSE; Professional = HSE + Warehouse Logistics; Business = + People / HRD + Management. The table below is kept as history.
+
 | Tier | What it adds | Capacity |
 |---|---|---|
 | **Starter** | HSE, complete | 10 users, 1 operating unit |

@@ -91,9 +91,7 @@ class EnforceTenantEntitlement
         'subscription',
     ];
 
-    public function __construct(private readonly EntitlementService $entitlements)
-    {
-    }
+    public function __construct(private readonly EntitlementService $entitlements) {}
 
     public function handle(Request $request, Closure $next): Response
     {
@@ -150,19 +148,16 @@ class EnforceTenantEntitlement
              * -- the abort still fires -- and it cannot widen anything for a
              * single-owner prefix, which is every other entry in the map.
              */
-            $owningWorkspaces = collect(config('departments', []))
-                ->filter(fn (array $prefixes) => in_array($prefix, $prefixes, true))
-                ->keys();
-
-            if ($owningWorkspaces->isNotEmpty()) {
-                abort_unless(
-                    $owningWorkspaces->contains(
-                        fn (string $workspace) => $this->entitlements->tenantCanUseWorkspace($user->tenant, $workspace)
-                    ),
-                    403,
-                    'Fitur ini belum tersedia untuk paket perusahaan Anda.'
-                );
-            }
+            // v2.143.0 (ADR 092): the rule now lives in ONE place,
+            // EntitlementService::tenantCanUseRoutePrefix(), which also
+            // answers for Module-gated prefixes (Material Request). Before
+            // this, a Module grant only hid the sidebar entry: a Starter
+            // organization could still open /material-requests by URL.
+            abort_unless(
+                $this->entitlements->tenantCanUseRoutePrefix($user->tenant, $routeName),
+                403,
+                'Fitur ini belum tersedia untuk paket perusahaan Anda.'
+            );
         }
 
         return $next($request);

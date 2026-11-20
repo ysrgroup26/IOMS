@@ -18,7 +18,9 @@ use App\Models\Project;
 use App\Models\RiskAssessment;
 use App\Models\Vendor;
 use App\Services\DashboardStatsService;
+use App\Services\EntitlementService;
 use Illuminate\Http\Request;
+use Illuminate\Support\Str;
 
 /**
  * Global search (v1.6.3; generalized in Milestone 3, Task #52; tenant-
@@ -210,7 +212,7 @@ class GlobalSearchController extends Controller
                 ->get(['id', 'action', 'status'])
                 ->map(fn (CorrectiveAction $c) => [
                     'id' => $c->id,
-                    'title' => \Illuminate\Support\Str::limit($c->action, 60),
+                    'title' => Str::limit($c->action, 60),
                     'subtitle' => ucfirst(str_replace('_', ' ', $c->status)),
                     'url' => route('corrective-actions.index'),
                 ])
@@ -291,6 +293,33 @@ class GlobalSearchController extends Controller
                     'url' => route('job-safety-analyses.show', $j->id),
                 ])
             : collect();
+
+        // v2.143.0 (ADR 092) -- SEARCH IS NEVER WIDER THAN THE PLAN.
+        // Each category is dropped unless the tenant's plan reaches the
+        // screen its results link to: the same question, from the same
+        // place (EntitlementService::tenantCanUseRoutePrefix), the route
+        // gate asks. Before this, a Professional organization (no People /
+        // HRD) still got leave requests here, and a Starter one Material
+        // Requests and goods receipts.
+        $entitlements = app(EntitlementService::class);
+        $reach = fn (string $route) => ! $user || $user->tenant_id === null
+            || $entitlements->tenantCanUseRoutePrefix($user->tenant, $route);
+        $gate = fn (string $route, $results) => $reach($route) ? $results : collect();
+
+        $employees = $gate('employees.show', $employees);
+        $projects = $gate('projects.show', $projects);
+        $incidents = $gate('incidents.show', $incidents);
+        $materialRequests = $gate('material-requests.show', $materialRequests);
+        $leaveRequests = $gate('leave-requests.show', $leaveRequests);
+        $milestones = $gate('milestones.index', $milestones);
+        $goodsReceipts = $gate('goods-receipts.show', $goodsReceipts);
+        $ppe = $gate('ppe.employees', $ppe);
+        $capas = $gate('corrective-actions.index', $capas);
+        $ptws = $gate('permits-to-work.show', $ptws);
+        $assets = $gate('assets.show', $assets);
+        $vendors = $gate('vendors.show', $vendors);
+        $hiradcs = $gate('risk-assessments.show', $hiradcs);
+        $jsas = $gate('job-safety-analyses.show', $jsas);
 
         return response()->json([
             'employees' => $employees,

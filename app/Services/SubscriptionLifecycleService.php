@@ -934,6 +934,12 @@ class SubscriptionLifecycleService
         $movingPlan = $package && (int) $package->id !== (int) $subscription->package_id;
 
         if ($movingPlan) {
+            // v2.144.0: a plan move does not re-open the first-year offer. Once
+            // used, a yearly term on the new plan is twelve of its monthly price.
+            if ($cycle !== Subscription::CYCLE_MONTHLY && ! $subscription->annualPromoAvailable()) {
+                return round($this->pricing->amountFor($package, Subscription::CYCLE_MONTHLY) * 12, 2);
+            }
+
             return $this->pricing->amountFor($package, $cycle);
         }
 

@@ -654,7 +654,8 @@ class Subscription extends Model
             return $monthly;
         }
 
-        return $monthly * (float) ($this->package?->annualPaidMonths() ?? 12);
+        // v2.144.0: subscription-aware, so a My Work pack follows the first-year rule too.
+        return $monthly * $this->annualPaidMonths();
     }
 
     /**

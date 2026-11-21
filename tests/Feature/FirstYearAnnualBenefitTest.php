@@ -78,6 +78,14 @@ class FirstYearAnnualBenefitTest extends TestCase
         $this->assertSame(12, $s->annualServiceMonths());
     }
 
+    public function test_a_plan_move_after_the_first_year_is_priced_as_a_normal_year(): void
+    {
+        $s = $this->subscription('starter', Subscription::CYCLE_YEARLY, ['annual_promo_used_at' => now()->subYear()]);
+        $professional = Package::where('slug', 'professional')->firstOrFail();
+        $amount = app(SubscriptionLifecycleService::class)->planAmount($s, $professional, Subscription::CYCLE_YEARLY);
+        $this->assertEqualsWithDelta(555000 * 12, $amount, 0.01, 'The Professional discount must not return on a plan move.');
+    }
+
     public function test_a_monthly_payment_does_not_use_the_first_year_offer(): void
     {
         $s = $this->subscription('business', Subscription::CYCLE_MONTHLY);

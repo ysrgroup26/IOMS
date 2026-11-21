@@ -97,7 +97,7 @@ class FirstYearAnnualBenefitTest extends TestCase
     {
         $plans = collect(app(PricingService::class)->publicPlans());
         $business = $plans->firstWhere('slug', 'business');
-        $this->assertSame('Bayar 12 bulan, akses 13 bulan (tahun pertama)', $business['annual_terms']['label']);
+        $this->assertSame('Bayar 12 bulan, akses 13 bulan', $business['annual_terms']['label']);
         $this->assertTrue($business['annual_terms']['first_year_only']);
         $this->assertNull($plans->firstWhere('slug', 'enterprise'));
         $this->assertFalse((bool) Package::where('slug', 'enterprise')->value('is_active'));

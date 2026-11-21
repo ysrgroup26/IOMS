@@ -47,7 +47,8 @@ return [
 
     'descriptor' => 'Industrial Operations Platform',
 
-    'edition' => 'Enterprise Edition',
+    // v2.144.0 (owner): no edition label -- IOMS has no Enterprise tier.
+    'edition' => '',
 
     'build' => '2026.11.01.03',
 
@@ -140,7 +141,7 @@ return [
 
     'copyright_year' => '2026',
 
-    'license' => 'Commercial Enterprise License',
+    'license' => 'Commercial License',
 
     /*
     |--------------------------------------------------------------------------

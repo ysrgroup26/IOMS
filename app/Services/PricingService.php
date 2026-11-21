@@ -274,11 +274,12 @@ class PricingService
             // Months of service beyond what was paid for: extra SERVICE.
             'bonus_months' => $bonusMonths,
             // The sentence itself, built once so no page writes its own.
-            'label' => "Bayar {$paidMonths} bulan, akses {$service} bulan"
-                .($bonusMonths > 0 || $discountMonths > 0 ? ' (tahun pertama)' : ''),
+            // v2.144.0 (owner): sold as a SAVING. The first-year scope is
+            // disclosed on the invoice and in the Terms, not on the card.
+            'label' => "Bayar {$paidMonths} bulan, akses {$service} bulan",
             'benefit' => match (true) {
-                $bonusMonths > 0 => "Tambahan {$bonusMonths} bulan akses di tahun pertama",
-                $discountMonths > 0 => "Hemat {$discountMonths} bulan di tahun pertama",
+                $bonusMonths > 0 => "Hemat {$bonusMonths} bulan",
+                $discountMonths > 0 => "Hemat {$discountMonths} bulan",
                 default => null,
             },
             // v2.144.0 (Founder): the benefit applies to the first yearly

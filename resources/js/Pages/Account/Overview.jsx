@@ -99,7 +99,7 @@ export default function AccountOverview({ account, hasOrganization, organization
                 </div>
 
                 <p className="mt-8 text-center text-xs text-graphite-400">
-                    {version?.edition} &middot; v{version?.number}
+                    {version?.edition ? <>{version.edition} &middot; </> : null}v{version?.number}
                 </p>
             </main>
         </div>

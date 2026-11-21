@@ -64,9 +64,11 @@ export default function AboutDialog({ open, onOpenChange }) {
                     <DialogTitle className="mt-3 text-sm font-medium text-graphite-600 dark:text-slate-300">
                         IOMS &mdash; Industrial Operations Platform
                     </DialogTitle>
-                    <span className="mt-1 rounded-full bg-graphite-100 px-2.5 py-0.5 text-[10px] font-semibold uppercase tracking-wide text-graphite-500 dark:bg-slate-800 dark:text-slate-400">
-                        {version?.edition}
-                    </span>
+                    {version?.edition && (
+                        <span className="mt-1 rounded-full bg-graphite-100 px-2.5 py-0.5 text-[10px] font-semibold uppercase tracking-wide text-graphite-500 dark:bg-slate-800 dark:text-slate-400">
+                            {version.edition}
+                        </span>
+                    )}
                 </DialogHeader>
 
                 <div className="space-y-4">

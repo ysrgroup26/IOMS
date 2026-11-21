@@ -26,9 +26,9 @@ export default function WorkforceToday({ summary, registerHref }) {
     const s = summary;
     const max = Math.max(1, ...s.trend.map((t) => t.scheduled));
     const actions = [
-        { label: 'Absen 3 hari berturut-turut', value: s.absent_streak, tone: 'bad' },
-        { label: 'Lupa absen pulang kemarin', value: s.open_yesterday, tone: 'warn' },
-        { label: 'Lembur menunggu persetujuan', value: `${hours(s.overtime_pending_minutes)} jam`, raw: s.overtime_pending_minutes, tone: 'warn' },
+        { label: 'Absent 3 Days Running', value: s.absent_streak, tone: 'bad' },
+        { label: 'Missed Check-out Yesterday', value: s.open_yesterday, tone: 'warn' },
+        { label: 'Overtime Awaiting Approval', value: `${hours(s.overtime_pending_minutes)} jam`, raw: s.overtime_pending_minutes, tone: 'warn' },
     ];
 
     return (

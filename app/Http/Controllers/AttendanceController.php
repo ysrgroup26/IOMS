@@ -10,9 +10,9 @@ use App\Models\CompanySetting;
 use App\Models\Employee;
 use App\Services\AttendanceService;
 use App\Services\DashboardStatsService;
-use Carbon\Carbon;
 use Illuminate\Http\RedirectResponse;
 use Illuminate\Http\Request;
+use Illuminate\Support\Carbon;
 use Inertia\Inertia;
 use Inertia\Response;
 
@@ -48,9 +48,8 @@ class AttendanceController extends Controller
         if (! preg_match('/^\d{4}-\d{2}-\d{2}$/', $v)) {
             return $today;
         }
-        $d = Carbon::parse($v);
 
-        return $d->gt($today) ? $today : $d;
+        return $v > $today->toDateString() ? $today : Carbon::parse($v);
     }
 
     public function index(Request $request): Response
@@ -105,7 +104,7 @@ class AttendanceController extends Controller
         ]);
         $employee = Employee::query()->findOrFail($data['employee_id']);
         $date = Carbon::parse($data['work_date']);
-        abort_if($date->gt($this->attendance->today()), 422, 'Tanggal koreksi tidak boleh di masa depan.');
+        abort_if($data['work_date'] > $this->attendance->today()->toDateString(), 422, 'Tanggal koreksi tidak boleh di masa depan.');
 
         $this->attendance->correct($request->user(), $employee, $date, $data, $data['reason']);
 

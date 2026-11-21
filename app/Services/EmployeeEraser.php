@@ -85,6 +85,8 @@ class EmployeeEraser
         'employee_ppe' => 'employee_id',
         'employee_rosters' => 'employee_id',
         'employee_shift_assignments' => 'employee_id',
+        // v2.146.0 -- attendance describes the person's days; it goes with them (Man-Hour already does).
+        'attendance_records' => 'employee_id',
         'kpi_records' => 'employee_id',
         'leave_requests' => 'employee_id',
         'man_hour_logs' => 'employee_id',

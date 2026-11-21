@@ -13,8 +13,8 @@ use App\Models\LeaveRequest;
 use App\Models\ManHourLog;
 use App\Models\Shift;
 use App\Models\User;
-use Carbon\Carbon;
 use Carbon\CarbonInterface;
+use Illuminate\Support\Carbon;
 use Illuminate\Support\Collection;
 use Illuminate\Support\Facades\DB;
 use Illuminate\Validation\ValidationException;
@@ -202,7 +202,7 @@ class AttendanceService
 
         // An open record from today, or from yesterday for a night shift that crossed midnight.
         $record = AttendanceRecord::where('employee_id', $employee->id)
-            ->whereIn('work_date', [$today->toDateString(), $today->copy()->subDay()->toDateString()])
+            ->where(fn ($q) => $q->whereDate('work_date', $today->toDateString())->orWhereDate('work_date', $today->copy()->subDay()->toDateString()))
             ->whereNotNull('check_in_at')
             ->whereNull('check_out_at')
             ->orderByDesc('work_date')
@@ -270,7 +270,8 @@ class AttendanceService
             abort(403);
         }
         $d = Carbon::parse($date->toDateString());
-        if ($d->gt($this->today()) || $d->lt($this->today()->subDays(7))) {
+        $today = $this->today()->toDateString();
+        if ($d->toDateString() > $today || $d->toDateString() < $this->today()->subDays(7)->toDateString()) {
             throw ValidationException::withMessages(['work_date' => 'Absen regu hanya untuk hari ini sampai 7 hari ke belakang.']);
         }
 
@@ -464,7 +465,7 @@ class AttendanceService
 
         $weekStart = $d->copy()->startOfWeek();
         $overtime = AttendanceRecord::query()->whereIn('company_id', $companyIds)
-            ->whereBetween('work_date', [$weekStart->toDateString(), $d->toDateString()])
+            ->whereDate('work_date', '>=', $weekStart->toDateString())->whereDate('work_date', '<=', $d->toDateString())
             ->whereIn('overtime_status', [AttendanceRecord::OVERTIME_PENDING, AttendanceRecord::OVERTIME_APPROVED])
             ->selectRaw('overtime_status, SUM(overtime_minutes) as m')->groupBy('overtime_status')->pluck('m', 'overtime_status');
 
@@ -489,7 +490,8 @@ class AttendanceService
 
         // Absent (alfa) on each of the last three days.
         $days = collect(range(0, 2))->map(fn ($i) => $d->copy()->subDays($i)->toDateString())->all();
-        $streak = AttendanceRecord::query()->whereIn('company_id', $companyIds)->whereIn('work_date', $days)
+        $streak = AttendanceRecord::query()->whereIn('company_id', $companyIds)
+            ->whereDate('work_date', '>=', end($days))->whereDate('work_date', '<=', $days[0])
             ->where('status', AttendanceRecord::STATUS_ABSENT)
             ->selectRaw('employee_id, COUNT(*) as n')->groupBy('employee_id')->havingRaw('COUNT(*) >= 3')->pluck('employee_id')->count();
         $openYesterday = AttendanceRecord::query()->whereIn('company_id', $companyIds)
@@ -526,9 +528,9 @@ class AttendanceService
         $today = $this->today();
         $tz = $this->tz();
         $record = AttendanceRecord::where('employee_id', $employee->id)
-            ->whereIn('work_date', [$today->toDateString(), $today->copy()->subDay()->toDateString()])
+            ->where(fn ($q) => $q->whereDate('work_date', $today->toDateString())->orWhereDate('work_date', $today->copy()->subDay()->toDateString()))
             ->orderByDesc('work_date')->get()
-            ->first(fn ($r) => $r->work_date->isSameDay($today) || ($r->check_in_at && ! $r->check_out_at));
+            ->first(fn ($r) => $r->work_date->toDateString() === $today->toDateString() || ($r->check_in_at && ! $r->check_out_at));
         $schedule = $this->scheduleFor($employee, $today);
         $shift = $record?->shift ?? ($schedule['shift'] ?? null);
 

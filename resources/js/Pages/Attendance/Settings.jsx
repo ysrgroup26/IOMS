@@ -71,7 +71,7 @@ export default function AttendanceSettings({ sites, companies, settings }) {
                     <div className="sm:col-span-2"><Label htmlFor="site-name">Site Name</Label><Input id="site-name" value={form.data.name} onChange={(e) => form.setData('name', e.target.value)} placeholder="Yard A" /></div>
                     <div><Label htmlFor="site-lat">Latitude</Label><Input id="site-lat" inputMode="decimal" value={form.data.latitude} onChange={(e) => form.setData('latitude', e.target.value)} placeholder="-1.2654" /></div>
                     <div><Label htmlFor="site-lng">Longitude</Label><Input id="site-lng" inputMode="decimal" value={form.data.longitude} onChange={(e) => form.setData('longitude', e.target.value)} placeholder="116.8312" /></div>
-                    <div><Label htmlFor="site-radius">Radius (m)</Label><Input id="site-radius" type="number" min={30} max={5000} value={form.data.radius_m} onChange={(e) => form.setData('radius_m', e.target.value)} /></div>
+                    <div><Label htmlFor="site-radius">Radius (m)</Label><Input id="site-radius" type="number" min={50} max={5000} value={form.data.radius_m} onChange={(e) => form.setData('radius_m', e.target.value)} /></div>
                     <div className="flex items-end sm:col-span-6"><Button type="submit" disabled={form.processing}>Add Site</Button></div>
                     {Object.values(form.errors).length > 0 && <p role="alert" className="text-sm text-danger sm:col-span-6">{Object.values(form.errors)[0]}</p>}
                 </form>

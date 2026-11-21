@@ -44,6 +44,14 @@ class AttendanceService
 
     public const OVERTIME_MIN_MINUTES = 30;
 
+    public const BREAK_AFTER_MINUTES = 240;
+
+    /** A crew lead records presence, sickness, permission or absence; LEAVE comes only from approved leave or HRD. */
+    public const CREW_STATUSES = [
+        AttendanceRecord::STATUS_PRESENT, AttendanceRecord::STATUS_LATE, AttendanceRecord::STATUS_SICK,
+        AttendanceRecord::STATUS_PERMIT, AttendanceRecord::STATUS_ABSENT,
+    ];
+
     /** Marker on Man-Hour rows produced by attendance. */
     public const MAN_HOUR_NOTE = 'Dari absensi';
 
@@ -280,7 +288,7 @@ class AttendanceService
 
         DB::transaction(function () use ($entries, $companyIds, $d, $schedule, $user, &$written) {
             foreach ($entries as $employeeId => $status) {
-                if (! in_array($status, AttendanceRecord::STATUSES, true)) {
+                if (! in_array($status, self::CREW_STATUSES, true)) {
                     continue;
                 }
                 $employee = Employee::query()->whereIn('company_id', $companyIds)->find((int) $employeeId);
@@ -576,7 +584,9 @@ class AttendanceService
         $span = (int) abs($record->check_in_at->diffInMinutes($record->check_out_at));
         $shift = $record->shift_id ? Shift::find($record->shift_id) : null;
         $break = $shift ? (int) $shift->break_duration_minutes : 0;
-        $worked = max(0, $span - ($span > $break * 2 ? $break : 0));
+        // The shift break is deducted once the stint passes four hours: UU 13/2003 Pasal 79 gives
+        // a break after four hours of continuous work, so a shorter stint had none to deduct.
+        $worked = max(0, $span - ($span > self::BREAK_AFTER_MINUTES ? $break : 0));
         $over = $shift ? max(0, $worked - $this->shiftMinutes($shift)) : 0;
         if ($over < self::OVERTIME_MIN_MINUTES) {
             $over = 0;

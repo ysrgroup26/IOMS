@@ -176,6 +176,24 @@ class FieldAttendanceTest extends TestCase
         $this->actingAs($u)->post(route('my-attendance.check-out'))->assertSessionHasErrors('attendance');   // already out
     }
 
+    public function test_break_is_deducted_only_after_four_hours(): void
+    {
+        [$e, $u] = $this->worker();
+        $this->at('07:00');
+        $this->actingAs($u)->post(route('my-attendance.check-in'));
+        $this->at('10:00');                                          // 3 hours: no break taken, none deducted
+        $this->actingAs($u)->post(route('my-attendance.check-out'));
+        $this->assertSame(180, AttendanceRecord::where('employee_id', $e->id)->value('worked_minutes'));
+    }
+
+    public function test_crew_cannot_set_leave(): void
+    {
+        $e = $this->employee('Hasan');
+        $this->actingAs($this->hrd)->post(route('attendance.crew.store'), ['work_date' => '2026-11-25', 'entries' => [$e->id => 'leave']])
+            ->assertSessionHasErrors('entries.'.$e->id);
+        $this->assertSame(0, AttendanceRecord::count());
+    }
+
     public function test_short_overrun_is_not_overtime(): void
     {
         [$e, $u] = $this->worker();

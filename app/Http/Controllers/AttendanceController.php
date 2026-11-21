@@ -103,6 +103,8 @@ class AttendanceController extends Controller
             'reason' => ['required', 'string', 'max:500'],
         ]);
         $employee = Employee::query()->findOrFail($data['employee_id']);
+        // Defence in depth on top of the company scope: only this tenant's own operating units.
+        abort_unless(in_array((int) $employee->company_id, $this->dashboardStats->resolveCompanyIds(null), true), 403);
         $date = Carbon::parse($data['work_date']);
         abort_if($data['work_date'] > $this->attendance->today()->toDateString(), 422, 'Tanggal koreksi tidak boleh di masa depan.');
 
@@ -148,7 +150,7 @@ class AttendanceController extends Controller
         $data = $request->validate([
             'work_date' => ['required', 'date_format:Y-m-d'],
             'entries' => ['required', 'array', 'max:500'],
-            'entries.*' => ['required', 'in:'.implode(',', AttendanceRecord::STATUSES)],
+            'entries.*' => ['required', 'in:'.implode(',', AttendanceService::CREW_STATUSES)],
             'company_id' => ['nullable', 'integer'],
         ]);
         $companyIds = $this->dashboardStats->resolveCompanyIds(isset($data['company_id']) ? (int) $data['company_id'] : null);
@@ -218,7 +220,7 @@ class AttendanceController extends Controller
             'name' => ['required', 'string', 'max:120'],
             'latitude' => ['required', 'numeric', 'between:-90,90'],
             'longitude' => ['required', 'numeric', 'between:-180,180'],
-            'radius_m' => ['required', 'integer', 'between:30,5000'],
+            'radius_m' => ['required', 'integer', 'between:50,5000'],
             'is_active' => ['sometimes', 'boolean'],
         ]);
         abort_unless(in_array((int) $data['company_id'], $this->dashboardStats->resolveCompanyIds(null), true), 422);

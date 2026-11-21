@@ -273,6 +273,33 @@ class FieldAttendanceTest extends TestCase
         $this->assertFalse(ManHourLog::where('employee_id', $b->id)->exists());
     }
 
+    public function test_roll_call_never_overwrites_an_hrd_correction_and_is_logged(): void
+    {
+        $e = $this->employee('Fajar');
+        $this->actingAs($this->hrd)->post(route('attendance.correct'), [
+            'employee_id' => $e->id, 'work_date' => '2026-11-25', 'status' => 'sick', 'reason' => 'Surat dokter diterima pagi ini.',
+        ]);
+        $this->actingAs($this->user(User::ROLE_MANAGER))->post(route('attendance.crew.store'), ['work_date' => '2026-11-25', 'entries' => [$e->id => 'present']]);
+        $this->assertSame('sick', AttendanceRecord::where('employee_id', $e->id)->value('status'));
+
+        $g = $this->employee('Gilang');
+        $this->actingAs($this->user(User::ROLE_MANAGER))->post(route('attendance.crew.store'), ['work_date' => '2026-11-25', 'entries' => [$g->id => 'present']]);
+        $this->assertDatabaseHas('activity_logs', ['action' => 'attendance.crew_roll_call']);
+    }
+
+    public function test_nobody_approves_their_own_overtime(): void
+    {
+        $e = $this->employee('Supervisor Hadi');
+        $sup = $this->user(User::ROLE_MANAGER, User::TYPE_FULL, $e);
+        $this->at('07:00');
+        $this->actingAs($sup)->post(route('my-attendance.check-in'));
+        $this->at('18:00');
+        $this->actingAs($sup)->post(route('my-attendance.check-out'));
+        $r = AttendanceRecord::where('employee_id', $e->id)->sole();
+        $this->actingAs($sup)->post(route('attendance.overtime', $r), ['approve' => true])->assertSessionHasErrors('overtime');
+        $this->assertSame('pending', $r->fresh()->overtime_status);
+    }
+
     public function test_a_manual_man_hour_row_is_never_overwritten(): void
     {
         $e = $this->employee('Kontraktor');

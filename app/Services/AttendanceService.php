@@ -288,8 +288,8 @@ class AttendanceService
                     continue;
                 }
                 $record = AttendanceRecord::where('employee_id', $employee->id)->whereDate('work_date', $d->toDateString())->first();
-                // A worker's own check-in is the stronger record; the roll call never overwrites it.
-                if ($record && $record->source === AttendanceRecord::SOURCE_SELF && $record->check_in_at) {
+                // A worker's own check-in, and an HRD correction, are the stronger records; the roll call never overwrites either.
+                if ($record && (($record->source === AttendanceRecord::SOURCE_SELF && $record->check_in_at) || $record->corrected_at)) {
                     continue;
                 }
                 $shift = $schedule[$employee->id]['shift'] ?? null;
@@ -309,6 +309,13 @@ class AttendanceService
                 $written++;
             }
         });
+
+        if ($written > 0) {
+            ActivityLog::record('attendance.crew_roll_call', sprintf(
+                'Absen regu tanggal %s oleh %s: %d orang (%s)', $d->toDateString(), $user->name, $written,
+                collect($entries)->countBy()->map(fn ($n, $s) => "$s $n")->implode(', ')
+            ), null, ['work_date' => $d->toDateString(), 'entries' => $entries]);
+        }
 
         return $written;
     }
@@ -381,6 +388,9 @@ class AttendanceService
     {
         if (! $user->canApproveOvertime()) {
             abort(403);
+        }
+        if ($user->employee_id && $user->employee_id === $record->employee_id) {
+            throw ValidationException::withMessages(['overtime' => 'Lembur sendiri disetujui oleh supervisor lain.']);
         }
         if ($record->overtime_status !== AttendanceRecord::OVERTIME_PENDING) {
             throw ValidationException::withMessages(['overtime' => 'Lembur ini sudah diputuskan.']);

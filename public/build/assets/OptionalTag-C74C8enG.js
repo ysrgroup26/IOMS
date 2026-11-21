@@ -1,0 +1,1 @@
+import{j as a}from"./app-CuA3q9dP.js";import{a as n}from"./utils-Demw_NSc.js";function r({className:t}){return a.jsx("span",{className:n("text-[11px] font-normal leading-none text-graphite-400 dark:text-slate-500",t),children:"Opsional"})}export{r as O};

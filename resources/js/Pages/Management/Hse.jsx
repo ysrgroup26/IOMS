@@ -2,6 +2,7 @@ import { Head } from '@inertiajs/react';
 import AuthenticatedLayout from '@/Layouts/AuthenticatedLayout';
 import DashboardShell from '@/Components/shared/DashboardShell';
 import { FigureGroup, Figure, TrendBars, NoData, Panel, Distribution } from '@/Components/shared/ManagementPanels';
+import SafetyExecutive, { SafetyExecutiveFilters } from '@/Components/management/SafetyExecutive';
 
 const SEVERITY_LABELS = {
     critical: 'Critical',
@@ -33,12 +34,13 @@ const DOCUMENT_LABELS = {
  * improving -- and so it is built from a twelve-month series, leading
  * against lagging indicators, and the document state that evidences it.
  *
- * NO SAFETY INDEX AND NO TRIR. Both are standard and both need a
- * denominator IOMS does not reliably hold for every tenant (exposure hours
- * across contractors as well as employees). A rate computed from a partial
- * denominator would be worse than no rate, because it would be quoted.
+ * v2.145.0 -- TRIR AND LTIFR NOW APPEAR, BUT ONLY WITH A REAL DENOMINATOR.
+ * The Safety Executive block (SafetyExecutiveService) divides by the
+ * man-hours the tenant actually logged for the period; with none logged it
+ * shows "—" and asks for Man-Hour data instead of printing a number that
+ * would be quoted. There is still no composite "safety index".
  */
-export default function ManagementHse({ hse, compliance }) {
+export default function ManagementHse({ hse, compliance, executive, executiveFilters }) {
     const permits = hse?.permits ?? {};
     const observations = hse?.observations ?? {};
 
@@ -48,7 +50,10 @@ export default function ManagementHse({ hse, compliance }) {
             <DashboardShell
                 title="HSE Performance"
                 subtitle="Tren keselamatan perusahaan selama dua belas bulan terakhir, beserta status dokumen terkendali."
+                actions={executiveFilters ? <SafetyExecutiveFilters filters={executiveFilters} /> : null}
             >
+                <SafetyExecutive data={executive} />
+
                 <FigureGroup
                     title="Safety Position"
                     description="Posisi keselamatan perusahaan saat ini."

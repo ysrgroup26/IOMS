@@ -2,8 +2,12 @@
 
 namespace App\Http\Controllers;
 
+use App\Models\Company;
+use App\Services\DashboardStatsService;
 use App\Services\EntitlementService;
 use App\Services\ManagementInsightsService;
+use App\Services\SafetyExecutiveService;
+use Carbon\Carbon;
 use Illuminate\Http\Request;
 use Inertia\Inertia;
 use Inertia\Response;
@@ -45,6 +49,8 @@ class ManagementController extends Controller
     public function __construct(
         private readonly ManagementInsightsService $insights,
         private readonly EntitlementService $entitlements,
+        private readonly SafetyExecutiveService $safety,
+        private readonly DashboardStatsService $dashboardStats,
     ) {}
 
     /**
@@ -140,9 +146,28 @@ class ManagementController extends Controller
     {
         $this->authorizeManagement($request);
 
+        /*
+         * v2.145.0 -- Safety Executive Dashboard: month and operating unit
+         * are optional filters. An unknown or foreign company id resolves to
+         * every company this tenant owns (DashboardStatsService rules), and
+         * a malformed or future month falls back to the current month.
+         */
+        $companyId = $request->integer('company_id') ?: null;
+        $month = now()->startOfMonth();
+        if (preg_match('/^\d{4}-\d{2}$/', (string) $request->input('month'))) {
+            $asked = Carbon::createFromFormat('Y-m-d', $request->input('month').'-01')->startOfMonth();
+            $month = $asked->greaterThan(now()) ? $month : $asked;
+        }
+
         return Inertia::render('Management/Hse', [
             'hse' => $this->insights->hsePerformance(12),
             'compliance' => $this->insights->compliance(),
+            'executive' => $this->safety->overview($this->dashboardStats->resolveCompanyIds($companyId), $month),
+            'executiveFilters' => [
+                'month' => $month->format('Y-m'),
+                'company_id' => $companyId,
+                'companies' => Company::query()->orderBy('name')->get(['id', 'name']),
+            ],
         ]);
     }
 

@@ -31,9 +31,9 @@ authoritative for the state of individual work items.
 
 | Plan | Monthly | Yearly | Includes |
 |---|---|---|---|
-| Starter | Rp189.000 | Rp2.268.000 (pay 12, access 12) | HSE · 3 users · 1 operating unit · 50 PTW/month |
-| Professional | Rp555.000 | Rp6.105.000 (pay 11, access 12 — **first year**) | + Warehouse Logistics · 10 users · 2 units · 200 PTW/month |
-| Business | Rp1.249.000 | Rp14.988.000 (pay 12, access 13 — **first year**) | + People / HRD + Management · 25 users · 4 units · 500 PTW/month |
+| Starter | Rp189.000 | Rp2.268.000 (pay 12, access 13 — **first year**) | HSE · 3 users · 1 operating unit · 50 PTW/month |
+| Professional | Rp555.000 | Rp6.660.000 (pay 12, access 13 — **first year**) | + Warehouse Logistics · 10 users · 2 units · 200 PTW/month |
+| Business | Rp1.249.000 | Rp14.988.000 (pay 12, access 14 — **first year**) | + People / HRD + Management · 25 users · 4 units · 500 PTW/month |
 
 Add-ons: additional user Rp50.000/month; My Work users in packs of 10 (Rp100.000/month).
 Annual benefits apply to the **first yearly payment only**; later years are 12 months paid for 12

@@ -112,9 +112,9 @@ class PackageSeeder extends Seeder
                 'slug' => 'starter',
                 'description' => 'Digitalize Health, Safety & Environment for one operating unit: incidents, observations, inspections, PPE, Permit To Work, CAPA and every other HSE module.',
                 'price_monthly' => 189000,
-                'price_yearly' => 2268000,
+                'price_yearly' => 2268000,   // 12 x 189.000
                 // 12 x 189.000, twelve months access -- no annual benefit.
-                'annual_months' => 12,
+                'annual_months' => 13,
                 'currency' => 'IDR',
                 'trial_days' => null,
                 // The INCLUDED allowance, not a ceiling: more active users
@@ -138,9 +138,9 @@ class PackageSeeder extends Seeder
                 // Starter and added ONE department while Enterprise added
                 // eight for 2x -- the expensive step was the small one.
                 'price_monthly' => 555000,
-                'price_yearly' => 6105000,
+                'price_yearly' => 6660000,   // v2.144.0: 12 x 555.000 (was 11 x)
                 // 11 x 555.000 for twelve months access -- one month off.
-                'annual_months' => 12,
+                'annual_months' => 13,
                 'currency' => 'IDR',
                 'trial_days' => null,
                 'max_users' => 10,
@@ -159,10 +159,10 @@ class PackageSeeder extends Seeder
                 // it "Most Popular" rather than a badge chosen for effect.
                 'price_monthly' => 1249000,
                 'price_yearly' => 14988000,
-                // 12 x 1.249.000 for THIRTEEN months access in the FIRST year
+                // 12 x 1.249.000 for FOURTEEN months access in the FIRST year
                 // (v2.144.0, Founder). Extra service, not a discount -- see
                 // Package::annualMonths() and Subscription::annualPromoAvailable().
-                'annual_months' => 13,
+                'annual_months' => 14,
                 'currency' => 'IDR',
                 'trial_days' => null,
                 'max_users' => 25,

@@ -35,7 +35,7 @@ final class ApprovedCatalogue
      */
     public const PLANS = [
         'starter' => [189000.0, 2268000.0, 3, 1],
-        'professional' => [555000.0, 6105000.0, 10, 2],
+        'professional' => [555000.0, 6660000.0, 10, 2],
         'business' => [1249000.0, 14988000.0, 25, 4],
     ];
 
@@ -49,9 +49,10 @@ final class ApprovedCatalogue
      * the two prices, because Business has no price saving at all.
      */
     public const ANNUAL = [
-        'starter' => [12, 12],
-        'professional' => [11, 12],
-        'business' => [12, 13],   // v2.144.0: 13 months, FIRST year only (Founder)
+        // v2.144.0 (owner + marketing, 21 Nov 2026): every plan pays twelve; FIRST year only.
+        'starter' => [12, 13],
+        'professional' => [12, 13],
+        'business' => [12, 14],
     ];
 
     /** Rp per additional ACTIVE user per month. One price, every plan. */

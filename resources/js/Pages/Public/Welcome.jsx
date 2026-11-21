@@ -762,6 +762,11 @@ function Pricing({ plans }) {
                                                 plan's own two prices (PricingService::
                                                 annualSaving) -- no percentage is written
                                                 down on this page. */}
+                                            {interval === 'yearly' && !plan.annual_saving && plan.annual_terms?.benefit && (
+                                                <p className="mt-1 text-xs font-medium text-success">
+                                                    {plan.annual_terms.label} · {plan.annual_terms.benefit}
+                                                </p>
+                                            )}
                                             {interval === 'yearly' && plan.annual_saving && (
                                                 <p className="mt-1 text-xs font-medium text-success">
                                                     Save {plan.annual_saving.formatted} · {plan.annual_saving.percent}% less than monthly

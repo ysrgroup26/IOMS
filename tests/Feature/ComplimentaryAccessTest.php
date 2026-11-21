@@ -675,7 +675,8 @@ class ComplimentaryAccessTest extends TestCase
         $this->assertSame(Subscription::BILLING_MODE_PAID, $subscription->billingMode());
         $this->assertTrue($subscription->isBillable());
         $this->assertSame(Subscription::CYCLE_YEARLY, $subscription->billing_cycle);
-        $this->assertSame(now()->addYear()->toDateString(), $subscription->ends_at->toDateString());
+        // v2.144.0: a first yearly purchase buys the plan's first-year term.
+        $this->assertSame(now()->addMonths($package->fresh()->annualMonths())->toDateString(), $subscription->ends_at->toDateString());
 
         // The agreed price is still snapshotted from the catalogue at
         // activation -- the v2.60.0 protection against a later catalogue

@@ -366,8 +366,6 @@ class PublicReadinessTest extends TestCase
          */
         $package = $this->package();
         $pricing = app(PricingService::class);
-        $equivalent = (float) $package->price_monthly * 12;
-        $saved = $equivalent - (float) $package->price_yearly;
 
         $response = $this->get(route('register.pay', $registration->token));
 
@@ -384,14 +382,16 @@ class PublicReadinessTest extends TestCase
             // saving is exactly one monthly payment against a twelve-month
             // equivalent. Read from the approved catalogue rather than
             // transcribed, which is how three files broke at once in v2.60.0.
-            ->where('order.annual_saving.monthly_equivalent_formatted', $pricing->format($equivalent))
-            ->where('order.annual_saving.formatted', $pricing->format($saved))
-            ->where('order.annual_saving.percent', (int) round(($saved / $equivalent) * 100))
+            // v2.144.0: every plan pays twelve, so there is no price saving;
+            // the offer is restated as extra access instead.
+            ->where('order.annual_saving', null)
+            ->where('order.annual_terms.label', $pricing->summarize($package)['annual_terms']['label'])
+            ->where('order.annual_terms.benefit', 'Hemat 1 bulan')
             ->etc()
         );
 
         // The rendered page carries the amounts, not just the props.
-        $response->assertSee($pricing->format($equivalent))->assertSee($pricing->format($saved));
+        $response->assertSee('Hemat 1 bulan');
 
         // The server key signs webhooks. It must never reach a browser.
         $response->assertDontSee('SB-Mid-server-TESTONLY');

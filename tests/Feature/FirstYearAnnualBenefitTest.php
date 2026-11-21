@@ -47,17 +47,17 @@ class FirstYearAnnualBenefitTest extends TestCase
         ], $extra))->fresh();
     }
 
-    public function test_business_first_yearly_payment_buys_thirteen_months_then_twelve(): void
+    public function test_business_first_yearly_payment_buys_fourteen_months_then_twelve(): void
     {
         $s = $this->subscription('business', Subscription::CYCLE_YEARLY);
         $this->assertTrue($s->annualPromoAvailable());
-        $this->assertSame(13, $s->annualServiceMonths());
+        $this->assertSame(14, $s->annualServiceMonths());
 
         $this->travelTo(now()->startOfDay());
         app(SubscriptionLifecycleService::class)->extendPeriod($s, Subscription::CYCLE_YEARLY);
         $s->refresh();
         $this->assertNotNull($s->annual_promo_used_at, 'The first yearly payment consumes the first-year offer.');
-        $this->assertSame(13, (int) round(now()->diffInMonths($s->ends_at)));
+        $this->assertSame(14, (int) round(now()->diffInMonths($s->ends_at)));
 
         $endFirst = $s->ends_at->copy();
         $this->travelTo($endFirst->copy()->subDay());
@@ -69,7 +69,7 @@ class FirstYearAnnualBenefitTest extends TestCase
     public function test_professional_second_year_is_priced_as_twelve_months(): void
     {
         $s = $this->subscription('professional', Subscription::CYCLE_YEARLY);
-        $this->assertEqualsWithDelta(6105000, $s->agreedAmountFor(Subscription::CYCLE_YEARLY), 0.01);
+        $this->assertEqualsWithDelta(6660000, $s->agreedAmountFor(Subscription::CYCLE_YEARLY), 0.01);
 
         $s->forceFill(['annual_promo_used_at' => now()->subYear()])->save();
         $s->refresh();
@@ -97,7 +97,7 @@ class FirstYearAnnualBenefitTest extends TestCase
     {
         $plans = collect(app(PricingService::class)->publicPlans());
         $business = $plans->firstWhere('slug', 'business');
-        $this->assertSame('Bayar 12 bulan, akses 13 bulan', $business['annual_terms']['label']);
+        $this->assertSame('Bayar 12 bulan, akses 14 bulan', $business['annual_terms']['label']);
         $this->assertTrue($business['annual_terms']['first_year_only']);
         $this->assertNull($plans->firstWhere('slug', 'enterprise'));
         $this->assertFalse((bool) Package::where('slug', 'enterprise')->value('is_active'));

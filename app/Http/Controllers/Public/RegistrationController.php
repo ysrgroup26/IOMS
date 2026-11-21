@@ -551,6 +551,12 @@ class RegistrationController extends Controller
                 'annual_saving' => $registration->billing_cycle === 'yearly' && $package
                     ? $this->pricing->summarize($package)['annual_saving']
                     : null,
+                // v2.144.0: the annual OFFER (pay 12, access 13/14) restated at the
+                // moment of payment -- every plan now sells extra access, which
+                // `annual_saving` (a price discount) cannot express.
+                'annual_terms' => $registration->billing_cycle === 'yearly' && $package
+                    ? $this->pricing->summarize($package)['annual_terms']
+                    : null,
             ],
             'payment' => [
                 // Snap's own client-side configuration. The client key is

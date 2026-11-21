@@ -96,6 +96,7 @@ export default function Checkout({ order, payment, statusUrl, invoiceUrl, billin
 
     const cycleLabel = order.billing_cycle === 'monthly' ? 'Monthly' : 'Annual';
     const saving = order.annual_saving ?? null;
+    const terms = order.annual_terms?.benefit ? order.annual_terms : null;
 
     return (
         <PublicLayout>
@@ -137,6 +138,13 @@ export default function Checkout({ order, payment, statusUrl, invoiceUrl, billin
                             twelve monthly payments would cost, what they are paying,
                             and the difference. All derived server-side from the
                             plan's own two prices -- no discount is invented here. */}
+                        {/* v2.144.0: extra access months, stated where the buyer pays. */}
+                        {terms && (
+                            <div className="mt-4 flex items-baseline justify-between rounded-lg border border-success/20 bg-success/[0.06] px-4 py-3 text-sm">
+                                <span className="text-graphite-700">{terms.label}</span>
+                                <span className="font-semibold text-success">{terms.benefit}</span>
+                            </div>
+                        )}
                         {saving && (
                             <div className="mt-4 rounded-lg border border-success/20 bg-success/[0.06] p-4">
                                 <dl className="space-y-1.5">

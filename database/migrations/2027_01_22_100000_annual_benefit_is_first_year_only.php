@@ -8,8 +8,10 @@ use Illuminate\Support\Facades\Schema;
 /*
  * v2.144.0 -- THE ANNUAL BENEFIT IS A FIRST-YEAR OFFER (Founder, 21 Nov 2026).
  *
- *   Business      pay 12, get 13 -- was 14
- *   Professional  pay 11, get 12
+ *   Starter       pay 12, get 13 -- was 12/12
+ *   Professional  pay 12, get 13 -- was pay 11, get 12 (yearly 6.660.000)
+ *   Business      pay 12, get 14
+ *   (one rule for every plan: pay twelve months; marketing, 21 Nov 2026)
  *   both          FIRST yearly payment only; every later year is a normal
  *                 year: 12 x the agreed monthly price for 12 months (unless
  *                 an operator grants a promotion deliberately).
@@ -39,7 +41,9 @@ return new class extends Migration
             ->whereNull('annual_promo_used_at')
             ->update(['annual_promo_used_at' => DB::raw('COALESCE(starts_at, created_at)')]);
 
-        DB::table('packages')->where('slug', 'business')->update(['annual_months' => 13]);
+        DB::table('packages')->where('slug', 'starter')->update(['annual_months' => 13]);
+        DB::table('packages')->where('slug', 'professional')->update(['annual_months' => 13, 'price_yearly' => 6660000]);
+        DB::table('packages')->where('slug', 'business')->update(['annual_months' => 14]);
 
         $enterprise = DB::table('packages')->where('slug', 'enterprise')->value('id');
         if ($enterprise !== null && ! DB::table('subscriptions')->where('package_id', $enterprise)->exists()) {

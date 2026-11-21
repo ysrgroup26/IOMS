@@ -8,6 +8,7 @@ use App\Models\TenantRegistration;
 use App\Models\User;
 use App\Services\PricingService;
 use Illuminate\Foundation\Testing\RefreshDatabase;
+use PHPUnit\Framework\Attributes\DataProvider;
 use Tests\Support\ApprovedCatalogue;
 use Tests\TestCase;
 
@@ -55,7 +56,7 @@ class PricingConsistencyTest extends TestCase
      * 1. THE APPROVED PRICES
      * ================================================================ */
 
-    #[\PHPUnit\Framework\Attributes\DataProvider('approvedPlans')]
+    #[DataProvider('approvedPlans')]
     public function test_the_migrated_catalog_carries_the_approved_prices(
         string $slug,
         float $monthly,
@@ -165,38 +166,31 @@ class PricingConsistencyTest extends TestCase
             'Business pays twelve months, so presenting a price saving would be a claim IOMS is not making.'
         );
 
-        $this->assertSame(2, $business['annual_terms']['bonus_months']);
+        $this->assertSame(2, $business['annual_terms']['bonus_months']);   // v2.144.0: 14 months, first year
         $this->assertSame(0, $business['annual_terms']['discount_months']);
-        $this->assertSame('Tambahan 2 bulan akses', $business['annual_terms']['benefit']);
+        $this->assertSame('Hemat 2 bulan', $business['annual_terms']['benefit']);
     }
 
-    /** Professional is the opposite shape: a real discount, no bonus period. */
-    public function test_professional_annual_is_a_discount_and_not_bonus_access(): void
+    /** v2.144.0 (owner + marketing): Professional now pays twelve and gets thirteen -- extra access, no price saving. */
+    public function test_professional_annual_is_extra_access_like_every_plan(): void
     {
-        $plans = app(PricingService::class)->publicPlans()->keyBy('slug');
-        $professional = $plans['professional'];
+        $professional = app(PricingService::class)->publicPlans()->keyBy('slug')['professional'];
 
-        $saving = $professional['annual_saving'];
-        $this->assertNotNull($saving);
-
-        // One month off twelve.
-        $this->assertEquals($professional['monthly']['amount'], $saving['amount']);
-        $this->assertEquals($professional['monthly']['amount'] * 12, $saving['monthly_equivalent']);
-
-        $this->assertSame(1, $professional['annual_terms']['discount_months']);
-        $this->assertSame(0, $professional['annual_terms']['bonus_months']);
+        $this->assertNull($professional['annual_saving'], 'Twelve monthly payments: no price saving to claim.');
+        $this->assertSame(0, $professional['annual_terms']['discount_months']);
+        $this->assertSame(1, $professional['annual_terms']['bonus_months']);
         $this->assertSame('Hemat 1 bulan', $professional['annual_terms']['benefit']);
     }
 
-    /** Starter sells no annual benefit, and must not imply one. */
-    public function test_starter_annual_carries_no_benefit(): void
+    /** v2.144.0 (owner + marketing): Starter pays twelve and gets thirteen in the first year. */
+    public function test_starter_annual_gives_one_extra_month(): void
     {
         $starter = app(PricingService::class)->publicPlans()->keyBy('slug')['starter'];
 
         $this->assertNull($starter['annual_saving']);
-        $this->assertNull($starter['annual_terms']['benefit']);
+        $this->assertSame('Hemat 1 bulan', $starter['annual_terms']['benefit']);
         $this->assertSame(12, $starter['annual_terms']['paid_months']);
-        $this->assertSame(12, $starter['annual_terms']['service_months']);
+        $this->assertSame(13, $starter['annual_terms']['service_months']);
     }
 
     /**

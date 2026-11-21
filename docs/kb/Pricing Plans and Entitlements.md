@@ -22,7 +22,7 @@ down once in `Tests\Support\ApprovedCatalogue`, and a test asserts the two agree
 | Tier | Monthly | Annual | Included active users | Operating Units | Adds |
 |---|---:|---:|---|---|---|
 | **Starter** | 189,000 | 2,268,000 | 3 | 1 | HSE, complete |
-| **Professional** | 555,000 | 6,105,000 | 10 | 2 | + Warehouse Logistics (v2.143.0, ADR 092) |
+| **Professional** | 555,000 | 6,660,000 (v2.144.0: pay 12, access 13 first year) | 10 | 2 | + Warehouse Logistics (v2.143.0, ADR 092) |
 | **Business** | 1,249,000 | 14,988,000 | 25 | 4 | + People / HRD, **Management** (HRD & Management are Business only) |
 
 **Enterprise is retired from sale** (`is_public = false`), not deleted -- it keeps its row, its
@@ -285,7 +285,7 @@ stated ceiling" on this table. Its subscribers are unmetered and uncapped, uncha
    route allow-list and capability checks remain authoritative.
 2. **PTW quota is MONTHLY on every billing cycle.** An annual plan receives twelve allocations, one
    per monthly window anchored to the subscription start day, never a lump sum. Business annual gets
-   fourteen months of platform ACCESS and twelve PTW allocations.
+   fourteen months of platform ACCESS in the FIRST year only (v2.144.0; Starter and Professional thirteen; later years are twelve) and twelve PTW allocations.
 3. **Included quota expires, purchased quota does not**, and they are two pools that are never added
    together in storage. Consumption order is included first.
 

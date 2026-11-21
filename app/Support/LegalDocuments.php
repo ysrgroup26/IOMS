@@ -153,6 +153,7 @@ class LegalDocuments
                 'body' => self::paragraphs([
                     'Harga langganan dinyatakan dalam Rupiah (IDR) dan dipublikasikan pada halaman Pricing. Harga yang berlaku bagi Pelanggan adalah harga yang ditampilkan pada saat pemesanan dilakukan.',
                     'Langganan ditagihkan di muka untuk satu periode penuh, baik bulanan maupun tahunan, sesuai siklus yang dipilih Pelanggan.',
+                    'Potongan harga pada pembayaran tahunan berlaku untuk periode tahunan yang dibeli; perpanjangan berikutnya mengikuti harga yang berlaku saat itu, kecuali ada promosi.',
                     'Pembayaran diproses oleh penyedia pembayaran berlisensi. Data kartu atau instrumen pembayaran Pelanggan tidak pernah melewati maupun disimpan pada sistem IOMS.',
                     'Langganan diaktifkan setelah pembayaran dikonfirmasi kepada server kami oleh penyedia pembayaran. Berhasil sampai pada halaman konfirmasi di peramban tidak dengan sendirinya mengaktifkan langganan.',
                     'Faktur diterbitkan untuk setiap periode penagihan dan dapat diunduh dari area Billing pada akun Pelanggan.',
@@ -212,7 +213,7 @@ class LegalDocuments
                     'Kami berupaya menjaga Layanan tetap tersedia, namun tidak menjamin ketersediaan tanpa gangguan. Pemeliharaan terencana diupayakan pada waktu yang berdampak minimal, dan pemberitahuan diberikan bila pemeliharaan tersebut diperkirakan mengganggu.',
                     'Dukungan diberikan melalui email pada hari kerja: :support.',
                     'Pertanyaan mengenai penagihan dan faktur: :billing.',
-                    'Kami tidak menyediakan pengembangan khusus per pelanggan. IOMS adalah satu produk standar; Enterprise adalah tingkatan IOMS yang paling lengkap, bukan paket pengembangan khusus.',
+                    'Kami tidak menyediakan pengembangan khusus per pelanggan. IOMS adalah satu produk standar dengan paket Starter, Professional, dan Business.',
                 ], $t),
             ],
             [

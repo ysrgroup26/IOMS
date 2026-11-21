@@ -1,0 +1,594 @@
+# Roadmap
+
+**IOMS — Industrial Operations Platform**
+
+This roadmap reflects the intended direction of the application. It is deliberately conservative:
+the product philosophy is **simple, fast, minimal clicks, clean UI** — *not* an ERP. Every future
+module below is designed to slot into the existing architecture without breaking changes.
+
+> [!NOTE]
+> **Read this file for direction, not for status.**
+>
+> The *Guiding principles* below are current and authoritative. The **"Delivered" sections are
+> historical**, and several items still listed as **"Near-term" have since shipped** — Notification
+> Center, Global Search, Smart Dashboard widgets, the Document Engine and Import/Export mapping all
+> exist now.
+>
+> **`docs/kb/Requirements Register.md` is authoritative for whether a work item is planned,
+> in progress, implemented, verified, deferred or superseded**, and records which of the sections
+> below were resolved against the code.
+
+---
+
+## Guiding principles
+
+1. **Additive only.** New capability arrives as new tables/columns and new pages, never as a rewrite.
+2. **Preserve data.** Migrations never drop or reset existing data.
+3. **Keep the UI lightweight.** Reuse the existing card/table/dialog patterns; no redesigns.
+4. **Project as a container.** Any new operational module may optionally belong to a Project and
+   append to that Project's Timeline via the existing polymorphic `project_timeline_events` table.
+5. **One piece of information, one module.** Data is never re-entered across modules — e.g.
+   manpower lives only in Project Manpower, PPE only in PPE Distribution; other modules (like
+   Daily Report) reference or derive from them instead of duplicating fields.
+6. **No hardcoded master data.** Anything that could change (PPE types, replacement intervals,
+   categories, statuses) is a configurable database table, editable by Super Admin — never a
+   code constant. This is also what keeps the system usable by future companies beyond GAJ/MTC:
+   all company-specific values live in the database, not in application logic.
+
+---
+
+## ✅ Delivered — v1.2
+
+- Rename to Shipyard Management System / HSE Operations Platform
+- Multi-Company (GAJ, Maintenance)
+- Company-scoped departments
+- Project module + Manpower + Timeline architecture
+- Four-role permissions (Super Admin, HSE, HRD, Manager)
+- Dashboard company filter, per-company headcount, active projects, today's activities, reminders
+- Employee improvements (Company, Join Date, Years of Service, project assignments)
+- About dialog + versioned login footer
+
+## ✅ Delivered — v1.3
+
+- **PPE Management**: configurable PPE Master (Super Admin), PPE Distribution + History
+  (single source of truth), PPE Dashboard (expiring/expired summary)
+- **Project Timeline auto-population**: timeline entries are now derived from Daily Report
+  submissions rather than entered separately
+- **Daily HSE Report**: multiple reports per project per day (one per HSE Officer/shift),
+  activities, findings, notes, photo documentation — without duplicating manpower or PPE data
+- `shareableSummary()` hook on Daily Report, ready for future Copy/WhatsApp/PDF wiring
+
+## ✅ Delivered — v1.3.1
+
+- **Fully automatic PPE status** (Active/Expiring Soon/Expired), computed from `expiry_date` on
+  every access instead of relying on a manually-set value
+- **Clickable PPE Dashboard cards** linking into a pre-filtered PPE list
+- **Multi-item Issue PPE form** — one employee, several PPE items, one Save
+- **Department dropdowns grouped by Company** across Employees, Reports, PPE, and Input KPI
+- **Configurable Display Order** for Departments and Positions, applied consistently everywhere
+  an employee list appears (via `Employee::scopeOrderedForDisplay()`)
+- **KPI Quick Attendance cross-department draft** with a single "Save All KPI" button and a
+  Save/Discard/Cancel guard against losing unsaved selections when navigating away
+
+## ✅ Delivered — v1.3.2
+
+- **Centralized version configuration** (`config/version.php`) — one file controls the version
+  shown in the About dialog, sidebar footer, login footer, and Home page announcement
+- **About dialog** and **sidebar footer**, both reading from that centralized config
+- **Home page and Dashboard redesign** — clearer visual hierarchy, compact KPI grid, charts
+  promoted to the visual focus
+- **Fixed** two ambiguous-column regressions (Employee Department filter; KPI Quick Attendance
+  Department switching) introduced by v1.3.1's `scopeOrderedForDisplay()` joins
+- **Fixed** the Unsaved KPI Selections dialog permanently blocking navigation after Save/Discard,
+  caused by the navigation guard intercepting its own save/continue requests
+
+## ✅ Delivered — v1.4.0
+
+- **Rebranded to Integrated Operations Management System (IOMS)** — no longer positioned as
+  shipyard-exclusive; every visible branding reference updated app-wide
+- **Home page hero section** — clean, icon-free, illustration-free premium header
+- **KPI Quick Attendance layout reordered**: Filters → Search → Employee List → Selected Employees,
+  so the employee list no longer moves down the page as more people are selected
+- **Selected Employees panel is now collapsible** (collapsed by default, smooth CSS-only
+  expand/collapse, same chip design/remove/count as before)
+
+## ✅ Delivered — v1.5.0
+
+- **Dynamic, per-company KPI categories** (Settings > KPI Categories) — create/edit/delete/reorder,
+  Global or company-scoped, zero code changes required for a company to run its own KPI set
+- **Module toggle architecture** (Settings > Modules, `config/modules.php`) for the modules that
+  exist today, with the registration path documented below for future modules
+- **Self-service Authentication settings** — change your own email/password
+- **Top bar redesign** — date, live clock, real PPE-alert notification bell, profile menu (About,
+  My Account, Log Out); sidebar simplified to navigation + read-only identity
+- **Home page hero** — larger, heavier headline; dynamic time-of-day greeting + live clock (local
+  system time); premium stat-card typography
+- Enterprise visual polish: softer typography hierarchy, consistent card styling across Home and
+  Dashboard
+
+## ✅ Delivered — v1.5.1
+
+- **Complete branding audit** — zero remaining references to any legacy product name anywhere in
+  the project (see `CHANGELOG.md` for the specific hard-to-find spots this caught: browser title
+  fallback, export metadata, seeded account emails, backup filenames)
+- **PPE lifecycle redesign** — Issued → In Use → Replacement Requested → Replacement Approved →
+  Replacement Completed → Archived, with Expired as a computed overlay, never an automatic
+  replacement trigger
+- **Daily Report** now represents a Department (free text) instead of an Employee dropdown
+- **Project form** uses industry-neutral terminology (Location, generic placeholders)
+- **UX de-duplication** — account identity shown once (top bar profile menu only), not repeated in
+  the Welcome section or sidebar
+- Subtle premium watermark on the Home hero
+
+## ✅ Delivered — v1.5.2
+
+- **Fully dynamic KPI Dashboard** — cards, icons, colors, and the trend chart all generated from
+  `KpiCategory` configuration (`show_on_dashboard`, `icon`, `color`, `sort_order`); adding a new
+  category makes it appear immediately, with no code change
+- **Dashboard is a navigation hub** — every card is clickable; new **KPI Records** page
+  (`/kpi-records`) is the flat, filterable destination for "click FAC to see every FAC this period"
+- **Real root-cause fix for image uploads** — Branding Logo, Employee Photo, and Daily Report
+  Photos all now actually display after upload (previously silently broken: the accessor methods
+  existed but were never serialized to the frontend)
+- **Reusable image upload architecture** (`ImageUploadField`, `MultiImageUpload`) ready for future
+  modules (Asset Photos, Incident Evidence, Permit Attachments, etc.)
+- Expanded KPI Category settings (dashboard visibility, incident/approval flags, icon, color)
+- Department filter in the Add Manpower dialog
+- "Module Visibility" renamed and clarified (visibility only, not module creation)
+
+## ✅ Delivered — v1.5.3
+
+- **Official brand assets integrated** — the real provided wordmark and icon, used directly
+  throughout the app (sidebar, Login, Home, Dashboard, About)
+- **Centralized branding components** (`BrandWordmark`, `BrandIcon`, `BrandWatermark`) — the only
+  place any page ever references a brand image path
+- **`config/branding.php`** + a resolved `branding` shared prop, architected so a future admin
+  override (custom uploaded wordmark/icon, watermark toggles/opacity) requires zero changes beyond
+  the Settings UI itself
+- About page is now the official product identity page (both assets + full name + description)
+
+## ✅ Delivered — v1.5.4
+
+- **Branding visual QA pass** — sidebar/Login wordmark sizing increased with proper breathing
+  room, Home hero rescaled to an enterprise-dashboard feel, Home greeting now uses the real
+  wordmark instead of plain text, Dashboard gained a subtle premium background, About dialog
+  hierarchy refined
+
+## ✅ Delivered — v1.6.0
+
+- **`config/ioms.php`** — centralized version/edition/developer/company/copyright config,
+  replacing `config/version.php`; added a `version_history` list shown on the About page
+- **About dialog scrolling fixed** — `DialogContent` had no height/overflow constraint at all;
+  now properly scrollable on every screen size
+- **`BrandWatermark` fixed** — blur now scales per usage instead of one hardcoded value reused at
+  wildly different sizes; dropped grayscale to preserve brand color and increase visual presence
+- Login/Sidebar wordmark sizes increased again; Sidebar footer simplified; Home greeting no longer
+  repeats branding (sidebar already carries it); KPI Input Department labels de-cluttered
+
+## ✅ Delivered — v1.6.1
+
+- **Fixed a real PHP parse error** in `PpeController.php` (a docblock comment's embedded `*/`
+  prematurely closed it); swept the whole codebase with a corrected comment-balance check
+  afterward to confirm it was isolated
+- **Dashboard "Today's Summary"** — real-data operational snapshot (Employees, Active Projects,
+  LTI, PPE Alerts) with a warning/all-clear banner
+- **Top Department Workload** analytics card — real KPI activity volume by department
+- Sidebar narrowed to 250px with a 70px logo; Login gained a subtle premium background treatment;
+  statistic cards across Dashboard/Home/PPE Dashboard now share a consistent floating/glass style
+- About dialog expanded with Build Number, License, Website, Support, and Documentation
+
+## ✅ Delivered — v1.6.2
+
+- **Root-cause fix for watermark visibility** on Dashboard, Home, and About — traced the actual
+  DOM nesting rather than assuming; all three had a genuine `overflow`/positioning bug clipping
+  most of the image away, not just an opacity/size issue
+- Exact specifications applied: Sidebar 240px width / 70px logo / 16px+24px spacing; Dashboard
+  hero watermark exactly 450px / 4% opacity
+- Branding text standardized app-wide to "Designed & Developed by YSR Systems"
+- **New reusable `Combobox` component** — Daily Report's Department field is now searchable
+  type-ahead (suggestions from the master list) while still accepting free text, not a traditional
+  `<select>`
+
+## ✅ Delivered — v1.6.3
+
+- **Dashboard**: company branding in the hero, real Quick Actions, tighter typography/spacing
+- **Sidebar**: nested-menu architecture (real, tested, ready for a future module with a sub-menu),
+  version number, spacing polish
+- **Real Global Search** across Employees and Projects (`GlobalSearchController` + `GlobalSearch`)
+- **Forgot/Reset Password** using Laravel's built-in Password broker
+- **Dark Mode toggle mechanism** — real and working, but most components still need converting to
+  theme-aware classes before it visually does much (disclosed gap, not hidden)
+- **Company Branding extended**: SVG logo support (fixed a validation gap), favicon upload, short
+  name, footer copyright
+- Explicitly did not build Pending Tasks/Approval sections (no Task/Approval Engine exists) or a
+  full Notification Center (no backing table) — see `CHANGELOG.md` for the complete list
+
+## ✅ Delivered — v1.6.4
+
+- **Universal Task Engine foundation** — `tasks` table, `Task` model, `TaskService`,
+  `TaskController`, Form Requests, full CRUD frontend (List/Detail/Create/Edit), and real Dashboard
+  integration (`Task::assignedTo($user)->openStatus()`, not placeholder data)
+- **Fixed a real Dark Mode readability bug** — `CardTitle`/`CardDescription` and Sidebar nav text
+  had zero `dark:` variants, meaning they'd render illegibly against the new dark backgrounds
+  introduced in v1.6.3. Fixed centrally.
+- Company Logo fallback, Global Search width — both verified against spec and fixed where they
+  didn't yet match
+
+## ✅ Delivered — v1.6.5 through v1.6.7
+
+Brief summary here — see `CHANGELOG.md` for full detail on each, since this section had fallen
+behind actual releases and is catching back up rather than duplicating three versions' worth of
+entries in full:
+
+- **v1.6.5**: About Dialog rebuilt from scratch after four sessions of unresolved reports; sidebar
+  wordmark hierarchy fixed; six new shared foundation components (`PageHeader`, `SectionHeader`,
+  `EmptyState`, `LoadingState`, `StatusBadge`, `StatCard`)
+- **v1.6.6**: PPE module restructured to be employee-centric (Employee → Employee PPE → Issue);
+  new `Employee::employeePpes()` relationship; an app-wide sweep fixed 9 instances of a real
+  controlled-Select empty-string bug; white-flash root-caused to Vite's lazy per-page loading
+- **v1.6.7**: Fixed a real `PpeTabNav` missing-import bug; PPE's top navigation extracted into a
+  genuinely reusable `ModuleTabNav` component (a `tabs` prop, not hardcoded) for future modules
+  (Medical, Training, License, Asset, Competency, Attendance) to use directly; several rounds of
+  desktop density/typography polish (see CHANGELOG for detail on each individual pass); new
+  Material Request module (department-agnostic, dynamic item table, PDF/print) and PPE Replacement
+  Request MVP (built on a new dedicated item-level "Replacement Due" page, since the existing
+  employee-level Employee PPE list couldn't support multi-selecting individual PPE records without
+  breaking its own minimal-selector scope); new reusable `PdfGeneratorService` both build on
+- **v1.6.8**: Found and fixed two severe bugs while verifying the previous session's work rather
+  than assuming it was fine -- Material Request and PPE Replacement Request routes were accidentally
+  Super-Admin-only, and a `Cache::rememberForever()` with no config-change invalidation had
+  permanently hidden any newly-registered module from the sidebar; new Employee Import from Excel
+  (chunked, never stops on a bad row, `department_id` genuinely made nullable to support
+  "Unassigned"); Report Export architecture (`ReportExportInterface` + `ReportTemplateResolver`)
+  prepared ahead of any real company template existing; a follow-up runtime-verification round
+  found the caching fix above had a real bug of its own (a cache-key/forget-key mismatch), fixed
+  properly and the risky part of the pattern removed entirely; a further verification pass on
+  Employee Import (rather than assuming the previous session's build was complete) found the
+  importer silently ignored the Employment Status column and never actually read Address/Emergency
+  Contact despite those columns existing specifically for it -- both fixed
+- **v1.6.9**: Verified `ActivityLog` already existed and was already used app-wide (32+ call sites)
+  before building anything -- the real gap was a viewing UI, not the recording mechanism. New
+  Universal Approval Engine (`HasApprovals` trait + generic `ApprovalController`, Material Request
+  as first consumer) and `ActivityTimeline.jsx` viewer, both documented in `docs/ADR/`. Sprint
+  requested 7 major systems (Approval, Timeline, Notification, Attachment, Audit Log, Search, Smart
+  Dashboard); deliberately built two properly rather than seven shallowly -- see "Near-term" below
+  for the rest.
+- **v1.6.9.1**: Completed Material Request's full lifecycle (Draft -> Submitted -> Approved ->
+  Processing -> Completed, plus Rejected/Cancelled) rather than starting new engines before one
+  workflow was production-ready. New `HasWorkflow` trait (complements, doesn't duplicate,
+  `HasApprovals`); found and fixed a real bug in the previous session's own `ApprovalController`
+  (a direct `update()` call bypassing transition validation and risking duplicate activity logs);
+  evaluated RBAC options (confirmed no package exists, recommended Spatie Permission for when real
+  multi-tenant complexity arrives, not now) before centralizing role checks into
+  `config/workflow.php`; new `warehouse` role added with zero migration.
+
+---
+
+## 🧭 Near-term — Remainder of the Workflow & Smart Operations sprint (deferred, not abandoned)
+
+Priorities 3 through 7 from the v1.6.9 sprint were not attempted this version, on purpose:
+
+- **Notification Center** (unread/read, mark-all-as-read, future Email/WhatsApp) -- genuinely
+  separate from the Activity Timeline; a notification is "something a specific user needs to see,"
+  a timeline entry is "something that happened," and conflating them would be the wrong shape for
+  both.
+- **Universal Attachment Engine** (Images/PDF/Excel/Word across Incident/Material Request/PPE/
+  Inspection/PTW/Daily Report/Asset) -- a genuinely large piece of its own (storage, validation,
+  per-type preview handling), deserving the same "build it properly once, not seven times shallowly"
+  treatment the Approval Engine got this version.
+- **Audit Log** (old value / new value / field-level change tracking) -- explicitly distinct from
+  `ActivityLog`'s free-text description; this wants structured before/after values per field, which
+  `ActivityLog`'s `meta` JSON column could store but isn't currently used for. Needs its own design
+  pass, not a quick reuse of the existing table.
+- **Global Search** and **Smart Dashboard** (Pending Approvals, Overdue Activities, Upcoming Expired
+  PPE, Recent Activities widgets) -- both are natural, fairly quick follow-ups now that Approval and
+  Timeline actually exist to power them (a "Pending Approvals" widget is now just a query against
+  `Approval::where('status', 'pending')`), but weren't built yet since building the widget for a
+  feature that didn't exist yet would have been backwards.
+
+## 🧭 Near-term — Generic Import Engine (one real example exists, not yet generalized)
+
+`EmployeesImport` (v1.6.8) is the first real import built in this codebase -- chunked reading,
+row-by-row processing that never stops on the first bad row, and a critical/optional field split
+are all patterns any future importer (Department, Project, PPE Master, Vendor, Contractor) would
+need identically. Deliberately not extracted into a shared base class yet: abstracting a reusable
+pattern from a single example tends to guess the wrong shape. The next import built should look
+hard at what's actually common between it and `EmployeesImport` before extracting anything.
+
+## 🧭 Near-term — Document Engine (foundation already in place)
+
+`PdfGeneratorService` exists (v1.6.7) -- a thin, reusable wrapper around `barryvdh/laravel-dompdf`
+that any controller calls with a Blade view name + data. Material Request and PPE Replacement
+Request already use it. The stated future Document Engine (company-uploaded templates, populated
+automatically) would extend this service to resolve a per-company Blade view/template instead of
+a fixed one -- the service's method signatures were deliberately kept generic enough that this is
+an extension, not a rewrite. Daily Report, Incident Report, and Permit to Work PDFs should reuse
+this same service when built, rather than each calling the PDF library directly.
+
+## 🧭 Near-term — Report Configuration UI (foundation already in place)
+
+`report_configurations` table + `ReportConfiguration` model exist (v1.6.7) -- a saved KPI
+selection, grouping, and export-type preference, scoped per-company the same way `KpiCategory`
+already is. No controller, routes, or Settings UI exist yet. A future "Settings > Report
+Configuration" page would let an admin choose which KPI categories to include, group by
+department/month/company, and pick an export type, then save it as a named configuration --
+this table is exactly what that page would read/write, with no schema change needed first.
+
+## 🧭 Near-term — PPE Inventory (foundation already in place)
+
+`employee_ppe.employee_id` is now nullable (v1.6.7) -- the structural blocker that made "PPE
+exists in company inventory, not yet assigned to anyone" impossible to represent is gone. No
+"add to inventory" UI exists yet, and the existing issued/in_use/replacement_* status lifecycle for
+already-assigned PPE is completely unchanged. A future inventory feature would create
+`EmployeePpe` rows with `employee_id = null` to represent unassigned stock, then "assign" them by
+setting `employee_id` -- this is the foundation that would need, not the feature itself.
+
+## 🧭 Near-term — Task Engine extensions (foundation already in place)
+
+This version deliberately built `tasks` only. The natural next slice, once prioritized:
+`task_comments` and `task_attachments` (both straightforward — same shape as `KpiRecord`/
+`DailyReportPhoto` patterns already used elsewhere), then `task_histories` (audit trail of status/
+assignment changes) and a real `task_notifications` table backing the existing topbar notification
+badge pattern. Automatic overdue detection would be a scheduled Artisan command flipping status to
+`overdue`-equivalent (currently `is_overdue` is computed live, which already covers the "is this
+task late" question without a background job — a stored status would only be needed if overdue
+tasks need their own notification trigger).
+
+---
+
+## 💳 SaaS Finalization — v2.51.0 CLOSED the three items v2.50.0 deferred
+
+Everything the v2.50.0 section below listed as "deliberately NOT built" is now built. Kept here
+because the reasoning it records is still the reasoning behind how these were built.
+
+**Self-serve tenant onboarding — BUILT.** A prospect registers through a real web form
+(`/get-started`), confirms their email, reviews the plan, and pays. `TenantRegistration` holds the
+prospect OUTSIDE the tenant isolation boundary: no `Tenant`, no `Company`, no `User` row exists
+until a payment is confirmed server-side, so "a pending tenant must not have application access" is
+true by construction rather than by a middleware check that could be bypassed. The chosen password
+is hashed at registration time and the plaintext never reaches the database, so activation needs no
+credential email. `TenantProvisioningService::activate()` is the single activation path, is
+idempotent under a row lock, and refuses anything not in the PAID state.
+
+**Midtrans adapter — BUILT.** `App\Services\Payments\MidtransGateway` implements the existing
+`PaymentGatewayInterface` (Snap, so no card data ever touches IOMS), verifies the SHA512 signature
+over `order_id + status_code + gross_amount + serverKey` before reading a single field, and maps
+Midtrans transaction states onto the existing status model. `PaymentWebhookController` is the ONLY
+route that may mark a payment settled, and it re-checks the amount against the invoice before
+treating a notification as settlement.
+
+**Tenant billing + Master Admin — BUILT.** `/subscription/billing` shows plan, cycle, status,
+renewal, live capacity against real entitlements, and invoice/payment history.
+`/platform/registrations` gives the operator the onboarding pipeline and flags the case that matters
+most — a customer who has paid but has no workspace — with an idempotent re-provision action that
+cannot activate an unpaid registration.
+
+### 💳 Duitku Sandbox for resubmission (v2.141.1, ADR 085) — current payment track
+
+> [!danger] Duitku Production activation is a MANDATORY TRIGGER
+> Before any work that sets production Duitku credentials or `DUITKU_IS_PRODUCTION=true`, open
+> [[DUITKU-PRODUCTION-ACTIVATION|IOMS | Duitku Production Activation & Sandbox Retirement]]
+> (`docs/runbooks/DUITKU-PRODUCTION-ACTIVATION.md`, status **Pending Activation**) and work through its §8
+> checklist. Activation is not complete until that checklist and its completion report are done.
+
+Duitku (project D25218) re-reviewed iomsuite.com and asked for two things: remove the legal merchant's
+name from the website, and enable checkout against the Duitku Sandbox. The Midtrans list below is kept
+for history; **Duitku is the configured provider track.**
+
+| Step | State |
+|---|---|
+| Invoice issuer shows the IOMS brand; merchant legal name is internal only | Done on branch, on staging |
+| Payer email/name/phone sent to Duitku; expired and cancelled attempts recorded; return verified with the provider | Done on branch, on staging |
+| Scenario suite against a simulated sandbox (`DuitkuCheckoutScenariosTest`) | Passing in CI |
+| Staging probe: callback reachable from the public internet (`staging-callback-probe.yml`) | **Found blocked: 401 from the staging password**; fix `staging.sh callback open` rehearsed, waiting on the owner |
+| Staging `review-check` reports the sandbox: method-list signature, signed status reads, orders, callbacks, activation | Needs the installer re-run on Tencent |
+| Sandbox credentials on staging and the callback URL in the Duitku sandbox project | Done (owner) |
+| Real sandbox run on staging: Starter, BCA VA, paid with Duitku's VA simulator | **Verified 2026-11-03** (review-check run 41633818223): callback received, signature accepted, attempt and invoice paid once, registration provisioned, subscription active, workspace (tenant #4) created |
+| Production running sandbox credentials so Duitku's reviewer can check out on iomsuite.com | **Done 2026-11-03** (`664e9bf`, Deploy runs 29–30; unsigned callback 403) |
+| **Duitku Production activation & Sandbox retirement** | **Pending Activation**, a mandatory trigger: `docs/runbooks/DUITKU-PRODUCTION-ACTIVATION.md` |
+
+Runbook: `docs/PAYMENTS-DUITKU.md` §6a.
+
+### ⚠️ STILL REQUIRES EXTERNAL CONFIGURATION — the only thing standing between this and live payments
+
+The code is complete. None of it can take a real payment until the following exist, and IOMS
+deliberately stays in its safe "no payments configured" state until they do:
+
+1. A **Midtrans merchant account** (Snap enabled).
+2. `MIDTRANS_SERVER_KEY` and `MIDTRANS_CLIENT_KEY` in the production `.env`, plus
+   `PAYMENT_GATEWAY=midtrans`. The adapter binds only when the gateway is named AND both keys are
+   present — a half-filled configuration keeps the safe behaviour rather than failing later.
+3. An explicit **sandbox vs production** decision (`MIDTRANS_IS_PRODUCTION`). The key pairs differ
+   and are not interchangeable.
+4. The **Payment Notification URL** registered in the Midtrans dashboard, pointing at
+   `https://<your-domain>/webhooks/payment/midtrans`. Without this, notifications never arrive and
+   **no subscription can ever activate** — activation is webhook-driven by design.
+5. **A cron entry** running `php artisan schedule:run` every minute (the standard Laravel setup).
+   Without it no renewal invoice is ever issued and no reminder is ever sent. It does **not**
+   affect access: grace and lapse are derived from the subscription's own dates on every read, so
+   a stopped cron delays billing without locking anyone out or letting anyone in.
+
+   IOMS bills **invoice-per-cycle** and has no automatic card charging. Midtrans
+   Subscription/Recurring would be a separate integration requiring merchant-side activation; it is
+   not a configuration flag, and nothing in the product claims otherwise.
+6. A real **SMTP/mail provider** (`MAIL_MAILER`, host, credentials, `MAIL_FROM_ADDRESS`).
+   `MAIL_MAILER=log` is the default and writes messages to the log instead of sending them —
+   verification, invoice and activation mail is generated correctly but not delivered. Nothing in
+   IOMS reports mail as sent when it was not; failures are logged and never block the flow.
+
+---
+## 💳 SaaS Finalization — what v2.50.0 built, and what it deliberately did NOT
+
+**Built.** The public front door is now a real journey: `/pricing` and `/get-started` exist as
+routes (pricing was previously only an anchor inside the landing page), every public "Get Started"
+CTA was repointed away from the login form — which is the one door a prospect without an account
+cannot walk through — and the login page now signposts prospects to Get Started / View Plans. Plan
+pricing was standardized to the recorded commercial model (Starter Rp1.499.000/Rp14.990.000,
+Professional Rp3.499.000/Rp34.990.000, Enterprise Rp7.499.000/Rp74.990.000), Enterprise stopped
+being `is_custom` because it is the most complete STANDARDIZED tier and not a negotiated build, and
+IDR now renders as `Rp`. Covered by `PublicSaasJourneyTest`, including a Master Admin boundary
+assertion in both directions.
+
+**Deliberately NOT built, and why.**
+
+1. **Self-serve tenant provisioning.** There is no registration route anywhere in the app, and
+   standing one up means creating a tenant, company, administrator user, subscription and
+   entitlement from an *unauthenticated* request. That is a security surface that should be built
+   properly with its own threat model and tests, not bolted onto a marketing page. `/get-started`
+   therefore collects plan intent and hands off to the team, and says so plainly rather than
+   implying an account will appear.
+
+2. **Midtrans adapter.** The architecture for it already exists and is correct:
+   `App\Contracts\PaymentGatewayInterface`, a swappable binding in `PaymentServiceProvider`,
+   `config/payment.php`, `PaymentTransaction`, `Invoice`, and `PaymentWebhookEvent::recordIfNew()`
+   which is already idempotent on `(gateway, event_id)`. `NullPaymentGateway` throws on every
+   method rather than returning a fake success, which is the correct default. Writing the Midtrans
+   adapter is a contained job — implement that interface, verify the SHA512 signature over
+   `order_id + status_code + gross_amount + serverKey`, and map Midtrans transaction states onto
+   the existing `Subscription` status model.
+
+   **REQUIRES EXTERNAL CONFIGURATION before it can be finished or tested end to end:** a Midtrans
+   merchant account, `MIDTRANS_SERVER_KEY` / `MIDTRANS_CLIENT_KEY`, sandbox-vs-production mode, a
+   publicly reachable notification (webhook) URL registered in the Midtrans dashboard, and — for
+   renewals — explicit activation of Midtrans **Subscription/Recurring**, which is a separate
+   merchant agreement and must not be assumed available.
+
+   Until those exist, no payment code should be written that could let a browser reaching a success
+   URL activate a plan. Activation must come from a verified server-side notification only.
+
+3. **Tenant-side billing UI and expanded Master Admin.** `SettingsController::plans()` and the
+   `/platform/*` surface already exist and are correctly separated (`RestrictPlatformAdminFromTenantRoutes`
+   plus `role:platform_admin`). Extending them into full invoice history, upgrade/downgrade and
+   lifecycle management is worthwhile but is UI on top of infrastructure that already works, so it
+   was ranked below fixing the broken acquisition journey.
+
+---
+## 🧭 Near-term — Settings > Branding UI (UNBLOCKED in v2.40.0)
+
+`company_settings` keys for `brand_wordmark_path`, `brand_icon_path`, `watermark_enabled` (+
+per-context variants), and `watermark_opacity` are already read by `HandleInertiaRequests` with
+correct fallbacks (v1.5.3) — a future Settings > Branding page only needs to add upload fields
+that write to these keys (reusing the existing `ImageUploadField` component from v1.5.2) and the
+rest of the app picks up the change automatically, with no other code changes required.
+
+**v2.39.0 CORRECTION — the paragraph above is wrong and this work is blocked.** Empirically
+verified in `tests/Feature/CompanySettingTenantScopeTest.php`: `company_settings` has NO tenant
+discriminator. Its `key` column carries a PLATFORM-WIDE `unique()` constraint, so exactly one row
+can exist per key for every tenant combined, and `CompanySetting::get()` caches under a single
+global `company_setting:{key}` key. Consequences, all confirmed by test:
+
+- Tenant B READS Tenant A company name, logo path, address, phone, email and brand colour.
+- Tenant B SAVING its branding DESTROYS Tenant A branding — `updateOrCreate([key])` overwrites
+  the single shared row.
+- The leak reaches generated artifacts, not just the shell: `DocumentEngine` (every PDF),
+  `EmployeeExport` / `KpiReportExport` (Excel), `ReportController`, `ReportCenterController`,
+  `AnalyticsController` and `NotificationService` all read these keys.
+
+Adding the upload UI described above would therefore hand every tenant a button that silently
+rebrands every other tenant, including on documents already issued. Fix the storage model first
+(tenant discriminator + composite unique + tenant-scoped cache key + a backfill decision for
+existing ambiguous rows); the UI is straightforward afterwards.
+
+**v2.40.0 UPDATE — the blocker above is FIXED; this work is unblocked.**
+`company_settings` now has a `tenant_id` owner and a composite `unique(tenant_id, key)`, with a
+two-tier resolution model: `tenant_id IS NULL` is the platform default (what a guest on the
+login/landing page and any tenant without an override resolves to), and `tenant_id = X` is that
+tenant's own override. `CompanySetting::get()` resolves tenant -> platform -> caller default, the
+cache is keyed per tier, and `CompanySettingScope` fail-closes every raw Eloquent path as well as
+the accessor. Proven end to end by `CompanySettingTenantScopeTest` and
+`TenantBrandingPropagationTest` (the latter pins that PDFs and Excel exports carry the right
+tenant's identity, which was the reason the defect mattered).
+
+What remains for the UI itself is genuinely small, because an upload flow ALREADY EXISTS
+(`SettingsController::updateCompany`, gated behind `role:super_admin`): it handles company name,
+subtitle, address, contact details, brand colour, logo and favicon with `mimes:` + `max:`
+validation. The only keys still lacking any writer are `brand_wordmark_path` and
+`brand_icon_path` — `HandleInertiaRequests` reads them and `BrandWordmark` already falls back to a
+typographic mark when absent. Adding those two fields to the existing form is the whole job; do
+NOT build a second branding surface.
+
+---
+
+## 🔜 v2.0 — Operational HSE modules (planned, not yet built)
+
+The database architecture is being prepared so these can be added incrementally. Each will be its
+own module with its own table(s), optionally referencing `project_id`, and each will write to the
+Project Timeline. Once built, each also registers as a toggleable module the same way the v1.5.0
+modules do (see `config/modules.php`) — no changes to the toggle mechanism itself required.
+
+- **Incident Investigation** — report, classify, root-cause, corrective actions.
+- **Nearmiss** — lightweight reporting flow feeding existing BBS/Nearmiss KPI.
+- **Permit To Work (PTW)** — permit issuance, approval chain, validity window.
+- **Gas Test** — readings log tied to confined-space/hot-work permits.
+- **Confined Space** — entry register linked to PTW and Gas Test.
+- **Inspection** — checklists, findings, follow-up.
+- **Waste Management** — waste manifests and disposal records.
+- **Document Control / Upload** — controlled document register with versioning.
+
+## 🏢 v3.0+ — Enterprise modules (architecture-ready, not built)
+
+A broader set of enterprise modules the platform is designed to eventually support, per the IOMS
+positioning as a multi-industry industrial operations platform (not shipyard-exclusive). **None of
+these exist yet** — no stub pages, no placeholder UI, no fake data. What *does* exist today is the
+mechanism they'd plug into: `config/modules.php` (module registry) + the `enabled_modules`
+CompanySetting (Settings > Modules) + role/company-scoping patterns already proven out by Projects,
+PPE, and the KPI Categories work, plus (v1.5.2) a reusable image upload architecture
+(`ImageUploadField`, `MultiImageUpload`) any of these can adopt immediately for Asset Photos,
+Incident Evidence, Permit Attachments, Project Documentation, etc. without re-implementing upload
+UI from scratch, and (v1.6.2) a reusable `Combobox` component (type-ahead suggestions from a known
+list, free text still always valid) for any future field like this one -- Material Request items,
+Asset categories, Permit types, etc.
+
+- HR Management
+- Asset Management
+- Fleet Management
+- Marine Operations
+- Procurement
+- Warehouse
+- Maintenance
+- Quality Control (QC)
+- Document Control
+- Visitor Management
+- Contractor Management
+- Permit to Work
+- Risk Assessment
+- Incident Management
+
+Adding any of these later means: (1) build the module's own tables/controllers/pages as usual,
+(2) add one entry to `config/modules.php` and one nav item in `AuthenticatedLayout.jsx` with a
+matching `moduleKey`. Nothing about the toggle UI, the `enabled_modules` setting, or the
+nav-filtering logic needs to change.
+
+## 🧭 v2.x — HR-adjacent extensions (planned)
+
+Built on the `join_date` foundation added in v1.2, and the PPE foundation added in v1.3:
+
+- **PPE Replacement Reminders** — a real notification surfacing PPE nearing its
+  `replacement_interval_months` deadline (the PPE Dashboard already computes this list; v2 adds
+  proactive alerts instead of requiring someone to open the dashboard).
+- **Service Years** — automatic tenure tracking (already surfaced read-only on profiles).
+- **Training & Certification** — courses, expiry reminders.
+- **Medical Checkup** — MCU schedule and results register.
+
+## 🧭 Near-term — Daily Report sharing (structure already in place)
+
+`DailyReport::shareableSummary()` was added in v1.3 specifically so these can be wired up without
+further model changes:
+
+- **Copy to Clipboard** — frontend-only, calls the existing summary via a small JSON endpoint.
+- **PDF Export** — reuse the existing `barryvdh/laravel-dompdf` pattern already used for KPI Reports.
+- **Share to WhatsApp** — `wa.me` deep link using the same summary text; no API integration needed
+  for a basic version.
+
+## 🔔 v2.x — Platform
+
+- **Notification engine** — replaces the current lightweight "Upcoming Reminder" placeholder with
+  real scheduled reminders (PPE, certification expiry, MCU, permit expiry).
+- **Audit trail UI** — surface the existing `activity_logs` table in the app.
+
+---
+
+## Explicitly out of scope
+
+- Full ERP features (procurement, payroll, accounting).
+- Anything that would require redesigning the current UI or resetting the database.

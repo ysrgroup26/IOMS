@@ -95,6 +95,7 @@ export default function GetStarted({ plans = [], selectedPlan, billingCycle, ind
     const price = plan ? (yearly ? plan.yearly : plan.monthly) : null;
     // Server-derived, from the plan's own two prices -- never computed here.
     const saving = plan?.annual_saving ?? null;
+    const terms = plan?.annual_terms?.benefit ? plan.annual_terms : null;
 
     const chooseCycle = (isYearly) => {
         setYearly(isYearly);
@@ -374,6 +375,12 @@ export default function GetStarted({ plans = [], selectedPlan, billingCycle, ind
                                     buyer choosing a cycle had to work out for themselves that
                                     it was already discounted. The comparison is stated instead,
                                     from the plan's own two prices (PricingService::annualSaving). */}
+                                {yearly && terms && (
+                                    <div className="mt-3 flex items-baseline justify-between rounded-lg border border-success/20 bg-success/[0.06] px-3 py-2.5 text-xs">
+                                        <span className="text-graphite-700">{terms.label}</span>
+                                        <span className="font-semibold text-success">{terms.benefit}</span>
+                                    </div>
+                                )}
                                 {yearly && saving && (
                                     <div className="mt-3 rounded-lg border border-success/20 bg-success/[0.06] px-3 py-2.5">
                                         <div className="flex items-baseline justify-between text-[11px] text-graphite-600">

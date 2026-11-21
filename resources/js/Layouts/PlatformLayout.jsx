@@ -101,7 +101,7 @@ export default function PlatformLayout({ children }) {
             <main className="mx-auto max-w-6xl px-4 py-8">{children}</main>
 
             <footer className="mx-auto max-w-6xl px-4 pb-8 text-center text-xs text-graphite-400">
-                {version?.edition} &middot; v{version?.number} -- Konsol Operator Platform
+                {version?.edition ? <>{version.edition} &middot; </> : null}v{version?.number} -- Konsol Operator Platform
             </footer>
         </div>
     );

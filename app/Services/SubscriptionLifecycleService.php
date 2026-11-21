@@ -435,7 +435,11 @@ class SubscriptionLifecycleService
             'billing_cycle' => $cycle,
             // v2.82.0: the PLAN decides the term. A Business annual
             // payment buys fourteen months of service, not twelve.
-            'ends_at' => $this->addCycle($from, $cycle, $subscription->package),
+            'ends_at' => $this->addCycle($from, $cycle, $subscription->package, $subscription),
+            // v2.144.0: the first yearly payment consumes the first-year offer.
+            'annual_promo_used_at' => $cycle === Subscription::CYCLE_MONTHLY
+                ? $subscription->annual_promo_used_at
+                : ($subscription->annual_promo_used_at ?? now()),
             'starts_at' => $subscription->starts_at ?? now(),
             // Only cleared alongside a status that is actually leaving
             // cancellation -- never while the row stays cancelled.
@@ -841,7 +845,7 @@ class SubscriptionLifecycleService
         // carries a scheduled plan change buys the new plan's term.
         [, $package] = $this->nextPeriodPlan($subscription);
 
-        return [$start, $this->addCycle($start->copy(), $cycle, $package ?? $subscription->package)];
+        return [$start, $this->addCycle($start->copy(), $cycle, $package ?? $subscription->package, $subscription)];
     }
 
     /**
@@ -930,6 +934,12 @@ class SubscriptionLifecycleService
         $movingPlan = $package && (int) $package->id !== (int) $subscription->package_id;
 
         if ($movingPlan) {
+            // v2.144.0: a plan move does not re-open the first-year offer. Once
+            // used, a yearly term on the new plan is twelve of its monthly price.
+            if ($cycle !== Subscription::CYCLE_MONTHLY && ! $subscription->annualPromoAvailable()) {
+                return round($this->pricing->amountFor($package, Subscription::CYCLE_MONTHLY) * 12, 2);
+            }
+
             return $this->pricing->amountFor($package, $cycle);
         }
 
@@ -955,10 +965,16 @@ class SubscriptionLifecycleService
      * The package is optional because a subscription can outlive its plan
      * row; twelve months is the honest fallback.
      */
-    private function addCycle(Carbon $from, ?string $cycle, ?Package $package = null): Carbon
+    private function addCycle(Carbon $from, ?string $cycle, ?Package $package = null, ?Subscription $subscription = null): Carbon
     {
         if ($cycle === Subscription::CYCLE_MONTHLY) {
             return $from->addMonth();
+        }
+
+        // v2.144.0: the plan's extra months are a FIRST-YEAR offer. A
+        // subscription that already had its first year renews for twelve.
+        if ($subscription !== null && ! $subscription->annualPromoAvailable()) {
+            return $from->addMonths(12);
         }
 
         return $from->addMonths($package?->annualMonths() ?? 12);

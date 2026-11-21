@@ -226,7 +226,7 @@ return [
     |--------------------------------------------------------------------
     | How many included PTW allocations one ANNUAL term may receive
     |--------------------------------------------------------------------
-    | Twelve. Business annual is sold as fourteen months of platform ACCESS
+    | Twelve. Business annual is sold as thirteen months of platform ACCESS (first year only)
     | for twelve months of payment, and the approved model is explicit that
     | the extra access does not create extra PTW entitlement -- the usage
     | entitlement stays on the normal twelve billing periods.

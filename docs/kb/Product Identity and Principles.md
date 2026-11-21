@@ -11,6 +11,24 @@ What IOMS is, what it may be called, and the rules that constrain every change t
 
 ---
 
+
+## Visi & Misi (ditetapkan owner, 21 Nov 2026)
+
+**Visi.** Menjadi Industry Operating System yang menghubungkan manusia, proses, keselamatan, sumber daya, dan teknologi
+dalam satu ekosistem operasional industri yang terintegrasi, cerdas, dan berkelanjutan.
+
+**Misi.**
+1. **Mengintegrasikan Operasional Industri** — menghubungkan berbagai fungsi dan proses operasional perusahaan ke dalam
+   satu ekosistem digital yang terpadu.
+2. **Meningkatkan Efektivitas dan Efisiensi** — mengoptimalkan pengelolaan sumber daya, alur kerja, dan aktivitas
+   operasional melalui teknologi yang tepat guna.
+3. **Memperkuat Keselamatan dan Kepatuhan** — mendukung penerapan standar keselamatan kerja, pengelolaan risiko, serta
+   kepatuhan terhadap ketentuan industri.
+4. **Mendorong Keputusan Berbasis Data** — menghadirkan informasi yang akurat, terstruktur, dan transparan sebagai dasar
+   pengambilan keputusan.
+5. **Mengembangkan Inovasi Berkelanjutan** — menghadirkan solusi teknologi yang adaptif, skalabel, dan relevan dengan
+   perkembangan serta kebutuhan industri.
+
 ## The name is a product decision, not a label
 
 **IOMS** is a standalone product brand, like SAP or Oracle. `config/ioms.php` is the single source

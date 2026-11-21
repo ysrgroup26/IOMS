@@ -74,9 +74,9 @@ class ProfessionalLogisticsLadderTest extends TestCase
     public function test_prices_and_capacities_did_not_move(): void
     {
         $expected = [
-            'starter' => [189000.0, 2268000.0, 3, 12],
-            'professional' => [555000.0, 6105000.0, 10, 12],
-            'business' => [1249000.0, 14988000.0, 25, 14],
+            'starter' => [189000.0, 2268000.0, 3, 13],
+            'professional' => [555000.0, 6660000.0, 10, 13],
+            'business' => [1249000.0, 14988000.0, 25, 14],   // v2.144.0: 14 months, first year only
         ];
 
         foreach ($expected as $slug => [$monthly, $yearly, $users, $months]) {

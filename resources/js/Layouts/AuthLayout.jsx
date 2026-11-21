@@ -106,7 +106,7 @@ export default function AuthLayout({ title, heading, subheading, children, foote
 
                 <div className="hidden items-center gap-2 text-xs text-navy-300 lg:flex">
                     <ShieldCheck className="h-3.5 w-3.5 shrink-0 text-steel-400" />
-                    <span>{version?.edition} &middot; v{version?.number}</span>
+                    <span>{version?.edition ? <>{version.edition} &middot; </> : null}v{version?.number}</span>
                 </div>
             </aside>
 
@@ -128,7 +128,7 @@ export default function AuthLayout({ title, heading, subheading, children, foote
                     <div className="mt-6 border-t border-graphite-100 pt-5 text-xs leading-relaxed text-graphite-400">
                         {/* Edition/version already sit on the navy panel at lg+;
                             repeated here only where that panel is collapsed. */}
-                        <p className="lg:hidden">{version?.edition} &middot; v{version?.number}</p>
+                        <p className="lg:hidden">{version?.edition ? <>{version.edition} &middot; </> : null}v{version?.number}</p>
                         {/* v2.131.0: no developer attribution -- IOMS is the brand. */}
                         <p>&copy; {version?.copyright_year} {version?.company}. All Rights Reserved.</p>
                     </div>

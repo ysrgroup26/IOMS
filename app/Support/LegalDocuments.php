@@ -212,7 +212,7 @@ class LegalDocuments
                     'Kami berupaya menjaga Layanan tetap tersedia, namun tidak menjamin ketersediaan tanpa gangguan. Pemeliharaan terencana diupayakan pada waktu yang berdampak minimal, dan pemberitahuan diberikan bila pemeliharaan tersebut diperkirakan mengganggu.',
                     'Dukungan diberikan melalui email pada hari kerja: :support.',
                     'Pertanyaan mengenai penagihan dan faktur: :billing.',
-                    'Kami tidak menyediakan pengembangan khusus per pelanggan. IOMS adalah satu produk standar; Enterprise adalah tingkatan IOMS yang paling lengkap, bukan paket pengembangan khusus.',
+                    'Kami tidak menyediakan pengembangan khusus per pelanggan. IOMS adalah satu produk standar dengan paket Starter, Professional, dan Business.',
                 ], $t),
             ],
             [

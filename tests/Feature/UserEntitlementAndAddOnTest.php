@@ -207,11 +207,11 @@ class UserEntitlementAndAddOnTest extends TestCase
     }
 
     /** The Business benefit is service, and it must not also appear as a discount. */
-    public function test_business_annual_grants_fourteen_months_for_twelve_payments(): void
+    public function test_business_annual_grants_thirteen_months_for_twelve_payments(): void   // v2.144.0: first year
     {
         $package = $this->plan('business');
 
-        $this->assertSame(14, $package->annualMonths());
+        $this->assertSame(13, $package->annualMonths());
         $this->assertEquals(12.0, $package->annualPaidMonths());
         $this->assertEquals(
             (float) $package->price_monthly * 12,

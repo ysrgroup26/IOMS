@@ -2,7 +2,7 @@
 title: Current State
 type: snapshot
 product-version: 2.124.0
-product-stage: Beta
+product-stage: Stable
 measured: 2026-10-18
 tags: [kb/state]
 ---

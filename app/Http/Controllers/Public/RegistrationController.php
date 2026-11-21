@@ -690,7 +690,8 @@ class RegistrationController extends Controller
 
         return $notes
             .'. Tagihan ini mencakup 12 bulan berbayar. Tambahan '.$bonus
-            .' bulan akses diberikan gratis, sehingga masa akses berlaku sampai '.$accessUntil.'.';
+            .' bulan akses diberikan gratis, sehingga masa akses berlaku sampai '.$accessUntil.'.'
+            .' Tambahan akses ini khusus tahun pertama; perpanjangan tahun berikutnya berlaku 12 bulan.';
     }
 
     /**

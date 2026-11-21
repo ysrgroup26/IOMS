@@ -159,9 +159,10 @@ class PackageSeeder extends Seeder
                 // it "Most Popular" rather than a badge chosen for effect.
                 'price_monthly' => 1249000,
                 'price_yearly' => 14988000,
-                // 12 x 1.249.000 for FOURTEEN months access. Extra service,
-                // not a discount -- see Package::annualMonths().
-                'annual_months' => 14,
+                // 12 x 1.249.000 for THIRTEEN months access in the FIRST year
+                // (v2.144.0, Founder). Extra service, not a discount -- see
+                // Package::annualMonths() and Subscription::annualPromoAvailable().
+                'annual_months' => 13,
                 'currency' => 'IDR',
                 'trial_days' => null,
                 'max_users' => 25,
@@ -207,6 +208,8 @@ class PackageSeeder extends Seeder
                  * Retired means not for sale, not gone.
                  */
                 'is_public' => false,
+                // v2.144.0 (Founder): Enterprise is not offered at all -- inactive too.
+                'is_active' => false,
                 // v2.50.0: was `is_custom => true`, which rendered Enterprise
                 // as "Hubungi Kami" with no price. Enterprise is the most
                 // complete STANDARDIZED tier, not a negotiated custom build.

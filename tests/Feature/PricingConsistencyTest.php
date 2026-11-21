@@ -149,7 +149,9 @@ class PricingConsistencyTest extends TestCase
             );
 
             // And the sentence a customer reads says both halves.
-            $this->assertSame("Bayar {$paidMonths} bulan, akses {$serviceMonths} bulan", $terms['label']);
+            // v2.144.0: a real annual benefit is labelled as a FIRST-YEAR offer.
+            $suffix = ($paidMonths < 12 || $serviceMonths > 12) ? ' (tahun pertama)' : '';
+            $this->assertSame("Bayar {$paidMonths} bulan, akses {$serviceMonths} bulan{$suffix}", $terms['label']);
         }
     }
 
@@ -165,9 +167,9 @@ class PricingConsistencyTest extends TestCase
             'Business pays twelve months, so presenting a price saving would be a claim IOMS is not making.'
         );
 
-        $this->assertSame(2, $business['annual_terms']['bonus_months']);
+        $this->assertSame(1, $business['annual_terms']['bonus_months']);   // v2.144.0: 13 months, first year
         $this->assertSame(0, $business['annual_terms']['discount_months']);
-        $this->assertSame('Tambahan 2 bulan akses', $business['annual_terms']['benefit']);
+        $this->assertSame('Tambahan 1 bulan akses di tahun pertama', $business['annual_terms']['benefit']);
     }
 
     /** Professional is the opposite shape: a real discount, no bonus period. */
@@ -185,7 +187,7 @@ class PricingConsistencyTest extends TestCase
 
         $this->assertSame(1, $professional['annual_terms']['discount_months']);
         $this->assertSame(0, $professional['annual_terms']['bonus_months']);
-        $this->assertSame('Hemat 1 bulan', $professional['annual_terms']['benefit']);
+        $this->assertSame('Hemat 1 bulan di tahun pertama', $professional['annual_terms']['benefit']);
     }
 
     /** Starter sells no annual benefit, and must not imply one. */

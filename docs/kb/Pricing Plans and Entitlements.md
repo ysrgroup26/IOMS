@@ -285,7 +285,7 @@ stated ceiling" on this table. Its subscribers are unmetered and uncapped, uncha
    route allow-list and capability checks remain authoritative.
 2. **PTW quota is MONTHLY on every billing cycle.** An annual plan receives twelve allocations, one
    per monthly window anchored to the subscription start day, never a lump sum. Business annual gets
-   fourteen months of platform ACCESS and twelve PTW allocations.
+   thirteen months of platform ACCESS in the FIRST year only (v2.144.0; later years are twelve) and twelve PTW allocations.
 3. **Included quota expires, purchased quota does not**, and they are two pools that are never added
    together in storage. Consumption order is included first.
 

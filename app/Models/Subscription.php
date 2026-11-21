@@ -154,6 +154,9 @@ class Subscription extends Model
         'type',
         'status',
         'billing_cycle',
+        // v2.144.0 -- when this subscription received its first-year annual
+        // terms (Business 13 months, Professional pay 11). Null = still available.
+        'annual_promo_used_at',
         // v2.80.0 -- paid / manual / complimentary. See BILLING_MODES.
         'billing_mode',
         // v2.60.0 -- the price this customer actually agreed to. See
@@ -189,6 +192,7 @@ class Subscription extends Model
             'cancelled_at' => 'datetime',
             'pending_requested_at' => 'datetime',
             'renewal_reminded_at' => 'datetime',
+            'annual_promo_used_at' => 'datetime',
             // Nullable on purpose -- null means "follow the catalogue", so
             // `decimal:2` must not coerce an absent snapshot into 0.00.
             'agreed_price_monthly' => 'decimal:2',
@@ -687,15 +691,34 @@ class Subscription extends Model
         return $count * $monthly * $this->annualPaidMonths();
     }
 
+    /**
+     * v2.144.0 -- THE ANNUAL BENEFIT IS A FIRST-YEAR OFFER (Founder, 21 Nov 2026).
+     * Business pay 12 / get 13 and Professional pay 11 / get 12 apply to the
+     * subscription's FIRST yearly payment only. After that a year is a normal
+     * year: twelve agreed monthly prices for twelve months.
+     */
+    public function annualPromoAvailable(): bool
+    {
+        return $this->annual_promo_used_at === null;
+    }
+
     /** How many months an annual payment is PRICED at for this subscription. */
     public function annualPaidMonths(): float
     {
+        if (! $this->annualPromoAvailable()) {
+            return 12.0;
+        }
+
         return (float) ($this->package?->annualPaidMonths() ?? 12);
     }
 
-    /** How many months of SERVICE a yearly payment buys. Business: 14. */
+    /** How many months of SERVICE a yearly payment buys. Business first year: 13. */
     public function annualServiceMonths(): int
     {
+        if (! $this->annualPromoAvailable()) {
+            return 12;
+        }
+
         return $this->package?->annualMonths() ?? 12;
     }
 
@@ -719,6 +742,14 @@ class Subscription extends Model
     public function agreedAmountFor(?string $cycle = null): ?float
     {
         $cycle = $cycle ?? $this->billing_cycle;
+
+        // v2.144.0: once the first-year offer is used, a year is priced as a
+        // normal year -- twelve of the agreed monthly price.
+        if ($cycle !== self::CYCLE_MONTHLY && ! $this->annualPromoAvailable()) {
+            $monthly = $this->agreedAmountFor(self::CYCLE_MONTHLY);
+
+            return $monthly === null ? null : round($monthly * 12, 2);
+        }
 
         $agreed = $cycle === self::CYCLE_MONTHLY
             ? $this->agreed_price_monthly

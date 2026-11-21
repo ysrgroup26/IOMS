@@ -51,7 +51,7 @@ final class ApprovedCatalogue
     public const ANNUAL = [
         'starter' => [12, 12],
         'professional' => [11, 12],
-        'business' => [12, 14],
+        'business' => [12, 13],   // v2.144.0: 13 months, FIRST year only (Founder)
     ];
 
     /** Rp per additional ACTIVE user per month. One price, every plan. */

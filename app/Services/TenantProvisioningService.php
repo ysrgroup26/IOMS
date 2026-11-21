@@ -241,6 +241,8 @@ class TenantProvisioningService
             'ends_at' => $cycle === Subscription::CYCLE_MONTHLY
                 ? now()->addMonth()
                 : now()->addMonths($package->annualMonths()),
+            // v2.144.0: a yearly activation is the first-year offer, used now.
+            'annual_promo_used_at' => $cycle === Subscription::CYCLE_MONTHLY ? null : now(),
             // v2.60.0 -- the price this customer actually bought at, taken
             // at the moment of activation. Both cycles are stored so a
             // later monthly<->yearly switch does not silently reprice

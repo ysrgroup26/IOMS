@@ -9,6 +9,8 @@ use App\Models\Tenant;
 use App\Models\Workspace;
 use App\Services\PricingService;
 use App\Services\SubscriptionLifecycleService;
+use Database\Seeders\PackageSeeder;
+use Database\Seeders\WorkspaceSeeder;
 use Illuminate\Foundation\Testing\RefreshDatabase;
 use Tests\TestCase;
 
@@ -26,8 +28,8 @@ class FirstYearAnnualBenefitTest extends TestCase
     protected function setUp(): void
     {
         parent::setUp();
-        $this->seed(\Database\Seeders\WorkspaceSeeder::class);
-        $this->seed(\Database\Seeders\PackageSeeder::class);
+        $this->seed(WorkspaceSeeder::class);
+        $this->seed(PackageSeeder::class);
     }
 
     private function subscription(string $slug, string $cycle, array $extra = []): Subscription

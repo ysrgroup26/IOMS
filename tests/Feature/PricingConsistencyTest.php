@@ -8,6 +8,7 @@ use App\Models\TenantRegistration;
 use App\Models\User;
 use App\Services\PricingService;
 use Illuminate\Foundation\Testing\RefreshDatabase;
+use PHPUnit\Framework\Attributes\DataProvider;
 use Tests\Support\ApprovedCatalogue;
 use Tests\TestCase;
 
@@ -55,7 +56,7 @@ class PricingConsistencyTest extends TestCase
      * 1. THE APPROVED PRICES
      * ================================================================ */
 
-    #[\PHPUnit\Framework\Attributes\DataProvider('approvedPlans')]
+    #[DataProvider('approvedPlans')]
     public function test_the_migrated_catalog_carries_the_approved_prices(
         string $slug,
         float $monthly,

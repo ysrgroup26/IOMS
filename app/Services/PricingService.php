@@ -205,7 +205,6 @@ class PricingService
     }
 
     private function additionalUserPrice(Package $package): ?array
-
     {
         if ($package->is_custom) {
             return null;

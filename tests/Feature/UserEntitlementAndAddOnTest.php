@@ -3,9 +3,11 @@
 namespace Tests\Feature;
 
 use App\Models\Company;
+use App\Models\Employee;
 use App\Models\Invoice;
 use App\Models\Package;
 use App\Models\Subscription;
+use App\Models\SubscriptionAddOn;
 use App\Models\Tenant;
 use App\Models\User;
 use App\Models\Workspace;
@@ -16,6 +18,7 @@ use App\Support\CurrentTenant;
 use Illuminate\Foundation\Testing\RefreshDatabase;
 use Illuminate\Support\Facades\Auth;
 use Illuminate\Support\Facades\Mail;
+use PHPUnit\Framework\Attributes\DataProvider;
 use Tests\Support\ApprovedCatalogue;
 use Tests\TestCase;
 
@@ -44,6 +47,7 @@ class UserEntitlementAndAddOnTest extends TestCase
     use RefreshDatabase;
 
     private Tenant $tenant;
+
     private User $admin;
 
     protected function setUp(): void
@@ -114,7 +118,7 @@ class UserEntitlementAndAddOnTest extends TestCase
      * 1-6. The catalogue
      * ================================================================== */
 
-    #[\PHPUnit\Framework\Attributes\DataProvider('planProvider')]
+    #[DataProvider('planProvider')]
     public function test_each_plan_carries_its_approved_price_and_allowance(string $slug): void
     {
         [$monthly, $yearly, $included] = ApprovedCatalogue::PLANS[$slug];
@@ -168,7 +172,7 @@ class UserEntitlementAndAddOnTest extends TestCase
      * 8-10. The annual offer
      * ================================================================== */
 
-    #[\PHPUnit\Framework\Attributes\DataProvider('planProvider')]
+    #[DataProvider('planProvider')]
     public function test_annual_payment_and_service_period_match_the_approved_offer(string $slug): void
     {
         [$paidMonths, $serviceMonths] = ApprovedCatalogue::ANNUAL[$slug];
@@ -185,7 +189,7 @@ class UserEntitlementAndAddOnTest extends TestCase
         $this->assertSame($serviceMonths, $package->annualMonths(), "{$slug} service period");
     }
 
-    #[\PHPUnit\Framework\Attributes\DataProvider('planProvider')]
+    #[DataProvider('planProvider')]
     public function test_an_annual_renewal_extends_by_the_plans_own_service_period(string $slug): void
     {
         [, $serviceMonths] = ApprovedCatalogue::ANNUAL[$slug];
@@ -283,7 +287,7 @@ class UserEntitlementAndAddOnTest extends TestCase
         // people in a yard never sign in.
         $before = $this->entitlements()->usersUsedCount($this->tenant);
 
-        \App\Models\Employee::withoutGlobalScopes()->create([
+        Employee::withoutGlobalScopes()->create([
             'tenant_id' => $this->tenant->id,
             'company_id' => Company::withoutGlobalScopes()->where('tenant_id', $this->tenant->id)->value('id'),
             'employee_id' => 'EMP-001',
@@ -392,14 +396,14 @@ class UserEntitlementAndAddOnTest extends TestCase
          */
         $this->actingAs($this->admin)
             ->post(route('subscription.add-ons.store'), [
-                'type' => \App\Models\SubscriptionAddOn::TYPE_ADDITIONAL_USERS,
+                'type' => SubscriptionAddOn::TYPE_ADDITIONAL_USERS,
                 'quantity' => 2,
                 'unit_price' => 1,
                 'amount' => 1,
             ])
             ->assertRedirect();
 
-        $addOn = \App\Models\SubscriptionAddOn::where('tenant_id', $this->tenant->id)->sole();
+        $addOn = SubscriptionAddOn::where('tenant_id', $this->tenant->id)->sole();
 
         $this->assertSame(2, $addOn->quantity);
         $this->assertEquals(

@@ -1,0 +1,10 @@
+/** v2.146.0 -- attendance state labels (English, per the product's label language) and their tones. */
+export const STATE_LABEL = {
+    present: 'Present', late: 'Late', sick: 'Sick', permit: 'Permit', absent: 'Absent', leave: 'Leave',
+    not_in: 'Not Checked In', upcoming: 'Upcoming',
+};
+export const STATE_TONE = {
+    present: 'bg-emerald-100 text-emerald-700', late: 'bg-amber-100 text-amber-700', sick: 'bg-sky-100 text-sky-700',
+    permit: 'bg-sky-100 text-sky-700', absent: 'bg-red-100 text-red-700', leave: 'bg-violet-100 text-violet-700',
+    not_in: 'bg-red-100 text-red-700', upcoming: 'bg-graphite-100 text-graphite-600',
+};

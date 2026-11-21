@@ -59,6 +59,8 @@ class RestrictMyWorkUser
      */
     public const ALLOWED_PREFIXES = [
         'my-work',
+        // v2.146.0 -- the worker's own attendance (check-in / check-out only).
+        'my-attendance',
         'permits-to-work',
         'tasks',
         /*

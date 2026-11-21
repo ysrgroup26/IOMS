@@ -5,6 +5,7 @@ use App\Http\Controllers\ActivityCenterController;
 use App\Http\Controllers\AdminSpaceController;
 use App\Http\Controllers\AnalyticsController;
 use App\Http\Controllers\ApprovalController;
+use App\Http\Controllers\AttendanceController;
 use App\Http\Controllers\AssetController;
 use App\Http\Controllers\AssetDashboardController;
 use App\Http\Controllers\Auth\AuthenticatedSessionController;
@@ -56,6 +57,7 @@ use App\Http\Controllers\MaintenanceRequestController;
 use App\Http\Controllers\ManagementController;
 use App\Http\Controllers\ManHourController;
 use App\Http\Controllers\MaterialRequestController;
+use App\Http\Controllers\MyAttendanceController;
 use App\Http\Controllers\MilestoneController;
 use App\Http\Controllers\MyWorkAccountController;
 use App\Http\Controllers\NcrController;
@@ -1351,6 +1353,28 @@ Route::middleware(['auth', 'restrict.platform-admin'])->group(function () {
     Route::post('/employee-cases/{employeeCase}/close', [EmployeeCaseController::class, 'close'])->name('employee-cases.close');
     Route::post('/employee-cases/{employeeCase}/dismiss', [EmployeeCaseController::class, 'dismiss'])->name('employee-cases.dismiss');
     Route::post('/employee-cases/{employeeCase}/reopen', [EmployeeCaseController::class, 'reopen'])->name('employee-cases.reopen');
+
+    /*
+     * v2.146.0 -- Field Attendance (owner-approved design, 21 Nov 2026).
+     *
+     * `attendance.*` belongs to People / HRD (Business) in
+     * config/departments.php; `my-attendance.*` is the worker's own
+     * check-in, gated to the same workspace for the plan but universal
+     * across departments and open to My Work accounts. Every action
+     * authorizes itself in the controller -- no `role:` group.
+     */
+    Route::get('/attendance', [AttendanceController::class, 'index'])->name('attendance.index');
+    Route::post('/attendance/corrections', [AttendanceController::class, 'correct'])->name('attendance.correct');
+    Route::post('/attendance/{record}/overtime', [AttendanceController::class, 'decideOvertime'])->name('attendance.overtime');
+    Route::get('/attendance/crew', [AttendanceController::class, 'crew'])->name('attendance.crew');
+    Route::post('/attendance/crew', [AttendanceController::class, 'crewStore'])->name('attendance.crew.store');
+    Route::get('/attendance/settings', [AttendanceController::class, 'settings'])->name('attendance.settings');
+    Route::put('/attendance/settings', [AttendanceController::class, 'updateSettings'])->name('attendance.settings.update');
+    Route::post('/attendance/sites', [AttendanceController::class, 'storeSite'])->name('attendance.sites.store');
+    Route::put('/attendance/sites/{site}', [AttendanceController::class, 'updateSite'])->name('attendance.sites.update');
+    Route::delete('/attendance/sites/{site}', [AttendanceController::class, 'destroySite'])->name('attendance.sites.destroy');
+    Route::post('/my-attendance/check-in', [MyAttendanceController::class, 'checkIn'])->name('my-attendance.check-in');
+    Route::post('/my-attendance/check-out', [MyAttendanceController::class, 'checkOut'])->name('my-attendance.check-out');
 
     // Man-Hour (v1.11.6, Production Readiness pass, Part 4) -- HR-owned operational log, see ManHourController's own doc comment.
     Route::get('/man-hour', [ManHourController::class, 'index'])->name('man-hour.index');

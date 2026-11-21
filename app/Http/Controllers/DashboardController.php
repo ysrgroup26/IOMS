@@ -15,6 +15,7 @@ use App\Models\Task;
 use App\Services\CalendarService;
 use App\Services\DashboardStatsService;
 use App\Services\EntitlementService;
+use App\Services\AttendanceService;
 use App\Services\MyWorkService;
 use App\Services\TenantReadinessService;
 use App\Services\WorkCenterService;
@@ -509,6 +510,11 @@ class DashboardController extends Controller
             // PermitToWorkController enforces the same gate server-side.
             'canCreatePtw' => $user->canCreatePtw(),
             'isFieldUser' => $user->isFieldUser(),
+            // v2.146.0 -- Field Attendance card: only when the plan includes
+            // People / HRD and this login is linked to a person.
+            'attendance' => RouteReach::allows($user, 'my-attendance.check-in') && $user->employee_id
+                ? app(AttendanceService::class)->myStatus($user)
+                : null,
         ]);
     }
 }

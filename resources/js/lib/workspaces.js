@@ -96,6 +96,10 @@ export const WORKSPACES = [
             // (regular/overtime hours per employee per date) -- replaces
             // the placeholder rather than sitting alongside it as a
             // second, confusing "almost the same thing" entry.
+            // v2.146.0 -- real Attendance (My Work check-in, crew roll call,
+            // HRD corrections) now exists and FEEDS Man-Hour, so both sit
+            // here: Attendance is the source, Man-Hour the hours it produced.
+            { name: 'Attendance', href: 'attendance.index', icon: UserCheck, capability: 'can_view_attendance' },
             { name: 'Man-Hour', href: 'man-hour.index', icon: ClipboardList },
             { name: 'Leave', href: 'leave-requests.index', icon: CalendarDays },
             // v2.69.0 -- Employee Cases (employee relations / discipline).

@@ -720,6 +720,32 @@ class User extends Authenticatable implements MustVerifyEmail
         return $this->isSuperAdmin() || $this->isHrd() || $this->isHse();
     }
 
+    /**
+     * v2.146.0 -- Field Attendance. HRD owns the attendance register and is
+     * the only role (with Super Admin) that may CORRECT a day, because a
+     * correction changes paid hours.
+     */
+    public function canManageAttendance(): bool
+    {
+        return $this->isSuperAdmin() || $this->isHrd();
+    }
+
+    /**
+     * Crew roll call: the people who stand in front of a crew in the
+     * morning -- site/department managers and HSE as well as HRD. A roll
+     * call never overwrites a worker's own check-in.
+     */
+    public function canTakeCrewAttendance(): bool
+    {
+        return $this->isFullUser() && ($this->isSuperAdmin() || $this->isHrd() || $this->isManager() || $this->isHse());
+    }
+
+    /** Overtime reaches Man-Hour only after a supervisor approves it (owner decision, 21 Nov 2026). */
+    public function canApproveOvertime(): bool
+    {
+        return $this->isFullUser() && ($this->isSuperAdmin() || $this->isHrd() || $this->isManager());
+    }
+
     /** Incident Management (v1.10.0) -- HSE's own domain, same gate as PPE/Employees. */
     public function canManageIncidents(): bool
     {

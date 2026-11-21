@@ -2,6 +2,9 @@
 
 namespace App\Http\Controllers;
 
+use App\Services\AttendanceService;
+use App\Support\RouteReach;
+
 use App\Models\Employee;
 use App\Models\EmployeeCompetency;
 use App\Models\EmployeeShiftAssignment;
@@ -46,7 +49,13 @@ class HrDashboardController extends Controller
         $today = Carbon::today();
         $companyIds = $this->dashboardStats->resolveCompanyIds(null);
 
+        // v2.146.0 -- Workforce Today (Field Attendance), only where the plan includes it.
+        $workforceToday = RouteReach::allows(auth()->user(), 'attendance.index')
+            ? app(AttendanceService::class)->summary($companyIds, app(AttendanceService::class)->today())
+            : null;
+
         return Inertia::render('Hr/Dashboard', [
+            'workforceToday' => $workforceToday,
             'totalEmployees' => Employee::whereIn('company_id', $companyIds)->count(),
             'activeEmployees' => Employee::whereIn('company_id', $companyIds)->active()->count(),
             'onShiftToday' => EmployeeShiftAssignment::whereHas('employee', fn ($q) => $q->whereIn('company_id', $companyIds))

@@ -1,4 +1,5 @@
 import { Head } from '@inertiajs/react';
+import WorkforceToday from '@/Components/attendance/WorkforceToday';
 import AuthenticatedLayout from '@/Layouts/AuthenticatedLayout';
 import DashboardShell from '@/Components/shared/DashboardShell';
 import StatCard from '@/Components/shared/StatCard';
@@ -31,12 +32,19 @@ const HR_MODULES = [
 export default function HrDashboard({
     totalEmployees, activeEmployees, onShiftToday, employeesOnLeaveToday, pendingLeaveRequests,
     employeesNeedCompletionCount, kpiThisMonth, contractExpiringCount, certificationExpiringCount,
-    attentionRequired, recentLeaveRequests, departmentCalendar,
+    attentionRequired, recentLeaveRequests, departmentCalendar, workforceToday = null,
 }) {
     return (
         <AuthenticatedLayout>
             <Head title="HR Overview" />
             <DashboardShell title="HR Overview" subtitle="Ringkasan operasional HRD.">
+                {/* v2.146.0 -- Field Attendance: who is actually here today. */}
+                {workforceToday && (
+                    <div className="mb-5">
+                        <WorkforceToday summary={workforceToday} registerHref={route('attendance.index')} />
+                    </div>
+                )}
+
                 {/* LEVEL 1 -- compact KPI strip */}
                 <div className="grid grid-cols-2 gap-3 lg:grid-cols-6">
                     <StatCard icon={Users} value={activeEmployees} label="Active Employees" href={route('employees.index', { status: 'active' })} />

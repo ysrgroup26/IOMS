@@ -20,6 +20,10 @@ return [
         'employees', 'employee-cases', 'employee-competencies', 'employee-rosters',
         'employee-shift-assignments', 'leave-requests', 'shifts', 'rosters',
         'roster-patterns', 'competency', 'competency-types', 'hr',
+        // v2.146.0 -- Field Attendance is People / HRD (Business). `my-attendance`
+        // is listed here for the PLAN gate only; RestrictDepartmentAccess
+        // treats it as universal, because whoever works on site checks in.
+        'attendance', 'my-attendance',
         // v1.11.15: 'man-hour' moved OUT of this list -- see
         // RestrictDepartmentAccess::UNIVERSAL_PREFIXES for why (genuinely
         // shared HR+HSE data, same reasoning already applied to

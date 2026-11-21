@@ -84,6 +84,8 @@ class HandleInertiaRequests extends Middleware
                      * most of them; see workspaces.js's capability gate.
                      */
                     'can_manage_employee_cases' => $user->canManageEmployeeCases(),
+                    // v2.146.0 -- Attendance register (HRD manages; supervisors approve overtime; crew leads take roll call).
+                    'can_view_attendance' => $user->canManageAttendance() || $user->canApproveOvertime() || $user->canTakeCrewAttendance(),
                     'can_manage_warehouse' => $user->canManageWarehouse(),
                     // Department User mechanism (v1.10.2) -- see
                     // User::isDepartmentUser()'s own doc comment.

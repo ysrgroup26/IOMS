@@ -55,6 +55,9 @@ class RestrictDepartmentAccess
         // `dashboard`. Cross-department by definition -- it is a personal
         // task list, owned by no department.
         'my-work',
+        // v2.146.0 -- a worker's own check-in, from any department. The plan
+        // gate (Business) still applies through config/departments.php.
+        'my-attendance',
         'search', 'logout', 'login', 'password',
         /*
          * v2.74.0 -- ACCOUNT, AUTHENTICATION AND SUBSCRIPTION ACQUISITION.

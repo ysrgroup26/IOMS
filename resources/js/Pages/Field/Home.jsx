@@ -1,4 +1,5 @@
 import { Head, Link } from '@inertiajs/react';
+import MyAttendanceCard from '@/Components/attendance/MyAttendanceCard';
 import AuthenticatedLayout from '@/Layouts/AuthenticatedLayout';
 import StatusBadge from '@/Components/shared/StatusBadge';
 import {
@@ -64,6 +65,7 @@ export default function FieldHome({
     counts = {},
     links = {},
     canCreatePtw = false,
+    attendance = null,
 }) {
     const now = useClock();
 
@@ -100,6 +102,8 @@ export default function FieldHome({
                     Yang menunggu keputusan Anda, pekerjaan Anda, dan izin kerja Anda dalam satu tempat.
                 </p>
             </div>
+
+            <MyAttendanceCard attendance={attendance} />
 
             <nav aria-label="My Work summary" className="mb-5 grid grid-cols-3 gap-2">
                 {summary.map((card) => (
